@@ -127,11 +127,11 @@ const VerifyEmailForm: FC<{
                                 >
                                     Submit
                                 </Button>
-                                <Text c="ldGray.6" ta="center">
+                                <Text c="ldGray.6" ta="center" fz="sm" fw={500}>
                                     Your one-time password expires in{' '}
-                                    <b>
+                                    <Text span fw={500} fz="sm" c="ldGray.7">
                                         {zeroPad(minutes)}:{zeroPad(seconds)}
-                                    </b>
+                                    </Text>
                                 </Text>
                             </Stack>
                         );

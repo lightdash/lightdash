@@ -79,16 +79,16 @@ const VerifyEmailPage: FC = () => {
                 <Box mx="auto" my="lg">
                     <LightdashLogo />
                 </Box>
-                <Card p="xl" radius="xs" withBorder shadow="xs">
+                <Card p="xl" withBorder shadow="subtle">
                     <VerifyEmailForm
                         emailStatusData={data}
                         statusLoading={statusLoading}
                     />
                 </Card>
-                <Text c="ldGray.6" ta="center" px="xs">
+                <Text c="ldGray.6" ta="center" px="xs" fz="sm" fw={500}>
                     You need to verify your email to get access to Lightdash. If
                     you need help, you can{' '}
-                    <Anchor onClick={() => showIntercom()}>
+                    <Anchor onClick={() => showIntercom()} fz="sm" fw={500}>
                         chat to support here.
                     </Anchor>
                 </Text>

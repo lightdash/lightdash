@@ -9,8 +9,9 @@ import {
     Highlight,
     HoverCard,
     NavLink,
+    Paper,
     Text,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import { useToggle } from '@mantine/hooks';
 import {
     IconAlertTriangle,
@@ -73,7 +74,22 @@ const ExploreNavLink: React.FC<ExploreNavLinkProps> = ({
         <NavLink
             role="listitem"
             disabled={isError}
-            icon={<MantineIcon icon={IconTable} size="lg" color="ldGray.7" />}
+            leftSection={
+                <Paper
+                    radius="sm"
+                    bg="ldGray.0"
+                    p={0}
+                    shadow="none"
+                    withBorder={false}
+                >
+                    <MantineIcon
+                        icon={IconTable}
+                        size="md"
+                        color="ldGray.7"
+                        stroke={1.5}
+                    />
+                </Paper>
+            }
             onClick={isError ? undefined : onClick}
             onMouseEnter={needsHoverCard ? undefined : () => toggleHover(true)}
             onMouseLeave={needsHoverCard ? undefined : () => toggleHover(false)}
@@ -98,6 +114,9 @@ const ExploreNavLink: React.FC<ExploreNavLinkProps> = ({
                             component={Text}
                             highlight={query ?? ''}
                             truncate
+                            fz="sm"
+                            fw={500}
+                            c="ldDark.8"
                         >
                             {explore.label}
                         </Highlight>
@@ -118,8 +137,7 @@ const ExploreNavLink: React.FC<ExploreNavLinkProps> = ({
             position="right"
             withArrow
             radius="md"
-            shadow="subtle"
-            variant="xs"
+            shadow="sm"
         >
             <HoverCard.Target>
                 <Box>{navLink}</Box>
