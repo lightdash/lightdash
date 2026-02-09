@@ -1,3 +1,10 @@
+## [0.2439.2](https://github.com/lightdash/lightdash/compare/0.2439.1...0.2439.2) (2026-02-09)
+
+
+### Bug Fixes
+
+* upgrade @modelcontextprotocol/sdk from 1.25.2 to 1.26.0 ([#20005](https://github.com/lightdash/lightdash/issues/20005)) ([a50dbf6](https://github.com/lightdash/lightdash/commit/a50dbf6dc8b0f22d01e2eb2434f10b0270e2db13))
+
 ## [0.2439.1](https://github.com/lightdash/lightdash/compare/0.2439.0...0.2439.1) (2026-02-06)
 
 
