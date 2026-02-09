@@ -1,14 +1,27 @@
 import { subject } from '@casl/ability';
 import { FeatureFlags } from '@lightdash/common';
-import { Anchor, Button, Group, Stack, Tabs, Text } from '@mantine/core';
-import { IconPlus, IconUser, IconUsersGroup } from '@tabler/icons-react';
+import {
+    ActionIcon,
+    Button,
+    Group,
+    Stack,
+    Tabs,
+    Title,
+    Tooltip,
+} from '@mantine-8/core';
+import {
+    IconInfoCircle,
+    IconPlus,
+    IconUser,
+    IconUsersGroup,
+} from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { ProjectGroupAccess } from '../../features/projectGroupAccess';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
-import { Can } from '../../providers/Ability';
 import useApp from '../../providers/App/useApp';
 import MantineIcon from '../common/MantineIcon';
 import ProjectAccess from './ProjectAccess';
+import classes from './ProjectAccess.module.css';
 
 interface ProjectUserAccessProps {
     projectUuid: string;
@@ -35,112 +48,99 @@ const ProjectUserAccess: FC<ProjectUserAccessProps> = ({ projectUuid }) => {
         userGroupsFeatureFlagQuery.isSuccess &&
         userGroupsFeatureFlagQuery.data.enabled;
 
+    const canManageProjectAccess = user.data.ability.can(
+        'manage',
+        subject('Project', {
+            organizationUuid: user.data?.organizationUuid,
+            projectUuid,
+        }),
+    );
+
     return (
-        <Stack>
-            <Group position="apart">
-                <Text color="dimmed">
-                    Learn more about permissions in our{' '}
-                    <Anchor
-                        role="button"
-                        href="https://docs.lightdash.com/references/roles"
-                        target="_blank"
-                        rel="noreferrer"
+        <Stack gap="sm">
+            <Tabs
+                keepMounted={false}
+                defaultValue="users"
+                variant="pills"
+                classNames={{
+                    list: classes.tabsList,
+                    tab: classes.tab,
+                    panel: classes.panel,
+                }}
+            >
+                <Group gap="xs" align="center" className={classes.header}>
+                    <Title order={5}>Project access</Title>
+                    <Tooltip
+                        label="Click here to learn more about permissions"
+                        position="right"
                     >
-                        docs
-                    </Anchor>
-                </Text>
-            </Group>
-
-            <Tabs defaultValue="users">
-                <Stack>
-                    {isGroupManagementEnabled && (
-                        <Tabs.List>
-                            <Tabs.Tab
-                                icon={<MantineIcon icon={IconUser} size="sm" />}
-                                value="users"
-                            >
-                                Users
-                            </Tabs.Tab>
-                            <Tabs.Tab
-                                icon={
-                                    <MantineIcon
-                                        icon={IconUsersGroup}
-                                        size="sm"
-                                    />
-                                }
-                                value="groups"
-                            >
-                                Groups
-                            </Tabs.Tab>
-                        </Tabs.List>
-                    )}
-
-                    <Tabs.Panel value="users">
-                        <Stack>
-                            <Can
-                                I="manage"
-                                this={subject('Project', {
-                                    organizationUuid:
-                                        user.data?.organizationUuid,
-                                    projectUuid,
-                                })}
-                            >
+                        <ActionIcon
+                            component="a"
+                            href="https://docs.lightdash.com/references/roles"
+                            target="_blank"
+                            rel="noreferrer"
+                            variant="subtle"
+                            size="xs"
+                            color="ldGray.6"
+                        >
+                            <MantineIcon icon={IconInfoCircle} />
+                        </ActionIcon>
+                    </Tooltip>
+                </Group>
+                {isGroupManagementEnabled && (
+                    <Tabs.List>
+                        <Tabs.Tab
+                            value="users"
+                            leftSection={<MantineIcon icon={IconUser} />}
+                        >
+                            Users
+                        </Tabs.Tab>
+                        <Tabs.Tab
+                            value="groups"
+                            leftSection={<MantineIcon icon={IconUsersGroup} />}
+                        >
+                            Groups
+                        </Tabs.Tab>
+                    </Tabs.List>
+                )}
+                <Tabs.Panel value="users">
+                    <ProjectAccess
+                        projectUuid={projectUuid}
+                        isAddingProjectAccess={showProjectAccessAdd}
+                        onAddProjectAccessOpen={() =>
+                            setShowProjectAccessAdd(true)
+                        }
+                        onAddProjectAccessClose={() =>
+                            setShowProjectAccessAdd(false)
+                        }
+                    />
+                </Tabs.Panel>
+                <Tabs.Panel value="groups">
+                    <Stack gap="md">
+                        {canManageProjectAccess && (
+                            <Group justify="flex-end">
                                 <Button
-                                    style={{ alignSelf: 'flex-end' }}
-                                    leftIcon={<MantineIcon icon={IconPlus} />}
-                                    onClick={() =>
-                                        setShowProjectAccessAdd(true)
-                                    }
                                     size="xs"
-                                >
-                                    Add user access
-                                </Button>
-                            </Can>
-
-                            <ProjectAccess
-                                projectUuid={projectUuid}
-                                isAddingProjectAccess={showProjectAccessAdd}
-                                onAddProjectAccessClose={() =>
-                                    setShowProjectAccessAdd(false)
-                                }
-                            />
-                        </Stack>
-                    </Tabs.Panel>
-
-                    <Tabs.Panel value="groups">
-                        <Stack>
-                            <Can
-                                I="manage"
-                                this={subject('Project', {
-                                    organizationUuid:
-                                        user.data?.organizationUuid,
-                                    projectUuid,
-                                })}
-                            >
-                                <Button
-                                    style={{ alignSelf: 'flex-end' }}
-                                    leftIcon={<MantineIcon icon={IconPlus} />}
+                                    leftSection={<MantineIcon icon={IconPlus} />}
                                     onClick={() =>
                                         setShowProjectGroupAccessAdd(true)
                                     }
-                                    size="xs"
                                 >
                                     Add group access
                                 </Button>
-                            </Can>
-
-                            <ProjectGroupAccess
-                                projectUuid={projectUuid}
-                                isAddingProjectGroupAccess={
-                                    showProjectGroupAccessAdd
-                                }
-                                onAddProjectGroupAccessClose={() =>
-                                    setShowProjectGroupAccessAdd(false)
-                                }
-                            />
-                        </Stack>
-                    </Tabs.Panel>
-                </Stack>
+                            </Group>
+                        )}
+                        <ProjectGroupAccess
+                            projectUuid={projectUuid}
+                            isAddingProjectGroupAccess={
+                                showProjectGroupAccessAdd
+                            }
+                            onAddProjectGroupAccessClose={() =>
+                                setShowProjectGroupAccessAdd(false)
+                            }
+                        />
+                    </Stack>
+                </Tabs.Panel>
             </Tabs>
         </Stack>
     );

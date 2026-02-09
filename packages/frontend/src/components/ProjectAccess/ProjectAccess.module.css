@@ -1,0 +1,63 @@
+.tabsList {
+    gap: 0.5rem;
+}
+
+.tab {
+    font-weight: 500;
+    font-size: 0.875rem;
+    padding: 0.5rem 1rem;
+    transition: all 150ms ease;
+    border-radius: var(--mantine-radius-md);
+    border: 1px solid
+        light-dark(var(--mantine-color-ldGray-3), var(--mantine-color-ldDark-4));
+    color: light-dark(
+        var(--mantine-color-ldGray-7),
+        var(--mantine-color-ldDark-1)
+    );
+    background-color: light-dark(
+        var(--mantine-color-white),
+        var(--mantine-color-ldDark-6)
+    );
+}
+
+.tab:hover {
+    border-color: light-dark(
+        var(--mantine-color-ldGray-4),
+        var(--mantine-color-ldDark-3)
+    );
+    background-color: light-dark(
+        var(--mantine-color-ldGray-0),
+        var(--mantine-color-ldDark-5)
+    );
+}
+
+.tab[data-active='true'] {
+    background-color: light-dark(
+        var(--mantine-color-ldGray-9),
+        var(--mantine-color-ldDark-4)
+    );
+    border-color: light-dark(
+        var(--mantine-color-ldGray-9),
+        var(--mantine-color-ldDark-4)
+    );
+    color: light-dark(var(--mantine-color-white), var(--mantine-color-white));
+}
+
+.tab[data-active='true']:hover {
+    background-color: light-dark(
+        var(--mantine-color-ldGray-8),
+        var(--mantine-color-ldDark-3)
+    );
+    border-color: light-dark(
+        var(--mantine-color-ldGray-8),
+        var(--mantine-color-ldDark-3)
+    );
+}
+
+.panel {
+    padding-top: 1rem;
+}
+
+.header {
+    padding-bottom: 0.75rem;
+}
