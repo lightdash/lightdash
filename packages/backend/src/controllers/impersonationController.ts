@@ -3,7 +3,6 @@ import {
     ApiStartImpersonationRequest,
     ApiStartImpersonationResponse,
     ApiStopImpersonationResponse,
-    ForbiddenError,
 } from '@lightdash/common';
 import {
     Body,
@@ -36,18 +35,15 @@ export class ImpersonationController extends BaseController {
         @Request() req: express.Request,
         @Body() body: ApiStartImpersonationRequest,
     ): Promise<ApiStartImpersonationResponse> {
-        if (!req.account || req.account.authentication.type !== 'session') {
-            throw new ForbiddenError(
-                'Impersonation requires session authentication',
-            );
-        }
-
-        if (!req.user) {
-            throw new ForbiddenError('User session not found');
-        }
         await this.services
             .getUserService()
-            .startImpersonation(req.user, body.targetUserUuid, req.session);
+            .startImpersonation(req.user!, body.targetUserUuid, {
+                isSessionAuth: req.account?.authentication.type === 'session',
+                getImpersonation: () => req.session.impersonation,
+                setImpersonation: (data) => {
+                    req.session.impersonation = data;
+                },
+            });
         this.setStatus(200);
         return {
             status: 'ok',
@@ -66,13 +62,12 @@ export class ImpersonationController extends BaseController {
     async stopImpersonation(
         @Request() req: express.Request,
     ): Promise<ApiStopImpersonationResponse> {
-        if (!req.account || req.account.authentication.type !== 'session') {
-            throw new ForbiddenError(
-                'Impersonation requires session authentication',
-            );
-        }
-
-        await this.services.getUserService().stopImpersonation(req.session);
+        await this.services.getUserService().stopImpersonation({
+            getImpersonation: () => req.session.impersonation,
+            clearImpersonation: () => {
+                delete req.session.impersonation;
+            },
+        });
         this.setStatus(200);
         return {
             status: 'ok',

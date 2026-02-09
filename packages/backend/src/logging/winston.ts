@@ -163,8 +163,10 @@ export const expressWinstonMiddleware: express.RequestHandler =
         dynamicMeta: (req, res) => ({
             userUuid: req.user?.userUuid,
             organizationUuid: req.user?.organizationUuid,
-            impersonatorUserUuid: req.session?.impersonation?.adminUserUuid,
-            impersonatedUserUuid: req.session?.impersonation?.targetUserUuid,
+            impersonationAdminUserUuid:
+                req.session?.impersonation?.adminUserUuid,
+            impersonationTargetUserUuid:
+                req.session?.impersonation?.targetUserUuid,
             includesResponse: true,
         }),
         requestWhitelist: ['url', 'headers', 'method'],
@@ -195,8 +197,10 @@ export const expressWinstonPreResponseMiddleware: express.RequestHandler = (
             includesResponse: false,
             userUuid: req.user?.userUuid,
             organizationUuid: req.user?.organizationUuid,
-            impersonatorUserUuid: req.session?.impersonation?.adminUserUuid,
-            impersonatedUserUuid: req.session?.impersonation?.targetUserUuid,
+            impersonationAdminUserUuid:
+                req.session?.impersonation?.adminUserUuid,
+            impersonationTargetUserUuid:
+                req.session?.impersonation?.targetUserUuid,
         });
     }
     next();
