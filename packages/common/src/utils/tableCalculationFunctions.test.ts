@@ -611,7 +611,7 @@ describe('tableCalculationFunctions', () => {
                     const functions = parseTableCalculationFunctions(sql);
                     const compiled = compiler.compileFunctions(sql, functions);
                     const expectedSql =
-                        'ARRAY_AGG(revenue) OVER (PARTITION BY "row_index" ORDER BY "column_index")';
+                        'ARRAY_AGG(revenue) OVER (PARTITION BY "row_index" ORDER BY "column_index" ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING)';
                     expect(compiled).toBe(expectedSql);
                 });
 
@@ -621,7 +621,7 @@ describe('tableCalculationFunctions', () => {
                     const compiled = compiler.compileFunctions(sql, functions);
 
                     const expectedSql =
-                        'ARRAY_AGG(revenue * 100) OVER (PARTITION BY "row_index" ORDER BY "column_index")';
+                        'ARRAY_AGG(revenue * 100) OVER (PARTITION BY "row_index" ORDER BY "column_index" ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING)';
                     expect(compiled).toBe(expectedSql);
                 });
 
@@ -631,7 +631,7 @@ describe('tableCalculationFunctions', () => {
                     const compiled = compiler.compileFunctions(sql, functions);
 
                     const expectedSql =
-                        'ARRAY_LENGTH(ARRAY_AGG(status) OVER (PARTITION BY "row_index" ORDER BY "column_index"), 1)';
+                        'ARRAY_LENGTH(ARRAY_AGG(status) OVER (PARTITION BY "row_index" ORDER BY "column_index" ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING), 1)';
                     expect(compiled).toBe(expectedSql);
                 });
             });

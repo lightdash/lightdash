@@ -613,6 +613,6 @@ export class TableCalculationFunctionCompiler {
         // Array aggregation with window functions doesn't support ORDER BY inside the aggregate
         // We need to use the base array aggregation without ordering and put ORDER BY in the window clause
         const baseAgg = this.warehouseSqlBuilder.buildArrayAgg(expression);
-        return `${baseAgg} OVER (PARTITION BY ${q}row_index${q} ORDER BY ${q}column_index${q})`;
+        return `${baseAgg} OVER (PARTITION BY ${q}row_index${q} ORDER BY ${q}column_index${q} ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING)`;
     }
 }
