@@ -4,13 +4,25 @@ import {
 } from '../types/projects';
 
 function serializeConfig(config: Record<string, unknown>): string {
-    const sorted = Object.keys(config)
-        .sort()
-        .reduce<Record<string, unknown>>((acc, key) => {
-            acc[key] = config[key];
-            return acc;
-        }, {});
-    return JSON.stringify(sorted);
+    return JSON.stringify(config, (_key, value) =>
+        value !== null && typeof value === 'object' && !Array.isArray(value)
+            ? Object.keys(value as Record<string, unknown>)
+                  .sort()
+                  .reduce<Record<string, unknown>>((acc, k) => {
+                      acc[k] = (value as Record<string, unknown>)[k];
+                      return acc;
+                  }, {})
+            : value,
+    );
+}
+
+function hasConfigChanged(
+    before: Record<string, unknown> | undefined,
+    after: Record<string, unknown> | undefined,
+): boolean {
+    if (before === undefined && after === undefined) return false;
+    if (before === undefined || after === undefined) return true;
+    return serializeConfig(before) !== serializeConfig(after);
 }
 
 export function hasConnectionChanges(
@@ -23,25 +35,19 @@ export function hasConnectionChanges(
         dbtConnection?: DbtProjectConfig;
     },
 ): boolean {
-    const warehouseChanged =
-        before.warehouseConnection !== undefined &&
-        after.warehouseConnection !== undefined &&
-        serializeConfig(
-            before.warehouseConnection as unknown as Record<string, unknown>,
-        ) !==
-            serializeConfig(
-                after.warehouseConnection as unknown as Record<string, unknown>,
-            );
+    const warehouseChanged = hasConfigChanged(
+        before.warehouseConnection as unknown as
+            | Record<string, unknown>
+            | undefined,
+        after.warehouseConnection as unknown as
+            | Record<string, unknown>
+            | undefined,
+    );
 
-    const dbtChanged =
-        before.dbtConnection !== undefined &&
-        after.dbtConnection !== undefined &&
-        serializeConfig(
-            before.dbtConnection as unknown as Record<string, unknown>,
-        ) !==
-            serializeConfig(
-                after.dbtConnection as unknown as Record<string, unknown>,
-            );
+    const dbtChanged = hasConfigChanged(
+        before.dbtConnection as unknown as Record<string, unknown> | undefined,
+        after.dbtConnection as unknown as Record<string, unknown> | undefined,
+    );
 
     return warehouseChanged || dbtChanged;
 }
