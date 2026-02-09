@@ -170,7 +170,7 @@
         "test:dev:nowatch": "TZ=UTC LANG=en_US.UTF-8 jest --config jest.config.dev.js --onlyChanged",
         "test:integration": "vitest run --config vitest.config.integration.ts",
         "test:integration:dev": "vitest run --config vitest.config.integration.ts --watch",
-        "linter": "eslint -c .eslintrc.js --ignore-path ./../../.gitignore --ignore-pattern ./src/generated/*",
+        "linter": "eslint -c .eslintrc.js --ignore-pattern node_modules --ignore-pattern dist --ignore-pattern ./src/generated/*",
         "formatter": "prettier --config .prettierrc.js --ignore-unknown --ignore-path ./../../.gitignore",
         "lint": "pnpm run linter ./src",
         "fix-lint": "pnpm run linter ./src --fix",
