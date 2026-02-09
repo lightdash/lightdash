@@ -43,6 +43,9 @@ export const ROW_FUNCTIONS = [
     TableCalculationFunctionType.OFFSET,
     TableCalculationFunctionType.OFFSET_LIST,
     TableCalculationFunctionType.LOOKUP,
+    // LIST is a pure value-construction function (no windowing), but it's grouped
+    // with row functions because it's not a pivot function and shares the same
+    // compilation path (non-pivoted table calculations).
     TableCalculationFunctionType.LIST,
 ] as const;
 
@@ -381,7 +384,9 @@ export function parseTableCalculationFunctions(
 
             if (endIdx !== -1) {
                 const argsStr = sql.slice(argsStart, endIdx);
-                // Split by commas at top level (not inside nested parens)
+                // Split by commas at top level (not inside nested parens).
+                // Note: this doesn't track string quotes, so list('a,b', c) would
+                // mis-split. Acceptable since values are typically column references.
                 const values: string[] = [];
                 let depth = 0;
                 let lastSplit = 0;
@@ -788,6 +793,11 @@ export class TableCalculationFunctionCompiler {
         rowIndex: number,
         orderByClause?: string,
     ): string {
+        if (rowIndex < 1) {
+            throw new Error(
+                `index() rowIndex must be >= 1 (got ${rowIndex}). NTH_VALUE is 1-based.`,
+            );
+        }
         const window = orderByClause
             ? `OVER (ORDER BY ${orderByClause} ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING)`
             : 'OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING)';
@@ -828,6 +838,9 @@ export class TableCalculationFunctionCompiler {
         lookupColumn: string,
         resultColumn: string,
     ): string {
+        // MAX returns the largest matching value when multiple rows match the lookup.
+        // Looker uses first-match-in-sort-order (FIRST_VALUE with ordering), but that
+        // adds significant complexity for an unlikely edge case in practice.
         return `MAX(CASE WHEN ${lookupColumn} = ${value} THEN ${resultColumn} ELSE NULL END) OVER ()`;
     }
 }
