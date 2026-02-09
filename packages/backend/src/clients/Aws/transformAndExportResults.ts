@@ -72,7 +72,6 @@ export async function transformAndExportResults(
         // Close the upload stream and wait for completion
         await close();
 
-        // Get the signed URL for the exported file
         const fileUrl = await exportsStorageClient.getFileUrl(destFileName);
 
         Logger.debug(

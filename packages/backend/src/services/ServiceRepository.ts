@@ -330,6 +330,8 @@ export class ServiceRepository
                     schedulerClient: this.clients.getSchedulerClient(),
                     projectModel: this.models.getProjectModel(),
                     pivotTableService: this.getPivotTableService(),
+                    persistentDownloadFileService:
+                        this.getPersistentDownloadFileService(),
                 }),
         );
     }
@@ -555,6 +557,8 @@ export class ServiceRepository
                     lightdashConfig: this.context.lightdashConfig,
                     s3Client: this.clients.getS3Client(),
                     downloadFileModel: this.models.getDownloadFileModel(),
+                    persistentDownloadFileService:
+                        this.getPersistentDownloadFileService(),
                 }),
         );
     }
