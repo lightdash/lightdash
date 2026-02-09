@@ -1,4 +1,5 @@
 import {
+    friendlyName,
     type MetricExplorerDateRange,
     type MetricTotalComparisonType,
     type MetricWithAssociatedTimeDimension,
@@ -175,6 +176,28 @@ const MetricDetailContent: FC<MetricDetailContentProps> = ({
                     {sqlToShow}
                 </Prism>
             </Box>
+
+            {metric.timeDimension && (
+                <>
+                    <Divider />
+                    <Group justify="space-between" gap="xs">
+                        <Text size="xs" c="dimmed" fw={500} mb={4}>
+                            Time dimension
+                        </Text>
+                        <Tooltip
+                            label={`${metric.timeDimension.table}.${metric.timeDimension.field}`}
+                            withinPortal
+                        >
+                            <Text size="xs">
+                                {metric.timeDimension.table !== metric.table &&
+                                    `${friendlyName(metric.timeDimension.table)} `}
+                                {friendlyName(metric.timeDimension.field)} (
+                                {friendlyName(metric.timeDimension.interval)})
+                            </Text>
+                        </Tooltip>
+                    </Group>
+                </>
+            )}
 
             {compiledQueryConfig && (
                 <CompiledQuerySection
