@@ -790,11 +790,13 @@ export class SavedChartModel {
             .select(`${SavedChartsTableName}.saved_query_id`)
             .distinct()
             .from(SavedChartsTableName)
-            .leftJoin(
-                DashboardsTableName,
-                `${DashboardsTableName}.dashboard_uuid`,
-                `${SavedChartsTableName}.dashboard_uuid`,
-            )
+            .leftJoin(DashboardsTableName, function nonDeletedDashboardJoin() {
+                this.on(
+                    `${DashboardsTableName}.dashboard_uuid`,
+                    '=',
+                    `${SavedChartsTableName}.dashboard_uuid`,
+                ).andOnNull(`${DashboardsTableName}.deleted_at`);
+            })
             .joinRaw(
                 `INNER JOIN ${SpaceTableName} ON ${SpaceTableName}.space_id = COALESCE(${SavedChartsTableName}.space_id, ${DashboardsTableName}.space_id)`,
             )
@@ -803,7 +805,8 @@ export class SavedChartModel {
                 `${SpaceTableName}.project_id`,
                 `${ProjectTableName}.project_id`,
             )
-            .where(`${ProjectTableName}.project_uuid`, projectUuid);
+            .where(`${ProjectTableName}.project_uuid`, projectUuid)
+            .whereNull(`${SavedChartsTableName}.deleted_at`);
 
         // Get latest versions for these charts
         const latestVersions = this.database
