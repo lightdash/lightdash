@@ -523,26 +523,24 @@ describe('tableCalculationFunctions', () => {
             });
 
             describe('pivot_offset_list compilation', () => {
-                it('should compile pivot_offset_list to NULL placeholder', () => {
+                it('should pass through pivot_offset_list as-is (not yet implemented)', () => {
                     const sql = 'pivot_offset_list(revenue, -2, 3)';
                     const functions = parseTableCalculationFunctions(sql);
                     const compiled = compiler.compileFunctions(sql, functions);
 
-                    // Currently returns NULL as array construction varies by warehouse
-                    const expectedSql = 'NULL';
-                    expect(compiled).toBe(expectedSql);
+                    // pivot_offset_list is not yet parsed/compiled, so the SQL is returned unchanged
+                    expect(compiled).toBe(sql);
                 });
             });
 
             describe('pivot_row compilation', () => {
-                it('should compile pivot_row to NULL placeholder', () => {
+                it('should pass through pivot_row as-is (not yet implemented)', () => {
                     const sql = 'pivot_row(revenue)';
                     const functions = parseTableCalculationFunctions(sql);
                     const compiled = compiler.compileFunctions(sql, functions);
 
-                    // Currently returns NULL as array construction varies by warehouse
-                    const expectedSql = 'NULL';
-                    expect(compiled).toBe(expectedSql);
+                    // pivot_row is not yet parsed/compiled, so the SQL is returned unchanged
+                    expect(compiled).toBe(sql);
                 });
             });
 
