@@ -1925,7 +1925,7 @@ export class ProjectService extends BaseService {
 
         if (updatedProject.dbtConnection.type !== DbtProjectType.NONE) {
             await this.schedulerClient.testAndCompileProject({
-                organizationUuid: account.organization.organizationUuid!,
+                organizationUuid: account.organization.organizationUuid,
                 createdByUserUuid: account.user.id,
                 projectUuid,
                 requestMethod: method,

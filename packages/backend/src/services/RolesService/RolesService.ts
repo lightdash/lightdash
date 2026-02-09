@@ -438,6 +438,7 @@ export class RolesService extends BaseService {
             },
         });
 
+        // Safe cast: org-level assignments are validated as system roles above
         this.adminNotificationService
             .notifyOrgAdminRoleChange(
                 account,

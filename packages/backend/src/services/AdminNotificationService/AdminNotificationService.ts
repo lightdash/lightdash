@@ -63,11 +63,6 @@ export class AdminNotificationService extends BaseService {
         try {
             const flag = await this.featureFlagModel.get({
                 featureFlagId: FeatureFlags.AdminChangeNotifications,
-                user: {
-                    userUuid: '',
-                    organizationUuid,
-                    organizationName: '',
-                },
             });
             return flag.enabled;
         } catch {
