@@ -37,6 +37,7 @@ import {
     OrganizationMemberRole,
     ParameterError,
     PasswordReset,
+    ProjectMemberRole,
     RegisterOrActivateUser,
     SessionUser,
     SnowflakeAuthenticationType,
@@ -285,6 +286,48 @@ export class UserService extends BaseService {
             activateUser,
         );
         await this.inviteLinkModel.deleteByCode(inviteLink.inviteCode);
+
+        // Apply default project memberships from allowed email domains config.
+        // Wrapped in try-catch because the user is already activated and the
+        // invite link is deleted — a failure here must not break activation.
+        try {
+            if (
+                user.organizationUuid &&
+                user.role === OrganizationMemberRole.MEMBER
+            ) {
+                const allowedEmailDomains =
+                    await this.organizationAllowedEmailDomainsModel.getAllowedEmailDomains(
+                        user.organizationUuid,
+                    );
+                const emailDomain = getEmailDomain(userEmail);
+                if (
+                    allowedEmailDomains.emailDomains.some(
+                        (domain) => domain.toLowerCase() === emailDomain,
+                    ) &&
+                    allowedEmailDomains.projects.length > 0
+                ) {
+                    const projectMemberships =
+                        allowedEmailDomains.projects.reduce<
+                            Record<string, ProjectMemberRole>
+                        >(
+                            (acc, project) => ({
+                                ...acc,
+                                [project.projectUuid]: project.role,
+                            }),
+                            {},
+                        );
+                    await this.userModel.addProjectMemberships(
+                        user.userUuid,
+                        projectMemberships,
+                    );
+                }
+            }
+        } catch (e) {
+            this.logger.warn(
+                `Failed to apply default project memberships for invited user ${user.userUuid}: ${e}`,
+            );
+        }
+
         this.identifyUser(user);
         this.analytics.track({
             event: 'user.created',
