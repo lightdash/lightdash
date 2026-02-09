@@ -1,6 +1,9 @@
-import { Group, Input, NumberInput } from '@mantine/core';
-import React, { type FC } from 'react';
+import { Group, Input, NumberInput } from '@mantine-8/core';
+import { type FC } from 'react';
 import { getHourlyCronExpression, parseCronExpression } from './cronInputUtils';
+
+const MIN_MINUTES = 0;
+const MAX_MINUTES = 59;
 
 const HourlyInputs: FC<{
     disabled?: boolean;
@@ -8,27 +11,31 @@ const HourlyInputs: FC<{
     onChange: (value: string) => void;
 }> = ({ disabled, cronExpression, onChange }) => {
     const minutes = parseCronExpression(cronExpression).minutes;
+    const isOutOfRange = minutes < MIN_MINUTES || minutes > MAX_MINUTES;
 
-    const onMinuteChange = (valueAsNumber: number) => {
+    const onMinuteChange = (value: string | number) => {
         if (
-            Number.isInteger(valueAsNumber) &&
-            valueAsNumber >= 0 &&
-            valueAsNumber <= 59
+            typeof value === 'number' &&
+            Number.isInteger(value) &&
+            value >= MIN_MINUTES &&
+            value <= MAX_MINUTES
         ) {
-            onChange(getHourlyCronExpression(valueAsNumber));
+            onChange(getHourlyCronExpression(value));
         }
     };
 
     return (
-        <Group spacing="sm">
+        <Group gap="sm">
             <Input.Label>at minute</Input.Label>
             <NumberInput
                 value={minutes}
                 onChange={onMinuteChange}
                 disabled={disabled}
                 w="6xl"
-                min={0}
-                max={59}
+                min={MIN_MINUTES}
+                max={MAX_MINUTES}
+                allowDecimal={false}
+                error={isOutOfRange ? 'Must be between 0 and 59' : undefined}
             />
         </Group>
     );

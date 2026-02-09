@@ -14,7 +14,7 @@ import {
     Stack,
     Text,
     Title,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import { useMutation } from '@tanstack/react-query';
 import { useEffect, useState, type FC } from 'react';
 import { Navigate, useLocation, useParams } from 'react-router';
@@ -41,14 +41,8 @@ const WelcomeCard: FC<WelcomeCardProps> = ({ email, setReadyToJoin }) => {
 
     return (
         <>
-            <Card
-                p="xl"
-                radius="xs"
-                withBorder
-                shadow="xs"
-                data-cy="welcome-user"
-            >
-                <Stack spacing="md" align="center">
+            <Card p="xl" withBorder shadow="subtle" data-cy="welcome-user">
+                <Stack gap="md" align="center">
                     <Title order={3}>You’ve been invited!</Title>
                     {email && (
                         <Text fw="600" size="md">
@@ -68,10 +62,12 @@ const WelcomeCard: FC<WelcomeCardProps> = ({ email, setReadyToJoin }) => {
                     </Button>
                 </Stack>
             </Card>
-            <Text color="ldGray.6" ta="center">
+            <Text c="ldGray.7" ta="center" fz="sm" fw={500}>
                 {`Not ${email ? email : 'for you'}?`}
                 <br />
-                Ignore this invite link and contact your workspace admin.
+                <Text c="ldGray.6" ta="center" fz="xs" fw={500}>
+                    Ignore this invite link and contact your workspace admin.
+                </Text>
             </Text>
         </>
     );
@@ -79,10 +75,10 @@ const WelcomeCard: FC<WelcomeCardProps> = ({ email, setReadyToJoin }) => {
 
 const ErrorCard: FC<{ title: string }> = ({ title }) => {
     return (
-        <Card p="xl" radius="xs" withBorder shadow="xs" data-cy="welcome-user">
-            <Stack spacing="md" align="center">
+        <Card p="xl" withBorder shadow="subtle" data-cy="welcome-user">
+            <Stack gap="md" align="center">
                 <Title order={3}>{title}</Title>
-                <Text color="ldGray.7" ta="center">
+                <Text c="ldGray.7" ta="center">
                     Please check with the person who shared it with you to see
                     if there’s a new link available.
                 </Text>
@@ -195,7 +191,7 @@ const Invite: FC = () => {
                     my="md"
                     labelPosition="center"
                     label={
-                        <Text color="ldGray.5" size="sm" fw={500}>
+                        <Text c="ldGray.5" size="sm" fw={500}>
                             OR
                         </Text>
                     }
@@ -221,19 +217,21 @@ const Invite: FC = () => {
                     />
                 ) : isLinkFromEmail ? (
                     <>
-                        <Card p="xl" radius="xs" withBorder shadow="xs">
+                        <Card p="xl" withBorder shadow="subtle">
                             <Title order={3} ta="center" mb="md">
                                 Sign up
                             </Title>
                             {logins}
                         </Card>
-                        <Text color="ldGray.6" ta="center">
+                        <Text c="ldGray.6" ta="center" fz="sm" fw={500}>
                             By creating an account, you agree to
                             <br />
                             our{' '}
                             <Anchor
                                 href="https://www.lightdash.com/privacy-policy"
                                 target="_blank"
+                                fz="sm"
+                                fw={500}
                             >
                                 Privacy Policy
                             </Anchor>{' '}
@@ -241,6 +239,8 @@ const Invite: FC = () => {
                             <Anchor
                                 href="https://www.lightdash.com/terms-of-service"
                                 target="_blank"
+                                fz="sm"
+                                fw={500}
                             >
                                 Terms of Service.
                             </Anchor>
