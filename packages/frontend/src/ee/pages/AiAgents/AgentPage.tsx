@@ -120,14 +120,7 @@ const AgentSidebar: FC<{
 
                     <Stack gap={2}>
                         {threads.length === 0 && (
-                            <Paper
-                                withBorder
-                                style={{
-                                    borderStyle: 'dashed',
-                                    backgroundColor: 'transparent',
-                                }}
-                                p="sm"
-                            >
+                            <Paper variant="dotted" p="sm">
                                 <Text
                                     truncate="end"
                                     size="sm"
