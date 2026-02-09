@@ -36,6 +36,8 @@ import {
     EXPLORE_BIGQUERY,
     EXPLORE_JOIN_CHAIN,
     EXPLORE_WITH_CROSS_TABLE_METRICS,
+    EXPLORE_WITH_DATE_DIMENSION,
+    EXPLORE_WITH_DATE_DIMENSION_ZOOMED,
     EXPLORE_WITH_REQUIRED_FILTERS,
     EXPLORE_WITH_SQL_FILTER,
     EXPLORE_WITHOUT_JOIN_RELATIONSHIPS,
@@ -54,6 +56,8 @@ import {
     METRIC_QUERY_WITH_ADDITIONAL_METRIC_SQL,
     METRIC_QUERY_WITH_CUSTOM_DIMENSION,
     METRIC_QUERY_WITH_CUSTOM_SQL_DIMENSION,
+    METRIC_QUERY_WITH_DATE_FILTER,
+    METRIC_QUERY_WITH_DATE_ZOOM_FILTER_SQL,
     METRIC_QUERY_WITH_DAY_OF_WEEK_NAME_SORT,
     METRIC_QUERY_WITH_DAY_OF_WEEK_NAME_SORT_SQL,
     METRIC_QUERY_WITH_DISABLED_FILTER,
@@ -2952,5 +2956,39 @@ describe('Query Structure Tests', () => {
         // Verify that the pivot function SQL is not in the query
         expect(result.query).not.toContain('pivot_offset(revenue, -1)');
         expect(result.query).not.toContain('pivot_column()');
+    });
+});
+
+describe('Date zoom with filters', () => {
+    test('Should use raw column in WHERE clause when date zoom is active', () => {
+        expect(
+            replaceWhitespace(
+                buildQuery({
+                    explore: EXPLORE_WITH_DATE_DIMENSION_ZOOMED,
+                    compiledMetricQuery: METRIC_QUERY_WITH_DATE_FILTER,
+                    warehouseSqlBuilder: warehouseClientMock,
+                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
+                    originalExplore: EXPLORE_WITH_DATE_DIMENSION,
+                }).query,
+            ),
+        ).toStrictEqual(
+            replaceWhitespace(METRIC_QUERY_WITH_DATE_ZOOM_FILTER_SQL),
+        );
+    });
+
+    test('Should use DATE_TRUNC in WHERE clause without originalExplore (no date zoom)', () => {
+        // Without originalExplore, the zoomed explore is used for both SELECT and WHERE
+        // This verifies backwards compatibility: when no date zoom, filters use the explore as-is
+        const result = buildQuery({
+            explore: EXPLORE_WITH_DATE_DIMENSION,
+            compiledMetricQuery: METRIC_QUERY_WITH_DATE_FILTER,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+        // Without date zoom, both SELECT and WHERE use the raw column
+        expect(result.query).toContain('"orders".created_at');
+        expect(result.query).not.toContain('DATE_TRUNC');
     });
 });

@@ -100,6 +100,14 @@ export type BuildQueryProps = {
      * invalid filters. Useful for debugging/viewing SQL even with errors.
      */
     continueOnError?: boolean;
+    /**
+     * The original explore before date zoom modifications.
+     * When date zoom changes granularity, the explore's dimension compiledSql
+     * is modified with DATE_TRUNC. Filters should compare against the raw
+     * column, not the truncated expression. When set, filter compilation uses
+     * this explore for dimension field lookups instead of the zoomed explore.
+     */
+    originalExplore?: Explore;
 };
 
 /**
@@ -978,10 +986,13 @@ export class MetricQueryBuilder {
             );
         }
 
+        // Use the original (pre-date-zoom) explore for filter dimension lookups
+        // so that WHERE clauses compare against the raw column, not DATE_TRUNC'd expressions
+        const filterExplore = this.args.originalExplore ?? explore;
         const field =
             fieldType === FieldType.DIMENSION
                 ? [
-                      ...getDimensions(explore),
+                      ...getDimensions(filterExplore),
                       ...compiledCustomDimensions.filter(
                           isCompiledCustomSqlDimension,
                       ),

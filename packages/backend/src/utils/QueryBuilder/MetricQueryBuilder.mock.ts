@@ -2103,3 +2103,126 @@ export const EXPECTED_SQL_WITH_CROSS_TABLE_METRICS = `WITH cte_keys_customers AS
     FROM cte_unaffected
     CROSS JOIN cte_metrics_customers
     LIMIT 100`;
+
+// --- Date zoom + filter test data ---
+
+const dateExploreBase: Explore = {
+    targetDatabase: SupportedDbtAdapter.POSTGRES,
+    name: 'orders',
+    label: 'orders',
+    baseTable: 'orders',
+    tags: [],
+    joinedTables: [],
+    tables: {
+        orders: {
+            name: 'orders',
+            label: 'orders',
+            database: 'database',
+            schema: 'schema',
+            sqlTable: '"db"."schema"."orders"',
+            primaryKey: ['order_id'],
+            dimensions: {
+                order_id: {
+                    type: DimensionType.NUMBER,
+                    name: 'order_id',
+                    label: 'order_id',
+                    table: 'orders',
+                    tableLabel: 'orders',
+                    fieldType: FieldType.DIMENSION,
+                    sql: '${TABLE}.order_id',
+                    compiledSql: '"orders".order_id',
+                    tablesReferences: ['orders'],
+                    hidden: false,
+                },
+                created_at: {
+                    type: DimensionType.DATE,
+                    name: 'created_at',
+                    label: 'created_at',
+                    table: 'orders',
+                    tableLabel: 'orders',
+                    fieldType: FieldType.DIMENSION,
+                    sql: '${TABLE}.created_at',
+                    compiledSql: '"orders".created_at',
+                    tablesReferences: ['orders'],
+                    hidden: false,
+                },
+            },
+            metrics: {
+                order_count: {
+                    type: MetricType.COUNT,
+                    fieldType: FieldType.METRIC,
+                    table: 'orders',
+                    tableLabel: 'orders',
+                    name: 'order_count',
+                    label: 'order_count',
+                    sql: '${TABLE}.order_id',
+                    compiledSql: 'COUNT("orders".order_id)',
+                    tablesReferences: ['orders'],
+                    hidden: false,
+                },
+            },
+            lineageGraph: {},
+        },
+    },
+};
+
+// Original explore (no date zoom)
+export const EXPLORE_WITH_DATE_DIMENSION: Explore = dateExploreBase;
+
+// Zoomed explore: created_at dimension has DATE_TRUNC'd compiledSql (simulating month granularity)
+export const EXPLORE_WITH_DATE_DIMENSION_ZOOMED: Explore = {
+    ...dateExploreBase,
+    tables: {
+        ...dateExploreBase.tables,
+        orders: {
+            ...dateExploreBase.tables.orders,
+            dimensions: {
+                ...dateExploreBase.tables.orders.dimensions,
+                created_at: {
+                    ...dateExploreBase.tables.orders.dimensions.created_at,
+                    compiledSql: 'DATE_TRUNC(\'month\', "orders".created_at)',
+                },
+            },
+        },
+    },
+};
+
+export const METRIC_QUERY_WITH_DATE_FILTER: CompiledMetricQuery = {
+    exploreName: 'orders',
+    dimensions: ['orders_created_at'],
+    metrics: ['orders_order_count'],
+    filters: {
+        dimensions: {
+            id: 'root',
+            and: [
+                {
+                    id: '1',
+                    target: {
+                        fieldId: 'orders_created_at',
+                    },
+                    operator: FilterOperator.IN_BETWEEN,
+                    values: ['2024-09-01', '2024-09-04'],
+                },
+            ],
+        },
+    },
+    sorts: [{ fieldId: 'orders_created_at', descending: false }],
+    limit: 10,
+    tableCalculations: [],
+    compiledTableCalculations: [],
+    compiledAdditionalMetrics: [],
+    compiledCustomDimensions: [],
+};
+
+// Expected: SELECT uses DATE_TRUNC (zoomed), but WHERE uses raw column
+export const METRIC_QUERY_WITH_DATE_ZOOM_FILTER_SQL = `SELECT
+  DATE_TRUNC('month', "orders".created_at) AS "orders_created_at",
+  COUNT("orders".order_id) AS "orders_order_count"
+FROM "db"."schema"."orders" AS "orders"
+
+WHERE ((
+  (("orders".created_at) >= ('2024-09-01') AND ("orders".created_at) <= ('2024-09-04'))
+))
+GROUP BY 1
+ORDER BY "orders_created_at"
+LIMIT 10`;
