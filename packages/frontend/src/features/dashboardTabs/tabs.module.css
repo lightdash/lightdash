@@ -100,7 +100,6 @@
 .gridLines {
     & :global(.react-grid-layout) {
         background-image:
-            /* Primary grid: cell boundaries */
             linear-gradient(
                 to right,
                 var(--mantine-color-ldGray-2) 1px,
@@ -119,33 +118,14 @@
             linear-gradient(
                 to bottom,
                 var(--mantine-color-ldGray-2) 1px,
-                transparent 1px
-            ),
-            /* Sub-grid: finer lines within each cell */
-            linear-gradient(
-                    to right,
-                    var(--mantine-color-ldGray-1) 1px,
-                    transparent 1px
-                ),
-            linear-gradient(
-                to bottom,
-                var(--mantine-color-ldGray-1) 1px,
                 transparent 1px
             );
-        background-size:
-            var(--grid-cell-w) var(--grid-cell-h),
-            var(--grid-cell-w) var(--grid-cell-h),
-            var(--grid-cell-w) var(--grid-cell-h),
-            var(--grid-cell-w) var(--grid-cell-h),
-            calc(var(--grid-cell-w) / 3) calc(var(--grid-cell-h) / 3),
-            calc(var(--grid-cell-w) / 3) calc(var(--grid-cell-h) / 3);
+        background-size: var(--grid-cell-w) var(--grid-cell-h);
         background-position:
             var(--grid-pad-x) var(--grid-pad-y),
             calc(var(--grid-pad-x) + var(--grid-col-w)) var(--grid-pad-y),
             var(--grid-pad-x) var(--grid-pad-y),
-            var(--grid-pad-x) calc(var(--grid-pad-y) + var(--grid-row-h)),
-            var(--grid-pad-x) var(--grid-pad-y),
-            var(--grid-pad-x) var(--grid-pad-y);
+            var(--grid-pad-x) calc(var(--grid-pad-y) + var(--grid-row-h));
     }
 }
 
