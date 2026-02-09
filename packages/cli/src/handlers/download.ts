@@ -196,6 +196,13 @@ const readCodeFiles = async <T extends ChartAsCode | DashboardAsCode>(
 
     GlobalState.log(`Reading ${folder} from ${baseDir}`);
 
+    const [major, minor] = process.versions.node.split('.').map(Number);
+    if (major < 20 || (major === 20 && minor < 12)) {
+        throw new Error(
+            `Node.js v20.12.0 or later is required for this command (current: ${process.version}).`,
+        );
+    }
+
     try {
         const allEntries = await fs.readdir(baseDir, {
             recursive: true,
