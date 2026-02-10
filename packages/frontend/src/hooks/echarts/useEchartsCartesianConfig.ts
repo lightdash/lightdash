@@ -1951,6 +1951,15 @@ const getEchartAxes = ({
                 ...bottomAxisExtraConfig,
                 min: bottomAxisBounds.min,
                 max: maxXAxisValue,
+                // Add boundary gap for bar charts with numeric custom SQL dimensions on X-axis
+                // This prevents bars from overlapping with the Y-axis
+                // See: https://github.com/lightdash/lightdash/issues/19742
+                ...(bottomAxisType === 'value' &&
+                    hasBarChart &&
+                    !validCartesianConfig.layout.flipAxes &&
+                    isCustomSqlDimension(bottomAxisXField) && {
+                        boundaryGap: ['5%', '5%'],
+                    }),
             },
             {
                 type: topAxisType,
