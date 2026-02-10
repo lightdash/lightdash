@@ -24,6 +24,8 @@ import {
     isTableValidationError,
     isTemplateTableCalculation,
     isValidationTargetValid,
+    KnexPaginateArgs,
+    KnexPaginatedData,
     OrganizationMemberRole,
     RequestMethod,
     SessionUser,
@@ -1023,6 +1025,107 @@ export class ValidationService extends BaseService {
         }
 
         return this.hidePrivateContent(user, projectUuid, validations);
+    }
+
+    async getPaginated(
+        user: SessionUser,
+        projectUuid: string,
+        paginateArgs: KnexPaginateArgs,
+        options?: {
+            searchQuery?: string;
+            sortBy?: 'name' | 'createdAt' | 'errorType' | 'source';
+            sortDirection?: 'asc' | 'desc';
+            sourceTypes?: ValidationSourceType[];
+            errorTypes?: ValidationErrorType[];
+            includeChartConfigWarnings?: boolean;
+            fromSettings?: boolean;
+            jobId?: string;
+        },
+    ): Promise<KnexPaginatedData<ValidationResponse[]>> {
+        const { organizationUuid } = user;
+
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('Validation', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        let allowedSpaceUuids: string[] | 'all' = 'all';
+
+        if (user.role !== OrganizationMemberRole.ADMIN) {
+            const spaces = await this.spaceModel.find({ projectUuid });
+            const spaceUuids = spaces.map((s) => s.uuid);
+
+            const nestedPermissionsFlag = await this.featureFlagModel.get({
+                user: {
+                    userUuid: user.userUuid,
+                    organizationUuid: user.organizationUuid,
+                    organizationName: user.organizationName,
+                },
+                featureFlagId: FeatureFlags.NestedSpacesPermissions,
+            });
+
+            const spacesAccess = await this.spaceModel.getUserSpacesAccess(
+                user.userUuid,
+                spaceUuids,
+                { useInheritedAccess: nestedPermissionsFlag.enabled },
+            );
+
+            allowedSpaceUuids = spaces
+                .filter((space) =>
+                    hasViewAccessToSpace(
+                        user,
+                        space,
+                        spacesAccess[space.uuid] ?? [],
+                    ),
+                )
+                .map((s) => s.uuid);
+        }
+
+        const result = await this.validationModel.getPaginated(
+            projectUuid,
+            paginateArgs,
+            {
+                searchQuery: options?.searchQuery,
+                sortBy: options?.sortBy,
+                sortDirection: options?.sortDirection,
+                sourceTypes: options?.sourceTypes,
+                errorTypes: options?.errorTypes,
+                includeChartConfigWarnings: options?.includeChartConfigWarnings,
+                allowedSpaceUuids,
+                jobId: options?.jobId,
+            },
+        );
+
+        if (options?.fromSettings) {
+            const contentIds = result.data.map(
+                (validation) =>
+                    ('chartUuid' in validation && validation.chartUuid) ||
+                    ('dashboardUuid' in validation &&
+                        validation.dashboardUuid) ||
+                    validation.name,
+            );
+
+            this.analytics.track({
+                event: 'validation.page_viewed',
+                userId: user.userUuid,
+                properties: {
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                    numErrorsDetected:
+                        result.pagination?.totalResults ?? result.data.length,
+                    numContentAffected: new Set(contentIds).size,
+                },
+            });
+        }
+
+        return result;
     }
 
     async getJob(

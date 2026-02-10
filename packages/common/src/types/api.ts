@@ -20,7 +20,10 @@ import {
     type UserAllowedOrganization,
 } from './user';
 import { type UserWarehouseCredentials } from './userWarehouseCredentials';
-import { type ValidationResponse } from './validation';
+import {
+    type ApiPaginatedValidateResponse,
+    type ValidationResponse,
+} from './validation';
 
 import {
     type ApiUnusedContent,
@@ -754,6 +757,7 @@ type ApiResults =
     | ViewStatistics
     | SchedulerWithLogs
     | ValidationResponse[]
+    | ApiPaginatedValidateResponse['results']
     | ChartHistory
     | ChartVersion
     | DashboardHistory
