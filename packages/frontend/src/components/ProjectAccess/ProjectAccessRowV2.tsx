@@ -233,13 +233,28 @@ const ProjectAccessRowV2: FC<Props> = ({
                     <Group spacing="xs">
                         <Tooltip
                             disabled={hasProjectRole}
+                            multiline
+                            w={isMember && !hasProjectRole ? 280 : undefined}
                             label={
-                                <Text>
-                                    User inherits this role from{' '}
-                                    <Text span fw={600}>
-                                        {highestRoleType}
+                                isMember && !hasProjectRole ? (
+                                    <Text>
+                                        <Text fw={600}>
+                                            Members have no access to this
+                                            project.
+                                        </Text>
+                                        <Text>
+                                            Assign a project role to grant them
+                                            visibility.
+                                        </Text>
                                     </Text>
-                                </Text>
+                                ) : (
+                                    <Text>
+                                        User inherits this role from{' '}
+                                        <Text span fw={600}>
+                                            {highestRoleType}
+                                        </Text>
+                                    </Text>
+                                )
                             }
                         >
                             <Select
@@ -252,7 +267,7 @@ const ProjectAccessRowV2: FC<Props> = ({
                                         ? [
                                               {
                                                   value: 'member',
-                                                  label: 'member',
+                                                  label: 'member (no project access)',
                                                   group: 'Organization role',
                                               },
                                               ...organizationRoles,
