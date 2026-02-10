@@ -33,6 +33,7 @@ import {
     type KnexPaginatedData,
     type MetricsTree,
     type MetricsTreeSummary,
+    type MetricsTreeWithDetails,
     type SessionUser,
     type TablesConfiguration,
     type Tag,
@@ -1842,6 +1843,123 @@ export class CatalogModel {
                 updatedAt: created.updated_at,
             };
         });
+    }
+
+    async getMetricsTreeByUuid(
+        projectUuid: string,
+        metricsTreeUuid: string,
+    ): Promise<MetricsTreeWithDetails> {
+        // Fetch tree metadata
+        const tree = await this.database(MetricsTreesTableName)
+            .where({
+                metrics_tree_uuid: metricsTreeUuid,
+                project_uuid: projectUuid,
+            })
+            .first();
+
+        if (!tree) {
+            throw new NotFoundError(
+                `Metrics tree ${metricsTreeUuid} not found in project ${projectUuid}`,
+            );
+        }
+
+        // Fetch nodes with hydrated catalog data
+        const nodeRows = await this.database(MetricsTreeNodesTableName)
+            .select(
+                `${MetricsTreeNodesTableName}.catalog_search_uuid`,
+                `${MetricsTreeNodesTableName}.x_position`,
+                `${MetricsTreeNodesTableName}.y_position`,
+                `${MetricsTreeNodesTableName}.source`,
+                `${CatalogTableName}.name`,
+                `${CatalogTableName}.table_name`,
+            )
+            .join(
+                CatalogTableName,
+                `${MetricsTreeNodesTableName}.catalog_search_uuid`,
+                `${CatalogTableName}.catalog_search_uuid`,
+            )
+            .where(
+                `${MetricsTreeNodesTableName}.metrics_tree_uuid`,
+                metricsTreeUuid,
+            );
+
+        const nodes = nodeRows.map((row) => ({
+            catalogSearchUuid: row.catalog_search_uuid,
+            xPosition: row.x_position,
+            yPosition: row.y_position,
+            name: row.name,
+            tableName: row.table_name,
+            source: row.source,
+        }));
+
+        // Fetch edges where both source and target are nodes of this tree
+        const nodeUuids = nodes.map((n) => n.catalogSearchUuid);
+
+        const edgeRows =
+            nodeUuids.length > 0
+                ? await this.database(MetricsTreeEdgesTableName)
+                      .where(
+                          `${MetricsTreeEdgesTableName}.project_uuid`,
+                          projectUuid,
+                      )
+                      .whereIn(
+                          `${MetricsTreeEdgesTableName}.source_metric_catalog_search_uuid`,
+                          nodeUuids,
+                      )
+                      .whereIn(
+                          `${MetricsTreeEdgesTableName}.target_metric_catalog_search_uuid`,
+                          nodeUuids,
+                      )
+                : [];
+
+        // Build a lookup for node data
+        const nodeMap = new Map(nodes.map((n) => [n.catalogSearchUuid, n]));
+
+        const edges: CatalogMetricsTreeEdge[] = edgeRows
+            .map((row) => {
+                const sourceNode = nodeMap.get(
+                    row.source_metric_catalog_search_uuid,
+                );
+                const targetNode = nodeMap.get(
+                    row.target_metric_catalog_search_uuid,
+                );
+                if (!sourceNode || !targetNode) return null;
+
+                return {
+                    source: {
+                        catalogSearchUuid:
+                            row.source_metric_catalog_search_uuid,
+                        name: sourceNode.name,
+                        tableName: sourceNode.tableName,
+                    },
+                    target: {
+                        catalogSearchUuid:
+                            row.target_metric_catalog_search_uuid,
+                        name: targetNode.name,
+                        tableName: targetNode.tableName,
+                    },
+                    createdAt: row.created_at,
+                    createdByUserUuid: row.created_by_user_uuid,
+                    projectUuid: row.project_uuid,
+                    createdFrom: row.source,
+                };
+            })
+            .filter((e): e is CatalogMetricsTreeEdge => e !== null);
+
+        return {
+            metricsTreeUuid: tree.metrics_tree_uuid,
+            projectUuid: tree.project_uuid,
+            slug: tree.slug,
+            name: tree.name,
+            description: tree.description,
+            source: tree.source,
+            createdByUserUuid: tree.created_by_user_uuid,
+            createdAt: tree.created_at,
+            updatedAt: tree.updated_at,
+            updatedByUserUuid: tree.updated_by_user_uuid,
+            nodes,
+            edges,
+        };
     }
 
     async getDistinctOwners(projectUuid: string): Promise<

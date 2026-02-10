@@ -48,6 +48,7 @@ import {
     type KnexPaginatedData,
     type MetricsTree,
     type MetricsTreeSummary,
+    type MetricsTreeWithDetails,
 } from '@lightdash/common';
 import { uniqBy } from 'lodash';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
@@ -1189,7 +1190,9 @@ export class CatalogService<
         });
 
         if (metrics.length === 0) {
-            throw new NotFoundError('Metric not found');
+            throw new NotFoundError(
+                `Metric not found for ${tableName}.${metricName}`,
+            );
         }
 
         return metrics[0];
@@ -1549,6 +1552,31 @@ export class CatalogService<
         }
 
         return this.catalogModel.getMetricsTrees(projectUuid, paginateArgs);
+    }
+
+    async getMetricsTreeDetails(
+        user: SessionUser,
+        projectUuid: string,
+        metricsTreeUuid: string,
+    ): Promise<MetricsTreeWithDetails> {
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+
+        if (
+            user.ability.cannot(
+                'view',
+                subject('MetricsTree', { projectUuid, organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError(
+                `User ${user.userUuid} is not authorized to view metrics tree ${metricsTreeUuid}`,
+            );
+        }
+
+        return this.catalogModel.getMetricsTreeByUuid(
+            projectUuid,
+            metricsTreeUuid,
+        );
     }
 
     async createMetricsTree(
