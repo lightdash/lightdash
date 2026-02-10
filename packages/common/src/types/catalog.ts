@@ -208,7 +208,7 @@ export type ApiUpdateMetricsTreeNodePositionsPayload = {
 
 export type ApiGetMetricsTreesResponse = {
     status: 'ok';
-    results: MetricsTreeSummary[];
+    results: KnexPaginatedData<MetricsTreeSummary[]>;
 };
 
 export type ApiGetMetricsTreeResponse = {

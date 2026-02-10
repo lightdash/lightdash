@@ -15,6 +15,7 @@ import {
     type ApiGetAllMetricsTreeEdges,
     type ApiGetMetricsTree,
     type ApiGetMetricsTreePayload,
+    type ApiGetMetricsTreesResponse,
     type ApiMetricsTreeEdgePayload,
     type ApiMetricsWithAssociatedTimeDimensionResponse,
     type ApiSort,
@@ -661,6 +662,38 @@ export class CatalogController extends BaseController {
     }
 
     // --- Saved Metrics Trees ---
+
+    /**
+     * List saved metrics trees for a project
+     * @summary List metrics trees
+     * @param projectUuid
+     * @param page Page number (1-indexed)
+     * @param pageSize Number of trees per page
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/metrics/trees')
+    @OperationId('getMetricsTrees')
+    async getMetricsTrees(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+        @Query() page?: number,
+        @Query() pageSize?: number,
+    ): Promise<ApiGetMetricsTreesResponse> {
+        this.setStatus(200);
+
+        const paginateArgs: KnexPaginateArgs | undefined =
+            page && pageSize ? { page, pageSize } : undefined;
+
+        const results = await this.services
+            .getCatalogService()
+            .getMetricsTrees(req.user!, projectUuid, paginateArgs);
+
+        return {
+            status: 'ok',
+            results,
+        };
+    }
 
     /**
      * Create a new saved metrics tree with nodes and edges

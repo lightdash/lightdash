@@ -51,6 +51,7 @@ import {
     type ApiCatalogAnalyticsResults,
     type ApiCatalogMetadataResults,
     type ApiGetMetricsTree,
+    type ApiGetMetricsTreesResponse,
     type ApiMetricsCatalog,
 } from './catalog';
 import { type ApiGetChangeResponse } from './changeset';
@@ -808,6 +809,7 @@ type ApiResults =
     | ApiDashboardAsCodeListResponse['results']
     | ApiChartAsCodeUpsertResponse['results']
     | ApiGetMetricsTree['results']
+    | ApiGetMetricsTreesResponse['results']
     | ApiMetricsExplorerTotalResults['results']
     | ApiGetSpotlightTableConfig['results']
     | ApiCalculateSubtotalsResponse['results']
