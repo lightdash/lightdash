@@ -59,7 +59,11 @@ const BasicSeriesConfiguration: FC<BasicSeriesConfigurationProps> = ({
                         }
                     >
                         <ColorSelector
-                            color={getSeriesColor(series)}
+                            color={
+                                series.colorByValue
+                                    ? '#dee2e6'
+                                    : getSeriesColor(series)
+                            }
                             swatches={colorPalette}
                             withAlpha
                             onColorChange={

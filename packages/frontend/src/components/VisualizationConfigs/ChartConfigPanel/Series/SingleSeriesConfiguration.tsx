@@ -14,6 +14,7 @@ import {
     Popover,
     Select,
     Stack,
+    Tooltip,
 } from '@mantine/core';
 import { useDebouncedState, useHover } from '@mantine/hooks';
 import {
@@ -363,17 +364,26 @@ const SingleSeriesConfiguration: FC<Props> = ({
                         !isGrouped &&
                         isSingle && (
                             <Group spacing="xs">
-                                <Checkbox
-                                    checked={Boolean(series.colorByValue)}
-                                    label="Color by value"
-                                    onChange={() => {
-                                        updateSingleSeries({
-                                            ...series,
-                                            colorByValue:
-                                                !series.colorByValue,
-                                        });
-                                    }}
-                                />
+                                <Tooltip
+                                    withinPortal
+                                    maw={300}
+                                    multiline
+                                    label="Assign a unique color to each bar based on its dimension value"
+                                >
+                                    <Checkbox
+                                        checked={Boolean(
+                                            series.colorByValue,
+                                        )}
+                                        label="Color by value"
+                                        onChange={() => {
+                                            updateSingleSeries({
+                                                ...series,
+                                                colorByValue:
+                                                    !series.colorByValue,
+                                            });
+                                        }}
+                                    />
+                                </Tooltip>
                             </Group>
                         )}
                 </Stack>
