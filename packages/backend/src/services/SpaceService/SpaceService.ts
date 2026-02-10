@@ -21,6 +21,7 @@ import { PinnedListModel } from '../../models/PinnedListModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { BaseService } from '../BaseService';
+import { SpacePermissionService } from './SpacePermissionService';
 
 type SpaceServiceArguments = {
     analytics: LightdashAnalytics;
@@ -28,6 +29,7 @@ type SpaceServiceArguments = {
     spaceModel: SpaceModel;
     pinnedListModel: PinnedListModel;
     featureFlagModel: FeatureFlagModel;
+    spacePermissionService: SpacePermissionService;
 };
 
 export const hasDirectAccessToSpace = (
@@ -81,6 +83,8 @@ export class SpaceService extends BaseService implements BulkActionable<Knex> {
 
     private readonly featureFlagModel: FeatureFlagModel;
 
+    private readonly spacePermissionService: SpacePermissionService;
+
     constructor(args: SpaceServiceArguments) {
         super();
         this.analytics = args.analytics;
@@ -88,6 +92,7 @@ export class SpaceService extends BaseService implements BulkActionable<Knex> {
         this.spaceModel = args.spaceModel;
         this.pinnedListModel = args.pinnedListModel;
         this.featureFlagModel = args.featureFlagModel;
+        this.spacePermissionService = args.spacePermissionService;
     }
 
     /** @internal For unit testing only */
@@ -134,34 +139,11 @@ export class SpaceService extends BaseService implements BulkActionable<Knex> {
         user: SessionUser,
         spaceUuid: string,
     ): Promise<Space> {
-        const nestedPermissionsFlag = await this.featureFlagModel.get({
-            user: {
-                userUuid: user.userUuid,
-                organizationUuid: user.organizationUuid,
-                organizationName: user.organizationName,
-            },
-            featureFlagId: FeatureFlags.NestedSpacesPermissions,
-        });
-
-        const space = await this.spaceModel.getFullSpace(spaceUuid, {
-            useInheritedAccess: nestedPermissionsFlag.enabled,
-        });
-
-        if (
-            user.ability.cannot(
-                'view',
-                subject('Space', {
-                    organizationUuid: space.organizationUuid,
-                    projectUuid,
-                    isPrivate: space.isPrivate,
-                    access: space.access,
-                }),
-            ) // admins can also view private spaces
-        ) {
+        if (!(await this.spacePermissionService.can('view', user, spaceUuid))) {
             throw new ForbiddenError();
         }
 
-        return space;
+        return this.spaceModel.getFullSpace(spaceUuid);
     }
 
     async createSpace(
