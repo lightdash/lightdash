@@ -19,6 +19,9 @@ import {
     multiPivotSeriesMapArgs,
     pivotSeriesMapArgs,
     simpleSeriesMapArgs,
+    sortedPivotExistingSeries,
+    sortedPivotExpectedSeriesMap,
+    sortedPivotMergedSeries,
     useCartesianChartConfigParamsMock,
 } from './useCartesianChartConfig.mock';
 import {
@@ -176,6 +179,16 @@ describe('mergeExistingAndExpectedSeries', () => {
                 existingSeries: existingMixedSeries,
             }),
         ).toStrictEqual(Object.values(mergedMixedSeries));
+    });
+    test('should insert new pivot values in their sorted position, not at the end', () => {
+        // This tests the fix for issue #20117: new category values should respect
+        // the sorted order from the backend, not be appended to the end of the group
+        expect(
+            mergeExistingAndExpectedSeries({
+                expectedSeriesMap: sortedPivotExpectedSeriesMap,
+                existingSeries: sortedPivotExistingSeries,
+            }),
+        ).toStrictEqual(sortedPivotMergedSeries);
     });
 });
 

@@ -174,7 +174,21 @@ export const mergeExistingAndExpectedSeries = ({
         return Object.values(expectedSeriesMap);
     }
 
-    // add missing series in the correct order (next to series of the same group)
+    // Get the expected series IDs in the same group, preserving their sorted order
+    const getGroupSeriesIdsInOrder = (
+        field: string,
+    ): { id: string; series: Series }[] => {
+        return Object.entries(expectedSeriesMap)
+            .filter(
+                ([, series]) =>
+                    series.encode.yRef.field === field &&
+                    series.encode.yRef.pivotValues &&
+                    series.encode.yRef.pivotValues.length > 0,
+            )
+            .map(([id, series]) => ({ id, series }));
+    };
+
+    // add missing series in the correct sorted order within their group
     return Object.entries(expectedSeriesMap).reduce<Series[]>(
         (acc, [expectedSeriesId, expectedSeries]) => {
             // Don't add the expected series if there is a valid one already
@@ -184,7 +198,7 @@ export const mergeExistingAndExpectedSeries = ({
 
             let seriesToAdd = expectedSeries;
 
-            // Add series to the end of its group
+            // Add series at the correct sorted position within its group
             if (
                 seriesToAdd.encode.yRef.pivotValues &&
                 seriesToAdd.encode.yRef.pivotValues.length > 0
@@ -204,24 +218,61 @@ export const mergeExistingAndExpectedSeries = ({
                       }
                     : seriesToAdd;
 
-                const lastSeriesInGroupIndex = acc
-                    .reverse()
-                    .findIndex(
-                        (series) =>
-                            seriesToAdd.encode.yRef.field ===
-                            series.encode.yRef.field,
+                // Get the sorted order of series in this group from expectedSeriesMap
+                const groupSeriesInOrder = getGroupSeriesIdsInOrder(
+                    seriesToAdd.encode.yRef.field,
+                );
+
+                // Find the series that should come before this one in sorted order
+                const currentIndexInGroup = groupSeriesInOrder.findIndex(
+                    ({ id }) => id === expectedSeriesId,
+                );
+
+                // Look for the preceding series in the group that exists in acc
+                let insertAfterIndex = -1;
+                for (let i = currentIndexInGroup - 1; i >= 0; i--) {
+                    const precedingSeriesId = groupSeriesInOrder[i].id;
+                    const precedingIndex = acc.findIndex(
+                        (s) => getSeriesId(s) === precedingSeriesId,
                     );
-                if (lastSeriesInGroupIndex >= 0) {
-                    return [
-                        // part of the array before the specified index
-                        ...acc.slice(0, lastSeriesInGroupIndex),
-                        // inserted item
-                        seriesWithInheritedProps,
-                        // part of the array after the specified index
-                        ...acc.slice(lastSeriesInGroupIndex),
-                    ].reverse();
+                    if (precedingIndex >= 0) {
+                        insertAfterIndex = precedingIndex;
+                        break;
+                    }
                 }
-                return [...acc.reverse(), seriesWithInheritedProps];
+
+                if (insertAfterIndex >= 0) {
+                    // Insert after the preceding series
+                    return [
+                        ...acc.slice(0, insertAfterIndex + 1),
+                        seriesWithInheritedProps,
+                        ...acc.slice(insertAfterIndex + 1),
+                    ];
+                }
+
+                // No preceding series found, look for the following series
+                // and insert before it
+                for (
+                    let i = currentIndexInGroup + 1;
+                    i < groupSeriesInOrder.length;
+                    i++
+                ) {
+                    const followingSeriesId = groupSeriesInOrder[i].id;
+                    const followingIndex = acc.findIndex(
+                        (s) => getSeriesId(s) === followingSeriesId,
+                    );
+                    if (followingIndex >= 0) {
+                        // Insert before the following series
+                        return [
+                            ...acc.slice(0, followingIndex),
+                            seriesWithInheritedProps,
+                            ...acc.slice(followingIndex),
+                        ];
+                    }
+                }
+
+                // No series from the same group exists, add at the end
+                return [...acc, seriesWithInheritedProps];
             }
             // Add series to the end
             return [...acc, seriesToAdd];

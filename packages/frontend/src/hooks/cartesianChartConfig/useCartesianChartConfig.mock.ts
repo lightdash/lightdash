@@ -604,6 +604,183 @@ export const groupedMixedSeries: Array<{ index: number; value: Series[] }> = [
     },
 ];
 
+// Test data for sorted pivot values - tests that new pivot values are inserted
+// at their correct sorted position, not at the end of the group
+export const sortedPivotExpectedSeriesMap: Record<string, Series> = {
+    // Pivot values in sorted order: A, B, C, D
+    'my_dimension|my_metric.dimension_x.A': {
+        label: undefined,
+        type: CartesianSeriesType.BAR,
+        areaStyle: undefined,
+        stack: undefined,
+        showSymbol: undefined,
+        smooth: undefined,
+        yAxisIndex: 0,
+        encode: {
+            xRef: { field: 'my_dimension' },
+            yRef: {
+                field: 'my_metric',
+                pivotValues: [{ field: 'dimension_x', value: 'A' }],
+            },
+        },
+    },
+    'my_dimension|my_metric.dimension_x.B': {
+        label: undefined,
+        type: CartesianSeriesType.BAR,
+        areaStyle: undefined,
+        stack: undefined,
+        showSymbol: undefined,
+        smooth: undefined,
+        yAxisIndex: 0,
+        encode: {
+            xRef: { field: 'my_dimension' },
+            yRef: {
+                field: 'my_metric',
+                pivotValues: [{ field: 'dimension_x', value: 'B' }],
+            },
+        },
+    },
+    'my_dimension|my_metric.dimension_x.C': {
+        label: undefined,
+        type: CartesianSeriesType.BAR,
+        areaStyle: undefined,
+        stack: undefined,
+        showSymbol: undefined,
+        smooth: undefined,
+        yAxisIndex: 0,
+        encode: {
+            xRef: { field: 'my_dimension' },
+            yRef: {
+                field: 'my_metric',
+                pivotValues: [{ field: 'dimension_x', value: 'C' }],
+            },
+        },
+    },
+    'my_dimension|my_metric.dimension_x.D': {
+        label: undefined,
+        type: CartesianSeriesType.BAR,
+        areaStyle: undefined,
+        stack: undefined,
+        showSymbol: undefined,
+        smooth: undefined,
+        yAxisIndex: 0,
+        encode: {
+            xRef: { field: 'my_dimension' },
+            yRef: {
+                field: 'my_metric',
+                pivotValues: [{ field: 'dimension_x', value: 'D' }],
+            },
+        },
+    },
+};
+
+// Existing series only has B and D (A and C are new values that appeared after sorting)
+export const sortedPivotExistingSeries: Series[] = [
+    {
+        label: undefined,
+        type: CartesianSeriesType.BAR,
+        areaStyle: undefined,
+        stack: undefined,
+        showSymbol: undefined,
+        smooth: undefined,
+        yAxisIndex: 1, // Custom yAxisIndex to verify it's preserved
+        encode: {
+            xRef: { field: 'my_dimension' },
+            yRef: {
+                field: 'my_metric',
+                pivotValues: [{ field: 'dimension_x', value: 'B' }],
+            },
+        },
+    },
+    {
+        label: undefined,
+        type: CartesianSeriesType.BAR,
+        areaStyle: undefined,
+        stack: undefined,
+        showSymbol: undefined,
+        smooth: undefined,
+        yAxisIndex: 1, // Custom yAxisIndex to verify it's preserved
+        encode: {
+            xRef: { field: 'my_dimension' },
+            yRef: {
+                field: 'my_metric',
+                pivotValues: [{ field: 'dimension_x', value: 'D' }],
+            },
+        },
+    },
+];
+
+// Expected result: A inserted before B, C inserted between B and D
+// Order should be: A, B, C, D (respecting the sorted order from expectedSeriesMap)
+export const sortedPivotMergedSeries: Series[] = [
+    {
+        label: undefined,
+        type: CartesianSeriesType.BAR,
+        areaStyle: undefined,
+        stack: undefined,
+        showSymbol: undefined,
+        smooth: undefined,
+        yAxisIndex: 1, // Inherited from B
+        encode: {
+            xRef: { field: 'my_dimension' },
+            yRef: {
+                field: 'my_metric',
+                pivotValues: [{ field: 'dimension_x', value: 'A' }],
+            },
+        },
+    },
+    {
+        label: undefined,
+        type: CartesianSeriesType.BAR,
+        areaStyle: undefined,
+        stack: undefined,
+        showSymbol: undefined,
+        smooth: undefined,
+        yAxisIndex: 1,
+        encode: {
+            xRef: { field: 'my_dimension' },
+            yRef: {
+                field: 'my_metric',
+                pivotValues: [{ field: 'dimension_x', value: 'B' }],
+            },
+        },
+        isFilteredOut: false,
+    },
+    {
+        label: undefined,
+        type: CartesianSeriesType.BAR,
+        areaStyle: undefined,
+        stack: undefined,
+        showSymbol: undefined,
+        smooth: undefined,
+        yAxisIndex: 1, // Inherited from B
+        encode: {
+            xRef: { field: 'my_dimension' },
+            yRef: {
+                field: 'my_metric',
+                pivotValues: [{ field: 'dimension_x', value: 'C' }],
+            },
+        },
+    },
+    {
+        label: undefined,
+        type: CartesianSeriesType.BAR,
+        areaStyle: undefined,
+        stack: undefined,
+        showSymbol: undefined,
+        smooth: undefined,
+        yAxisIndex: 1,
+        encode: {
+            xRef: { field: 'my_dimension' },
+            yRef: {
+                field: 'my_metric',
+                pivotValues: [{ field: 'dimension_x', value: 'D' }],
+            },
+        },
+        isFilteredOut: false,
+    },
+];
+
 export const useCartesianChartConfigParamsMock = {
     pivotKeys: undefined,
     setPivotDimensions: () => {},
