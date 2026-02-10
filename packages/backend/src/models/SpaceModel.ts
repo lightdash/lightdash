@@ -2208,7 +2208,7 @@ export class SpaceModel {
 
     async getFullSpace(
         spaceUuid: string,
-        options: { useInheritedAccess: boolean },
+        options?: { useInheritedAccess: boolean },
     ): Promise<Space> {
         const space = await this.get(spaceUuid);
         const { spaceRoot: rootSpaceUuid } =
@@ -2221,7 +2221,7 @@ export class SpaceModel {
         // If useInheritedAccess is true, use getEffectiveSpaceAccess which resolves
         // permissions through the inheritance chain. Otherwise, use the root space's
         // direct access only (legacy behavior).
-        const access = options.useInheritedAccess
+        const access = options?.useInheritedAccess
             ? await this.getEffectiveSpaceAccess(spaceUuid)
             : ((await this._getSpaceAccess([rootSpaceUuid]))[rootSpaceUuid] ??
               []);
