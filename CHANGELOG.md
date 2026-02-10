@@ -1,3 +1,16 @@
+# [0.2448.0](https://github.com/lightdash/lightdash/compare/0.2447.1...0.2448.0) (2026-02-10)
+
+
+### Bug Fixes
+
+* add user to membership via invite link if set up ([#20133](https://github.com/lightdash/lightdash/issues/20133)) ([00c9f36](https://github.com/lightdash/lightdash/commit/00c9f36b05abdb10c84d9d5ae4aeb6273d55eb29))
+* ensure 'View underlying data' button is visible before clicking ([#20130](https://github.com/lightdash/lightdash/issues/20130)) ([63eb0a0](https://github.com/lightdash/lightdash/commit/63eb0a0d4fd0cf24b558506f26bb9197118a6465))
+
+
+### Features
+
+* update project access table to be consistent with others ([#20143](https://github.com/lightdash/lightdash/issues/20143)) ([3d12c01](https://github.com/lightdash/lightdash/commit/3d12c013dc8ee66a6ff0204b2eef65dfd615293e))
+
 ## [0.2447.1](https://github.com/lightdash/lightdash/compare/0.2447.0...0.2447.1) (2026-02-10)
 
 
