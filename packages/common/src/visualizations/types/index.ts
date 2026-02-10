@@ -374,7 +374,7 @@ export type EChartsSeries = {
     markLine?: Record<string, unknown>;
     itemStyle?: {
         borderRadius?: number | number[];
-        color?: string;
+        color?: string | ((params: { dataIndex: number }) => string);
         opacity?: number;
     };
     lineStyle?: {
@@ -391,6 +391,8 @@ export type EChartsSeries = {
         /** The field ID of the base metric this PoP series compares against */
         baseFieldId: string;
     };
+    /** When enabled on a single non-stacked bar series, assigns a unique color from the org palette to each bar */
+    colorByValue?: boolean;
     clip?: boolean;
 };
 
