@@ -15,6 +15,7 @@ import {
     type ApiGetAllMetricsTreeEdges,
     type ApiGetMetricsTree,
     type ApiGetMetricsTreePayload,
+    type ApiGetMetricsTreeResponse,
     type ApiGetMetricsTreesResponse,
     type ApiMetricsTreeEdgePayload,
     type ApiMetricsWithAssociatedTimeDimensionResponse,
@@ -88,6 +89,103 @@ export class CatalogController extends BaseController {
                 query,
                 CatalogSearchContext.CATALOG,
             );
+
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    // --- Saved Metrics Trees ---
+
+    /**
+     * List saved metrics trees for a project
+     * @summary List metrics trees
+     * @param projectUuid
+     * @param page Page number (1-indexed)
+     * @param pageSize Number of trees per page
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/metrics/trees')
+    @OperationId('getMetricsTrees')
+    async getMetricsTrees(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+        @Query() page?: number,
+        @Query() pageSize?: number,
+    ): Promise<ApiGetMetricsTreesResponse> {
+        this.setStatus(200);
+
+        const paginateArgs: KnexPaginateArgs | undefined =
+            page && pageSize ? { page, pageSize } : undefined;
+
+        const results = await this.services
+            .getCatalogService()
+            .getMetricsTrees(req.user!, projectUuid, paginateArgs);
+
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
+     * Get details of a saved metrics tree including nodes and edges
+     * @summary Get metrics tree details
+     * @param projectUuid
+     * @param metricsTreeUuid
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/metrics/trees/{metricsTreeUuid}')
+    @OperationId('getMetricsTreeDetails')
+    async getMetricsTreeDetails(
+        @Path() projectUuid: string,
+        @Path() metricsTreeUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiGetMetricsTreeResponse> {
+        this.setStatus(200);
+
+        const results = await this.services
+            .getCatalogService()
+            .getMetricsTreeDetails(req.user!, projectUuid, metricsTreeUuid);
+
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
+     * Create a new saved metrics tree with nodes and edges
+     * @summary Create metrics tree
+     * @param projectUuid
+     * @param body.name Name of the metrics tree
+     * @param body.slug Optional slug for the tree (auto-generated from name if omitted)
+     * @param body.description Optional description
+     * @param body.source Whether the tree was created from 'ui' or 'yaml' (defaults to 'ui')
+     * @param body.nodes List of catalog metrics to include as nodes, with optional positions
+     * @param body.edges List of edges between nodes, deduplicated against existing edges
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('201', 'Created')
+    @Post('/metrics/trees')
+    @OperationId('createMetricsTree')
+    async createMetricsTree(
+        @Path() projectUuid: string,
+        @Body() body: ApiCreateMetricsTreePayload,
+        @Request() req: express.Request,
+    ): Promise<ApiCreateMetricsTreeResponse> {
+        this.setStatus(201);
+
+        const results = await this.services
+            .getCatalogService()
+            .createMetricsTree(req.user!, projectUuid, body);
 
         return {
             status: 'ok',
@@ -654,76 +752,6 @@ export class CatalogController extends BaseController {
         const results = await this.services
             .getCatalogService()
             .getMetricOwners(req.user!, projectUuid);
-
-        return {
-            status: 'ok',
-            results,
-        };
-    }
-
-    // --- Saved Metrics Trees ---
-
-    /**
-     * List saved metrics trees for a project
-     * @summary List metrics trees
-     * @param projectUuid
-     * @param page Page number (1-indexed)
-     * @param pageSize Number of trees per page
-     */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    @SuccessResponse('200', 'Success')
-    @Get('/metrics/trees')
-    @OperationId('getMetricsTrees')
-    async getMetricsTrees(
-        @Path() projectUuid: string,
-        @Request() req: express.Request,
-        @Query() page?: number,
-        @Query() pageSize?: number,
-    ): Promise<ApiGetMetricsTreesResponse> {
-        this.setStatus(200);
-
-        const paginateArgs: KnexPaginateArgs | undefined =
-            page && pageSize ? { page, pageSize } : undefined;
-
-        const results = await this.services
-            .getCatalogService()
-            .getMetricsTrees(req.user!, projectUuid, paginateArgs);
-
-        return {
-            status: 'ok',
-            results,
-        };
-    }
-
-    /**
-     * Create a new saved metrics tree with nodes and edges
-     * @summary Create metrics tree
-     * @param projectUuid
-     * @param body.name Name of the metrics tree
-     * @param body.slug Optional slug for the tree (auto-generated from name if omitted)
-     * @param body.description Optional description
-     * @param body.source Whether the tree was created from 'ui' or 'yaml' (defaults to 'ui')
-     * @param body.nodes List of catalog metrics to include as nodes, with optional positions
-     * @param body.edges List of edges between nodes, deduplicated against existing edges
-     */
-    @Middlewares([
-        allowApiKeyAuthentication,
-        isAuthenticated,
-        unauthorisedInDemo,
-    ])
-    @SuccessResponse('201', 'Created')
-    @Post('/metrics/trees')
-    @OperationId('createMetricsTree')
-    async createMetricsTree(
-        @Path() projectUuid: string,
-        @Body() body: ApiCreateMetricsTreePayload,
-        @Request() req: express.Request,
-    ): Promise<ApiCreateMetricsTreeResponse> {
-        this.setStatus(201);
-
-        const results = await this.services
-            .getCatalogService()
-            .createMetricsTree(req.user!, projectUuid, body);
 
         return {
             status: 'ok',

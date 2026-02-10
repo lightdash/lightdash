@@ -47,6 +47,7 @@ import {
     type ApiCatalogAnalyticsResults,
     type ApiCatalogMetadataResults,
     type ApiGetMetricsTree,
+    type ApiGetMetricsTreeResponse,
     type ApiGetMetricsTreesResponse,
     type ApiMetricsCatalog,
 } from './catalog';
@@ -798,6 +799,7 @@ type ApiResults =
     | ApiDashboardAsCodeListResponse['results']
     | ApiChartAsCodeUpsertResponse['results']
     | ApiGetMetricsTree['results']
+    | ApiGetMetricsTreeResponse['results']
     | ApiGetMetricsTreesResponse['results']
     | ApiMetricsExplorerTotalResults['results']
     | ApiGetSpotlightTableConfig['results']

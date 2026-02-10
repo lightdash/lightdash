@@ -123,9 +123,6 @@ export type CatalogMetricsTreeNode = Pick<
 
 export type MetricsTreeSource = 'ui' | 'yaml';
 
-/** @deprecated Use MetricsTreeSource instead */
-export type CatalogMetricsTreeEdgeSource = MetricsTreeSource;
-
 export type CatalogMetricsTreeEdge = {
     source: CatalogMetricsTreeNode;
     target: CatalogMetricsTreeNode;
