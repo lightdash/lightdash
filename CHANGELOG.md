@@ -1,3 +1,10 @@
+## [0.2446.1](https://github.com/lightdash/lightdash/compare/0.2446.0...0.2446.1) (2026-02-10)
+
+
+### Bug Fixes
+
+* revert "fix: add user to membership via invite link if set up ([#20120](https://github.com/lightdash/lightdash/issues/20120))" ([#20129](https://github.com/lightdash/lightdash/issues/20129)) ([892c0e9](https://github.com/lightdash/lightdash/commit/892c0e9be28b0080a039cb5ec321e135bddac4c8))
+
 # [0.2446.0](https://github.com/lightdash/lightdash/compare/0.2445.0...0.2446.0) (2026-02-10)
 
 
