@@ -631,6 +631,7 @@ const rollbackDashboard = async (
 export const useDashboardVersionRollbackMutation = (
     dashboardUuid: string | undefined,
 ) => {
+    const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<null, ApiError, string>(
         (versionUuid: string) =>
@@ -640,6 +641,14 @@ export const useDashboardVersionRollbackMutation = (
         {
             mutationKey: ['dashboard_version_rollback'],
             onSuccess: async () => {
+                await queryClient.invalidateQueries([
+                    'saved_dashboard_query',
+                    dashboardUuid,
+                ]);
+                await queryClient.invalidateQueries([
+                    'dashboard_history',
+                    dashboardUuid,
+                ]);
                 showToastSuccess({
                     title: `Success! Dashboard was reverted.`,
                 });
