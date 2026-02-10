@@ -1,3 +1,10 @@
+# [0.2446.0](https://github.com/lightdash/lightdash/compare/0.2445.0...0.2446.0) (2026-02-10)
+
+
+### Features
+
+* add limit parameter to embedded dashboard chart exports ([#20128](https://github.com/lightdash/lightdash/issues/20128)) ([57e27b7](https://github.com/lightdash/lightdash/commit/57e27b7bab11a919b88052d7a9e16291ec8784e2))
+
 # [0.2445.0](https://github.com/lightdash/lightdash/compare/0.2444.2...0.2445.0) (2026-02-09)
 
 
