@@ -970,7 +970,7 @@ export class ServiceRepository
                     dashboardService: this.getDashboardService(),
                     savedChartService: this.getSavedChartService(),
                     savedSqlService: this.getSavedSqlService(),
-                    featureFlagModel: this.models.getFeatureFlagModel(),
+                    spacePermissionService: this.getSpacePermissionService(),
                 }),
         );
     }
