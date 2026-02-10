@@ -346,6 +346,7 @@ export type Series = {
     smooth?: boolean;
     markLine?: MarkLine;
     isFilteredOut?: boolean;
+    colorByValue?: boolean;
 };
 
 export type EchartsLegend = {
