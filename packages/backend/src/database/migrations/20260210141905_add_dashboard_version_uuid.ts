@@ -11,13 +11,6 @@ export async function up(knex: Knex): Promise<void> {
             .notNullable();
     });
 
-    // Backfill existing rows
-    await knex.raw(`
-        UPDATE ${DASHBOARD_VERSIONS_TABLE}
-        SET dashboard_version_uuid = gen_random_uuid()
-        WHERE dashboard_version_uuid = uuid_generate_v4()
-    `);
-
     // Add unique index
     await knex.schema.alterTable(DASHBOARD_VERSIONS_TABLE, (table) => {
         table.unique(['dashboard_version_uuid']);
