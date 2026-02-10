@@ -1,3 +1,10 @@
+## [0.2447.1](https://github.com/lightdash/lightdash/compare/0.2447.0...0.2447.1) (2026-02-10)
+
+
+### Bug Fixes
+
+* column naming bug in SQL runner ([#20104](https://github.com/lightdash/lightdash/issues/20104)) ([ffe1bee](https://github.com/lightdash/lightdash/commit/ffe1beee5621a2c53bf890c74f98b44c2ff96f54))
+
 # [0.2447.0](https://github.com/lightdash/lightdash/compare/0.2446.1...0.2447.0) (2026-02-10)
 
 
