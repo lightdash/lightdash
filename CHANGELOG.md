@@ -1,3 +1,10 @@
+## [0.2448.1](https://github.com/lightdash/lightdash/compare/0.2448.0...0.2448.1) (2026-02-10)
+
+
+### Bug Fixes
+
+* handle Snowflake Schema-level errors in custom error messages ([#20122](https://github.com/lightdash/lightdash/issues/20122)) ([b3f1e08](https://github.com/lightdash/lightdash/commit/b3f1e088777e75549d3d0f2bc4389fd886e040df))
+
 # [0.2448.0](https://github.com/lightdash/lightdash/compare/0.2447.1...0.2448.0) (2026-02-10)
 
 
