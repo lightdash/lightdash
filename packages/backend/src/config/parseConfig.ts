@@ -881,6 +881,9 @@ export type LightdashConfig = {
     adminChangeNotifications: {
         enabled: boolean;
     };
+    persistentDownloadUrls: {
+        enabled: boolean;
+    };
     extendedUsageAnalytics: {
         enabled: boolean;
     };
@@ -1698,6 +1701,9 @@ export const parseConfig = (): LightdashConfig => {
         },
         adminChangeNotifications: {
             enabled: process.env.ADMIN_CHANGE_NOTIFICATIONS_ENABLED === 'true',
+        },
+        persistentDownloadUrls: {
+            enabled: process.env.PERSISTENT_DOWNLOAD_URLS_ENABLED === 'true',
         },
         extendedUsageAnalytics: {
             enabled: process.env.EXTENDED_USAGE_ANALYTICS === 'true',
