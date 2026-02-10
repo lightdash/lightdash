@@ -5668,7 +5668,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_ExecuteAsyncDashboardChartRequestParams.dashboardFilters-or-dashboardSorts-or-pivotResults-or-invalidateCache-or-dateZoom-or-parameters_':
+    'Pick_ExecuteAsyncDashboardChartRequestParams.dashboardFilters-or-dashboardSorts-or-pivotResults-or-invalidateCache-or-dateZoom-or-parameters-or-limit_':
         {
             dataType: 'refAlias',
             type: {
@@ -5708,6 +5708,14 @@ const models: TsoaRoute.Models = {
                         dataType: 'union',
                         subSchemas: [
                             { ref: 'ParametersValuesMap' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    limit: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'double' },
+                            { dataType: 'enum', enums: [null] },
                             { dataType: 'undefined' },
                         ],
                     },
@@ -7310,11 +7318,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                     ],
                                                     required: true,
@@ -7792,11 +7800,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                     ],
                                                     required: true,
@@ -7811,11 +7819,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                     ],
                                                     required: true,
@@ -7830,11 +7838,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                     ],
                                                     required: true,
@@ -7849,11 +7857,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                     ],
                                                     required: true,
@@ -7868,11 +7876,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                     ],
                                                     required: true,
@@ -17306,7 +17314,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-tableConfig-or-pivotConfig-or-slug-or-updatedAt_':
+    'Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-tableConfig-or-pivotConfig-or-slug-or-updatedAt-or-parameters_':
         {
             dataType: 'refAlias',
             type: {
@@ -17320,6 +17328,13 @@ const models: TsoaRoute.Models = {
                         ],
                     },
                     name: { dataType: 'string', required: true },
+                    parameters: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { ref: 'ParametersValuesMap' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
                     updatedAt: { dataType: 'datetime', required: true },
                     chartConfig: { ref: 'ChartConfig', required: true },
                     slug: { dataType: 'string', required: true },
@@ -17363,7 +17378,7 @@ const models: TsoaRoute.Models = {
             dataType: 'intersection',
             subSchemas: [
                 {
-                    ref: 'Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-tableConfig-or-pivotConfig-or-slug-or-updatedAt_',
+                    ref: 'Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-tableConfig-or-pivotConfig-or-slug-or-updatedAt-or-parameters_',
                 },
                 {
                     dataType: 'nestedObjectLiteral',
@@ -17949,6 +17964,13 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 name: { dataType: 'string', required: true },
+                parameters: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'ParametersValuesMap' },
+                        { dataType: 'undefined' },
+                    ],
+                },
                 updatedAt: { dataType: 'datetime', required: true },
                 version: { dataType: 'double', required: true },
                 slug: { dataType: 'string', required: true },
@@ -18025,6 +18047,7 @@ const models: TsoaRoute.Models = {
                         required: true,
                     },
                     name: { dataType: 'string', required: true },
+                    limit: { dataType: 'double', required: true },
                     slug: { dataType: 'string', required: true },
                     config: {
                         dataType: 'intersection',
@@ -18042,7 +18065,6 @@ const models: TsoaRoute.Models = {
                         required: true,
                     },
                     sql: { dataType: 'string', required: true },
-                    limit: { dataType: 'double', required: true },
                     chartKind: { ref: 'ChartKind', required: true },
                 },
                 validators: {},
@@ -18121,6 +18143,7 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 name: { dataType: 'string', required: true },
+                limit: { dataType: 'double', required: true },
                 updatedAt: { dataType: 'datetime', required: true },
                 version: { dataType: 'double', required: true },
                 slug: { dataType: 'string', required: true },
@@ -18133,7 +18156,6 @@ const models: TsoaRoute.Models = {
                     ],
                 },
                 sql: { dataType: 'string', required: true },
-                limit: { dataType: 'double', required: true },
                 chartKind: { ref: 'ChartKind', required: true },
             },
             validators: {},
@@ -20158,7 +20180,7 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     MetricTotalComparisonType: {
         dataType: 'refEnum',
-        enums: ['none', 'previous_period'],
+        enums: ['none', 'previous_period', 'rolling_days'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiCompiledQueryResults: {
@@ -21410,6 +21432,309 @@ const models: TsoaRoute.Models = {
         enums: ['tables', 'dimensions', 'metrics'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    MetricsTreeSource: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['ui'] },
+                { dataType: 'enum', enums: ['yaml'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    MetricsTree: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                updatedAt: { dataType: 'datetime', required: true },
+                createdAt: { dataType: 'datetime', required: true },
+                createdByUserUuid: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                source: { ref: 'MetricsTreeSource', required: true },
+                description: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                name: { dataType: 'string', required: true },
+                slug: { dataType: 'string', required: true },
+                projectUuid: { dataType: 'string', required: true },
+                metricsTreeUuid: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    MetricsTreeSummary: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'MetricsTree' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        nodeCount: { dataType: 'double', required: true },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'KnexPaginatedData_MetricsTreeSummary-Array_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                pagination: {
+                    dataType: 'intersection',
+                    subSchemas: [
+                        { ref: 'KnexPaginateArgs' },
+                        {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                totalResults: {
+                                    dataType: 'double',
+                                    required: true,
+                                },
+                                totalPageCount: {
+                                    dataType: 'double',
+                                    required: true,
+                                },
+                            },
+                        },
+                    ],
+                },
+                data: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'MetricsTreeSummary' },
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiGetMetricsTreesResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: {
+                    ref: 'KnexPaginatedData_MetricsTreeSummary-Array_',
+                    required: true,
+                },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    MetricsTreeNodePosition: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                yPosition: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                xPosition: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                catalogSearchUuid: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    MetricsTreeNode: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'MetricsTreeNodePosition' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        source: { ref: 'MetricsTreeSource', required: true },
+                        tableName: { dataType: 'string', required: true },
+                        name: { dataType: 'string', required: true },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_CatalogField.catalogSearchUuid-or-name-or-tableName_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                name: { dataType: 'string', required: true },
+                tableName: { dataType: 'string', required: true },
+                catalogSearchUuid: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    CatalogMetricsTreeNode: {
+        dataType: 'refAlias',
+        type: {
+            ref: 'Pick_CatalogField.catalogSearchUuid-or-name-or-tableName_',
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    CatalogMetricsTreeEdge: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                createdFrom: { ref: 'MetricsTreeSource', required: true },
+                projectUuid: { dataType: 'string', required: true },
+                createdByUserUuid: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                createdAt: { dataType: 'datetime', required: true },
+                target: { ref: 'CatalogMetricsTreeNode', required: true },
+                source: { ref: 'CatalogMetricsTreeNode', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    MetricsTreeWithDetails: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'MetricsTree' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        edges: {
+                            dataType: 'array',
+                            array: {
+                                dataType: 'refAlias',
+                                ref: 'CatalogMetricsTreeEdge',
+                            },
+                            required: true,
+                        },
+                        nodes: {
+                            dataType: 'array',
+                            array: {
+                                dataType: 'refAlias',
+                                ref: 'MetricsTreeNode',
+                            },
+                            required: true,
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiGetMetricsTreeResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: { ref: 'MetricsTreeWithDetails', required: true },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiCreateMetricsTreeResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: { ref: 'MetricsTree', required: true },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiCreateMetricsTreePayload: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                edges: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'nestedObjectLiteral',
+                        nestedProperties: {
+                            targetCatalogSearchUuid: {
+                                dataType: 'string',
+                                required: true,
+                            },
+                            sourceCatalogSearchUuid: {
+                                dataType: 'string',
+                                required: true,
+                            },
+                        },
+                    },
+                    required: true,
+                },
+                nodes: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'nestedObjectLiteral',
+                        nestedProperties: {
+                            yPosition: { dataType: 'double' },
+                            xPosition: { dataType: 'double' },
+                            catalogSearchUuid: {
+                                dataType: 'string',
+                                required: true,
+                            },
+                        },
+                    },
+                    required: true,
+                },
+                source: { ref: 'MetricsTreeSource' },
+                description: { dataType: 'string' },
+                slug: { dataType: 'string' },
+                name: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     CatalogMetadata: {
         dataType: 'refAlias',
         type: {
@@ -21603,65 +21928,6 @@ const models: TsoaRoute.Models = {
     CatalogCategoryFilterMode: {
         dataType: 'refEnum',
         enums: ['and', 'or'],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_CatalogField.catalogSearchUuid-or-name-or-tableName_': {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                name: { dataType: 'string', required: true },
-                tableName: { dataType: 'string', required: true },
-                catalogSearchUuid: { dataType: 'string', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    CatalogMetricsTreeNode: {
-        dataType: 'refAlias',
-        type: {
-            ref: 'Pick_CatalogField.catalogSearchUuid-or-name-or-tableName_',
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    CatalogMetricsTreeEdgeSource: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'union',
-            subSchemas: [
-                { dataType: 'enum', enums: ['ui'] },
-                { dataType: 'enum', enums: ['yaml'] },
-            ],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    CatalogMetricsTreeEdge: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                createdFrom: {
-                    ref: 'CatalogMetricsTreeEdgeSource',
-                    required: true,
-                },
-                projectUuid: { dataType: 'string', required: true },
-                createdByUserUuid: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'string' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
-                createdAt: { dataType: 'datetime', required: true },
-                target: { ref: 'CatalogMetricsTreeNode', required: true },
-                source: { ref: 'CatalogMetricsTreeNode', required: true },
-            },
-            validators: {},
-        },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiGetAllMetricsTreeEdges: {
@@ -22454,6 +22720,7 @@ const models: TsoaRoute.Models = {
                         { dataType: 'undefined' },
                     ],
                 },
+                limit: { dataType: 'double', required: true },
                 filters: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
@@ -22478,7 +22745,6 @@ const models: TsoaRoute.Models = {
                     array: { dataType: 'refAlias', ref: 'TableCalculation' },
                     required: true,
                 },
-                limit: { dataType: 'double', required: true },
                 exploreName: { dataType: 'string', required: true },
                 sorts: {
                     dataType: 'array',
@@ -26045,7 +26311,7 @@ export function RegisterRoutes(app: Router) {
                     },
                 },
                 {
-                    ref: 'Pick_ExecuteAsyncDashboardChartRequestParams.dashboardFilters-or-dashboardSorts-or-pivotResults-or-invalidateCache-or-dateZoom-or-parameters_',
+                    ref: 'Pick_ExecuteAsyncDashboardChartRequestParams.dashboardFilters-or-dashboardSorts-or-pivotResults-or-invalidateCache-or-dateZoom-or-parameters-or-limit_',
                 },
             ],
         },
@@ -44260,6 +44526,197 @@ export function RegisterRoutes(app: Router) {
                     next,
                     validatedArgs,
                     successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsCatalogController_getMetricsTrees: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        page: { in: 'query', name: 'page', dataType: 'double' },
+        pageSize: { in: 'query', name: 'pageSize', dataType: 'double' },
+    };
+    app.get(
+        '/api/v1/projects/:projectUuid/dataCatalog/metrics/trees',
+        ...fetchMiddlewares<RequestHandler>(CatalogController),
+        ...fetchMiddlewares<RequestHandler>(
+            CatalogController.prototype.getMetricsTrees,
+        ),
+
+        async function CatalogController_getMetricsTrees(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsCatalogController_getMetricsTrees,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<CatalogController>(CatalogController);
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getMetricsTrees',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsCatalogController_getMetricsTreeDetails: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        metricsTreeUuid: {
+            in: 'path',
+            name: 'metricsTreeUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
+    app.get(
+        '/api/v1/projects/:projectUuid/dataCatalog/metrics/trees/:metricsTreeUuid',
+        ...fetchMiddlewares<RequestHandler>(CatalogController),
+        ...fetchMiddlewares<RequestHandler>(
+            CatalogController.prototype.getMetricsTreeDetails,
+        ),
+
+        async function CatalogController_getMetricsTreeDetails(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsCatalogController_getMetricsTreeDetails,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<CatalogController>(CatalogController);
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getMetricsTreeDetails',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsCatalogController_createMetricsTree: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'ApiCreateMetricsTreePayload',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
+    app.post(
+        '/api/v1/projects/:projectUuid/dataCatalog/metrics/trees',
+        ...fetchMiddlewares<RequestHandler>(CatalogController),
+        ...fetchMiddlewares<RequestHandler>(
+            CatalogController.prototype.createMetricsTree,
+        ),
+
+        async function CatalogController_createMetricsTree(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsCatalogController_createMetricsTree,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<CatalogController>(CatalogController);
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'createMetricsTree',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 201,
                 });
             } catch (err) {
                 return next(err);

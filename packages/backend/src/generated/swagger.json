@@ -6483,7 +6483,7 @@
                 },
                 "type": "object"
             },
-            "Pick_ExecuteAsyncDashboardChartRequestParams.dashboardFilters-or-dashboardSorts-or-pivotResults-or-invalidateCache-or-dateZoom-or-parameters_": {
+            "Pick_ExecuteAsyncDashboardChartRequestParams.dashboardFilters-or-dashboardSorts-or-pivotResults-or-invalidateCache-or-dateZoom-or-parameters-or-limit_": {
                 "properties": {
                     "dashboardFilters": {
                         "$ref": "#/components/schemas/DashboardFilters"
@@ -6505,6 +6505,11 @@
                     },
                     "parameters": {
                         "$ref": "#/components/schemas/ParametersValuesMap"
+                    },
+                    "limit": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
                     }
                 },
                 "required": ["dashboardFilters", "dashboardSorts"],
@@ -8208,6 +8213,19 @@
                                                         "type": "string",
                                                         "enum": ["error"],
                                                         "nullable": false
+                                                    }
+                                                },
+                                                "required": ["status"],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "success",
+                                                            "error"
+                                                        ]
                                                     }
                                                 },
                                                 "required": ["status"],
@@ -18200,13 +18218,16 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-tableConfig-or-pivotConfig-or-slug-or-updatedAt_": {
+            "Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-tableConfig-or-pivotConfig-or-slug-or-updatedAt-or-parameters_": {
                 "properties": {
                     "description": {
                         "type": "string"
                     },
                     "name": {
                         "type": "string"
+                    },
+                    "parameters": {
+                        "$ref": "#/components/schemas/ParametersValuesMap"
                     },
                     "updatedAt": {
                         "type": "string",
@@ -18264,7 +18285,7 @@
             "ChartAsCode": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-tableConfig-or-pivotConfig-or-slug-or-updatedAt_"
+                        "$ref": "#/components/schemas/Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-tableConfig-or-pivotConfig-or-slug-or-updatedAt-or-parameters_"
                     },
                     {
                         "properties": {
@@ -18743,6 +18764,9 @@
                     "name": {
                         "type": "string"
                     },
+                    "parameters": {
+                        "$ref": "#/components/schemas/ParametersValuesMap"
+                    },
                     "updatedAt": {
                         "type": "string",
                         "format": "date-time"
@@ -18821,6 +18845,10 @@
                     "name": {
                         "type": "string"
                     },
+                    "limit": {
+                        "type": "number",
+                        "format": "double"
+                    },
                     "slug": {
                         "type": "string"
                     },
@@ -18847,10 +18875,6 @@
                     "sql": {
                         "type": "string"
                     },
-                    "limit": {
-                        "type": "number",
-                        "format": "double"
-                    },
                     "chartKind": {
                         "$ref": "#/components/schemas/ChartKind"
                     }
@@ -18858,10 +18882,10 @@
                 "required": [
                     "description",
                     "name",
+                    "limit",
                     "slug",
                     "config",
                     "sql",
-                    "limit",
                     "chartKind"
                 ],
                 "type": "object",
@@ -18956,6 +18980,10 @@
                     "name": {
                         "type": "string"
                     },
+                    "limit": {
+                        "type": "number",
+                        "format": "double"
+                    },
                     "updatedAt": {
                         "type": "string",
                         "format": "date-time"
@@ -18977,22 +19005,18 @@
                     "sql": {
                         "type": "string"
                     },
-                    "limit": {
-                        "type": "number",
-                        "format": "double"
-                    },
                     "chartKind": {
                         "$ref": "#/components/schemas/ChartKind"
                     }
                 },
                 "required": [
                     "name",
+                    "limit",
                     "updatedAt",
                     "version",
                     "slug",
                     "spaceSlug",
                     "sql",
-                    "limit",
                     "chartKind"
                 ],
                 "type": "object",
@@ -20965,7 +20989,7 @@
                 "type": "object"
             },
             "MetricTotalComparisonType": {
-                "enum": ["none", "previous_period"],
+                "enum": ["none", "previous_period", "rolling_days"],
                 "type": "string"
             },
             "ApiCompiledQueryResults": {
@@ -22233,6 +22257,323 @@
                 "enum": ["tables", "dimensions", "metrics"],
                 "type": "string"
             },
+            "MetricsTreeSource": {
+                "type": "string",
+                "enum": ["ui", "yaml"]
+            },
+            "MetricsTree": {
+                "properties": {
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "createdByUserUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "source": {
+                        "$ref": "#/components/schemas/MetricsTreeSource"
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "metricsTreeUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "updatedAt",
+                    "createdAt",
+                    "createdByUserUuid",
+                    "source",
+                    "description",
+                    "name",
+                    "slug",
+                    "projectUuid",
+                    "metricsTreeUuid"
+                ],
+                "type": "object"
+            },
+            "MetricsTreeSummary": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/MetricsTree"
+                    },
+                    {
+                        "properties": {
+                            "nodeCount": {
+                                "type": "number",
+                                "format": "double"
+                            }
+                        },
+                        "required": ["nodeCount"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "KnexPaginatedData_MetricsTreeSummary-Array_": {
+                "properties": {
+                    "pagination": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/KnexPaginateArgs"
+                            },
+                            {
+                                "properties": {
+                                    "totalResults": {
+                                        "type": "number",
+                                        "format": "double"
+                                    },
+                                    "totalPageCount": {
+                                        "type": "number",
+                                        "format": "double"
+                                    }
+                                },
+                                "required": ["totalResults", "totalPageCount"],
+                                "type": "object"
+                            }
+                        ]
+                    },
+                    "data": {
+                        "items": {
+                            "$ref": "#/components/schemas/MetricsTreeSummary"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["data"],
+                "type": "object"
+            },
+            "ApiGetMetricsTreesResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/KnexPaginatedData_MetricsTreeSummary-Array_"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "MetricsTreeNodePosition": {
+                "properties": {
+                    "yPosition": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "xPosition": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "catalogSearchUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["yPosition", "xPosition", "catalogSearchUuid"],
+                "type": "object"
+            },
+            "MetricsTreeNode": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/MetricsTreeNodePosition"
+                    },
+                    {
+                        "properties": {
+                            "source": {
+                                "$ref": "#/components/schemas/MetricsTreeSource"
+                            },
+                            "tableName": {
+                                "type": "string"
+                            },
+                            "name": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["source", "tableName", "name"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "Pick_CatalogField.catalogSearchUuid-or-name-or-tableName_": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "tableName": {
+                        "type": "string"
+                    },
+                    "catalogSearchUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["name", "tableName", "catalogSearchUuid"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "CatalogMetricsTreeNode": {
+                "$ref": "#/components/schemas/Pick_CatalogField.catalogSearchUuid-or-name-or-tableName_"
+            },
+            "CatalogMetricsTreeEdge": {
+                "properties": {
+                    "createdFrom": {
+                        "$ref": "#/components/schemas/MetricsTreeSource"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "createdByUserUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "target": {
+                        "$ref": "#/components/schemas/CatalogMetricsTreeNode"
+                    },
+                    "source": {
+                        "$ref": "#/components/schemas/CatalogMetricsTreeNode"
+                    }
+                },
+                "required": [
+                    "createdFrom",
+                    "projectUuid",
+                    "createdByUserUuid",
+                    "createdAt",
+                    "target",
+                    "source"
+                ],
+                "type": "object"
+            },
+            "MetricsTreeWithDetails": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/MetricsTree"
+                    },
+                    {
+                        "properties": {
+                            "edges": {
+                                "items": {
+                                    "$ref": "#/components/schemas/CatalogMetricsTreeEdge"
+                                },
+                                "type": "array"
+                            },
+                            "nodes": {
+                                "items": {
+                                    "$ref": "#/components/schemas/MetricsTreeNode"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["edges", "nodes"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ApiGetMetricsTreeResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/MetricsTreeWithDetails"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiCreateMetricsTreeResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/MetricsTree"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiCreateMetricsTreePayload": {
+                "properties": {
+                    "edges": {
+                        "items": {
+                            "properties": {
+                                "targetCatalogSearchUuid": {
+                                    "type": "string"
+                                },
+                                "sourceCatalogSearchUuid": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": [
+                                "targetCatalogSearchUuid",
+                                "sourceCatalogSearchUuid"
+                            ],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "nodes": {
+                        "items": {
+                            "properties": {
+                                "yPosition": {
+                                    "type": "number",
+                                    "format": "double"
+                                },
+                                "xPosition": {
+                                    "type": "number",
+                                    "format": "double"
+                                },
+                                "catalogSearchUuid": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["catalogSearchUuid"],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "source": {
+                        "$ref": "#/components/schemas/MetricsTreeSource"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": ["edges", "nodes", "name"],
+                "type": "object"
+            },
             "CatalogMetadata": {
                 "properties": {
                     "fieldType": {
@@ -22406,62 +22747,6 @@
             "CatalogCategoryFilterMode": {
                 "enum": ["and", "or"],
                 "type": "string"
-            },
-            "Pick_CatalogField.catalogSearchUuid-or-name-or-tableName_": {
-                "properties": {
-                    "name": {
-                        "type": "string"
-                    },
-                    "tableName": {
-                        "type": "string"
-                    },
-                    "catalogSearchUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": ["name", "tableName", "catalogSearchUuid"],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "CatalogMetricsTreeNode": {
-                "$ref": "#/components/schemas/Pick_CatalogField.catalogSearchUuid-or-name-or-tableName_"
-            },
-            "CatalogMetricsTreeEdgeSource": {
-                "type": "string",
-                "enum": ["ui", "yaml"]
-            },
-            "CatalogMetricsTreeEdge": {
-                "properties": {
-                    "createdFrom": {
-                        "$ref": "#/components/schemas/CatalogMetricsTreeEdgeSource"
-                    },
-                    "projectUuid": {
-                        "type": "string"
-                    },
-                    "createdByUserUuid": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "createdAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "target": {
-                        "$ref": "#/components/schemas/CatalogMetricsTreeNode"
-                    },
-                    "source": {
-                        "$ref": "#/components/schemas/CatalogMetricsTreeNode"
-                    }
-                },
-                "required": [
-                    "createdFrom",
-                    "projectUuid",
-                    "createdByUserUuid",
-                    "createdAt",
-                    "target",
-                    "source"
-                ],
-                "type": "object"
             },
             "ApiGetAllMetricsTreeEdges": {
                 "properties": {
@@ -23204,6 +23489,10 @@
                     "dateZoom": {
                         "$ref": "#/components/schemas/DateZoom"
                     },
+                    "limit": {
+                        "type": "number",
+                        "format": "double"
+                    },
                     "filters": {
                         "properties": {
                             "tableCalculations": {},
@@ -23229,10 +23518,6 @@
                             "$ref": "#/components/schemas/TableCalculation"
                         },
                         "type": "array"
-                    },
-                    "limit": {
-                        "type": "number",
-                        "format": "double"
                     },
                     "exploreName": {
                         "type": "string"
@@ -23275,11 +23560,11 @@
                     }
                 },
                 "required": [
+                    "limit",
                     "filters",
                     "dimensions",
                     "metrics",
                     "tableCalculations",
-                    "limit",
                     "exploreName",
                     "sorts"
                 ],
@@ -24522,7 +24807,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2438.0",
+        "version": "0.2445.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -37550,6 +37835,165 @@
                         "required": false,
                         "schema": {
                             "$ref": "#/components/schemas/CatalogFilter"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/dataCatalog/metrics/trees": {
+            "get": {
+                "operationId": "getMetricsTrees",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiGetMetricsTreesResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "List saved metrics trees for a project",
+                "summary": "List metrics trees",
+                "tags": ["Catalog"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Page number (1-indexed)",
+                        "in": "query",
+                        "name": "page",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "description": "Number of trees per page",
+                        "in": "query",
+                        "name": "pageSize",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "createMetricsTree",
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiCreateMetricsTreeResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Create a new saved metrics tree with nodes and edges",
+                "summary": "Create metrics tree",
+                "tags": ["Catalog"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiCreateMetricsTreePayload"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/dataCatalog/metrics/trees/{metricsTreeUuid}": {
+            "get": {
+                "operationId": "getMetricsTreeDetails",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiGetMetricsTreeResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get details of a saved metrics tree including nodes and edges",
+                "summary": "Get metrics tree details",
+                "tags": ["Catalog"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "metricsTreeUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
                         }
                     }
                 ]
