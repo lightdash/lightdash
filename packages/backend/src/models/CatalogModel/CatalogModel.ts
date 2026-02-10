@@ -32,6 +32,7 @@ import {
     type KnexPaginateArgs,
     type KnexPaginatedData,
     type MetricsTree,
+    type MetricsTreeSummary,
     type SessionUser,
     type TablesConfiguration,
     type Tag,
@@ -50,6 +51,7 @@ import {
     getDbCatalogColumnFromCatalogProperty,
     type DbCatalog,
     type DbCatalogTagsMigrateIn,
+    type DbMetricsTree,
     type DbMetricsTreeEdge,
     type DbMetricsTreeEdgeDelete,
     type DbMetricsTreeEdgeIn,
@@ -1737,6 +1739,47 @@ export class CatalogModel {
     }
 
     // --- Saved Metrics Trees ---
+
+    async getMetricsTrees(
+        projectUuid: string,
+        paginateArgs?: KnexPaginateArgs,
+    ): Promise<KnexPaginatedData<MetricsTreeSummary[]>> {
+        const query = this.database(MetricsTreesTableName)
+            .select<(DbMetricsTree & { node_count: number })[]>(
+                `${MetricsTreesTableName}.*`,
+                this.database.raw(
+                    `COALESCE(COUNT(${MetricsTreeNodesTableName}.catalog_search_uuid), 0)::int as node_count`,
+                ),
+            )
+            .leftJoin(
+                MetricsTreeNodesTableName,
+                `${MetricsTreesTableName}.metrics_tree_uuid`,
+                `${MetricsTreeNodesTableName}.metrics_tree_uuid`,
+            )
+            .where(`${MetricsTreesTableName}.project_uuid`, projectUuid)
+            .groupBy(`${MetricsTreesTableName}.metrics_tree_uuid`)
+            .orderBy(`${MetricsTreesTableName}.updated_at`, 'desc');
+
+        const result = await KnexPaginate.paginate(query, paginateArgs);
+
+        return {
+            data: (
+                result.data as (DbMetricsTree & { node_count: number })[]
+            ).map((row) => ({
+                metricsTreeUuid: row.metrics_tree_uuid,
+                projectUuid: row.project_uuid,
+                slug: row.slug,
+                name: row.name,
+                description: row.description,
+                source: row.source,
+                createdByUserUuid: row.created_by_user_uuid,
+                createdAt: row.created_at,
+                updatedAt: row.updated_at,
+                nodeCount: row.node_count,
+            })),
+            pagination: result.pagination,
+        };
+    }
 
     async createMetricsTree(
         tree: DbMetricsTreeIn,
