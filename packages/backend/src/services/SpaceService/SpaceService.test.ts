@@ -11,6 +11,7 @@ import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel
 import { PinnedListModel } from '../../models/PinnedListModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SpaceModel } from '../../models/SpaceModel';
+import { SpacePermissionService } from './SpacePermissionService';
 import { SpaceService } from './SpaceService';
 import {
     createSpaceAccessResponse,
@@ -34,6 +35,7 @@ describe('SpaceService', () => {
             spaceModel: new SpaceModel({ database: db }),
             pinnedListModel: {} as PinnedListModel,
             featureFlagModel: {} as FeatureFlagModel,
+            spacePermissionService: {} as SpacePermissionService,
         });
     });
 
