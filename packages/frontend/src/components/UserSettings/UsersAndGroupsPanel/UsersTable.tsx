@@ -183,13 +183,7 @@ const UsersTable: FC<UsersTableProps> = ({ onInviteClick }) => {
                                             ? `${user.firstName} ${user.lastName}`
                                             : user.email}
                                     </Text>
-                                    <Badge
-                                        variant="light"
-                                        color="red"
-                                        radius="xs"
-                                        style={{ textTransform: 'none' }}
-                                        px="xxs"
-                                    >
+                                    <Badge variant="light" color="red">
                                         Inactive
                                     </Badge>
                                 </Stack>
@@ -201,18 +195,10 @@ const UsersTable: FC<UsersTableProps> = ({ onInviteClick }) => {
                                         </Text>
                                     )}
                                     <Group gap="xs">
-                                        <Badge
-                                            variant="filled"
-                                            color="orange.3"
-                                            radius="xs"
-                                            style={{ textTransform: 'none' }}
-                                            px="xxs"
-                                        >
-                                            <Text fz="xs" fw={400} c="gray.8">
-                                                {!user.isInviteExpired
-                                                    ? 'Pending'
-                                                    : 'Link expired'}
-                                            </Text>
+                                        <Badge variant="light" color="orange">
+                                            {!user.isInviteExpired
+                                                ? 'Pending'
+                                                : 'Link expired'}
                                         </Badge>
                                     </Group>
                                 </Stack>
@@ -223,16 +209,8 @@ const UsersTable: FC<UsersTableProps> = ({ onInviteClick }) => {
                                     </Text>
 
                                     {user.email && (
-                                        <Badge
-                                            variant="filled"
-                                            color="ldGray.2"
-                                            radius="xs"
-                                            style={{ textTransform: 'none' }}
-                                            px="xxs"
-                                        >
-                                            <Text fz="xs" fw={400} c="ldGray.8">
-                                                {user.email}
-                                            </Text>
+                                        <Badge variant="light" color="gray">
+                                            {user.email}
                                         </Badge>
                                     )}
                                 </Stack>

@@ -1,4 +1,5 @@
 import {
+    Badge,
     Button,
     Card,
     Loader,
@@ -106,6 +107,17 @@ export const getMantine8ThemeOverride = (
 
         components: {
             ...legacyComponentsTheme,
+            Badge: Badge.extend({
+                defaultProps: {
+                    radius: 'sm',
+                },
+                styles: {
+                    root: {
+                        textTransform: 'none',
+                        fontWeight: 400,
+                    },
+                },
+            }),
             Card: Card.extend({
                 styles: (theme, props) => ({
                     root: {
