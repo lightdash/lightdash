@@ -416,6 +416,15 @@ export const cartesianChartConfigSlice = createSlice({
                 };
             }
         },
+        setXAxisDateFormat: (
+            { display },
+            action: PayloadAction<{ dateFormat: string | undefined }>,
+        ) => {
+            if (!display) display = {};
+            if (!display.xAxis) display.xAxis = {};
+            display.xAxis.dateFormat = action.payload.dateFormat;
+        },
+
         setSeriesValueLabelPosition: (
             { fieldConfig, display },
             action: PayloadAction<{

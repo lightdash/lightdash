@@ -1,4 +1,4 @@
-import { type ChartKind } from '@lightdash/common';
+import { VizIndexType, type ChartKind } from '@lightdash/common';
 import { Group, Stack, TextInput } from '@mantine/core';
 import {
     useAppDispatch as useVizDispatch,
@@ -12,6 +12,7 @@ import {
     selectCurrentCartesianChartState,
 } from '../store/selectors';
 import { CartesianChartFormatConfig } from './CartesianChartFormatConfig';
+import { CartesianChartXAxisDateFormatConfig } from './CartesianChartXAxisDateFormatConfig';
 
 export const CartesianChartDisplayConfig = ({
     selectedChartType,
@@ -30,6 +31,13 @@ export const CartesianChartDisplayConfig = ({
         cartesianChartSelectors.getXAxisLabel(state, selectedChartType),
     );
 
+    const xAxisType = useVizSelector((state) =>
+        cartesianChartSelectors.getXAxisType(state, selectedChartType),
+    );
+    const xAxisDateFormat = useVizSelector((state) =>
+        cartesianChartSelectors.getXAxisDateFormat(state, selectedChartType),
+    );
+
     const leftYAxisFields = useVizSelector((state) =>
         cartesianChartSelectors.getLeftYAxisFields(state, selectedChartType),
     );
@@ -45,18 +53,37 @@ export const CartesianChartDisplayConfig = ({
         <Stack spacing="xl" mt="sm">
             <Config>
                 <Config.Section>
-                    <Config.Heading>{`X-axis label`}</Config.Heading>
-                    <TextInput
-                        value={xAxisLabel || ''}
-                        radius="md"
-                        onChange={(e) =>
-                            dispatch(
-                                actions.setXAxisLabel({
-                                    label: e.target.value,
-                                }),
-                            )
-                        }
-                    />
+                    <Config.Heading>{`X-axis`}</Config.Heading>
+                    <Group noWrap w="100%">
+                        <Config.Label>{`Label`}</Config.Label>
+                        <TextInput
+                            w="100%"
+                            value={xAxisLabel || ''}
+                            radius="md"
+                            onChange={(e) =>
+                                dispatch(
+                                    actions.setXAxisLabel({
+                                        label: e.target.value,
+                                    }),
+                                )
+                            }
+                        />
+                    </Group>
+                    {xAxisType === VizIndexType.TIME && (
+                        <Config.Group>
+                            <Config.Label>{`Format`}</Config.Label>
+                            <CartesianChartXAxisDateFormatConfig
+                                dateFormat={xAxisDateFormat}
+                                onChangeDateFormat={(value) => {
+                                    dispatch(
+                                        actions.setXAxisDateFormat({
+                                            dateFormat: value,
+                                        }),
+                                    );
+                                }}
+                            />
+                        </Config.Group>
+                    )}
                 </Config.Section>
             </Config>
             {leftYAxisFields.length > 0 && (
