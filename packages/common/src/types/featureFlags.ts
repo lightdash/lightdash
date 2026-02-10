@@ -88,6 +88,11 @@ export enum FeatureFlags {
      * Enable admin change notifications for critical configuration changes
      */
     AdminChangeNotifications = 'admin-change-notifications',
+
+    /**
+     * Enable saved metrics trees in the catalog canvas
+     */
+    SavedMetricsTree = 'saved-metrics-tree',
 }
 
 export type FeatureFlag = {

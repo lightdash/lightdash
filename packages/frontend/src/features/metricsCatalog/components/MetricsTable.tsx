@@ -68,7 +68,7 @@ import { MetricsCatalogColumns } from './MetricsCatalogColumns';
 import { MetricsTableTopToolbar } from './MetricsTableTopToolbar';
 
 type MetricsTableProps = {
-    metricCatalogView: MetricCatalogView;
+    metricCatalogView: MetricCatalogView.LIST | MetricCatalogView.CANVAS;
 };
 
 export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
@@ -297,10 +297,7 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
     // Viewers cannot access metrics tree if there are no edges
     // In list mode, we don't know yet if edges exist, so we allow access (will show message in canvas if no edges)
     const isValidMetricsEdgeCount = useMemo(
-        () =>
-            canManageMetricsTree ||
-            !isCanvasMode ||
-            filteredEdges.length > 0,
+        () => canManageMetricsTree || !isCanvasMode || filteredEdges.length > 0,
         [canManageMetricsTree, isCanvasMode, filteredEdges],
     );
 

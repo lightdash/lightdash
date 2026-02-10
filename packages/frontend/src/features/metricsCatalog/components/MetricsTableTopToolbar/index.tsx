@@ -16,6 +16,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import {
     DEFAULT_SPOTLIGHT_TABLE_COLUMN_CONFIG,
+    FeatureFlags,
     SpotlightTableColumns,
     type CatalogCategoryFilterMode,
     type CatalogField,
@@ -37,6 +38,7 @@ import {
     type GroupProps,
 } from '@mantine/core';
 import {
+    IconBinaryTree2,
     IconEye,
     IconEyeOff,
     IconGripVertical,
@@ -51,6 +53,7 @@ import { memo, useCallback, useMemo, useState, type FC } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { useDebounce } from 'react-use';
 import MantineIcon from '../../../../components/common/MantineIcon';
+import { useClientFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
 import useTracking from '../../../../providers/Tracking/useTracking';
 import { TotalMetricsDot } from '../../../../svgs/metricsCatalog';
 import { EventName } from '../../../../types/Events';
@@ -206,6 +209,9 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
         const { track } = useTracking();
         const location = useLocation();
         const navigate = useNavigate();
+        const isSavedMetricsTreeEnabled = useClientFeatureFlag(
+            FeatureFlags.SavedMetricsTree,
+        );
         const clearSearch = useCallback(() => setSearch(''), [setSearch]);
         const { data: savedTableConfig } = useSpotlightTableConfig({
             projectUuid,
@@ -659,21 +665,48 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                                 ),
                                 value: MetricCatalogView.CANVAS,
                             },
+                            ...(isSavedMetricsTreeEnabled
+                                ? [
+                                      {
+                                          label: (
+                                              <Tooltip
+                                                  withinPortal
+                                                  variant="xs"
+                                                  label="Tree view"
+                                                  position="bottom-end"
+                                              >
+                                                  <Center>
+                                                      <MantineIcon
+                                                          icon={IconBinaryTree2}
+                                                          size="md"
+                                                      />
+                                                  </Center>
+                                              </Tooltip>
+                                          ),
+                                          value: MetricCatalogView.TREE,
+                                      },
+                                  ]
+                                : []),
                         ]}
                         onChange={(value) => {
-                            if (!isValidMetricsTree) {
+                            const view = value as MetricCatalogView;
+
+                            if (
+                                view === MetricCatalogView.CANVAS &&
+                                !isValidMetricsTree
+                            ) {
                                 return;
                             }
 
-                            const view = value as MetricCatalogView;
+                            const basePath = location.pathname.replace(
+                                /\/(canvas|tree)$/,
+                                '',
+                            );
 
                             switch (view) {
                                 case MetricCatalogView.LIST:
                                     void navigate({
-                                        pathname: location.pathname.replace(
-                                            /\/canvas/,
-                                            '',
-                                        ),
+                                        pathname: basePath,
                                         search: location.search,
                                     });
                                     break;
@@ -687,7 +720,13 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                                         },
                                     });
                                     void navigate({
-                                        pathname: `${location.pathname}/canvas`,
+                                        pathname: `${basePath}/canvas`,
+                                        search: location.search,
+                                    });
+                                    break;
+                                case MetricCatalogView.TREE:
+                                    void navigate({
+                                        pathname: `${basePath}/tree`,
                                         search: location.search,
                                     });
                                     break;

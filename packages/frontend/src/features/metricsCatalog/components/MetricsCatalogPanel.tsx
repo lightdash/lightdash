@@ -42,9 +42,10 @@ import {
     setUser,
     toggleMetricExploreModal,
 } from '../store/metricsCatalogSlice';
-import { type MetricCatalogView } from '../types';
+import { MetricCatalogView } from '../types';
 import { MetricChartUsageModal } from './MetricChartUsageModal';
 import { MetricsTable } from './MetricsTable';
+import { MetricsTreeView } from './MetricsTreeView';
 
 const LOCAL_STORAGE_KEY = 'metrics-catalog-learn-more-popover-closed';
 
@@ -209,6 +210,8 @@ export const MetricsCatalogPanel: FC<MetricsCatalogPanelProps> = ({
     const organizationUuid = useAppSelector(
         (state) => state.metricsCatalog.organizationUuid,
     );
+
+    const isTreeView = metricCatalogView === MetricCatalogView.TREE;
 
     const [lastDbtRefreshAt, setLastDbtRefreshAt] = useState<
         Date | undefined
@@ -535,7 +538,18 @@ export const MetricsCatalogPanel: FC<MetricsCatalogPanelProps> = ({
                     <LearnMorePopover buttonStyles={headerButtonStyles} />
                 </Group>
             </Group>
-            <MetricsTable metricCatalogView={metricCatalogView} />
+            {isTreeView ? (
+                <MetricsTreeView />
+            ) : (
+                <MetricsTable
+                    metricCatalogView={
+                        metricCatalogView as
+                            | MetricCatalogView.LIST
+                            | MetricCatalogView.CANVAS
+                    }
+                />
+            )}
+
             <MetricChartUsageModal
                 opened={isMetricUsageModalOpen}
                 onClose={onCloseMetricUsageModal}

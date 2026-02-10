@@ -22,6 +22,7 @@ import JoinOrganization from './pages/JoinOrganization';
 import LegacySqlRunner from './pages/LegacySqlRunner';
 import Login from './pages/Login';
 import MetricsCatalog from './pages/MetricsCatalog';
+import MetricsTree from './pages/MetricsTree';
 import MinimalDashboard from './pages/MinimalDashboard';
 import MinimalSavedExplorer from './pages/MinimalSavedExplorer';
 import PasswordRecovery from './pages/PasswordRecovery';
@@ -329,6 +330,17 @@ const METRICS_ROUTES: RouteObject[] = [
                     <MetricsCatalog
                         metricCatalogView={MetricCatalogView.CANVAS}
                     />
+                </TrackPage>
+            </>
+        ),
+    },
+    {
+        path: '/projects/:projectUuid/metrics/tree',
+        element: (
+            <>
+                <NavBar />
+                <TrackPage name={PageName.SAVED_METRICS_TREE}>
+                    <MetricsTree />
                 </TrackPage>
             </>
         ),
