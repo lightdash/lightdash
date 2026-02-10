@@ -1,3 +1,10 @@
+# [0.2447.0](https://github.com/lightdash/lightdash/compare/0.2446.1...0.2447.0) (2026-02-10)
+
+
+### Features
+
+* add toggle to show/hide org members without project roles ([#20131](https://github.com/lightdash/lightdash/issues/20131)) ([72dcd9f](https://github.com/lightdash/lightdash/commit/72dcd9fbdcc98bbeba016dc9ee583d471c72dcaa))
+
 ## [0.2446.1](https://github.com/lightdash/lightdash/compare/0.2446.0...0.2446.1) (2026-02-10)
 
 
