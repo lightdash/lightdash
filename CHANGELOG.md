@@ -1,3 +1,11 @@
+# [0.2449.0](https://github.com/lightdash/lightdash/compare/0.2448.1...0.2449.0) (2026-02-10)
+
+
+### Features
+
+* allow setting date format on sql runner x axis fields ([#20159](https://github.com/lightdash/lightdash/issues/20159)) ([4dde45d](https://github.com/lightdash/lightdash/commit/4dde45dd2c170e3e5974d9556cda950582946274))
+* improver tooltip hover behavior on mixed charts ([#20164](https://github.com/lightdash/lightdash/issues/20164)) ([19123ec](https://github.com/lightdash/lightdash/commit/19123ec1626d2f78d15ddcf6daf4fadf51ccfb6f))
+
 ## [0.2448.1](https://github.com/lightdash/lightdash/compare/0.2448.0...0.2448.1) (2026-02-10)
 
 
