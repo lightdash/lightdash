@@ -33,7 +33,10 @@ export const useProjectUsersWithRoles = (projectUuid: string) => {
             }
             return acc;
         }, {});
-    }, [projectRoleAssignmentsQuery]);
+    }, [
+        projectRoleAssignmentsQuery.isSuccess,
+        projectRoleAssignmentsQuery.data,
+    ]);
 
     const usersWithProjectRole: ProjectUserWithRoleV2[] = useMemo(() => {
         if (!organizationUsersQuery.isSuccess) return [];
@@ -61,13 +64,18 @@ export const useProjectUsersWithRoles = (projectUuid: string) => {
                 sensitivity: 'base',
             });
         });
-    }, [organizationUsersQuery, projectRoles, projectUuid]);
+    }, [
+        organizationUsersQuery.isSuccess,
+        organizationUsersQuery.data,
+        projectRoles,
+        projectUuid,
+    ]);
 
     const groupRoles = useMemo(() => {
         return projectRoleAssignmentsQuery.data?.filter(
             (assignment) => assignment.assigneeType === 'group',
         );
-    }, [projectRoleAssignmentsQuery]);
+    }, [projectRoleAssignmentsQuery.data]);
 
     return {
         usersWithProjectRole,
