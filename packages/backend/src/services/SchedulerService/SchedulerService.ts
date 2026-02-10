@@ -1426,9 +1426,7 @@ export class SchedulerService extends BaseService {
             jobsToLog.map(({ job, durationMinutes }) =>
                 this.schedulerModel.logSchedulerJob({
                     task: job.taskIdentifier as SchedulerTaskName,
-                    schedulerUuid: job.payload.schedulerUuid as
-                        | string
-                        | undefined,
+                    schedulerUuid: job.payload.schedulerUuid,
                     jobId: job.id,
                     scheduledTime: job.runAt,
                     status: SchedulerJobStatus.ERROR,
@@ -1436,15 +1434,9 @@ export class SchedulerService extends BaseService {
                         error: 'This job took longer than expected and was stopped after 1 hour—please try again. If the issue persists, contact support.',
                         lockedAt: job.lockedAt.toISOString(),
                         lockedBy: job.lockedBy,
-                        projectUuid: job.payload.projectUuid as
-                            | string
-                            | undefined,
-                        organizationUuid: job.payload.organizationUuid as
-                            | string
-                            | undefined,
-                        createdByUserUuid: job.payload.userUuid as
-                            | string
-                            | undefined,
+                        projectUuid: job.payload.projectUuid,
+                        organizationUuid: job.payload.organizationUuid,
+                        createdByUserUuid: job.payload.userUuid,
                     },
                 }),
             ),

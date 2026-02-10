@@ -1242,7 +1242,13 @@ export class SchedulerClient {
             lockedAt: Date;
             lockedBy: string;
             runAt: Date;
-            payload: Record<string, unknown>;
+            payload: {
+                jobUuid?: string;
+                schedulerUuid?: string;
+                projectUuid?: string;
+                organizationUuid?: string;
+                userUuid?: string;
+            };
         }[]
     > {
         const graphileClient = await this.graphileUtils;
@@ -1268,7 +1274,7 @@ export class SchedulerClient {
                 locked_at: Date;
                 locked_by: string;
                 run_at: Date;
-                payload: Record<string, unknown> | null;
+                payload: Record<string, string | undefined> | null;
             }) => ({
                 id: row.id,
                 taskIdentifier: row.task_identifier,
