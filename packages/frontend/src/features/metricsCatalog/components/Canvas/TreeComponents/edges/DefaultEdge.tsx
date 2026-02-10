@@ -1,4 +1,4 @@
-import { type CatalogMetricsTreeEdgeSource } from '@lightdash/common';
+import { type MetricsTreeSource } from '@lightdash/common';
 import {
     BaseEdge,
     getSimpleBezierPath,
@@ -8,7 +8,7 @@ import {
 import type { FC } from 'react';
 
 type DefaultEdgeData = Edge<{
-    createdFrom?: CatalogMetricsTreeEdgeSource;
+    createdFrom?: MetricsTreeSource;
 }>;
 
 const DefaultEdge: FC<EdgeProps<DefaultEdgeData>> = ({

@@ -162,3 +162,75 @@ export type MetricsTreeEdgesTable = Knex.CompositeTableType<
 >;
 
 export const MetricsTreeEdgesTableName = 'metrics_tree_edges';
+
+// --- Metrics Trees ---
+
+export const MetricsTreesTableName = 'metrics_trees';
+
+export type DbMetricsTree = {
+    metrics_tree_uuid: string;
+    project_uuid: string;
+    slug: string;
+    name: string;
+    description: string | null;
+    source: 'yaml' | 'ui';
+    created_by_user_uuid: string | null;
+    updated_by_user_uuid: string | null;
+    created_at: Date;
+    updated_at: Date;
+};
+
+export type DbMetricsTreeIn = Pick<
+    DbMetricsTree,
+    | 'project_uuid'
+    | 'slug'
+    | 'name'
+    | 'description'
+    | 'source'
+    | 'created_by_user_uuid'
+>;
+
+export type DbMetricsTreeUpdate = Pick<
+    DbMetricsTree,
+    'name' | 'description' | 'updated_at' | 'updated_by_user_uuid'
+>;
+
+export type MetricsTreesTable = Knex.CompositeTableType<
+    DbMetricsTree,
+    DbMetricsTreeIn,
+    Partial<DbMetricsTreeUpdate>
+>;
+
+// --- Metrics Tree Nodes ---
+
+export const MetricsTreeNodesTableName = 'metrics_tree_nodes';
+
+export type DbMetricsTreeNode = {
+    metrics_tree_uuid: string;
+    catalog_search_uuid: string;
+    x_position: number | null;
+    y_position: number | null;
+    source: 'yaml' | 'ui';
+    created_at: Date;
+    updated_at: Date;
+};
+
+export type DbMetricsTreeNodeIn = Pick<
+    DbMetricsTreeNode,
+    | 'metrics_tree_uuid'
+    | 'catalog_search_uuid'
+    | 'x_position'
+    | 'y_position'
+    | 'source'
+>;
+
+export type DbMetricsTreeNodeUpdate = Pick<
+    DbMetricsTreeNode,
+    'x_position' | 'y_position'
+>;
+
+export type MetricsTreeNodesTable = Knex.CompositeTableType<
+    DbMetricsTreeNode,
+    DbMetricsTreeNodeIn,
+    Partial<DbMetricsTreeNodeUpdate>
+>;

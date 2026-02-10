@@ -121,7 +121,10 @@ export type CatalogMetricsTreeNode = Pick<
     'catalogSearchUuid' | 'name' | 'tableName'
 >;
 
-export type CatalogMetricsTreeEdgeSource = 'ui' | 'yaml';
+export type MetricsTreeSource = 'ui' | 'yaml';
+
+/** @deprecated Use MetricsTreeSource instead */
+export type CatalogMetricsTreeEdgeSource = MetricsTreeSource;
 
 export type CatalogMetricsTreeEdge = {
     source: CatalogMetricsTreeNode;
@@ -129,7 +132,89 @@ export type CatalogMetricsTreeEdge = {
     createdAt: Date;
     createdByUserUuid: string | null;
     projectUuid: string;
-    createdFrom: CatalogMetricsTreeEdgeSource;
+    createdFrom: MetricsTreeSource;
+};
+
+// --- Saved Metrics Trees ---
+
+export type MetricsTree = {
+    metricsTreeUuid: string;
+    projectUuid: string;
+    slug: string;
+    name: string;
+    description: string | null;
+    source: MetricsTreeSource;
+    createdByUserUuid: string | null;
+    updatedByUserUuid: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+};
+
+export type MetricsTreeSummary = MetricsTree & {
+    nodeCount: number;
+};
+
+export type MetricsTreeNodePosition = {
+    catalogSearchUuid: string;
+    xPosition: number | null;
+    yPosition: number | null;
+};
+
+export type MetricsTreeNode = MetricsTreeNodePosition & {
+    name: string;
+    tableName: string;
+    source: MetricsTreeSource;
+};
+
+export type MetricsTreeWithDetails = MetricsTree & {
+    nodes: MetricsTreeNode[];
+    edges: CatalogMetricsTreeEdge[];
+};
+
+// --- Saved Metrics Trees API Types ---
+
+export type ApiCreateMetricsTreePayload = {
+    name: string;
+    slug?: string;
+    description?: string;
+    nodeUuids: string[];
+};
+
+export type ApiUpdateMetricsTreePayload = {
+    name?: string;
+    description?: string;
+};
+
+export type ApiAddMetricsTreeNodesPayload = {
+    nodes: Array<{
+        catalogSearchUuid: string;
+        xPosition?: number;
+        yPosition?: number;
+    }>;
+};
+
+export type ApiUpdateMetricsTreeNodePositionsPayload = {
+    positions: MetricsTreeNodePosition[];
+};
+
+export type ApiGetMetricsTreesResponse = {
+    status: 'ok';
+    results: MetricsTreeSummary[];
+};
+
+export type ApiGetMetricsTreeResponse = {
+    status: 'ok';
+    results: MetricsTreeWithDetails;
+};
+
+export type ApiCreateMetricsTreeResponse = {
+    status: 'ok';
+    results: MetricsTree;
+};
+
+export type ApiGetUnassignedMetricsResponse = {
+    status: 'ok';
+    results: CatalogMetricsTreeNode[];
 };
 
 export type ApiCatalogResults = CatalogItem[];
