@@ -1451,8 +1451,12 @@ export class SchedulerService extends BaseService {
         );
 
         // Update Lightdash job status to ERROR for compile project jobs
+        // Only compile/createProject tasks have a jobUuid in their payload
+        const jobsWithLightdashJob = jobsToLog.filter(
+            ({ job }) => typeof job.payload.jobUuid === 'string',
+        );
         await Promise.all(
-            jobsToLog.map(({ job }) =>
+            jobsWithLightdashJob.map(({ job }) =>
                 this.jobModel.update(job.payload.jobUuid as string, {
                     jobStatus: JobStatusType.ERROR,
                 }),
