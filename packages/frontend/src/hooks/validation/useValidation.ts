@@ -2,12 +2,17 @@ import { subject } from '@casl/ability';
 import {
     type ApiError,
     type ApiJobScheduledResponse,
+    type ApiPaginatedValidateResponse,
     type Explore,
     type ExploreError,
+    type KnexPaginatedData,
+    type ValidationErrorType,
     type ValidationResponse,
+    type ValidationSourceType,
     type ValidationTarget,
 } from '@lightdash/common';
 import {
+    useInfiniteQuery,
     useMutation,
     useQuery,
     useQueryClient,
@@ -83,6 +88,106 @@ export const useValidation = (
     });
 };
 
+const getPaginatedValidation = async (
+    projectUuid: string,
+    page: number,
+    pageSize: number,
+    options?: {
+        searchQuery?: string;
+        sortBy?: string;
+        sortDirection?: 'asc' | 'desc';
+        sourceTypes?: ValidationSourceType[];
+        errorTypes?: ValidationErrorType[];
+        includeChartConfigWarnings?: boolean;
+        fromSettings?: boolean;
+    },
+): Promise<ApiPaginatedValidateResponse['results']> => {
+    const params = new URLSearchParams({
+        page: page.toString(),
+        pageSize: pageSize.toString(),
+    });
+
+    if (options?.searchQuery) params.set('searchQuery', options.searchQuery);
+    if (options?.sortBy) params.set('sortBy', options.sortBy);
+    if (options?.sortDirection)
+        params.set('sortDirection', options.sortDirection);
+    if (options?.sourceTypes?.length)
+        params.set('sourceTypes', options.sourceTypes.join(','));
+    if (options?.errorTypes?.length)
+        params.set('errorTypes', options.errorTypes.join(','));
+    if (options?.includeChartConfigWarnings != null)
+        params.set(
+            'includeChartConfigWarnings',
+            String(options.includeChartConfigWarnings),
+        );
+    if (options?.fromSettings != null)
+        params.set('fromSettings', String(options.fromSettings));
+
+    return lightdashApi<ApiPaginatedValidateResponse['results']>({
+        url: `/projects/${projectUuid}/validate?${params.toString()}`,
+        method: 'GET',
+        body: undefined,
+        version: 'v2',
+    });
+};
+
+export const usePaginatedValidation = (
+    projectUuid: string,
+    user: UseQueryResult<UserWithAbility, ApiError>,
+    options?: {
+        pageSize?: number;
+        searchQuery?: string;
+        sortBy?: string;
+        sortDirection?: 'asc' | 'desc';
+        sourceTypes?: ValidationSourceType[];
+        errorTypes?: ValidationErrorType[];
+        includeChartConfigWarnings?: boolean;
+    },
+) => {
+    const organizationUuid = user.data?.organizationUuid;
+    const canManageValidation = user.data?.ability.can(
+        'manage',
+        subject('Validation', {
+            organizationUuid,
+            projectUuid,
+        }),
+    );
+
+    const pageSize = options?.pageSize ?? 50;
+
+    return useInfiniteQuery<KnexPaginatedData<ValidationResponse[]>, ApiError>({
+        queryKey: [
+            'paginatedValidation',
+            projectUuid,
+            pageSize,
+            options?.searchQuery,
+            options?.sortBy,
+            options?.sortDirection,
+            options?.sourceTypes,
+            options?.errorTypes,
+            options?.includeChartConfigWarnings,
+        ],
+        queryFn: async ({ pageParam = 1 }) =>
+            getPaginatedValidation(projectUuid, pageParam as number, pageSize, {
+                searchQuery: options?.searchQuery,
+                sortBy: options?.sortBy,
+                sortDirection: options?.sortDirection,
+                sourceTypes: options?.sourceTypes,
+                errorTypes: options?.errorTypes,
+                includeChartConfigWarnings: options?.includeChartConfigWarnings,
+                fromSettings: true,
+            }),
+        getNextPageParam: (_lastGroup, groups) => {
+            const currentPage = groups.length;
+            const totalPages = _lastGroup.pagination?.totalPageCount ?? 0;
+            return currentPage < totalPages ? currentPage + 1 : undefined;
+        },
+        keepPreviousData: true,
+        refetchOnWindowFocus: false,
+        enabled: canManageValidation,
+    });
+};
+
 type ValidationBody = {
     explores?: (Explore | ExploreError)[];
     validationTargets?: ValidationTarget[];
@@ -115,9 +220,11 @@ export const useValidationMutation = (
             pollJobStatus(data.jobId)
                 .then(async () => {
                     onComplete();
-                    // Invalidate validation to get latest results
                     await queryClient.invalidateQueries({
                         queryKey: ['validation'],
+                    });
+                    await queryClient.invalidateQueries({
+                        queryKey: ['paginatedValidation'],
                     });
                     showToastSuccess({ title: 'Validation completed' });
                 })
@@ -194,6 +301,7 @@ export const useDeleteValidation = (projectUuid: string) => {
             mutationKey: ['delete_validation', projectUuid],
             onSuccess: async () => {
                 await queryClient.refetchQueries(['validation']);
+                await queryClient.refetchQueries(['paginatedValidation']);
                 showToastSuccess({
                     title: 'Validation dismissed',
                 });
