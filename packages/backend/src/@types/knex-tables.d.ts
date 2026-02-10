@@ -145,6 +145,10 @@ import {
     CatalogTagsTableName,
     type MetricsTreeEdgesTable,
     MetricsTreeEdgesTableName,
+    type MetricsTreeNodesTable,
+    MetricsTreeNodesTableName,
+    type MetricsTreesTable,
+    MetricsTreesTableName,
 } from '../database/entities/catalog';
 import {
     DashboardTileCommentsTable,
@@ -422,6 +426,8 @@ declare module 'knex/types/tables' {
         [CatalogTagsTableName]: CatalogTagsTable;
         [ServiceAccountsTableName]: ServiceAccountTable;
         [MetricsTreeEdgesTableName]: MetricsTreeEdgesTable;
+        [MetricsTreesTableName]: MetricsTreesTable;
+        [MetricsTreeNodesTableName]: MetricsTreeNodesTable;
         [SpotlightTableConfigTableName]: SpotlightTableConfigTable;
         [OrganizationColorPaletteTableName]: OrganizationColorPaletteTable;
         [OrganizationWarehouseCredentialsTableName]: OrganizationWarehouseCredentialsTable;
