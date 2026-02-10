@@ -20,7 +20,6 @@ import { getConfig, setProject } from '../config';
 import { getDbtContext } from '../dbt/context';
 import GlobalState from '../globalState';
 import { readAndLoadLightdashProjectConfig } from '../lightdash-config';
-import { findLightdashModelFiles } from '../lightdash/loader';
 import * as styles from '../styles';
 import { compile } from './compile';
 import {
@@ -30,6 +29,7 @@ import {
 import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
 import { DbtCompileOptions } from './dbt/compile';
 import { tryGetDbtVersion } from './dbt/getDbtVersion';
+import { detectProjectType } from './projectType';
 
 type DeployHandlerOptions = DbtCompileOptions & {
     projectDir: string;
@@ -252,26 +252,20 @@ export const deployHandler = async (originalOptions: DeployHandlerOptions) => {
     };
     GlobalState.setVerbose(options.verbose);
 
-    // Check if this is a Lightdash YAML-only project (no dbt required)
-    // Auto-detect unless user explicitly passed --organization-credentials
-    // Note: --no-warehouse-credentials defaults to true in Commander.js
-    if (options.organizationCredentials === undefined) {
-        const absoluteProjectPath = path.resolve(options.projectDir);
-        const yamlModelFiles =
-            await findLightdashModelFiles(absoluteProjectPath);
-        if (yamlModelFiles.length > 0) {
-            GlobalState.debug(
-                `> Found ${yamlModelFiles.length} Lightdash YAML models, skipping dbt requirements`,
-            );
-            options.warehouseCredentials = false;
-        }
-    }
+    // Detect project type and configure options accordingly
+    const projectTypeConfig = await detectProjectType({
+        projectDir: options.projectDir,
+        userOptions: {
+            warehouseCredentials: options.warehouseCredentials,
+            skipDbtCompile: options.skipDbtCompile,
+            skipWarehouseCatalog: options.skipWarehouseCatalog,
+        },
+    });
 
-    // No warehouse credentials assumes we skip dbt compile and warehouse catalog
-    if (options.warehouseCredentials === false) {
-        options.skipDbtCompile = true;
-        options.skipWarehouseCatalog = true;
-    }
+    // Apply project type configuration to options
+    options.warehouseCredentials = projectTypeConfig.warehouseCredentials;
+    options.skipDbtCompile = projectTypeConfig.skipDbtCompile;
+    options.skipWarehouseCatalog = projectTypeConfig.skipWarehouseCatalog;
 
     // Resolve organization credentials early before doing any heavy work
     if (options.organizationCredentials) {
@@ -289,7 +283,11 @@ export const deployHandler = async (originalOptions: DeployHandlerOptions) => {
         }
     }
 
-    const dbtVersionResult = await tryGetDbtVersion();
+    // Only check dbt version for dbt projects (YAML-only projects don't need dbt)
+    const dbtVersionResult =
+        projectTypeConfig.type === 'dbt'
+            ? await tryGetDbtVersion()
+            : { success: false as const, error: null };
     await checkLightdashVersion();
     const executionId = uuidv4();
     const explores = await compile(options);

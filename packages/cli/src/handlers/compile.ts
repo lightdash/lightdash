@@ -30,6 +30,7 @@ import * as styles from '../styles';
 import { DbtCompileOptions, maybeCompileModelsAndJoins } from './dbt/compile';
 import { tryGetDbtVersion } from './dbt/getDbtVersion';
 import getWarehouseClient from './dbt/getWarehouseClient';
+import { detectProjectType } from './projectType';
 
 export type CompileHandlerOptions = DbtCompileOptions & {
     projectDir: string;
@@ -331,10 +332,22 @@ export const compileHandler = async (
     originalOptions: CompileHandlerOptions,
 ) => {
     const options = { ...originalOptions };
-    if (originalOptions.warehouseCredentials === false) {
-        options.skipDbtCompile = true;
-        options.skipWarehouseCatalog = true;
-    }
+
+    // Detect project type and configure options accordingly
+    const projectTypeConfig = await detectProjectType({
+        projectDir: options.projectDir,
+        userOptions: {
+            warehouseCredentials: options.warehouseCredentials,
+            skipDbtCompile: options.skipDbtCompile,
+            skipWarehouseCatalog: options.skipWarehouseCatalog,
+        },
+    });
+
+    // Apply project type configuration to options
+    options.warehouseCredentials = projectTypeConfig.warehouseCredentials;
+    options.skipDbtCompile = projectTypeConfig.skipDbtCompile;
+    options.skipWarehouseCatalog = projectTypeConfig.skipWarehouseCatalog;
+
     GlobalState.setVerbose(options.verbose);
     const explores = await compile(options);
     const errorsCount = explores.filter((e) => isExploreError(e)).length;
