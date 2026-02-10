@@ -28,6 +28,7 @@ import {
     TimeFrames,
     UserAttributeValueMap,
     convertToAiHints,
+    generateSlug,
     getAvailableCompareMetrics,
     getAvailableTimeDimensionsFromTables,
     getDefaultTimeDimension,
@@ -35,6 +36,7 @@ import {
     getTypeValidSegmentDimensions,
     hasIntersection,
     isExploreError,
+    type ApiCreateMetricsTreePayload,
     type ApiMetricsTreeEdgePayload,
     type ApiSort,
     type CatalogFieldMap,
@@ -44,6 +46,7 @@ import {
     type ChartUsageIn,
     type KnexPaginateArgs,
     type KnexPaginatedData,
+    type MetricsTree,
 } from '@lightdash/common';
 import { uniqBy } from 'lodash';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
@@ -1523,5 +1526,43 @@ export class CatalogService<
         }
 
         return this.catalogModel.getDistinctOwners(projectUuid);
+    }
+
+    // --- Saved Metrics Trees ---
+
+    async createMetricsTree(
+        user: SessionUser,
+        projectUuid: string,
+        payload: ApiCreateMetricsTreePayload,
+    ): Promise<MetricsTree> {
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('MetricsTree', { projectUuid, organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError(
+                `User ${user.userUuid} does not have permission to create a metrics tree in project ${projectUuid}`,
+            );
+        }
+
+        const slug = payload.slug ?? generateSlug(payload.name);
+        const source = payload.source ?? 'ui';
+
+        return this.catalogModel.createMetricsTree(
+            {
+                project_uuid: projectUuid,
+                slug,
+                name: payload.name,
+                description: payload.description ?? null,
+                source,
+                created_by_user_uuid: user.userUuid,
+            },
+            payload.nodes,
+            payload.edges,
+        );
     }
 }
