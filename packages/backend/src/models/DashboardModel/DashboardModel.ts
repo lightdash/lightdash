@@ -1464,7 +1464,7 @@ export class DashboardModel {
                     getLastVersionUuidSubQuery,
                 );
             })
-            .orderBy(`${DashboardVersionsTableName}.created_at`, 'asc');
+            .orderBy(`${DashboardVersionsTableName}.created_at`, 'desc');
 
         const mapRow = (row: VersionSummaryRow): DashboardVersionSummary => ({
             dashboardUuid: row.dashboard_uuid,
@@ -1501,7 +1501,7 @@ export class DashboardModel {
                     `${DashboardVersionsTableName}.dashboard_version_uuid`,
                     versions[0].dashboard_version_uuid,
                 )
-                .orderBy(`${DashboardVersionsTableName}.created_at`, 'asc')
+                .orderBy(`${DashboardVersionsTableName}.created_at`, 'desc')
                 .limit(1);
 
             return [...versions, ...oldVersions].map(mapRow);
