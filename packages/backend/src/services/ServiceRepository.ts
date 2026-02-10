@@ -861,7 +861,7 @@ export class ServiceRepository
                     spaceModel: this.models.getSpaceModel(),
                     schedulerClient: this.clients.getSchedulerClient(),
                     promoteService: this.getPromoteService(),
-                    featureFlagModel: this.models.getFeatureFlagModel(),
+                    spacePermissionService: this.getSpacePermissionService(),
                 }),
         );
     }
