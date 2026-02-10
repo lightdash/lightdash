@@ -125,8 +125,9 @@ export class FeatureFlagModel {
                           throwOnTimeout: false,
                           timeoutMilliseconds: 500,
                       },
+                      true,
                   )
-                : false);
+                : true);
         return {
             id: featureFlagId,
             enabled,
