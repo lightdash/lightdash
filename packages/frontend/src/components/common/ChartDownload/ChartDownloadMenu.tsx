@@ -84,15 +84,12 @@ const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
             [getDownloadQueryUuid],
         );
 
-        if (
-            CHART_TYPES_WITHOUT_IMAGE_EXPORT.includes(
-                visualizationConfig.chartType,
-            )
-        ) {
-            return null;
-        }
-        return isTableVisualizationConfig(visualizationConfig) &&
-            getChartDownloadQueryUuid ? (
+        // For table visualizations, show CSV export option (if getDownloadQueryUuid is provided)
+        if (isTableVisualizationConfig(visualizationConfig)) {
+            if (!getDownloadQueryUuid) {
+                return null;
+            }
+            return (
             <Can
                 I="manage"
                 this={subject('ExportCsv', {
@@ -157,8 +154,20 @@ const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
                     </Popover.Dropdown>
                 </Popover>
             </Can>
-        ) : isTableVisualizationConfig(visualizationConfig) &&
-          !getDownloadQueryUuid ? null : (
+            );
+        }
+
+        // For other chart types that don't support image export, return null
+        if (
+            CHART_TYPES_WITHOUT_IMAGE_EXPORT.includes(
+                visualizationConfig.chartType,
+            )
+        ) {
+            return null;
+        }
+
+        // For chart types that support image export, show image download options
+        return (
             <Popover
                 {...COLLAPSABLE_CARD_POPOVER_PROPS}
                 disabled={disabled}
