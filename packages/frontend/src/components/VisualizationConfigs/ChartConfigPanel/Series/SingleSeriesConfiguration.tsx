@@ -359,20 +359,23 @@ const SingleSeriesConfiguration: FC<Props> = ({
                             />
                         </Group>
                     )}
-                    {type === CartesianSeriesType.BAR && (
-                        <Group spacing="xs">
-                            <Checkbox
-                                checked={Boolean(series.colorByValue)}
-                                label="Color by value"
-                                onChange={() => {
-                                    updateSingleSeries({
-                                        ...series,
-                                        colorByValue: !series.colorByValue,
-                                    });
-                                }}
-                            />
-                        </Group>
-                    )}
+                    {type === CartesianSeriesType.BAR &&
+                        !isGrouped &&
+                        isSingle && (
+                            <Group spacing="xs">
+                                <Checkbox
+                                    checked={Boolean(series.colorByValue)}
+                                    label="Color by value"
+                                    onChange={() => {
+                                        updateSingleSeries({
+                                            ...series,
+                                            colorByValue:
+                                                !series.colorByValue,
+                                        });
+                                    }}
+                                />
+                            </Group>
+                        )}
                 </Stack>
             </Collapse>
         </Box>

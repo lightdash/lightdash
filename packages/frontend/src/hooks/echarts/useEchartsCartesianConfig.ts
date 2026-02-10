@@ -2453,7 +2453,9 @@ const useEchartsCartesianConfig = (
                         !serie.stack ||
                         getValidStack(serie) === undefined;
                     const shouldColorByValue =
-                        serie.colorByValue && isNonStacked;
+                        serie.colorByValue &&
+                        isNonStacked &&
+                        series.length === 1;
                     return {
                         ...baseConfig,
                         ...getBarStyle(),
