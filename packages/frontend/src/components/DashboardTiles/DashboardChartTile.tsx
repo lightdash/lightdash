@@ -94,6 +94,7 @@ import {
     type DashboardChartReadyQuery,
 } from '../../hooks/dashboard/useDashboardChartReadyQuery';
 import useDashboardFiltersForTile from '../../hooks/dashboard/useDashboardFiltersForTile';
+import { useEmbedDashboardChartDownload } from '../../hooks/dashboard/useEmbedDashboardChartDownload';
 import { uploadGsheet } from '../../hooks/gdrive/useGdrive';
 import { useOrganization } from '../../hooks/organization/useOrganization';
 import useToaster from '../../hooks/toaster/useToaster';
@@ -1627,14 +1628,10 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
         [],
     );
 
-    // For minimal tiles, we can reuse the existing queryUuid from dashboardChartReadyQuery
-    const getDownloadQueryUuid = useCallback(
-        async (_limit: number | null): Promise<string> => {
-            // The query has already been executed by dashboardChartReadyQuery
-            // We can simply return the queryUuid
-            return dashboardChartReadyQuery.executeQueryResponse.queryUuid;
-        },
-        [dashboardChartReadyQuery.executeQueryResponse.queryUuid],
+    const { getDownloadQueryUuid } = useEmbedDashboardChartDownload(
+        tileUuid,
+        projectUuid,
+        dashboardChartReadyQuery.executeQueryResponse.queryUuid,
     );
 
     const chartKind = useMemo(
@@ -1761,6 +1758,7 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
                     projectUuid={projectUuid!}
                     totalResults={resultsData.totalResults}
                     getDownloadQueryUuid={getDownloadQueryUuid}
+                    forceShowLimitSelection
                     showTableNames={
                         isTableChartConfig(chart.chartConfig.config)
                             ? (chart.chartConfig.config.showTableNames ?? false)
