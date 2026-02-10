@@ -52,6 +52,7 @@ import {
     useDashboardsAvailableFilters,
     useDashboardVersionRefresh,
 } from '../../hooks/dashboard/useDashboard';
+import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
 import useToaster from '../../hooks/toaster/useToaster';
 import {
     hasSavedFiltersOverrides,
@@ -92,6 +93,8 @@ const DashboardProvider: React.FC<
     const { search, pathname } = useLocation();
     const navigate = useNavigate();
     const { showToastWarning } = useToaster();
+    const { getEditingDashboardInfo, getUnsavedDashboardFilters } =
+        useDashboardStorage();
 
     const { dashboardUuid, tabUuid } = useParams<{
         dashboardUuid: string;
@@ -771,27 +774,11 @@ const DashboardProvider: React.FC<
 
         // Temp filters
         const tempFilterSearchParam = searchParams.get('tempFilters');
-        const unsavedDashboardFiltersRaw = sessionStorage.getItem(
-            'unsavedDashboardFilters',
-        );
 
-        sessionStorage.removeItem('unsavedDashboardFilters');
-        if (unsavedDashboardFiltersRaw) {
-            try {
-                const unsavedDashboardFilters = JSON.parse(
-                    unsavedDashboardFiltersRaw,
-                );
-                // TODO: this should probably merge with the filters
-                // from the database. This will break if they diverge,
-                // meaning there is a subtle race condition here
-                setDashboardFilters(unsavedDashboardFilters);
-            } catch {
-                showToastWarning({
-                    title: 'Could not restore unsaved filters',
-                    subtitle:
-                        'Your previous filter changes could not be loaded',
-                });
-            }
+        const editInfo = getEditingDashboardInfo();
+        const unsavedFilters = getUnsavedDashboardFilters();
+        if (unsavedFilters && editInfo.dashboardUuid === dashboardUuid) {
+            setDashboardFilters(unsavedFilters);
         }
         if (tempFilterSearchParam) {
             try {

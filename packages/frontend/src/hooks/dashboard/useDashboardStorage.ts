@@ -4,77 +4,61 @@ import {
     type DashboardTab,
     type DashboardTile,
 } from '@lightdash/common';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useSyncExternalStore } from 'react';
+import {
+    dashboardEditingActions,
+    dashboardEditingStore,
+} from '../../features/dashboard/store';
 
 const getIsEditingDashboardChart = () => {
-    return (
-        !!sessionStorage.getItem('fromDashboard') ||
-        !!sessionStorage.getItem('dashboardUuid')
-    );
+    const { dashboardName, dashboardUuid } =
+        dashboardEditingStore.getState().dashboardEditing;
+    return dashboardName !== null || dashboardUuid !== null;
 };
 
+const getIsEditingDashboardChartSnapshot = () => getIsEditingDashboardChart();
+
 const useDashboardStorage = () => {
-    const [isEditingDashboardChart, setIsEditingDashboardChart] = useState(
-        getIsEditingDashboardChart(),
+    const isEditingDashboardChart = useSyncExternalStore(
+        dashboardEditingStore.subscribe,
+        getIsEditingDashboardChartSnapshot,
     );
 
-    // Update isEditingDashboardChart when storage changes, so that NavBar can update accordingly
-    useEffect(() => {
-        const handleStorage = () => {
-            setIsEditingDashboardChart(getIsEditingDashboardChart());
-        };
-
-        window.addEventListener('storage', handleStorage);
-        return () => window.removeEventListener('storage', handleStorage);
-    }, []);
-
     const clearIsEditingDashboardChart = useCallback(() => {
-        sessionStorage.removeItem('fromDashboard');
-        sessionStorage.removeItem('dashboardUuid');
-        // Trigger storage event to update NavBar
-        window.dispatchEvent(new Event('storage'));
+        dashboardEditingStore.dispatch(
+            dashboardEditingActions.clearChartInfo(),
+        );
     }, []);
 
     const getEditingDashboardInfo = useCallback(() => {
+        const { dashboardName, dashboardUuid, activeTabUuid } =
+            dashboardEditingStore.getState().dashboardEditing;
         return {
-            name: sessionStorage.getItem('fromDashboard'),
-            dashboardUuid: sessionStorage.getItem('dashboardUuid'),
-            activeTabUuid: sessionStorage.getItem('activeTabUuid'),
+            name: dashboardName,
+            dashboardUuid,
+            activeTabUuid,
         };
     }, []);
 
     const setDashboardChartInfo = useCallback(
         (dashboardData: { name: string; dashboardUuid: string }) => {
-            sessionStorage.setItem('fromDashboard', dashboardData.name);
-            sessionStorage.setItem(
-                'dashboardUuid',
-                dashboardData.dashboardUuid,
+            dashboardEditingStore.dispatch(
+                dashboardEditingActions.setChartInfo(dashboardData),
             );
-            // Trigger storage event to update NavBar
-            window.dispatchEvent(new Event('storage'));
         },
         [],
     );
 
     const getHasDashboardChanges = useCallback(() => {
-        return JSON.parse(
-            sessionStorage.getItem('getHasDashboardChanges') ?? 'false',
-        );
+        return dashboardEditingStore.getState().dashboardEditing.hasChanges;
     }, []);
 
     const getDashboardActiveTabUuid = useCallback(() => {
-        return sessionStorage.getItem('activeTabUuid');
+        return dashboardEditingStore.getState().dashboardEditing.activeTabUuid;
     }, []);
 
     const clearDashboardStorage = useCallback(() => {
-        sessionStorage.removeItem('fromDashboard');
-        sessionStorage.removeItem('dashboardUuid');
-        sessionStorage.removeItem('unsavedDashboardTiles');
-        sessionStorage.removeItem('unsavedDashboardFilters');
-        sessionStorage.removeItem('hasDashboardChanges');
-        sessionStorage.removeItem('activeTabUuid');
-        // Trigger storage event to update NavBar
-        window.dispatchEvent(new Event('storage'));
+        dashboardEditingStore.dispatch(dashboardEditingActions.clearAll());
     }, []);
 
     const storeDashboard = useCallback(
@@ -88,57 +72,53 @@ const useDashboardStorage = () => {
             activeTabUuid?: string,
             dashboardTabs?: DashboardTab[],
         ) => {
-            sessionStorage.setItem('fromDashboard', dashboardName ?? '');
-            sessionStorage.setItem('dashboardUuid', dashboardUuid ?? '');
-            sessionStorage.setItem(
-                'unsavedDashboardTiles',
-                JSON.stringify(dashboardTiles ?? []),
-            );
-            if (dashboardTabs && dashboardTabs.length > 0) {
-                sessionStorage.setItem(
-                    'dashboardTabs',
-                    JSON.stringify(dashboardTabs),
-                );
-            }
-            if (
+            const hasFilters =
                 dashboardFilters.dimensions.length > 0 ||
-                dashboardFilters.metrics.length > 0
-            ) {
-                sessionStorage.setItem(
-                    'unsavedDashboardFilters',
-                    JSON.stringify(dashboardFilters),
-                );
-            }
-            sessionStorage.setItem(
-                'hasDashboardChanges',
-                JSON.stringify(haveTilesChanged || haveFiltersChanged),
+                dashboardFilters.metrics.length > 0;
+
+            dashboardEditingStore.dispatch(
+                dashboardEditingActions.storeDashboard({
+                    dashboardName: dashboardName ?? '',
+                    dashboardUuid: dashboardUuid ?? '',
+                    unsavedTiles: dashboardTiles ?? [],
+                    unsavedFilters: hasFilters ? dashboardFilters : null,
+                    tabs:
+                        dashboardTabs && dashboardTabs.length > 0
+                            ? dashboardTabs
+                            : null,
+                    hasChanges: haveTilesChanged || haveFiltersChanged,
+                    activeTabUuid: activeTabUuid ?? null,
+                }),
             );
-            if (activeTabUuid) {
-                sessionStorage.setItem('activeTabUuid', activeTabUuid);
-            }
-            // Trigger storage event to update NavBar
-            window.dispatchEvent(new Event('storage'));
         },
         [],
     );
 
-    const getUnsavedDashboardTiles = useCallback(() => {
-        return JSON.parse(
-            sessionStorage.getItem('unsavedDashboardTiles') ?? '[]',
-        );
+    const getUnsavedDashboardTiles = useCallback((): DashboardTile[] => {
+        return (dashboardEditingStore.getState().dashboardEditing
+            .unsavedTiles ?? []) as DashboardTile[];
     }, []);
 
     const setUnsavedDashboardTiles = useCallback(
         (
             unsavedDashboardTiles: DashboardTile[] | CreateDashboardChartTile[],
         ) => {
-            sessionStorage.setItem(
-                'unsavedDashboardTiles',
-                JSON.stringify(unsavedDashboardTiles),
+            dashboardEditingStore.dispatch(
+                dashboardEditingActions.setUnsavedTiles(unsavedDashboardTiles),
             );
         },
         [],
     );
+
+    const getUnsavedDashboardFilters =
+        useCallback((): DashboardFilters | null => {
+            return dashboardEditingStore.getState().dashboardEditing
+                .unsavedFilters;
+        }, []);
+
+    const getUnsavedDashboardTabs = useCallback((): DashboardTab[] | null => {
+        return dashboardEditingStore.getState().dashboardEditing.tabs;
+    }, []);
 
     return {
         storeDashboard,
@@ -152,6 +132,8 @@ const useDashboardStorage = () => {
         getUnsavedDashboardTiles,
         setUnsavedDashboardTiles,
         getDashboardActiveTabUuid,
+        getUnsavedDashboardFilters,
+        getUnsavedDashboardTabs,
     };
 };
 

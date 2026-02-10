@@ -5,7 +5,6 @@ import {
 } from '@lightdash/common';
 import { Button, Text } from '@mantine-8/core';
 import { useDisclosure } from '@mantine-8/hooks';
-import { captureException } from '@sentry/react';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { type Layout } from 'react-grid-layout';
@@ -28,7 +27,6 @@ import {
 } from '../hooks/dashboard/useDashboard';
 import useDashboardStorage from '../hooks/dashboard/useDashboardStorage';
 import { useOrganization } from '../hooks/organization/useOrganization';
-import useToaster from '../hooks/toaster/useToaster';
 import { useContentAction } from '../hooks/useContent';
 import useApp from '../providers/App/useApp';
 import DashboardProvider from '../providers/Dashboard/DashboardProvider';
@@ -44,8 +42,13 @@ const Dashboard: FC = () => {
         mode?: string;
     }>();
 
-    const { clearIsEditingDashboardChart, clearDashboardStorage } =
-        useDashboardStorage();
+    const {
+        clearIsEditingDashboardChart,
+        clearDashboardStorage,
+        getEditingDashboardInfo,
+        getUnsavedDashboardTiles,
+        getUnsavedDashboardTabs,
+    } = useDashboardStorage();
 
     const isDashboardLoading = useDashboardContext((c) => c.isDashboardLoading);
     const dashboard = useDashboardContext((c) => c.dashboard);
@@ -139,8 +142,6 @@ const Dashboard: FC = () => {
         isFullscreen,
         toggleFullscreen,
     } = useFullscreen();
-    const { showToastError } = useToaster();
-
     const { data: organization } = useOrganization();
     const hasTemporaryFilters = useMemo(
         () =>
@@ -202,62 +203,35 @@ const Dashboard: FC = () => {
 
         clearIsEditingDashboardChart();
 
-        const unsavedDashboardTilesRaw = sessionStorage.getItem(
-            'unsavedDashboardTiles',
-        );
-        if (unsavedDashboardTilesRaw) {
-            sessionStorage.removeItem('unsavedDashboardTiles');
+        const editInfo = getEditingDashboardInfo();
+        if (editInfo.dashboardUuid === dashboardUuid) {
+            const unsavedTiles = getUnsavedDashboardTiles();
+            if (unsavedTiles.length > 0) {
+                setDashboardTiles(unsavedTiles);
+                setHaveTilesChanged(true);
+            }
 
-            try {
-                const unsavedDashboardTiles = JSON.parse(
-                    unsavedDashboardTilesRaw,
-                );
-                // If there are unsaved tiles, add them to the dashboard
-                setDashboardTiles(unsavedDashboardTiles);
-
-                setHaveTilesChanged(!!unsavedDashboardTiles);
-            } catch {
-                showToastError({
-                    title: 'Error parsing chart',
-                    subtitle: 'Unable to save chart in dashboard',
-                });
-                captureException(
-                    `Error parsing chart in dashboard. Attempted to parse: ${unsavedDashboardTilesRaw} `,
-                );
+            const unsavedTabs = getUnsavedDashboardTabs();
+            if (unsavedTabs && unsavedTabs.length > 0) {
+                setDashboardTabs(unsavedTabs);
+                setHaveTabsChanged(true);
             }
         }
-
-        const unsavedDashboardTabsRaw = sessionStorage.getItem('dashboardTabs');
-
-        sessionStorage.removeItem('dashboardTabs');
-
-        if (unsavedDashboardTabsRaw) {
-            try {
-                const unsavedDashboardTabs = JSON.parse(
-                    unsavedDashboardTabsRaw,
-                );
-                setDashboardTabs(unsavedDashboardTabs);
-                setHaveTabsChanged(!!unsavedDashboardTabs);
-            } catch {
-                showToastError({
-                    title: 'Error parsing tabs',
-                    subtitle: 'Unable to save tabs in dashboard',
-                });
-                captureException(
-                    `Error parsing tabs in dashboard. Attempted to parse: ${unsavedDashboardTabsRaw} `,
-                );
-            }
-        }
+        clearDashboardStorage();
     }, [
         isDashboardLoading,
         dashboardTiles,
+        dashboardUuid,
         activeTab,
         setHaveTilesChanged,
         setDashboardTiles,
         setDashboardTabs,
         setHaveTabsChanged,
         clearIsEditingDashboardChart,
-        showToastError,
+        getEditingDashboardInfo,
+        getUnsavedDashboardTiles,
+        getUnsavedDashboardTabs,
+        clearDashboardStorage,
     ]);
 
     const [gridWidth, setGridWidth] = useState(0);
@@ -433,7 +407,7 @@ const Dashboard: FC = () => {
     const handleCancel = useCallback(() => {
         if (!dashboard) return;
 
-        sessionStorage.clear();
+        clearDashboardStorage();
 
         setDashboardTiles(dashboard.tiles);
         setHaveTilesChanged(false);
@@ -472,6 +446,7 @@ const Dashboard: FC = () => {
         setSavedParameters,
         setPinnedParameters,
         setHavePinnedParametersChanged,
+        clearDashboardStorage,
     ]);
 
     const handleMoveDashboardToSpace = useCallback(
@@ -514,7 +489,7 @@ const Dashboard: FC = () => {
                 `/projects/${projectUuid}/dashboards/${dashboardUuid}`,
             ) &&
             // Allow user to add a new table
-            !sessionStorage.getItem('unsavedDashboardTiles')
+            getUnsavedDashboardTiles().length === 0
         ) {
             return true; //blocks navigation
         }

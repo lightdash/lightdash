@@ -4,6 +4,7 @@ import {
     type CreateChartInDashboard,
     type CreateDashboardChartTile,
     type CreateSavedChartVersion,
+    type DashboardTile,
 } from '@lightdash/common';
 import {
     Button,
@@ -133,7 +134,9 @@ export const SaveToDashboard: FC<Props> = ({
                     : selectedDashboard?.tiles;
 
             setUnsavedDashboardTiles(
-                appendNewTilesToBottom(existingTiles || [], [newTile]),
+                appendNewTilesToBottom(existingTiles || [], [
+                    newTile as DashboardTile,
+                ]),
             );
 
             clearIsEditingDashboardChart();
