@@ -21762,14 +21762,6 @@
             },
             "DashboardVersionSummary": {
                 "properties": {
-                    "tabCount": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "tileCount": {
-                        "type": "number",
-                        "format": "double"
-                    },
                     "createdBy": {
                         "allOf": [
                             {
@@ -21790,8 +21782,6 @@
                     }
                 },
                 "required": [
-                    "tabCount",
-                    "tileCount",
                     "createdBy",
                     "createdAt",
                     "versionUuid",

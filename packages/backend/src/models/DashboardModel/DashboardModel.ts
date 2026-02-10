@@ -1433,8 +1433,6 @@ export class DashboardModel {
             user_uuid: string | null;
             first_name: string | null;
             last_name: string | null;
-            tile_count: string;
-            tab_count: string;
         };
 
         const versions = await this.database(DashboardVersionsTableName)
@@ -1455,12 +1453,6 @@ export class DashboardModel {
                 `${UserTableName}.user_uuid`,
                 `${UserTableName}.first_name`,
                 `${UserTableName}.last_name`,
-                this.database.raw(
-                    `(SELECT COUNT(*) FROM ${DashboardTilesTableName} WHERE ${DashboardTilesTableName}.dashboard_version_id = ${DashboardVersionsTableName}.dashboard_version_id)::text AS tile_count`,
-                ),
-                this.database.raw(
-                    `(SELECT COUNT(*) FROM ${DashboardTabsTableName} WHERE ${DashboardTabsTableName}.dashboard_version_id = ${DashboardVersionsTableName}.dashboard_version_id)::text AS tab_count`,
-                ),
             )
             .where(`${DashboardsTableName}.dashboard_uuid`, dashboardUuid)
             .andWhere(function whereRecentVersionsOrCurrentVersion() {
@@ -1485,8 +1477,6 @@ export class DashboardModel {
                       lastName: row.last_name ?? '',
                   }
                 : null,
-            tileCount: parseInt(row.tile_count, 10),
-            tabCount: parseInt(row.tab_count, 10),
         });
 
         // If there's only one version in the date range (the current one),
@@ -1503,20 +1493,9 @@ export class DashboardModel {
                     `${UserTableName}.user_uuid`,
                     `${DashboardVersionsTableName}.updated_by_user_uuid`,
                 )
-                .select<VersionSummaryRow[]>(
-                    `${DashboardsTableName}.dashboard_uuid`,
-                    `${DashboardVersionsTableName}.dashboard_version_uuid`,
-                    `${DashboardVersionsTableName}.created_at`,
-                    `${UserTableName}.user_uuid`,
-                    `${UserTableName}.first_name`,
-                    `${UserTableName}.last_name`,
-                    this.database.raw(
-                        `(SELECT COUNT(*) FROM ${DashboardTilesTableName} WHERE ${DashboardTilesTableName}.dashboard_version_id = ${DashboardVersionsTableName}.dashboard_version_id)::text AS tile_count`,
-                    ),
-                    this.database.raw(
-                        `(SELECT COUNT(*) FROM ${DashboardTabsTableName} WHERE ${DashboardTabsTableName}.dashboard_version_id = ${DashboardVersionsTableName}.dashboard_version_id)::text AS tab_count`,
-                    ),
-                )
+                .select<
+                    VersionSummaryRow[]
+                >(`${DashboardsTableName}.dashboard_uuid`, `${DashboardVersionsTableName}.dashboard_version_uuid`, `${DashboardVersionsTableName}.created_at`, `${UserTableName}.user_uuid`, `${UserTableName}.first_name`, `${UserTableName}.last_name`)
                 .where(`${DashboardsTableName}.dashboard_uuid`, dashboardUuid)
                 .andWhereNot(
                     `${DashboardVersionsTableName}.dashboard_version_uuid`,

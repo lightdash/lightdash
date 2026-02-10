@@ -20943,8 +20943,6 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                tabCount: { dataType: 'double', required: true },
-                tileCount: { dataType: 'double', required: true },
                 createdBy: {
                     dataType: 'union',
                     subSchemas: [

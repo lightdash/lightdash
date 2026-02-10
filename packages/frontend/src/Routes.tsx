@@ -208,9 +208,12 @@ const DASHBOARD_ROUTES: RouteObject[] = [
             {
                 path: '/projects/:projectUuid/dashboards/:dashboardUuid/history',
                 element: (
-                    <TrackPage name={PageName.DASHBOARD_HISTORY}>
-                        <DashboardHistory />
-                    </TrackPage>
+                    <>
+                        <NavBar />
+                        <TrackPage name={PageName.DASHBOARD_HISTORY}>
+                            <DashboardHistory />
+                        </TrackPage>
+                    </>
                 ),
             },
             {

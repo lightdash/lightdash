@@ -371,8 +371,6 @@ export type DashboardVersionSummary = {
         UpdatedByUser,
         'userUuid' | 'firstName' | 'lastName'
     > | null;
-    tileCount: number;
-    tabCount: number;
 };
 
 export type DashboardHistory = {
