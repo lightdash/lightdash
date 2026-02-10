@@ -388,6 +388,7 @@ export type EChartsSeries = {
         /** The field ID of the base metric this PoP series compares against */
         baseFieldId: string;
     };
+    /** When enabled on a single non-stacked bar series, assigns a unique color from the org palette to each bar */
     colorByValue?: boolean;
     clip?: boolean;
 };

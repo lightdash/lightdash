@@ -16,6 +16,7 @@ import ColorSelector from '../../ColorSelector';
 import { Config } from '../../common/Config';
 import { EditableText } from '../../common/EditableText';
 import { GrabIcon } from '../../common/GrabIcon';
+import classes from './BasicSeriesConfiguration.module.css';
 import SingleSeriesConfiguration from './SingleSeriesConfiguration';
 
 type BasicSeriesConfigurationProps = {
@@ -50,17 +51,29 @@ const BasicSeriesConfiguration: FC<BasicSeriesConfigurationProps> = ({
                 <Group noWrap spacing="two">
                     <GrabIcon dragHandleProps={dragHandleProps} />
 
-                    <ColorSelector
-                        color={getSeriesColor(series)}
-                        swatches={colorPalette}
-                        withAlpha
-                        onColorChange={(color) => {
-                            updateSingleSeries({
-                                ...series,
-                                color,
-                            });
-                        }}
-                    />
+                    <Box
+                        className={
+                            series.colorByValue
+                                ? classes.disabledColorSwatch
+                                : undefined
+                        }
+                    >
+                        <ColorSelector
+                            color={getSeriesColor(series)}
+                            swatches={colorPalette}
+                            withAlpha
+                            onColorChange={
+                                series.colorByValue
+                                    ? undefined
+                                    : (color) => {
+                                          updateSingleSeries({
+                                              ...series,
+                                              color,
+                                          });
+                                      }
+                            }
+                        />
+                    </Box>
                     {isSingle ? (
                         <Config.Heading>
                             {getItemLabelWithoutTableName(item)}

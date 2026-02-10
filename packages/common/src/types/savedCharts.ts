@@ -346,6 +346,7 @@ export type Series = {
     smooth?: boolean;
     markLine?: MarkLine;
     isFilteredOut?: boolean;
+    /** When enabled on a single non-stacked bar series, assigns a unique color from the org palette to each bar */
     colorByValue?: boolean;
 };
 

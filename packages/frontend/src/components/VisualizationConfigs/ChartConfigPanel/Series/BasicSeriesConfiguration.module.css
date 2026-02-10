@@ -1,0 +1,22 @@
+.disabledColorSwatch {
+    position: relative;
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+.disabledColorSwatch::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: linear-gradient(
+        to top right,
+        transparent calc(50% - 1px),
+        var(--mantine-color-ldGray-7) calc(50% - 1px),
+        var(--mantine-color-ldGray-7) calc(50% + 1px),
+        transparent calc(50% + 1px)
+    );
+}
