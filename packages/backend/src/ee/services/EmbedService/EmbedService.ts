@@ -934,6 +934,7 @@ export class EmbedService extends BaseService {
         dashboardSorts,
         parameters,
         pivotResults,
+        limit,
     }: {
         account: AnonymousAccount;
         projectUuid: string;
@@ -946,6 +947,7 @@ export class EmbedService extends BaseService {
         | 'invalidateCache'
         | 'dateZoom'
         | 'parameters'
+        | 'limit'
     >): Promise<ApiExecuteAsyncDashboardChartQueryResults> {
         const { dashboardUuids, allowAllDashboards, user } =
             await this.embedModel.get(projectUuid);
@@ -1031,7 +1033,7 @@ export class EmbedService extends BaseService {
             dashboardFilters: appliedDashboardFilters,
             dateZoom,
             invalidateCache,
-            limit: undefined,
+            limit,
             context: QueryExecutionContext.EMBED,
             parameters: combinedParameters,
             pivotResults,

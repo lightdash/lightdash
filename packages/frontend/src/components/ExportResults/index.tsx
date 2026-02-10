@@ -53,6 +53,7 @@ export type ExportResultsProps = {
     chartName?: string;
     pivotConfig?: PivotConfig;
     hideLimitSelection?: boolean;
+    forceShowLimitSelection?: boolean;
     renderDialogActions?: (renderProps: ExportCsvRenderProps) => ReactNode;
 };
 
@@ -70,6 +71,7 @@ const ExportResults: FC<ExportResultsProps> = memo(
         chartName,
         pivotConfig,
         hideLimitSelection = false,
+        forceShowLimitSelection = false,
         renderDialogActions,
     }) => {
         const { showToastError, showToastInfo, showToastWarning } =
@@ -228,15 +230,8 @@ const ExportResults: FC<ExportResultsProps> = memo(
                             />
                         </Group>
                         <Stack gap="xs">
-                            <Can
-                                I="manage"
-                                this={subject('ChangeCsvResults', {
-                                    organizationUuid:
-                                        user.data?.organizationUuid,
-                                    projectUuid: projectUuid,
-                                })}
-                            >
-                                {!hideLimitSelection ? (
+                            {!hideLimitSelection &&
+                                (forceShowLimitSelection ? (
                                     <Group gap="xs">
                                         <Text fw={500} fz="sm">
                                             Limit
@@ -280,8 +275,60 @@ const ExportResults: FC<ExportResultsProps> = memo(
                                             />
                                         )}
                                     </Group>
-                                ) : null}
-                            </Can>
+                                ) : (
+                                    <Can
+                                        I="manage"
+                                        this={subject('ChangeCsvResults', {
+                                            organizationUuid:
+                                                user.data?.organizationUuid,
+                                            projectUuid: projectUuid,
+                                        })}
+                                    >
+                                        <Group gap="xs">
+                                            <Text fw={500} fz="sm">
+                                                Limit
+                                            </Text>
+                                            <SegmentedControl
+                                                size="xs"
+                                                radius="md"
+                                                value={limit}
+                                                onChange={(value) =>
+                                                    setLimit(value as Limit)
+                                                }
+                                                data={[
+                                                    {
+                                                        label: 'Results in Table',
+                                                        value: Limit.TABLE,
+                                                    },
+                                                    {
+                                                        label: 'All Results',
+                                                        value: Limit.ALL,
+                                                    },
+                                                    {
+                                                        label: 'Custom...',
+                                                        value: Limit.CUSTOM,
+                                                    },
+                                                ]}
+                                            />
+                                            {limit === Limit.CUSTOM && (
+                                                <NumberInput
+                                                    size="xs"
+                                                    min={1}
+                                                    w={70}
+                                                    radius="md"
+                                                    allowDecimal={false}
+                                                    required
+                                                    value={customLimit}
+                                                    onChange={(value) =>
+                                                        setCustomLimit(
+                                                            Number(value),
+                                                        )
+                                                    }
+                                                />
+                                            )}
+                                        </Group>
+                                    </Can>
+                                ))}
 
                             {/* Pivot table specific warnings */}
                             {isPivotTable && (
