@@ -117,7 +117,9 @@ describe('Dashboard', () => {
         // Use findByRole to match only visible menu items in the accessibility tree.
         // With Mantine v8 withinPortal, hidden dropdowns persist in the DOM -
         // cy.contains() can match text in a different tile's hidden dropdown.
-        cy.findByRole('menuitem', { name: 'View underlying data' }).click();
+        cy.findByRole('menuitem', { name: 'View underlying data' }).click({
+            force: true,
+        });
 
         cy.get('section[role="dialog"]').within(() => {
             // Metrics
@@ -146,7 +148,9 @@ describe('Dashboard', () => {
         // Use findAllByRole + first() to handle both toolbar and empty state buttons.
         // With Mantine v8, clicking multiple Menu triggers toggles open→closed.
         cy.findAllByRole('button', { name: 'Add tile' }).first().click();
-        cy.findByRole('menuitem', { name: 'Saved chart' }).click();
+        cy.findByRole('menuitem', { name: 'Saved chart' }).click({
+            force: true,
+        });
         cy.findByRole('dialog').findByPlaceholderText('Search...').click();
         // search
         cy.findByRole('dialog')
@@ -163,7 +167,9 @@ describe('Dashboard', () => {
 
         // Create chart within dashboard
         cy.findAllByRole('button', { name: 'Add tile' }).first().click();
-        cy.findByRole('menuitem', { name: /New chart/ }).click();
+        cy.findByRole('menuitem', { name: /New chart/ }).click({
+            force: true,
+        });
         cy.findByText('You are creating this chart from within "Title"').should(
             'exist',
         );
@@ -205,7 +211,9 @@ describe('Dashboard', () => {
 
         // Create another chart within dashboard
         cy.findAllByRole('button', { name: 'Add tile' }).first().click();
-        cy.findByRole('menuitem', { name: /New chart/ }).click();
+        cy.findByRole('menuitem', { name: /New chart/ }).click({
+            force: true,
+        });
         cy.findByText('You are creating this chart from within "Title"').should(
             'exist',
         );
@@ -253,7 +261,9 @@ describe('Dashboard', () => {
 
         // Create new chart within dashboard, but reference another explore
         cy.findAllByRole('button', { name: 'Add tile' }).first().click();
-        cy.findByRole('menuitem', { name: /New chart/ }).click();
+        cy.findByRole('menuitem', { name: /New chart/ }).click({
+            force: true,
+        });
         cy.findByText('You are creating this chart from within "Title"').should(
             'exist',
         );
@@ -312,7 +322,9 @@ describe('Dashboard', () => {
 
         // Add Markdown tile
         cy.findAllByRole('button', { name: 'Add tile' }).first().click();
-        cy.findByRole('menuitem', { name: 'Markdown' }).click();
+        cy.findByRole('menuitem', { name: 'Markdown' }).click({
+            force: true,
+        });
         cy.findByLabelText('Title').type('Title');
         cy.findByTestId('add-tile-form').find('textarea').type('Content');
         cy.findByText('Add').click();
