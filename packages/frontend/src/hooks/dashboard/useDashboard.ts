@@ -7,6 +7,7 @@ import {
     type Dashboard,
     type DashboardAvailableFilters,
     type DashboardFilters,
+    type DashboardHistory,
     type DashboardTile,
     type DateGranularity,
     type SavedChartsInfoForDashboardAvailableFilters,
@@ -598,6 +599,59 @@ export const useDashboardDeleteMutation = () => {
             });
         },
     });
+};
+
+const getDashboardHistory = async (
+    dashboardUuid: string,
+): Promise<DashboardHistory> =>
+    lightdashApi<DashboardHistory>({
+        url: `/dashboards/${dashboardUuid}/history`,
+        method: 'GET',
+        body: undefined,
+    });
+
+export const useDashboardHistory = (dashboardUuid: string | undefined) =>
+    useQuery<DashboardHistory, ApiError>({
+        queryKey: ['dashboard_history', dashboardUuid],
+        queryFn: () => getDashboardHistory(dashboardUuid!),
+        enabled: dashboardUuid !== undefined,
+        retry: false,
+    });
+
+const rollbackDashboard = async (
+    dashboardUuid: string,
+    versionUuid: string,
+): Promise<null> =>
+    lightdashApi<null>({
+        url: `/dashboards/${dashboardUuid}/rollback/${versionUuid}`,
+        method: 'POST',
+        body: undefined,
+    });
+
+export const useDashboardVersionRollbackMutation = (
+    dashboardUuid: string | undefined,
+) => {
+    const { showToastSuccess, showToastApiError } = useToaster();
+    return useMutation<null, ApiError, string>(
+        (versionUuid: string) =>
+            dashboardUuid && versionUuid
+                ? rollbackDashboard(dashboardUuid, versionUuid)
+                : Promise.reject(),
+        {
+            mutationKey: ['dashboard_version_rollback'],
+            onSuccess: async () => {
+                showToastSuccess({
+                    title: `Success! Dashboard was reverted.`,
+                });
+            },
+            onError: ({ error }) => {
+                showToastApiError({
+                    title: `Failed to revert dashboard`,
+                    apiError: error,
+                });
+            },
+        },
+    );
 };
 
 export const appendNewTilesToBottom = <T extends Pick<DashboardTile, 'y'>>(

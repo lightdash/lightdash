@@ -171,6 +171,7 @@ export const dashboardEntry: DashboardTable['base'] = {
 
 export const dashboardVersionEntry: DashboardVersionTable['base'] = {
     dashboard_version_id: 0,
+    dashboard_version_uuid: 'dashboard-version-uuid',
     dashboard_id: 0,
     created_at: new Date(),
     updated_by_user_uuid: 'userUuid',
@@ -200,6 +201,7 @@ export const dashboardWithVersionEntry: GetDashboardQuery = {
 
     description: dashboardEntry.description,
     dashboard_version_id: dashboardVersionEntry.dashboard_version_id,
+    dashboard_version_uuid: dashboardVersionEntry.dashboard_version_uuid,
     created_at: dashboardVersionEntry.created_at,
     user_uuid: 'userUuid',
     first_name: 'firstName',
@@ -253,6 +255,7 @@ export const expectedDashboard: DashboardDAO = {
     organizationUuid: 'organizationUuid',
     projectUuid: projectEntry.project_uuid,
     dashboardVersionId: dashboardVersionEntry.dashboard_version_id,
+    versionUuid: dashboardVersionEntry.dashboard_version_uuid,
     uuid: dashboardEntry.dashboard_uuid,
     name: dashboardEntry.name,
     slug: `name`,

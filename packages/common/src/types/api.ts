@@ -64,6 +64,7 @@ import {
     type Dashboard,
     type DashboardAvailableFilters,
     type DashboardBasicDetails,
+    type DashboardHistory,
 } from './dashboard';
 import { type DbtExposure } from './dbt';
 import { type EmailStatusExpiring } from './email';
@@ -752,6 +753,7 @@ type ApiResults =
     | ValidationResponse[]
     | ChartHistory
     | ChartVersion
+    | DashboardHistory
     | EmbedUrl
     | DecodedEmbed
     | Array<GitRepo>

@@ -2,9 +2,11 @@ import {
     ApiErrorPayload,
     ApiPromoteDashboardResponse,
     ApiPromotionChangesResponse,
+    ApiSuccessEmpty,
     AuthorizationError,
     type ApiCreateDashboardSchedulerResponse,
     type ApiDashboardSchedulersResponse,
+    type ApiGetDashboardHistoryResponse,
 } from '@lightdash/common';
 import {
     Deprecated,
@@ -78,6 +80,59 @@ export class DashboardController extends BaseController {
             results: await this.services
                 .getPromoteService()
                 .getPromoteDashboardDiff(req.user!, dashboardUuid),
+        };
+    }
+
+    /**
+     * Get dashboard version history
+     * @summary Get dashboard history
+     * @param dashboardUuid dashboardUuid for the dashboard
+     * @param req express request
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/history')
+    @OperationId('getDashboardHistory')
+    async getDashboardHistory(
+        @Path() dashboardUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiGetDashboardHistoryResponse> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getDashboardService()
+                .getHistory(req.user!, dashboardUuid),
+        };
+    }
+
+    /**
+     * Rollback dashboard to a previous version
+     * @summary Rollback dashboard version
+     * @param dashboardUuid dashboardUuid for the dashboard
+     * @param versionUuid versionUuid for the dashboard version to rollback to
+     * @param req express request
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('/rollback/{versionUuid}')
+    @OperationId('postDashboardVersionRollback')
+    async postDashboardVersionRollback(
+        @Path() dashboardUuid: string,
+        @Path() versionUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        this.setStatus(200);
+        await this.services
+            .getDashboardService()
+            .rollback(req.user!, dashboardUuid, versionUuid);
+        return {
+            status: 'ok',
+            results: undefined,
         };
     }
 

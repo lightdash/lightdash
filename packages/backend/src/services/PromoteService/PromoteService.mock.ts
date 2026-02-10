@@ -212,6 +212,7 @@ export const promotedDashboard: PromotedDashboard = {
         organizationUuid,
         projectUuid: promotedProjectUuid,
         dashboardVersionId: 4,
+        versionUuid: 'promoted-dashboard-version-uuid',
         uuid: 'promoted-dashboard-uuid',
         name: 'dashboard',
         description: '',

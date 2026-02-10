@@ -25,6 +25,7 @@ import {
     IconDots,
     IconFolderPlus,
     IconFolderSymlink,
+    IconHistory,
     IconInfoCircle,
     IconMaximize,
     IconMinimize,
@@ -629,6 +630,21 @@ const DashboardHeader = ({
                                             </Menu.Item>
                                         </div>
                                     </Tooltip>
+                                )}
+
+                                {userCanManageDashboard && dashboardUuid && (
+                                    <Menu.Item
+                                        leftSection={
+                                            <MantineIcon icon={IconHistory} />
+                                        }
+                                        onClick={() =>
+                                            navigate(
+                                                `/projects/${projectUuid}/dashboards/${dashboardUuid}/history`,
+                                            )
+                                        }
+                                    >
+                                        Version history
+                                    </Menu.Item>
                                 )}
 
                                 {(userCanExportData ||
