@@ -1,3 +1,10 @@
+## [0.2453.1](https://github.com/lightdash/lightdash/compare/0.2453.0...0.2453.1) (2026-02-11)
+
+
+### Bug Fixes
+
+* use bcc for admin change notification emails to prevent recipient disclosure ([#20206](https://github.com/lightdash/lightdash/issues/20206)) ([602bf80](https://github.com/lightdash/lightdash/commit/602bf80ab002f110ade488d0cc0dd0b6474abec8))
+
 # [0.2453.0](https://github.com/lightdash/lightdash/compare/0.2452.0...0.2453.0) (2026-02-11)
 
 
