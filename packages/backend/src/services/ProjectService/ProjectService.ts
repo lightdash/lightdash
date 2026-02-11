@@ -15,6 +15,7 @@ import {
     assertEmbeddedAuth,
     assertIsAccountWithOrg,
     assertUnreachable,
+    AthenaAuthenticationType,
     BigqueryAuthenticationType,
     CacheMetadata,
     calculateCompilationReport,
@@ -1836,6 +1837,22 @@ export class ProjectService extends BaseService {
                             authenticationType,
                             `Unknown authentication type: ${authenticationType}`,
                         );
+                }
+                break;
+            case WarehouseTypes.ATHENA:
+                const athenaAuthenticationType =
+                    project.warehouseConnection.authenticationType ??
+                    AthenaAuthenticationType.ACCESS_KEY;
+
+                if (
+                    athenaAuthenticationType ===
+                        AthenaAuthenticationType.ACCESS_KEY &&
+                    (!project.warehouseConnection.accessKeyId ||
+                        !project.warehouseConnection.secretAccessKey)
+                ) {
+                    throw new ParameterError(
+                        'Athena access key authentication requires accessKeyId and secretAccessKey',
+                    );
                 }
                 break;
             default:

@@ -321,6 +321,7 @@ export type HealthState = {
     hasMicrosoftTeams: boolean;
     isServiceAccountEnabled: boolean;
     isOrganizationWarehouseCredentialsEnabled: boolean;
+    isAthenaWarehouseIamRoleAuthEnabled: boolean;
     latest: {
         version?: string;
     };

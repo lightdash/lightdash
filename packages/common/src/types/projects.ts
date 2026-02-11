@@ -89,6 +89,11 @@ export enum DatabricksAuthenticationType {
     OAUTH_U2M = 'oauth_u2m',
 }
 
+export enum AthenaAuthenticationType {
+    ACCESS_KEY = 'access_key',
+    IAM_ROLE = 'iam_role',
+}
+
 export type CreateDatabricksCredentials = {
     type: WarehouseTypes.DATABRICKS;
     catalog?: string;
@@ -186,8 +191,9 @@ export type CreateAthenaCredentials = {
     schema: string;
     s3StagingDir: string;
     s3DataDir?: string;
-    accessKeyId: string;
-    secretAccessKey: string;
+    authenticationType?: AthenaAuthenticationType;
+    accessKeyId?: string;
+    secretAccessKey?: string;
     workGroup?: string;
     threads?: number;
     numRetries?: number;

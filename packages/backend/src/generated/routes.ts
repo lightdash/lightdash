@@ -9981,6 +9981,11 @@ const models: TsoaRoute.Models = {
         enums: ['athena'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AthenaAuthenticationType: {
+        dataType: 'refEnum',
+        enums: ['access_key', 'iam_role'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Pick_CreateAthenaCredentials.Exclude_keyofCreateAthenaCredentials.SensitiveCredentialsFieldNames__':
         {
             dataType: 'refAlias',
@@ -9992,6 +9997,13 @@ const models: TsoaRoute.Models = {
                         dataType: 'union',
                         subSchemas: [
                             { dataType: 'boolean' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    authenticationType: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { ref: 'AthenaAuthenticationType' },
                             { dataType: 'undefined' },
                         ],
                     },
@@ -10541,8 +10553,9 @@ const models: TsoaRoute.Models = {
                 numRetries: { dataType: 'double' },
                 threads: { dataType: 'double' },
                 workGroup: { dataType: 'string' },
-                secretAccessKey: { dataType: 'string', required: true },
-                accessKeyId: { dataType: 'string', required: true },
+                secretAccessKey: { dataType: 'string' },
+                accessKeyId: { dataType: 'string' },
+                authenticationType: { ref: 'AthenaAuthenticationType' },
                 s3DataDir: { dataType: 'string' },
                 s3StagingDir: { dataType: 'string', required: true },
                 schema: { dataType: 'string', required: true },
@@ -11795,8 +11808,20 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 type: { ref: 'WarehouseTypes.ATHENA', required: true },
-                accessKeyId: { dataType: 'string', required: true },
-                secretAccessKey: { dataType: 'string', required: true },
+                accessKeyId: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                secretAccessKey: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'undefined' },
+                    ],
+                },
             },
             validators: {},
         },

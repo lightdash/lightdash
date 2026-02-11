@@ -282,6 +282,9 @@ export const lightdashConfigMock: LightdashConfig = {
     organizationWarehouseCredentials: {
         enabled: false,
     },
+    athenaWarehouseIamRoleAuth: {
+        enabled: false,
+    },
     googleCloudPlatform: {
         projectId: 'test-project-id',
     },
