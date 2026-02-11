@@ -1,15 +1,17 @@
 import {
+    ContentType,
     type ApiError,
-    type ContentType,
     type DeletedContentItem,
     type DeletedContentSummary,
     type KnexPaginatedData,
 } from '@lightdash/common';
+import { IconArrowRight } from '@tabler/icons-react';
 import {
     useInfiniteQuery,
     useMutation,
     useQueryClient,
 } from '@tanstack/react-query';
+import { useNavigate } from 'react-router';
 import useToaster from '../../../hooks/toaster/useToaster';
 import {
     getDeletedContent,
@@ -64,14 +66,35 @@ export function useInfiniteDeletedContent(
 
 export function useRestoreDeletedContent(projectUuid: string) {
     const queryClient = useQueryClient();
+    const navigate = useNavigate();
     const { showToastSuccess, showToastApiError } = useToaster();
 
     return useMutation<undefined, ApiError, DeletedContentItem>({
         mutationFn: (item) => restoreDeletedContent(projectUuid, item),
-        onSuccess: () => {
+        onSuccess: (_data, item) => {
             showToastSuccess({
                 title: 'Content restored',
                 subtitle: 'The item has been restored successfully.',
+                action:
+                    item.contentType === ContentType.CHART
+                        ? {
+                              children: 'Go to chart',
+                              icon: IconArrowRight,
+                              onClick: () =>
+                                  navigate(
+                                      `/projects/${projectUuid}/saved/${item.uuid}`,
+                                  ),
+                          }
+                        : item.contentType === ContentType.DASHBOARD
+                          ? {
+                                children: 'Go to dashboard',
+                                icon: IconArrowRight,
+                                onClick: () =>
+                                    navigate(
+                                        `/projects/${projectUuid}/dashboards/${item.uuid}`,
+                                    ),
+                            }
+                          : undefined,
             });
             void queryClient.invalidateQueries({
                 queryKey: ['deletedContent'],
