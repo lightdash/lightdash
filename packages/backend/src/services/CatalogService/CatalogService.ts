@@ -47,6 +47,7 @@ import {
     type KnexPaginateArgs,
     type KnexPaginatedData,
     type MetricsTree,
+    type MetricsTreeSummary,
 } from '@lightdash/common';
 import { uniqBy } from 'lodash';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
@@ -1529,6 +1530,26 @@ export class CatalogService<
     }
 
     // --- Saved Metrics Trees ---
+
+    async getMetricsTrees(
+        user: SessionUser,
+        projectUuid: string,
+        paginateArgs?: KnexPaginateArgs,
+    ): Promise<KnexPaginatedData<MetricsTreeSummary[]>> {
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+
+        if (
+            user.ability.cannot(
+                'view',
+                subject('MetricsTree', { projectUuid, organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        return this.catalogModel.getMetricsTrees(projectUuid, paginateArgs);
+    }
 
     async createMetricsTree(
         user: SessionUser,
