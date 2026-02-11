@@ -65,6 +65,12 @@ type Props = {
     metrics: CatalogField[];
     edges: CatalogMetricsTreeEdge[];
     viewOnly?: boolean;
+    /** Saved node positions from DB -- skip Dagre for nodes that have positions */
+    nodePositions?: Record<string, { x: number; y: number }>;
+    /** When false, edge create/delete only updates local state (no API calls). Default: true */
+    persistEdgesImmediately?: boolean;
+    /** Called when canvas nodes/edges change so parent can capture state for save */
+    onCanvasStateChange?: (nodes: ExpandedNodeData[], edges: Edge[]) => void;
 };
 
 function getEdgeId(edge: Pick<CatalogMetricsTreeEdge, 'source' | 'target'>) {
@@ -138,7 +144,14 @@ const getNodeLayout = (
     };
 };
 
-const Canvas: FC<Props> = ({ metrics, edges, viewOnly }) => {
+const Canvas: FC<Props> = ({
+    metrics,
+    edges,
+    viewOnly,
+    nodePositions,
+    persistEdgesImmediately = true,
+    onCanvasStateChange,
+}) => {
     const { track } = useTracking();
     const theme = useMantineTheme();
     const [userUuid, projectUuid, organizationUuid] = useAppSelector(
@@ -217,10 +230,11 @@ const Canvas: FC<Props> = ({ metrics, edges, viewOnly }) => {
             const isEdgeSource = initialEdges.some(
                 (edge) => edge.source === metric.catalogSearchUuid,
             );
+            const savedPosition = nodePositions?.[metric.catalogSearchUuid];
 
             return {
                 id: metric.catalogSearchUuid,
-                position: { x: 0, y: 0 },
+                position: savedPosition ?? { x: 0, y: 0 },
                 type: 'expanded',
                 data: {
                     label: metric.name,
@@ -233,21 +247,28 @@ const Canvas: FC<Props> = ({ metrics, edges, viewOnly }) => {
                 },
             };
         });
-    }, [metrics, initialEdges]);
+    }, [metrics, initialEdges, nodePositions]);
 
-    // Only connected nodes for initial canvas render
+    // Nodes to show on canvas initially: connected nodes + nodes with saved positions
     const initialNodes = useMemo<ExpandedNodeData[]>(() => {
         const connectedNodeIds = new Set(
             initialEdges.flatMap((edge) => [edge.source, edge.target]),
         );
-        return allNodes.filter((node) => connectedNodeIds.has(node.id));
-    }, [allNodes, initialEdges]);
+        return allNodes.filter(
+            (node) =>
+                connectedNodeIds.has(node.id) ||
+                (nodePositions != null && node.id in nodePositions),
+        );
+    }, [allNodes, initialEdges, nodePositions]);
 
     const [currentNodes, setCurrentNodes, onNodesChange] =
         useNodesState(initialNodes);
 
     const [currentEdges, setCurrentEdges, onEdgesChange] =
         useEdgesState(initialEdges);
+
+    // Track whether the canvas has been initialized (used to prevent resets in draft mode)
+    const isCanvasInitializedRef = useRef(false);
 
     const handleEdgesChange = useCallback(
         (changes: EdgeChange[]) => {
@@ -371,11 +392,13 @@ const Canvas: FC<Props> = ({ metrics, edges, viewOnly }) => {
     const handleConnect = useCallback(
         async (params: Connection) => {
             if (projectUuid) {
-                await createMetricsTreeEdge({
-                    projectUuid,
-                    sourceCatalogSearchUuid: params.source,
-                    targetCatalogSearchUuid: params.target,
-                });
+                if (persistEdgesImmediately) {
+                    await createMetricsTreeEdge({
+                        projectUuid,
+                        sourceCatalogSearchUuid: params.source,
+                        targetCatalogSearchUuid: params.target,
+                    });
+                }
 
                 setCurrentEdges((edg) =>
                     addEdge(
@@ -388,18 +411,22 @@ const Canvas: FC<Props> = ({ metrics, edges, viewOnly }) => {
                         edg,
                     ),
                 );
-                track({
-                    name: EventName.METRICS_CATALOG_TREES_EDGE_CREATED,
-                    properties: {
-                        userId: userUuid,
-                        organizationId: organizationUuid,
-                        projectId: projectUuid,
-                    },
-                });
+
+                if (persistEdgesImmediately) {
+                    track({
+                        name: EventName.METRICS_CATALOG_TREES_EDGE_CREATED,
+                        properties: {
+                            userId: userUuid,
+                            organizationId: organizationUuid,
+                            projectId: projectUuid,
+                        },
+                    });
+                }
             }
         },
         [
             projectUuid,
+            persistEdgesImmediately,
             createMetricsTreeEdge,
             track,
             userUuid,
@@ -410,7 +437,7 @@ const Canvas: FC<Props> = ({ metrics, edges, viewOnly }) => {
 
     const handleEdgesDelete = useCallback(
         async (edgesToDelete: Edge[]) => {
-            if (projectUuid) {
+            if (projectUuid && persistEdgesImmediately) {
                 const deletableEdges = edgesToDelete.filter(
                     (edge) => edge.type !== 'yaml',
                 );
@@ -433,8 +460,17 @@ const Canvas: FC<Props> = ({ metrics, edges, viewOnly }) => {
 
                 await Promise.all(promises);
             }
+            // When persistEdgesImmediately is false, edges are removed from local state
+            // by ReactFlow's built-in deletion handling (via handleEdgesChange)
         },
-        [projectUuid, deleteMetricsTreeEdge, track, organizationUuid, userUuid],
+        [
+            projectUuid,
+            persistEdgesImmediately,
+            deleteMetricsTreeEdge,
+            track,
+            organizationUuid,
+            userUuid,
+        ],
     );
 
     const handleDragOver = useCallback((event: React.DragEvent) => {
@@ -485,6 +521,11 @@ const Canvas: FC<Props> = ({ metrics, edges, viewOnly }) => {
 
     // Reset layout when initial edges or nodes change
     useEffect(() => {
+        // In draft mode (persistEdgesImmediately=false), only initialize once.
+        // Background refetches would otherwise reset the canvas and lose user's work.
+        if (!persistEdgesImmediately && isCanvasInitializedRef.current) return;
+        isCanvasInitializedRef.current = true;
+
         // Apply current timeFrame and rollingDays to initial nodes (using ref to avoid dependency)
         const { timeFrame: currentTimeFrame, rollingDays: currentRollingDays } =
             timeValuesRef.current;
@@ -499,14 +540,40 @@ const Canvas: FC<Props> = ({ metrics, edges, viewOnly }) => {
         setCurrentNodes(nodesWithTimeData);
         setCurrentEdges(initialEdges);
         setIsLayoutReady(false);
-    }, [initialNodes, initialEdges, setCurrentNodes, setCurrentEdges]);
+    }, [
+        initialNodes,
+        initialEdges,
+        setCurrentNodes,
+        setCurrentEdges,
+        persistEdgesImmediately,
+    ]);
 
-    // Only apply layout when nodes are initialized and the initial layout is not ready
+    // Only apply layout when nodes are initialized and the initial layout is not ready.
+    // Skip Dagre layout when all nodes have saved positions (they're already placed correctly).
     useEffect(() => {
         if (nodesInitialized && !isLayoutReady && currentNodes.length > 0) {
-            applyLayout();
+            const allHaveSavedPositions =
+                nodePositions != null &&
+                currentNodes.every((node) => node.id in nodePositions);
+
+            if (allHaveSavedPositions) {
+                // Positions are already correct from DB, just fit the view
+                setIsLayoutReady(true);
+                window.requestAnimationFrame(() => {
+                    void fitView({ maxZoom: 1.2 });
+                });
+            } else {
+                applyLayout();
+            }
         }
-    }, [applyLayout, nodesInitialized, isLayoutReady, currentNodes.length]);
+    }, [
+        applyLayout,
+        nodesInitialized,
+        isLayoutReady,
+        currentNodes,
+        nodePositions,
+        fitView,
+    ]);
 
     useEffect(() => {
         setCurrentNodes((nodes) =>
@@ -535,6 +602,13 @@ const Canvas: FC<Props> = ({ metrics, edges, viewOnly }) => {
             onNodesChange(removeNodeChanges);
         }
     }, [removeNodeChanges, onNodesChange]);
+
+    // Notify parent of canvas state changes for save functionality
+    useEffect(() => {
+        if (onCanvasStateChange) {
+            onCanvasStateChange(currentNodes, currentEdges);
+        }
+    }, [currentNodes, currentEdges, onCanvasStateChange]);
 
     const sidebarNodes = useMemo(() => {
         return allNodes.filter(

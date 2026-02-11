@@ -1,0 +1,42 @@
+.sidebar {
+    background-color: var(--mantine-color-ldGray-0);
+    border: 0;
+}
+
+.resizeHandle {
+    background-color: var(--mantine-color-ldGray-0);
+    width: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: col-resize;
+    transition: background-color 0.2s ease-in-out;
+    border-right: 1px solid var(--mantine-color-ldGray-2);
+
+    &:hover {
+        background-color: var(--mantine-color-ldGray-1);
+    }
+
+    &[data-resize-handle-state='drag'] {
+        background-color: var(--mantine-color-ldGray-2);
+    }
+}
+
+.treeItem {
+    border-radius: var(--mantine-radius-md);
+    cursor: pointer;
+    transition: background-color 0.15s ease-in-out;
+
+    &:hover {
+        background-color: var(--mantine-color-ldGray-1);
+    }
+}
+
+.treeItemActive {
+    background-color: var(--mantine-color-blue-0);
+    border: 1px solid var(--mantine-color-blue-2);
+
+    &:hover {
+        background-color: var(--mantine-color-blue-0);
+    }
+}
