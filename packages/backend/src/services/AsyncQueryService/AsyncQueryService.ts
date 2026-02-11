@@ -131,6 +131,7 @@ import { CreateCacheResult } from '../CacheService/types';
 import { CsvService } from '../CsvService/CsvService';
 import { ExcelService } from '../ExcelService/ExcelService';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
+import { PersistentDownloadFileService } from '../PersistentDownloadFileService/PersistentDownloadFileService';
 import { PivotTableService } from '../PivotTableService/PivotTableService';
 import { getDashboardParametersValuesMap } from '../ProjectService/parameters';
 import {
@@ -173,6 +174,7 @@ type AsyncQueryServiceArguments = ProjectServiceArguments & {
     prometheusMetrics?: PrometheusMetrics;
     schedulerClient: SchedulerClient;
     permissionsService: PermissionsService;
+    persistentDownloadFileService: PersistentDownloadFileService;
 };
 
 export class AsyncQueryService extends ProjectService {
@@ -198,6 +200,8 @@ export class AsyncQueryService extends ProjectService {
 
     permissionsService: PermissionsService;
 
+    persistentDownloadFileService: PersistentDownloadFileService;
+
     constructor(args: AsyncQueryServiceArguments) {
         super(args);
         this.queryHistoryModel = args.queryHistoryModel;
@@ -211,6 +215,7 @@ export class AsyncQueryService extends ProjectService {
         this.prometheusMetrics = args.prometheusMetrics;
         this.schedulerClient = args.schedulerClient;
         this.permissionsService = args.permissionsService;
+        this.persistentDownloadFileService = args.persistentDownloadFileService;
     }
 
     // ! Duplicate of SavedSqlService.hasAccess
@@ -957,6 +962,10 @@ export class AsyncQueryService extends ProjectService {
                             pivotConfig,
                             attachmentDownloadName,
                         },
+                        organizationUuid,
+                        createdByUserUuid: isJwtUser(account)
+                            ? null
+                            : account.user.userUuid,
                     });
                 }
                 return this.downloadAsyncQueryResultsAsFormattedFile(
@@ -975,6 +984,14 @@ export class AsyncQueryService extends ProjectService {
                         pivotConfig,
                     },
                     attachmentDownloadName,
+                    {
+                        organizationUuid,
+                        projectUuid,
+                        createdByUserUuid: isJwtUser(account)
+                            ? null
+                            : account.user.userUuid,
+                        fileType: DownloadFileType.CSV,
+                    },
                 );
             case DownloadFileType.XLSX:
                 // Check if this is a pivot table download
@@ -1057,6 +1074,12 @@ export class AsyncQueryService extends ProjectService {
             pivotConfig?: PivotConfig;
         },
         attachmentDownloadName?: string,
+        persistentUrlContext?: {
+            organizationUuid: string;
+            projectUuid: string;
+            createdByUserUuid: string | null;
+            fileType: DownloadFileType;
+        },
     ): Promise<{ fileUrl: string; truncated: boolean }> {
         // Generate a unique filename
         const formattedFileName = service.generateFileId(resultsFileName);
@@ -1086,7 +1109,7 @@ export class AsyncQueryService extends ProjectService {
                 : DownloadFileType.CSV;
 
         // Transform and export the results from results bucket to exports bucket
-        return transformAndExportResults(
+        const result = await transformAndExportResults(
             resultsFileName,
             formattedFileName,
             async (readStream, writeStream) => {
@@ -1117,6 +1140,20 @@ export class AsyncQueryService extends ProjectService {
                     : undefined,
             },
         );
+
+        if (persistentUrlContext) {
+            const persistentUrl =
+                await this.persistentDownloadFileService.createPersistentUrl({
+                    s3Key: formattedFileName,
+                    fileType: persistentUrlContext.fileType,
+                    organizationUuid: persistentUrlContext.organizationUuid,
+                    projectUuid: persistentUrlContext.projectUuid,
+                    createdByUserUuid: persistentUrlContext.createdByUserUuid,
+                });
+            return { fileUrl: persistentUrl, truncated: result.truncated };
+        }
+
+        return result;
     }
 
     private async downloadAsyncQueryResultsAsJson(

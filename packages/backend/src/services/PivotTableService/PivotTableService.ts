@@ -98,6 +98,8 @@ export class PivotTableService extends BaseService {
         storageClient,
         options,
         pivotDetails,
+        organizationUuid,
+        createdByUserUuid,
     }: {
         resultsFileName: string;
         fields: ItemsMap;
@@ -114,6 +116,8 @@ export class PivotTableService extends BaseService {
             pivotConfig: PivotConfig;
             attachmentDownloadName?: string;
         };
+        organizationUuid?: string;
+        createdByUserUuid?: string | null;
     }): Promise<{ fileUrl: string; truncated: boolean }> {
         const { onlyRaw, customLabels, pivotConfig, attachmentDownloadName } =
             options;
@@ -164,6 +168,8 @@ export class PivotTableService extends BaseService {
             truncated: finalTruncated,
             customLabels,
             pivotDetails,
+            organizationUuid,
+            createdByUserUuid,
         });
 
         return {

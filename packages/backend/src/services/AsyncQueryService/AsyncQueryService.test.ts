@@ -204,6 +204,7 @@ const getMockedAsyncQueryService = (
             persistentDownloadFileService: {} as PersistentDownloadFileService,
         }),
         permissionsService: {} as PermissionsService,
+        persistentDownloadFileService: {} as PersistentDownloadFileService,
         projectCompileLogModel: {} as ProjectCompileLogModel,
         adminNotificationService: {} as AdminNotificationService,
         ...overrides,
