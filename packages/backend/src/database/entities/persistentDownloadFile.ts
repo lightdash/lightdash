@@ -15,8 +15,8 @@ export type DbPersistentDownloadFile = {
 
 type CreatePersistentDownloadFile = Omit<
     DbPersistentDownloadFile,
-    'created_at' | 'expires_at'
-> & { expires_at?: Date };
+    'created_at'
+>;
 
 export type PersistentDownloadFileTable = Knex.CompositeTableType<
     DbPersistentDownloadFile,

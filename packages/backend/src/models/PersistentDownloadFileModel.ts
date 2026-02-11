@@ -23,7 +23,7 @@ export class PersistentDownloadFileModel {
         organizationUuid: string;
         projectUuid: string | null;
         createdByUserUuid: string | null;
-        expiresAt?: Date;
+        expiresAt: Date;
     }): Promise<void> {
         await this.database(PersistentDownloadFileTableName).insert({
             nanoid: data.nanoid,
@@ -32,7 +32,7 @@ export class PersistentDownloadFileModel {
             organization_uuid: data.organizationUuid,
             project_uuid: data.projectUuid,
             created_by_user_uuid: data.createdByUserUuid,
-            ...(data.expiresAt && { expires_at: data.expiresAt }),
+            expires_at: data.expiresAt,
         });
     }
 

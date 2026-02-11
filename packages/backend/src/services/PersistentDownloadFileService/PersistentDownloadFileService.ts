@@ -37,12 +37,16 @@ export class PersistentDownloadFileService extends BaseService {
         createdByUserUuid: string | null;
     }): Promise<string> {
         if (!this.lightdashConfig.persistentDownloadUrls.enabled) {
+            this.logger.debug(
+                'Persistent download URLs disabled, returning raw S3 URL',
+            );
             return this.s3Client.getFileUrl(data.s3Key);
         }
 
         const fileNanoid = nanoid();
         const { expirationSeconds } =
             this.lightdashConfig.persistentDownloadUrls;
+        const expiresAt = new Date(Date.now() + expirationSeconds * 1000);
         await this.persistentDownloadFileModel.create({
             nanoid: fileNanoid,
             s3Key: data.s3Key,
@@ -50,24 +54,34 @@ export class PersistentDownloadFileService extends BaseService {
             organizationUuid: data.organizationUuid,
             projectUuid: data.projectUuid,
             createdByUserUuid: data.createdByUserUuid,
-            expiresAt: expirationSeconds
-                ? new Date(Date.now() + expirationSeconds * 1000)
-                : undefined,
+            expiresAt,
         });
 
-        return new URL(
+        const url = new URL(
             `/api/v1/file/${fileNanoid}`,
             this.lightdashConfig.siteUrl,
         ).href;
+
+        this.logger.debug(
+            `Created persistent download URL: nanoid=${fileNanoid}, fileType=${data.fileType}, expiresAt=${expiresAt.toISOString()}`,
+        );
+
+        return url;
     }
 
     async getSignedUrl(fileNanoid: string): Promise<string> {
         const file = await this.persistentDownloadFileModel.get(fileNanoid);
 
         if (file.expires_at < new Date()) {
+            this.logger.debug(
+                `Persistent download link expired: nanoid=${fileNanoid}, expiredAt=${file.expires_at.toISOString()}`,
+            );
             throw new NotFoundError('This download link has expired');
         }
 
+        this.logger.debug(
+            `Serving persistent download: nanoid=${fileNanoid}, s3Key=${file.s3_key}`,
+        );
         return this.s3Client.getFileUrl(file.s3_key);
     }
 }
