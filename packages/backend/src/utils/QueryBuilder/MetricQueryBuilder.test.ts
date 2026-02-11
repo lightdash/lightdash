@@ -56,6 +56,8 @@ import {
     METRIC_QUERY_WITH_ADDITIONAL_METRIC_SQL,
     METRIC_QUERY_WITH_CUSTOM_DIMENSION,
     METRIC_QUERY_WITH_CUSTOM_SQL_DIMENSION,
+    METRIC_QUERY_WITH_CUSTOM_USER_ATTRIBUTE_FILTER_VALUE,
+    METRIC_QUERY_WITH_CUSTOM_USER_ATTRIBUTE_FILTER_VALUE_SQL,
     METRIC_QUERY_WITH_DATE_FILTER,
     METRIC_QUERY_WITH_DATE_ZOOM_FILTER_SQL,
     METRIC_QUERY_WITH_DAY_OF_WEEK_NAME_SORT,
@@ -89,6 +91,8 @@ import {
     METRIC_QUERY_WITH_TABLE_CALCULATION_FILTER_SQL,
     METRIC_QUERY_WITH_TABLE_REFERENCE,
     METRIC_QUERY_WITH_TABLE_REFERENCE_SQL,
+    METRIC_QUERY_WITH_USER_ATTRIBUTE_FILTER_VALUE,
+    METRIC_QUERY_WITH_USER_ATTRIBUTE_FILTER_VALUE_SQL,
     QUERY_BUILDER_UTC_TIMEZONE,
     warehouseClientMock,
 } from './MetricQueryBuilder.mock';
@@ -431,6 +435,62 @@ describe('Query builder', () => {
                 }).query,
             ),
         ).toStrictEqual(replaceWhitespace(METRIC_QUERY_WITH_SQL_FILTER));
+    });
+
+    test('Should replace intrinsic user attributes in filter values', () => {
+        expect(
+            replaceWhitespace(
+                buildQuery({
+                    explore: EXPLORE,
+                    compiledMetricQuery:
+                        METRIC_QUERY_WITH_USER_ATTRIBUTE_FILTER_VALUE,
+                    warehouseSqlBuilder: warehouseClientMock,
+                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
+                }).query,
+            ),
+        ).toStrictEqual(
+            replaceWhitespace(
+                METRIC_QUERY_WITH_USER_ATTRIBUTE_FILTER_VALUE_SQL,
+            ),
+        );
+    });
+
+    test('Should replace custom user attributes in filter values', () => {
+        expect(
+            replaceWhitespace(
+                buildQuery({
+                    explore: EXPLORE,
+                    compiledMetricQuery:
+                        METRIC_QUERY_WITH_CUSTOM_USER_ATTRIBUTE_FILTER_VALUE,
+                    warehouseSqlBuilder: warehouseClientMock,
+                    userAttributes: {
+                        country: ['EU'],
+                    },
+                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
+                }).query,
+            ),
+        ).toStrictEqual(
+            replaceWhitespace(
+                METRIC_QUERY_WITH_CUSTOM_USER_ATTRIBUTE_FILTER_VALUE_SQL,
+            ),
+        );
+    });
+
+    test('Should throw error if user attribute in filter value is missing', () => {
+        expect(
+            () =>
+                buildQuery({
+                    explore: EXPLORE,
+                    compiledMetricQuery:
+                        METRIC_QUERY_WITH_CUSTOM_USER_ATTRIBUTE_FILTER_VALUE,
+                    warehouseSqlBuilder: warehouseClientMock,
+                    userAttributes: {},
+                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
+                }).query,
+        ).toThrow(ForbiddenError);
     });
 
     it('buildQuery with custom dimension bin number', () => {
