@@ -7,6 +7,7 @@ import {
 } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
@@ -60,6 +61,7 @@ describe('validation', () => {
         spaceModel: {} as SpaceModel,
         schedulerClient: {} as SchedulerClient,
         spacePermissionService: {} as SpacePermissionService,
+        featureFlagModel: {} as FeatureFlagModel,
     });
 
     afterEach(() => {
