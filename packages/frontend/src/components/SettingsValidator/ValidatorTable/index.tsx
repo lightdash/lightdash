@@ -16,6 +16,7 @@ import {
     Table,
     Text,
     Tooltip,
+    useMantineTheme,
 } from '@mantine/core';
 import { mergeRefs, useHover } from '@mantine/hooks';
 import { IconLayoutDashboard, IconTable, IconX } from '@tabler/icons-react';
@@ -35,6 +36,7 @@ import MantineIcon from '../../common/MantineIcon';
 import { ChartIcon, IconBox } from '../../common/ResourceIcon';
 import { getLinkToResource } from '../utils/utils';
 import { ErrorMessage } from './ErrorMessage';
+import pinnedStyles from './ValidatorTable.module.css';
 
 const isDeleted = (validationError: ValidationResponse) =>
     (isChartValidationError(validationError) && !validationError.chartUuid) ||
@@ -100,6 +102,8 @@ const TableValidationItem = forwardRef<
         projectUuid: string;
         validationError: ValidationResponse;
         onSelectValidationError: (validationError: ValidationResponse) => void;
+        isPinned?: boolean;
+        onUnpin?: () => void;
         'data-index'?: number;
     }
 >(
@@ -108,15 +112,48 @@ const TableValidationItem = forwardRef<
             projectUuid,
             validationError,
             onSelectValidationError,
+            isPinned,
+            onUnpin,
             'data-index': dataIndex,
         },
         ref,
     ) => {
+        const theme = useMantineTheme();
         const { mutate: deleteValidation } = useDeleteValidation(projectUuid);
+        const highlightRef = useRef<HTMLTableRowElement>(null);
 
         const { hovered, ref: isHoveredRef } = useHover<HTMLTableRowElement>();
+
+        useEffect(() => {
+            if (isPinned && highlightRef.current) {
+                highlightRef.current.animate(
+                    [
+                        {
+                            backgroundColor: 'transparent',
+                            borderRadius: theme.radius.sm,
+                        },
+                        {
+                            backgroundColor: theme.colors.yellow[1],
+                            borderRadius: theme.radius.sm,
+                        },
+                        {
+                            backgroundColor: 'transparent',
+                            borderRadius: theme.radius.sm,
+                        },
+                    ],
+                    { duration: 4000, iterations: 2 },
+                );
+            }
+        }, [isPinned, theme.colors.yellow, theme.radius.sm]);
+
+        const showDismiss = isPinned || hovered;
+
         return (
-            <tr ref={mergeRefs(ref, isHoveredRef)} data-index={dataIndex}>
+            <tr
+                ref={mergeRefs(ref, isHoveredRef, highlightRef)}
+                data-index={dataIndex}
+                className={isPinned ? pinnedStyles.pinnedRow : undefined}
+            >
                 <td>
                     <AnchorToResource
                         validationError={validationError}
@@ -167,32 +204,39 @@ const TableValidationItem = forwardRef<
                 </td>
                 <td>
                     <Box w={24}>
-                        {hovered && isChartValidationError(validationError) && (
-                            <Button
-                                variant="outline"
-                                onClick={(
-                                    e: React.MouseEvent<HTMLButtonElement>,
-                                ) => {
-                                    onSelectValidationError(validationError);
-                                    e.stopPropagation();
-                                }}
-                            >
-                                Fix
-                            </Button>
-                        )}
+                        {(isPinned || hovered) &&
+                            isChartValidationError(validationError) && (
+                                <Button
+                                    variant="outline"
+                                    onClick={(
+                                        e: React.MouseEvent<HTMLButtonElement>,
+                                    ) => {
+                                        onSelectValidationError(
+                                            validationError,
+                                        );
+                                        e.stopPropagation();
+                                    }}
+                                >
+                                    Fix
+                                </Button>
+                            )}
                     </Box>
                 </td>
                 <td>
                     <Tooltip label="Dismiss error" position="top">
                         <Box w={24}>
-                            {hovered && (
+                            {showDismiss && (
                                 <ActionIcon
                                     onClick={(
                                         e: React.MouseEvent<HTMLButtonElement>,
                                     ) => {
-                                        deleteValidation(
-                                            validationError.validationId,
-                                        );
+                                        if (isPinned && onUnpin) {
+                                            onUnpin();
+                                        } else {
+                                            deleteValidation(
+                                                validationError.validationId,
+                                            );
+                                        }
                                         e.stopPropagation();
                                     }}
                                 >
@@ -220,6 +264,8 @@ export const ValidatorTable: FC<{
     isError: boolean;
     totalDBRowCount: number;
     fetchNextPage: () => void;
+    pinnedValidation?: ValidationResponse | null;
+    onUnpin?: () => void;
 }> = ({
     data,
     projectUuid,
@@ -227,6 +273,8 @@ export const ValidatorTable: FC<{
     isFetching,
     totalDBRowCount,
     fetchNextPage,
+    pinnedValidation,
+    onUnpin,
 }) => {
     const { cx, classes } = useTableStyles();
     const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -296,6 +344,17 @@ export const ValidatorTable: FC<{
                         <th></th>
                     </tr>
                 </thead>
+                {pinnedValidation && onUnpin && (
+                    <tbody>
+                        <TableValidationItem
+                            projectUuid={projectUuid}
+                            validationError={pinnedValidation}
+                            onSelectValidationError={onSelectValidationError}
+                            isPinned
+                            onUnpin={onUnpin}
+                        />
+                    </tbody>
+                )}
                 <tbody>
                     {paddingTop > 0 && (
                         <tr>

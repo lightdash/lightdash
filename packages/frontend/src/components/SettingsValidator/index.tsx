@@ -16,9 +16,12 @@ import {
 } from '@mantine-8/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconCheck, IconSearch } from '@tabler/icons-react';
-import { useMemo, useState, type FC } from 'react';
+import { useCallback, useMemo, useState, type FC } from 'react';
+import { useLocation, useNavigate } from 'react-router';
+import useSearchParams from '../../hooks/useSearchParams';
 import {
     usePaginatedValidation,
+    usePinnedValidation,
     useValidationMutation,
 } from '../../hooks/validation/useValidation';
 import useApp from '../../providers/App/useApp';
@@ -43,7 +46,21 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
     const [sourceTypeFilter, setSourceTypeFilter] = useState<string[]>([]);
     const [showConfigWarnings, setShowConfigWarnings] = useState(false);
 
+    const targetValidationId = useSearchParams('validationId');
+    const navigate = useNavigate();
+    const { pathname } = useLocation();
+
     const { user } = useApp();
+
+    const { data: pinnedValidation } = usePinnedValidation(
+        projectUuid,
+        targetValidationId ? Number(targetValidationId) : null,
+    );
+
+    const handleUnpin = useCallback(() => {
+        void navigate({ pathname }, { replace: true });
+    }, [navigate, pathname]);
+
     const { data, isLoading, isFetching, isError, fetchNextPage } =
         usePaginatedValidation(projectUuid, user, {
             pageSize: 20,
@@ -70,6 +87,13 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
         () => data?.pages.flatMap((page) => page.data) ?? [],
         [data],
     );
+
+    const deduplicatedData = useMemo(() => {
+        if (!pinnedValidation) return flatData;
+        return flatData.filter(
+            (item) => item.validationId !== pinnedValidation.validationId,
+        );
+    }, [flatData, pinnedValidation]);
 
     const totalDBRowCount = data?.pages?.[0]?.pagination?.totalResults ?? 0;
 
@@ -161,9 +185,9 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
                     <Group justify="center" gap="xs" p="md">
                         <Loader color="gray" />
                     </Group>
-                ) : flatData.length > 0 ? (
+                ) : flatData.length > 0 || pinnedValidation ? (
                     <ValidatorTable
-                        data={flatData}
+                        data={deduplicatedData}
                         projectUuid={projectUuid}
                         onSelectValidationError={(validationError) => {
                             if (isChartValidationError(validationError)) {
@@ -182,6 +206,8 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
                         isError={isError}
                         totalDBRowCount={totalDBRowCount}
                         fetchNextPage={fetchNextPage}
+                        pinnedValidation={pinnedValidation}
+                        onUnpin={handleUnpin}
                     />
                 ) : (
                     <Group justify="center" gap="xs" p="md">
