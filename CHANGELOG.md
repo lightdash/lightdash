@@ -1,3 +1,21 @@
+# [0.2454.0](https://github.com/lightdash/lightdash/compare/0.2453.1...0.2454.0) (2026-02-11)
+
+
+### Bug Fixes
+
+* optimise getProjectChartsLastVersionCTE ([#20175](https://github.com/lightdash/lightdash/issues/20175)) ([0646e65](https://github.com/lightdash/lightdash/commit/0646e6572d613a1357da7fa12b9e03b579861db4))
+
+
+### Features
+
+* add API endpoint to create saved metrics trees ([#20138](https://github.com/lightdash/lightdash/issues/20138)) ([42759d5](https://github.com/lightdash/lightdash/commit/42759d57648ea74af699fe2e22f5a8188206b22c))
+* add API endpoint to get metrics tree details ([#20160](https://github.com/lightdash/lightdash/issues/20160)) ([b42b67f](https://github.com/lightdash/lightdash/commit/b42b67fa93dfd70331c2a9d0bc685d059d43a7fe))
+* add API endpoint to list saved metrics trees ([#20139](https://github.com/lightdash/lightdash/issues/20139)) ([033053f](https://github.com/lightdash/lightdash/commit/033053f198dfe0593f0138da470c54d2126360c5))
+* add metrics trees and nodes tables ([#20137](https://github.com/lightdash/lightdash/issues/20137)) ([e6236ed](https://github.com/lightdash/lightdash/commit/e6236ed190934564245d0c2e74be737228fdbc35))
+* add saved metrics tree functionality to metrics catalog ([#20190](https://github.com/lightdash/lightdash/issues/20190)) ([fc86317](https://github.com/lightdash/lightdash/commit/fc86317a7d146584ff4a7988467852967a7d6486)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+* generate api to include saved metrics tree ([#20150](https://github.com/lightdash/lightdash/issues/20150)) ([de2b333](https://github.com/lightdash/lightdash/commit/de2b333212a566a2a504513d3baf7d86a0b32045)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+* migrate metrics tree nodes during catalog indexing ([#20194](https://github.com/lightdash/lightdash/issues/20194)) ([0fe3dca](https://github.com/lightdash/lightdash/commit/0fe3dca177ae9cc7524138e5a3be069feac6d223)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
 ## [0.2453.1](https://github.com/lightdash/lightdash/compare/0.2453.0...0.2453.1) (2026-02-11)
 
 
