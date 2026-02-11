@@ -109,6 +109,7 @@ export const BaseResponse: HealthState = {
     },
     isServiceAccountEnabled: false,
     isOrganizationWarehouseCredentialsEnabled: false,
+    isAthenaWarehouseIamRoleAuthEnabled: false,
     isCustomRolesEnabled: false,
     embedding: { enabled: false, events: undefined },
     ai: {

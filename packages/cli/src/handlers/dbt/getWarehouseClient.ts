@@ -1,5 +1,6 @@
 import {
     assertUnreachable,
+    AthenaAuthenticationType,
     CreateSnowflakeCredentials,
     CreateWarehouseCredentials,
     DatabricksAuthenticationType,
@@ -184,6 +185,7 @@ function getMockCredentials(
         case SupportedDbtAdapter.ATHENA:
             return {
                 type: WarehouseTypes.ATHENA,
+                authenticationType: AthenaAuthenticationType.ACCESS_KEY,
                 region: '',
                 database: '',
                 schema: '',

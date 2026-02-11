@@ -1,6 +1,7 @@
 import {
     AlreadyExistsError,
     AnyType,
+    AthenaAuthenticationType,
     BigqueryAuthenticationType,
     ChangesetUtils,
     CompiledTable,
@@ -192,7 +193,11 @@ export class ProjectModel {
             // BigQuery ADC authentication does not require credentials to be set
             (incompleteConfig.type === WarehouseTypes.BIGQUERY &&
                 incompleteConfig.authenticationType ===
-                    BigqueryAuthenticationType.ADC)
+                    BigqueryAuthenticationType.ADC) ||
+            // Athena IAM role authentication should not merge old access keys
+            (incompleteConfig.type === WarehouseTypes.ATHENA &&
+                incompleteConfig.authenticationType ===
+                    AthenaAuthenticationType.IAM_ROLE)
         ) {
             return incompleteConfig;
         }
