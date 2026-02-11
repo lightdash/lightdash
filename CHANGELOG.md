@@ -1,3 +1,10 @@
+# [0.2455.0](https://github.com/lightdash/lightdash/compare/0.2454.2...0.2455.0) (2026-02-11)
+
+
+### Features
+
+* persistent download URLs with public, time-limited links ([#20125](https://github.com/lightdash/lightdash/issues/20125)) ([5d54235](https://github.com/lightdash/lightdash/commit/5d54235cbf4fbf257b531c02df16392d00ceb03b))
+
 ## [0.2454.2](https://github.com/lightdash/lightdash/compare/0.2454.1...0.2454.2) (2026-02-11)
 
 
