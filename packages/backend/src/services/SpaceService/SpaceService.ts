@@ -291,56 +291,26 @@ export class SpaceService extends BaseService implements BulkActionable<Knex> {
             targetSpaceUuid?: string;
         },
     ) {
-        const nestedPermissionsFlag = await this.featureFlagModel.get({
-            user: actor.user,
-            featureFlagId: FeatureFlags.NestedSpacesPermissions,
-        });
-
-        const space = await this.spaceModel.getSpaceSummary(resource.spaceUuid);
-        const spaceAccess = await this.spaceModel.getUserSpaceAccess(
-            actor.user.userUuid,
-            space.parentSpaceUuid ?? resource.spaceUuid,
-            { useInheritedAccess: nestedPermissionsFlag.enabled },
-        );
-
-        const isActorAllowedToPerformAction = actor.user.ability.can(
-            action,
-            subject('Space', {
-                organizationUuid: actor.user.organizationUuid,
-                projectUuid: actor.projectUuid,
-                isPrivate: space.isPrivate,
-                access: spaceAccess,
-            }),
-        );
-
-        if (!isActorAllowedToPerformAction) {
+        if (
+            !(await this.spacePermissionService.can(
+                action,
+                actor.user,
+                resource.spaceUuid,
+            ))
+        ) {
             throw new ForbiddenError(
                 `You don't have access to ${action} this space`,
             );
         }
 
         if (resource.targetSpaceUuid) {
-            const newSpace = await this.spaceModel.getSpaceSummary(
-                resource.targetSpaceUuid,
-            );
-            const newSpaceAccess = await this.spaceModel.getUserSpaceAccess(
-                actor.user.userUuid,
-                resource.targetSpaceUuid,
-                { useInheritedAccess: nestedPermissionsFlag.enabled },
-            );
-
-            const isActorAllowedToPerformActionInNewSpace =
-                actor.user.ability.can(
+            if (
+                !(await this.spacePermissionService.can(
                     action,
-                    subject('Space', {
-                        organizationUuid: newSpace.organizationUuid,
-                        projectUuid: actor.projectUuid,
-                        isPrivate: newSpace.isPrivate,
-                        access: newSpaceAccess,
-                    }),
-                );
-
-            if (!isActorAllowedToPerformActionInNewSpace) {
+                    actor.user,
+                    resource.targetSpaceUuid,
+                ))
+            ) {
                 throw new ForbiddenError(
                     `You don't have access to ${action} this space in the new parent space`,
                 );
