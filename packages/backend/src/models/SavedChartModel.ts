@@ -1239,15 +1239,16 @@ export class SavedChartModel {
         qb: Knex.QueryBuilder,
         projectUuid: string,
     ) {
+        const maxVersionSubquery =
+            '(SELECT MAX(sqv.saved_queries_version_id) FROM saved_queries_versions sqv WHERE sqv.saved_query_id = sq.saved_query_id)';
         return qb.unionAll([
             // First part of UNION - charts in space
             this.database
                 .select({
                     saved_query_uuid: 'sq.saved_query_uuid',
                     name: 'sq.name',
-                    saved_queries_version_id: this.database.raw(
-                        'MAX(sqv.saved_queries_version_id)',
-                    ),
+                    saved_queries_version_id:
+                        this.database.raw(maxVersionSubquery),
                     dashboard_uuid: 'sq.dashboard_uuid',
                 })
                 .from(`${SavedChartsTableName} as sq`)
@@ -1261,21 +1262,15 @@ export class SavedChartModel {
                     'p.project_id',
                     's.project_id',
                 )
-                .leftJoin(
-                    `${SavedChartVersionsTableName} as sqv`,
-                    'sq.saved_query_id',
-                    'sqv.saved_query_id',
-                )
-                .where('p.project_uuid', projectUuid)
-                .groupBy('sq.saved_query_uuid', 'sq.name', 'sq.dashboard_uuid'),
+                .where('p.project_uuid', projectUuid),
 
+            // Second part of UNION - charts saved inside dashboards
             this.database
                 .select({
                     saved_query_uuid: 'sq.saved_query_uuid',
                     name: 'sq.name',
-                    saved_queries_version_id: this.database.raw(
-                        'MAX(sqv.saved_queries_version_id)',
-                    ),
+                    saved_queries_version_id:
+                        this.database.raw(maxVersionSubquery),
                     dashboard_uuid: 'sq.dashboard_uuid',
                 })
                 .from(`${SavedChartsTableName} as sq`)
@@ -1290,13 +1285,7 @@ export class SavedChartModel {
                     'p.project_id',
                     's.project_id',
                 )
-                .leftJoin(
-                    `${SavedChartVersionsTableName} as sqv`,
-                    'sq.saved_query_id',
-                    'sqv.saved_query_id',
-                )
-                .where('p.project_uuid', projectUuid)
-                .groupBy('sq.saved_query_uuid', 'sq.name', 'sq.dashboard_uuid'),
+                .where('p.project_uuid', projectUuid),
         ]);
     }
 
