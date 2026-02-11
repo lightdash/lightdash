@@ -18,6 +18,7 @@ import {
     Text,
     TextInput,
     Tooltip,
+    getDefaultZIndex,
 } from '@mantine-8/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import {
@@ -410,6 +411,7 @@ const ProjectSwitcher = () => {
                 opened={isMenuOpen}
                 onChange={setIsMenuOpen}
                 classNames={{ dropdown: classes.dropdown }}
+                zIndex={getDefaultZIndex('max')}
                 portalProps={{ target: '#navbar-header' }}
             >
                 <Menu.Target>
