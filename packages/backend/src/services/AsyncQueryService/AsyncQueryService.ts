@@ -993,48 +993,67 @@ export class AsyncQueryService extends ProjectService {
                         fileType: DownloadFileType.CSV,
                     },
                 );
-            case DownloadFileType.XLSX:
+            case DownloadFileType.XLSX: {
                 // Check if this is a pivot table download
-                if (pivotConfig && queryHistory.metricQuery) {
-                    return ExcelService.downloadAsyncPivotTableXlsx({
-                        resultsFileName,
-                        fields,
-                        metricQuery: queryHistory.metricQuery,
-                        resultsStorageClient: this.resultsStorageClient,
-                        exportsStorageClient: this.exportsStorageClient,
-                        lightdashConfig: this.lightdashConfig,
-                        pivotDetails:
-                            AsyncQueryService.getPivotDetailsFromQueryHistory(
-                                queryHistory,
-                            ),
-                        options: {
-                            onlyRaw,
-                            showTableNames,
-                            customLabels,
-                            columnOrder: validColumnOrder,
-                            hiddenFields,
-                            pivotConfig,
-                            attachmentDownloadName,
+                const xlsxResult =
+                    pivotConfig && queryHistory.metricQuery
+                        ? await ExcelService.downloadAsyncPivotTableXlsx({
+                              resultsFileName,
+                              fields,
+                              metricQuery: queryHistory.metricQuery,
+                              resultsStorageClient: this.resultsStorageClient,
+                              exportsStorageClient: this.exportsStorageClient,
+                              lightdashConfig: this.lightdashConfig,
+                              pivotDetails:
+                                  AsyncQueryService.getPivotDetailsFromQueryHistory(
+                                      queryHistory,
+                                  ),
+                              options: {
+                                  onlyRaw,
+                                  showTableNames,
+                                  customLabels,
+                                  columnOrder: validColumnOrder,
+                                  hiddenFields,
+                                  pivotConfig,
+                                  attachmentDownloadName,
+                              },
+                          })
+                        : // Use direct Excel export to bypass PassThrough + Upload hanging issues
+                          await ExcelService.downloadAsyncExcelDirectly(
+                              resultsFileName,
+                              resultFields,
+                              {
+                                  resultsStorageClient:
+                                      this.resultsStorageClient,
+                                  exportsStorageClient:
+                                      this.exportsStorageClient,
+                              },
+                              {
+                                  onlyRaw,
+                                  showTableNames,
+                                  customLabels,
+                                  columnOrder: validColumnOrder,
+                                  hiddenFields,
+                                  attachmentDownloadName,
+                              },
+                          );
+                const xlsxPersistentUrl =
+                    await this.persistentDownloadFileService.createPersistentUrl(
+                        {
+                            s3Key: xlsxResult.s3Key,
+                            fileType: DownloadFileType.XLSX,
+                            organizationUuid,
+                            projectUuid,
+                            createdByUserUuid: isJwtUser(account)
+                                ? null
+                                : account.user.userUuid,
                         },
-                    });
-                }
-                // Use direct Excel export to bypass PassThrough + Upload hanging issues
-                return ExcelService.downloadAsyncExcelDirectly(
-                    resultsFileName,
-                    resultFields,
-                    {
-                        resultsStorageClient: this.resultsStorageClient,
-                        exportsStorageClient: this.exportsStorageClient,
-                    },
-                    {
-                        onlyRaw,
-                        showTableNames,
-                        customLabels,
-                        columnOrder: validColumnOrder,
-                        hiddenFields,
-                        attachmentDownloadName,
-                    },
-                );
+                    );
+                return {
+                    fileUrl: xlsxPersistentUrl,
+                    truncated: xlsxResult.truncated,
+                };
+            }
             case undefined:
             case DownloadFileType.JSONL:
                 return this.downloadAsyncQueryResultsAsJson(resultsFileName);
