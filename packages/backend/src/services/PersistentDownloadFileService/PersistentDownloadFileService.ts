@@ -1,9 +1,8 @@
-import { FeatureFlags, NotFoundError } from '@lightdash/common';
+import { NotFoundError } from '@lightdash/common';
 import { nanoid } from 'nanoid';
 import { S3Client } from '../../clients/Aws/S3Client';
 import { LightdashConfig } from '../../config/parseConfig';
 import { PersistentDownloadFileModel } from '../../models/PersistentDownloadFileModel';
-import { isFeatureFlagEnabled } from '../../postHog';
 import { BaseService } from '../BaseService';
 
 type PersistentDownloadFileServiceArguments = {
@@ -36,20 +35,8 @@ export class PersistentDownloadFileService extends BaseService {
         organizationUuid: string;
         projectUuid: string | null;
         createdByUserUuid: string | null;
-        userId: string;
     }): Promise<string> {
-        const enabled =
-            this.lightdashConfig.persistentDownloadUrls.enabled ||
-            (await isFeatureFlagEnabled(
-                FeatureFlags.PersistentDownloadUrls,
-                {
-                    userUuid: data.userId,
-                    organizationUuid: data.organizationUuid,
-                },
-                { throwOnTimeout: false, timeoutMilliseconds: 500 },
-            ));
-
-        if (!enabled) {
+        if (!this.lightdashConfig.persistentDownloadUrls.enabled) {
             return this.s3Client.getFileUrl(data.s3Key);
         }
 

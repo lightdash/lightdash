@@ -321,7 +321,6 @@ export class PivotTableService extends BaseService {
                             organizationUuid,
                             projectUuid,
                             createdByUserUuid: createdByUserUuid ?? null,
-                            userId,
                         },
                     );
                 return {

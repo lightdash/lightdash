@@ -614,7 +614,6 @@ export class CsvService extends BaseService {
                             organizationUuid,
                             projectUuid,
                             createdByUserUuid: createdByUserUuid ?? null,
-                            userId,
                         },
                     );
                 return {
@@ -1343,7 +1342,6 @@ export class CsvService extends BaseService {
                             organizationUuid: user.organizationUuid!,
                             projectUuid,
                             createdByUserUuid: user.userUuid ?? null,
-                            userId: user.userUuid,
                         },
                     );
             } else {
@@ -1535,7 +1533,6 @@ export class CsvService extends BaseService {
             organizationUuid: organizationUuid!,
             projectUuid: dashboard.projectUuid,
             createdByUserUuid: userUuid,
-            userId: userUuid,
         });
     }
 }

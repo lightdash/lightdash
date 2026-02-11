@@ -88,12 +88,6 @@ export enum FeatureFlags {
      * Enable saved metrics tree in metrics catalog
      */
     SavedMetricsTree = 'saved-metrics-tree',
-
-    /**
-     * Return stable /api/v1/file/{nanoid} URLs instead of raw S3 signed URLs
-     * for CSV/Excel/Zip exports. Solves ExpiredToken errors from IAM credential rotation.
-     */
-    PersistentDownloadUrls = 'persistent-download-urls',
 }
 
 export type FeatureFlag = {
