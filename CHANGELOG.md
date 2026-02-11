@@ -1,3 +1,10 @@
+# [0.2453.0](https://github.com/lightdash/lightdash/compare/0.2452.0...0.2453.0) (2026-02-11)
+
+
+### Features
+
+* add IAM role authentication for Athena warehouse connections ([#20204](https://github.com/lightdash/lightdash/issues/20204)) ([b257071](https://github.com/lightdash/lightdash/commit/b257071e0ca319b012281dec156246b931dfcf1f))
+
 # [0.2452.0](https://github.com/lightdash/lightdash/compare/0.2451.2...0.2452.0) (2026-02-11)
 
 
