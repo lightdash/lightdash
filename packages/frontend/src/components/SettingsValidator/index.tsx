@@ -46,7 +46,7 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
     const { user } = useApp();
     const { data, isLoading, isFetching, isError, fetchNextPage } =
         usePaginatedValidation(projectUuid, user, {
-            pageSize: 50,
+            pageSize: 20,
             searchQuery: debouncedSearch || undefined,
             sourceTypes:
                 sourceTypeFilter.length > 0

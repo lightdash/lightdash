@@ -153,7 +153,7 @@ export const usePaginatedValidation = (
         }),
     );
 
-    const pageSize = options?.pageSize ?? 50;
+    const pageSize = options?.pageSize ?? 20;
 
     return useInfiniteQuery<KnexPaginatedData<ValidationResponse[]>, ApiError>({
         queryKey: [
