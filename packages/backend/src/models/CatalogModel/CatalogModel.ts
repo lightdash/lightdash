@@ -34,6 +34,7 @@ import {
     type MetricsTree,
     type MetricsTreeSummary,
     type MetricsTreeWithDetails,
+    type PrevMetricsTreeNode,
     type SessionUser,
     type TablesConfiguration,
     type Tag,
@@ -1727,6 +1728,82 @@ export class CatalogModel {
             .ignore();
     }
 
+    private getHydratedNodesQuery(
+        filter: { projectUuid: string } | { metricsTreeUuid: string },
+    ) {
+        const query = this.database(MetricsTreeNodesTableName)
+            .select<
+                {
+                    metrics_tree_uuid: string;
+                    catalog_search_uuid: string;
+                    name: string;
+                    table_name: string;
+                    x_position: number | null;
+                    y_position: number | null;
+                    source: 'yaml' | 'ui';
+                    created_at: Date;
+                }[]
+            >({
+                metrics_tree_uuid: `${MetricsTreeNodesTableName}.metrics_tree_uuid`,
+                catalog_search_uuid: `${MetricsTreeNodesTableName}.catalog_search_uuid`,
+                name: `${CatalogTableName}.name`,
+                table_name: `${CatalogTableName}.table_name`,
+                x_position: `${MetricsTreeNodesTableName}.x_position`,
+                y_position: `${MetricsTreeNodesTableName}.y_position`,
+                source: `${MetricsTreeNodesTableName}.source`,
+                created_at: `${MetricsTreeNodesTableName}.created_at`,
+            })
+            .innerJoin(
+                CatalogTableName,
+                `${MetricsTreeNodesTableName}.catalog_search_uuid`,
+                `${CatalogTableName}.catalog_search_uuid`,
+            );
+
+        if ('projectUuid' in filter) {
+            return query
+                .innerJoin(
+                    MetricsTreesTableName,
+                    `${MetricsTreeNodesTableName}.metrics_tree_uuid`,
+                    `${MetricsTreesTableName}.metrics_tree_uuid`,
+                )
+                .where(
+                    `${MetricsTreesTableName}.project_uuid`,
+                    filter.projectUuid,
+                );
+        }
+
+        return query.where(
+            `${MetricsTreeNodesTableName}.metrics_tree_uuid`,
+            filter.metricsTreeUuid,
+        );
+    }
+
+    async getAllMetricsTreeNodes(
+        projectUuid: string,
+    ): Promise<PrevMetricsTreeNode[]> {
+        const nodes = await this.getHydratedNodesQuery({ projectUuid });
+
+        return nodes.map((n) => ({
+            metricsTreeUuid: n.metrics_tree_uuid,
+            name: n.name,
+            tableName: n.table_name,
+            xPosition: n.x_position,
+            yPosition: n.y_position,
+            source: n.source,
+            createdAt: n.created_at,
+        }));
+    }
+
+    async migrateMetricsTreeNodes(nodesMigrateIn: DbMetricsTreeNodeIn[]) {
+        if (nodesMigrateIn.length === 0) {
+            return;
+        }
+        await this.database(MetricsTreeNodesTableName)
+            .insert(nodesMigrateIn)
+            .onConflict(['metrics_tree_uuid', 'catalog_search_uuid'])
+            .ignore();
+    }
+
     async hasMetricsInCatalog(projectUuid: string): Promise<boolean> {
         const result = await this.database(CatalogTableName)
             .where({
@@ -1864,24 +1941,9 @@ export class CatalogModel {
         }
 
         // Fetch nodes with hydrated catalog data
-        const nodeRows = await this.database(MetricsTreeNodesTableName)
-            .select(
-                `${MetricsTreeNodesTableName}.catalog_search_uuid`,
-                `${MetricsTreeNodesTableName}.x_position`,
-                `${MetricsTreeNodesTableName}.y_position`,
-                `${MetricsTreeNodesTableName}.source`,
-                `${CatalogTableName}.name`,
-                `${CatalogTableName}.table_name`,
-            )
-            .join(
-                CatalogTableName,
-                `${MetricsTreeNodesTableName}.catalog_search_uuid`,
-                `${CatalogTableName}.catalog_search_uuid`,
-            )
-            .where(
-                `${MetricsTreeNodesTableName}.metrics_tree_uuid`,
-                metricsTreeUuid,
-            );
+        const nodeRows = await this.getHydratedNodesQuery({
+            metricsTreeUuid,
+        });
 
         const nodes = nodeRows.map((row) => ({
             catalogSearchUuid: row.catalog_search_uuid,

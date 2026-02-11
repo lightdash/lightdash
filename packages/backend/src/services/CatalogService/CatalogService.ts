@@ -49,6 +49,7 @@ import {
     type MetricsTree,
     type MetricsTreeSummary,
     type MetricsTreeWithDetails,
+    type PrevMetricsTreeNode,
 } from '@lightdash/common';
 import { uniqBy } from 'lodash';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
@@ -56,6 +57,7 @@ import { LightdashConfig } from '../../config/parseConfig';
 import type {
     DbCatalogTagsMigrateIn,
     DbMetricsTreeEdgeIn,
+    DbMetricsTreeNodeIn,
 } from '../../database/entities/catalog';
 import {
     CatalogModel,
@@ -620,6 +622,64 @@ export class CatalogService<
             }, []);
 
         return this.catalogModel.migrateMetricsTreeEdges(metricEdgesMigrateIn);
+    }
+
+    async migrateMetricsTreeNodes(
+        projectUuid: string,
+        prevMetricsTreeNodes: PrevMetricsTreeNode[],
+    ) {
+        if (prevMetricsTreeNodes.length === 0) {
+            this.logger.debug(
+                `No metrics tree nodes to migrate for project ${projectUuid}`,
+            );
+            return;
+        }
+
+        this.logger.info(
+            `Migrating ${prevMetricsTreeNodes.length} metrics tree nodes for project ${projectUuid}`,
+        );
+
+        const currentCatalogItems =
+            await this.catalogModel.getCatalogItemsSummary(projectUuid);
+
+        const nodesMigrateIn: DbMetricsTreeNodeIn[] =
+            prevMetricsTreeNodes.reduce<DbMetricsTreeNodeIn[]>((acc, node) => {
+                const catalogItem = currentCatalogItems.find(
+                    (item) =>
+                        item.name === node.name &&
+                        item.tableName === node.tableName &&
+                        item.type === CatalogType.Field &&
+                        item.fieldType === FieldType.METRIC,
+                );
+
+                if (catalogItem) {
+                    return [
+                        ...acc,
+                        {
+                            metrics_tree_uuid: node.metricsTreeUuid,
+                            catalog_search_uuid: catalogItem.catalogSearchUuid,
+                            x_position: node.xPosition,
+                            y_position: node.yPosition,
+                            source: node.source,
+                            created_at: node.createdAt,
+                        },
+                    ];
+                }
+
+                this.logger.debug(
+                    `Dropping metrics tree node "${node.tableName}.${node.name}" — metric no longer exists in catalog`,
+                );
+                return acc;
+            }, []);
+
+        const droppedCount =
+            prevMetricsTreeNodes.length - nodesMigrateIn.length;
+
+        this.logger.info(
+            `Migrating ${nodesMigrateIn.length} metrics tree nodes for project ${projectUuid} (${droppedCount} dropped)`,
+        );
+
+        await this.catalogModel.migrateMetricsTreeNodes(nodesMigrateIn);
     }
 
     async getCatalog(

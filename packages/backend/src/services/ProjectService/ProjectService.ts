@@ -1327,6 +1327,9 @@ export class ProjectService extends BaseService {
         const prevMetricTreeEdges =
             await this.catalogModel.getAllMetricsTreeEdges(projectUuid);
 
+        const prevMetricsTreeNodes =
+            await this.catalogModel.getAllMetricsTreeNodes(projectUuid);
+
         const { cachedExploreUuids } =
             await this.projectModel.saveExploresToCache(projectUuid, explores);
         const { organizationUuid } =
@@ -1362,6 +1365,7 @@ export class ProjectService extends BaseService {
             prevCatalogItemsWithTags,
             prevCatalogItemsWithIcons,
             prevMetricTreeEdges,
+            prevMetricsTreeNodes,
         });
     }
 
