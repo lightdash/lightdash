@@ -661,7 +661,7 @@ export class ServiceRepository
                     permissionsService: this.getPermissionsService(),
                     googleDriveClient: this.clients.getGoogleDriveClient(),
                     userService: this.getUserService(),
-                    featureFlagModel: this.models.getFeatureFlagModel(),
+                    spacePermissionService: this.getSpacePermissionService(),
                 }),
         );
     }

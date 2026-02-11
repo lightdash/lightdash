@@ -9,7 +9,7 @@ import { type MetricQuery, type MetricQueryRequest } from './metricQuery';
 import { type ParametersValuesMap } from './parameters';
 import type { SchedulerAndTargets } from './scheduler';
 // eslint-disable-next-line import/no-cycle
-import { type SpaceShare } from './space';
+import { type SpaceAccess } from './space';
 import { type LightdashUser, type UpdatedByUser } from './user';
 import { type ValidationSummary } from './validation';
 
@@ -567,7 +567,7 @@ export type SavedChart = {
     dashboardName: string | null;
     colorPalette: string[];
     isPrivate: boolean;
-    access: SpaceShare[];
+    access: SpaceAccess[];
     slug: string;
 };
 
