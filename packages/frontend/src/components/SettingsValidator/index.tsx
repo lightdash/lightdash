@@ -75,7 +75,10 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
 
     const lastValidatedAt = useMemo(() => {
         if (!flatData.length) return null;
-        return flatData[0].createdAt;
+        return flatData.reduce<Date | null>((max, item) => {
+            const date = new Date(item.createdAt);
+            return max === null || date > max ? date : max;
+        }, null);
     }, [flatData]);
 
     return (
