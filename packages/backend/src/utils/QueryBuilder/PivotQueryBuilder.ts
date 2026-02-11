@@ -29,6 +29,23 @@ import {
 const DEFAULT_PIVOT_ROW_LIMIT = 500;
 
 /**
+ * Wraps user SQL in a subquery to materialize column names.
+ *
+ * This is necessary for databases like BigQuery that auto-generate column names
+ * for expressions without explicit aliases (e.g., `SELECT 1` generates column `f0_`).
+ * Without this wrapper, when the user SQL is placed directly in a CTE, the auto-generated
+ * column names aren't accessible in the outer query.
+ *
+ * By wrapping in `SELECT * FROM (...) AS __user_query`, the database materializes
+ * the column names from the inner query, making them available to reference.
+ *
+ * @param userSql - The original user SQL query
+ * @returns SQL wrapped in a subquery
+ */
+const wrapUserSqlForCte = (userSql: string): string =>
+    `SELECT * FROM (${userSql}) AS __user_query`;
+
+/**
  * Generates SQL queries for pivoting tabular data with aggregations.
  *
  * Supports two modes:
@@ -1054,7 +1071,7 @@ export class PivotQueryBuilder {
         // 5. pivot_query, filtered_rows, total_columns
         // 6. pivot_table_calculations (if there are any pivot table calculations)
         const ctes = [
-            `original_query AS (${userSql})`,
+            `original_query AS (${wrapUserSqlForCte(userSql)})`,
             `group_by_query AS (${groupByQuery})`,
             ...columnAnchorCTEs,
             ...(columnRankingCTE ? [columnRankingCTE] : []),
@@ -1100,7 +1117,7 @@ export class PivotQueryBuilder {
     ): string {
         const orderBy = this.getOrderBySQL(sortBy);
         const ctes = [
-            `original_query AS (${userSql})`,
+            `original_query AS (${wrapUserSqlForCte(userSql)})`,
             `group_by_query AS (${groupByQuery})`,
         ];
 

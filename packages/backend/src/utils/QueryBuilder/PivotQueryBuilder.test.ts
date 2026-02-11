@@ -50,7 +50,7 @@ describe('PivotQueryBuilder', () => {
             const result = builder.toSql();
 
             expect(replaceWhitespace(result)).toContain(
-                'WITH original_query AS (SELECT * FROM events), group_by_query AS (SELECT "date", sum("event_id") AS "event_id_sum" FROM original_query group by "date")',
+                'WITH original_query AS (SELECT * FROM (SELECT * FROM events) AS __user_query), group_by_query AS (SELECT "date", sum("event_id") AS "event_id_sum" FROM original_query group by "date")',
             );
             expect(result).toContain('ORDER BY "date" ASC');
             expect(result).toContain('LIMIT 500');
@@ -145,7 +145,7 @@ describe('PivotQueryBuilder', () => {
 
             // Should contain all CTEs
             expect(result).toContain(
-                'WITH original_query AS (SELECT * FROM events)',
+                'WITH original_query AS (SELECT * FROM (SELECT * FROM events) AS __user_query)',
             );
             expect(result).toContain('group_by_query AS (');
             expect(result).toContain('pivot_query AS (');
@@ -861,7 +861,7 @@ describe('PivotQueryBuilder', () => {
 
             const result = builder.toSql();
             expect(result).toContain(
-                'original_query AS (SELECT * FROM events)',
+                'original_query AS (SELECT * FROM (SELECT * FROM events) AS __user_query)',
             );
             expect(result).not.toContain('events;');
         });
@@ -921,7 +921,7 @@ describe('PivotQueryBuilder', () => {
 
             // base sql doesn't contain comments or limits
             expect(result)
-                .toBe(`WITH original_query AS (SELECT * FROM events WHERE id > 1),
+                .toBe(`WITH original_query AS (SELECT * FROM (SELECT * FROM events WHERE id > 1) AS __user_query),
 group_by_query AS (SELECT "date", sum("event_id") AS "event_id_sum" FROM original_query group by "date")
 SELECT * FROM group_by_query LIMIT 50`);
         });
