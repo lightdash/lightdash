@@ -794,7 +794,7 @@ export default class EmailClient {
             payload.type === AdminNotificationType.CONNECTION_SETTINGS_CHANGE;
 
         return this.sendEmail({
-            to: recipients,
+            bcc: recipients,
             subject: `[Lightdash] ${
                 subjectMap[payload.type]
             } - ${projectContext}`,
