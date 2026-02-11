@@ -55,11 +55,8 @@ export class PersistentDownloadFileService extends BaseService {
         }
 
         const fileNanoid = nanoid();
-        const expiresAt = new Date(
-            Date.now() +
-                this.lightdashConfig.persistentDownloadUrls.expirationSeconds *
-                    1000,
-        );
+        const { expirationSeconds } =
+            this.lightdashConfig.persistentDownloadUrls;
         await this.persistentDownloadFileModel.create({
             nanoid: fileNanoid,
             s3Key: data.s3Key,
@@ -67,7 +64,9 @@ export class PersistentDownloadFileService extends BaseService {
             organizationUuid: data.organizationUuid,
             projectUuid: data.projectUuid,
             createdByUserUuid: data.createdByUserUuid,
-            expiresAt,
+            expiresAt: expirationSeconds
+                ? new Date(Date.now() + expirationSeconds * 1000)
+                : undefined,
         });
 
         return new URL(
