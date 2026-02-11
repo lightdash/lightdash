@@ -1,3 +1,10 @@
+## [0.2454.1](https://github.com/lightdash/lightdash/compare/0.2454.0...0.2454.1) (2026-02-11)
+
+
+### Bug Fixes
+
+* create dashboard modal colors ([#20209](https://github.com/lightdash/lightdash/issues/20209)) ([8f4a5d8](https://github.com/lightdash/lightdash/commit/8f4a5d8377cd22ee9d281e818c947f3e434fbe27))
+
 # [0.2454.0](https://github.com/lightdash/lightdash/compare/0.2453.1...0.2454.0) (2026-02-11)
 
 
