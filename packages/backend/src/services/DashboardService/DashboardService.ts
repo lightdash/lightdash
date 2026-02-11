@@ -12,7 +12,6 @@ import {
     DashboardTileTypes,
     DashboardVersionedFields,
     ExploreType,
-    FeatureFlags,
     ForbiddenError,
     KnexPaginateArgs,
     KnexPaginatedData,
@@ -59,7 +58,6 @@ import { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { getChartFieldUsageChanges } from '../../models/CatalogModel/utils';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
-import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
@@ -69,6 +67,7 @@ import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { createTwoColumnTiles } from '../../utils/dashboardTileUtils';
 import { BaseService } from '../BaseService';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
+import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { hasDirectAccessToSpace } from '../SpaceService/SpaceService';
 
 type DashboardServiceArguments = {
@@ -84,7 +83,7 @@ type DashboardServiceArguments = {
     slackClient: SlackClient;
     projectModel: ProjectModel;
     catalogModel: CatalogModel;
-    featureFlagModel: FeatureFlagModel;
+    spacePermissionService: SpacePermissionService;
 };
 
 export class DashboardService
@@ -115,7 +114,7 @@ export class DashboardService
 
     slackClient: SlackClient;
 
-    featureFlagModel: FeatureFlagModel;
+    spacePermissionService: SpacePermissionService;
 
     constructor({
         analytics,
@@ -130,7 +129,7 @@ export class DashboardService
         slackClient,
         projectModel,
         catalogModel,
-        featureFlagModel,
+        spacePermissionService,
     }: DashboardServiceArguments) {
         super();
         this.analytics = analytics;
@@ -145,14 +144,7 @@ export class DashboardService
         this.catalogModel = catalogModel;
         this.schedulerClient = schedulerClient;
         this.slackClient = slackClient;
-        this.featureFlagModel = featureFlagModel;
-    }
-
-    private async getNestedPermissionsFlag(user: SessionUser) {
-        return this.featureFlagModel.get({
-            user,
-            featureFlagId: FeatureFlags.NestedSpacesPermissions,
-        });
+        this.spacePermissionService = spacePermissionService;
     }
 
     static getCreateEventProperties(
@@ -300,47 +292,22 @@ export class DashboardService
         const spaceUuids = [
             ...new Set(dashboards.map((dashboard) => dashboard.spaceUuid)),
         ];
-        const spaces = await Promise.all(
-            spaceUuids.map((spaceUuid) =>
-                this.spaceModel.getSpaceSummary(spaceUuid),
-            ),
-        );
-
-        const nestedPermissionsFlag = await this.featureFlagModel.get({
-            user: {
-                userUuid: user.userUuid,
-                organizationUuid: user.organizationUuid,
-                organizationName: user.organizationName,
-            },
-            featureFlagId: FeatureFlags.NestedSpacesPermissions,
-        });
-
-        const spacesAccess = await this.spaceModel.getUserSpacesAccess(
-            user.userUuid,
-            spaces.map((s) => s.uuid),
-            { useInheritedAccess: nestedPermissionsFlag.enabled },
-        );
+        const spaceContexts =
+            await this.spacePermissionService.getSpacesAccessContext(
+                user.userUuid,
+                spaceUuids,
+            );
 
         return dashboards.filter((dashboard) => {
-            const dashboardSpace = spaces.find(
-                (space) => space.uuid === dashboard.spaceUuid,
-            );
+            const spaceContext = spaceContexts[dashboard.spaceUuid];
+            if (!spaceContext) return false;
             const hasAbility = user.ability.can(
                 'view',
-                subject('Dashboard', {
-                    organizationUuid: dashboardSpace?.organizationUuid,
-                    projectUuid: dashboardSpace?.projectUuid,
-                    isPrivate: dashboardSpace?.isPrivate,
-                    access: spacesAccess[dashboard.spaceUuid] ?? [],
-                }),
+                subject('Dashboard', spaceContext),
             );
-            return (
-                dashboardSpace &&
-                (includePrivate
-                    ? hasAbility
-                    : hasAbility &&
-                      hasDirectAccessToSpace(user, dashboardSpace))
-            );
+            return includePrivate
+                ? hasAbility
+                : hasAbility && hasDirectAccessToSpace(user, spaceContext);
         });
     }
 
@@ -351,19 +318,15 @@ export class DashboardService
         const dashboardDao =
             await this.dashboardModel.getByIdOrSlug(dashboardUuidOrSlug);
 
-        const space = await this.spaceModel.getSpaceSummary(
-            dashboardDao.spaceUuid,
-        );
-        const nestedPermissionsFlag = await this.getNestedPermissionsFlag(user);
-        const spaceAccess = await this.spaceModel.getUserSpaceAccess(
-            user.userUuid,
-            dashboardDao.spaceUuid,
-            { useInheritedAccess: nestedPermissionsFlag.enabled },
-        );
+        const { isPrivate, access } =
+            await this.spacePermissionService.getSpaceAccessContext(
+                user.userUuid,
+                dashboardDao.spaceUuid,
+            );
         const dashboard = {
             ...dashboardDao,
-            isPrivate: space.isPrivate,
-            access: spaceAccess,
+            isPrivate,
+            access,
         };
 
         // TODO: normally this would be pre-constructed (perhaps in the Service Repository or on the user object when we create the CASL type)
@@ -452,12 +415,11 @@ export class DashboardService
             ? await this.spaceModel.get(dashboard.spaceUuid)
             : await getFirstSpace();
 
-        const nestedPermissionsFlag = await this.getNestedPermissionsFlag(user);
-        const spaceAccess = await this.spaceModel.getUserSpaceAccess(
-            user.userUuid,
-            space.uuid,
-            { useInheritedAccess: nestedPermissionsFlag.enabled },
-        );
+        const { isPrivate, access } =
+            await this.spacePermissionService.getSpaceAccessContext(
+                user.userUuid,
+                space.uuid,
+            );
 
         if (
             user.ability.cannot(
@@ -465,8 +427,8 @@ export class DashboardService
                 subject('Dashboard', {
                     organizationUuid: space.organizationUuid,
                     projectUuid,
-                    isPrivate: space.isPrivate,
-                    access: spaceAccess,
+                    isPrivate,
+                    access,
                 }),
             )
         ) {
@@ -496,8 +458,8 @@ export class DashboardService
 
         return {
             ...dashboardDao,
-            isPrivate: space.isPrivate,
-            access: spaceAccess,
+            isPrivate,
+            access,
         };
     }
 
@@ -509,19 +471,15 @@ export class DashboardService
     ): Promise<Dashboard> {
         const dashboardDao =
             await this.dashboardModel.getByIdOrSlug(dashboardUuid);
-        const space = await this.spaceModel.getSpaceSummary(
-            dashboardDao.spaceUuid,
-        );
-        const nestedPermissionsFlag = await this.getNestedPermissionsFlag(user);
-        const spaceAccess = await this.spaceModel.getUserSpaceAccess(
-            user.userUuid,
-            dashboardDao.spaceUuid,
-            { useInheritedAccess: nestedPermissionsFlag.enabled },
-        );
+        const { isPrivate, access } =
+            await this.spacePermissionService.getSpaceAccessContext(
+                user.userUuid,
+                dashboardDao.spaceUuid,
+            );
         const dashboard = {
             ...dashboardDao,
-            isPrivate: space.isPrivate,
-            access: spaceAccess,
+            isPrivate,
+            access,
         };
 
         if (user.ability.cannot('create', subject('Dashboard', dashboard))) {
@@ -626,8 +584,8 @@ export class DashboardService
 
         return {
             ...updatedNewDashboard,
-            isPrivate: space.isPrivate,
-            access: spaceAccess,
+            isPrivate,
+            access,
         };
     }
 
@@ -639,19 +597,14 @@ export class DashboardService
         const existingDashboardDao =
             await this.dashboardModel.getByIdOrSlug(dashboardUuidOrSlug);
 
-        const nestedPermissionsFlag = await this.getNestedPermissionsFlag(user);
+        const currentSpace =
+            await this.spacePermissionService.getSpaceAccessContext(
+                user.userUuid,
+                existingDashboardDao.spaceUuid,
+            );
         const canUpdateDashboardInCurrentSpace = user.ability.can(
             'update',
-            subject('Dashboard', {
-                ...(await this.spaceModel.getSpaceSummary(
-                    existingDashboardDao.spaceUuid,
-                )),
-                access: await this.spaceModel.getUserSpaceAccess(
-                    user.userUuid,
-                    existingDashboardDao.spaceUuid,
-                    { useInheritedAccess: nestedPermissionsFlag.enabled },
-                ),
-            }),
+            subject('Dashboard', currentSpace),
         );
 
         if (!canUpdateDashboardInCurrentSpace) {
@@ -662,21 +615,14 @@ export class DashboardService
 
         if (isDashboardUnversionedFields(dashboard)) {
             if (dashboard.spaceUuid) {
+                const newSpace =
+                    await this.spacePermissionService.getSpaceAccessContext(
+                        user.userUuid,
+                        dashboard.spaceUuid,
+                    );
                 const canUpdateDashboardInNewSpace = user.ability.can(
                     'update',
-                    subject('Dashboard', {
-                        ...(await this.spaceModel.getSpaceSummary(
-                            dashboard.spaceUuid,
-                        )),
-                        access: await this.spaceModel.getUserSpaceAccess(
-                            user.userUuid,
-                            dashboard.spaceUuid,
-                            {
-                                useInheritedAccess:
-                                    nestedPermissionsFlag.enabled,
-                            },
-                        ),
-                    }),
+                    subject('Dashboard', newSpace),
                 );
                 if (!canUpdateDashboardInNewSpace) {
                     throw new ForbiddenError(
@@ -835,19 +781,16 @@ export class DashboardService
         const updatedNewDashboard = await this.dashboardModel.getByIdOrSlug(
             existingDashboardDao.uuid,
         );
-        const space = await this.spaceModel.getSpaceSummary(
-            updatedNewDashboard.spaceUuid,
-        );
-        const access = await this.spaceModel.getUserSpaceAccess(
-            user.userUuid,
-            updatedNewDashboard.spaceUuid,
-            { useInheritedAccess: nestedPermissionsFlag.enabled },
-        );
+        const updatedSpace =
+            await this.spacePermissionService.getSpaceAccessContext(
+                user.userUuid,
+                updatedNewDashboard.spaceUuid,
+            );
 
         return {
             ...updatedNewDashboard,
-            isPrivate: space.isPrivate,
-            access,
+            isPrivate: updatedSpace.isPrivate,
+            access: updatedSpace.access,
         };
     }
 
@@ -857,19 +800,15 @@ export class DashboardService
     ): Promise<TogglePinnedItemInfo> {
         const existingDashboardDao =
             await this.dashboardModel.getByIdOrSlug(dashboardUuid);
-        const space = await this.spaceModel.getSpaceSummary(
-            existingDashboardDao.spaceUuid,
-        );
-        const nestedPermissionsFlag = await this.getNestedPermissionsFlag(user);
-        const spaceAccess = await this.spaceModel.getUserSpaceAccess(
-            user.userUuid,
-            existingDashboardDao.spaceUuid,
-            { useInheritedAccess: nestedPermissionsFlag.enabled },
-        );
+        const { isPrivate, access } =
+            await this.spacePermissionService.getSpaceAccessContext(
+                user.userUuid,
+                existingDashboardDao.spaceUuid,
+            );
         const existingDashboard = {
             ...existingDashboardDao,
-            isPrivate: space.isPrivate,
-            access: spaceAccess,
+            isPrivate,
+            access,
         };
 
         const { projectUuid, organizationUuid, pinnedListUuid, spaceUuid } =
@@ -934,43 +873,28 @@ export class DashboardService
         projectUuid: string,
         dashboards: UpdateMultipleDashboards[],
     ): Promise<Dashboard[]> {
-        const nestedPermissionsFlag = await this.getNestedPermissionsFlag(user);
         const userHasAccessToDashboards = await Promise.all(
             dashboards.map(async (dashboardToUpdate) => {
                 const dashboard = await this.dashboardModel.getByIdOrSlug(
                     dashboardToUpdate.uuid,
                 );
+                const currentSpaceContext =
+                    await this.spacePermissionService.getSpaceAccessContext(
+                        user.userUuid,
+                        dashboard.spaceUuid,
+                    );
                 const canUpdateDashboardInCurrentSpace = user.ability.can(
                     'update',
-                    subject('Dashboard', {
-                        ...(await this.spaceModel.getSpaceSummary(
-                            dashboard.spaceUuid,
-                        )),
-                        access: await this.spaceModel.getUserSpaceAccess(
-                            user.userUuid,
-                            dashboard.spaceUuid,
-                            {
-                                useInheritedAccess:
-                                    nestedPermissionsFlag.enabled,
-                            },
-                        ),
-                    }),
+                    subject('Dashboard', currentSpaceContext),
                 );
+                const newSpaceContext =
+                    await this.spacePermissionService.getSpaceAccessContext(
+                        user.userUuid,
+                        dashboardToUpdate.spaceUuid,
+                    );
                 const canUpdateDashboardInNewSpace = user.ability.can(
                     'update',
-                    subject('Dashboard', {
-                        ...(await this.spaceModel.getSpaceSummary(
-                            dashboardToUpdate.spaceUuid,
-                        )),
-                        access: await this.spaceModel.getUserSpaceAccess(
-                            user.userUuid,
-                            dashboardToUpdate.spaceUuid,
-                            {
-                                useInheritedAccess:
-                                    nestedPermissionsFlag.enabled,
-                            },
-                        ),
-                    }),
+                    subject('Dashboard', newSpaceContext),
                 );
                 return (
                     canUpdateDashboardInCurrentSpace &&
@@ -1001,19 +925,15 @@ export class DashboardService
 
         const updatedDashboardsWithSpacesAccess = updatedDashboards.map(
             async (dashboard) => {
-                const dashboardSpace = await this.spaceModel.getSpaceSummary(
-                    dashboard.spaceUuid,
-                );
-                const dashboardSpaceAccess =
-                    await this.spaceModel.getUserSpaceAccess(
+                const dashboardSpaceContext =
+                    await this.spacePermissionService.getSpaceAccessContext(
                         user.userUuid,
                         dashboard.spaceUuid,
-                        { useInheritedAccess: nestedPermissionsFlag.enabled },
                     );
                 return {
                     ...dashboard,
-                    isPrivate: dashboardSpace.isPrivate,
-                    access: dashboardSpaceAccess,
+                    isPrivate: dashboardSpaceContext.isPrivate,
+                    access: dashboardSpaceContext.access,
                 };
             },
         );
@@ -1026,21 +946,19 @@ export class DashboardService
             await this.dashboardModel.getByIdOrSlug(dashboardUuid);
         const { organizationUuid, projectUuid, spaceUuid, tiles } =
             dashboardToDelete;
-        const space = await this.spaceModel.getSpaceSummary(spaceUuid);
-        const nestedPermissionsFlag = await this.getNestedPermissionsFlag(user);
-        const spaceAccess = await this.spaceModel.getUserSpaceAccess(
-            user.userUuid,
-            spaceUuid,
-            { useInheritedAccess: nestedPermissionsFlag.enabled },
-        );
+        const { isPrivate, access } =
+            await this.spacePermissionService.getSpaceAccessContext(
+                user.userUuid,
+                spaceUuid,
+            );
         if (
             user.ability.cannot(
                 'delete',
                 subject('Dashboard', {
                     organizationUuid,
                     projectUuid,
-                    isPrivate: space.isPrivate,
-                    access: spaceAccess,
+                    isPrivate,
+                    access,
                 }),
             )
         ) {
@@ -1224,19 +1142,15 @@ export class DashboardService
     ): Promise<Dashboard> {
         const dashboardDao =
             await this.dashboardModel.getByIdOrSlug(dashboardUuid);
-        const space = await this.spaceModel.getSpaceSummary(
-            dashboardDao.spaceUuid,
-        );
-        const nestedPermissionsFlag = await this.getNestedPermissionsFlag(user);
-        const spaceAccess = await this.spaceModel.getUserSpaceAccess(
-            user.userUuid,
-            dashboardDao.spaceUuid,
-            { useInheritedAccess: nestedPermissionsFlag.enabled },
-        );
+        const { isPrivate, access } =
+            await this.spacePermissionService.getSpaceAccessContext(
+                user.userUuid,
+                dashboardDao.spaceUuid,
+            );
         const dashboard = {
             ...dashboardDao,
-            isPrivate: space.isPrivate,
-            access: spaceAccess,
+            isPrivate,
+            access,
         };
         const { organizationUuid, projectUuid } = dashboard;
         if (
@@ -1258,8 +1172,8 @@ export class DashboardService
 
         return {
             ...dashboard,
-            isPrivate: space.isPrivate,
-            access: spaceAccess,
+            isPrivate,
+            access,
         };
     }
 
@@ -1277,25 +1191,19 @@ export class DashboardService
         const dashboard = await this.dashboardModel.getByIdOrSlug(
             resource.dashboardUuid,
         );
-        const space = await this.spaceModel.getSpaceSummary(
-            dashboard.spaceUuid,
-        );
-        const nestedPermissionsFlag = await this.getNestedPermissionsFlag(
-            actor.user,
-        );
-        const spaceAccess = await this.spaceModel.getUserSpaceAccess(
-            actor.user.userUuid,
-            dashboard.spaceUuid,
-            { useInheritedAccess: nestedPermissionsFlag.enabled },
-        );
+        const { isPrivate, access } =
+            await this.spacePermissionService.getSpaceAccessContext(
+                actor.user.userUuid,
+                dashboard.spaceUuid,
+            );
 
         const isActorAllowedToPerformAction = actor.user.ability.can(
             action,
             subject('Dashboard', {
                 organizationUuid: actor.user.organizationUuid,
                 projectUuid: actor.projectUuid,
-                isPrivate: space.isPrivate,
-                access: spaceAccess,
+                isPrivate,
+                access,
             }),
         );
 
@@ -1306,14 +1214,11 @@ export class DashboardService
         }
 
         if (resource.spaceUuid && dashboard.spaceUuid !== resource.spaceUuid) {
-            const newSpace = await this.spaceModel.getSpaceSummary(
-                resource.spaceUuid,
-            );
-            const newSpaceAccess = await this.spaceModel.getUserSpaceAccess(
-                actor.user.userUuid,
-                resource.spaceUuid,
-                { useInheritedAccess: nestedPermissionsFlag.enabled },
-            );
+            const newSpace =
+                await this.spacePermissionService.getSpaceAccessContext(
+                    actor.user.userUuid,
+                    resource.spaceUuid,
+                );
 
             const isActorAllowedToPerformActionInNewSpace =
                 actor.user.ability.can(
@@ -1322,7 +1227,7 @@ export class DashboardService
                         organizationUuid: newSpace.organizationUuid,
                         projectUuid: actor.projectUuid,
                         isPrivate: newSpace.isPrivate,
-                        access: newSpaceAccess,
+                        access: newSpace.access,
                     }),
                 );
 
@@ -1340,22 +1245,18 @@ export class DashboardService
     ): Promise<DashboardHistory> {
         const dashboardDao =
             await this.dashboardModel.getByIdOrSlug(dashboardUuid);
-        const space = await this.spaceModel.getSpaceSummary(
-            dashboardDao.spaceUuid,
-        );
-        const nestedPermissionsFlag = await this.getNestedPermissionsFlag(user);
-        const spaceAccess = await this.spaceModel.getUserSpaceAccess(
-            user.userUuid,
-            dashboardDao.spaceUuid,
-            { useInheritedAccess: nestedPermissionsFlag.enabled },
-        );
+        const { isPrivate, access } =
+            await this.spacePermissionService.getSpaceAccessContext(
+                user.userUuid,
+                dashboardDao.spaceUuid,
+            );
         if (
             user.ability.cannot(
                 'manage',
                 subject('Dashboard', {
                     ...dashboardDao,
-                    isPrivate: space.isPrivate,
-                    access: spaceAccess,
+                    isPrivate,
+                    access,
                 }),
             )
         ) {
@@ -1387,22 +1288,18 @@ export class DashboardService
     ): Promise<void> {
         const dashboardDao =
             await this.dashboardModel.getByIdOrSlug(dashboardUuid);
-        const space = await this.spaceModel.getSpaceSummary(
-            dashboardDao.spaceUuid,
-        );
-        const nestedPermissionsFlag = await this.getNestedPermissionsFlag(user);
-        const spaceAccess = await this.spaceModel.getUserSpaceAccess(
-            user.userUuid,
-            dashboardDao.spaceUuid,
-            { useInheritedAccess: nestedPermissionsFlag.enabled },
-        );
+        const { isPrivate, access } =
+            await this.spacePermissionService.getSpaceAccessContext(
+                user.userUuid,
+                dashboardDao.spaceUuid,
+            );
         if (
             user.ability.cannot(
                 'manage',
                 subject('Dashboard', {
                     ...dashboardDao,
-                    isPrivate: space.isPrivate,
-                    access: spaceAccess,
+                    isPrivate,
+                    access,
                 }),
             )
         ) {

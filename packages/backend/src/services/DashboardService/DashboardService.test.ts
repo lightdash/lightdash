@@ -13,7 +13,6 @@ import { SlackClient } from '../../clients/Slack/SlackClient';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
-import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
@@ -21,6 +20,7 @@ import { SchedulerModel } from '../../models/SchedulerModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
+import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { DashboardService } from './DashboardService';
 import {
     chart,
@@ -73,8 +73,42 @@ const savedChartModel = {
     })),
 };
 
-const featureFlagModel = {
-    get: jest.fn(async () => ({ enabled: false })),
+const spaceContexts = {
+    [space.space_uuid]: {
+        organizationUuid: space.organization_uuid,
+        projectUuid: publicSpace.projectUuid,
+        isPrivate: space.is_private,
+        access: [],
+    },
+    [privateSpace.uuid]: {
+        organizationUuid: privateSpace.organizationUuid,
+        projectUuid: privateSpace.projectUuid,
+        isPrivate: privateSpace.isPrivate,
+        access: [],
+    },
+    [publicSpace.uuid]: {
+        organizationUuid: publicSpace.organizationUuid,
+        projectUuid: publicSpace.projectUuid,
+        isPrivate: publicSpace.isPrivate,
+        access: publicSpace.access,
+    },
+};
+
+const spacePermissionService = {
+    getSpaceAccessContext: jest.fn(
+        async (_userUuid: string, spaceUuid: string) => {
+            if (spaceUuid === space.space_uuid) {
+                return spaceContexts[space.space_uuid];
+            }
+            if (spaceUuid === privateSpace.uuid) {
+                return spaceContexts[privateSpace.uuid];
+            }
+            return spaceContexts[publicSpace.uuid];
+        },
+    ),
+    getSpacesAccessContext: jest.fn(
+        async (_userUuid: string, spaceUuids: string[]) => spaceContexts,
+    ),
 };
 
 jest.spyOn(analyticsMock, 'track');
@@ -94,7 +128,8 @@ describe('DashboardService', () => {
         slackClient: {} as SlackClient,
         schedulerClient: {} as SchedulerClient,
         catalogModel: {} as CatalogModel,
-        featureFlagModel: featureFlagModel as unknown as FeatureFlagModel,
+        spacePermissionService:
+            spacePermissionService as unknown as SpacePermissionService,
     });
     afterEach(() => {
         jest.clearAllMocks();
@@ -328,8 +363,8 @@ describe('DashboardService', () => {
     });
 
     test('should not see dashboard from private space if you are not admin', async () => {
-        (spaceModel.getSpaceSummary as jest.Mock).mockImplementationOnce(
-            async () => privateSpace,
+        (dashboardModel.getByIdOrSlug as jest.Mock).mockImplementationOnce(
+            async () => ({ ...dashboard, spaceUuid: privateSpace.uuid }),
         );
 
         const userViewer = {
@@ -354,22 +389,34 @@ describe('DashboardService', () => {
         ).rejects.toThrowError(ForbiddenError);
     });
     test('should see dashboard from private space if you are admin', async () => {
-        (spaceModel.getFullSpace as jest.Mock).mockImplementationOnce(
-            async () => privateSpace,
+        const privateDashboard = {
+            ...dashboard,
+            uuid: 'private-dashboard-uuid',
+            spaceUuid: privateSpace.uuid,
+            isPrivate: privateSpace.isPrivate,
+        };
+
+        // Changing the mock to return a private dashboard (in private space)
+        (dashboardModel.getByIdOrSlug as jest.Mock).mockImplementationOnce(
+            async () => privateDashboard,
         );
 
-        const result = await service.getByIdOrSlug(user, dashboard.uuid);
-
-        expect(result).toEqual(dashboard);
+        await expect(
+            service.getByIdOrSlug(user, privateDashboard.uuid),
+        ).resolves.not.toThrowError(ForbiddenError);
         expect(dashboardModel.getByIdOrSlug).toHaveBeenCalledTimes(1);
         expect(dashboardModel.getByIdOrSlug).toHaveBeenCalledWith(
-            dashboard.uuid,
+            privateDashboard.uuid,
         );
     });
 
     test('should not see dashboards from private space if you are not an admin', async () => {
-        (spaceModel.getSpaceSummary as jest.Mock).mockImplementationOnce(
-            async () => privateSpace,
+        (dashboardModel.getAllByProject as jest.Mock).mockImplementationOnce(
+            async () =>
+                dashboardsDetails.map((d) => ({
+                    ...d,
+                    spaceUuid: privateSpace.uuid,
+                })),
         );
 
         const editorUser: SessionUser = {

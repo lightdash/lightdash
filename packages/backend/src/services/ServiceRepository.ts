@@ -349,7 +349,7 @@ export class ServiceRepository
                     schedulerClient: this.clients.getSchedulerClient(),
                     slackClient: this.clients.getSlackClient(),
                     catalogModel: this.models.getCatalogModel(),
-                    featureFlagModel: this.models.getFeatureFlagModel(),
+                    spacePermissionService: this.getSpacePermissionService(),
                 }),
         );
     }

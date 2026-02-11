@@ -13,6 +13,7 @@ import {
     SpaceShare,
     SpaceSummary,
     UpdateSpace,
+    type SpaceAccess,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
@@ -34,19 +35,25 @@ type SpaceServiceArguments = {
 
 export const hasDirectAccessToSpace = (
     user: SessionUser,
-    space: Pick<SpaceSummary | Space, 'isPrivate' | 'access'>,
+    space:
+        | Pick<SpaceSummary, 'isPrivate' | 'access'>
+        | {
+              isPrivate: boolean;
+              access: SpaceAccess[];
+          },
 ): boolean => {
-    const userUuidsWithDirectAccess = (
-        space.access as Array<string | SpaceShare>
-    ).reduce<string[]>((acc, access) => {
-        if (typeof access === 'string') {
-            return [...acc, access];
-        }
-        if (access.hasDirectAccess) {
-            return [...acc, access.userUuid];
-        }
-        return acc;
-    }, []);
+    const userUuidsWithDirectAccess = space.access.reduce<string[]>(
+        (acc, access) => {
+            if (typeof access === 'string') {
+                return [...acc, access];
+            }
+            if (access.hasDirectAccess) {
+                return [...acc, access.userUuid];
+            }
+            return acc;
+        },
+        [],
+    );
 
     const hasAccess =
         !space.isPrivate || userUuidsWithDirectAccess?.includes(user.userUuid);
