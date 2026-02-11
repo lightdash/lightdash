@@ -215,6 +215,7 @@ export const useSavedQueryDeleteMutation = () => {
                     'most-popular-and-recently-updated',
                 ]);
                 await queryClient.invalidateQueries(['content']);
+                await queryClient.invalidateQueries(['deletedContent']);
 
                 showToastSuccess({
                     title: `Success! Chart was deleted.`,

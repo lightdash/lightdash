@@ -182,6 +182,7 @@ export const useContentAction = (
                     });
 
                 case 'delete':
+                    await queryClient.invalidateQueries(['deletedContent']);
                     return showToastSuccess({
                         title: `Successfully deleted ${item.contentType}.`,
                         action: isSoftDeleteEnabled
@@ -268,6 +269,7 @@ export const useContentBulkAction = (
                     });
 
                 case 'delete':
+                    await queryClient.invalidateQueries(['deletedContent']);
                     return showToastSuccess({
                         title: `Successfully deleted ${content.length} ${
                             content.length === 1 ? 'item' : 'items'
