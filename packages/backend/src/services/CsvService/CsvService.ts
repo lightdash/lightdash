@@ -570,6 +570,7 @@ export class CsvService extends BaseService {
         truncated = false,
         organizationUuid,
         createdByUserUuid,
+        userId,
     }: {
         csvContent: string;
         fileName: string;
@@ -577,6 +578,7 @@ export class CsvService extends BaseService {
         truncated?: boolean;
         organizationUuid?: string;
         createdByUserUuid?: string | null;
+        userId?: string;
     }): Promise<AttachmentUrl> {
         const fileId = CsvService.generateFileId(fileName, truncated);
         const filePath = `/tmp/${fileId}`;
@@ -603,7 +605,7 @@ export class CsvService extends BaseService {
                 60 * 10 * 1000,
             );
 
-            if (organizationUuid) {
+            if (organizationUuid && userId) {
                 const persistentUrl =
                     await this.persistentDownloadFileService.createPersistentUrl(
                         {
@@ -612,6 +614,7 @@ export class CsvService extends BaseService {
                             organizationUuid,
                             projectUuid,
                             createdByUserUuid: createdByUserUuid ?? null,
+                            userId,
                         },
                     );
                 return {
@@ -791,6 +794,7 @@ export class CsvService extends BaseService {
                 truncated,
                 organizationUuid: user.organizationUuid,
                 createdByUserUuid: user.userUuid,
+                userId: user.userUuid,
             });
 
             if (analyticProperties) {
@@ -842,6 +846,7 @@ export class CsvService extends BaseService {
             truncated,
             organizationUuid: user.organizationUuid,
             createdByUserUuid: user.userUuid,
+            userId: user.userUuid,
         });
     }
 
@@ -948,6 +953,7 @@ export class CsvService extends BaseService {
             projectUuid,
             organizationUuid: user.organizationUuid,
             createdByUserUuid: user.userUuid,
+            userId: user.userUuid,
         });
     }
 
@@ -1287,6 +1293,7 @@ export class CsvService extends BaseService {
                         pivotDetails: null, // TODO: this is using old way of running queries + pivoting, therefore pivotDetails is not available
                         organizationUuid: user.organizationUuid,
                         createdByUserUuid: user.userUuid,
+                        userId: user.userUuid,
                     });
 
                 this.analytics.track({
@@ -1336,6 +1343,7 @@ export class CsvService extends BaseService {
                             organizationUuid: user.organizationUuid!,
                             projectUuid,
                             createdByUserUuid: user.userUuid ?? null,
+                            userId: user.userUuid,
                         },
                     );
             } else {
@@ -1527,6 +1535,7 @@ export class CsvService extends BaseService {
             organizationUuid: organizationUuid!,
             projectUuid: dashboard.projectUuid,
             createdByUserUuid: userUuid,
+            userId: userUuid,
         });
     }
 }

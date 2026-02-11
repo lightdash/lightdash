@@ -36,19 +36,18 @@ export class PersistentDownloadFileService extends BaseService {
         organizationUuid: string;
         projectUuid: string | null;
         createdByUserUuid: string | null;
+        userId: string;
     }): Promise<string> {
         const enabled =
             this.lightdashConfig.persistentDownloadUrls.enabled ||
-            (data.createdByUserUuid
-                ? await isFeatureFlagEnabled(
-                      FeatureFlags.PersistentDownloadUrls,
-                      {
-                          userUuid: data.createdByUserUuid,
-                          organizationUuid: data.organizationUuid,
-                      },
-                      { throwOnTimeout: false, timeoutMilliseconds: 500 },
-                  )
-                : false);
+            (await isFeatureFlagEnabled(
+                FeatureFlags.PersistentDownloadUrls,
+                {
+                    userUuid: data.userId,
+                    organizationUuid: data.organizationUuid,
+                },
+                { throwOnTimeout: false, timeoutMilliseconds: 500 },
+            ));
 
         if (!enabled) {
             return this.s3Client.getFileUrl(data.s3Key);

@@ -966,6 +966,7 @@ export class AsyncQueryService extends ProjectService {
                         createdByUserUuid: isJwtUser(account)
                             ? null
                             : account.user.userUuid,
+                        userId: account.user.id,
                     });
                 }
                 return this.downloadAsyncQueryResultsAsFormattedFile(
@@ -990,6 +991,7 @@ export class AsyncQueryService extends ProjectService {
                         createdByUserUuid: isJwtUser(account)
                             ? null
                             : account.user.userUuid,
+                        userId: account.user.id,
                         fileType: DownloadFileType.CSV,
                     },
                 );
@@ -1047,6 +1049,7 @@ export class AsyncQueryService extends ProjectService {
                             createdByUserUuid: isJwtUser(account)
                                 ? null
                                 : account.user.userUuid,
+                            userId: account.user.id,
                         },
                     );
                 return {
@@ -1097,6 +1100,7 @@ export class AsyncQueryService extends ProjectService {
             organizationUuid: string;
             projectUuid: string;
             createdByUserUuid: string | null;
+            userId: string;
             fileType: DownloadFileType;
         },
     ): Promise<{ fileUrl: string; truncated: boolean }> {
@@ -1168,6 +1172,7 @@ export class AsyncQueryService extends ProjectService {
                     organizationUuid: persistentUrlContext.organizationUuid,
                     projectUuid: persistentUrlContext.projectUuid,
                     createdByUserUuid: persistentUrlContext.createdByUserUuid,
+                    userId: persistentUrlContext.userId,
                 });
             return { fileUrl: persistentUrl, truncated: result.truncated };
         }
