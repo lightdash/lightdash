@@ -63,6 +63,7 @@ import { CatalogService } from '../../../services/CatalogService/CatalogService'
 import { CsvService } from '../../../services/CsvService/CsvService';
 import { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
+import { ShareService } from '../../../services/ShareService/ShareService';
 import { SpaceService } from '../../../services/SpaceService/SpaceService';
 import {
     doesExploreMatchRequiredAttributes,
@@ -117,6 +118,7 @@ type McpServiceArguments = {
     catalogService: CatalogService;
     projectModel: ProjectModel;
     projectService: ProjectService;
+    shareService: ShareService;
     userAttributesModel: UserAttributesModel;
     searchModel: SearchModel;
     spaceService: SpaceService;
@@ -157,6 +159,8 @@ export class McpService extends BaseService {
 
     private mcpContextModel: McpContextModel;
 
+    private shareService: ShareService;
+
     private featureFlagService: FeatureFlagService;
 
     private mcpServer: McpServer;
@@ -169,6 +173,7 @@ export class McpService extends BaseService {
         asyncQueryService,
         catalogService,
         projectService,
+        shareService,
         userAttributesModel,
         searchModel,
         spaceService,
@@ -182,6 +187,7 @@ export class McpService extends BaseService {
         this.asyncQueryService = asyncQueryService;
         this.catalogService = catalogService;
         this.projectService = projectService;
+        this.shareService = shareService;
         this.userAttributesModel = userAttributesModel;
         this.searchModel = searchModel;
         this.projectModel = projectModel;
@@ -925,7 +931,15 @@ export class McpService extends BaseService {
                     const exploreParams = `?create_saved_chart_version=${encodeURIComponent(
                         JSON.stringify(exploreConfigState),
                     )}&isExploreFromHere=true`;
-                    const exploreUrl = `${this.lightdashConfig.siteUrl}${explorePath}${exploreParams}`;
+
+                    const { user: mcpUser } = (extra as McpProtocolContext)
+                        .authInfo!.extra;
+                    const shareUrl = await this.shareService.createShareUrl(
+                        mcpUser,
+                        explorePath,
+                        exploreParams,
+                    );
+                    const exploreUrl = `${this.lightdashConfig.siteUrl}/share/${shareUrl.nanoid}`;
 
                     return {
                         content: [
