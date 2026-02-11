@@ -6,6 +6,7 @@ import {
     type SqlChart,
     type UpdateSqlChart,
 } from '@lightdash/common';
+import { IconArrowRight } from '@tabler/icons-react';
 import {
     useMutation,
     useQuery,
@@ -15,6 +16,7 @@ import {
 import { useNavigate } from 'react-router';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
+import useApp from '../../../providers/App/useApp';
 
 export type GetSavedSqlChartParams = {
     projectUuid: string;
@@ -153,6 +155,9 @@ export const useDeleteSqlChartMutation = (
     savedSqlUuid: string,
 ) => {
     const queryClient = useQueryClient();
+    const navigate = useNavigate();
+    const { health } = useApp();
+    const isSoftDeleteEnabled = health.data?.softDelete.enabled ?? false;
     const { showToastSuccess, showToastApiError } = useToaster();
 
     return useMutation<{ savedSqlUuid: string }, ApiError>(
@@ -171,6 +176,16 @@ export const useDeleteSqlChartMutation = (
 
                 showToastSuccess({
                     title: `Success! SQL chart deleted`,
+                    action: isSoftDeleteEnabled
+                        ? {
+                              children: 'Go to recently deleted',
+                              icon: IconArrowRight,
+                              onClick: () =>
+                                  navigate(
+                                      `/generalSettings/projectManagement/${projectUuid}/recentlyDeleted`,
+                                  ),
+                          }
+                        : undefined,
                 });
             },
             onError: ({ error }) => {

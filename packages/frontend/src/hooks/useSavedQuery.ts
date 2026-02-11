@@ -17,6 +17,7 @@ import {
 } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router';
 import { lightdashApi } from '../api';
+import useApp from '../providers/App/useApp';
 import { convertDateFilters } from '../utils/dateFilter';
 import useToaster from './toaster/useToaster';
 import useSearchParams from './useSearchParams';
@@ -194,6 +195,10 @@ export const useChartVersionRollbackMutation = (
 
 export const useSavedQueryDeleteMutation = () => {
     const queryClient = useQueryClient();
+    const navigate = useNavigate();
+    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const { health } = useApp();
+    const isSoftDeleteEnabled = health.data?.softDelete.enabled ?? false;
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<null, ApiError, string>(
         async (data) => {
@@ -213,6 +218,17 @@ export const useSavedQueryDeleteMutation = () => {
 
                 showToastSuccess({
                     title: `Success! Chart was deleted.`,
+                    action:
+                        isSoftDeleteEnabled && projectUuid
+                            ? {
+                                  children: 'Go to recently deleted',
+                                  icon: IconArrowRight,
+                                  onClick: () =>
+                                      navigate(
+                                          `/generalSettings/projectManagement/${projectUuid}/recentlyDeleted`,
+                                      ),
+                              }
+                            : undefined,
                 });
             },
             onError: ({ error }) => {
