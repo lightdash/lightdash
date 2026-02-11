@@ -14,4 +14,9 @@ export type ApiGitFileContent = {
     filePath: string;
 };
 
-export type GitRepo = { name: string; fullName: string; ownerLogin: string };
+export type GitRepo = {
+    name: string;
+    fullName: string;
+    ownerLogin: string;
+    defaultBranch: string;
+};
