@@ -881,6 +881,10 @@ export type LightdashConfig = {
     adminChangeNotifications: {
         enabled: boolean;
     };
+    persistentDownloadUrls: {
+        enabled: boolean;
+        expirationSeconds: number;
+    };
     extendedUsageAnalytics: {
         enabled: boolean;
     };
@@ -1698,6 +1702,13 @@ export const parseConfig = (): LightdashConfig => {
         },
         adminChangeNotifications: {
             enabled: process.env.ADMIN_CHANGE_NOTIFICATIONS_ENABLED === 'true',
+        },
+        persistentDownloadUrls: {
+            enabled: process.env.PERSISTENT_DOWNLOAD_URLS_ENABLED === 'true',
+            expirationSeconds:
+                getIntegerFromEnvironmentVariable(
+                    'PERSISTENT_DOWNLOAD_URL_EXPIRATION_SECONDS',
+                ) ?? 604800, // 7 days, must match migration default
         },
         extendedUsageAnalytics: {
             enabled: process.env.EXTENDED_USAGE_ANALYTICS === 'true',

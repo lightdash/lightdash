@@ -128,6 +128,8 @@ export class AnalyticsService extends BaseService {
             csvContent: csvBody,
             fileName,
             projectUuid,
+            organizationUuid,
+            createdByUserUuid: user.userUuid,
         });
         return upload.path;
     }

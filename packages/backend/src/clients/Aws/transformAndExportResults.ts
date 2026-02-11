@@ -39,7 +39,7 @@ export async function transformAndExportResults(
         fileType: DownloadFileType;
         attachmentDownloadName?: string;
     },
-): Promise<{ fileUrl: string; truncated: boolean }> {
+): Promise<{ fileUrl: string; truncated: boolean; s3Key: string }> {
     const { resultsStorageClient, exportsStorageClient } = clients;
 
     // Infer content type from file type
@@ -72,7 +72,6 @@ export async function transformAndExportResults(
         // Close the upload stream and wait for completion
         await close();
 
-        // Get the signed URL for the exported file
         const fileUrl = await exportsStorageClient.getFileUrl(destFileName);
 
         Logger.debug(
@@ -82,6 +81,7 @@ export async function transformAndExportResults(
         return {
             fileUrl,
             truncated,
+            s3Key: destFileName,
         };
     } catch (error) {
         Logger.error(

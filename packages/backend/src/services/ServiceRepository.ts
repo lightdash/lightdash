@@ -31,6 +31,7 @@ import { NotificationsService } from './NotificationsService/NotificationsServic
 import { OAuthService } from './OAuthService/OAuthService';
 import { OrganizationService } from './OrganizationService/OrganizationService';
 import { PermissionsService } from './PermissionsService/PermissionsService';
+import { PersistentDownloadFileService } from './PersistentDownloadFileService/PersistentDownloadFileService';
 import { PersonalAccessTokenService } from './PersonalAccessTokenService';
 import { PinningService } from './PinningService/PinningService';
 import { PivotTableService } from './PivotTableService/PivotTableService';
@@ -77,6 +78,7 @@ interface ServiceManifest {
     oauthService: OAuthService;
 
     organizationService: OrganizationService;
+    persistentDownloadFileService: PersistentDownloadFileService;
     personalAccessTokenService: PersonalAccessTokenService;
     pinningService: PinningService;
     pivotTableService: PivotTableService;
@@ -328,6 +330,8 @@ export class ServiceRepository
                     schedulerClient: this.clients.getSchedulerClient(),
                     projectModel: this.models.getProjectModel(),
                     pivotTableService: this.getPivotTableService(),
+                    persistentDownloadFileService:
+                        this.getPersistentDownloadFileService(),
                 }),
         );
     }
@@ -502,6 +506,19 @@ export class ServiceRepository
         );
     }
 
+    public getPersistentDownloadFileService(): PersistentDownloadFileService {
+        return this.getService(
+            'persistentDownloadFileService',
+            () =>
+                new PersistentDownloadFileService({
+                    lightdashConfig: this.context.lightdashConfig,
+                    persistentDownloadFileModel:
+                        this.models.getPersistentDownloadFileModel(),
+                    s3Client: this.clients.getS3Client(),
+                }),
+        );
+    }
+
     public getPersonalAccessTokenService(): PersonalAccessTokenService {
         return this.getService(
             'personalAccessTokenService',
@@ -540,6 +557,8 @@ export class ServiceRepository
                     lightdashConfig: this.context.lightdashConfig,
                     s3Client: this.clients.getS3Client(),
                     downloadFileModel: this.models.getDownloadFileModel(),
+                    persistentDownloadFileService:
+                        this.getPersistentDownloadFileService(),
                 }),
         );
     }
@@ -634,6 +653,8 @@ export class ServiceRepository
                     pivotTableService: this.getPivotTableService(),
                     prometheusMetrics: this.prometheusMetrics,
                     permissionsService: this.getPermissionsService(),
+                    persistentDownloadFileService:
+                        this.getPersistentDownloadFileService(),
                     projectCompileLogModel:
                         this.models.getProjectCompileLogModel(),
                     adminNotificationService:

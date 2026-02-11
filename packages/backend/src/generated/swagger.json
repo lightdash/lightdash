@@ -8269,6 +8269,19 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
+                                                            "success",
+                                                            "error"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": ["status"],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
                                                             "error",
                                                             "success"
                                                         ]
@@ -24998,7 +25011,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2453.1",
+        "version": "0.2454.2",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -37168,6 +37181,41 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/file/{fileId}": {
+            "get": {
+                "operationId": "getFile",
+                "responses": {
+                    "204": {
+                        "description": "No content"
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get a persistent file download via redirect",
+                "summary": "Get file",
+                "tags": ["Files"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "the persistent file nanoid",
+                        "in": "path",
+                        "name": "fileId",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/projects/{projectUuid}/explores": {

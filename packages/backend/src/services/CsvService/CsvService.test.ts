@@ -32,6 +32,7 @@ import { WarehouseAvailableTablesModel } from '../../models/WarehouseAvailableTa
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
+import { PersistentDownloadFileService } from '../PersistentDownloadFileService/PersistentDownloadFileService';
 import { PivotTableService } from '../PivotTableService/PivotTableService';
 import { ProjectService } from '../ProjectService/ProjectService';
 import { CsvService } from './CsvService';
@@ -90,7 +91,9 @@ describe('Csv service', () => {
             lightdashConfig,
             s3Client: {} as S3Client,
             downloadFileModel: {} as DownloadFileModel,
+            persistentDownloadFileService: {} as PersistentDownloadFileService,
         }),
+        persistentDownloadFileService: {} as PersistentDownloadFileService,
     });
 
     it('Should convert rows to CSV with format', async () => {

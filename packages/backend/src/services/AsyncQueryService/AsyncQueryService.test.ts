@@ -54,6 +54,7 @@ import { AdminNotificationService } from '../AdminNotificationService/AdminNotif
 import type { ICacheService } from '../CacheService/ICacheService';
 import { CacheHitCacheResult, MissCacheResult } from '../CacheService/types';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
+import { PersistentDownloadFileService } from '../PersistentDownloadFileService/PersistentDownloadFileService';
 import { PivotTableService } from '../PivotTableService/PivotTableService';
 import {
     allExplores,
@@ -200,8 +201,10 @@ const getMockedAsyncQueryService = (
             lightdashConfig,
             s3Client: {} as S3Client,
             downloadFileModel: {} as DownloadFileModel,
+            persistentDownloadFileService: {} as PersistentDownloadFileService,
         }),
         permissionsService: {} as PermissionsService,
+        persistentDownloadFileService: {} as PersistentDownloadFileService,
         projectCompileLogModel: {} as ProjectCompileLogModel,
         adminNotificationService: {} as AdminNotificationService,
         ...overrides,

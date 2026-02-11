@@ -318,4 +318,8 @@ export const lightdashConfigMock: LightdashConfig = {
     adminChangeNotifications: {
         enabled: false,
     },
+    persistentDownloadUrls: {
+        enabled: false,
+        expirationSeconds: 604800,
+    },
 };

@@ -93,6 +93,7 @@ import {
 } from '../../utils/FileDownloadUtils/FileDownloadUtils';
 import { PivotQueryBuilder } from '../../utils/QueryBuilder/PivotQueryBuilder';
 import { BaseService } from '../BaseService';
+import { PersistentDownloadFileService } from '../PersistentDownloadFileService/PersistentDownloadFileService';
 import { PivotTableService } from '../PivotTableService/PivotTableService';
 import { ProjectService } from '../ProjectService/ProjectService';
 
@@ -109,6 +110,7 @@ type CsvServiceArguments = {
     schedulerClient: SchedulerClient;
     projectModel: ProjectModel;
     pivotTableService: PivotTableService;
+    persistentDownloadFileService: PersistentDownloadFileService;
 };
 
 export const convertSqlToCsv = (
@@ -219,6 +221,8 @@ export class CsvService extends BaseService {
 
     pivotTableService: PivotTableService;
 
+    persistentDownloadFileService: PersistentDownloadFileService;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -232,6 +236,7 @@ export class CsvService extends BaseService {
         schedulerClient,
         projectModel,
         pivotTableService,
+        persistentDownloadFileService,
     }: CsvServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -246,6 +251,7 @@ export class CsvService extends BaseService {
         this.schedulerClient = schedulerClient;
         this.projectModel = projectModel;
         this.pivotTableService = pivotTableService;
+        this.persistentDownloadFileService = persistentDownloadFileService;
     }
 
     static convertRowToCsv(
@@ -562,11 +568,15 @@ export class CsvService extends BaseService {
         fileName,
         projectUuid,
         truncated = false,
+        organizationUuid,
+        createdByUserUuid,
     }: {
         csvContent: string;
         fileName: string;
         projectUuid: string;
         truncated?: boolean;
+        organizationUuid: string;
+        createdByUserUuid: string | null;
     }): Promise<AttachmentUrl> {
         const fileId = CsvService.generateFileId(fileName, truncated);
         const filePath = `/tmp/${fileId}`;
@@ -577,7 +587,7 @@ export class CsvService extends BaseService {
         await fsPromise.writeFile(filePath, csvWithBOM);
 
         if (this.s3Client.isEnabled()) {
-            const s3Url = await this.s3Client.uploadCsv(csvContent, fileId);
+            await this.s3Client.uploadCsv(csvContent, fileId);
 
             // Delete local file in 10 minutes, we could still read from the local file to upload to google sheets
             setTimeout(
@@ -593,9 +603,17 @@ export class CsvService extends BaseService {
                 60 * 10 * 1000,
             );
 
+            const url =
+                await this.persistentDownloadFileService.createPersistentUrl({
+                    s3Key: fileId,
+                    fileType: DownloadFileType.CSV,
+                    organizationUuid,
+                    projectUuid,
+                    createdByUserUuid,
+                });
             return {
                 filename: fileName,
-                path: s3Url,
+                path: url,
                 localPath: filePath,
                 truncated,
             };
@@ -759,6 +777,8 @@ export class CsvService extends BaseService {
                 exploreId,
                 onlyRaw,
                 truncated,
+                organizationUuid: chart.organizationUuid,
+                createdByUserUuid: user.userUuid,
             });
 
             if (analyticProperties) {
@@ -808,6 +828,8 @@ export class CsvService extends BaseService {
             fileName: chart.name,
             projectUuid: chart.projectUuid,
             truncated,
+            organizationUuid: chart.organizationUuid,
+            createdByUserUuid: user.userUuid,
         });
     }
 
@@ -912,6 +934,8 @@ export class CsvService extends BaseService {
             csvContent,
             fileName: sqlChart.name,
             projectUuid,
+            organizationUuid: sqlChart.organization_uuid,
+            createdByUserUuid: user.userUuid,
         });
     }
 
@@ -1249,6 +1273,8 @@ export class CsvService extends BaseService {
                         truncated,
                         customLabels,
                         pivotDetails: null, // TODO: this is using old way of running queries + pivoting, therefore pivotDetails is not available
+                        organizationUuid: projectSummary.organizationUuid,
+                        createdByUserUuid: user.userUuid,
                     });
 
                 this.analytics.track({
@@ -1282,7 +1308,7 @@ export class CsvService extends BaseService {
                 const csvContent = await fsPromise.readFile(filePath, {
                     encoding: 'utf-8',
                 });
-                fileUrl = await this.s3Client.uploadCsv(csvContent, fileId);
+                await this.s3Client.uploadCsv(csvContent, fileId);
                 try {
                     await fsPromise.unlink(filePath);
                 } catch (error) {
@@ -1290,6 +1316,16 @@ export class CsvService extends BaseService {
                         `Error deleting local file ${filePath}: ${error}`,
                     );
                 }
+                fileUrl =
+                    await this.persistentDownloadFileService.createPersistentUrl(
+                        {
+                            s3Key: fileId,
+                            fileType: DownloadFileType.CSV,
+                            organizationUuid: projectSummary.organizationUuid,
+                            projectUuid,
+                            createdByUserUuid: user.userUuid ?? null,
+                        },
+                    );
             } else {
                 // Storing locally
                 const downloadFileId = nanoid(); // Creates a new nanoid for the download file because the jobId is already exposed
@@ -1468,9 +1504,17 @@ export class CsvService extends BaseService {
         this.logger.info(
             `Uploading zip file to S3 for dashboard ${dashboardUuid}: ${zipFileName}`,
         );
-        return this.s3Client.uploadZip(
+        await this.s3Client.uploadZip(
             fs.createReadStream(zipFile),
             zipFileName,
         );
+
+        return this.persistentDownloadFileService.createPersistentUrl({
+            s3Key: zipFileName,
+            fileType: 'zip',
+            organizationUuid,
+            projectUuid: dashboard.projectUuid,
+            createdByUserUuid: userUuid,
+        });
     }
 }

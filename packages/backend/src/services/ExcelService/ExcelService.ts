@@ -213,7 +213,7 @@ export class ExcelService {
             pivotConfig: PivotConfig;
             attachmentDownloadName?: string;
         };
-    }): Promise<{ fileUrl: string; truncated: boolean }> {
+    }): Promise<{ fileUrl: string; truncated: boolean; s3Key: string }> {
         const { onlyRaw, customLabels, pivotConfig, attachmentDownloadName } =
             options;
 
@@ -411,7 +411,7 @@ export class ExcelService {
             hiddenFields?: string[];
             attachmentDownloadName?: string;
         } = {},
-    ): Promise<{ fileUrl: string; truncated: boolean }> {
+    ): Promise<{ fileUrl: string; truncated: boolean; s3Key: string }> {
         // Handle column ordering and filtering
         const {
             onlyRaw = false,
@@ -469,6 +469,7 @@ export class ExcelService {
             return {
                 fileUrl,
                 truncated,
+                s3Key: formattedFileName,
             };
         } catch (error) {
             Logger.error(
