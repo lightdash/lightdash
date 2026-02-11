@@ -570,7 +570,6 @@ export class CsvService extends BaseService {
         truncated = false,
         organizationUuid,
         createdByUserUuid,
-        userId,
     }: {
         csvContent: string;
         fileName: string;
@@ -578,7 +577,6 @@ export class CsvService extends BaseService {
         truncated?: boolean;
         organizationUuid?: string;
         createdByUserUuid?: string | null;
-        userId?: string;
     }): Promise<AttachmentUrl> {
         const fileId = CsvService.generateFileId(fileName, truncated);
         const filePath = `/tmp/${fileId}`;
@@ -605,29 +603,18 @@ export class CsvService extends BaseService {
                 60 * 10 * 1000,
             );
 
-            if (organizationUuid && userId) {
-                const persistentUrl =
-                    await this.persistentDownloadFileService.createPersistentUrl(
-                        {
-                            s3Key: fileId,
-                            fileType: DownloadFileType.CSV,
-                            organizationUuid,
-                            projectUuid,
-                            createdByUserUuid: createdByUserUuid ?? null,
-                        },
-                    );
-                return {
-                    filename: fileName,
-                    path: persistentUrl,
-                    localPath: filePath,
-                    truncated,
-                };
-            }
-
-            const s3Url = await this.s3Client.getFileUrl(fileId);
+            const url = organizationUuid
+                ? await this.persistentDownloadFileService.createPersistentUrl({
+                      s3Key: fileId,
+                      fileType: DownloadFileType.CSV,
+                      organizationUuid,
+                      projectUuid,
+                      createdByUserUuid: createdByUserUuid ?? null,
+                  })
+                : await this.s3Client.getFileUrl(fileId);
             return {
                 filename: fileName,
-                path: s3Url,
+                path: url,
                 localPath: filePath,
                 truncated,
             };
@@ -793,7 +780,6 @@ export class CsvService extends BaseService {
                 truncated,
                 organizationUuid: user.organizationUuid,
                 createdByUserUuid: user.userUuid,
-                userId: user.userUuid,
             });
 
             if (analyticProperties) {
@@ -845,7 +831,6 @@ export class CsvService extends BaseService {
             truncated,
             organizationUuid: user.organizationUuid,
             createdByUserUuid: user.userUuid,
-            userId: user.userUuid,
         });
     }
 
@@ -952,7 +937,6 @@ export class CsvService extends BaseService {
             projectUuid,
             organizationUuid: user.organizationUuid,
             createdByUserUuid: user.userUuid,
-            userId: user.userUuid,
         });
     }
 
@@ -1292,7 +1276,6 @@ export class CsvService extends BaseService {
                         pivotDetails: null, // TODO: this is using old way of running queries + pivoting, therefore pivotDetails is not available
                         organizationUuid: user.organizationUuid,
                         createdByUserUuid: user.userUuid,
-                        userId: user.userUuid,
                     });
 
                 this.analytics.track({
@@ -1339,7 +1322,7 @@ export class CsvService extends BaseService {
                         {
                             s3Key: fileId,
                             fileType: DownloadFileType.CSV,
-                            organizationUuid: user.organizationUuid!,
+                            organizationUuid: projectSummary.organizationUuid,
                             projectUuid,
                             createdByUserUuid: user.userUuid ?? null,
                         },
@@ -1530,7 +1513,7 @@ export class CsvService extends BaseService {
         return this.persistentDownloadFileService.createPersistentUrl({
             s3Key: zipFileName,
             fileType: 'zip',
-            organizationUuid: organizationUuid!,
+            organizationUuid,
             projectUuid: dashboard.projectUuid,
             createdByUserUuid: userUuid,
         });

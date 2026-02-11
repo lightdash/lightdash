@@ -100,7 +100,6 @@ export class PivotTableService extends BaseService {
         pivotDetails,
         organizationUuid,
         createdByUserUuid,
-        userId,
     }: {
         resultsFileName: string;
         fields: ItemsMap;
@@ -119,7 +118,6 @@ export class PivotTableService extends BaseService {
         };
         organizationUuid?: string;
         createdByUserUuid?: string | null;
-        userId?: string;
     }): Promise<{ fileUrl: string; truncated: boolean }> {
         const { onlyRaw, customLabels, pivotConfig, attachmentDownloadName } =
             options;
@@ -172,7 +170,6 @@ export class PivotTableService extends BaseService {
             pivotDetails,
             organizationUuid,
             createdByUserUuid,
-            userId,
         });
 
         return {
@@ -199,7 +196,6 @@ export class PivotTableService extends BaseService {
         pivotDetails,
         organizationUuid,
         createdByUserUuid,
-        userId,
     }: {
         name?: string;
         projectUuid: string;
@@ -215,7 +211,6 @@ export class PivotTableService extends BaseService {
         metricsAsRows?: boolean;
         organizationUuid?: string;
         createdByUserUuid?: string | null;
-        userId?: string;
     }): Promise<AttachmentUrl> {
         // PivotDetails.valuesColumns is just an array objects, we need to convert it to a map so we can format the pivoted results
         // See AsyncQueryService.ts line 1126 for more details on why we're using pivotColumnName as the key
@@ -263,7 +258,6 @@ export class PivotTableService extends BaseService {
             truncated,
             organizationUuid,
             createdByUserUuid,
-            userId,
         });
     }
 
@@ -277,7 +271,6 @@ export class PivotTableService extends BaseService {
         truncated = false,
         organizationUuid,
         createdByUserUuid,
-        userId,
     }: {
         csvContent: string;
         fileName: string;
@@ -285,7 +278,6 @@ export class PivotTableService extends BaseService {
         truncated?: boolean;
         organizationUuid?: string;
         createdByUserUuid?: string | null;
-        userId?: string;
     }): Promise<AttachmentUrl> {
         const fileId = PivotTableService.generateFileId(fileName, truncated);
         const filePath = `/tmp/${fileId}`;
@@ -312,29 +304,18 @@ export class PivotTableService extends BaseService {
                 60 * 10 * 1000,
             );
 
-            if (organizationUuid && userId) {
-                const persistentUrl =
-                    await this.persistentDownloadFileService.createPersistentUrl(
-                        {
-                            s3Key: fileId,
-                            fileType: DownloadFileType.CSV,
-                            organizationUuid,
-                            projectUuid,
-                            createdByUserUuid: createdByUserUuid ?? null,
-                        },
-                    );
-                return {
-                    filename: fileName,
-                    path: persistentUrl,
-                    localPath: filePath,
-                    truncated,
-                };
-            }
-
-            const s3Url = await this.s3Client.getFileUrl(fileId);
+            const url = organizationUuid
+                ? await this.persistentDownloadFileService.createPersistentUrl({
+                      s3Key: fileId,
+                      fileType: DownloadFileType.CSV,
+                      organizationUuid,
+                      projectUuid,
+                      createdByUserUuid: createdByUserUuid ?? null,
+                  })
+                : await this.s3Client.getFileUrl(fileId);
             return {
                 filename: fileName,
-                path: s3Url,
+                path: url,
                 localPath: filePath,
                 truncated,
             };

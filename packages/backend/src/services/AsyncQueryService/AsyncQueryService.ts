@@ -966,7 +966,6 @@ export class AsyncQueryService extends ProjectService {
                         createdByUserUuid: isJwtUser(account)
                             ? null
                             : account.user.userUuid,
-                        userId: account.user.id,
                     });
                 }
                 return this.downloadAsyncQueryResultsAsFormattedFile(
