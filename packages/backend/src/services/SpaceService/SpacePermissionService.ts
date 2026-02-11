@@ -74,6 +74,27 @@ export class SpacePermissionService extends BaseService {
     }
 
     /**
+     * Returns the CASL context for a space (organizationUuid, projectUuid, isPrivate, access)
+     * without performing any permission checks. Callers use this to build their own
+     * `subject(...)` checks when the resource type is not Space.
+     */
+    async getSpaceAccessContext(
+        userUuid: string,
+        spaceUuid: string,
+    ): Promise<SpaceAccessContextForCasl> {
+        const accessContext = await this.getSpacesCaslContext([spaceUuid], {
+            userUuid,
+        });
+        const ctx = accessContext[spaceUuid];
+        if (!ctx) {
+            throw new NotFoundError(
+                `Couldn't find access context for space ${spaceUuid}`,
+            );
+        }
+        return ctx;
+    }
+
+    /**
      * Gets the access context for a list of space uuids so we can check against CASL
      * @param spaceUuidsArg - The space uuids to get the access context for
      * @param filters - The filters to apply to the access context

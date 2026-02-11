@@ -12,7 +12,6 @@ import {
     CreateSavedChartVersion,
     CreateSchedulerAndTargetsWithoutIds,
     ExploreType,
-    FeatureFlags,
     ForbiddenError,
     GoogleSheetsTransientError,
     KnexPaginateArgs,
@@ -25,7 +24,6 @@ import {
     SchedulerAndTargets,
     SchedulerFormat,
     SessionUser,
-    SpaceShare,
     SpaceSummary,
     TogglePinnedItemInfo,
     UnexpectedGoogleSheetsError,
@@ -50,6 +48,7 @@ import {
     type ChartFieldUpdates,
     type Explore,
     type ExploreError,
+    type SpaceAccess,
 } from '@lightdash/common';
 import cronstrue from 'cronstrue';
 import { Knex } from 'knex';
@@ -66,7 +65,6 @@ import { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { getChartFieldUsageChanges } from '../../models/CatalogModel/utils';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
-import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
@@ -75,7 +73,7 @@ import { SpaceModel } from '../../models/SpaceModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { BaseService } from '../BaseService';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
-import { hasViewAccessToSpace } from '../SpaceService/SpaceService';
+import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { UserService } from '../UserService';
 
 type SavedChartServiceArguments = {
@@ -93,7 +91,7 @@ type SavedChartServiceArguments = {
     permissionsService: PermissionsService;
     googleDriveClient: GoogleDriveClient;
     userService: UserService;
-    featureFlagModel: FeatureFlagModel;
+    spacePermissionService: SpacePermissionService;
 };
 
 export class SavedChartService
@@ -128,7 +126,7 @@ export class SavedChartService
 
     private readonly userService: UserService;
 
-    private readonly featureFlagModel: FeatureFlagModel;
+    private readonly spacePermissionService: SpacePermissionService;
 
     constructor(args: SavedChartServiceArguments) {
         super();
@@ -146,38 +144,27 @@ export class SavedChartService
         this.permissionsService = args.permissionsService;
         this.googleDriveClient = args.googleDriveClient;
         this.userService = args.userService;
-        this.featureFlagModel = args.featureFlagModel;
-    }
-
-    private async getNestedPermissionsFlag(user: SessionUser) {
-        return this.featureFlagModel.get({
-            user,
-            featureFlagId: FeatureFlags.NestedSpacesPermissions,
-        });
+        this.spacePermissionService = args.spacePermissionService;
     }
 
     private async checkUpdateAccess(
         user: SessionUser,
         chartUuid: string,
     ): Promise<ChartSummary> {
-        const nestedPermissionsFlag = await this.getNestedPermissionsFlag(user);
         const savedChart = await this.savedChartModel.getSummary(chartUuid);
         const { organizationUuid, projectUuid } = savedChart;
-        const space = await this.spaceModel.getSpaceSummary(
-            savedChart.spaceUuid,
-        );
-        const access = await this.spaceModel.getUserSpaceAccess(
-            user.userUuid,
-            savedChart.spaceUuid,
-            { useInheritedAccess: nestedPermissionsFlag.enabled },
-        );
+        const { access, isPrivate } =
+            await this.spacePermissionService.getSpaceAccessContext(
+                user.userUuid,
+                savedChart.spaceUuid,
+            );
         if (
             user.ability.cannot(
                 'update',
                 subject('SavedChart', {
                     organizationUuid,
                     projectUuid,
-                    isPrivate: space.isPrivate,
+                    isPrivate,
                     access,
                 }),
             )
@@ -219,15 +206,11 @@ export class SavedChartService
         spaceUuid: string,
     ): Promise<boolean> {
         try {
-            const nestedPermissionsFlag =
-                await this.getNestedPermissionsFlag(user);
-            const space = await this.spaceModel.getSpaceSummary(spaceUuid);
-            const access = await this.spaceModel.getUserSpaceAccess(
-                user.userUuid,
-                space.uuid,
-                { useInheritedAccess: nestedPermissionsFlag.enabled },
+            return await this.spacePermissionService.can(
+                'view',
+                user,
+                spaceUuid,
             );
-            return hasViewAccessToSpace(user, space, access);
         } catch (e) {
             return false;
         }
@@ -429,7 +412,6 @@ export class SavedChartService
         savedChartUuid: string,
         data: CreateSavedChartVersion,
     ): Promise<SavedChart> {
-        const nestedPermissionsFlag = await this.getNestedPermissionsFlag(user);
         const {
             organizationUuid,
             projectUuid,
@@ -440,12 +422,11 @@ export class SavedChartService
             },
         } = await this.savedChartModel.get(savedChartUuid);
 
-        const space = await this.spaceModel.getSpaceSummary(spaceUuid);
-        const access = await this.spaceModel.getUserSpaceAccess(
-            user.userUuid,
-            spaceUuid,
-            { useInheritedAccess: nestedPermissionsFlag.enabled },
-        );
+        const { isPrivate, access } =
+            await this.spacePermissionService.getSpaceAccessContext(
+                user.userUuid,
+                spaceUuid,
+            );
 
         if (
             user.ability.cannot(
@@ -453,7 +434,7 @@ export class SavedChartService
                 subject('SavedChart', {
                     organizationUuid,
                     projectUuid,
-                    isPrivate: space.isPrivate,
+                    isPrivate,
                     access,
                 }),
             )
@@ -520,7 +501,7 @@ export class SavedChartService
 
         return {
             ...savedChart,
-            isPrivate: space.isPrivate,
+            isPrivate,
             access,
         };
     }
@@ -530,7 +511,6 @@ export class SavedChartService
         savedChartUuid: string,
         data: UpdateSavedChart,
     ): Promise<SavedChart> {
-        const nestedPermissionsFlag = await this.getNestedPermissionsFlag(user);
         const {
             organizationUuid,
             projectUuid,
@@ -539,12 +519,11 @@ export class SavedChartService
             name,
         } = await this.savedChartModel.getSummary(savedChartUuid);
 
-        const space = await this.spaceModel.getSpaceSummary(spaceUuid);
-        const access = await this.spaceModel.getUserSpaceAccess(
-            user.userUuid,
-            spaceUuid,
-            { useInheritedAccess: nestedPermissionsFlag.enabled },
-        );
+        const { isPrivate, access } =
+            await this.spacePermissionService.getSpaceAccessContext(
+                user.userUuid,
+                spaceUuid,
+            );
 
         if (
             user.ability.cannot(
@@ -552,7 +531,7 @@ export class SavedChartService
                 subject('SavedChart', {
                     organizationUuid,
                     projectUuid,
-                    isPrivate: space.isPrivate,
+                    isPrivate,
                     access,
                 }),
             )
@@ -598,7 +577,7 @@ export class SavedChartService
         }
         return {
             ...savedChart,
-            isPrivate: space.isPrivate,
+            isPrivate,
             access,
         };
     }
@@ -664,24 +643,18 @@ export class SavedChartService
         projectUuid: string,
         data: UpdateMultipleSavedChart[],
     ): Promise<SavedChart[]> {
-        const nestedPermissionsFlag = await this.getNestedPermissionsFlag(user);
-        const project = await this.projectModel.getSummary(projectUuid);
-
         const spaceAccessPromises = data.map(async (chart) => {
-            const space = await this.spaceModel.getSpaceSummary(
-                chart.spaceUuid,
-            );
-            const access = await this.spaceModel.getUserSpaceAccess(
-                user.userUuid,
-                chart.spaceUuid,
-                { useInheritedAccess: nestedPermissionsFlag.enabled },
-            );
+            const { isPrivate, access, organizationUuid } =
+                await this.spacePermissionService.getSpaceAccessContext(
+                    user.userUuid,
+                    chart.spaceUuid,
+                );
             return user.ability.can(
                 'update',
                 subject('SavedChart', {
-                    organizationUuid: project.organizationUuid,
+                    organizationUuid,
                     projectUuid,
-                    isPrivate: space.isPrivate,
+                    isPrivate,
                     access,
                 }),
             );
@@ -695,17 +668,14 @@ export class SavedChartService
         const savedChartsDaos = await this.savedChartModel.updateMultiple(data);
         const savedCharts = await Promise.all(
             savedChartsDaos.map(async (savedChart) => {
-                const space = await this.spaceModel.getSpaceSummary(
-                    savedChart.spaceUuid,
-                );
-                const access = await this.spaceModel.getUserSpaceAccess(
-                    user.userUuid,
-                    savedChart.spaceUuid,
-                    { useInheritedAccess: nestedPermissionsFlag.enabled },
-                );
+                const { isPrivate, access } =
+                    await this.spacePermissionService.getSpaceAccessContext(
+                        user.userUuid,
+                        savedChart.spaceUuid,
+                    );
                 return {
                     ...savedChart,
-                    isPrivate: space.isPrivate,
+                    isPrivate,
                     access,
                 };
             }),
@@ -722,7 +692,6 @@ export class SavedChartService
     }
 
     async delete(user: SessionUser, savedChartUuid: string): Promise<void> {
-        const nestedPermissionsFlag = await this.getNestedPermissionsFlag(user);
         const {
             organizationUuid,
             projectUuid,
@@ -730,12 +699,11 @@ export class SavedChartService
             metricQuery: { metrics, dimensions },
             tableName,
         } = await this.savedChartModel.get(savedChartUuid);
-        const space = await this.spaceModel.getSpaceSummary(spaceUuid);
-        const access = await this.spaceModel.getUserSpaceAccess(
-            user.userUuid,
-            spaceUuid,
-            { useInheritedAccess: nestedPermissionsFlag.enabled },
-        );
+        const { isPrivate, access } =
+            await this.spacePermissionService.getSpaceAccessContext(
+                user.userUuid,
+                spaceUuid,
+            );
 
         if (
             user.ability.cannot(
@@ -743,7 +711,7 @@ export class SavedChartService
                 subject('SavedChart', {
                     organizationUuid,
                     projectUuid,
-                    isPrivate: space.isPrivate,
+                    isPrivate,
                     access,
                 }),
             )
@@ -790,23 +758,19 @@ export class SavedChartService
         user: SessionUser,
         savedChartUuid: string,
     ): Promise<ViewStatistics> {
-        const nestedPermissionsFlag = await this.getNestedPermissionsFlag(user);
         const savedChart =
             await this.savedChartModel.getSummary(savedChartUuid);
-        const space = await this.spaceModel.getSpaceSummary(
-            savedChart.spaceUuid,
-        );
-        const access = await this.spaceModel.getUserSpaceAccess(
-            user.userUuid,
-            savedChart.spaceUuid,
-            { useInheritedAccess: nestedPermissionsFlag.enabled },
-        );
+        const { isPrivate, access } =
+            await this.spacePermissionService.getSpaceAccessContext(
+                user.userUuid,
+                savedChart.spaceUuid,
+            );
         if (
             user.ability.cannot(
                 'view',
                 subject('SavedChart', {
                     ...savedChart,
-                    isPrivate: space.isPrivate,
+                    isPrivate,
                     access,
                 }),
             )
@@ -822,7 +786,7 @@ export class SavedChartService
         account: Account,
         space: Omit<SpaceSummary, 'userAccess'>,
         savedChart: SavedChartDAO,
-    ): Promise<SpaceShare[]> {
+    ): Promise<SpaceAccess[]> {
         let access;
         if (isJwtUser(account)) {
             await this.permissionsService.checkEmbedPermissions(
@@ -837,15 +801,13 @@ export class SavedChartService
             //       https://linear.app/lightdash/issue/CENG-110/front-load-available-charts-for-dashboard-requests
             access = [{ chartUuid: savedChart.uuid }];
         } else {
-            const nestedPermissionsFlag = await this.getNestedPermissionsFlag(
-                account.user,
-            );
+            const { access: spaceAccess } =
+                await this.spacePermissionService.getSpaceAccessContext(
+                    account.user.userUuid,
+                    savedChart.spaceUuid,
+                );
 
-            access = await this.spaceModel.getUserSpaceAccess(
-                account.user.id,
-                savedChart.spaceUuid,
-                { useInheritedAccess: nestedPermissionsFlag.enabled },
-            );
+            access = spaceAccess;
         }
 
         if (
@@ -863,7 +825,7 @@ export class SavedChartService
             );
         }
 
-        return isJwtUser(account) ? [] : (access as SpaceShare[]);
+        return isJwtUser(account) ? [] : (access as SpaceAccess[]);
     }
 
     async get(
@@ -905,34 +867,29 @@ export class SavedChartService
         projectUuid: string,
         savedChart: CreateSavedChart,
     ): Promise<SavedChart> {
-        const nestedPermissionsFlag = await this.getNestedPermissionsFlag(user);
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
         let isPrivate = false;
-        let access: SpaceShare[] = [];
+        let access: SpaceAccess[] = [];
         if (savedChart.spaceUuid) {
-            const space = await this.spaceModel.getSpaceSummary(
-                savedChart.spaceUuid,
-            );
-            isPrivate = space.isPrivate;
-            access = await this.spaceModel.getUserSpaceAccess(
-                user.userUuid,
-                savedChart.spaceUuid,
-                { useInheritedAccess: nestedPermissionsFlag.enabled },
-            );
+            const spaceAccessContext =
+                await this.spacePermissionService.getSpaceAccessContext(
+                    user.userUuid,
+                    savedChart.spaceUuid,
+                );
+            isPrivate = spaceAccessContext.isPrivate;
+            access = spaceAccessContext.access;
         } else if (savedChart.dashboardUuid) {
             const dashboard = await this.dashboardModel.getByIdOrSlug(
                 savedChart.dashboardUuid,
             );
-            const space = await this.spaceModel.getSpaceSummary(
-                dashboard.spaceUuid,
-            );
-            isPrivate = space.isPrivate;
-            access = await this.spaceModel.getUserSpaceAccess(
-                user.userUuid,
-                dashboard.spaceUuid,
-                { useInheritedAccess: nestedPermissionsFlag.enabled },
-            );
+            const dashboardSpaceAccessContext =
+                await this.spacePermissionService.getSpaceAccessContext(
+                    user.userUuid,
+                    dashboard.spaceUuid,
+                );
+            isPrivate = dashboardSpaceAccessContext.isPrivate;
+            access = dashboardSpaceAccessContext.access;
         }
 
         if (
@@ -1014,20 +971,18 @@ export class SavedChartService
         chartUuid: string,
         data: { chartName: string; chartDesc: string },
     ): Promise<SavedChart> {
-        const nestedPermissionsFlag = await this.getNestedPermissionsFlag(user);
         const chart = await this.savedChartModel.get(chartUuid);
-        const space = await this.spaceModel.getSpaceSummary(chart.spaceUuid);
-        const access = await this.spaceModel.getUserSpaceAccess(
-            user.userUuid,
-            chart.spaceUuid,
-            { useInheritedAccess: nestedPermissionsFlag.enabled },
-        );
+        const { isPrivate, access } =
+            await this.spacePermissionService.getSpaceAccessContext(
+                user.userUuid,
+                chart.spaceUuid,
+            );
         if (
             user.ability.cannot(
                 'create',
                 subject('SavedChart', {
                     ...chart,
-                    isPrivate: space.isPrivate,
+                    isPrivate,
                     access,
                 }),
             )
@@ -1116,7 +1071,11 @@ export class SavedChartService
             );
         }
 
-        return { ...newSavedChart, isPrivate: space.isPrivate, access };
+        return {
+            ...newSavedChart,
+            isPrivate,
+            access,
+        };
     }
 
     async getSchedulers(
@@ -1261,20 +1220,19 @@ export class SavedChartService
         user: SessionUser,
         chartUuid: string,
     ): Promise<ChartHistory> {
-        const nestedPermissionsFlag = await this.getNestedPermissionsFlag(user);
         const chart = await this.savedChartModel.getSummary(chartUuid);
-        const space = await this.spaceModel.getSpaceSummary(chart.spaceUuid);
-        const access = await this.spaceModel.getUserSpaceAccess(
-            user.userUuid,
-            chart.spaceUuid,
-            { useInheritedAccess: nestedPermissionsFlag.enabled },
-        );
+        const { isPrivate, access } =
+            await this.spacePermissionService.getSpaceAccessContext(
+                user.userUuid,
+                chart.spaceUuid,
+            );
+
         if (
             user.ability.cannot(
                 'view',
                 subject('SavedChart', {
                     ...chart,
-                    isPrivate: space.isPrivate,
+                    isPrivate,
                     access,
                 }),
             )
@@ -1304,20 +1262,18 @@ export class SavedChartService
         chartUuid: string,
         versionUuid: string,
     ): Promise<ChartVersion> {
-        const nestedPermissionsFlag = await this.getNestedPermissionsFlag(user);
         const chart = await this.savedChartModel.getSummary(chartUuid);
-        const space = await this.spaceModel.getSpaceSummary(chart.spaceUuid);
-        const access = await this.spaceModel.getUserSpaceAccess(
-            user.userUuid,
-            chart.spaceUuid,
-            { useInheritedAccess: nestedPermissionsFlag.enabled },
-        );
+        const { isPrivate, access } =
+            await this.spacePermissionService.getSpaceAccessContext(
+                user.userUuid,
+                chart.spaceUuid,
+            );
         if (
             user.ability.cannot(
                 'view',
                 subject('SavedChart', {
                     ...chart,
-                    isPrivate: space.isPrivate,
+                    isPrivate,
                     access,
                 }),
             )
@@ -1344,7 +1300,11 @@ export class SavedChartService
 
         return {
             ...chartVersionSummary,
-            chart: { ...savedChart, isPrivate: space.isPrivate, access },
+            chart: {
+                ...savedChart,
+                isPrivate,
+                access,
+            },
         };
     }
 
@@ -1423,10 +1383,7 @@ export class SavedChartService
                   savedChartUuid: string;
                   spaceUuid?: string;
               },
-    ): Promise<SpaceShare[]> {
-        const nestedPermissionsFlag = await this.getNestedPermissionsFlag(
-            actor.user,
-        );
+    ): Promise<SpaceAccess[]> {
         let { spaceUuid } = resource;
 
         if (resource.savedChartUuid !== null) {
@@ -1452,19 +1409,21 @@ export class SavedChartService
             throw new NotFoundError('Space is required');
         }
 
-        const space = await this.spaceModel.getSpaceSummary(spaceUuid);
-        const spaceAccess = await this.spaceModel.getUserSpaceAccess(
+        const {
+            access: spaceAccess,
+            isPrivate,
+            organizationUuid,
+        } = await this.spacePermissionService.getSpaceAccessContext(
             actor.user.userUuid,
             spaceUuid,
-            { useInheritedAccess: nestedPermissionsFlag.enabled },
         );
 
         const hasPermission = actor.user.ability.can(
             action,
             subject('SavedChart', {
-                organizationUuid: space.organizationUuid,
+                organizationUuid,
                 projectUuid: actor.projectUuid,
-                isPrivate: space.isPrivate,
+                isPrivate,
                 access: spaceAccess,
             }),
         );
@@ -1476,21 +1435,21 @@ export class SavedChartService
         }
 
         if (resource.spaceUuid && spaceUuid !== resource.spaceUuid) {
-            const newSpace = await this.spaceModel.getSpaceSummary(
-                resource.spaceUuid,
-            );
-            const newSpaceAccess = await this.spaceModel.getUserSpaceAccess(
+            const {
+                isPrivate: newSpaceIsPrivate,
+                access: newSpaceAccess,
+                organizationUuid: newSpaceOrganizationUuid,
+            } = await this.spacePermissionService.getSpaceAccessContext(
                 actor.user.userUuid,
                 resource.spaceUuid,
-                { useInheritedAccess: nestedPermissionsFlag.enabled },
             );
 
             const hasPermissionInNewSpace = actor.user.ability.can(
                 action,
                 subject('SavedChart', {
-                    organizationUuid: newSpace.organizationUuid,
+                    organizationUuid: newSpaceOrganizationUuid,
                     projectUuid: actor.projectUuid,
-                    isPrivate: newSpace.isPrivate,
+                    isPrivate: newSpaceIsPrivate,
                     access: newSpaceAccess,
                 }),
             );
