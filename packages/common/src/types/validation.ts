@@ -92,6 +92,8 @@ export type ApiPaginatedValidateResponse = ApiSuccess<
     KnexPaginatedData<ValidationResponse[]>
 >;
 
+export type ApiSingleValidationResponse = ApiSuccess<ValidationResponse>;
+
 export type ApiValidationDismissResponse = {
     status: 'ok';
 };

@@ -41,6 +41,27 @@ const getValidation = async (
         body: undefined,
     });
 
+const getValidationById = async (
+    projectUuid: string,
+    validationId: number,
+): Promise<ValidationResponse> =>
+    lightdashApi<ValidationResponse>({
+        url: `/projects/${projectUuid}/validate/${validationId}`,
+        method: 'GET',
+        body: undefined,
+        version: 'v2',
+    });
+
+export const usePinnedValidation = (
+    projectUuid: string,
+    validationId: number | null,
+) =>
+    useQuery({
+        queryKey: ['pinnedValidation', projectUuid, validationId],
+        queryFn: () => getValidationById(projectUuid, validationId!),
+        enabled: validationId !== null,
+    });
+
 export const useValidation = (
     projectUuid: string,
     user: UseQueryResult<UserWithAbility, ApiError>,

@@ -8227,19 +8227,6 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "success",
-                                                            "error"
-                                                        ]
-                                                    }
-                                                },
-                                                "required": ["status"],
-                                                "type": "object"
-                                            },
-                                            {
-                                                "properties": {
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": [
                                                             "error",
                                                             "success"
                                                         ]
@@ -22986,6 +22973,23 @@
             },
             "ApiPaginatedValidateResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_KnexPaginatedData_ValidationResponse-Array__"
+            },
+            "ApiSuccess_ValidationResponse_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ValidationResponse"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiSingleValidationResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_ValidationResponse_"
             },
             "ApiSavedChartPaginatedSchedulersResponse": {
                 "properties": {
@@ -39716,6 +39720,58 @@
                         "required": false,
                         "schema": {
                             "type": "boolean"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v2/projects/{projectUuid}/validate/{validationId}": {
+            "get": {
+                "operationId": "GetValidationResult",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSingleValidationResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get a single validation result by ID.",
+                "summary": "Get validation result",
+                "tags": ["v2", "Validation"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "the projectId for the validation",
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "the validation result ID",
+                        "in": "path",
+                        "name": "validationId",
+                        "required": true,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
                         }
                     }
                 ]

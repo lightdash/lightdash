@@ -27,6 +27,7 @@ import {
     isValidationTargetValid,
     KnexPaginateArgs,
     KnexPaginatedData,
+    NotFoundError,
     OrganizationMemberRole,
     RequestMethod,
     SessionUser,
@@ -1035,6 +1036,57 @@ export class ValidationService extends BaseService {
         }
 
         return this.hidePrivateContent(user, projectUuid, validations);
+    }
+
+    async getById(
+        user: SessionUser,
+        projectUuid: string,
+        validationId: number,
+    ): Promise<ValidationResponse> {
+        const { organizationUuid } = user;
+
+        const auditedAbility = new CaslAuditWrapper(user.ability, user, {
+            auditLogger: logAuditEvent,
+        });
+
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('Validation', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        let allowedSpaceUuids: string[] | 'all' = 'all';
+
+        if (user.role !== OrganizationMemberRole.ADMIN) {
+            const spaces = await this.spaceModel.find({ projectUuid });
+            const spaceUuids = spaces.map((s) => s.uuid);
+
+            allowedSpaceUuids =
+                await this.spacePermissionService.getAccessibleSpaceUuids(
+                    'view',
+                    user,
+                    spaceUuids,
+                );
+        }
+
+        const validation = await this.validationModel.getFullById(
+            validationId,
+            { allowedSpaceUuids },
+        );
+
+        if (!validation) {
+            throw new NotFoundError(
+                `Validation with id ${validationId} not found`,
+            );
+        }
+
+        return validation;
     }
 
     async getPaginated(

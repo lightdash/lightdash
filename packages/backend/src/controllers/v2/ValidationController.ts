@@ -1,6 +1,7 @@
 import {
     ApiErrorPayload,
     ApiPaginatedValidateResponse,
+    ApiSingleValidationResponse,
     ValidationErrorType,
     ValidationSourceType,
 } from '@lightdash/common';
@@ -97,6 +98,31 @@ export class ValidationControllerV2 extends BaseController {
                     fromSettings,
                 },
             ),
+        };
+    }
+
+    /**
+     * Get a single validation result by ID.
+     * @summary Get validation result
+     * @param projectUuid the projectId for the validation
+     * @param validationId the validation result ID
+     * @param req express request
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('{validationId}')
+    @OperationId('GetValidationResult')
+    async get(
+        @Path() projectUuid: string,
+        @Path() validationId: number,
+        @Request() req: express.Request,
+    ): Promise<ApiSingleValidationResponse> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getValidationService()
+                .getById(req.user!, projectUuid, validationId),
         };
     }
 }
