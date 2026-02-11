@@ -1,3 +1,10 @@
+# [0.2451.0](https://github.com/lightdash/lightdash/compare/0.2450.0...0.2451.0) (2026-02-11)
+
+
+### Features
+
+* support user attributes in filter values ([#20174](https://github.com/lightdash/lightdash/issues/20174)) ([96c81d0](https://github.com/lightdash/lightdash/commit/96c81d017bc9b371d7a79bd076aaee683c4449d2))
+
 # [0.2450.0](https://github.com/lightdash/lightdash/compare/0.2449.0...0.2450.0) (2026-02-11)
 
 
