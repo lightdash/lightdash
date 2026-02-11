@@ -69,7 +69,13 @@ export class PersistentDownloadFileService extends BaseService {
         return url;
     }
 
-    async getSignedUrl(fileNanoid: string): Promise<string> {
+    async getSignedUrl(
+        fileNanoid: string,
+        requestContext?: {
+            ip: string | undefined;
+            userAgent: string | undefined;
+        },
+    ): Promise<string> {
         const file = await this.persistentDownloadFileModel.get(fileNanoid);
 
         if (file.expires_at < new Date()) {
@@ -79,9 +85,11 @@ export class PersistentDownloadFileService extends BaseService {
             throw new NotFoundError('This download link has expired');
         }
 
-        this.logger.debug(
-            `Serving persistent download: nanoid=${fileNanoid}, s3Key=${file.s3_key}`,
+        const signedUrl = await this.s3Client.getFileUrl(file.s3_key);
+
+        this.logger.info(
+            `Serving persistent download: nanoid=${fileNanoid}, s3Key=${file.s3_key}, ip=${requestContext?.ip}, userAgent=${requestContext?.userAgent}`,
         );
-        return this.s3Client.getFileUrl(file.s3_key);
+        return signedUrl;
     }
 }

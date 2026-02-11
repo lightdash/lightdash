@@ -110,14 +110,14 @@ describe('PersistentDownloadFileService', () => {
                 expires_at: futureDate,
             } as DbPersistentDownloadFile);
             mockS3GetFileUrl.mockResolvedValue(
-                'https://s3.amazonaws.com/bucket/test-file.csv?signed',
+                'http://mock-s3:9000/mock_bucket/exports/test-file.csv?signed',
             );
 
             const service = createService({ enabled: true });
             const url = await service.getSignedUrl('test-nanoid-123456789');
 
             expect(url).toBe(
-                'https://s3.amazonaws.com/bucket/test-file.csv?signed',
+                'http://mock-s3:9000/mock_bucket/exports/test-file.csv?signed',
             );
             expect(mockModelGet).toHaveBeenCalledWith('test-nanoid-123456789');
             expect(mockS3GetFileUrl).toHaveBeenCalledWith(

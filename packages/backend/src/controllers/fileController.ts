@@ -1,5 +1,14 @@
 import { ApiErrorPayload, NotFoundError } from '@lightdash/common';
-import { Get, OperationId, Path, Response, Route, Tags } from '@tsoa/runtime';
+import {
+    Get,
+    OperationId,
+    Path,
+    Request,
+    Response,
+    Route,
+    Tags,
+} from '@tsoa/runtime';
+import express from 'express';
 import { BaseController } from './baseController';
 
 const NANOID_REGEX = /^[\w-]{21}$/;
@@ -15,14 +24,20 @@ export class FileController extends BaseController {
      */
     @Get('{fileId}')
     @OperationId('getFile')
-    async getFile(@Path() fileId: string): Promise<void> {
+    async getFile(
+        @Path() fileId: string,
+        @Request() req: express.Request,
+    ): Promise<void> {
         if (!NANOID_REGEX.test(fileId)) {
             throw new NotFoundError('Cannot find file');
         }
 
         const signedUrl = await this.services
             .getPersistentDownloadFileService()
-            .getSignedUrl(fileId);
+            .getSignedUrl(fileId, {
+                ip: req.ip,
+                userAgent: req.headers['user-agent'],
+            });
 
         this.setStatus(302);
         this.setHeader('Location', signedUrl);
