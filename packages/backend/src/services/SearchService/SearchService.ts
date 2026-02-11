@@ -95,11 +95,13 @@ export class SearchService extends BaseService {
                 ...results.spaces.map((space) => space.uuid),
             ]),
         ];
-        const spaces = await Promise.all(
-            spaceUuids.map((spaceUuid) =>
-                this.spaceModel.getSpaceSummary(spaceUuid),
-            ),
-        );
+
+        const accessibleSpaceUuids =
+            await this.spacePermissionService.getAccessibleSpaceUuids(
+                'view',
+                user,
+                spaceUuids,
+            );
 
         const filterItem = async (
             item:
@@ -110,7 +112,7 @@ export class SearchService extends BaseService {
         ) => {
             const spaceUuid: string =
                 'spaceUuid' in item ? item.spaceUuid : item.uuid;
-            return this.spacePermissionService.can('view', user, spaceUuid);
+            return accessibleSpaceUuids.includes(spaceUuid);
         };
 
         const hasExploreAccess = user.ability.can(
