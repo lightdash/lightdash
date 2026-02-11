@@ -1,3 +1,10 @@
+## [0.2455.1](https://github.com/lightdash/lightdash/compare/0.2455.0...0.2455.1) (2026-02-11)
+
+
+### Bug Fixes
+
+* don't request space access on every filter ([#20211](https://github.com/lightdash/lightdash/issues/20211)) ([461459c](https://github.com/lightdash/lightdash/commit/461459cb541ab1f97cf140bec000fa068f4b0886))
+
 # [0.2455.0](https://github.com/lightdash/lightdash/compare/0.2454.2...0.2455.0) (2026-02-11)
 
 
