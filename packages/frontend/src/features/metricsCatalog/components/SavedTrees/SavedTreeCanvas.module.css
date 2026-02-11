@@ -1,0 +1,10 @@
+.header {
+    padding: var(--mantine-spacing-sm) var(--mantine-spacing-md);
+    border-bottom: 1px solid var(--mantine-color-ldGray-2);
+    background-color: var(--mantine-color-white);
+}
+
+.canvasContainer {
+    flex: 1;
+    min-height: 0;
+}
