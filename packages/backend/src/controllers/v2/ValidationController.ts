@@ -50,7 +50,7 @@ export class ValidationControllerV2 extends BaseController {
         @Path() projectUuid: string,
         @Request() req: express.Request,
         @Query() page: number = 1,
-        @Query() pageSize: number = 50,
+        @Query() pageSize: number = 20,
         @Query() searchQuery?: string,
         @Query() sortBy?: 'name' | 'createdAt' | 'errorType' | 'source',
         @Query() sortDirection?: 'asc' | 'desc',

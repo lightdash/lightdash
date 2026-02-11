@@ -8268,10 +8268,10 @@
                                                                         "fieldType": {
                                                                             "type": "string"
                                                                         },
-                                                                        "label": {
+                                                                        "tableName": {
                                                                             "type": "string"
                                                                         },
-                                                                        "tableName": {
+                                                                        "label": {
                                                                             "type": "string"
                                                                         },
                                                                         "name": {
@@ -8280,8 +8280,8 @@
                                                                     },
                                                                     "required": [
                                                                         "fieldType",
-                                                                        "label",
                                                                         "tableName",
+                                                                        "label",
                                                                         "name"
                                                                     ],
                                                                     "type": "object"
@@ -8291,16 +8291,16 @@
                                                             "exploreSearchResults": {
                                                                 "items": {
                                                                     "properties": {
-                                                                        "searchRank": {
-                                                                            "type": "number",
-                                                                            "format": "double",
-                                                                            "nullable": true
-                                                                        },
                                                                         "joinedTables": {
                                                                             "items": {
                                                                                 "type": "string"
                                                                             },
                                                                             "type": "array",
+                                                                            "nullable": true
+                                                                        },
+                                                                        "searchRank": {
+                                                                            "type": "number",
+                                                                            "format": "double",
                                                                             "nullable": true
                                                                         },
                                                                         "label": {
@@ -8388,10 +8388,10 @@
                                                                                     "fieldType": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "label": {
+                                                                                    "tableName": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "tableName": {
+                                                                                    "label": {
                                                                                         "type": "string"
                                                                                     },
                                                                                     "name": {
@@ -8400,8 +8400,8 @@
                                                                                 },
                                                                                 "required": [
                                                                                     "fieldType",
-                                                                                    "label",
                                                                                     "tableName",
+                                                                                    "label",
                                                                                     "name"
                                                                                 ],
                                                                                 "type": "object"
@@ -39648,7 +39648,7 @@
                         "name": "pageSize",
                         "required": false,
                         "schema": {
-                            "default": 50,
+                            "default": 20,
                             "format": "double",
                             "type": "number"
                         }
