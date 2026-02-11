@@ -10,7 +10,7 @@ import { SpaceModel } from '../../models/SpaceModel';
 import { SpacePermissionModel } from '../../models/SpacePermissionModel';
 import { BaseService } from '../BaseService';
 
-type SpaceAccessForCasl = {
+type SpaceAccessContextForCasl = {
     organizationUuid: string;
     projectUuid: string;
     isPrivate: boolean;
@@ -41,7 +41,7 @@ export class SpacePermissionService extends BaseService {
             ? spaceUuids
             : [spaceUuids];
 
-        const accessContext = await this.getAccessContext(spaceUuidsArray, {
+        const accessContext = await this.getSpacesCaslContext(spaceUuidsArray, {
             userUuid: actor.userUuid,
         });
 
@@ -62,7 +62,7 @@ export class SpacePermissionService extends BaseService {
         actor: Pick<SessionUser, 'ability' | 'userUuid'>,
         spaceUuids: string[],
     ): Promise<string[]> {
-        const accessContext = await this.getAccessContext(spaceUuids, {
+        const accessContext = await this.getSpacesCaslContext(spaceUuids, {
             userUuid: actor.userUuid,
         });
 
@@ -79,10 +79,10 @@ export class SpacePermissionService extends BaseService {
      * @param filters - The filters to apply to the access context
      * @returns The access context for the given space uuids
      */
-    private async getAccessContext(
+    private async getSpacesCaslContext(
         spaceUuidsArg: string[],
         filters?: { userUuid?: string },
-    ): Promise<Record<string, SpaceAccessForCasl>> {
+    ): Promise<Record<string, SpaceAccessContextForCasl>> {
         const uniqueSpaceUuids = [...new Set(spaceUuidsArg)];
 
         // Getting the root space uuids since for nested spaces that's what is used
@@ -117,7 +117,10 @@ export class SpacePermissionService extends BaseService {
                 this.spacePermissionModel.getSpaceInfo(uniqueRootSpaceUuids),
             ]);
 
-        const rootSpaceAccessContext: Record<string, SpaceAccessForCasl> = {};
+        const rootSpaceAccessContext: Record<
+            string,
+            SpaceAccessContextForCasl
+        > = {};
         for (const rootSpaceUuid of uniqueRootSpaceUuids) {
             const space = spaceInfo[rootSpaceUuid];
             if (!space) {

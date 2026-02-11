@@ -127,6 +127,18 @@ export type SpaceShare = {
         | undefined;
 };
 
+// Lightweight version of SpaceShare without user metadata (firstName, lastName, email).
+// Used for CASL permission checks where only the role/access data matters.
+export type SpaceAccess = Pick<
+    SpaceShare,
+    | 'userUuid'
+    | 'role'
+    | 'hasDirectAccess'
+    | 'inheritedFrom'
+    | 'projectRole'
+    | 'inheritedRole'
+>;
+
 export type SpaceGroup = {
     groupUuid: string;
     groupName: string;

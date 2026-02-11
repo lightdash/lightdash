@@ -12,8 +12,8 @@ import {
     type DirectSpaceAccess,
     type OrganizationSpaceAccess,
     type ProjectSpaceAccess,
+    type SpaceAccess,
     type SpaceAccessInput,
-    type SpaceShare,
 } from '../../types/space';
 import {
     convertOrganizationRoleToProjectRole,
@@ -22,16 +22,6 @@ import {
     getHighestProjectRole,
     getHighestSpaceRole,
 } from '../../utils/projectMemberRole';
-
-export type SpaceAccess = Pick<
-    SpaceShare,
-    | 'userUuid'
-    | 'role'
-    | 'hasDirectAccess'
-    | 'inheritedFrom'
-    | 'projectRole'
-    | 'inheritedRole'
->;
 
 const getUserOrganizationRole = (
     organizationAccess: OrganizationSpaceAccess[],
