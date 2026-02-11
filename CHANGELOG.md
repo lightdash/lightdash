@@ -1,3 +1,10 @@
+## [0.2451.1](https://github.com/lightdash/lightdash/compare/0.2451.0...0.2451.1) (2026-02-11)
+
+
+### Bug Fixes
+
+* prevent chart create modal flicker when saving to dashboard ([#20172](https://github.com/lightdash/lightdash/issues/20172)) ([3ebe82e](https://github.com/lightdash/lightdash/commit/3ebe82e93d13b8404098615e548d8ef88cfe9409))
+
 # [0.2451.0](https://github.com/lightdash/lightdash/compare/0.2450.0...0.2451.0) (2026-02-11)
 
 
