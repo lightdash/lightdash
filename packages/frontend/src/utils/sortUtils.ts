@@ -89,6 +89,7 @@ export const getSortLabel = (
         case MetricType.COUNT:
         case MetricType.COUNT_DISTINCT:
         case MetricType.SUM:
+        case MetricType.SUM_DISTINCT:
         case MetricType.MIN:
         case MetricType.MAX:
         case MetricType.NUMBER:

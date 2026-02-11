@@ -246,6 +246,7 @@
                         "count",
                         "count_distinct",
                         "sum",
+                        "sum_distinct",
                         "min",
                         "max",
                         "number",
@@ -295,6 +296,19 @@
                 },
                 "percentile": {
                     "type": "number"
+                },
+                "distinct_keys": {
+                    "oneOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    ]
                 },
                 "tags": {
                     "$ref": "#/definitions/Tags"
