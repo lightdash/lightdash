@@ -2560,7 +2560,6 @@ export class SpaceModel {
     async update(
         spaceUuid: string,
         space: Partial<UpdateSpace>,
-        options: { useInheritedAccess: boolean },
     ): Promise<Space> {
         await this.database(SpaceTableName)
             .update({
@@ -2569,7 +2568,7 @@ export class SpaceModel {
                 inherit_parent_permissions: space.inheritParentPermissions,
             })
             .where('space_uuid', spaceUuid);
-        return this.getFullSpace(spaceUuid, options);
+        return this.getFullSpace(spaceUuid);
     }
 
     async moveToSpace(

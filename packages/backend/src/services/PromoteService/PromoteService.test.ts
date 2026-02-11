@@ -655,13 +655,9 @@ describe('PromoteService promoting and mutating changes', () => {
         );
 
         expect(spaceModel.update).toHaveBeenCalledTimes(1);
-        expect(spaceModel.update).toHaveBeenCalledWith(
-            'upstream-space-uuid',
-            {
-                name: promotedDashboardWithNewPrivateSpace.space.name,
-            },
-            { useInheritedAccess: false },
-        );
+        expect(spaceModel.update).toHaveBeenCalledWith('upstream-space-uuid', {
+            name: promotedDashboardWithNewPrivateSpace.space.name,
+        });
         expect(spaceModel.addSpaceAccess).toHaveBeenCalledTimes(0);
         expect(spaceModel.addSpaceGroupAccess).toHaveBeenCalledTimes(0);
     });

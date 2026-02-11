@@ -911,15 +911,9 @@ export class PromoteService extends BaseService {
         });
         const updatedSpacePromises = updatedSpaces.map((spaceChange) =>
             // Only update name, promotion should not change permissions
-            this.spaceModel.update(
-                spaceChange.data.uuid,
-                {
-                    name: spaceChange.data.name,
-                },
-                {
-                    useInheritedAccess: nestedPermissionsFlag.enabled,
-                },
-            ),
+            this.spaceModel.update(spaceChange.data.uuid, {
+                name: spaceChange.data.name,
+            }),
         );
         await Promise.all(updatedSpacePromises);
 

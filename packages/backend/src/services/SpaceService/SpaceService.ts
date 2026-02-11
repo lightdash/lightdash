@@ -237,35 +237,18 @@ export class SpaceService extends BaseService implements BulkActionable<Knex> {
         spaceUuid: string,
         updateSpace: UpdateSpace,
     ): Promise<Space> {
-        const space = await this.spaceModel.getSpaceSummary(spaceUuid);
-        const nestedPermissionsFlag = await this.featureFlagModel.get({
-            user,
-            featureFlagId: FeatureFlags.NestedSpacesPermissions,
-        });
-        const userSpaceAccess = await this.spaceModel.getUserSpaceAccess(
-            user.userUuid,
-            spaceUuid,
-            { useInheritedAccess: nestedPermissionsFlag.enabled },
-        );
-        // Nested Spaces MVP - disables nested spaces' access changes
-        const isNested = !(await this.spaceModel.isRootSpace(spaceUuid));
         if (
-            !nestedPermissionsFlag.enabled &&
-            isNested &&
-            'isPrivate' in updateSpace
-        ) {
-            throw new ForbiddenError(`Can't change privacy for a nested space`);
-        }
-        if (
-            user.ability.cannot(
-                'manage',
-                subject('Space', {
-                    ...space,
-                    access: userSpaceAccess,
-                }),
-            )
+            !(await this.spacePermissionService.can('manage', user, spaceUuid))
         ) {
             throw new ForbiddenError();
+        }
+
+        const space = await this.spaceModel.getSpaceSummary(spaceUuid);
+
+        // TODO: legacy nested space check. How do we migrate this?
+        const isNested = !(await this.spaceModel.isRootSpace(spaceUuid));
+        if (isNested && 'isPrivate' in updateSpace) {
+            throw new ForbiddenError(`Can't change privacy for a nested space`);
         }
 
         // you can either set isPrivate or inheritParentPermissions while we temporarily
@@ -277,17 +260,11 @@ export class SpaceService extends BaseService implements BulkActionable<Knex> {
             inheritParentPermissions = !isPrivate;
         }
 
-        const updatedSpace = await this.spaceModel.update(
-            spaceUuid,
-            {
-                ...updateSpace,
-                isPrivate,
-                inheritParentPermissions,
-            },
-            {
-                useInheritedAccess: nestedPermissionsFlag.enabled,
-            },
-        );
+        const updatedSpace = await this.spaceModel.update(spaceUuid, {
+            ...updateSpace,
+            isPrivate,
+            inheritParentPermissions,
+        });
         this.analytics.track({
             event: 'space.updated',
             userId: user.userUuid,
