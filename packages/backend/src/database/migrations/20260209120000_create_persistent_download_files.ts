@@ -32,6 +32,10 @@ export async function up(knex: Knex): Promise<void> {
                     .timestamp('created_at', { useTz: true })
                     .notNullable()
                     .defaultTo(knex.fn.now());
+                tableBuilder
+                    .timestamp('expires_at', { useTz: true })
+                    .notNullable()
+                    .defaultTo(knex.raw(`now() + interval '604800 seconds'`));
             },
         );
     }
