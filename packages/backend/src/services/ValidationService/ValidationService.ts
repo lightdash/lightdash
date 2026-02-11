@@ -11,6 +11,7 @@ import {
     Explore,
     ExploreError,
     ExploreType,
+    FeatureFlags,
     ForbiddenError,
     getFilterRules,
     getItemId,
@@ -43,6 +44,7 @@ import { LightdashConfig } from '../../config/parseConfig';
 import { CaslAuditWrapper } from '../../logging/caslAuditWrapper';
 import { logAuditEvent } from '../../logging/winston';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
@@ -50,6 +52,7 @@ import { ValidationModel } from '../../models/ValidationModel/ValidationModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { BaseService } from '../BaseService';
 import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
+import { hasViewAccessToSpace } from '../SpaceService/SpaceService';
 
 type ValidationServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -61,6 +64,7 @@ type ValidationServiceArguments = {
     spaceModel: SpaceModel;
     schedulerClient: SchedulerClient;
     spacePermissionService: SpacePermissionService;
+    featureFlagModel: FeatureFlagModel;
 };
 
 export class ValidationService extends BaseService {
@@ -82,6 +86,8 @@ export class ValidationService extends BaseService {
 
     spacePermissionService: SpacePermissionService;
 
+    featureFlagModel: FeatureFlagModel;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -92,6 +98,7 @@ export class ValidationService extends BaseService {
         spaceModel,
         schedulerClient,
         spacePermissionService,
+        featureFlagModel,
     }: ValidationServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -103,6 +110,7 @@ export class ValidationService extends BaseService {
         this.spaceModel = spaceModel;
         this.schedulerClient = schedulerClient;
         this.spacePermissionService = spacePermissionService;
+        this.featureFlagModel = featureFlagModel;
     }
 
     static getTableCalculationFieldIds(
@@ -1068,30 +1076,12 @@ export class ValidationService extends BaseService {
             const spaces = await this.spaceModel.find({ projectUuid });
             const spaceUuids = spaces.map((s) => s.uuid);
 
-            const nestedPermissionsFlag = await this.featureFlagModel.get({
-                user: {
-                    userUuid: user.userUuid,
-                    organizationUuid: user.organizationUuid,
-                    organizationName: user.organizationName,
-                },
-                featureFlagId: FeatureFlags.NestedSpacesPermissions,
-            });
-
-            const spacesAccess = await this.spaceModel.getUserSpacesAccess(
-                user.userUuid,
-                spaceUuids,
-                { useInheritedAccess: nestedPermissionsFlag.enabled },
-            );
-
-            allowedSpaceUuids = spaces
-                .filter((space) =>
-                    hasViewAccessToSpace(
-                        user,
-                        space,
-                        spacesAccess[space.uuid] ?? [],
-                    ),
-                )
-                .map((s) => s.uuid);
+            allowedSpaceUuids =
+                await this.spacePermissionService.getAccessibleSpaceUuids(
+                    'view',
+                    user,
+                    spaceUuids,
+                );
         }
 
         const result = await this.validationModel.getPaginated(
