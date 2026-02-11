@@ -79,6 +79,7 @@ export const publicSpace: Space = {
 };
 export const privateSpace: Space = {
     ...publicSpace,
+    uuid: 'private-space-uuid',
     isPrivate: true,
 };
 

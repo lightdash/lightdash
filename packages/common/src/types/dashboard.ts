@@ -8,7 +8,7 @@ import {
     type SavedChartType,
 } from './savedCharts';
 import type { SchedulerAndTargets } from './scheduler';
-import { type SpaceShare } from './space';
+import { type SpaceAccess } from './space';
 import { type UpdatedByUser } from './user';
 import { type ValidationSummary } from './validation';
 
@@ -193,7 +193,7 @@ export type Dashboard = {
     pinnedListOrder: number | null;
     tabs: DashboardTab[];
     isPrivate: boolean | null;
-    access: SpaceShare[] | null;
+    access: SpaceAccess[] | null;
     slug: string;
     config?: DashboardConfig;
 };

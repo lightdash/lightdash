@@ -95,6 +95,19 @@ export class SpacePermissionService extends BaseService {
     }
 
     /**
+     * Gets the access context for a list of space uuids
+     * @param userUuid - The user uuid to get the access context for
+     * @param spaceUuids - The space uuids to get the access context for
+     * @returns The access context for the given space uuids
+     */
+    async getSpacesAccessContext(
+        userUuid: string,
+        spaceUuids: string[],
+    ): Promise<Record<string, SpaceAccessContextForCasl>> {
+        return this.getSpacesCaslContext(spaceUuids, { userUuid });
+    }
+
+    /**
      * Gets the access context for a list of space uuids so we can check against CASL
      * @param spaceUuidsArg - The space uuids to get the access context for
      * @param filters - The filters to apply to the access context
