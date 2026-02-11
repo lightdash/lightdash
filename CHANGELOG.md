@@ -1,3 +1,10 @@
+## [0.2451.2](https://github.com/lightdash/lightdash/compare/0.2451.1...0.2451.2) (2026-02-11)
+
+
+### Bug Fixes
+
+* use share URLs for "Explore from here" functionality ([#20178](https://github.com/lightdash/lightdash/issues/20178)) ([67a88e9](https://github.com/lightdash/lightdash/commit/67a88e903163734e3ec13459c791c1ef681b81a5))
+
 ## [0.2451.1](https://github.com/lightdash/lightdash/compare/0.2451.0...0.2451.1) (2026-02-11)
 
 
