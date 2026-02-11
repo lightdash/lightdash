@@ -867,6 +867,7 @@ export class ValidationService extends BaseService {
                 subject('Validation', {
                     organizationUuid,
                     projectUuid,
+                    uuid: projectUuid,
                 }),
             )
         ) {
@@ -983,6 +984,7 @@ export class ValidationService extends BaseService {
                 subject('Validation', {
                     organizationUuid,
                     projectUuid,
+                    uuid: projectUuid,
                 }),
             )
         ) {
@@ -1043,7 +1045,7 @@ export class ValidationService extends BaseService {
         projectUuid: string,
         validationId: number,
     ): Promise<ValidationResponse> {
-        const { organizationUuid } = user;
+        const projectSummary = await this.projectModel.getSummary(projectUuid);
 
         const auditedAbility = new CaslAuditWrapper(user.ability, user, {
             auditLogger: logAuditEvent,
@@ -1053,8 +1055,9 @@ export class ValidationService extends BaseService {
             auditedAbility.cannot(
                 'manage',
                 subject('Validation', {
-                    organizationUuid,
+                    organizationUuid: projectSummary.organizationUuid,
                     projectUuid,
+                    uuid: projectUuid,
                 }),
             )
         ) {
@@ -1104,7 +1107,7 @@ export class ValidationService extends BaseService {
             jobId?: string;
         },
     ): Promise<KnexPaginatedData<ValidationResponse[]>> {
-        const { organizationUuid } = user;
+        const projectSummary = await this.projectModel.getSummary(projectUuid);
 
         const auditedAbility = new CaslAuditWrapper(user.ability, user, {
             auditLogger: logAuditEvent,
@@ -1114,8 +1117,9 @@ export class ValidationService extends BaseService {
             auditedAbility.cannot(
                 'manage',
                 subject('Validation', {
-                    organizationUuid,
+                    organizationUuid: projectSummary.organizationUuid,
                     projectUuid,
+                    uuid: projectUuid,
                 }),
             )
         ) {
@@ -1164,7 +1168,7 @@ export class ValidationService extends BaseService {
                 event: 'validation.page_viewed',
                 userId: user.userUuid,
                 properties: {
-                    organizationId: organizationUuid,
+                    organizationId: projectSummary.organizationUuid,
                     projectId: projectUuid,
                     numErrorsDetected:
                         result.pagination?.totalResults ?? result.data.length,
