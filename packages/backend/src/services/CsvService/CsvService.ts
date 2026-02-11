@@ -575,8 +575,8 @@ export class CsvService extends BaseService {
         fileName: string;
         projectUuid: string;
         truncated?: boolean;
-        organizationUuid?: string;
-        createdByUserUuid?: string | null;
+        organizationUuid: string;
+        createdByUserUuid: string | null;
     }): Promise<AttachmentUrl> {
         const fileId = CsvService.generateFileId(fileName, truncated);
         const filePath = `/tmp/${fileId}`;
@@ -603,15 +603,14 @@ export class CsvService extends BaseService {
                 60 * 10 * 1000,
             );
 
-            const url = organizationUuid
-                ? await this.persistentDownloadFileService.createPersistentUrl({
-                      s3Key: fileId,
-                      fileType: DownloadFileType.CSV,
-                      organizationUuid,
-                      projectUuid,
-                      createdByUserUuid: createdByUserUuid ?? null,
-                  })
-                : await this.s3Client.getFileUrl(fileId);
+            const url =
+                await this.persistentDownloadFileService.createPersistentUrl({
+                    s3Key: fileId,
+                    fileType: DownloadFileType.CSV,
+                    organizationUuid,
+                    projectUuid,
+                    createdByUserUuid,
+                });
             return {
                 filename: fileName,
                 path: url,
@@ -778,7 +777,7 @@ export class CsvService extends BaseService {
                 exploreId,
                 onlyRaw,
                 truncated,
-                organizationUuid: user.organizationUuid,
+                organizationUuid: chart.organizationUuid,
                 createdByUserUuid: user.userUuid,
             });
 
@@ -829,7 +828,7 @@ export class CsvService extends BaseService {
             fileName: chart.name,
             projectUuid: chart.projectUuid,
             truncated,
-            organizationUuid: user.organizationUuid,
+            organizationUuid: chart.organizationUuid,
             createdByUserUuid: user.userUuid,
         });
     }
@@ -935,7 +934,7 @@ export class CsvService extends BaseService {
             csvContent,
             fileName: sqlChart.name,
             projectUuid,
-            organizationUuid: user.organizationUuid,
+            organizationUuid: sqlChart.organization_uuid,
             createdByUserUuid: user.userUuid,
         });
     }
@@ -1274,7 +1273,7 @@ export class CsvService extends BaseService {
                         truncated,
                         customLabels,
                         pivotDetails: null, // TODO: this is using old way of running queries + pivoting, therefore pivotDetails is not available
-                        organizationUuid: user.organizationUuid,
+                        organizationUuid: projectSummary.organizationUuid,
                         createdByUserUuid: user.userUuid,
                     });
 

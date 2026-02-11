@@ -116,8 +116,8 @@ export class PivotTableService extends BaseService {
             pivotConfig: PivotConfig;
             attachmentDownloadName?: string;
         };
-        organizationUuid?: string;
-        createdByUserUuid?: string | null;
+        organizationUuid: string;
+        createdByUserUuid: string | null;
     }): Promise<{ fileUrl: string; truncated: boolean }> {
         const { onlyRaw, customLabels, pivotConfig, attachmentDownloadName } =
             options;
@@ -209,8 +209,8 @@ export class PivotTableService extends BaseService {
         truncated: boolean;
         customLabels: Record<string, string> | undefined;
         metricsAsRows?: boolean;
-        organizationUuid?: string;
-        createdByUserUuid?: string | null;
+        organizationUuid: string;
+        createdByUserUuid: string | null;
     }): Promise<AttachmentUrl> {
         // PivotDetails.valuesColumns is just an array objects, we need to convert it to a map so we can format the pivoted results
         // See AsyncQueryService.ts line 1126 for more details on why we're using pivotColumnName as the key
@@ -276,8 +276,8 @@ export class PivotTableService extends BaseService {
         fileName: string;
         projectUuid: string;
         truncated?: boolean;
-        organizationUuid?: string;
-        createdByUserUuid?: string | null;
+        organizationUuid: string;
+        createdByUserUuid: string | null;
     }): Promise<AttachmentUrl> {
         const fileId = PivotTableService.generateFileId(fileName, truncated);
         const filePath = `/tmp/${fileId}`;
@@ -304,15 +304,14 @@ export class PivotTableService extends BaseService {
                 60 * 10 * 1000,
             );
 
-            const url = organizationUuid
-                ? await this.persistentDownloadFileService.createPersistentUrl({
-                      s3Key: fileId,
-                      fileType: DownloadFileType.CSV,
-                      organizationUuid,
-                      projectUuid,
-                      createdByUserUuid: createdByUserUuid ?? null,
-                  })
-                : await this.s3Client.getFileUrl(fileId);
+            const url =
+                await this.persistentDownloadFileService.createPersistentUrl({
+                    s3Key: fileId,
+                    fileType: DownloadFileType.CSV,
+                    organizationUuid,
+                    projectUuid,
+                    createdByUserUuid,
+                });
             return {
                 filename: fileName,
                 path: url,
