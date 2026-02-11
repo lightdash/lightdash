@@ -4,10 +4,12 @@ import {
     GitRepo,
 } from '@lightdash/common';
 import {
+    Body,
     Delete,
     Get,
     Middlewares,
     OperationId,
+    Post,
     Query,
     Request,
     Route,
@@ -156,6 +158,47 @@ export class GithubInstallController extends BaseController {
             results: await this.services
                 .getGithubAppService()
                 .getRepos(req.user!),
+        };
+    }
+
+    /**
+     * Create a new GitHub repository via the installed app
+     * @summary Create GitHub repository
+     */
+    @Middlewares([isAuthenticated, unauthorisedInDemo])
+    @SuccessResponse('201', 'Created')
+    @Post('/repos')
+    @OperationId('createGithubRepository')
+    async createGithubRepository(
+        @Request() req: express.Request,
+        @Body()
+        body: {
+            name: string;
+            description?: string;
+            isPrivate?: boolean;
+        },
+    ): Promise<{
+        status: 'ok';
+        results: {
+            owner: string;
+            repo: string;
+            fullName: string;
+            defaultBranch: string;
+        };
+    }> {
+        const result = await this.services
+            .getGithubAppService()
+            .createRepository(
+                req.user!,
+                body.name,
+                body.description,
+                body.isPrivate,
+            );
+
+        this.setStatus(201);
+        return {
+            status: 'ok',
+            results: result,
         };
     }
 }

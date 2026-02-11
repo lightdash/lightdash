@@ -15627,6 +15627,9 @@
                     "breadcrumbs": {
                         "items": {
                             "properties": {
+                                "hasAccess": {
+                                    "type": "boolean"
+                                },
                                 "uuid": {
                                     "type": "string"
                                 },
@@ -15634,7 +15637,7 @@
                                     "type": "string"
                                 }
                             },
-                            "required": ["uuid", "name"],
+                            "required": ["hasAccess", "uuid", "name"],
                             "type": "object"
                         },
                         "type": "array"
@@ -22069,6 +22072,9 @@
             },
             "GitRepo": {
                 "properties": {
+                    "defaultBranch": {
+                        "type": "string"
+                    },
                     "ownerLogin": {
                         "type": "string"
                     },
@@ -22079,7 +22085,7 @@
                         "type": "string"
                     }
                 },
-                "required": ["ownerLogin", "fullName", "name"],
+                "required": ["defaultBranch", "ownerLogin", "fullName", "name"],
                 "type": "object"
             },
             "GitIntegrationConfiguration": {
@@ -26427,7 +26433,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2506.1",
+        "version": "0.2512.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -38395,6 +38401,80 @@
                 "summary": "List GitHub repositories",
                 "security": [],
                 "parameters": []
+            }
+        },
+        "/api/v1/github/repos": {
+            "post": {
+                "operationId": "createGithubRepository",
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "properties": {
+                                                "defaultBranch": {
+                                                    "type": "string"
+                                                },
+                                                "fullName": {
+                                                    "type": "string"
+                                                },
+                                                "repo": {
+                                                    "type": "string"
+                                                },
+                                                "owner": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": [
+                                                "defaultBranch",
+                                                "fullName",
+                                                "repo",
+                                                "owner"
+                                            ],
+                                            "type": "object"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Create a new GitHub repository via the installed app",
+                "summary": "Create GitHub repository",
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "isPrivate": {
+                                        "type": "boolean"
+                                    },
+                                    "description": {
+                                        "type": "string"
+                                    },
+                                    "name": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": ["name"],
+                                "type": "object"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/projects/{projectUuid}/git-integration/pull-requests/custom-metrics": {
