@@ -839,6 +839,9 @@ export type LightdashConfig = {
     dashboard: {
         maxTilesPerTab: number;
         maxTabsPerDashboard: number;
+        versionHistory: {
+            daysLimit: number;
+        };
     };
     // This is the override color palette for the organization
     // TODO: allow override for dark theme
@@ -1592,6 +1595,12 @@ export const parseConfig = (): LightdashConfig => {
                 getIntegerFromEnvironmentVariable(
                     'LIGHTDASH_DASHBOARD_MAX_TABS_PER_DASHBOARD',
                 ) || 20,
+            versionHistory: {
+                daysLimit:
+                    getIntegerFromEnvironmentVariable(
+                        'LIGHTDASH_DASHBOARD_VERSION_HISTORY_DAYS_LIMIT',
+                    ) || 3,
+            },
         },
         pivotTable: {
             maxColumnLimit:

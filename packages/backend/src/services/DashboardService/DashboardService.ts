@@ -16,6 +16,7 @@ import {
     ForbiddenError,
     KnexPaginateArgs,
     KnexPaginatedData,
+    NotFoundError,
     ParameterError,
     PossibleAbilities,
     SchedulerAndTargets,
@@ -36,6 +37,7 @@ import {
     isValidTimezone,
     type ChartFieldUpdates,
     type DashboardBasicDetailsWithTileTypes,
+    type DashboardHistory,
     type DuplicateDashboardParams,
     type Explore,
     type ExploreError,
@@ -1330,6 +1332,116 @@ export class DashboardService
                 );
             }
         }
+    }
+
+    async getHistory(
+        user: SessionUser,
+        dashboardUuid: string,
+    ): Promise<DashboardHistory> {
+        const dashboardDao =
+            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+        const space = await this.spaceModel.getSpaceSummary(
+            dashboardDao.spaceUuid,
+        );
+        const nestedPermissionsFlag = await this.getNestedPermissionsFlag(user);
+        const spaceAccess = await this.spaceModel.getUserSpaceAccess(
+            user.userUuid,
+            dashboardDao.spaceUuid,
+            { useInheritedAccess: nestedPermissionsFlag.enabled },
+        );
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('Dashboard', {
+                    ...dashboardDao,
+                    isPrivate: space.isPrivate,
+                    access: spaceAccess,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                "You don't have access to view the version history of this dashboard",
+            );
+        }
+
+        const versions =
+            await this.dashboardModel.getLatestVersionSummaries(dashboardUuid);
+
+        this.analytics.track({
+            event: 'dashboard_history.view',
+            userId: user.userUuid,
+            properties: {
+                projectId: dashboardDao.projectUuid,
+                dashboardId: dashboardDao.uuid,
+                versionCount: versions.length,
+            },
+        });
+
+        return { history: versions };
+    }
+
+    async rollback(
+        user: SessionUser,
+        dashboardUuid: string,
+        versionUuid: string,
+    ): Promise<void> {
+        const dashboardDao =
+            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+        const space = await this.spaceModel.getSpaceSummary(
+            dashboardDao.spaceUuid,
+        );
+        const nestedPermissionsFlag = await this.getNestedPermissionsFlag(user);
+        const spaceAccess = await this.spaceModel.getUserSpaceAccess(
+            user.userUuid,
+            dashboardDao.spaceUuid,
+            { useInheritedAccess: nestedPermissionsFlag.enabled },
+        );
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('Dashboard', {
+                    ...dashboardDao,
+                    isPrivate: space.isPrivate,
+                    access: spaceAccess,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                "You don't have access to rollback this dashboard",
+            );
+        }
+
+        const targetVersion = await this.dashboardModel.getVersionByUuid(
+            dashboardUuid,
+            versionUuid,
+        );
+
+        if (!targetVersion) {
+            throw new NotFoundError('Dashboard version not found');
+        }
+
+        await this.dashboardModel.addVersion(
+            dashboardUuid,
+            {
+                tiles: targetVersion.tiles,
+                filters: targetVersion.filters,
+                parameters: targetVersion.parameters,
+                tabs: targetVersion.tabs,
+                config: targetVersion.config,
+            },
+            user,
+            dashboardDao.projectUuid,
+        );
+
+        this.analytics.track({
+            event: 'dashboard_version.rollback',
+            userId: user.userUuid,
+            properties: {
+                projectId: dashboardDao.projectUuid,
+                dashboardId: dashboardDao.uuid,
+                versionId: versionUuid,
+            },
+        });
     }
 
     async moveToSpace(

@@ -176,6 +176,7 @@ export type Dashboard = {
     organizationUuid: string;
     projectUuid: string;
     dashboardVersionId: number;
+    versionUuid: string;
     uuid: string;
     name: string;
     description?: string;
@@ -360,4 +361,28 @@ export type ApiDashboardPaginatedSchedulersResponse = {
 export type ApiCreateDashboardSchedulerResponse = {
     status: 'ok';
     results: SchedulerAndTargets;
+};
+
+export type DashboardVersionSummary = {
+    dashboardUuid: string;
+    versionUuid: string;
+    createdAt: Date;
+    createdBy: Pick<
+        UpdatedByUser,
+        'userUuid' | 'firstName' | 'lastName'
+    > | null;
+};
+
+export type DashboardHistory = {
+    history: DashboardVersionSummary[];
+};
+
+export type ApiGetDashboardHistoryResponse = {
+    status: 'ok';
+    results: DashboardHistory;
+};
+
+export type ApiDashboardRollbackResponse = {
+    status: 'ok';
+    results: undefined;
 };

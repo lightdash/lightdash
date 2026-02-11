@@ -33,6 +33,7 @@ export type DbDashboard = {
 
 type DbDashboardVersion = {
     dashboard_version_id: number;
+    dashboard_version_uuid: string;
     dashboard_id: number;
     created_at: Date;
     updated_by_user_uuid: string | undefined;
@@ -87,7 +88,13 @@ export type DashboardTable = Knex.CompositeTableType<
 
 export type DashboardVersionTable = Knex.CompositeTableType<
     DbDashboardVersion,
-    Pick<DbDashboardVersion, 'dashboard_id' | 'updated_by_user_uuid' | 'config'>
+    Pick<
+        DbDashboardVersion,
+        | 'dashboard_id'
+        | 'dashboard_version_uuid'
+        | 'updated_by_user_uuid'
+        | 'config'
+    >
 >;
 
 export type DashboardViewTable = Knex.CompositeTableType<

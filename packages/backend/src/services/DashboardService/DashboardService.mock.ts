@@ -90,6 +90,7 @@ export const dashboard: Dashboard = {
     slug: 'name',
 
     dashboardVersionId: 1,
+    versionUuid: 'dashboard-version-uuid',
     description: 'description',
     updatedAt: new Date(),
     tiles: [

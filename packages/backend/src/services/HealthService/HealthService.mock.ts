@@ -85,6 +85,9 @@ export const BaseResponse: HealthState = {
     dashboard: {
         maxTilesPerTab: 50,
         maxTabsPerDashboard: 20,
+        versionHistory: {
+            daysLimit: 0,
+        },
     },
     rudder: {
         dataPlaneUrl: '',

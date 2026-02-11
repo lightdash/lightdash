@@ -50,6 +50,9 @@ export default function mockHealthResponse(
         dashboard: {
             maxTilesPerTab: 50,
             maxTabsPerDashboard: 20,
+            versionHistory: {
+                daysLimit: 3,
+            },
         },
         pivotTable: {
             maxColumnLimit: 100,
