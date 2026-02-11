@@ -14,6 +14,7 @@ import {
     AnyType,
     BigqueryAuthenticationType,
     BigqueryDataset,
+    BigqueryProject,
     CreateBigqueryCredentials,
     DimensionType,
     getErrorMessage,
@@ -745,5 +746,58 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
             datasetId: d.id!,
         }));
         return databases;
+    }
+
+    static async getProjects(
+        accessToken: string,
+    ): Promise<BigqueryProject[]> {
+        // Use BigQuery REST API to list projects
+        // https://cloud.google.com/bigquery/docs/reference/rest/v2/projects/list
+        const allProjects: BigqueryProject[] = [];
+        let pageToken: string | undefined;
+
+        do {
+            const url = new URL(
+                'https://bigquery.googleapis.com/bigquery/v2/projects',
+            );
+            url.searchParams.set('maxResults', '1000');
+            if (pageToken) {
+                url.searchParams.set('pageToken', pageToken);
+            }
+
+            const response = await fetch(url.toString(), {
+                headers: {
+                    Authorization: `Bearer ${accessToken}`,
+                },
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new WarehouseConnectionError(
+                    `Failed to list BigQuery projects: ${errorText}`,
+                );
+            }
+
+            const data = (await response.json()) as {
+                projects?: Array<{
+                    id: string;
+                    friendlyName?: string;
+                }>;
+                nextPageToken?: string;
+            };
+
+            if (data.projects) {
+                allProjects.push(
+                    ...data.projects.map((p) => ({
+                        projectId: p.id,
+                        friendlyName: p.friendlyName ?? null,
+                    })),
+                );
+            }
+
+            pageToken = data.nextPageToken;
+        } while (pageToken);
+
+        return allProjects;
     }
 }
