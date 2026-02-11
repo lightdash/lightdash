@@ -204,6 +204,18 @@ export class ValidationModel {
             };
         }
 
+        // Parse "Filter error: the field 'X' does not match table 'Y'"
+        const fieldTableMismatchMatch = error.match(
+            /the field '([^']+)' does not match table '([^']+)'/,
+        );
+        if (fieldTableMismatchMatch) {
+            return {
+                tableName: fieldTableMismatchMatch[2],
+                dashboardFilterErrorType:
+                    DashboardFilterValidationErrorType.FieldTableMismatch,
+            };
+        }
+
         return {};
     }
 

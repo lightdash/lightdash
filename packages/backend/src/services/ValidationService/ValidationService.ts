@@ -7,6 +7,7 @@ import {
     CreateDashboardValidation,
     CreateTableValidation,
     CreateValidation,
+    DashboardFilterValidationErrorType,
     DashboardTileTarget,
     Explore,
     ExploreError,
@@ -554,6 +555,9 @@ export class ValidationService extends BaseService {
                                 errorType: ValidationErrorType.Filter,
                                 error: `Filter error: the field '${fieldId}' does not match table '${tableName}'`,
                                 fieldName: fieldId,
+                                tableName,
+                                dashboardFilterErrorType:
+                                    DashboardFilterValidationErrorType.FieldTableMismatch,
                             };
                         }
                         return undefined;

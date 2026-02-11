@@ -1,6 +1,7 @@
 import {
     isChartValidationError,
     isDashboardValidationError,
+    isFixableDashboardValidationError,
     isTableValidationError,
     type ValidationErrorChartResponse,
     type ValidationErrorDashboardResponse,
@@ -156,19 +157,23 @@ const TableValidationItem = forwardRef<
             </td>
             <td>
                 <Box w={24}>
-                    {hovered && isChartValidationError(validationError) && (
-                        <Button
-                            variant="outline"
-                            onClick={(
-                                e: React.MouseEvent<HTMLButtonElement>,
-                            ) => {
-                                onSelectValidationError(validationError);
-                                e.stopPropagation();
-                            }}
-                        >
-                            Fix
-                        </Button>
-                    )}
+                    {hovered &&
+                        (isChartValidationError(validationError) ||
+                            isFixableDashboardValidationError(
+                                validationError,
+                            )) && (
+                            <Button
+                                variant="outline"
+                                onClick={(
+                                    e: React.MouseEvent<HTMLButtonElement>,
+                                ) => {
+                                    onSelectValidationError(validationError);
+                                    e.stopPropagation();
+                                }}
+                            >
+                                Fix
+                            </Button>
+                        )}
                 </Box>
             </td>
             <td>

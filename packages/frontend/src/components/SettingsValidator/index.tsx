@@ -1,7 +1,9 @@
 import {
     isChartValidationError,
+    isFixableDashboardValidationError,
     ValidationErrorType,
     type ValidationErrorChartResponse,
+    type ValidationErrorDashboardResponse,
 } from '@lightdash/common';
 import {
     Box,
@@ -24,6 +26,7 @@ import { formatTime } from '../SchedulersView/SchedulersViewUtils';
 import MantineIcon from '../common/MantineIcon';
 import { ValidatorTable } from './ValidatorTable';
 import { ChartConfigurationErrorModal } from './ValidatorTable/ChartConfigurationErrorModal';
+import { FixDashboardFilterModal } from './ValidatorTable/FixDashboardFilterModal';
 import { FixValidationErrorModal } from './ValidatorTable/FixValidationErrorModal';
 
 const MIN_ROWS_TO_ENABLE_SCROLLING = 6;
@@ -45,6 +48,8 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
         useState<ValidationErrorChartResponse>();
     const [selectedConfigError, setSelectedConfigError] =
         useState<ValidationErrorChartResponse>();
+    const [selectedDashboardError, setSelectedDashboardError] =
+        useState<ValidationErrorDashboardResponse>();
     const [showConfigWarnings, setShowConfigWarnings] = useState(false);
 
     const configWarningCount = useMemo(() => {
@@ -80,6 +85,14 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
                 validationError={selectedConfigError}
                 onClose={() => {
                     setSelectedConfigError(undefined);
+                }}
+            />
+            <FixDashboardFilterModal
+                validationError={selectedDashboardError}
+                allValidationErrors={data}
+                projectUuid={projectUuid}
+                onClose={() => {
+                    setSelectedDashboardError(undefined);
                 }}
             />
             <Text color="dimmed">
@@ -163,6 +176,14 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
                                                 validationError,
                                             );
                                         }
+                                    } else if (
+                                        isFixableDashboardValidationError(
+                                            validationError,
+                                        )
+                                    ) {
+                                        setSelectedDashboardError(
+                                            validationError as ValidationErrorDashboardResponse,
+                                        );
                                     }
                                 }}
                             />
