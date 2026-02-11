@@ -1,3 +1,10 @@
+# [0.2452.0](https://github.com/lightdash/lightdash/compare/0.2451.2...0.2452.0) (2026-02-11)
+
+
+### Features
+
+* paginated validation API with virtualized table and deep-link support ([#20152](https://github.com/lightdash/lightdash/issues/20152)) ([79ae973](https://github.com/lightdash/lightdash/commit/79ae9738e08ffe0f8d4134b102864111687255d7))
+
 ## [0.2451.2](https://github.com/lightdash/lightdash/compare/0.2451.1...0.2451.2) (2026-02-11)
 
 
