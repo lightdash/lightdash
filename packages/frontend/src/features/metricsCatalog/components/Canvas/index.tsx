@@ -1,6 +1,5 @@
 import Dagre from '@dagrejs/dagre';
 import {
-    FeatureFlags,
     TimeFrames,
     type CatalogField,
     type CatalogMetricsTreeEdge,
@@ -40,7 +39,6 @@ import {
 import { Panel, PanelGroup } from 'react-resizable-panels';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import useToaster from '../../../../hooks/toaster/useToaster';
-import { useClientFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
 import useTracking from '../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../types/Events';
 import { useAppSelector } from '../../../sqlRunner/store/hooks';
@@ -143,9 +141,6 @@ const getNodeLayout = (
 const Canvas: FC<Props> = ({ metrics, edges, viewOnly }) => {
     const { track } = useTracking();
     const theme = useMantineTheme();
-    const isTreeModeSwitcherEnabled = useClientFeatureFlag(
-        FeatureFlags.MetricsCatalogTreeModeSwitcher,
-    );
     const [userUuid, projectUuid, organizationUuid] = useAppSelector(
         ({ metricsCatalog }) => [
             metricsCatalog.user?.userUuid,
@@ -579,16 +574,10 @@ const Canvas: FC<Props> = ({ metrics, edges, viewOnly }) => {
                                 <Text fz={14} fw={500} c="ldGray.6">
                                     Canvas mode:
                                 </Text>
-                                {isTreeModeSwitcherEnabled ? (
-                                    <CanvasTimeFramePicker
-                                        value={canvasTimeOption}
-                                        onChange={setCanvasTimeOption}
-                                    />
-                                ) : (
-                                    <Text span fw={500} c="ldGray.7">
-                                        Current month to date
-                                    </Text>
-                                )}
+                                <CanvasTimeFramePicker
+                                    value={canvasTimeOption}
+                                    onChange={setCanvasTimeOption}
+                                />
                             </Group>
                         </ReactFlowPanel>
                         {!viewOnly && (
