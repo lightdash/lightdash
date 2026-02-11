@@ -9,6 +9,8 @@ import {
     ApiSegmentDimensionsResponse,
     CatalogOwner,
     getItemId,
+    type ApiCreateMetricsTreePayload,
+    type ApiCreateMetricsTreeResponse,
     type ApiFilterDimensionsResponse,
     type ApiGetAllMetricsTreeEdges,
     type ApiGetMetricsTree,
@@ -658,5 +660,41 @@ export class CatalogController extends BaseController {
         };
     }
 
-    // TODO: handle metrics tree node position
+    // --- Saved Metrics Trees ---
+
+    /**
+     * Create a new saved metrics tree with nodes and edges
+     * @summary Create metrics tree
+     * @param projectUuid
+     * @param body.name Name of the metrics tree
+     * @param body.slug Optional slug for the tree (auto-generated from name if omitted)
+     * @param body.description Optional description
+     * @param body.source Whether the tree was created from 'ui' or 'yaml' (defaults to 'ui')
+     * @param body.nodes List of catalog metrics to include as nodes, with optional positions
+     * @param body.edges List of edges between nodes, deduplicated against existing edges
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('201', 'Created')
+    @Post('/metrics/trees')
+    @OperationId('createMetricsTree')
+    async createMetricsTree(
+        @Path() projectUuid: string,
+        @Body() body: ApiCreateMetricsTreePayload,
+        @Request() req: express.Request,
+    ): Promise<ApiCreateMetricsTreeResponse> {
+        this.setStatus(201);
+
+        const results = await this.services
+            .getCatalogService()
+            .createMetricsTree(req.user!, projectUuid, body);
+
+        return {
+            status: 'ok',
+            results,
+        };
+    }
 }

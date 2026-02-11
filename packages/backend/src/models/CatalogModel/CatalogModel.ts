@@ -31,6 +31,7 @@ import {
     type ExploreError,
     type KnexPaginateArgs,
     type KnexPaginatedData,
+    type MetricsTree,
     type SessionUser,
     type TablesConfiguration,
     type Tag,
@@ -44,12 +45,16 @@ import {
     CatalogTagsTableName,
     DbCatalogTagIn,
     MetricsTreeEdgesTableName,
+    MetricsTreeNodesTableName,
+    MetricsTreesTableName,
     getDbCatalogColumnFromCatalogProperty,
     type DbCatalog,
     type DbCatalogTagsMigrateIn,
     type DbMetricsTreeEdge,
     type DbMetricsTreeEdgeDelete,
     type DbMetricsTreeEdgeIn,
+    type DbMetricsTreeIn,
+    type DbMetricsTreeNodeIn,
 } from '../../database/entities/catalog';
 import { EmailTableName } from '../../database/entities/emails';
 import { CachedExploreTableName } from '../../database/entities/projects';
@@ -1729,6 +1734,70 @@ export class CatalogModel {
             .first();
 
         return result !== undefined;
+    }
+
+    // --- Saved Metrics Trees ---
+
+    async createMetricsTree(
+        tree: DbMetricsTreeIn,
+        nodes: Array<{
+            catalogSearchUuid: string;
+            xPosition?: number;
+            yPosition?: number;
+        }>,
+        edges: Array<{
+            sourceCatalogSearchUuid: string;
+            targetCatalogSearchUuid: string;
+        }>,
+    ): Promise<MetricsTree> {
+        return this.database.transaction(async (trx) => {
+            const [created] = await trx(MetricsTreesTableName)
+                .insert(tree)
+                .returning('*');
+
+            if (nodes.length > 0) {
+                const dbNodes: DbMetricsTreeNodeIn[] = nodes.map((node) => ({
+                    metrics_tree_uuid: created.metrics_tree_uuid,
+                    catalog_search_uuid: node.catalogSearchUuid,
+                    x_position: node.xPosition ?? null,
+                    y_position: node.yPosition ?? null,
+                    source: tree.source,
+                }));
+                await trx(MetricsTreeNodesTableName).insert(dbNodes);
+            }
+
+            if (edges.length > 0) {
+                const dbEdges: DbMetricsTreeEdgeIn[] = edges.map((edge) => ({
+                    source_metric_catalog_search_uuid:
+                        edge.sourceCatalogSearchUuid,
+                    target_metric_catalog_search_uuid:
+                        edge.targetCatalogSearchUuid,
+                    created_by_user_uuid: tree.created_by_user_uuid,
+                    project_uuid: tree.project_uuid,
+                    source: tree.source,
+                }));
+                await trx(MetricsTreeEdgesTableName)
+                    .insert(dbEdges)
+                    .onConflict([
+                        'source_metric_catalog_search_uuid',
+                        'target_metric_catalog_search_uuid',
+                    ])
+                    .ignore();
+            }
+
+            return {
+                metricsTreeUuid: created.metrics_tree_uuid,
+                projectUuid: created.project_uuid,
+                slug: created.slug,
+                name: created.name,
+                description: created.description,
+                source: created.source,
+                createdByUserUuid: created.created_by_user_uuid,
+                updatedByUserUuid: created.updated_by_user_uuid,
+                createdAt: created.created_at,
+                updatedAt: created.updated_at,
+            };
+        });
     }
 
     async getDistinctOwners(projectUuid: string): Promise<

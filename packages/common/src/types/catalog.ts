@@ -177,7 +177,16 @@ export type ApiCreateMetricsTreePayload = {
     name: string;
     slug?: string;
     description?: string;
-    nodeUuids: string[];
+    source?: MetricsTreeSource;
+    nodes: Array<{
+        catalogSearchUuid: string;
+        xPosition?: number;
+        yPosition?: number;
+    }>;
+    edges: Array<{
+        sourceCatalogSearchUuid: string;
+        targetCatalogSearchUuid: string;
+    }>;
 };
 
 export type ApiUpdateMetricsTreePayload = {
