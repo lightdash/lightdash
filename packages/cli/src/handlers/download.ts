@@ -26,6 +26,7 @@ import { getConfig } from '../config';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
 import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
+import { logSelectedProject, selectProject } from './selectProject';
 
 export type DownloadHandlerOptions = {
     verbose: boolean;
@@ -469,8 +470,6 @@ export const downloadHandler = async (
     options: DownloadHandlerOptions,
 ): Promise<void> => {
     GlobalState.setVerbose(options.verbose);
-    const spinner = GlobalState.startSpinner(`Downloading charts`);
-    spinner.start(`Downloading content from project`);
 
     await checkLightdashVersion();
 
@@ -481,21 +480,19 @@ export const downloadHandler = async (
         );
     }
 
-    const projectId = options.project || config.context.project;
-    if (!projectId) {
+    const projectSelection = await selectProject(config, options.project);
+    if (!projectSelection) {
         throw new Error(
             'No project selected. Run lightdash config set-project',
         );
     }
+    const projectId = projectSelection.projectUuid;
 
     // Log current project info
-    if (options.project) {
-        console.error(
-            `\n${styles.success('Downloading from project:')} ${projectId}\n`,
-        );
-    } else {
-        GlobalState.logProjectInfo(config);
-    }
+    logSelectedProject(projectSelection, config, 'Downloading from');
+
+    const spinner = GlobalState.startSpinner(`Downloading charts`);
+    spinner.start(`Downloading content from project`);
 
     // Fetch project details to get project name for folder structure
     const project = await lightdashApi<Project>({
@@ -869,21 +866,16 @@ export const uploadHandler = async (
         );
     }
 
-    const projectId = options.project || config.context.project;
-    if (!projectId) {
+    const projectSelection = await selectProject(config, options.project);
+    if (!projectSelection) {
         throw new Error(
             'No project selected. Run lightdash config set-project',
         );
     }
+    const projectId = projectSelection.projectUuid;
 
     // Log current project info
-    if (options.project) {
-        console.error(
-            `\n${styles.success('Uploading to project:')} ${projectId}\n`,
-        );
-    } else {
-        GlobalState.logProjectInfo(config);
-    }
+    logSelectedProject(projectSelection, config, 'Uploading to');
 
     let changes: Record<string, number> = {};
     // For analytics

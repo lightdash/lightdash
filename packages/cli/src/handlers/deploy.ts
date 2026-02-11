@@ -30,6 +30,7 @@ import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
 import { DbtCompileOptions } from './dbt/compile';
 import { tryGetDbtVersion } from './dbt/getDbtVersion';
 import { CliProjectType, detectProjectType } from '../lightdash/projectType';
+import { logSelectedProject, selectProject } from './selectProject';
 
 type DeployHandlerOptions = DbtCompileOptions & {
     projectDir: string;
@@ -298,11 +299,6 @@ export const deployHandler = async (originalOptions: DeployHandlerOptions) => {
     const config = await getConfig();
     let projectUuid: string;
 
-    // Log current project info if not creating a new one
-    if (options.create === undefined) {
-        GlobalState.logProjectInfo(config);
-    }
-
     if (options.create !== undefined) {
         const project = await createNewProject(executionId, options);
         if (!project) {
@@ -322,12 +318,21 @@ export const deployHandler = async (originalOptions: DeployHandlerOptions) => {
         projectUuid = project.projectUuid;
         await setProject(projectUuid, project.name);
     } else {
-        if (!(config.context?.project && config.context.serverUrl)) {
+        if (!config.context?.serverUrl) {
             throw new AuthorizationError(
                 `No active Lightdash project. Run 'lightdash login --help'`,
             );
         }
-        projectUuid = config.context.project;
+        const projectSelection = await selectProject(config);
+        if (!projectSelection) {
+            throw new AuthorizationError(
+                `No active Lightdash project. Run 'lightdash login --help'`,
+            );
+        }
+        projectUuid = projectSelection.projectUuid;
+
+        // Log current project info
+        logSelectedProject(projectSelection, config, 'Deploying to');
     }
 
     await deploy(explores, { ...options, projectUuid });
