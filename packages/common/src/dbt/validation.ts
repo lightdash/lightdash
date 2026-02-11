@@ -71,7 +71,21 @@ export class ManifestValidator {
 
     static formatAjvErrors = (validator: AnyValidateFunction): string =>
         (validator.errors || [])
-            .map((err) => `Field at "${err.instancePath}" ${err.message}`)
+            .map((err) => {
+                const baseMessage = `Field at "${err.instancePath}" ${err.message}`;
+
+                // Add helpful hints for common YAML indentation errors
+                if (err.message === 'must be object') {
+                    if (err.instancePath.includes('/metrics')) {
+                        return `${baseMessage}\n  Hint: This error often occurs due to incorrect YAML indentation. Ensure metric definitions are properly indented under the 'metrics:' key.\n  Example:\n    metrics:\n      my_metric:  # <-- Must be indented under 'metrics:'\n        type: count\n        sql: \${TABLE}.id`;
+                    }
+                    if (err.instancePath.includes('/additional_dimensions')) {
+                        return `${baseMessage}\n  Hint: This error often occurs due to incorrect YAML indentation. Ensure dimension definitions are properly indented under the 'additional_dimensions:' key.\n  Example:\n    additional_dimensions:\n      my_dimension:  # <-- Must be indented under 'additional_dimensions:'\n        type: string\n        sql: \${TABLE}.custom_field`;
+                    }
+                }
+
+                return baseMessage;
+            })
             .join('\n');
 
     static getValidator = <T>(schemaRef: string) => {
