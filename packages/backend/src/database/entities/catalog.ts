@@ -222,7 +222,8 @@ export type DbMetricsTreeNodeIn = Pick<
     | 'x_position'
     | 'y_position'
     | 'source'
->;
+> &
+    Partial<Pick<DbMetricsTreeNode, 'created_at'>>;
 
 export type DbMetricsTreeNodeUpdate = Pick<
     DbMetricsTreeNode,

@@ -123,6 +123,16 @@ export type CatalogMetricsTreeNode = Pick<
 
 export type MetricsTreeSource = 'ui' | 'yaml';
 
+export type PrevMetricsTreeNode = {
+    metricsTreeUuid: string;
+    name: string;
+    tableName: string;
+    xPosition: number | null;
+    yPosition: number | null;
+    source: MetricsTreeSource;
+    createdAt: Date;
+};
+
 export type CatalogMetricsTreeEdge = {
     source: CatalogMetricsTreeNode;
     target: CatalogMetricsTreeNode;
@@ -369,6 +379,7 @@ export type SchedulerIndexCatalogJobPayload = TraceTaskBase & {
     prevCatalogItemsWithTags: CatalogItemWithTagUuids[];
     prevCatalogItemsWithIcons: CatalogItemsWithIcons[];
     prevMetricTreeEdges: CatalogMetricsTreeEdge[];
+    prevMetricsTreeNodes: PrevMetricsTreeNode[];
 };
 
 export type ChartFieldUpdates = {
