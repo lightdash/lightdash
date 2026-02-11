@@ -954,8 +954,13 @@ export class MetricQueryBuilder {
                         this.args.parameters ?? {},
                         this.args.warehouseSqlBuilder,
                     );
-
-                    return replacedSql;
+                    // Replace user attribute references (e.g., ${lightdash.user.email})
+                    // Raw replacement is safe because the filter compiler handles quoting
+                    return replaceUserAttributesRaw(
+                        replacedSql,
+                        this.args.intrinsicUserAttributes,
+                        this.args.userAttributes ?? {},
+                    );
                 }
                 return value;
             }),

@@ -2214,6 +2214,82 @@ export const METRIC_QUERY_WITH_DATE_FILTER: CompiledMetricQuery = {
     compiledCustomDimensions: [],
 };
 
+// Filter with user attribute value (e.g., ${lightdash.user.email}) in filter values
+export const METRIC_QUERY_WITH_USER_ATTRIBUTE_FILTER_VALUE: CompiledMetricQuery =
+    {
+        exploreName: 'table1',
+        dimensions: ['table1_dim1'],
+        metrics: [],
+        filters: {
+            dimensions: {
+                id: 'root',
+                and: [
+                    {
+                        id: '1',
+                        target: {
+                            fieldId: 'table1_shared',
+                        },
+                        operator: FilterOperator.EQUALS,
+                        values: ['${lightdash.user.email}'],
+                    },
+                ],
+            },
+        },
+        sorts: [{ fieldId: 'table1_dim1', descending: true }],
+        limit: 10,
+        tableCalculations: [],
+        compiledTableCalculations: [],
+        compiledAdditionalMetrics: [],
+        compiledCustomDimensions: [],
+    };
+
+export const METRIC_QUERY_WITH_USER_ATTRIBUTE_FILTER_VALUE_SQL = `SELECT "table1".dim1 AS "table1_dim1"
+                                             FROM "db"."schema"."table1" AS "table1"
+
+                                             WHERE ((
+                                                 ("table1".shared) IN ('mock@lightdash.com')
+                                                 ))
+                                             GROUP BY 1
+                                             ORDER BY "table1_dim1" DESC LIMIT 10`;
+
+// Filter with custom user attribute value (e.g., ${lightdash.attribute.country}) in filter values
+export const METRIC_QUERY_WITH_CUSTOM_USER_ATTRIBUTE_FILTER_VALUE: CompiledMetricQuery =
+    {
+        exploreName: 'table1',
+        dimensions: ['table1_dim1'],
+        metrics: [],
+        filters: {
+            dimensions: {
+                id: 'root',
+                and: [
+                    {
+                        id: '1',
+                        target: {
+                            fieldId: 'table1_shared',
+                        },
+                        operator: FilterOperator.EQUALS,
+                        values: ['${lightdash.attribute.country}'],
+                    },
+                ],
+            },
+        },
+        sorts: [{ fieldId: 'table1_dim1', descending: true }],
+        limit: 10,
+        tableCalculations: [],
+        compiledTableCalculations: [],
+        compiledAdditionalMetrics: [],
+        compiledCustomDimensions: [],
+    };
+
+export const METRIC_QUERY_WITH_CUSTOM_USER_ATTRIBUTE_FILTER_VALUE_SQL = `SELECT "table1".dim1 AS "table1_dim1"
+                                             FROM "db"."schema"."table1" AS "table1"
+
+                                             WHERE ((
+                                                 ("table1".shared) IN ('EU')
+                                                 ))
+                                             GROUP BY 1
+                                             ORDER BY "table1_dim1" DESC LIMIT 10`;
+
 // Expected: SELECT uses DATE_TRUNC (zoomed), but WHERE uses raw column
 export const METRIC_QUERY_WITH_DATE_ZOOM_FILTER_SQL = `SELECT
   DATE_TRUNC('month', "orders".created_at) AS "orders_created_at",
