@@ -1,3 +1,10 @@
+## [0.2454.2](https://github.com/lightdash/lightdash/compare/0.2454.1...0.2454.2) (2026-02-11)
+
+
+### Bug Fixes
+
+* project switcher z-index ([#20212](https://github.com/lightdash/lightdash/issues/20212)) ([3160109](https://github.com/lightdash/lightdash/commit/3160109bf06d395ddb9281a18115fba923a7fc7a))
+
 ## [0.2454.1](https://github.com/lightdash/lightdash/compare/0.2454.0...0.2454.1) (2026-02-11)
 
 
