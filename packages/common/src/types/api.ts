@@ -20,7 +20,11 @@ import {
     type UserAllowedOrganization,
 } from './user';
 import { type UserWarehouseCredentials } from './userWarehouseCredentials';
-import { type ValidationResponse } from './validation';
+import {
+    type ApiPaginatedValidateResponse,
+    type ApiSingleValidationResponse,
+    type ValidationResponse,
+} from './validation';
 
 import {
     type ApiUnusedContent,
@@ -754,6 +758,7 @@ type ApiResults =
     | ViewStatistics
     | SchedulerWithLogs
     | ValidationResponse[]
+    | ApiPaginatedValidateResponse['results']
     | ChartHistory
     | ChartVersion
     | DashboardHistory
@@ -843,7 +848,8 @@ type ApiResults =
     | ApiAiOrganizationSettingsResponse['results']
     | ApiUpdateAiOrganizationSettingsResponse['results']
     | ApiProjectCompileLogsResponse['results']
-    | ApiProjectCompileLogResponse['results'];
+    | ApiProjectCompileLogResponse['results']
+    | ApiSingleValidationResponse['results'];
 // Note: EE API types removed from ApiResults to avoid circular imports
 // They can still be used with ApiResponse<T> by importing from '@lightdash/common'
 

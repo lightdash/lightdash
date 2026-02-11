@@ -11,6 +11,7 @@ import {
     Explore,
     ExploreError,
     ExploreType,
+    FeatureFlags,
     ForbiddenError,
     getFilterRules,
     getItemId,
@@ -24,6 +25,9 @@ import {
     isTableValidationError,
     isTemplateTableCalculation,
     isValidationTargetValid,
+    KnexPaginateArgs,
+    KnexPaginatedData,
+    NotFoundError,
     OrganizationMemberRole,
     RequestMethod,
     SessionUser,
@@ -38,7 +42,10 @@ import {
 import * as Sentry from '@sentry/node';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
+import { CaslAuditWrapper } from '../../logging/caslAuditWrapper';
+import { logAuditEvent } from '../../logging/winston';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
@@ -46,6 +53,7 @@ import { ValidationModel } from '../../models/ValidationModel/ValidationModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { BaseService } from '../BaseService';
 import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
+import { hasViewAccessToSpace } from '../SpaceService/SpaceService';
 
 type ValidationServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -57,6 +65,7 @@ type ValidationServiceArguments = {
     spaceModel: SpaceModel;
     schedulerClient: SchedulerClient;
     spacePermissionService: SpacePermissionService;
+    featureFlagModel: FeatureFlagModel;
 };
 
 export class ValidationService extends BaseService {
@@ -78,6 +87,8 @@ export class ValidationService extends BaseService {
 
     spacePermissionService: SpacePermissionService;
 
+    featureFlagModel: FeatureFlagModel;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -88,6 +99,7 @@ export class ValidationService extends BaseService {
         spaceModel,
         schedulerClient,
         spacePermissionService,
+        featureFlagModel,
     }: ValidationServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -99,6 +111,7 @@ export class ValidationService extends BaseService {
         this.spaceModel = spaceModel;
         this.schedulerClient = schedulerClient;
         this.spacePermissionService = spacePermissionService;
+        this.featureFlagModel = featureFlagModel;
     }
 
     static getTableCalculationFieldIds(
@@ -854,6 +867,7 @@ export class ValidationService extends BaseService {
                 subject('Validation', {
                     organizationUuid,
                     projectUuid,
+                    uuid: projectUuid,
                 }),
             )
         ) {
@@ -970,6 +984,7 @@ export class ValidationService extends BaseService {
                 subject('Validation', {
                     organizationUuid,
                     projectUuid,
+                    uuid: projectUuid,
                 }),
             )
         ) {
@@ -1023,6 +1038,146 @@ export class ValidationService extends BaseService {
         }
 
         return this.hidePrivateContent(user, projectUuid, validations);
+    }
+
+    async getById(
+        user: SessionUser,
+        projectUuid: string,
+        validationId: number,
+    ): Promise<ValidationResponse> {
+        const projectSummary = await this.projectModel.getSummary(projectUuid);
+
+        const auditedAbility = new CaslAuditWrapper(user.ability, user, {
+            auditLogger: logAuditEvent,
+        });
+
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('Validation', {
+                    organizationUuid: projectSummary.organizationUuid,
+                    projectUuid,
+                    uuid: projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        let allowedSpaceUuids: string[] | 'all' = 'all';
+
+        if (user.role !== OrganizationMemberRole.ADMIN) {
+            const spaces = await this.spaceModel.find({ projectUuid });
+            const spaceUuids = spaces.map((s) => s.uuid);
+
+            allowedSpaceUuids =
+                await this.spacePermissionService.getAccessibleSpaceUuids(
+                    'view',
+                    user,
+                    spaceUuids,
+                );
+        }
+
+        const validation = await this.validationModel.getFullById(
+            validationId,
+            { allowedSpaceUuids },
+        );
+
+        if (!validation) {
+            throw new NotFoundError(
+                `Validation with id ${validationId} not found`,
+            );
+        }
+
+        return validation;
+    }
+
+    async getPaginated(
+        user: SessionUser,
+        projectUuid: string,
+        paginateArgs: KnexPaginateArgs,
+        options?: {
+            searchQuery?: string;
+            sortBy?: 'name' | 'createdAt' | 'errorType' | 'source';
+            sortDirection?: 'asc' | 'desc';
+            sourceTypes?: ValidationSourceType[];
+            errorTypes?: ValidationErrorType[];
+            includeChartConfigWarnings?: boolean;
+            fromSettings?: boolean;
+            jobId?: string;
+        },
+    ): Promise<KnexPaginatedData<ValidationResponse[]>> {
+        const projectSummary = await this.projectModel.getSummary(projectUuid);
+
+        const auditedAbility = new CaslAuditWrapper(user.ability, user, {
+            auditLogger: logAuditEvent,
+        });
+
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('Validation', {
+                    organizationUuid: projectSummary.organizationUuid,
+                    projectUuid,
+                    uuid: projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        let allowedSpaceUuids: string[] | 'all' = 'all';
+
+        if (user.role !== OrganizationMemberRole.ADMIN) {
+            const spaces = await this.spaceModel.find({ projectUuid });
+            const spaceUuids = spaces.map((s) => s.uuid);
+
+            allowedSpaceUuids =
+                await this.spacePermissionService.getAccessibleSpaceUuids(
+                    'view',
+                    user,
+                    spaceUuids,
+                );
+        }
+
+        const result = await this.validationModel.getPaginated(
+            projectUuid,
+            paginateArgs,
+            {
+                searchQuery: options?.searchQuery,
+                sortBy: options?.sortBy,
+                sortDirection: options?.sortDirection,
+                sourceTypes: options?.sourceTypes,
+                errorTypes: options?.errorTypes,
+                includeChartConfigWarnings: options?.includeChartConfigWarnings,
+                allowedSpaceUuids,
+                jobId: options?.jobId,
+            },
+        );
+
+        if (options?.fromSettings) {
+            const contentIds = result.data.map(
+                (validation) =>
+                    ('chartUuid' in validation && validation.chartUuid) ||
+                    ('dashboardUuid' in validation &&
+                        validation.dashboardUuid) ||
+                    validation.name,
+            );
+
+            this.analytics.track({
+                event: 'validation.page_viewed',
+                userId: user.userUuid,
+                properties: {
+                    organizationId: projectSummary.organizationUuid,
+                    projectId: projectUuid,
+                    numErrorsDetected:
+                        result.pagination?.totalResults ?? result.data.length,
+                    numContentAffected: new Set(contentIds).size,
+                },
+            });
+        }
+
+        return result;
     }
 
     async getJob(

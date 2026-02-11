@@ -79,6 +79,7 @@ export class ValidationController extends BaseController {
 
     /**
      * Get validation results for a project. This will return the results of the latest validation job.
+     * @deprecated Use ListValidationResults instead for paginated results
      * @summary Get validation results
      * @param projectUuid the projectId for the validation
      * @param req express request

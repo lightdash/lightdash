@@ -843,6 +843,7 @@ export class ServiceRepository
                     spaceModel: this.models.getSpaceModel(),
                     schedulerClient: this.clients.getSchedulerClient(),
                     spacePermissionService: this.getSpacePermissionService(),
+                    featureFlagModel: this.models.getFeatureFlagModel(),
                 }),
         );
     }
