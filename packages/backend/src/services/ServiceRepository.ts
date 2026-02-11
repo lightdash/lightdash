@@ -773,7 +773,6 @@ export class ServiceRepository
                     lightdashConfig: this.context.lightdashConfig,
                     dashboardModel: this.models.getDashboardModel(),
                     savedChartModel: this.models.getSavedChartModel(),
-                    spaceModel: this.models.getSpaceModel(),
                     shareModel: this.models.getShareModel(),
                     s3Client: this.clients.getS3Client(),
                     projectModel: this.models.getProjectModel(),
@@ -782,7 +781,7 @@ export class ServiceRepository
                     analytics: this.context.lightdashAnalytics,
                     slackAuthenticationModel:
                         this.models.getSlackAuthenticationModel(),
-                    featureFlagModel: this.models.getFeatureFlagModel(),
+                    spacePermissionService: this.getSpacePermissionService(),
                 }),
         );
     }
