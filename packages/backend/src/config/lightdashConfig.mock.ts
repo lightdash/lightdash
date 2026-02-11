@@ -320,5 +320,6 @@ export const lightdashConfigMock: LightdashConfig = {
     },
     persistentDownloadUrls: {
         enabled: false,
+        expirationSeconds: 604800,
     },
 };

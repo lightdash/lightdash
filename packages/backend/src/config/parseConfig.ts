@@ -883,6 +883,7 @@ export type LightdashConfig = {
     };
     persistentDownloadUrls: {
         enabled: boolean;
+        expirationSeconds: number;
     };
     extendedUsageAnalytics: {
         enabled: boolean;
@@ -1704,6 +1705,10 @@ export const parseConfig = (): LightdashConfig => {
         },
         persistentDownloadUrls: {
             enabled: process.env.PERSISTENT_DOWNLOAD_URLS_ENABLED === 'true',
+            expirationSeconds:
+                getIntegerFromEnvironmentVariable(
+                    'PERSISTENT_DOWNLOAD_URL_EXPIRATION_SECONDS',
+                ) || 604800,
         },
         extendedUsageAnalytics: {
             enabled: process.env.EXTENDED_USAGE_ANALYTICS === 'true',

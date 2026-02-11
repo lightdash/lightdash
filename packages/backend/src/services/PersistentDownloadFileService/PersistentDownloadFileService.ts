@@ -1,4 +1,4 @@
-import { FeatureFlags, ForbiddenError } from '@lightdash/common';
+import { FeatureFlags, NotFoundError } from '@lightdash/common';
 import { nanoid } from 'nanoid';
 import { S3Client } from '../../clients/Aws/S3Client';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -55,6 +55,11 @@ export class PersistentDownloadFileService extends BaseService {
         }
 
         const fileNanoid = nanoid();
+        const expiresAt = new Date(
+            Date.now() +
+                this.lightdashConfig.persistentDownloadUrls.expirationSeconds *
+                    1000,
+        );
         await this.persistentDownloadFileModel.create({
             nanoid: fileNanoid,
             s3Key: data.s3Key,
@@ -62,6 +67,7 @@ export class PersistentDownloadFileService extends BaseService {
             organizationUuid: data.organizationUuid,
             projectUuid: data.projectUuid,
             createdByUserUuid: data.createdByUserUuid,
+            expiresAt,
         });
 
         return new URL(
@@ -70,14 +76,11 @@ export class PersistentDownloadFileService extends BaseService {
         ).href;
     }
 
-    async getSignedUrl(
-        fileNanoid: string,
-        userOrganizationUuid: string,
-    ): Promise<string> {
+    async getSignedUrl(fileNanoid: string): Promise<string> {
         const file = await this.persistentDownloadFileModel.get(fileNanoid);
 
-        if (userOrganizationUuid !== file.organization_uuid) {
-            throw new ForbiddenError('You do not have access to this file');
+        if (file.expires_at < new Date()) {
+            throw new NotFoundError('This download link has expired');
         }
 
         return this.s3Client.getFileUrl(file.s3_key);
