@@ -1,0 +1,8 @@
+.anchorReset {
+    color: unset;
+}
+
+.anchorReset:hover {
+    color: unset;
+    text-decoration: none;
+}

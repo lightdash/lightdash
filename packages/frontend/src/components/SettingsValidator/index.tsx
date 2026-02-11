@@ -44,7 +44,7 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
     const [showConfigWarnings, setShowConfigWarnings] = useState(false);
 
     const { user } = useApp();
-    const { data, isLoading, isFetching, isError, fetchNextPage } =
+    const { data, isLoading, isFetching, fetchNextPage } =
         usePaginatedValidation(projectUuid, user, {
             pageSize: 20,
             searchQuery: debouncedSearch || undefined,
@@ -175,8 +175,6 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
                             }
                         }}
                         isFetching={isFetching}
-                        isLoading={isLoading}
-                        isError={isError}
                         totalDBRowCount={totalDBRowCount}
                         fetchNextPage={fetchNextPage}
                     />

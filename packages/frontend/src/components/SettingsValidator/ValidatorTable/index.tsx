@@ -16,7 +16,7 @@ import {
     Table,
     Text,
     Tooltip,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import { mergeRefs, useHover } from '@mantine/hooks';
 import { IconLayoutDashboard, IconTable, IconX } from '@tabler/icons-react';
 import { useVirtualizer } from '@tanstack/react-virtual';
@@ -35,6 +35,7 @@ import MantineIcon from '../../common/MantineIcon';
 import { ChartIcon, IconBox } from '../../common/ResourceIcon';
 import { getLinkToResource } from '../utils/utils';
 import { ErrorMessage } from './ErrorMessage';
+import classes from './ValidatorTable.module.css';
 
 const isDeleted = (validationError: ValidationResponse) =>
     (isChartValidationError(validationError) && !validationError.chartUuid) ||
@@ -78,13 +79,7 @@ const AnchorToResource: FC<{
         <Anchor
             href={getLinkToResource(validationError, projectUuid)}
             target="_blank"
-            sx={{
-                color: 'unset',
-                ':hover': {
-                    color: 'unset',
-                    textDecoration: 'none',
-                },
-            }}
+            className={classes.anchorReset}
             onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
                 e.stopPropagation();
             }}
@@ -116,8 +111,8 @@ const TableValidationItem = forwardRef<
 
         const { hovered, ref: isHoveredRef } = useHover<HTMLTableRowElement>();
         return (
-            <tr ref={mergeRefs(ref, isHoveredRef)} data-index={dataIndex}>
-                <td>
+            <Table.Tr ref={mergeRefs(ref, isHoveredRef)} data-index={dataIndex}>
+                <Table.Td>
                     <AnchorToResource
                         validationError={validationError}
                         projectUuid={projectUuid}
@@ -125,7 +120,7 @@ const TableValidationItem = forwardRef<
                         <Flex gap="sm" align="center">
                             <Icon validationError={validationError} />
 
-                            <Stack spacing={4}>
+                            <Stack gap={4}>
                                 <Text fw={600}>
                                     {getErrorName(validationError)}
                                 </Text>
@@ -135,7 +130,7 @@ const TableValidationItem = forwardRef<
                                         validationError,
                                     )) &&
                                     !isDeleted(validationError) && (
-                                        <Text fz={11} color="ldGray.6">
+                                        <Text fz={11} c="ldGray.6">
                                             {getViews(validationError)} view
                                             {getViews(validationError) === 1
                                                 ? ''
@@ -156,16 +151,16 @@ const TableValidationItem = forwardRef<
                             </Stack>
                         </Flex>
                     </AnchorToResource>
-                </td>
-                <td>
+                </Table.Td>
+                <Table.Td>
                     <AnchorToResource
                         validationError={validationError}
                         projectUuid={projectUuid}
                     >
                         <ErrorMessage validationError={validationError} />
                     </AnchorToResource>
-                </td>
-                <td>
+                </Table.Td>
+                <Table.Td>
                     <Box w={24}>
                         {hovered && isChartValidationError(validationError) && (
                             <Button
@@ -181,8 +176,8 @@ const TableValidationItem = forwardRef<
                             </Button>
                         )}
                     </Box>
-                </td>
-                <td>
+                </Table.Td>
+                <Table.Td>
                     <Tooltip label="Dismiss error" position="top">
                         <Box w={24}>
                             {hovered && (
@@ -205,8 +200,8 @@ const TableValidationItem = forwardRef<
                             )}
                         </Box>
                     </Tooltip>
-                </td>
-            </tr>
+                </Table.Td>
+            </Table.Tr>
         );
     },
 );
@@ -216,8 +211,6 @@ export const ValidatorTable: FC<{
     projectUuid: string;
     onSelectValidationError: (validationError: ValidationResponse) => void;
     isFetching: boolean;
-    isLoading: boolean;
-    isError: boolean;
     totalDBRowCount: number;
     fetchNextPage: () => void;
 }> = ({
@@ -228,7 +221,7 @@ export const ValidatorTable: FC<{
     totalDBRowCount,
     fetchNextPage,
 }) => {
-    const { cx, classes } = useTableStyles();
+    const { cx, classes: tableClasses } = useTableStyles();
     const tableContainerRef = useRef<HTMLDivElement>(null);
 
     const fetchMoreOnBottomReached = useCallback(
@@ -280,26 +273,26 @@ export const ValidatorTable: FC<{
         >
             <Table
                 className={cx(
-                    classes.root,
-                    classes.smallPadding,
-                    classes.stickyHeader,
-                    classes.noRoundedCorners,
+                    tableClasses.root,
+                    tableClasses.smallPadding,
+                    tableClasses.stickyHeader,
+                    tableClasses.noRoundedCorners,
                 )}
-                fontSize="xs"
+                fz="xs"
                 highlightOnHover
             >
-                <thead>
-                    <tr>
-                        <th>Name</th>
-                        <th>Error</th>
-                        <th></th>
-                        <th></th>
-                    </tr>
-                </thead>
-                <tbody>
+                <Table.Thead>
+                    <Table.Tr>
+                        <Table.Th>Name</Table.Th>
+                        <Table.Th>Error</Table.Th>
+                        <Table.Th></Table.Th>
+                        <Table.Th></Table.Th>
+                    </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
                     {paddingTop > 0 && (
-                        <tr>
-                            <td
+                        <Table.Tr>
+                            <Table.Td
                                 colSpan={4}
                                 style={{
                                     height: paddingTop,
@@ -307,7 +300,7 @@ export const ValidatorTable: FC<{
                                     border: 'none',
                                 }}
                             />
-                        </tr>
+                        </Table.Tr>
                     )}
                     {virtualRows.map((virtualRow) => {
                         const validationError = data[virtualRow.index];
@@ -325,8 +318,8 @@ export const ValidatorTable: FC<{
                         );
                     })}
                     {paddingBottom > 0 && (
-                        <tr>
-                            <td
+                        <Table.Tr>
+                            <Table.Td
                                 colSpan={4}
                                 style={{
                                     height: paddingBottom,
@@ -334,9 +327,9 @@ export const ValidatorTable: FC<{
                                     border: 'none',
                                 }}
                             />
-                        </tr>
+                        </Table.Tr>
                     )}
-                </tbody>
+                </Table.Tbody>
             </Table>
         </div>
     );

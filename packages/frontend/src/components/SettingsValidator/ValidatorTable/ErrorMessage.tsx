@@ -7,20 +7,12 @@ import {
     ValidationErrorType,
     type ValidationResponse,
 } from '@lightdash/common';
-import { Mark, Stack, Text } from '@mantine/core';
+import { Mark, Stack, Text } from '@mantine-8/core';
 import { type FC } from 'react';
+import classes from './ErrorMessage.module.css';
 
 const CustomMark: FC<React.PropsWithChildren<{}>> = ({ children }) => (
-    <Mark
-        color="gray"
-        px={2}
-        fw={500}
-        fz="xs"
-        sx={{
-            textTransform: 'none',
-            borderRadius: '2px',
-        }}
-    >
+    <Mark color="gray" px={2} fw={500} fz="xs" className={classes.customMark}>
         {children}
     </Mark>
 );
@@ -113,8 +105,8 @@ export const ErrorMessage: FC<{ validationError: ValidationResponse }> = ({
         validationError.errorType === ValidationErrorType.ChartConfiguration;
 
     return (
-        <Stack spacing={4}>
-            <Text fw={600} color={isWarning ? 'orange.6' : 'red.6'} fz={11}>
+        <Stack gap={4}>
+            <Text fw={600} c={isWarning ? 'orange.6' : 'red.6'} fz={11}>
                 {validationError.errorType
                     ? friendlyName(validationError.errorType)
                     : ''}{' '}
