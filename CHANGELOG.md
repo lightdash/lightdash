@@ -1,3 +1,10 @@
+# [0.2450.0](https://github.com/lightdash/lightdash/compare/0.2449.0...0.2450.0) (2026-02-11)
+
+
+### Features
+
+* add dashboard version history and rollback functionality ([#20161](https://github.com/lightdash/lightdash/issues/20161)) ([0d1dfe5](https://github.com/lightdash/lightdash/commit/0d1dfe5ab0bfc87d8647dd412149aca08d029f25))
+
 # [0.2449.0](https://github.com/lightdash/lightdash/compare/0.2448.1...0.2449.0) (2026-02-10)
 
 
