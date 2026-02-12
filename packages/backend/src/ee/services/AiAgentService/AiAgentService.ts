@@ -4319,6 +4319,40 @@ Use them as a reference, but do all the due dilligence and follow the instructio
         });
     }
 
+    /**
+     * Handles plain messages (without @mention) in multi-agent channels.
+     *
+     * This handler allows users to interact with AI agents WITHOUT explicitly mentioning
+     * the Lightdash bot in channels designated for multi-agent conversations.
+     *
+     * ## When This Handler Is Active
+     *
+     * Only processes messages in the channel specified by the `aiMultiAgentChannelId` setting.
+     * For all other channels, users MUST mention @lightdash to trigger agent responses.
+     *
+     * ## Behavior
+     *
+     * ### New Threads (no thread_ts)
+     * - User posts a plain message without @lightdash mention
+     * - System automatically selects the most appropriate agent
+     * - Creates a new thread with the selected agent
+     * - Agent name appears as display name in responses
+     *
+     * ### Existing Threads
+     * - This handler does NOT process messages in existing threads
+     * - Users must mention @lightdash to continue a thread (handled by handleAppMention)
+     *
+     * ## Important Notes
+     *
+     * - Agent names like "Sales Agent" are display names only, NOT mentionable Slack users
+     * - If message contains @lightdash mention, this handler skips it and lets handleAppMention process it
+     * - Only processes direct user messages (ignores bot messages, subtypes, and threaded replies)
+     *
+     * @param event - The Slack message event
+     * @param context - Slack context including team ID and bot user ID
+     * @param say - Function to send messages to the channel
+     * @param client - Slack Web API client for additional operations
+     */
     public async handleMultiAgentChannelMessage({
         event,
         context,
@@ -5048,7 +5082,48 @@ Use them as a reference, but do all the due dilligence and follow the instructio
         );
     }
 
-    // WARNING: Needs - channels:history scope for all slack apps
+    /**
+     * Handles when the Lightdash Slack bot is mentioned (e.g., @lightdash).
+     *
+     * This is the PRIMARY way users interact with AI agents in Slack.
+     *
+     * ## Important: Users mention @lightdash, NOT individual agent names
+     *
+     * Custom agent names (like "Sales Agent" or "Marketing Agent") are display names only.
+     * They appear in the bot's responses via the `username` parameter, but are NOT separate
+     * mentionable Slack users. Users must always mention the main Lightdash bot to trigger
+     * AI agent responses.
+     *
+     * ## Behavior
+     *
+     * ### Regular Channels (Single Agent Mode)
+     * - User mentions @lightdash
+     * - System uses the single configured agent for the organization
+     * - Agent name appears as the display name in responses
+     *
+     * ### Multi-Agent Channels (aiMultiAgentChannelId setting)
+     * - New threads: Automatically selects the best agent using LLM-based routing
+     * - Existing threads: Continues with the agent already assigned to that thread
+     * - If confidence is low, prompts user to manually select an agent
+     *
+     * ## Agent Selection
+     *
+     * For multi-agent channels, uses `selectBestAgentWithContext()` which considers:
+     * - Agent descriptions and custom instructions
+     * - Data access (explores/tables the agent can query)
+     * - Verified questions (past successful queries)
+     * - Content of the user's question
+     *
+     * Returns a confidence level and the selected agent.
+     *
+     * @param event - The Slack app_mention event containing the message and context
+     * @param context - Slack context including team ID and bot user ID
+     * @param say - Function to send messages to the channel
+     * @param client - Slack Web API client for additional operations
+     *
+     * @remarks
+     * WARNING: Requires channels:history scope for all Slack apps to read thread context
+     */
     public async handleAppMention({
         event,
         context,
