@@ -94,11 +94,9 @@ export type DashboardVersionTable = Knex.CompositeTableType<
     DbDashboardVersion,
     Pick<
         DbDashboardVersion,
-        | 'dashboard_id'
-        | 'dashboard_version_uuid'
-        | 'updated_by_user_uuid'
-        | 'config'
-    >
+        'dashboard_id' | 'updated_by_user_uuid' | 'config'
+    > &
+        Partial<Pick<DbDashboardVersion, 'dashboard_version_uuid'>>
 >;
 
 export type DashboardViewTable = Knex.CompositeTableType<
