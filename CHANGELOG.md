@@ -1,3 +1,10 @@
+## [0.2457.4](https://github.com/lightdash/lightdash/compare/0.2457.3...0.2457.4) (2026-02-12)
+
+
+### Bug Fixes
+
+* space deletion/restoration toast CTA and query invalidation ([#20254](https://github.com/lightdash/lightdash/issues/20254)) ([4ec7bba](https://github.com/lightdash/lightdash/commit/4ec7bba443d32aab8b4fb97542e1533185b658dc))
+
 ## [0.2457.3](https://github.com/lightdash/lightdash/compare/0.2457.2...0.2457.3) (2026-02-12)
 
 
