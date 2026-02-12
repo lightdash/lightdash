@@ -1964,6 +1964,7 @@ export class ProjectModel {
                 .leftJoin('spaces', 'saved_queries.space_id', 'spaces.space_id')
                 .whereIn('saved_queries.space_id', spaceIds)
                 .andWhere('spaces.project_id', projectId)
+                .whereNull('saved_queries.deleted_at')
                 .select<DbSavedChart[]>('saved_queries.*');
 
             Logger.info(
@@ -2013,6 +2014,7 @@ export class ProjectModel {
                 .leftJoin('spaces', 'dashboards.space_id', 'spaces.space_id')
                 .where('spaces.project_id', projectId)
                 .andWhere('saved_queries.space_id', null)
+                .whereNull('saved_queries.deleted_at')
                 .select<DbSavedChart[]>('saved_queries.*');
 
             Logger.info(
