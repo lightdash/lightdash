@@ -4,10 +4,8 @@ import {
     OrganizationSpaceAccess,
     ProjectSpaceAccess,
     ProjectSpaceAccessOrigin,
-    UserInfo,
 } from '@lightdash/common';
 import { Knex } from 'knex';
-import { EmailTableName } from '../database/entities/emails';
 import { GroupMembershipTableName } from '../database/entities/groupMemberships';
 import { OrganizationMembershipsTableName } from '../database/entities/organizationMemberships';
 import { OrganizationTableName } from '../database/entities/organizations';
