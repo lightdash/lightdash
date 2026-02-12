@@ -2298,11 +2298,13 @@ export class ProjectModel {
                                   const createDashboardVersion = {
                                       ...d,
                                       dashboard_version_id: undefined,
+                                      dashboard_version_uuid: undefined,
                                       dashboard_id: dashboardMapping.find(
                                           (m) => m.id === d.dashboard_id,
                                       )?.newId!,
                                   };
                                   delete createDashboardVersion.dashboard_version_id;
+                                  delete createDashboardVersion.dashboard_version_uuid;
                                   return createDashboardVersion;
                               }),
                           )
