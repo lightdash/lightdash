@@ -1,8 +1,8 @@
 import { DownloadFileType, getErrorMessage } from '@lightdash/common';
 import { Readable, Writable } from 'stream';
 import Logger from '../../logging/logger';
+import { type FileStorageClient } from '../FileStorage/FileStorageClient';
 import { S3ResultsFileStorageClient } from '../ResultsFileStorageClients/S3ResultsFileStorageClient';
-import { S3Client } from './S3Client';
 import getContentTypeFromFileType from './getContentTypeFromFileType';
 
 /**
@@ -33,7 +33,7 @@ export async function transformAndExportResults(
     ) => Promise<{ truncated: boolean }>,
     clients: {
         resultsStorageClient: S3ResultsFileStorageClient;
-        exportsStorageClient: S3Client;
+        exportsStorageClient: FileStorageClient;
     },
     options?: {
         fileType: DownloadFileType;
@@ -57,14 +57,13 @@ export async function transformAndExportResults(
             await resultsStorageClient.getDownloadStream(sourceFileName);
 
         // Create upload stream to exports bucket
-        const { writeStream, close } =
-            exportsStorageClient.createResultsExportUploadStream(
-                destFileName,
-                {
-                    contentType,
-                },
-                options?.attachmentDownloadName,
-            );
+        const { writeStream, close } = exportsStorageClient.createUploadStream(
+            destFileName,
+            {
+                contentType,
+            },
+            options?.attachmentDownloadName,
+        );
 
         // Process the stream transformation
         const { truncated } = await streamProcessor(resultsStream, writeStream);

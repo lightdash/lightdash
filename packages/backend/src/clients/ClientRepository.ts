@@ -4,6 +4,7 @@ import { type OperationContext } from '../services/ServiceRepository';
 import { S3CacheClient } from './Aws/S3CacheClient';
 import { S3Client } from './Aws/S3Client';
 import EmailClient from './EmailClient/EmailClient';
+import { type FileStorageClient } from './FileStorage/FileStorageClient';
 import { GoogleDriveClient } from './Google/GoogleDriveClient';
 import { MicrosoftTeamsClient } from './MicrosoftTeams/MicrosoftTeamsClient';
 import { S3ResultsFileStorageClient } from './ResultsFileStorageClients/S3ResultsFileStorageClient';
@@ -18,7 +19,7 @@ export interface ClientManifest {
     emailClient: EmailClient;
     googleDriveClient: GoogleDriveClient;
     s3CacheClient: S3CacheClient;
-    s3Client: S3Client;
+    fileStorageClient: FileStorageClient;
     schedulerClient: SchedulerClient;
     slackClient: SlackClient;
     msTeamsClient: MicrosoftTeamsClient;
@@ -143,9 +144,9 @@ export class ClientRepository
         );
     }
 
-    public getS3Client(): S3Client {
+    public getFileStorageClient(): FileStorageClient {
         return this.getClient(
-            's3Client',
+            'fileStorageClient',
             () =>
                 new S3Client({
                     lightdashConfig: this.context.lightdashConfig,

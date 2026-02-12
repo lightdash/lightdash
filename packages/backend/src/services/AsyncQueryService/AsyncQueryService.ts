@@ -97,8 +97,8 @@ import { createInterface } from 'readline';
 import { Readable, Writable } from 'stream';
 import { v4 as uuidv4 } from 'uuid';
 import { DownloadCsv } from '../../analytics/LightdashAnalytics';
-import { S3Client } from '../../clients/Aws/S3Client';
 import { transformAndExportResults } from '../../clients/Aws/transformAndExportResults';
+import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
 import { S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import { measureTime } from '../../logging/measureTime';
 import { DownloadAuditModel } from '../../models/DownloadAuditModel';
@@ -184,7 +184,7 @@ export class AsyncQueryService extends ProjectService {
 
     resultsStorageClient: S3ResultsFileStorageClient;
 
-    exportsStorageClient: S3Client;
+    exportsStorageClient: FileStorageClient;
 
     pivotTableService: PivotTableService;
 
@@ -203,7 +203,7 @@ export class AsyncQueryService extends ProjectService {
         this.cacheService = args.cacheService;
         this.savedSqlModel = args.savedSqlModel;
         this.resultsStorageClient = args.resultsStorageClient;
-        this.exportsStorageClient = this.s3Client;
+        this.exportsStorageClient = this.fileStorageClient;
         this.pivotTableService = args.pivotTableService;
         this.prometheusMetrics = args.prometheusMetrics;
         this.schedulerClient = args.schedulerClient;
@@ -1114,7 +1114,7 @@ export class AsyncQueryService extends ProjectService {
             },
             {
                 resultsStorageClient: this.resultsStorageClient,
-                exportsStorageClient: this.s3Client,
+                exportsStorageClient: this.fileStorageClient,
             },
             {
                 fileType,

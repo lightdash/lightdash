@@ -1,6 +1,6 @@
 import { NotFoundError } from '@lightdash/common';
 import { nanoid } from 'nanoid';
-import { S3Client } from '../../clients/Aws/S3Client';
+import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
 import { LightdashConfig } from '../../config/parseConfig';
 import { PersistentDownloadFileModel } from '../../models/PersistentDownloadFileModel';
 import { BaseService } from '../BaseService';
@@ -8,25 +8,27 @@ import { BaseService } from '../BaseService';
 type PersistentDownloadFileServiceArguments = {
     lightdashConfig: LightdashConfig;
     persistentDownloadFileModel: PersistentDownloadFileModel;
-    s3Client: S3Client;
+    fileStorageClient: FileStorageClient;
 };
+
+const PERSISTENT_URL_S3_EXPIRY_SECONDS = 300; // 5 minutes
 
 export class PersistentDownloadFileService extends BaseService {
     private readonly lightdashConfig: LightdashConfig;
 
     private readonly persistentDownloadFileModel: PersistentDownloadFileModel;
 
-    private readonly s3Client: S3Client;
+    private readonly fileStorageClient: FileStorageClient;
 
     constructor({
         lightdashConfig,
         persistentDownloadFileModel,
-        s3Client,
+        fileStorageClient,
     }: PersistentDownloadFileServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
         this.persistentDownloadFileModel = persistentDownloadFileModel;
-        this.s3Client = s3Client;
+        this.fileStorageClient = fileStorageClient;
     }
 
     async createPersistentUrl(data: {
@@ -40,7 +42,7 @@ export class PersistentDownloadFileService extends BaseService {
             this.logger.debug(
                 'Persistent download URLs disabled, returning raw S3 URL',
             );
-            return this.s3Client.getFileUrl(data.s3Key);
+            return this.fileStorageClient.getFileUrl(data.s3Key);
         }
 
         const fileNanoid = nanoid();
@@ -85,7 +87,10 @@ export class PersistentDownloadFileService extends BaseService {
             throw new NotFoundError('This download link has expired');
         }
 
-        const signedUrl = await this.s3Client.getFileUrl(file.s3_key);
+        const signedUrl = await this.fileStorageClient.getFileUrl(
+            file.s3_key,
+            PERSISTENT_URL_S3_EXPIRY_SECONDS,
+        );
 
         this.logger.info(
             `Serving persistent download: nanoid=${fileNanoid}, s3Key=${file.s3_key}, ip=${requestContext?.ip}, userAgent=${requestContext?.userAgent}`,

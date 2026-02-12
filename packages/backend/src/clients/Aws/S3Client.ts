@@ -20,6 +20,7 @@ import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import { createContentDispositionHeader } from '../../utils/FileDownloadUtils/FileDownloadUtils';
 import { writeWithBackpressure } from '../../utils/streamUtils';
+import { type FileStorageClient } from '../FileStorage/FileStorageClient';
 import getContentTypeFromFileType from './getContentTypeFromFileType';
 import { S3BaseClient } from './S3BaseClient';
 
@@ -27,7 +28,7 @@ type S3ClientArguments = {
     lightdashConfig: LightdashConfig;
 };
 
-export class S3Client extends S3BaseClient {
+export class S3Client extends S3BaseClient implements FileStorageClient {
     lightdashConfig: LightdashConfig;
 
     constructor({ lightdashConfig }: S3ClientArguments) {
@@ -233,7 +234,7 @@ export class S3Client extends S3BaseClient {
         return onEnd;
     }
 
-    async getS3FileStream(fileId: string): Promise<Readable> {
+    async getFileStream(fileId: string): Promise<Readable> {
         const command = new GetObjectCommand({
             Bucket: this.lightdashConfig.s3?.bucket,
             Key: fileId,
@@ -273,15 +274,7 @@ export class S3Client extends S3BaseClient {
         }
     }
 
-    /**
-     * Creates an upload stream for writing data directly to S3
-     * This is same as createUploadStream from S3ResultsFileStorageClient but for the exports bucket
-     * @param fileName - Name of the file to upload
-     * @param opts - Upload options including content type
-     * @param attachmentDownloadName - Optional download name for Content-Disposition header
-     * @returns Object with write function, close function, and the PassThrough stream
-     */
-    createResultsExportUploadStream(
+    createUploadStream(
         fileName: string,
         opts: {
             contentType: string;
@@ -371,12 +364,11 @@ export class S3Client extends S3BaseClient {
      * @param fileName - Name of the file
      * @returns Pre-signed URL for downloading the file
      */
-    async getFileUrl(fileName: string) {
+    async getFileUrl(fileName: string, expiresIn?: number) {
         if (!this.lightdashConfig.s3?.bucket || this.s3 === undefined) {
             throw new MissingConfigError('S3 configuration is not set');
         }
 
-        // Get the S3 URL
         const url = await getSignedUrl(
             this.s3,
             new GetObjectCommand({
@@ -384,7 +376,7 @@ export class S3Client extends S3BaseClient {
                 Key: fileName,
             }),
             {
-                expiresIn: this.lightdashConfig.s3.expirationTime,
+                expiresIn: expiresIn ?? this.lightdashConfig.s3.expirationTime,
             },
         );
 
@@ -395,16 +387,12 @@ export class S3Client extends S3BaseClient {
         return this.s3 !== undefined;
     }
 
-    getExpirationWarning() {
-        if (this.isEnabled()) {
-            const timeInSeconds =
-                this.lightdashConfig.s3?.expirationTime || 259200;
-            const expirationDays = Math.floor(timeInSeconds / 60 / 60 / 24);
-            return {
-                slack: `For security reasons, delivered files expire after *${expirationDays}* days.`,
-                days: expirationDays,
-            };
-        }
-        return undefined;
+    get expirationDays(): number | undefined {
+        if (!this.isEnabled()) return undefined;
+        const timeInSeconds = this.lightdashConfig.persistentDownloadUrls
+            .enabled
+            ? this.lightdashConfig.persistentDownloadUrls.expirationSeconds
+            : this.lightdashConfig.s3?.expirationTime || 259200;
+        return Math.floor(timeInSeconds / 60 / 60 / 24);
     }
 }

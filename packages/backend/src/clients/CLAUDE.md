@@ -11,13 +11,13 @@ import { ClientRepository } from './ClientRepository';
 // Get repository instance
 const clientRepository = new ClientRepository({
     lightdashConfig,
-    s3Client: mockS3Client, // optional override for testing
+    fileStorageClient: mockFileStorageClient, // optional override for testing
 });
 
 // Access clients via getters
 const emailClient = clientRepository.getEmailClient();
 const slackClient = clientRepository.getSlackClient();
-const s3Client = clientRepository.getS3Client();
+const fileStorageClient = clientRepository.getFileStorageClient();
 
 // Use clients for operations
 await emailClient.sendInviteEmail({
@@ -46,14 +46,14 @@ await emailClient.sendScheduledDeliveryEmail({
     schedulerUuid: 'scheduler-456',
 });
 
-// Example: Upload results to S3 and get pre-signed URL
-const s3Client = clientRepository.getS3Client();
-const uploadResult = await s3Client.uploadFile({
+// Example: Upload results to storage and get pre-signed URL
+const fileStorageClient = clientRepository.getFileStorageClient();
+const uploadResult = await fileStorageClient.uploadFile({
     body: csvContent,
     filename: 'results.csv',
     encoding: 'utf-8',
 });
-const downloadUrl = await s3Client.getDownloadUrl(uploadResult.path);
+const downloadUrl = await fileStorageClient.getDownloadUrl(uploadResult.path);
 
 // Example: Create GitHub repository file
 const gitClient = clientRepository.getGithubClient();
@@ -73,6 +73,7 @@ await gitClient.createFile({
 - All clients check lightdashConfig for feature flags and credentials before operating
 - Client overrides in constructor are useful for testing and dependency injection
 - Email templates are located in `/EmailClient/templates/` with Handlebars support
+- FileStorageClient interface abstracts file storage operations (implemented by S3Client)
 - S3 clients handle both caching and file storage with different specialized interfaces
 - Slack client requires OAuth setup and handles webhook URL verification
 - GitHub client manages OAuth token refresh automatically

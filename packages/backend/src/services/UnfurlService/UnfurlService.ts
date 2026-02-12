@@ -43,7 +43,7 @@ import fetch from 'node-fetch';
 import { PDFDocument } from 'pdf-lib';
 import playwright, { type ElementHandle } from 'playwright';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
-import { S3Client } from '../../clients/Aws/S3Client';
+import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
 import { SlackClient } from '../../clients/Slack/SlackClient';
 import {
     getUnfurlBlocks,
@@ -152,7 +152,7 @@ type UnfurlServiceArguments = {
     dashboardModel: DashboardModel;
     savedChartModel: SavedChartModel;
     shareModel: ShareModel;
-    s3Client: S3Client;
+    fileStorageClient: FileStorageClient;
     slackClient: SlackClient;
     projectModel: ProjectModel;
     downloadFileModel: DownloadFileModel;
@@ -170,7 +170,7 @@ export class UnfurlService extends BaseService {
 
     shareModel: ShareModel;
 
-    s3Client: S3Client;
+    fileStorageClient: FileStorageClient;
 
     slackClient: SlackClient;
 
@@ -189,7 +189,7 @@ export class UnfurlService extends BaseService {
         dashboardModel,
         savedChartModel,
         shareModel,
-        s3Client,
+        fileStorageClient,
         projectModel,
         downloadFileModel,
         slackClient,
@@ -202,7 +202,7 @@ export class UnfurlService extends BaseService {
         this.dashboardModel = dashboardModel;
         this.savedChartModel = savedChartModel;
         this.shareModel = shareModel;
-        this.s3Client = s3Client;
+        this.fileStorageClient = fileStorageClient;
         this.slackClient = slackClient;
         this.projectModel = projectModel;
         this.downloadFileModel = downloadFileModel;
@@ -348,8 +348,8 @@ export class UnfurlService extends BaseService {
 
         let source: string;
         let fileName: string;
-        if (this.s3Client.isEnabled()) {
-            const uploadPdfReturn = await this.s3Client.uploadPdf(
+        if (this.fileStorageClient.isEnabled()) {
+            const uploadPdfReturn = await this.fileStorageClient.uploadPdf(
                 Buffer.from(pdfBytes),
                 id,
             );
@@ -427,8 +427,11 @@ export class UnfurlService extends BaseService {
                 pdfFile = await this.createImagePdf(imageId, buffer);
             }
 
-            if (this.s3Client.isEnabled()) {
-                imageUrl = await this.s3Client.uploadImage(buffer, imageId);
+            if (this.fileStorageClient.isEnabled()) {
+                imageUrl = await this.fileStorageClient.uploadImage(
+                    buffer,
+                    imageId,
+                );
             } else {
                 // We will share the image saved by puppetteer on our lightdash enpdoint
                 const filePath = `/tmp/${imageId}.png`;

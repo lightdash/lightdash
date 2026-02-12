@@ -1,5 +1,5 @@
 import { NotFoundError } from '@lightdash/common';
-import { S3Client } from '../../clients/Aws/S3Client';
+import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import type { LightdashConfig } from '../../config/parseConfig';
 import type { DbPersistentDownloadFile } from '../../database/entities/persistentDownloadFile';
@@ -33,9 +33,9 @@ const createService = (
             create: mockModelCreate,
             get: mockModelGet,
         } as unknown as PersistentDownloadFileModel,
-        s3Client: {
+        fileStorageClient: {
             getFileUrl: mockS3GetFileUrl,
-        } as unknown as S3Client,
+        } as unknown as FileStorageClient,
     });
 
 describe('PersistentDownloadFileService', () => {
@@ -122,6 +122,7 @@ describe('PersistentDownloadFileService', () => {
             expect(mockModelGet).toHaveBeenCalledWith('test-nanoid-123456789');
             expect(mockS3GetFileUrl).toHaveBeenCalledWith(
                 'exports/test-file.csv',
+                300,
             );
         });
 

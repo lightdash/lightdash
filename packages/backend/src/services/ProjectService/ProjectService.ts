@@ -195,8 +195,8 @@ import {
     ProjectEvent,
 } from '../../analytics/LightdashAnalytics';
 import { S3CacheClient } from '../../clients/Aws/S3CacheClient';
-import { S3Client } from '../../clients/Aws/S3Client';
 import EmailClient from '../../clients/EmailClient/EmailClient';
+import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
 import { LightdashConfig } from '../../config/parseConfig';
 import type { DbTagUpdate } from '../../database/entities/tags';
 import { errorHandler } from '../../errors';
@@ -278,7 +278,7 @@ export type ProjectServiceArguments = {
     warehouseAvailableTablesModel: WarehouseAvailableTablesModel;
     schedulerClient: SchedulerClient;
     downloadFileModel: DownloadFileModel;
-    s3Client: S3Client;
+    fileStorageClient: FileStorageClient;
     groupsModel: GroupsModel;
     tagsModel: TagsModel;
     catalogModel: CatalogModel;
@@ -332,7 +332,7 @@ export class ProjectService extends BaseService {
 
     downloadFileModel: DownloadFileModel;
 
-    s3Client: S3Client;
+    fileStorageClient: FileStorageClient;
 
     groupsModel: GroupsModel;
 
@@ -377,7 +377,7 @@ export class ProjectService extends BaseService {
         emailModel,
         schedulerClient,
         downloadFileModel,
-        s3Client,
+        fileStorageClient,
         groupsModel,
         tagsModel,
         catalogModel,
@@ -411,7 +411,7 @@ export class ProjectService extends BaseService {
         this.emailModel = emailModel;
         this.schedulerClient = schedulerClient;
         this.downloadFileModel = downloadFileModel;
-        this.s3Client = s3Client;
+        this.fileStorageClient = fileStorageClient;
         this.groupsModel = groupsModel;
         this.tagsModel = tagsModel;
         this.catalogModel = catalogModel;
@@ -3184,7 +3184,7 @@ export class ProjectService extends BaseService {
                 ) {
                     const cacheEntryMetadata = await this.s3CacheClient
                         .getResultsMetadata(queryHash)
-                        .catch((e) => undefined); // ignore since error is tracked in s3Client
+                        .catch((e) => undefined); // ignore since error is tracked in fileStorageClient
 
                     if (
                         cacheEntryMetadata?.LastModified &&
@@ -3276,7 +3276,7 @@ export class ProjectService extends BaseService {
                     // fire and forget
                     this.s3CacheClient
                         .uploadResults(queryHash, buffer, queryTags)
-                        .catch((e) => undefined); // ignore since error is tracked in s3Client
+                        .catch((e) => undefined); // ignore since error is tracked in fileStorageClient
                 }
 
                 return {
@@ -3593,7 +3593,7 @@ export class ProjectService extends BaseService {
         const columns: VizColumn[] = [];
 
         const fileUrl = await this.downloadFileModel.streamFunction(
-            this.s3Client,
+            this.fileStorageClient,
         )(
             `${this.lightdashConfig.siteUrl}/api/v1/projects/${projectUuid}/sqlRunner/results`,
             async (writer) => {
@@ -3617,7 +3617,7 @@ export class ProjectService extends BaseService {
                     },
                 );
             },
-            this.s3Client,
+            this.fileStorageClient,
         );
 
         await sshTunnel.disconnect();
@@ -3700,7 +3700,7 @@ export class ProjectService extends BaseService {
         let columnCount: undefined | number;
 
         const fileUrl = await this.downloadFileModel.streamFunction(
-            this.s3Client,
+            this.fileStorageClient,
         )(
             `${this.lightdashConfig.siteUrl}/api/v1/projects/${projectUuid}/sqlRunner/results`,
             async (writer) => {
@@ -3794,7 +3794,7 @@ export class ProjectService extends BaseService {
                     writer(currentTransformedRow);
                 }
             },
-            this.s3Client,
+            this.fileStorageClient,
         );
 
         await sshTunnel.disconnect();
@@ -3840,7 +3840,7 @@ export class ProjectService extends BaseService {
             case DownloadFileType.JSONL:
                 return fs.createReadStream(downloadFile.path);
             case DownloadFileType.S3_JSONL:
-                return this.s3Client.getS3FileStream(downloadFile.path);
+                return this.fileStorageClient.getFileStream(downloadFile.path);
             default:
                 throw new ParameterError('File is not a valid JSONL file');
         }
