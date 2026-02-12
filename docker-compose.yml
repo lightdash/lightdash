@@ -112,6 +112,7 @@ services:
             - TURBO_API=${TURBO_API}
             - SIGNUP_URL=${SIGNUP_URL}
             - HELP_MENU_URL=${HELP_MENU_URL}
+            - ATHENA_WAREHOUSE_IAM_ROLE_AUTH=${ATHENA_WAREHOUSE_IAM_ROLE_AUTH}
         volumes:
             - '${DBT_PROJECT_DIR}:/usr/app/dbt'
         ports:
