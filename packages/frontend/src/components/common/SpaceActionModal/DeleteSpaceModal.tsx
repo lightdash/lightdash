@@ -90,7 +90,7 @@ export const DeleteSpaceModal: FC<DeleteSpaceModalBody> = ({
     const [canDelete, setCanDelete] = useState(false);
 
     const description = softDeleteEnabled
-        ? `This space and its contents will be moved to Recently deleted and permanently removed after ${retentionDays} days.`
+        ? `Are you sure you want to delete the space "${data?.name}"? This space and its contents will be moved to Recently deleted and permanently removed after ${retentionDays} days.`
         : undefined;
 
     return (
@@ -103,7 +103,7 @@ export const DeleteSpaceModal: FC<DeleteSpaceModalBody> = ({
             resourceLabel={data?.name}
             description={description}
             size="lg"
-            onConfirm={() => form.onSubmit(handleSubmit)()}
+            onConfirm={form.onSubmit(handleSubmit)}
             confirmDisabled={!canDelete || isLoading}
             confirmLoading={isLoading}
         >
