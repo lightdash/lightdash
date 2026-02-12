@@ -169,6 +169,9 @@ export const dashboardEntry: DashboardTable['base'] = {
     search_vector: '',
     views_count: 0,
     first_viewed_at: null,
+
+    deleted_at: null,
+    deleted_by_user_uuid: null,
 };
 
 export const dashboardVersionEntry: DashboardVersionTable['base'] = {
