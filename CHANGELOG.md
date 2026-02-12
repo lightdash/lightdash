@@ -1,3 +1,10 @@
+# [0.2458.0](https://github.com/lightdash/lightdash/compare/0.2457.6...0.2458.0) (2026-02-12)
+
+
+### Features
+
+* add option to save warehouse credentials separately ([#20236](https://github.com/lightdash/lightdash/issues/20236)) ([e7c13b6](https://github.com/lightdash/lightdash/commit/e7c13b6fe5bba8df49e51bbf31ccb193231b72fa))
+
 ## [0.2457.6](https://github.com/lightdash/lightdash/compare/0.2457.5...0.2457.6) (2026-02-12)
 
 
