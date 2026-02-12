@@ -55,6 +55,7 @@ import { LightdashConfig } from '../../config/parseConfig';
 import {
     DashboardTabsTableName,
     DashboardViewsTableName,
+    DashboardsTableName,
     DbDashboard,
     DbDashboardTabs,
 } from '../../database/entities/dashboards';
@@ -85,7 +86,11 @@ import {
     SavedChartCustomSqlDimensionsTableName,
     SavedChartsTableName,
 } from '../../database/entities/savedCharts';
-import { DbSavedSql, InsertSql } from '../../database/entities/savedSql';
+import {
+    DbSavedSql,
+    InsertSql,
+    SavedSqlTableName,
+} from '../../database/entities/savedSql';
 import { DbSpace, SpaceTableName } from '../../database/entities/spaces';
 import { DbUser } from '../../database/entities/users';
 import { WarehouseCredentialTableName } from '../../database/entities/warehouseCredentials';
@@ -1695,9 +1700,9 @@ export class ProjectModel {
             // fix parent_space_uuid based on path for the spaces
             await trx.raw(
                 `
-                UPDATE spaces AS child
+                UPDATE ${SpaceTableName} AS child
                 SET parent_space_uuid = parent.space_uuid
-                FROM spaces AS parent
+                FROM ${SpaceTableName} AS parent
                 WHERE
                     child.project_id = ?
                     AND parent.project_id = ?
@@ -1786,17 +1791,16 @@ export class ProjectModel {
             // 8bodP' dP""""Yb    YP    888888 8888Y"      8bodP'  `"YoYo 88ood8
 
             // Get all the saved SQLs
-            const savedSQLs = await trx('saved_sql')
+            const savedSQLs = await trx(SavedSqlTableName)
                 .leftJoin(
                     SpaceTableName,
-                    'saved_sql.space_uuid',
+                    `${SavedSqlTableName}.space_uuid`,
                     `${SpaceTableName}.space_uuid`,
                 )
-                .whereIn('saved_sql.space_uuid', spaceUuids)
+                .whereIn(`${SavedSqlTableName}.space_uuid`, spaceUuids)
                 .andWhere(`${SpaceTableName}.project_id`, projectId)
-                .whereNull('saved_sql.deleted_at')
-                .whereNull(`${SpaceTableName}.deleted_at`)
-                .select<DbSavedSql[]>('saved_sql.*');
+                .whereNull(`${SavedSqlTableName}.deleted_at`)
+                .select<DbSavedSql[]>(`${SavedSqlTableName}.*`);
 
             Logger.info(
                 `Copying ${savedSQLs.length} SQL queries on ${previewProjectUuid}`,
@@ -1823,7 +1827,7 @@ export class ProjectModel {
                     // Generate the slug asynchronously
                     // const uniqueSlug = await generateUniqueSlug(
                     //     trx,
-                    //     'saved_sql',
+                    //     SavedSqlTableName,
                     //     d.slug, // using the existing slug as a base - preventing naming duplicates
                     // );
                     // Map the saved SQL to the new saved SQL
@@ -1845,7 +1849,7 @@ export class ProjectModel {
                     mappedSavedSQLsPromises,
                 );
                 // Insert all the saved SQLs after they have been mapped and return the result
-                const newSavedSQLs = await trx('saved_sql')
+                const newSavedSQLs = await trx(SavedSqlTableName)
                     .insert(mappedSavedSQLs)
                     .returning('*');
                 return newSavedSQLs;
@@ -1855,24 +1859,27 @@ export class ProjectModel {
             const newSavedSQLs = await createSavedSQLs(savedSQLs);
 
             // Create a mapping of the old saved SQLs to the new saved SQLs
-            const savedSQLInDashboards = await trx('saved_sql')
-                .leftJoin('dashboards', function nonDeletedDashboardJoin() {
-                    this.on(
-                        'saved_sql.dashboard_uuid',
-                        '=',
-                        'dashboards.dashboard_uuid',
-                    ).andOnNull('dashboards.deleted_at');
-                })
+            const savedSQLInDashboards = await trx(SavedSqlTableName)
+                .leftJoin(
+                    DashboardsTableName,
+                    function nonDeletedDashboardJoin() {
+                        this.on(
+                            `${SavedSqlTableName}.dashboard_uuid`,
+                            '=',
+                            `${DashboardsTableName}.dashboard_uuid`,
+                        ).andOnNull(`${DashboardsTableName}.deleted_at`);
+                    },
+                )
                 .leftJoin(
                     SpaceTableName,
-                    'dashboards.space_id',
+                    `${DashboardsTableName}.space_id`,
                     `${SpaceTableName}.space_id`,
                 )
                 .where(`${SpaceTableName}.project_id`, projectId)
                 .whereNull(`${SpaceTableName}.deleted_at`)
-                .andWhere('saved_sql.space_uuid', null)
-                .whereNull('saved_sql.deleted_at')
-                .select<DbSavedSql[]>('saved_sql.*');
+                .andWhere(`${SavedSqlTableName}.space_uuid`, null)
+                .whereNull(`${SavedSqlTableName}.deleted_at`)
+                .select<DbSavedSql[]>(`${SavedSqlTableName}.*`);
 
             Logger.info(
                 `Copying ${savedSQLInDashboards.length} charts in dashboards on ${previewProjectUuid}`,
@@ -1881,7 +1888,7 @@ export class ProjectModel {
             // Create the saved SQLs in the dashboards
             const newSavedSQLInDashboards =
                 savedSQLInDashboards.length > 0
-                    ? await trx('saved_sql')
+                    ? await trx(SavedSqlTableName)
                           .insert(
                               savedSQLInDashboards.map((d) => {
                                   if (!d.dashboard_uuid) {
@@ -1994,7 +2001,7 @@ export class ProjectModel {
 
             const newCharts =
                 charts.length > 0
-                    ? await trx('saved_queries')
+                    ? await trx(SavedChartsTableName)
                           .insert(
                               charts.map((d) => {
                                   if (!d.space_id) {
@@ -2019,25 +2026,28 @@ export class ProjectModel {
                           .returning('*')
                     : [];
 
-            const chartsInDashboards = await trx('saved_queries')
-                .leftJoin('dashboards', function nonDeletedDashboardJoin() {
-                    this.on(
-                        'saved_queries.dashboard_uuid',
-                        '=',
-                        'dashboards.dashboard_uuid',
-                    ).andOnNull('dashboards.deleted_at');
-                })
+            const chartsInDashboards = await trx(SavedChartsTableName)
+                .leftJoin(
+                    DashboardsTableName,
+                    function nonDeletedDashboardJoin() {
+                        this.on(
+                            `${SavedChartsTableName}.dashboard_uuid`,
+                            '=',
+                            `${DashboardsTableName}.dashboard_uuid`,
+                        ).andOnNull(`${DashboardsTableName}.deleted_at`);
+                    },
+                )
                 .leftJoin(
                     SpaceTableName,
-                    'dashboards.space_id',
+                    `${DashboardsTableName}.space_id`,
                     `${SpaceTableName}.space_id`,
                 )
                 .where(`${SpaceTableName}.project_id`, projectId)
                 .whereNull(`${SpaceTableName}.deleted_at`)
-                .whereNull('saved_queries.deleted_at')
-                .andWhere('saved_queries.space_id', null)
-                .whereNull('saved_queries.deleted_at')
-                .select<DbSavedChart[]>('saved_queries.*');
+                .whereNull(`${SavedChartsTableName}.deleted_at`)
+                .andWhere(`${SavedChartsTableName}.space_id`, null)
+                .whereNull(`${SavedChartsTableName}.deleted_at`)
+                .select<DbSavedChart[]>(`${SavedChartsTableName}.*`);
 
             Logger.info(
                 `Copying ${chartsInDashboards.length} charts in dashboards on ${previewProjectUuid}`,
@@ -2046,7 +2056,7 @@ export class ProjectModel {
             // We also copy charts in dashboards, we will replace the dashboard_uuid later
             const newChartsInDashboards =
                 chartsInDashboards.length > 0
-                    ? await trx('saved_queries')
+                    ? await trx(SavedChartsTableName)
                           .insert(
                               chartsInDashboards.map((d) => {
                                   if (!d.dashboard_uuid) {
@@ -2210,17 +2220,17 @@ export class ProjectModel {
             //  8I  Yb   dPYb   `Ybo." 88  88 88__dP dP   Yb   dPYb   88__dP  8I  Yb `Ybo."
             //  8I  dY  dP__Yb  o.`Y8b 888888 88""Yb Yb   dP  dP__Yb  88"Yb   8I  dY o.`Y8b
             // 8888Y"  dP""""Yb 8bodP' 88  88 88oodP  YbodP  dP""""Yb 88  Yb 8888Y"  8bodP'
-            const dashboards = await trx('dashboards')
+            const dashboards = await trx(DashboardsTableName)
                 .leftJoin(
                     SpaceTableName,
-                    'dashboards.space_id',
+                    `${DashboardsTableName}.space_id`,
                     `${SpaceTableName}.space_id`,
                 )
-                .whereIn('dashboards.space_id', spaceIds)
+                .whereIn(`${DashboardsTableName}.space_id`, spaceIds)
                 .andWhere(`${SpaceTableName}.project_id`, projectId)
-                .whereNull('dashboards.deleted_at')
+                .whereNull(`${DashboardsTableName}.deleted_at`)
                 .whereNull(`${SpaceTableName}.deleted_at`)
-                .select<DbDashboard[]>('dashboards.*');
+                .select<DbDashboard[]>(`${DashboardsTableName}.*`);
 
             const dashboardIds = dashboards.map((d) => d.dashboard_id);
 
@@ -2230,7 +2240,7 @@ export class ProjectModel {
 
             const newDashboards =
                 dashboards.length > 0
-                    ? await trx('dashboards')
+                    ? await trx(DashboardsTableName)
                           .insert(
                               dashboards.map((d) => {
                                   type CloneDashboard = Omit<
@@ -2382,11 +2392,11 @@ export class ProjectModel {
                     if (!newDashboardUuid) {
                         // The dashboard was not copied, perhaps becuase it belongs to a space the user doesn't have access to
                         // We delete this chart in dashboard
-                        return trx('saved_queries')
+                        return trx(SavedChartsTableName)
                             .where('saved_query_id', chart.saved_query_id)
                             .delete();
                     }
-                    return trx('saved_queries')
+                    return trx(SavedChartsTableName)
                         .update({
                             dashboard_uuid: newDashboardUuid,
                         })
@@ -2405,11 +2415,11 @@ export class ProjectModel {
                     if (!newDashboardUuid) {
                         // The dashboard was not copied, perhaps becuase it belongs to a space the user doesn't have access to
                         // We delete this chart in dashboard
-                        return trx('saved_sql')
+                        return trx(SavedSqlTableName)
                             .where('saved_sql_uuid', chart.saved_sql_uuid)
                             .delete();
                     }
-                    return trx('saved_sql')
+                    return trx(SavedSqlTableName)
                         .update({
                             dashboard_uuid: newDashboardUuid,
                         })

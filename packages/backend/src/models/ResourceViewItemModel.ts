@@ -42,37 +42,36 @@ const getCharts = async (
             saved_chart_uuid: 'pinned_chart.saved_chart_uuid',
             updated_by_user_first_name: 'users.first_name',
             updated_by_user_last_name: 'users.last_name',
-            updated_by_user_uuid:
-                'saved_queries.last_version_updated_by_user_uuid',
+            updated_by_user_uuid: `${SavedChartsTableName}.last_version_updated_by_user_uuid`,
             order: 'pinned_chart.order',
-            chart_kind: `saved_queries.last_version_chart_kind`,
-            name: 'saved_queries.name',
-            description: 'saved_queries.description',
-            updated_at: 'saved_queries.last_version_updated_at',
-            views: 'saved_queries.views_count',
-            first_viewed_at: 'saved_queries.first_viewed_at',
-            slug: 'saved_queries.slug',
+            chart_kind: `${SavedChartsTableName}.last_version_chart_kind`,
+            name: `${SavedChartsTableName}.name`,
+            description: `${SavedChartsTableName}.description`,
+            updated_at: `${SavedChartsTableName}.last_version_updated_at`,
+            views: `${SavedChartsTableName}.views_count`,
+            first_viewed_at: `${SavedChartsTableName}.first_viewed_at`,
+            slug: `${SavedChartsTableName}.slug`,
         })
         .innerJoin(
             'pinned_chart',
             'pinned_list.pinned_list_uuid',
             'pinned_chart.pinned_list_uuid',
         )
-        .innerJoin('saved_queries', function nonDeletedChartJoin() {
+        .innerJoin(SavedChartsTableName, function nonDeletedChartJoin() {
             this.on(
                 'pinned_chart.saved_chart_uuid',
                 '=',
-                'saved_queries.saved_query_uuid',
-            ).andOnNull('saved_queries.deleted_at');
+                `${SavedChartsTableName}.saved_query_uuid`,
+            ).andOnNull(`${SavedChartsTableName}.deleted_at`);
         })
         .innerJoin(
             SpaceTableName,
-            'saved_queries.space_id',
+            `${SavedChartsTableName}.space_id`,
             `${SpaceTableName}.space_id`,
         )
         .leftJoin(
             'users',
-            'saved_queries.last_version_updated_by_user_uuid',
+            `${SavedChartsTableName}.last_version_updated_by_user_uuid`,
             'users.user_uuid',
         )
         .whereIn(`${SpaceTableName}.space_uuid`, allowedSpaceUuids)
@@ -120,16 +119,16 @@ const getDashboards = async (
             'pinned_list.pinned_list_uuid',
             'pinned_dashboard.pinned_list_uuid',
         )
-        .innerJoin('dashboards', function nonDeletedDashboardJoin() {
+        .innerJoin(DashboardsTableName, function nonDeletedDashboardJoin() {
             this.on(
                 'pinned_dashboard.dashboard_uuid',
                 '=',
-                'dashboards.dashboard_uuid',
-            ).andOnNull('dashboards.deleted_at');
+                `${DashboardsTableName}.dashboard_uuid`,
+            ).andOnNull(`${DashboardsTableName}.deleted_at`);
         })
         .innerJoin(
             SpaceTableName,
-            'dashboards.space_id',
+            `${DashboardsTableName}.space_id`,
             `${SpaceTableName}.space_id`,
         )
         .innerJoin(
@@ -143,7 +142,7 @@ const getDashboards = async (
                     'updated_by_user_uuid',
                 )
                 .as('dv'),
-            'dashboards.dashboard_id',
+            `${DashboardsTableName}.dashboard_id`,
             'dv.dashboard_id',
         )
         .leftJoin('users', 'dv.updated_by_user_uuid', 'users.user_uuid')
@@ -160,10 +159,10 @@ const getDashboards = async (
             'pinned_dashboard.order',
         )
         .max({
-            name: 'dashboards.name',
-            views: 'dashboards.views_count',
-            first_viewed_at: 'dashboards.first_viewed_at',
-            description: 'dashboards.description',
+            name: `${DashboardsTableName}.name`,
+            views: `${DashboardsTableName}.views_count`,
+            first_viewed_at: `${DashboardsTableName}.first_viewed_at`,
+            description: `${DashboardsTableName}.description`,
             updated_at: 'dv.updated_at',
             updated_by_user_first_name: 'users.first_name',
             updated_by_user_last_name: 'users.last_name',

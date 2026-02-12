@@ -1,5 +1,7 @@
 import { Embed, NotFoundError, UpdateEmbed } from '@lightdash/common';
 import { Knex } from 'knex';
+import { DashboardsTableName } from '../../database/entities/dashboards';
+import { SavedChartsTableName } from '../../database/entities/savedCharts';
 
 type Dependencies = {
     database: Knex;
@@ -47,7 +49,7 @@ export class EmbedModel {
             );
         }
 
-        const dashboards = await this.database('dashboards')
+        const dashboards = await this.database(DashboardsTableName)
             .select()
             .whereIn('dashboard_uuid', embed.dashboard_uuids)
             .whereNull('deleted_at');
@@ -56,7 +58,7 @@ export class EmbedModel {
             (dashboard) => dashboard.dashboard_uuid,
         );
 
-        const charts = await this.database('saved_queries')
+        const charts = await this.database(SavedChartsTableName)
             .select()
             .whereIn('saved_query_uuid', embed.chart_uuids)
             .whereNull('deleted_at');

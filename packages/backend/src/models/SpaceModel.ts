@@ -236,7 +236,7 @@ export class SpaceModel {
         userUuid: string,
     ): Promise<Space> {
         const space = await this.getFirstAccessibleSpace(projectUuid, userUuid);
-        const savedQueries = await this.database('saved_queries')
+        const savedQueries = await this.database(SavedChartsTableName)
             .leftJoin(
                 SpaceTableName,
                 `${SavedChartsTableName}.space_id`,
@@ -321,9 +321,9 @@ export class SpaceModel {
                     `${SpaceModel.getRootSpaceIsPrivateQuery()} AS is_private`,
                 ),
             ])
-            .orderBy('saved_queries.last_version_updated_at', 'desc')
-            .where('saved_queries.space_id', space.space_id)
-            .whereNull('saved_queries.deleted_at');
+            .orderBy(`${SavedChartsTableName}.last_version_updated_at`, 'desc')
+            .where(`${SavedChartsTableName}.space_id`, space.space_id)
+            .whereNull(`${SavedChartsTableName}.deleted_at`);
 
         return {
             organizationUuid: space.organization_uuid,
@@ -2048,7 +2048,7 @@ export class SpaceModel {
                         (
                             SELECT json_agg(validations.*)
                             FROM validations
-                            WHERE validations.saved_chart_uuid = saved_queries.saved_query_uuid
+                            WHERE validations.saved_chart_uuid = ${SavedChartsTableName}.saved_query_uuid
                             AND validations.job_id IS NULL
                         ), '[]'
                     ) as validation_errors
@@ -2074,7 +2074,7 @@ export class SpaceModel {
                           ]
                         : [
                               {
-                                  column: `saved_queries.last_version_updated_at`,
+                                  column: `${SavedChartsTableName}.last_version_updated_at`,
                                   order: 'desc',
                               },
                           ],
