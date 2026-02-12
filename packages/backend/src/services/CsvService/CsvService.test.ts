@@ -35,6 +35,7 @@ import { AdminNotificationService } from '../AdminNotificationService/AdminNotif
 import { PersistentDownloadFileService } from '../PersistentDownloadFileService/PersistentDownloadFileService';
 import { PivotTableService } from '../PivotTableService/PivotTableService';
 import { ProjectService } from '../ProjectService/ProjectService';
+import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { CsvService } from './CsvService';
 import { itemMap, metricQuery } from './CsvService.mock';
 
@@ -79,6 +80,7 @@ describe('Csv service', () => {
                 {} as OrganizationWarehouseCredentialsModel,
             projectCompileLogModel: {} as ProjectCompileLogModel,
             adminNotificationService: {} as AdminNotificationService,
+            spacePermissionService: {} as SpacePermissionService,
         }),
         s3Client: {} as S3Client,
         savedChartModel: {} as SavedChartModel,

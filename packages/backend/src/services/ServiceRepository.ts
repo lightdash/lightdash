@@ -605,6 +605,7 @@ export class ServiceRepository
                         this.models.getProjectCompileLogModel(),
                     adminNotificationService:
                         this.getAdminNotificationService(),
+                    spacePermissionService: this.getSpacePermissionService(),
                 }),
         );
     }
@@ -660,6 +661,7 @@ export class ServiceRepository
                         this.models.getProjectCompileLogModel(),
                     adminNotificationService:
                         this.getAdminNotificationService(),
+                    spacePermissionService: this.getSpacePermissionService(),
                 }),
         );
     }

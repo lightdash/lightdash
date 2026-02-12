@@ -43,6 +43,7 @@ import {
 } from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
 import { metricQueryWithLimit } from '../../utils/csvLimitUtils';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
+import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { UserService } from '../UserService';
 import { ProjectService } from './ProjectService';
 import {
@@ -169,6 +170,7 @@ const getMockedProjectService = (lightdashConfig: LightdashConfig) =>
         adminNotificationService: {
             notifyConnectionSettingsChange: jest.fn(async () => undefined),
         } as unknown as AdminNotificationService,
+        spacePermissionService: {} as SpacePermissionService,
     });
 
 const account = buildAccount({
