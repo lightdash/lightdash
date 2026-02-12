@@ -1,3 +1,14 @@
+# [0.2456.0](https://github.com/lightdash/lightdash/compare/0.2455.1...0.2456.0) (2026-02-12)
+
+
+### Features
+
+* add soft delete migration for dashboards ([#20225](https://github.com/lightdash/lightdash/issues/20225)) ([7827c87](https://github.com/lightdash/lightdash/commit/7827c879dbf46a4b4c0f7b49d19a95bff88b0783))
+* add soft delete migration for saved sql ([#20231](https://github.com/lightdash/lightdash/issues/20231)) ([5989c59](https://github.com/lightdash/lightdash/commit/5989c59ded668f28e8887a846d0b5fbaf0b7223a))
+* add soft delete migration for saved_queries ([#20026](https://github.com/lightdash/lightdash/issues/20026)) ([15c5e5d](https://github.com/lightdash/lightdash/commit/15c5e5dd1e219438285fd3b4f1b64f0e01e65cfa))
+* add soft delete migration for scheduled deliveries ([#20226](https://github.com/lightdash/lightdash/issues/20226)) ([9cdebbd](https://github.com/lightdash/lightdash/commit/9cdebbd723b60254b439b651d3b8efc7e5df6604))
+* add soft delete migration for spaces ([#20227](https://github.com/lightdash/lightdash/issues/20227)) ([19fa63c](https://github.com/lightdash/lightdash/commit/19fa63c4a05ce6693448b8d082a9ccefa04c6fec))
+
 ## [0.2455.1](https://github.com/lightdash/lightdash/compare/0.2455.0...0.2455.1) (2026-02-11)
 
 
