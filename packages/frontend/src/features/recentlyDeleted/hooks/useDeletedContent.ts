@@ -94,11 +94,26 @@ export function useRestoreDeletedContent(projectUuid: string) {
                                         `/projects/${projectUuid}/dashboards/${item.uuid}`,
                                     ),
                             }
-                          : undefined,
+                          : item.contentType === ContentType.SPACE
+                            ? {
+                                  children: 'Go to space',
+                                  icon: IconArrowRight,
+                                  onClick: () =>
+                                      navigate(
+                                          `/projects/${projectUuid}/spaces/${item.uuid}`,
+                                      ),
+                              }
+                            : undefined,
             });
             void queryClient.invalidateQueries({
                 queryKey: ['deletedContent'],
             });
+
+            if (item.contentType === ContentType.SPACE) {
+                void queryClient.invalidateQueries({
+                    queryKey: ['content'],
+                });
+            }
         },
         onError: ({ error }) => {
             showToastApiError({
