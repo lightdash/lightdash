@@ -759,6 +759,9 @@ export class SchedulerService extends BaseService {
             projectUuid,
             userUuid: user.userUuid,
         });
+
+        // Always hard-delete: UI scheduler deletion is permanent.
+        // Soft delete only happens via cascade from chart/dashboard soft-delete.
         await this.schedulerModel.deleteScheduler(schedulerUuid);
         await this.schedulerModel.deleteScheduledLogs(schedulerUuid);
 
