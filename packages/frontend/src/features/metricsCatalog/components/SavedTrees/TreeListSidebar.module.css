@@ -33,10 +33,10 @@
 }
 
 .treeItemActive {
-    background-color: var(--mantine-color-blue-0);
-    border: 1px solid var(--mantine-color-blue-2);
+    background-color: var(--mantine-color-indigo-light);
+    border: 1px solid var(--mantine-color-indigo-light) !important;
 
     &:hover {
-        background-color: var(--mantine-color-blue-0);
+        background-color: var(--mantine-color-indigo-light-hover);
     }
 }

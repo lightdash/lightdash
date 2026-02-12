@@ -5,7 +5,7 @@ import {
     type Edge,
     type EdgeProps,
 } from '@xyflow/react';
-import type { FC } from 'react';
+import React, { type FC } from 'react';
 
 type DefaultEdgeData = Edge<{
     createdFrom?: MetricsTreeSource;
@@ -29,4 +29,4 @@ const DefaultEdge: FC<EdgeProps<DefaultEdgeData>> = ({
     return <BaseEdge {...props} path={edgePath} markerEnd={markerEnd} />;
 };
 
-export default DefaultEdge;
+export default React.memo(DefaultEdge);

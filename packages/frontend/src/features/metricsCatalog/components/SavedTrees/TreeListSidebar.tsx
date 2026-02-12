@@ -7,8 +7,9 @@ import {
     ScrollArea,
     Stack,
     Text,
+    Tooltip,
 } from '@mantine-8/core';
-import { IconGripVertical, IconPlus } from '@tabler/icons-react';
+import { IconGripVertical, IconLock, IconPlus } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Panel, PanelResizeHandle } from 'react-resizable-panels';
 import MantineIcon from '../../../../components/common/MantineIcon';
@@ -109,15 +110,32 @@ const TreeListSidebar: FC = () => {
                                                 justify="space-between"
                                                 wrap="nowrap"
                                             >
-                                                <Text
-                                                    fz="xs"
-                                                    fw={500}
-                                                    c="ldGray.7"
-                                                    truncate
+                                                <Group
+                                                    gap={4}
+                                                    wrap="nowrap"
                                                     style={{ flex: 1 }}
                                                 >
-                                                    {tree.name}
-                                                </Text>
+                                                    <Text
+                                                        fz="xs"
+                                                        fw={500}
+                                                        c="ldGray.7"
+                                                        truncate
+                                                        style={{ flex: 1 }}
+                                                    >
+                                                        {tree.name}
+                                                    </Text>
+                                                    {tree.lock && (
+                                                        <Tooltip
+                                                            label={`Editing by ${tree.lock.lockedByUserName}`}
+                                                        >
+                                                            <MantineIcon
+                                                                icon={IconLock}
+                                                                size={12}
+                                                                color="yellow.6"
+                                                            />
+                                                        </Tooltip>
+                                                    )}
+                                                </Group>
                                                 <Badge
                                                     size="xs"
                                                     variant="light"
