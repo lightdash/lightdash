@@ -246,6 +246,7 @@ import { SubtotalsCalculator } from '../../utils/SubtotalsCalculator';
 import { metricQueryWithLimit as applyMetricQueryLimit } from '../../utils/csvLimitUtils';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
 import { BaseService } from '../BaseService';
+import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import {
     hasDirectAccessToSpace,
     hasViewAccessToSpace,
@@ -289,6 +290,7 @@ export type ProjectServiceArguments = {
     organizationWarehouseCredentialsModel: OrganizationWarehouseCredentialsModel;
     projectCompileLogModel: ProjectCompileLogModel;
     adminNotificationService: AdminNotificationService;
+    spacePermissionService: SpacePermissionService;
 };
 
 export class ProjectService extends BaseService {
@@ -354,6 +356,8 @@ export class ProjectService extends BaseService {
 
     adminNotificationService: AdminNotificationService;
 
+    spacePermissionService: SpacePermissionService;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -385,6 +389,7 @@ export class ProjectService extends BaseService {
         projectCompileLogModel,
         organizationWarehouseCredentialsModel,
         adminNotificationService,
+        spacePermissionService,
     }: ProjectServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -419,6 +424,7 @@ export class ProjectService extends BaseService {
         this.organizationWarehouseCredentialsModel =
             organizationWarehouseCredentialsModel;
         this.adminNotificationService = adminNotificationService;
+        this.spacePermissionService = spacePermissionService;
     }
 
     static getMetricQueryExecutionProperties({
@@ -5454,29 +5460,13 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
 
-        const nestedPermissionsFlag = await this.featureFlagModel.get({
-            user,
-            featureFlagId: FeatureFlags.NestedSpacesPermissions,
-        });
-
         const spaces = await this.spaceModel.find({ projectUuid });
-        const spacesAccess = await this.spaceModel.getUserSpacesAccess(
-            user.userUuid,
-            spaces.map((s) => s.uuid),
-            { useInheritedAccess: nestedPermissionsFlag.enabled },
-        );
-
-        const allowedSpaceUuids = spaces
-            .filter(
-                (space) =>
-                    space.projectUuid === projectUuid &&
-                    hasViewAccessToSpace(
-                        user,
-                        space,
-                        spacesAccess[space.uuid] ?? [],
-                    ),
-            )
-            .map(({ uuid }) => uuid);
+        const allowedSpaceUuids =
+            await this.spacePermissionService.getAccessibleSpaceUuids(
+                'view',
+                user,
+                spaces.map((s) => s.uuid),
+            );
 
         const savedQueries =
             await this.spaceModel.getSpaceQueries(allowedSpaceUuids);
@@ -5502,29 +5492,13 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
 
-        const nestedPermissionsFlag = await this.featureFlagModel.get({
-            user,
-            featureFlagId: FeatureFlags.NestedSpacesPermissions,
-        });
-
         const spaces = await this.spaceModel.find({ projectUuid });
-        const spacesAccess = await this.spaceModel.getUserSpacesAccess(
-            user.userUuid,
-            spaces.map((s) => s.uuid),
-            { useInheritedAccess: nestedPermissionsFlag.enabled },
-        );
-
-        const allowedSpaceUuids = spaces
-            .filter(
-                (space) =>
-                    space.projectUuid === projectUuid &&
-                    hasViewAccessToSpace(
-                        user,
-                        space,
-                        spacesAccess[space.uuid] ?? [],
-                    ),
-            )
-            .map((space) => space.uuid);
+        const allowedSpaceUuids =
+            await this.spacePermissionService.getAccessibleSpaceUuids(
+                'view',
+                user,
+                spaces.map((s) => s.uuid),
+            );
 
         return this.savedChartModel.find({
             projectUuid,
@@ -5550,26 +5524,17 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
 
-        const nestedPermissionsFlag = await this.featureFlagModel.get({
-            user,
-            featureFlagId: FeatureFlags.NestedSpacesPermissions,
-        });
-
         const spaces = await this.spaceModel.find({ projectUuid });
-        const spacesAccess = await this.spaceModel.getUserSpacesAccess(
-            user.userUuid,
-            spaces.map((s) => s.uuid),
-            { useInheritedAccess: nestedPermissionsFlag.enabled },
-        );
-        const allowedSpaces = spaces.filter(
-            (space) =>
-                (space.projectUuid === projectUuid &&
-                    hasDirectAccessToSpace(user, space)) ||
-                hasViewAccessToSpace(
-                    user,
-                    space,
-                    spacesAccess[space.uuid] ?? [],
-                ),
+        const allowedSpaceUuids =
+            await this.spacePermissionService.getAccessibleSpaceUuids(
+                'view',
+                user,
+                spaces.map((s) => s.uuid),
+            );
+
+        const allowedSpaceUuidsSet = new Set(allowedSpaceUuids);
+        const allowedSpaces = spaces.filter((space) =>
+            allowedSpaceUuidsSet.has(space.uuid),
         );
 
         const mostPopular = await this.getMostPopular(allowedSpaces);

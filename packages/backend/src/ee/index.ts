@@ -226,6 +226,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     projectCompileLogModel: models.getProjectCompileLogModel(),
                     adminNotificationService:
                         repository.getAdminNotificationService(),
+                    spacePermissionService:
+                        repository.getSpacePermissionService(),
                 }),
             instanceConfigurationService: ({
                 models,
@@ -302,6 +304,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     projectCompileLogModel: models.getProjectCompileLogModel(),
                     adminNotificationService:
                         repository.getAdminNotificationService(),
+                    spacePermissionService:
+                        repository.getSpacePermissionService(),
                 }),
             cacheService: ({ models, context, clients }) =>
                 new CommercialCacheService({

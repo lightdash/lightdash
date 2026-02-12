@@ -71,6 +71,7 @@ import {
     tablesConfiguration,
     validExplore,
 } from '../ProjectService/ProjectService.mock';
+import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { AsyncQueryService } from './AsyncQueryService';
 import type {
     ExecuteAsyncQueryReturn,
@@ -207,6 +208,7 @@ const getMockedAsyncQueryService = (
         persistentDownloadFileService: {} as PersistentDownloadFileService,
         projectCompileLogModel: {} as ProjectCompileLogModel,
         adminNotificationService: {} as AdminNotificationService,
+        spacePermissionService: {} as SpacePermissionService,
         ...overrides,
     });
 
