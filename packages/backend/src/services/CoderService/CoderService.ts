@@ -1256,27 +1256,31 @@ export class CoderService extends BaseService {
 
             if (newSpace.isPrivate) {
                 if (parentSpaceUuid) {
-                    const newSpaceWithAccess =
-                        await this.spaceModel.getFullSpace(parentSpaceUuid);
+                    const [ctx, groupsAccess] = await Promise.all([
+                        this.spacePermissionService.getAllSpaceAccessContext(
+                            parentSpaceUuid,
+                        ),
+                        this.spaceModel.getGroupAccess(parentSpaceUuid),
+                    ]);
 
-                    const userAccessPromises = newSpaceWithAccess.access
-                        .filter((access) => access.hasDirectAccess)
-                        .map((userAccess) =>
+                    const userAccessPromises = ctx.access
+                        .filter((a) => a.hasDirectAccess)
+                        .map((a) =>
                             this.spaceModel.addSpaceAccess(
                                 newSpace.uuid,
-                                userAccess.userUuid,
-                                userAccess.role,
+                                a.userUuid,
+                                a.role,
                             ),
                         );
 
-                    const groupAccessPromises =
-                        newSpaceWithAccess.groupsAccess.map((groupAccess) =>
+                    const groupAccessPromises = groupsAccess.map(
+                        (groupAccess) =>
                             this.spaceModel.addSpaceGroupAccess(
                                 newSpace.uuid,
                                 groupAccess.groupUuid,
                                 groupAccess.spaceRole,
                             ),
-                        );
+                    );
 
                     await Promise.all([
                         ...userAccessPromises,

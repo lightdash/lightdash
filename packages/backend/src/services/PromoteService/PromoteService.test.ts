@@ -2,10 +2,10 @@ import { DashboardTileTypes, PromotionAction } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
-import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
+import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { PromoteService } from './PromoteService';
 import {
     existingUpstreamChart,
@@ -34,10 +34,9 @@ const spaceModel = {
     getSpaceSummary: jest.fn(async () => promotedChart.space),
     find: jest.fn(),
     getSpaceAncestors: jest.fn(async () => []),
-    getUserSpaceAccess: jest.fn(async () => []),
     createSpace: jest.fn(async () => existingUpstreamChart.space),
     createSpaceWithAncestors: jest.fn(async () => existingUpstreamChart.space),
-    getFullSpace: jest.fn(async () => upstreamFullSpace),
+    getGroupAccess: jest.fn(async () => upstreamFullSpace.groupsAccess),
     addSpaceAccess: jest.fn(async () => {}),
     addSpaceGroupAccess: jest.fn(async () => {}),
     update: jest.fn(async () => {}),
@@ -46,8 +45,19 @@ const spaceModel = {
 const dashboardModel = {
     create: jest.fn(async () => existingUpstreamDashboard.dashboard),
 };
-const featureFlagModel = {
-    get: jest.fn(async () => ({ enabled: false })),
+const spacePermissionService = {
+    getSpaceAccessContext: jest.fn(async () => ({
+        organizationUuid: 'org-uuid',
+        projectUuid: 'project-uuid',
+        isPrivate: false,
+        access: [],
+    })),
+    getAllSpaceAccessContext: jest.fn(async () => ({
+        organizationUuid: 'org-uuid',
+        projectUuid: 'project-uuid',
+        isPrivate: false,
+        access: upstreamFullSpace.access,
+    })),
 };
 describe('PromoteService chart changes', () => {
     const service = new PromoteService({
@@ -58,7 +68,8 @@ describe('PromoteService chart changes', () => {
         savedChartModel: savedChartModel as unknown as SavedChartModel,
         spaceModel: spaceModel as unknown as SpaceModel,
         dashboardModel: {} as DashboardModel,
-        featureFlagModel: featureFlagModel as unknown as FeatureFlagModel,
+        spacePermissionService:
+            spacePermissionService as unknown as SpacePermissionService,
     });
     afterEach(() => {
         jest.clearAllMocks();
@@ -233,7 +244,8 @@ describe('PromoteService dashboard changes', () => {
         savedChartModel: savedChartModel as unknown as SavedChartModel,
         spaceModel: spaceModel as unknown as SpaceModel,
         dashboardModel: {} as DashboardModel,
-        featureFlagModel: featureFlagModel as unknown as FeatureFlagModel,
+        spacePermissionService:
+            spacePermissionService as unknown as SpacePermissionService,
     });
     afterEach(() => {
         jest.clearAllMocks();
@@ -484,7 +496,8 @@ describe('PromoteService promoting and mutating changes', () => {
         savedChartModel: savedChartModel as unknown as SavedChartModel,
         spaceModel: spaceModel as unknown as SpaceModel,
         dashboardModel: dashboardModel as unknown as DashboardModel,
-        featureFlagModel: featureFlagModel as unknown as FeatureFlagModel,
+        spacePermissionService:
+            spacePermissionService as unknown as SpacePermissionService,
     });
     afterEach(() => {
         jest.clearAllMocks();

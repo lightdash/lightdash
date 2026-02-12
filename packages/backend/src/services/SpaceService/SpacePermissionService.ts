@@ -5,6 +5,7 @@ import {
     type AbilityAction,
     type SessionUser,
     type SpaceAccess,
+    type SpaceAccessUserMetadata,
 } from '@lightdash/common';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SpacePermissionModel } from '../../models/SpacePermissionModel';
@@ -108,6 +109,24 @@ export class SpacePermissionService extends BaseService {
     }
 
     /**
+     * Returns the CASL context for a space with ALL users' resolved access
+     * (not filtered to a single user). Used for access propagation and
+     * building SpaceShare[] for the share modal UI.
+     */
+    async getAllSpaceAccessContext(
+        spaceUuid: string,
+    ): Promise<SpaceAccessContextForCasl> {
+        const accessContext = await this.getSpacesCaslContext([spaceUuid]);
+        const ctx = accessContext[spaceUuid];
+        if (!ctx) {
+            throw new NotFoundError(
+                `Couldn't find access context for space ${spaceUuid}`,
+            );
+        }
+        return ctx;
+    }
+
+    /**
      * Gets the access context for a list of space uuids so we can check against CASL
      * @param spaceUuidsArg - The space uuids to get the access context for
      * @param filters - The filters to apply to the access context
@@ -189,5 +208,11 @@ export class SpacePermissionService extends BaseService {
                 rootSpaceAccessContext[rootSpaceUuid],
             ]),
         );
+    }
+
+    async getUserMetadataByUuids(
+        userUuids: string[],
+    ): Promise<Record<string, SpaceAccessUserMetadata>> {
+        return this.spacePermissionModel.getUserMetadataByUuids(userUuids);
     }
 }
