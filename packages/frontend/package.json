@@ -23,7 +23,7 @@
         "release": "(cd sdk && pnpm publish --no-git-checks --access public)"
     },
     "dependencies": {
-        "@casl/ability": "^5.4.4",
+        "@casl/ability": "^6.7.5",
         "@casl/react": "^3.0.0",
         "@dagrejs/dagre": "^1.1.4",
         "@dnd-kit/core": "^6.1.0",
