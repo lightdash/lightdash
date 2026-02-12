@@ -106,9 +106,16 @@ export async function findLightdashModelFiles(
     await walkDir(lightdashModelsDir);
 
     // Filter to only include files that actually contain `type: model`
+    // Check all files in parallel for efficiency
+    const checkResults = await Promise.all(
+        yamlFiles.map(async (filePath) => ({
+            filePath,
+            isModel: await isLightdashModelFile(filePath),
+        })),
+    );
+
     const modelFiles: string[] = [];
-    for (const filePath of yamlFiles) {
-        const isModel = await isLightdashModelFile(filePath);
+    for (const { filePath, isModel } of checkResults) {
         if (isModel) {
             modelFiles.push(filePath);
         } else {
