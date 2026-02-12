@@ -1,3 +1,25 @@
+# [0.2457.0](https://github.com/lightdash/lightdash/compare/0.2456.0...0.2457.0) (2026-02-12)
+
+
+### Bug Fixes
+
+* dashboard chart deletion modal ([#20171](https://github.com/lightdash/lightdash/issues/20171)) ([bbe0535](https://github.com/lightdash/lightdash/commit/bbe0535b6f278d79e1219376699c126a1e1a24de))
+* dashboard header overlays filters in edit mode ([#20235](https://github.com/lightdash/lightdash/issues/20235)) ([1c8fcd0](https://github.com/lightdash/lightdash/commit/1c8fcd06a79ba5cdeb0767eaaa4b0e730fdb939a)), closes [#20213](https://github.com/lightdash/lightdash/issues/20213)
+* exclude deleted charts from queries ([#20101](https://github.com/lightdash/lightdash/issues/20101)) ([c6bf7b2](https://github.com/lightdash/lightdash/commit/c6bf7b2d291f4b832cc90896fd6218042dbc12ea))
+* invalidate deletedContent queries after deletion ([#20170](https://github.com/lightdash/lightdash/issues/20170)) ([c92b2d3](https://github.com/lightdash/lightdash/commit/c92b2d3e864dfe31af228066edca367e876b8ca1))
+
+
+### Features
+
+* add navigation links to recently deleted items in toast notifications ([#20169](https://github.com/lightdash/lightdash/issues/20169)) ([4a2a161](https://github.com/lightdash/lightdash/commit/4a2a161ed23c0f2a41919fc079842d3416013fbf))
+* soft delete for charts ([#20027](https://github.com/lightdash/lightdash/issues/20027)) ([db466a4](https://github.com/lightdash/lightdash/commit/db466a4f35f03bdc0629534dfafd68276eae00b2))
+* soft delete for dashboards ([#20228](https://github.com/lightdash/lightdash/issues/20228)) ([46c3452](https://github.com/lightdash/lightdash/commit/46c345220ec3079d8bf47840c857444922f362b7))
+* soft delete for saved sql ([#20232](https://github.com/lightdash/lightdash/issues/20232)) ([0111c94](https://github.com/lightdash/lightdash/commit/0111c94b683ea22483602229f2adb3948fd94d8f))
+* soft delete for scheduled deliveries ([#20229](https://github.com/lightdash/lightdash/issues/20229)) ([9cb642c](https://github.com/lightdash/lightdash/commit/9cb642c6c6fd5642e286c418936663d66a3fcf32))
+* soft delete modal copy ([#20079](https://github.com/lightdash/lightdash/issues/20079)) ([ff76895](https://github.com/lightdash/lightdash/commit/ff76895db6610212c588dc7feb2a8e80ebcace7f))
+* soft delete space ([#20230](https://github.com/lightdash/lightdash/issues/20230)) ([59d181d](https://github.com/lightdash/lightdash/commit/59d181d95ba107a6572e4e53ac66172b54127f3d))
+* ui for soft deleted saved_charts ([#20028](https://github.com/lightdash/lightdash/issues/20028)) ([0625f96](https://github.com/lightdash/lightdash/commit/0625f96acdfe28aa36553b7f586ba9fd0e65c646))
+
 # [0.2456.0](https://github.com/lightdash/lightdash/compare/0.2455.1...0.2456.0) (2026-02-12)
 
 
