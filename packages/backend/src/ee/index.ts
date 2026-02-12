@@ -340,8 +340,11 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
             mcpContextModel: ({ database }) => new McpContextModel(database),
             dashboardSummaryModel: ({ database }) =>
                 new DashboardSummaryModel({ database }),
-            slackAuthenticationModel: ({ database }) =>
-                new CommercialSlackAuthenticationModel({ database }),
+            slackAuthenticationModel: ({ database, repository }) =>
+                new CommercialSlackAuthenticationModel({
+                    database,
+                    openIdIdentityModel: repository.getOpenIdIdentityModel(),
+                }),
             serviceAccountModel: ({ database }) =>
                 new ServiceAccountModel({ database }),
             featureFlagModel: ({ database }) =>

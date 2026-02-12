@@ -1,6 +1,7 @@
 import {
     AnyType,
     NotFoundError,
+    OpenIdIdentityIssuerType,
     SlackAppCustomSettings,
     SlackSettings,
 } from '@lightdash/common';
@@ -12,9 +13,11 @@ import {
     SlackAuthTokensTableName,
 } from '../database/entities/slackAuthentication';
 import { DbUser } from '../database/entities/users';
+import { OpenIdIdentityModel } from './OpenIdIdentitiesModel';
 
 type SlackAuthenticationModelArguments = {
     database: Knex;
+    openIdIdentityModel: OpenIdIdentityModel;
 };
 
 const getTeamId = (payload: Installation) => {
@@ -31,8 +34,11 @@ const getTeamId = (payload: Installation) => {
 export class SlackAuthenticationModel {
     protected database: Knex;
 
+    private openIdIdentityModel: OpenIdIdentityModel;
+
     constructor(args: SlackAuthenticationModelArguments) {
         this.database = args.database;
+        this.openIdIdentityModel = args.openIdIdentityModel;
     }
 
     async getOrganizationId(organizationUuid: string | undefined) {
@@ -107,6 +113,27 @@ export class SlackAuthenticationModel {
             throw new NotFoundError(`Could not find user uuid id ${teamId}`);
         }
         return row.user_uuid;
+    }
+
+    async getUserUuidFromSlackUser(
+        slackUserId: string,
+        teamId: string,
+    ): Promise<string> {
+        // Try to find an OAuth identity first
+        const openIdIdentity =
+            await this.openIdIdentityModel.findIdentityByOpenId(
+                OpenIdIdentityIssuerType.SLACK,
+                slackUserId,
+                teamId,
+            );
+
+        if (openIdIdentity) {
+            return openIdIdentity.userUuid;
+        }
+
+        // Fallback: Use integration creator (current behavior)
+        // This maintains backward compatibility for non-OAuth installations
+        return this.getUserUuid(teamId);
     }
 
     async getInstallationFromOrganizationUuid(

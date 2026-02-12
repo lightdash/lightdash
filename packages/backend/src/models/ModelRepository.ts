@@ -496,7 +496,11 @@ export class ModelRepository
     public getSlackAuthenticationModel(): SlackAuthenticationModel {
         return this.getModel(
             'slackAuthenticationModel',
-            () => new SlackAuthenticationModel({ database: this.database }),
+            () =>
+                new SlackAuthenticationModel({
+                    database: this.database,
+                    openIdIdentityModel: this.getOpenIdIdentityModel(),
+                }),
         );
     }
 

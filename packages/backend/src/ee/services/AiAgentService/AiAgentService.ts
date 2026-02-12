@@ -4778,7 +4778,10 @@ Use them as a reference, but do all the due dilligence and follow the instructio
         if (!aiRequireOAuth) {
             return {
                 userUuid:
-                    await this.slackAuthenticationModel.getUserUuid(teamId),
+                    await this.slackAuthenticationModel.getUserUuidFromSlackUser(
+                        userId,
+                        teamId,
+                    ),
             };
         }
 
