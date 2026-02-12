@@ -1,3 +1,10 @@
+## [0.2457.2](https://github.com/lightdash/lightdash/compare/0.2457.1...0.2457.2) (2026-02-12)
+
+
+### Bug Fixes
+
+* ability check for resource action menu missing projectUuid and organizationUuid ([#20246](https://github.com/lightdash/lightdash/issues/20246)) ([d8ab703](https://github.com/lightdash/lightdash/commit/d8ab70315ff9c4ae06172e11f135cbe97fa818da))
+
 ## [0.2457.1](https://github.com/lightdash/lightdash/compare/0.2457.0...0.2457.1) (2026-02-12)
 
 
