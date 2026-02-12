@@ -1652,10 +1652,12 @@ export class ProjectModel {
                 .select('project_id');
             const projectId = project.project_id;
 
-            const dbSpaces = await trx(SpaceTableName).whereIn(
-                'space_uuid',
-                spaces.map((s) => s.uuid),
-            );
+            const dbSpaces = await trx(SpaceTableName)
+                .whereIn(
+                    'space_uuid',
+                    spaces.map((s) => s.uuid),
+                )
+                .whereNull('deleted_at');
 
             Logger.info(
                 `Copying ${spaces.length} spaces on ${previewProjectUuid}`,
