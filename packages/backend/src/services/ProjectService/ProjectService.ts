@@ -246,6 +246,7 @@ import { SubtotalsCalculator } from '../../utils/SubtotalsCalculator';
 import { metricQueryWithLimit as applyMetricQueryLimit } from '../../utils/csvLimitUtils';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
 import { BaseService } from '../BaseService';
+import { populateCustomMetricsSQL } from '../../ee/services/ai/utils/populateCustomMetricsSQL';
 import {
     hasDirectAccessToSpace,
     hasViewAccessToSpace,
@@ -2515,6 +2516,18 @@ export class ProjectService extends BaseService {
                 ? args.explore
                 : await this.getExplore(account, projectUuid, args.exploreName);
 
+        // Populate SQL for additionalMetrics that may be missing it (e.g., from MCP URLs)
+        // This is needed because custom metrics from URLs don't include SQL for security
+        const metricQueryWithSQL: MetricQuery = metricQuery.additionalMetrics
+            ? {
+                  ...metricQuery,
+                  additionalMetrics: populateCustomMetricsSQL(
+                      metricQuery.additionalMetrics,
+                      explore,
+                  ),
+              }
+            : metricQuery;
+
         // Get warehouse credentials to build the SQL builder (no full connection needed for compilation)
         const warehouseCredentials =
             await this.projectModel.getWarehouseCredentialsForProject(
@@ -2535,7 +2548,7 @@ export class ProjectService extends BaseService {
         );
 
         const compiledQuery = await ProjectService._compileQuery({
-            metricQuery,
+            metricQuery: metricQueryWithSQL,
             explore,
             warehouseSqlBuilder,
             intrinsicUserAttributes,
@@ -3352,6 +3365,18 @@ export class ProjectService extends BaseService {
                             exploreName,
                         ));
 
+                    // Populate SQL for additionalMetrics that may be missing it (e.g., from MCP URLs)
+                    // This is needed because custom metrics from URLs don't include SQL for security
+                    const metricQueryWithSQL = metricQueryWithLimit.additionalMetrics
+                        ? {
+                              ...metricQueryWithLimit,
+                              additionalMetrics: populateCustomMetricsSQL(
+                                  metricQueryWithLimit.additionalMetrics,
+                                  explore,
+                              ),
+                          }
+                        : metricQueryWithLimit;
+
                     const warehouseCredentials =
                         await this.getWarehouseCredentials({
                             projectUuid,
@@ -3384,7 +3409,7 @@ export class ProjectService extends BaseService {
                         await this.getAvailableParameters(projectUuid, explore);
 
                     const fullQuery = await ProjectService._compileQuery({
-                        metricQuery: metricQueryWithLimit,
+                        metricQuery: metricQueryWithSQL,
                         explore,
                         warehouseSqlBuilder: warehouseClient,
                         intrinsicUserAttributes,
@@ -5847,6 +5872,12 @@ export class ProjectService extends BaseService {
         availableParameterDefinitions: ParameterDefinitions,
         parameters?: ParametersValuesMap,
     ) {
+        // Populate SQL for additionalMetrics that may be missing it (e.g., from MCP URLs)
+        // This is needed because custom metrics from URLs don't include SQL for security
+        const populatedAdditionalMetrics = metricQuery.additionalMetrics
+            ? populateCustomMetricsSQL(metricQuery.additionalMetrics, explore)
+            : metricQuery.additionalMetrics;
+
         const totalQuery: MetricQuery = {
             ...metricQuery,
             limit: 1,
@@ -5855,7 +5886,7 @@ export class ProjectService extends BaseService {
             dimensions: [],
             customDimensions: metricQuery.customDimensions,
             metrics: metricQuery.metrics,
-            additionalMetrics: metricQuery.additionalMetrics,
+            additionalMetrics: populatedAdditionalMetrics,
         };
 
         const hasMetricFilters =
