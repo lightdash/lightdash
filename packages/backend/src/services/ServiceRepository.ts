@@ -975,11 +975,10 @@ export class ServiceRepository
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
                     projectModel: this.models.getProjectModel(),
-                    spaceModel: this.models.getSpaceModel(),
                     savedSqlModel: this.models.getSavedSqlModel(),
                     schedulerClient: this.clients.getSchedulerClient(),
                     analyticsModel: this.models.getAnalyticsModel(),
-                    featureFlagModel: this.models.getFeatureFlagModel(),
+                    spacePermissionService: this.getSpacePermissionService(),
                 }),
         );
     }
