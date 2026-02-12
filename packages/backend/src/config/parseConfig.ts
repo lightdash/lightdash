@@ -922,6 +922,9 @@ export type LightdashConfig = {
     athenaWarehouseIamRoleAuth: {
         enabled: boolean;
     };
+    saveCredentialsForm: {
+        enabled: boolean;
+    };
     github: {
         appName: string;
         redirectDomain: string;
@@ -1798,6 +1801,9 @@ export const parseConfig = (): LightdashConfig => {
         },
         athenaWarehouseIamRoleAuth: {
             enabled: process.env.ATHENA_WAREHOUSE_IAM_ROLE_AUTH === 'true',
+        },
+        saveCredentialsForm: {
+            enabled: process.env.SAVE_CREDENTIALS_FORM_ENABLED === 'true',
         },
         github: {
             appName: process.env.GITHUB_APP_NAME || 'lightdash-app-dev',

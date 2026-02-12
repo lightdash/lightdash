@@ -233,6 +233,7 @@ export enum SnowflakeAuthenticationType {
     PRIVATE_KEY = 'private_key',
     SSO = 'sso',
     EXTERNAL_BROWSER = 'external_browser',
+    NONE = 'none',
 }
 
 export type CreateSnowflakeCredentials = {
