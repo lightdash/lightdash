@@ -123,6 +123,10 @@ export default function mockHealthResponse(
         funnelBuilder: {
             enabled: false,
         },
+        softDelete: {
+            enabled: false,
+            retentionDays: 30,
+        },
         ...overrides,
     };
 }

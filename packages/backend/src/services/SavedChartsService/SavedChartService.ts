@@ -11,6 +11,8 @@ import {
     CreateSavedChart,
     CreateSavedChartVersion,
     CreateSchedulerAndTargetsWithoutIds,
+    DeletedChartContentSummary,
+    DeletedContentFilters,
     ExploreType,
     ForbiddenError,
     GoogleSheetsTransientError,
@@ -1525,5 +1527,142 @@ export class SavedChartService
                 },
             });
         }
+    }
+
+    /**
+     * Get deleted charts for a project
+     * Admins see all deleted charts, non-admins see only their own
+     */
+    async getDeletedCharts(
+        user: SessionUser,
+        projectUuid: string,
+        filters: DeletedContentFilters,
+        paginateArgs?: KnexPaginateArgs,
+    ): Promise<KnexPaginatedData<DeletedChartContentSummary[]>> {
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+
+        // Check if user can view the project
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        // Check if user is admin (can manage all deleted content)
+        const isAdmin = user.ability.can(
+            'manage',
+            subject('DeletedContent', { organizationUuid, projectUuid }),
+        );
+
+        // Non-admins can only see their own deleted items
+        const userUuidFilter = isAdmin ? undefined : user.userUuid;
+
+        return this.savedChartModel.getDeletedCharts(
+            projectUuid,
+            filters,
+            paginateArgs,
+            userUuidFilter,
+        );
+    }
+
+    /**
+     * Restore a soft-deleted chart
+     * Admins can restore any, non-admins can only restore their own
+     */
+    async restoreChart(user: SessionUser, chartUuid: string): Promise<void> {
+        const deletedChart = await this.savedChartModel.get(
+            chartUuid,
+            undefined,
+            { deleted: true },
+        );
+        const { organizationUuid, projectUuid } = deletedChart;
+
+        // Check if user can view the project
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        // Check if user is admin
+        const isAdmin = user.ability.can(
+            'manage',
+            subject('DeletedContent', { organizationUuid, projectUuid }),
+        );
+
+        // Non-admins can only restore their own items
+        if (!isAdmin && deletedChart.deletedBy?.userUuid !== user.userUuid) {
+            throw new ForbiddenError(
+                'You can only restore content you deleted',
+            );
+        }
+
+        await this.savedChartModel.restore(chartUuid);
+
+        this.analytics.track({
+            event: 'saved_chart.restored',
+            userId: user.userUuid,
+            properties: {
+                savedQueryId: chartUuid,
+                projectId: projectUuid,
+            },
+        });
+    }
+
+    /**
+     * Permanently delete a soft-deleted chart
+     * Admins can delete any, non-admins can only delete their own
+     */
+    async permanentlyDeleteChart(
+        user: SessionUser,
+        chartUuid: string,
+    ): Promise<void> {
+        const deletedChart = await this.savedChartModel.get(
+            chartUuid,
+            undefined,
+            { deleted: true },
+        );
+        const { organizationUuid, projectUuid } = deletedChart;
+
+        // Check if user can view the project
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        // Check if user is admin
+        const isAdmin = user.ability.can(
+            'manage',
+            subject('DeletedContent', { organizationUuid, projectUuid }),
+        );
+
+        // Non-admins can only permanently delete their own items
+        if (!isAdmin && deletedChart.deletedBy?.userUuid !== user.userUuid) {
+            throw new ForbiddenError(
+                'You can only permanently delete content you deleted',
+            );
+        }
+
+        await this.savedChartModel.permanentDelete(chartUuid);
+
+        this.analytics.track({
+            event: 'saved_chart.permanently_deleted',
+            userId: user.userUuid,
+            properties: {
+                savedQueryId: chartUuid,
+                projectId: projectUuid,
+            },
+        });
     }
 }

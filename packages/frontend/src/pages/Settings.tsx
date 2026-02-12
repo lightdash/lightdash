@@ -19,6 +19,7 @@ import {
     IconRefresh,
     IconReportAnalytics,
     IconTableOptions,
+    IconTrash,
     IconUserCircle,
     IconUserCode,
     IconUserPlus,
@@ -455,6 +456,12 @@ const Settings: FC = () => {
             ) &&
             !matchPath(
                 {
+                    path: '/generalSettings/projectManagement/:projectUuid/recentlyDeleted',
+                },
+                location.pathname,
+            ) &&
+            !matchPath(
+                {
                     path: '/generalSettings/customRoles',
                 },
                 location.pathname,
@@ -519,7 +526,9 @@ const Settings: FC = () => {
                                     exact
                                     to="/generalSettings/profile"
                                     label="Profile"
-                                    leftSection={<MantineIcon icon={IconUserCircle} />}
+                                    leftSection={
+                                        <MantineIcon icon={IconUserCircle} />
+                                    }
                                 />
                                 {allowPasswordAuthentication && (
                                     <RouterNavLink
@@ -530,7 +539,9 @@ const Settings: FC = () => {
                                         }
                                         exact
                                         to="/generalSettings/password"
-                                        leftSection={<MantineIcon icon={IconLock} />}
+                                        leftSection={
+                                            <MantineIcon icon={IconLock} />
+                                        }
                                     />
                                 )}
                                 <RouterNavLink
@@ -572,7 +583,9 @@ const Settings: FC = () => {
                                         label="Personal access tokens"
                                         exact
                                         to="/generalSettings/personalAccessTokens"
-                                        leftSection={<MantineIcon icon={IconKey} />}
+                                        leftSection={
+                                            <MantineIcon icon={IconKey} />
+                                        }
                                     />
                                 )}
                             </Box>
@@ -665,7 +678,9 @@ const Settings: FC = () => {
                                         label="Integrations"
                                         exact
                                         to="/generalSettings/integrations"
-                                        leftSection={<MantineIcon icon={IconPlug} />}
+                                        leftSection={
+                                            <MantineIcon icon={IconPlug} />
+                                        }
                                     />
                                 )}
 
@@ -928,6 +943,17 @@ const Settings: FC = () => {
                                             }
                                         />
                                     ) : null}
+
+                                    {health?.softDelete?.enabled && (
+                                        <RouterNavLink
+                                            label="Recently deleted"
+                                            exact
+                                            to={`/generalSettings/projectManagement/${project.projectUuid}/recentlyDeleted`}
+                                            leftSection={
+                                                <MantineIcon icon={IconTrash} />
+                                            }
+                                        />
+                                    )}
                                 </Box>
                             ) : null}
                         </Stack>

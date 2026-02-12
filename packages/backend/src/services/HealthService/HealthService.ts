@@ -225,6 +225,10 @@ export class HealthService extends BaseService {
             funnelBuilder: {
                 enabled: this.lightdashConfig.funnelBuilder.enabled,
             },
+            softDelete: {
+                enabled: this.lightdashConfig.softDelete.enabled,
+                retentionDays: this.lightdashConfig.softDelete.retentionDays,
+            },
         };
     }
 
