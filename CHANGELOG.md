@@ -1,3 +1,10 @@
+## [0.2458.1](https://github.com/lightdash/lightdash/compare/0.2458.0...0.2458.1) (2026-02-12)
+
+
+### Bug Fixes
+
+* improve delete space modal confirmation message and handler ([#20277](https://github.com/lightdash/lightdash/issues/20277)) ([2fdeff9](https://github.com/lightdash/lightdash/commit/2fdeff9c14391a60118e0a06aa18961120a4ecbc))
+
 # [0.2458.0](https://github.com/lightdash/lightdash/compare/0.2457.6...0.2458.0) (2026-02-12)
 
 
