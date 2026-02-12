@@ -334,8 +334,13 @@ export class AnalyticsModel {
                 .from(AnalyticsDashboardViewsTableName)
                 .leftJoin(
                     DashboardsTableName,
-                    `${DashboardsTableName}.dashboard_uuid`,
-                    `${AnalyticsDashboardViewsTableName}.dashboard_uuid`,
+                    function nonDeletedDashboardJoin() {
+                        this.on(
+                            `${DashboardsTableName}.dashboard_uuid`,
+                            '=',
+                            `${AnalyticsDashboardViewsTableName}.dashboard_uuid`,
+                        ).andOnNull(`${DashboardsTableName}.deleted_at`);
+                    },
                 )
                 .leftJoin(
                     UserTableName,

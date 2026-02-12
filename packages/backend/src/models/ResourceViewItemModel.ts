@@ -257,11 +257,13 @@ const getAllSpaces = async (
             `${PinnedListTableName}.pinned_list_uuid`,
             `${PinnedSpaceTableName}.pinned_list_uuid`,
         )
-        .innerJoin(
-            SpaceTableName,
-            `${PinnedSpaceTableName}.space_uuid`,
-            `${SpaceTableName}.space_uuid`,
-        )
+        .innerJoin(SpaceTableName, function nonDeletedSpaceJoin() {
+            this.on(
+                `${PinnedSpaceTableName}.space_uuid`,
+                '=',
+                `${SpaceTableName}.space_uuid`,
+            ).andOnNull(`${SpaceTableName}.deleted_at`);
+        })
         .leftJoin(
             SpaceUserAccessTableName,
             `${SpaceTableName}.space_uuid`,
@@ -296,6 +298,7 @@ const getAllSpaces = async (
                          JOIN ${SpaceTableName} root_space ON sua2.space_uuid = root_space.space_uuid
                          WHERE root_space.path @> ${SpaceTableName}.path
                          AND nlevel(root_space.path) = 1
+                         AND root_space.deleted_at IS NULL
                          LIMIT 1)
                     ELSE
                         COUNT(DISTINCT ${SpaceUserAccessTableName}.user_uuid)

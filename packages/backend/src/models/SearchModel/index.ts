@@ -760,6 +760,7 @@ export class SearchModel {
             )
             .where(`${ProjectTableName}.project_uuid`, projectUuid)
             .whereNull(`${SavedChartsTableName}.deleted_at`)
+            .whereNull(`${SpaceTableName}.deleted_at`)
             .whereRaw(searchFilterSql)
             .orderBy('search_rank', 'desc');
 
@@ -921,6 +922,7 @@ export class SearchModel {
             )
             .where(`${ProjectTableName}.project_uuid`, projectUuid)
             .whereNull(`${SavedChartsTableName}.deleted_at`)
+            .whereNull(`${SpaceTableName}.deleted_at`)
             .whereRaw(savedChartsSearchFilterSql);
 
         const savedSqlSearchRankRawSql = getFullTextSearchRankCalcSql({
@@ -1012,6 +1014,16 @@ export class SearchModel {
                 this.database.raw('? as chart_source', ['sql']),
             )
             .whereNull(`${SavedSqlTableName}.deleted_at`)
+            .where(function excludeDeletedSpaces() {
+                void this.whereNull('direct_space.deleted_at').orWhereNull(
+                    'direct_space.space_uuid',
+                );
+            })
+            .where(function excludeDeletedDashboardSpaces() {
+                void this.whereNull('dashboard_space.deleted_at').orWhereNull(
+                    'dashboard_space.space_uuid',
+                );
+            })
             .where(`${ProjectTableName}.project_uuid`, projectUuid)
             .whereRaw(savedSqlSearchFilterSql);
 
