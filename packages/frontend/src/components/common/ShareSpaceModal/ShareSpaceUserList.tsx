@@ -270,14 +270,16 @@ const UserAccessList: FC<UserAccessListProps> = ({
                                     styles={{
                                         input: {
                                             fontWeight: 500,
-                                            textAlign: 'right',
+                                            textAlign: disabled
+                                                ? undefined
+                                                : 'right',
                                         },
                                         rightSection: {
                                             pointerEvents: 'none',
                                         },
                                     }}
                                     size="xs"
-                                    variant="unstyled"
+                                    variant={disabled ? 'default' : 'unstyled'}
                                     withinPortal
                                     data={userAccessTypes.map((u) => ({
                                         label: u.title,
@@ -404,14 +406,14 @@ const GroupsAccessList: FC<GroupAccessListProps> = ({
                             styles={{
                                 input: {
                                     fontWeight: 500,
-                                    textAlign: 'right',
+                                    textAlign: disabled ? undefined : 'right',
                                 },
                                 rightSection: {
                                     pointerEvents: 'none',
                                 },
                             }}
                             size="xs"
-                            variant="unstyled"
+                            variant={disabled ? 'default' : 'unstyled'}
                             withinPortal
                             data={userAccessTypes.map((u) => ({
                                 label: u.title,
