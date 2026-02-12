@@ -1,3 +1,10 @@
+## [0.2457.1](https://github.com/lightdash/lightdash/compare/0.2457.0...0.2457.1) (2026-02-12)
+
+
+### Bug Fixes
+
+* should be able to export table viz ([#20215](https://github.com/lightdash/lightdash/issues/20215)) ([68f7754](https://github.com/lightdash/lightdash/commit/68f77549efb8ac0a08575a1fb855404e104817bb))
+
 # [0.2457.0](https://github.com/lightdash/lightdash/compare/0.2456.0...0.2457.0) (2026-02-12)
 
 
