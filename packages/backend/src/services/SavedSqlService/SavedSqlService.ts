@@ -157,13 +157,10 @@ export class SavedSqlService
                   actor.user.userUuid,
                   [spaceUuid, resource.spaceUuid!],
               )
-            : {
-                  [spaceUuid]:
-                      await this.spacePermissionService.getSpaceAccessContext(
-                          actor.user.userUuid,
-                          spaceUuid,
-                      ),
-              };
+            : await this.spacePermissionService.getSpacesAccessContext(
+                  actor.user.userUuid,
+                  [spaceUuid],
+              );
 
         if (
             actor.user.ability.cannot(
@@ -220,10 +217,6 @@ export class SavedSqlService
             },
         );
 
-        const userAccess = spaceCtx.access.find(
-            (a) => a.userUuid === user.userUuid,
-        );
-
         this.analytics.track({
             event: 'sql_chart.view',
             userId: user.userUuid,
@@ -237,7 +230,7 @@ export class SavedSqlService
             ...savedChart,
             space: {
                 ...savedChart.space,
-                userAccess: userAccess as SqlChart['space']['userAccess'],
+                userAccess: spaceCtx.access[0],
             },
         };
     }
