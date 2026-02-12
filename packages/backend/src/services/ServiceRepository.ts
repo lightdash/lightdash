@@ -322,7 +322,7 @@ export class ServiceRepository
                     analytics: this.context.lightdashAnalytics,
                     projectService: this.getProjectService(),
                     userModel: this.models.getUserModel(),
-                    s3Client: this.clients.getS3Client(),
+                    fileStorageClient: this.clients.getFileStorageClient(),
                     dashboardModel: this.models.getDashboardModel(),
                     savedChartModel: this.models.getSavedChartModel(),
                     savedSqlModel: this.models.getSavedSqlModel(),
@@ -515,7 +515,7 @@ export class ServiceRepository
                     lightdashConfig: this.context.lightdashConfig,
                     persistentDownloadFileModel:
                         this.models.getPersistentDownloadFileModel(),
-                    s3Client: this.clients.getS3Client(),
+                    fileStorageClient: this.clients.getFileStorageClient(),
                 }),
         );
     }
@@ -556,7 +556,7 @@ export class ServiceRepository
             () =>
                 new PivotTableService({
                     lightdashConfig: this.context.lightdashConfig,
-                    s3Client: this.clients.getS3Client(),
+                    fileStorageClient: this.clients.getFileStorageClient(),
                     downloadFileModel: this.models.getDownloadFileModel(),
                     persistentDownloadFileService:
                         this.getPersistentDownloadFileService(),
@@ -589,7 +589,7 @@ export class ServiceRepository
                     emailModel: this.models.getEmailModel(),
                     schedulerClient: this.clients.getSchedulerClient(),
                     downloadFileModel: this.models.getDownloadFileModel(),
-                    s3Client: this.clients.getS3Client(),
+                    fileStorageClient: this.clients.getFileStorageClient(),
                     groupsModel: this.models.getGroupsModel(),
                     tagsModel: this.models.getTagsModel(),
                     catalogModel: this.models.getCatalogModel(),
@@ -635,7 +635,7 @@ export class ServiceRepository
                     emailModel: this.models.getEmailModel(),
                     schedulerClient: this.clients.getSchedulerClient(),
                     downloadFileModel: this.models.getDownloadFileModel(),
-                    s3Client: this.clients.getS3Client(),
+                    fileStorageClient: this.clients.getFileStorageClient(),
                     groupsModel: this.models.getGroupsModel(),
                     tagsModel: this.models.getTagsModel(),
                     catalogModel: this.models.getCatalogModel(),
@@ -801,7 +801,7 @@ export class ServiceRepository
                     dashboardModel: this.models.getDashboardModel(),
                     savedChartModel: this.models.getSavedChartModel(),
                     shareModel: this.models.getShareModel(),
-                    s3Client: this.clients.getS3Client(),
+                    fileStorageClient: this.clients.getFileStorageClient(),
                     projectModel: this.models.getProjectModel(),
                     downloadFileModel: this.models.getDownloadFileModel(),
                     slackClient: this.clients.getSlackClient(),

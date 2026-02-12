@@ -129,7 +129,7 @@ const schedulerWorkerFactory = (context: {
         userService: context.serviceRepository.getUserService(),
         emailClient: context.clients.getEmailClient(),
         googleDriveClient: context.clients.getGoogleDriveClient(),
-        s3Client: context.clients.getS3Client(),
+        fileStorageClient: context.clients.getFileStorageClient(),
         schedulerClient: context.clients.getSchedulerClient(),
         msTeamsClient: context.clients.getMsTeamsClient(),
         catalogService: context.serviceRepository.getCatalogService(),

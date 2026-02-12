@@ -1715,7 +1715,7 @@ export const parseConfig = (): LightdashConfig => {
             expirationSeconds:
                 getIntegerFromEnvironmentVariable(
                     'PERSISTENT_DOWNLOAD_URL_EXPIRATION_SECONDS',
-                ) ?? 604800, // 7 days, must match migration default
+                ) ?? 259200, // 3 days, matches S3_EXPIRATION_TIME default
         },
         extendedUsageAnalytics: {
             enabled: process.env.EXTENDED_USAGE_ANALYTICS === 'true',

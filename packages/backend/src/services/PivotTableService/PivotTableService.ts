@@ -13,8 +13,8 @@ import { stringify } from 'csv-stringify';
 import * as fsPromise from 'fs/promises';
 import moment from 'moment';
 import { nanoid } from 'nanoid';
-import { S3Client } from '../../clients/Aws/S3Client';
 import { AttachmentUrl } from '../../clients/EmailClient/EmailClient';
+import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
 import { S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
@@ -28,7 +28,7 @@ import { PersistentDownloadFileService } from '../PersistentDownloadFileService/
 
 type PivotTableServiceArguments = {
     lightdashConfig: LightdashConfig;
-    s3Client: S3Client;
+    fileStorageClient: FileStorageClient;
     downloadFileModel: DownloadFileModel;
     persistentDownloadFileService: PersistentDownloadFileService;
 };
@@ -36,7 +36,7 @@ type PivotTableServiceArguments = {
 export class PivotTableService extends BaseService {
     lightdashConfig: LightdashConfig;
 
-    s3Client: S3Client;
+    fileStorageClient: FileStorageClient;
 
     downloadFileModel: DownloadFileModel;
 
@@ -44,13 +44,13 @@ export class PivotTableService extends BaseService {
 
     constructor({
         lightdashConfig,
-        s3Client,
+        fileStorageClient,
         downloadFileModel,
         persistentDownloadFileService,
     }: PivotTableServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
-        this.s3Client = s3Client;
+        this.fileStorageClient = fileStorageClient;
         this.downloadFileModel = downloadFileModel;
         this.persistentDownloadFileService = persistentDownloadFileService;
     }
@@ -287,8 +287,8 @@ export class PivotTableService extends BaseService {
         ]);
         await fsPromise.writeFile(filePath, csvWithBOM);
 
-        if (this.s3Client.isEnabled()) {
-            await this.s3Client.uploadCsv(csvContent, fileId);
+        if (this.fileStorageClient.isEnabled()) {
+            await this.fileStorageClient.uploadCsv(csvContent, fileId);
 
             // Delete local file in 10 minutes, we could still read from the local file to upload to google sheets
             setTimeout(

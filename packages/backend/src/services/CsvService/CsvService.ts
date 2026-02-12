@@ -71,8 +71,8 @@ import {
     parseAnalyticsLimit,
 } from '../../analytics/LightdashAnalytics';
 import * as Account from '../../auth/account';
-import { S3Client } from '../../clients/Aws/S3Client';
 import { AttachmentUrl } from '../../clients/EmailClient/EmailClient';
+import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
 import { S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
@@ -101,7 +101,7 @@ type CsvServiceArguments = {
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
     projectService: ProjectService;
-    s3Client: S3Client;
+    fileStorageClient: FileStorageClient;
     savedChartModel: SavedChartModel;
     savedSqlModel: SavedSqlModel;
     dashboardModel: DashboardModel;
@@ -203,7 +203,7 @@ export class CsvService extends BaseService {
 
     projectService: ProjectService;
 
-    s3Client: S3Client;
+    fileStorageClient: FileStorageClient;
 
     savedChartModel: SavedChartModel;
 
@@ -228,7 +228,7 @@ export class CsvService extends BaseService {
         analytics,
         userModel,
         projectService,
-        s3Client,
+        fileStorageClient,
         savedChartModel,
         savedSqlModel,
         dashboardModel,
@@ -243,7 +243,7 @@ export class CsvService extends BaseService {
         this.analytics = analytics;
         this.userModel = userModel;
         this.projectService = projectService;
-        this.s3Client = s3Client;
+        this.fileStorageClient = fileStorageClient;
         this.savedChartModel = savedChartModel;
         this.savedSqlModel = savedSqlModel;
         this.dashboardModel = dashboardModel;
@@ -586,8 +586,8 @@ export class CsvService extends BaseService {
         ]);
         await fsPromise.writeFile(filePath, csvWithBOM);
 
-        if (this.s3Client.isEnabled()) {
-            await this.s3Client.uploadCsv(csvContent, fileId);
+        if (this.fileStorageClient.isEnabled()) {
+            await this.fileStorageClient.uploadCsv(csvContent, fileId);
 
             // Delete local file in 10 minutes, we could still read from the local file to upload to google sheets
             setTimeout(
@@ -678,7 +678,7 @@ export class CsvService extends BaseService {
                   fileType: SchedulerFormat.CSV,
                   values: onlyRaw ? 'raw' : 'formatted',
                   limit: parseAnalyticsLimit(options?.limit),
-                  storage: this.s3Client.isEnabled() ? 's3' : 'local',
+                  storage: this.fileStorageClient.isEnabled() ? 's3' : 'local',
                   context: QueryExecutionContext.SCHEDULED_DELIVERY,
                   numColumns:
                       metricQuery.dimensions.length +
@@ -857,7 +857,7 @@ export class CsvService extends BaseService {
                   projectId: projectUuid,
                   fileType: SchedulerFormat.CSV,
                   values: 'raw',
-                  storage: this.s3Client.isEnabled() ? 's3' : 'local',
+                  storage: this.fileStorageClient.isEnabled() ? 's3' : 'local',
                   context: QueryExecutionContext.SCHEDULED_DELIVERY,
               }
             : undefined;
@@ -1215,7 +1215,7 @@ export class CsvService extends BaseService {
             organizationId: user.organizationUuid,
             projectId: projectUuid,
             fileType: SchedulerFormat.CSV,
-            storage: this.s3Client.isEnabled() ? 's3' : 'local',
+            storage: this.fileStorageClient.isEnabled() ? 's3' : 'local',
         };
         try {
             const numberColumns =
@@ -1304,11 +1304,11 @@ export class CsvService extends BaseService {
             );
             const filePath = `/tmp/${fileId}`;
             let fileUrl;
-            if (this.s3Client.isEnabled()) {
+            if (this.fileStorageClient.isEnabled()) {
                 const csvContent = await fsPromise.readFile(filePath, {
                     encoding: 'utf-8',
                 });
-                await this.s3Client.uploadCsv(csvContent, fileId);
+                await this.fileStorageClient.uploadCsv(csvContent, fileId);
                 try {
                     await fsPromise.unlink(filePath);
                 } catch (error) {
@@ -1417,7 +1417,7 @@ export class CsvService extends BaseService {
         userUuid,
         organizationUuid,
     }: ExportCsvDashboardPayload) {
-        if (!this.s3Client.isEnabled()) {
+        if (!this.fileStorageClient.isEnabled()) {
             throw new MissingConfigError('Cloud storage is not enabled');
         }
         const options: SchedulerCsvOptions = {
@@ -1504,7 +1504,7 @@ export class CsvService extends BaseService {
         this.logger.info(
             `Uploading zip file to S3 for dashboard ${dashboardUuid}: ${zipFileName}`,
         );
-        await this.s3Client.uploadZip(
+        await this.fileStorageClient.uploadZip(
             fs.createReadStream(zipFile),
             zipFileName,
         );

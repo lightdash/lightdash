@@ -104,8 +104,8 @@ import {
     parseAnalyticsLimit,
 } from '../analytics/LightdashAnalytics';
 import * as Account from '../auth/account';
-import { S3Client } from '../clients/Aws/S3Client';
 import EmailClient from '../clients/EmailClient/EmailClient';
+import { type FileStorageClient } from '../clients/FileStorage/FileStorageClient';
 import { GoogleDriveClient } from '../clients/Google/GoogleDriveClient';
 import { MicrosoftTeamsClient } from '../clients/MicrosoftTeams/MicrosoftTeamsClient';
 import { SlackClient } from '../clients/Slack/SlackClient';
@@ -153,7 +153,7 @@ export type SchedulerTaskArguments = {
     validationService: ValidationService;
     emailClient: EmailClient;
     googleDriveClient: GoogleDriveClient;
-    s3Client: S3Client;
+    fileStorageClient: FileStorageClient;
     schedulerClient: SchedulerClient;
     slackClient: SlackClient;
     catalogService: CatalogService;
@@ -187,7 +187,7 @@ export default class SchedulerTask {
 
     protected readonly googleDriveClient: GoogleDriveClient;
 
-    protected readonly s3Client: S3Client;
+    protected readonly fileStorageClient: FileStorageClient;
 
     protected readonly schedulerClient: SchedulerClient;
 
@@ -217,7 +217,7 @@ export default class SchedulerTask {
         this.validationService = args.validationService;
         this.emailClient = args.emailClient;
         this.googleDriveClient = args.googleDriveClient;
-        this.s3Client = args.s3Client;
+        this.fileStorageClient = args.fileStorageClient;
         this.schedulerClient = args.schedulerClient;
         this.slackClient = args.slackClient;
         this.catalogService = args.catalogService;
@@ -436,7 +436,9 @@ export default class SchedulerTask {
                     fileType: format,
                     values: csvOptions?.formatted ? 'formatted' : 'raw',
                     limit: parseAnalyticsLimit(csvOptions?.limit),
-                    storage: this.s3Client.isEnabled() ? 's3' : 'local',
+                    storage: this.fileStorageClient.isEnabled()
+                        ? 's3'
+                        : 'local',
                     context,
                 };
 
@@ -937,8 +939,9 @@ export default class SchedulerTask {
                     cron,
                     timezone || defaultSchedulerTimezone,
                 )} from Lightdash.\n${
-                    showExpirationWarning
-                        ? this.s3Client.getExpirationWarning()?.slack || ''
+                    showExpirationWarning &&
+                    this.fileStorageClient.expirationDays
+                        ? `For security reasons, delivered files expire after *${this.fileStorageClient.expirationDays}* days.`
                         : ''
                 }`,
                 includeLinks,
@@ -962,7 +965,7 @@ export default class SchedulerTask {
 
                     const expiration = slackImageUrl.expiring
                         ? `For security reasons, delivered files expire after ${
-                              this.s3Client.getExpirationWarning()?.days || 3
+                              this.fileStorageClient.expirationDays ?? 3
                           } days.`
                         : '';
 
@@ -992,7 +995,7 @@ export default class SchedulerTask {
 
                 const expiration = slackImageUrl.expiring
                     ? `For security reasons, delivered files expire after ${
-                          this.s3Client.getExpirationWarning()?.days || 3
+                          this.fileStorageClient.expirationDays ?? 3
                       } days.`
                     : '';
                 const blocks = getChartAndDashboardBlocks({
@@ -1011,8 +1014,8 @@ export default class SchedulerTask {
                 if (pdfFile && message.ts) {
                     try {
                         // Add the pdf to the thread
-                        const pdfBuffer = this.s3Client.isEnabled()
-                            ? await this.s3Client.getS3FileStream(
+                        const pdfBuffer = this.fileStorageClient.isEnabled()
+                            ? await this.fileStorageClient.getFileStream(
                                   pdfFile.fileName,
                               )
                             : await fs.readFile(pdfFile.source);
@@ -2127,7 +2130,7 @@ export default class SchedulerTask {
                     thresholdMessage,
                     new Date().toLocaleDateString('en-GB'),
                     `For security reasons, delivered files expire after ${
-                        this.s3Client.getExpirationWarning()?.days || 3
+                        this.fileStorageClient.expirationDays ?? 3
                     } days`,
                     imageUrl,
                     url,
@@ -2157,7 +2160,7 @@ export default class SchedulerTask {
                     schedulerUrl,
                     includeLinks,
                     pdfFile?.source,
-                    this.s3Client.getExpirationWarning()?.days,
+                    this.fileStorageClient.expirationDays,
                 );
             } else if (savedChartUuid) {
                 if (csvUrl === undefined) {
@@ -2179,7 +2182,7 @@ export default class SchedulerTask {
                     url,
                     schedulerUrl,
                     includeLinks,
-                    this.s3Client.getExpirationWarning()?.days,
+                    this.fileStorageClient.expirationDays,
                     csvOptions?.asAttachment,
                     format,
                 );
@@ -2204,7 +2207,7 @@ export default class SchedulerTask {
                     url,
                     schedulerUrl,
                     includeLinks,
-                    this.s3Client.getExpirationWarning()?.days,
+                    this.fileStorageClient.expirationDays,
                     csvOptions?.asAttachment,
                     format,
                     failures,

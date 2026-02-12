@@ -16,8 +16,8 @@ import { type SshTunnel } from '@lightdash/warehouses';
 import { Readable } from 'stream';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import type { S3CacheClient } from '../../clients/Aws/S3CacheClient';
-import { S3Client } from '../../clients/Aws/S3Client';
 import EmailClient from '../../clients/EmailClient/EmailClient';
+import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
 import { type S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import type { LightdashConfig } from '../../config/parseConfig';
@@ -161,7 +161,7 @@ const getMockedAsyncQueryService = (
             scheduleTask: jest.fn(),
         } as unknown as SchedulerClient,
         downloadFileModel: {} as unknown as DownloadFileModel,
-        s3Client: {} as S3Client,
+        fileStorageClient: {} as FileStorageClient,
         groupsModel: {} as GroupsModel,
         tagsModel: {} as TagsModel,
         catalogModel: {} as CatalogModel,
@@ -200,7 +200,7 @@ const getMockedAsyncQueryService = (
             {} as OrganizationWarehouseCredentialsModel,
         pivotTableService: new PivotTableService({
             lightdashConfig,
-            s3Client: {} as S3Client,
+            fileStorageClient: {} as FileStorageClient,
             downloadFileModel: {} as DownloadFileModel,
             persistentDownloadFileService: {} as PersistentDownloadFileService,
         }),
