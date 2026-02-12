@@ -1,3 +1,10 @@
+## [0.2457.3](https://github.com/lightdash/lightdash/compare/0.2457.2...0.2457.3) (2026-02-12)
+
+
+### Bug Fixes
+
+* propagate events from tree nodes on view mode ([#20253](https://github.com/lightdash/lightdash/issues/20253)) ([732f1a5](https://github.com/lightdash/lightdash/commit/732f1a59db040c35d68f911f9a34c44164024b39))
+
 ## [0.2457.2](https://github.com/lightdash/lightdash/compare/0.2457.1...0.2457.2) (2026-02-12)
 
 
