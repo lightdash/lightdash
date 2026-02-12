@@ -1,3 +1,11 @@
+## [0.2458.2](https://github.com/lightdash/lightdash/compare/0.2458.1...0.2458.2) (2026-02-12)
+
+
+### Bug Fixes
+
+* exit 2 for failed linting ([#20283](https://github.com/lightdash/lightdash/issues/20283)) ([6c887fa](https://github.com/lightdash/lightdash/commit/6c887fa6338ea85d0c01859eda6a2dcbdd623267)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+* lightdash yml projects throwing dbt error ([#20197](https://github.com/lightdash/lightdash/issues/20197)) ([7de1209](https://github.com/lightdash/lightdash/commit/7de120959f71740489e0395ba8caf4819b695fde))
+
 ## [0.2458.1](https://github.com/lightdash/lightdash/compare/0.2458.0...0.2458.1) (2026-02-12)
 
 
