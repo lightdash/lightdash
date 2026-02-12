@@ -1,3 +1,10 @@
+## [0.2457.5](https://github.com/lightdash/lightdash/compare/0.2457.4...0.2457.5) (2026-02-12)
+
+
+### Bug Fixes
+
+* populate SQL for custom metrics in MCP service ([#20262](https://github.com/lightdash/lightdash/issues/20262)) ([bdb6c46](https://github.com/lightdash/lightdash/commit/bdb6c46bfe20b8ed49c1362490c381a9f2292e71))
+
 ## [0.2457.4](https://github.com/lightdash/lightdash/compare/0.2457.3...0.2457.4) (2026-02-12)
 
 
