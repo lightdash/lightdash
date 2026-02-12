@@ -35,7 +35,6 @@ import {
     type ExecuteAsyncUnderlyingDataRequestParams,
     Explore,
     ExploreCompiler,
-    FeatureFlags,
     type Field,
     FieldType,
     ForbiddenError,
@@ -85,7 +84,6 @@ import {
     S3Error,
     SchedulerFormat,
     sleep,
-    type SpaceShare,
     type SpaceSummary,
     SqlChart,
     UnexpectedServerError,
@@ -104,7 +102,6 @@ import { transformAndExportResults } from '../../clients/Aws/transformAndExportR
 import { S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import { measureTime } from '../../logging/measureTime';
 import { DownloadAuditModel } from '../../models/DownloadAuditModel';
-import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import type { SavedSqlModel } from '../../models/SavedSqlModel';
 import PrometheusMetrics from '../../prometheus';
@@ -168,7 +165,6 @@ type AsyncQueryServiceArguments = ProjectServiceArguments & {
     downloadAuditModel: DownloadAuditModel;
     cacheService?: ICacheService;
     savedSqlModel: SavedSqlModel;
-    featureFlagModel: FeatureFlagModel;
     resultsStorageClient: S3ResultsFileStorageClient;
     pivotTableService: PivotTableService;
     prometheusMetrics?: PrometheusMetrics;
@@ -185,8 +181,6 @@ export class AsyncQueryService extends ProjectService {
     cacheService?: ICacheService;
 
     savedSqlModel: SavedSqlModel;
-
-    featureFlagModel: FeatureFlagModel;
 
     resultsStorageClient: S3ResultsFileStorageClient;
 
@@ -208,7 +202,6 @@ export class AsyncQueryService extends ProjectService {
         this.downloadAuditModel = args.downloadAuditModel;
         this.cacheService = args.cacheService;
         this.savedSqlModel = args.savedSqlModel;
-        this.featureFlagModel = args.featureFlagModel;
         this.resultsStorageClient = args.resultsStorageClient;
         this.exportsStorageClient = this.s3Client;
         this.pivotTableService = args.pivotTableService;
@@ -218,49 +211,7 @@ export class AsyncQueryService extends ProjectService {
         this.persistentDownloadFileService = args.persistentDownloadFileService;
     }
 
-    // ! Duplicate of SavedSqlService.hasAccess
-    private async hasAccess(
-        account: Account,
-        action: 'view' | 'create' | 'update' | 'delete' | 'manage',
-        {
-            spaceUuid,
-            projectUuid,
-            organizationUuid,
-        }: { spaceUuid: string; projectUuid: string; organizationUuid: string },
-    ): Promise<{ hasAccess: boolean; userAccess: SpaceShare | undefined }> {
-        const space = await this.spaceModel.getSpaceSummary(spaceUuid);
-        const nestedPermissionsFlag = await this.featureFlagModel.get({
-            user: {
-                userUuid: account.user.id,
-                organizationUuid: account.organization.organizationUuid,
-                organizationName: account.organization.name,
-            },
-            featureFlagId: FeatureFlags.NestedSpacesPermissions,
-        });
-        const access = await this.spaceModel.getUserSpaceAccess(
-            account.user.id,
-            spaceUuid,
-            { useInheritedAccess: nestedPermissionsFlag.enabled },
-        );
-
-        const hasPermission = account.user.ability.can(
-            action,
-            subject('SavedChart', {
-                organizationUuid,
-                projectUuid,
-                isPrivate: space.isPrivate,
-                access,
-            }),
-        );
-
-        return {
-            hasAccess: hasPermission,
-            userAccess: access[0],
-        };
-    }
-
-    // ! Duplicate of SavedSqlService.hasSavedChartAccess
-    private async hasSavedChartAccess(
+    private async assertSavedChartAccess(
         account: Account,
         action: 'view' | 'create' | 'update' | 'delete' | 'manage',
         savedChart: {
@@ -269,11 +220,24 @@ export class AsyncQueryService extends ProjectService {
             space: Pick<SpaceSummary, 'uuid'>;
         },
     ) {
-        return this.hasAccess(account, action, {
-            spaceUuid: savedChart.space.uuid,
-            projectUuid: savedChart.project.projectUuid,
-            organizationUuid: savedChart.organization.organizationUuid,
-        });
+        const ctx = await this.spacePermissionService.getSpaceAccessContext(
+            account.user.id,
+            savedChart.space.uuid,
+        );
+
+        if (
+            account.user.ability.cannot(
+                action,
+                subject('SavedChart', {
+                    organizationUuid: savedChart.organization.organizationUuid,
+                    projectUuid: savedChart.project.projectUuid,
+                    isPrivate: ctx.isPrivate,
+                    access: ctx.access,
+                }),
+            )
+        ) {
+            throw new ForbiddenError("You don't have access to this chart");
+        }
     }
 
     public getCacheExpiresAt(baseDate: Date) {
@@ -2197,9 +2161,8 @@ export class AsyncQueryService extends ProjectService {
             throw new ForbiddenError('Chart does not belong to project');
         }
 
-        const space =
-            await this.spaceModel.getSpaceSummary(savedChartSpaceUuid);
         let access;
+        let spaceIsPrivate;
         if (isJwtUser(account)) {
             if (!ProjectService.isChartEmbed(account)) {
                 throw new ForbiddenError();
@@ -2215,20 +2178,16 @@ export class AsyncQueryService extends ProjectService {
             // TODO: Get all chartUuids for a given dashboard in the middleware.
             //       https://linear.app/lightdash/issue/CENG-110/front-load-available-charts-for-dashboard-requests
             access = [{ chartUuid: savedChart.uuid }];
+            const space =
+                await this.spaceModel.getSpaceSummary(savedChartSpaceUuid);
+            spaceIsPrivate = space.isPrivate;
         } else {
-            const nestedPermissionsFlag = await this.featureFlagModel.get({
-                user: {
-                    userUuid: account.user.id,
-                    organizationUuid: account.organization.organizationUuid,
-                    organizationName: account.organization.name,
-                },
-                featureFlagId: FeatureFlags.NestedSpacesPermissions,
-            });
-            access = await this.spaceModel.getUserSpaceAccess(
+            const ctx = await this.spacePermissionService.getSpaceAccessContext(
                 account.user.id,
-                space.uuid,
-                { useInheritedAccess: nestedPermissionsFlag.enabled },
+                savedChartSpaceUuid,
             );
+            access = ctx.access;
+            spaceIsPrivate = ctx.isPrivate;
         }
 
         if (
@@ -2237,7 +2196,7 @@ export class AsyncQueryService extends ProjectService {
                 subject('SavedChart', {
                     organizationUuid: savedChartOrganizationUuid,
                     projectUuid,
-                    isPrivate: space.isPrivate,
+                    isPrivate: spaceIsPrivate,
                     access,
                 }),
             ) ||
@@ -2381,18 +2340,9 @@ export class AsyncQueryService extends ProjectService {
                 savedChartUuid,
             );
         } else {
-            const nestedPermissionsFlag = await this.featureFlagModel.get({
-                user: {
-                    userUuid: account.user.id,
-                    organizationUuid: account.organization.organizationUuid,
-                    organizationName: account.organization.name,
-                },
-                featureFlagId: FeatureFlags.NestedSpacesPermissions,
-            });
-            const access = await this.spaceModel.getUserSpaceAccess(
+            const ctx = await this.spacePermissionService.getSpaceAccessContext(
                 account.user.id,
                 space.uuid,
-                { useInheritedAccess: nestedPermissionsFlag.enabled },
             );
 
             if (
@@ -2401,8 +2351,8 @@ export class AsyncQueryService extends ProjectService {
                     subject('SavedChart', {
                         organizationUuid: space.organizationUuid,
                         projectUuid,
-                        isPrivate: space.isPrivate,
-                        access,
+                        isPrivate: ctx.isPrivate,
+                        access: ctx.access,
                     }),
                 )
             ) {
@@ -3267,15 +3217,7 @@ export class AsyncQueryService extends ProjectService {
 
         const { account, projectUuid, context, invalidateCache, limit } = args;
 
-        const { hasAccess: hasViewAccess } = await this.hasSavedChartAccess(
-            account,
-            'view',
-            sqlChart,
-        );
-
-        if (!hasViewAccess) {
-            throw new ForbiddenError("You don't have access to this chart");
-        }
+        await this.assertSavedChartAccess(account, 'view', sqlChart);
 
         // Combine default parameter values with request parameters first
         const combinedParameters = await this.combineParameters(
@@ -3362,15 +3304,7 @@ export class AsyncQueryService extends ProjectService {
             limit,
         } = args;
 
-        const { hasAccess: hasViewAccess } = await this.hasSavedChartAccess(
-            account,
-            'view',
-            savedChart,
-        );
-
-        if (!hasViewAccess) {
-            throw new ForbiddenError("You don't have access to this chart");
-        }
+        await this.assertSavedChartAccess(account, 'view', savedChart);
 
         const dashboard =
             await this.dashboardModel.getByIdOrSlug(dashboardUuid);
