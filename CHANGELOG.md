@@ -1,3 +1,10 @@
+## [0.2457.6](https://github.com/lightdash/lightdash/compare/0.2457.5...0.2457.6) (2026-02-12)
+
+
+### Bug Fixes
+
+* exclude dashboard_version_uuid when copying content to preview projects ([#20268](https://github.com/lightdash/lightdash/issues/20268)) ([4a2d2a6](https://github.com/lightdash/lightdash/commit/4a2d2a610d36187b79ef28828d10d30772f67815))
+
 ## [0.2457.5](https://github.com/lightdash/lightdash/compare/0.2457.4...0.2457.5) (2026-02-12)
 
 
