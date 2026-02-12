@@ -951,11 +951,13 @@ export class DashboardModel {
                     `${DashboardTilesTableName}.dashboard_version_id`,
                 );
             })
-            .leftJoin(
-                SavedSqlTableName,
-                `${DashboardTileSqlChartTableName}.saved_sql_uuid`,
-                `${SavedSqlTableName}.saved_sql_uuid`,
-            )
+            .leftJoin(SavedSqlTableName, function nonDeletedSavedSqlJoin() {
+                this.on(
+                    `${DashboardTileSqlChartTableName}.saved_sql_uuid`,
+                    '=',
+                    `${SavedSqlTableName}.saved_sql_uuid`,
+                ).andOnNull(`${SavedSqlTableName}.deleted_at`);
+            })
             .leftJoin(SavedChartsTableName, function savedChartsJoin() {
                 this.on(
                     `${DashboardTileChartTableName}.saved_chart_id`,
