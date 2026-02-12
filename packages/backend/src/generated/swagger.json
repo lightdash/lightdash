@@ -8251,6 +8251,19 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
+                                                            "success",
+                                                            "error"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": ["status"],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
                                                             "error",
                                                             "success"
                                                         ]
@@ -23141,6 +23154,36 @@
                     "results": {
                         "items": {
                             "$ref": "#/components/schemas/BigqueryDataset"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "BigqueryProject": {
+                "properties": {
+                    "friendlyName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "projectId": {
+                        "type": "string"
+                    }
+                },
+                "required": ["friendlyName", "projectId"],
+                "type": "object"
+            },
+            "ApiBigqueryProjects": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/BigqueryProject"
                         },
                         "type": "array"
                     },
@@ -39922,6 +39965,38 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/bigquery/sso/projects": {
+            "get": {
+                "operationId": "GetBigQueryProjects",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiBigqueryProjects"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get BigQuery projects accessible by the user",
+                "summary": "Get BigQuery projects",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": []
             }
         },
         "/api/v1/bigquery/sso/is-authenticated": {

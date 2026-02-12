@@ -1,5 +1,6 @@
 import {
     ApiBigqueryDatasets,
+    ApiBigqueryProjects,
     ApiErrorPayload,
     ApiSuccessEmpty,
 } from '@lightdash/common';
@@ -42,6 +43,28 @@ export class BigquerySSOController extends BaseController {
         return {
             status: 'ok',
             results: databases,
+        };
+    }
+
+    /**
+     * Get BigQuery projects accessible by the user
+     * @summary Get BigQuery projects
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/projects')
+    @OperationId('GetBigQueryProjects')
+    async getBigQueryProjects(
+        @Request() req: express.Request,
+    ): Promise<ApiBigqueryProjects> {
+        this.setStatus(200);
+        const projects = await this.services
+            .getProjectService()
+            .getBigqueryProjects(req.user!);
+
+        return {
+            status: 'ok',
+            results: projects,
         };
     }
 
