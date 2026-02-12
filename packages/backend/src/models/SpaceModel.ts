@@ -377,6 +377,7 @@ export class SpaceModel {
             slug?: string;
             path?: string;
             parentSpaceUuid?: string;
+            deleted?: boolean;
         },
         { trx = this.database }: { trx?: Knex } = { trx: this.database },
     ): Promise<Omit<SpaceSummary, 'userAccess'>[]> {
@@ -417,6 +418,11 @@ export class SpaceModel {
                         `${SpaceUserAccessTableName}.user_uuid`,
                         'shared_with.user_uuid',
                     )
+                    .leftJoin(
+                        `${UserTableName} as deleted_by_user`,
+                        `${SpaceTableName}.deleted_by_user_uuid`,
+                        'deleted_by_user.user_uuid',
+                    )
                     .groupBy(
                         `${PinnedListTableName}.pinned_list_uuid`,
                         `${PinnedSpaceTableName}.order`,
@@ -424,12 +430,17 @@ export class SpaceModel {
                         `${ProjectTableName}.project_uuid`,
                         `${SpaceTableName}.space_uuid`,
                         `${SpaceTableName}.space_id`,
+                        `${SpaceTableName}.inherit_parent_permissions`,
+                        `${SpaceTableName}.deleted_at`,
+                        `${SpaceTableName}.deleted_by_user_uuid`,
+                        'deleted_by_user.first_name',
+                        'deleted_by_user.last_name',
                     )
                     .select({
                         organizationUuid: `${OrganizationTableName}.organization_uuid`,
                         projectUuid: `${ProjectTableName}.project_uuid`,
                         uuid: `${SpaceTableName}.space_uuid`,
-                        name: trx.raw('max(spaces.name)'),
+                        name: trx.raw(`max(${SpaceTableName}.name)`),
                         isPrivate: trx.raw(
                             SpaceModel.getRootSpaceIsPrivateQuery(),
                         ),
@@ -459,6 +470,11 @@ export class SpaceModel {
                         slug: `${SpaceTableName}.slug`,
                         parentSpaceUuid: `${SpaceTableName}.parent_space_uuid`,
                         path: `${SpaceTableName}.path`,
+                        inheritParentPermissions: `${SpaceTableName}.inherit_parent_permissions`,
+                        deletedAt: `${SpaceTableName}.deleted_at`,
+                        deletedByUserUuid: `${SpaceTableName}.deleted_by_user_uuid`,
+                        deletedByFirstName: 'deleted_by_user.first_name',
+                        deletedByLastName: 'deleted_by_user.last_name',
                     });
                 if (filters.projectUuid) {
                     void query.where(
@@ -496,7 +512,39 @@ export class SpaceModel {
                 if (filters.path) {
                     void query.where(`${SpaceTableName}.path`, filters.path);
                 }
-                return query;
+                if (filters.deleted) {
+                    void query.whereNotNull(`${SpaceTableName}.deleted_at`);
+                } else {
+                    void query.whereNull(`${SpaceTableName}.deleted_at`);
+                }
+                const rows = await query;
+                return rows.map(
+                    ({
+                        deletedAt,
+                        deletedByUserUuid,
+                        deletedByFirstName,
+                        deletedByLastName,
+                        ...rest
+                    }) => ({
+                        ...rest,
+                        ...(deletedAt
+                            ? {
+                                  deletedAt,
+                                  ...(deletedByUserUuid
+                                      ? {
+                                            deletedBy: {
+                                                userUuid: deletedByUserUuid,
+                                                firstName:
+                                                    deletedByFirstName ?? '',
+                                                lastName:
+                                                    deletedByLastName ?? '',
+                                            },
+                                        }
+                                      : {}),
+                              }
+                            : {}),
+                    }),
+                );
             },
         );
     }
@@ -531,6 +579,7 @@ export class SpaceModel {
                 `${PinnedSpaceTableName}.pinned_list_uuid`,
             )
             .where(`${SpaceTableName}.space_uuid`, spaceUuid)
+            .whereNull(`${SpaceTableName}.deleted_at`)
             .select<
                 (DbSpace &
                     DbProject &
@@ -2078,12 +2127,16 @@ export class SpaceModel {
 
     async getSpaceSummary(
         spaceUuid: string,
+        options?: { deleted?: boolean },
     ): Promise<Omit<SpaceSummary, 'userAccess'>> {
         return wrapSentryTransaction(
             'SpaceModel.getSpaceSummary',
             {},
             async () => {
-                const [space] = await this.find({ spaceUuid });
+                const [space] = await this.find({
+                    spaceUuid,
+                    deleted: options?.deleted,
+                });
                 if (space === undefined)
                     throw new NotFoundError(
                         `Space with spaceUuid ${spaceUuid} does not exist`,
@@ -2561,10 +2614,117 @@ export class SpaceModel {
         };
     }
 
-    async deleteSpace(spaceUuid: string): Promise<void> {
+    async permanentDelete(spaceUuid: string): Promise<void> {
         await this.database(SpaceTableName)
             .where('space_uuid', spaceUuid)
             .delete();
+    }
+
+    async softDelete(spaceUuid: string, userUuid: string): Promise<void> {
+        await this.database(SpaceTableName)
+            .update({
+                deleted_at: new Date(),
+                deleted_by_user_uuid: userUuid,
+            })
+            .where('space_uuid', spaceUuid)
+            .whereNull('deleted_at');
+    }
+
+    async restore(spaceUuid: string): Promise<void> {
+        const updateCount = await this.database(SpaceTableName)
+            .update({
+                deleted_at: null,
+                deleted_by_user_uuid: null,
+            })
+            .where('space_uuid', spaceUuid)
+            .whereNotNull('deleted_at');
+
+        if (updateCount !== 1) {
+            throw new NotFoundError('Deleted space not found');
+        }
+    }
+
+    async getChildSpaceUuids(
+        spaceUuid: string,
+        options?: { deleted?: boolean; deletedByUserUuid?: string },
+    ): Promise<string[]> {
+        // Direct children only — callers recurse to handle full depth
+        const query = this.database(SpaceTableName)
+            .select('space_uuid')
+            .where('parent_space_uuid', spaceUuid);
+
+        if (options?.deleted) {
+            void query.whereNotNull('deleted_at');
+            if (options.deletedByUserUuid) {
+                void query.where(
+                    'deleted_by_user_uuid',
+                    options.deletedByUserUuid,
+                );
+            }
+        } else {
+            void query.whereNull('deleted_at');
+        }
+
+        const spaces = await query;
+        return spaces.map((s) => s.space_uuid);
+    }
+
+    async getChartUuidsInSpace(
+        spaceUuid: string,
+        options?: { deleted?: boolean; deletedByUserUuid?: string },
+    ): Promise<string[]> {
+        const query = this.database(SavedChartsTableName)
+            .select('saved_query_uuid')
+            .innerJoin(
+                SpaceTableName,
+                `${SavedChartsTableName}.space_id`,
+                `${SpaceTableName}.space_id`,
+            )
+            .where(`${SpaceTableName}.space_uuid`, spaceUuid);
+
+        if (options?.deleted) {
+            void query.whereNotNull(`${SavedChartsTableName}.deleted_at`);
+            if (options.deletedByUserUuid) {
+                void query.where(
+                    `${SavedChartsTableName}.deleted_by_user_uuid`,
+                    options.deletedByUserUuid,
+                );
+            }
+        } else {
+            void query.whereNull(`${SavedChartsTableName}.deleted_at`);
+        }
+
+        const charts = await query;
+        return charts.map((c) => c.saved_query_uuid);
+    }
+
+    async getDashboardUuidsInSpace(
+        spaceUuid: string,
+        options?: { deleted?: boolean; deletedByUserUuid?: string },
+    ): Promise<string[]> {
+        const query = this.database(DashboardsTableName)
+            .select('dashboard_uuid')
+            .innerJoin(
+                SpaceTableName,
+                `${DashboardsTableName}.space_id`,
+                `${SpaceTableName}.space_id`,
+            )
+            .where(`${SpaceTableName}.space_uuid`, spaceUuid);
+
+        if (options?.deleted) {
+            void query.whereNotNull(`${DashboardsTableName}.deleted_at`);
+            if (options.deletedByUserUuid) {
+                void query.where(
+                    `${DashboardsTableName}.deleted_by_user_uuid`,
+                    options.deletedByUserUuid,
+                );
+            }
+        } else {
+            void query.whereNull(`${DashboardsTableName}.deleted_at`);
+        }
+
+        const dashboards = await query;
+        return dashboards.map((d) => d.dashboard_uuid);
     }
 
     async update(

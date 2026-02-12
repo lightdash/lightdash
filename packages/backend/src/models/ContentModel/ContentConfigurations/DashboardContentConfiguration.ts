@@ -165,6 +165,9 @@ export const dashboardContentConfiguration: ContentConfiguration<SummaryContentR
                             [`%${filters.search.toLowerCase()}%`],
                         );
                     }
+
+                    // Exclude dashboards in deleted spaces
+                    void builder.whereNull(`${SpaceTableName}.deleted_at`);
                 }),
         shouldRowBeConverted: (value): value is SummaryContentRow =>
             value.content_type === ContentType.DASHBOARD,

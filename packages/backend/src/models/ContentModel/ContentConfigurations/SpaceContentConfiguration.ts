@@ -32,8 +32,11 @@ type SpaceContentRow = SummaryContentRow<{
 export const spaceContentConfiguration: ContentConfiguration<SpaceContentRow> =
     {
         shouldQueryBeIncluded: (filters: ContentFilters) => {
-            if (filters.deleted) return false; // Spaces don't support soft delete
             if (filters.contentTypes?.includes(ContentType.SPACE)) {
+                return true;
+            }
+            // Include spaces in deleted content "all" view
+            if (filters.deleted && !filters.contentTypes) {
                 return true;
             }
             return false;
@@ -74,6 +77,11 @@ export const spaceContentConfiguration: ContentConfiguration<SpaceContentRow> =
                     `${SpaceUserAccessTableName}.user_uuid`,
                     'shared_with.user_uuid',
                 )
+                .leftJoin(
+                    `${UserTableName} as deleted_by_user`,
+                    `${SpaceTableName}.deleted_by_user_uuid`,
+                    'deleted_by_user.user_uuid',
+                )
                 .select<SpaceContentRow[]>([
                     knex.raw(`'${ContentType.SPACE}' as content_type`),
                     knex.raw(
@@ -104,10 +112,10 @@ export const spaceContentConfiguration: ContentConfiguration<SpaceContentRow> =
                     knex.raw(`null as last_updated_by_user_last_name`),
                     knex.raw(`0 as views`),
                     knex.raw(`null as first_viewed_at`),
-                    knex.raw(`NULL::timestamp as deleted_at`),
-                    knex.raw(`NULL as deleted_by_user_uuid`),
-                    knex.raw(`NULL as deleted_by_user_first_name`),
-                    knex.raw(`NULL as deleted_by_user_last_name`),
+                    `${SpaceTableName}.deleted_at`,
+                    `${SpaceTableName}.deleted_by_user_uuid`,
+                    'deleted_by_user.first_name as deleted_by_user_first_name',
+                    'deleted_by_user.last_name as deleted_by_user_last_name',
                     knex.raw(
                         `json_build_object(
                                     'chartCount', (
@@ -141,25 +149,57 @@ export const spaceContentConfiguration: ContentConfiguration<SpaceContentRow> =
                         );
                     }
 
-                    if (filters.space?.rootSpaces) {
-                        void builder
-                            .whereIn(
-                                `${SpaceTableName}.space_uuid`,
-                                filters.spaceUuids ?? [],
-                            )
-                            .andWhereRaw('nlevel(path) = 1');
-                    } else {
-                        void builder.whereIn(
-                            `${SpaceTableName}.parent_space_uuid`,
-                            filters.spaceUuids ?? [],
-                        );
-                    }
-
                     if (filters.search) {
                         void builder.whereRaw(
                             `LOWER(${SpaceTableName}.name) LIKE ?`,
                             [`%${filters.search.toLowerCase()}%`],
                         );
+                    }
+
+                    if (filters.deleted) {
+                        // "Recently Deleted" view: only deleted spaces
+                        void builder.whereNotNull(
+                            `${SpaceTableName}.deleted_at`,
+                        );
+                        if (filters.deletedByUserUuids?.length) {
+                            void builder.whereIn(
+                                `${SpaceTableName}.deleted_by_user_uuid`,
+                                filters.deletedByUserUuids,
+                            );
+                        }
+                        // Hide cascade-deleted children: only show a deleted space
+                        // if it's a root space OR its parent is not also deleted.
+                        // Children are auto-restored when the parent is restored.
+                        void builder.where(function parentNotDeleted() {
+                            void this.whereNull(
+                                `${SpaceTableName}.parent_space_uuid`,
+                            ).orWhereNotExists(
+                                knex
+                                    .select(knex.raw('1'))
+                                    .from(`${SpaceTableName} as parent_space`)
+                                    .whereRaw(
+                                        `parent_space.space_uuid = ${SpaceTableName}.parent_space_uuid`,
+                                    )
+                                    .whereNotNull('parent_space.deleted_at'),
+                            );
+                        });
+                    } else {
+                        // Normal content view: only non-deleted spaces,
+                        // scoped to allowed spaceUuids from access control
+                        void builder.whereNull(`${SpaceTableName}.deleted_at`);
+                        if (filters.space?.rootSpaces) {
+                            void builder
+                                .whereIn(
+                                    `${SpaceTableName}.space_uuid`,
+                                    filters.spaceUuids ?? [],
+                                )
+                                .andWhereRaw('nlevel(path) = 1');
+                        } else {
+                            void builder.whereIn(
+                                `${SpaceTableName}.parent_space_uuid`,
+                                filters.spaceUuids ?? [],
+                            );
+                        }
                     }
                 })
                 .groupBy(
@@ -178,6 +218,10 @@ export const spaceContentConfiguration: ContentConfiguration<SpaceContentRow> =
                     `${SpaceTableName}.parent_space_uuid`,
                     `${SpaceTableName}.created_at`,
                     `${PinnedSpaceTableName}.order`,
+                    `${SpaceTableName}.deleted_at`,
+                    `${SpaceTableName}.deleted_by_user_uuid`,
+                    'deleted_by_user.first_name',
+                    'deleted_by_user.last_name',
                 ),
         shouldRowBeConverted: (value): value is SpaceContentRow =>
             value.content_type === ContentType.SPACE,

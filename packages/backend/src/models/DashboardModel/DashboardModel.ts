@@ -566,11 +566,11 @@ export class DashboardModel {
                         .leftJoin(
                             SpaceTableName,
                             'dashboards.space_id',
-                            'spaces.space_id',
+                            `${SpaceTableName}.space_id`,
                         )
                         .leftJoin(
                             ProjectTableName,
-                            'spaces.project_id',
+                            `${SpaceTableName}.project_id`,
                             'projects.project_id',
                         )
                         .leftJoin(
@@ -664,7 +664,7 @@ export class DashboardModel {
                 })
                 .leftJoin(
                     'projects',
-                    'spaces.project_id',
+                    `${SpaceTableName}.project_id`,
                     'projects.project_id',
                 )
                 .where('projects.project_uuid', projectUuid);
@@ -1156,7 +1156,7 @@ export class DashboardModel {
         const dashboardId = await this.database.transaction(async (trx) => {
             const [space] = await trx(SpaceTableName)
                 .where('space_uuid', spaceUuid)
-                .select('spaces.*')
+                .select(`${SpaceTableName}.*`)
                 .limit(1);
             if (!space) {
                 throw new NotFoundError('Space not found');

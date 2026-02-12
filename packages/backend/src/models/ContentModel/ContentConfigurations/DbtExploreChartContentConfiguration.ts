@@ -174,6 +174,9 @@ export const dbtExploreChartContentConfiguration: ContentConfiguration<SelectSav
                             [`%${filters.search.toLowerCase()}%`],
                         );
                     }
+
+                    // Exclude charts in deleted spaces
+                    void builder.whereNull(`${SpaceTableName}.deleted_at`);
                 }),
         shouldRowBeConverted: (value): value is SelectSavedChart => {
             const contentTypeMatch = value.content_type === ContentType.CHART;

@@ -342,6 +342,7 @@ export class ContentService extends BaseService {
         const contentTypes = filters.contentTypes ?? [
             ContentType.CHART,
             ContentType.DASHBOARD,
+            ContentType.SPACE,
         ];
 
         return this.contentModel.findDeletedContents(
@@ -400,8 +401,7 @@ export class ContentService extends BaseService {
             case ContentType.DASHBOARD:
                 return this.dashboardService.restoreDashboard(user, item.uuid);
             case ContentType.SPACE:
-                // TODO: Implement space restore
-                throw new NotFoundError('Space restore not yet supported');
+                return this.spaceService.restoreSpace(user, item.uuid);
             default:
                 return assertUnreachable(item, 'Unknown content type');
         }
@@ -455,9 +455,9 @@ export class ContentService extends BaseService {
                     item.uuid,
                 );
             case ContentType.SPACE:
-                // TODO: Implement space permanent delete
-                throw new NotFoundError(
-                    'Space permanent delete not yet supported',
+                return this.spaceService.permanentlyDeleteSpace(
+                    user,
+                    item.uuid,
                 );
             default:
                 return assertUnreachable(item, 'Unknown content type');
