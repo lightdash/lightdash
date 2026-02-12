@@ -197,6 +197,9 @@ const ExpandedNode: React.FC<NodeProps<ExpandedNodeData>> = ({
                 borderColor: selected
                     ? theme.colors.blue[5]
                     : theme.colors.ldGray[3],
+                // Re-enable pointer events so tooltips work even when ReactFlow
+                // sets pointer-events:none on node wrappers (viewOnly mode)
+                pointerEvents: 'all',
             })}
         >
             <Handle
