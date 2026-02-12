@@ -114,12 +114,13 @@ export class CommentModel {
                 '=',
                 `${DashboardTilesTableName}.dashboard_version_id`,
             )
-            .join(
-                DashboardsTableName,
-                `${DashboardsTableName}.dashboard_id`,
-                '=',
-                `${DashboardVersionsTableName}.dashboard_id`,
-            )
+            .join(DashboardsTableName, function nonDeletedDashboardJoin() {
+                this.on(
+                    `${DashboardsTableName}.dashboard_id`,
+                    '=',
+                    `${DashboardVersionsTableName}.dashboard_id`,
+                ).andOnNull(`${DashboardsTableName}.deleted_at`);
+            })
             .leftJoin(
                 'dashboard_tile_charts',
                 'dashboard_tile_charts.dashboard_tile_uuid',
@@ -201,6 +202,7 @@ export class CommentModel {
                 `${DashboardVersionsTableName}.dashboard_id`,
             )
             .where('dashboard_uuid', dashboardUuid)
+            .whereNull(`${DashboardsTableName}.deleted_at`)
             .orderBy(`${DashboardVersionsTableName}.created_at`, 'desc')
             .limit(1)
             .first();

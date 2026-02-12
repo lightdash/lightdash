@@ -10,6 +10,7 @@ import {
 
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { SlackClient } from '../../clients/Slack/SlackClient';
+import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
@@ -48,7 +49,7 @@ const dashboardModel = {
 
     update: jest.fn(async () => dashboard),
 
-    delete: jest.fn(async () => dashboard),
+    permanentDelete: jest.fn(async () => dashboard),
 
     addVersion: jest.fn(async () => dashboard),
 
@@ -116,6 +117,7 @@ describe('DashboardService', () => {
     const projectUuid = 'projectUuid';
     const { uuid: dashboardUuid } = dashboard;
     const service = new DashboardService({
+        lightdashConfig: lightdashConfigMock,
         analytics: analyticsMock,
         dashboardModel: dashboardModel as unknown as DashboardModel,
         spaceModel: spaceModel as unknown as SpaceModel,
@@ -313,8 +315,10 @@ describe('DashboardService', () => {
     test('should delete dashboard', async () => {
         await service.delete(user, dashboardUuid);
 
-        expect(dashboardModel.delete).toHaveBeenCalledTimes(1);
-        expect(dashboardModel.delete).toHaveBeenCalledWith(dashboardUuid);
+        expect(dashboardModel.permanentDelete).toHaveBeenCalledTimes(1);
+        expect(dashboardModel.permanentDelete).toHaveBeenCalledWith(
+            dashboardUuid,
+        );
         expect(analyticsMock.track).toHaveBeenCalledTimes(1);
         expect(analyticsMock.track).toHaveBeenCalledWith(
             expect.objectContaining({

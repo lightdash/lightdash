@@ -195,11 +195,13 @@ export class SchedulerModel {
                     `${SchedulerTableName}.saved_chart_uuid`,
                 ).andOnNull(`${SavedChartsTableName}.deleted_at`);
             })
-            .leftJoin(
-                DashboardsTableName,
-                `${DashboardsTableName}.dashboard_uuid`,
-                `${SchedulerTableName}.dashboard_uuid`,
-            );
+            .leftJoin(DashboardsTableName, function nonDeletedDashboardJoin() {
+                this.on(
+                    `${DashboardsTableName}.dashboard_uuid`,
+                    '=',
+                    `${SchedulerTableName}.dashboard_uuid`,
+                ).andOnNull(`${DashboardsTableName}.deleted_at`);
+            });
     }
 
     private async getSchedulersWithTargets(
@@ -289,11 +291,13 @@ export class SchedulerModel {
                     `${SchedulerTableName}.saved_chart_uuid`,
                 ).andOnNull(`${SavedChartsTableName}.deleted_at`);
             })
-            .leftJoin(
-                DashboardsTableName,
-                `${DashboardsTableName}.dashboard_uuid`,
-                `${SchedulerTableName}.dashboard_uuid`,
-            );
+            .leftJoin(DashboardsTableName, function nonDeletedDashboardJoin() {
+                this.on(
+                    `${DashboardsTableName}.dashboard_uuid`,
+                    '=',
+                    `${SchedulerTableName}.dashboard_uuid`,
+                ).andOnNull(`${DashboardsTableName}.deleted_at`);
+            });
         // Apply search query if present
         if (searchQuery) {
             baseQuery = getColumnMatchRegexQuery(baseQuery, searchQuery, [
@@ -409,8 +413,13 @@ export class SchedulerModel {
             // Join to get the dashboard that the chart belongs to (if any)
             .leftJoin(
                 { [dashboardChartsJoinTable]: DashboardsTableName },
-                `${dashboardChartsJoinTable}.dashboard_uuid`,
-                `${SavedChartsTableName}.dashboard_uuid`,
+                function nonDeletedDashboardJoin() {
+                    this.on(
+                        `${dashboardChartsJoinTable}.dashboard_uuid`,
+                        '=',
+                        `${SavedChartsTableName}.dashboard_uuid`,
+                    ).andOnNull(`${dashboardChartsJoinTable}.deleted_at`);
+                },
             )
             .innerJoin(SpaceTableName, function joinSpaces() {
                 this.on(
@@ -903,12 +912,14 @@ export class SchedulerModel {
                     `${SchedulerTableName}.saved_chart_uuid`,
                 ).andOnNull(`${SavedChartsTableName}.deleted_at`);
             })
-            .leftJoin(DashboardsTableName, function joinDashboards() {
+            .leftJoin(DashboardsTableName, function nonDeletedDashboardJoin() {
                 this.on(
                     `${DashboardsTableName}.dashboard_uuid`,
                     '=',
                     `${SavedChartsTableName}.dashboard_uuid`,
-                ).andOnNotNull(`${SavedChartsTableName}.dashboard_uuid`);
+                )
+                    .andOnNotNull(`${SavedChartsTableName}.dashboard_uuid`)
+                    .andOnNull(`${DashboardsTableName}.deleted_at`);
             })
             .leftJoin(SpaceTableName, function joinSpaces() {
                 this.on(
@@ -949,11 +960,13 @@ export class SchedulerModel {
                 `${UserTableName}.user_uuid`,
                 `${SchedulerTableName}.created_by`,
             )
-            .leftJoin(
-                DashboardsTableName,
-                `${DashboardsTableName}.dashboard_uuid`,
-                `${SchedulerTableName}.dashboard_uuid`,
-            )
+            .leftJoin(DashboardsTableName, function nonDeletedDashboardJoin() {
+                this.on(
+                    `${DashboardsTableName}.dashboard_uuid`,
+                    '=',
+                    `${SchedulerTableName}.dashboard_uuid`,
+                ).andOnNull(`${DashboardsTableName}.deleted_at`);
+            })
             .leftJoin(
                 SpaceTableName,
                 `${SpaceTableName}.space_id`,
@@ -1156,7 +1169,8 @@ export class SchedulerModel {
             .whereNull('deleted_at');
         const dashboards = await this.database(DashboardsTableName)
             .select('name', 'dashboard_uuid')
-            .whereIn('dashboard_uuid', dashboardUuids);
+            .whereIn('dashboard_uuid', dashboardUuids)
+            .whereNull('deleted_at');
 
         return {
             pagination: {
@@ -1614,11 +1628,13 @@ export class SchedulerModel {
                     `${SchedulerTableName}.saved_chart_uuid`,
                 ).andOnNull(`${SavedChartsTableName}.deleted_at`);
             })
-            .leftJoin(
-                DashboardsTableName,
-                `${DashboardsTableName}.dashboard_uuid`,
-                `${SchedulerTableName}.dashboard_uuid`,
-            );
+            .leftJoin(DashboardsTableName, function nonDeletedDashboardJoin() {
+                this.on(
+                    `${DashboardsTableName}.dashboard_uuid`,
+                    '=',
+                    `${SchedulerTableName}.dashboard_uuid`,
+                ).andOnNull(`${DashboardsTableName}.deleted_at`);
+            });
 
         // Wrap runsQuery as a subquery so we can filter/sort on computed columns like run_status
         // (WHERE clause can't reference SELECT aliases, so we need an outer query)
@@ -1750,11 +1766,13 @@ export class SchedulerModel {
                     `${SchedulerTableName}.saved_chart_uuid`,
                 ).andOnNull(`${SavedChartsTableName}.deleted_at`);
             })
-            .leftJoin(
-                DashboardsTableName,
-                `${DashboardsTableName}.dashboard_uuid`,
-                `${SchedulerTableName}.dashboard_uuid`,
-            )
+            .leftJoin(DashboardsTableName, function nonDeletedDashboardJoin() {
+                this.on(
+                    `${DashboardsTableName}.dashboard_uuid`,
+                    '=',
+                    `${SchedulerTableName}.dashboard_uuid`,
+                ).andOnNull(`${DashboardsTableName}.deleted_at`);
+            })
             .where(`${SchedulerLogTableName}.job_id`, runId)
             .whereRaw(
                 `${SchedulerLogTableName}.job_id = ${SchedulerLogTableName}.job_group`,
@@ -1860,12 +1878,14 @@ export class SchedulerModel {
                     `${SchedulerTableName}.saved_chart_uuid`,
                 ).andOnNull(`${SavedChartsTableName}.deleted_at`);
             })
-            .leftJoin(DashboardsTableName, function joinDashboards() {
+            .leftJoin(DashboardsTableName, function nonDeletedDashboardJoin() {
                 this.on(
                     `${DashboardsTableName}.dashboard_uuid`,
                     '=',
                     `${SavedChartsTableName}.dashboard_uuid`,
-                ).andOnNotNull(`${SavedChartsTableName}.dashboard_uuid`);
+                )
+                    .andOnNotNull(`${SavedChartsTableName}.dashboard_uuid`)
+                    .andOnNull(`${DashboardsTableName}.deleted_at`);
             })
             .innerJoin(SpaceTableName, function joinSpaces() {
                 this.on(
@@ -1894,14 +1914,17 @@ export class SchedulerModel {
         // Query schedulers for dashboards
         const dashboardSchedulersQuery = this.database(SchedulerTableName)
             .count('*')
-            .select<
-                ProjectCountRow[]
-            >(`${ProjectTableName}.project_uuid`, `${ProjectTableName}.name as project_name`)
-            .innerJoin(
-                DashboardsTableName,
-                `${DashboardsTableName}.dashboard_uuid`,
-                `${SchedulerTableName}.dashboard_uuid`,
+            .select<ProjectCountRow[]>(
+                `${ProjectTableName}.project_uuid`,
+                `${ProjectTableName}.name as project_name`,
             )
+            .innerJoin(DashboardsTableName, function nonDeletedDashboardJoin() {
+                this.on(
+                    `${DashboardsTableName}.dashboard_uuid`,
+                    '=',
+                    `${SchedulerTableName}.dashboard_uuid`,
+                ).andOnNull(`${DashboardsTableName}.deleted_at`);
+            })
             .innerJoin(
                 SpaceTableName,
                 `${SpaceTableName}.space_id`,
@@ -1983,12 +2006,14 @@ export class SchedulerModel {
                     `${SchedulerTableName}.saved_chart_uuid`,
                 ).andOnNull(`${SavedChartsTableName}.deleted_at`);
             })
-            .leftJoin(DashboardsTableName, function joinDashboards() {
+            .leftJoin(DashboardsTableName, function nonDeletedDashboardJoin() {
                 this.on(
                     `${DashboardsTableName}.dashboard_uuid`,
                     '=',
                     `${SavedChartsTableName}.dashboard_uuid`,
-                ).andOnNotNull(`${SavedChartsTableName}.dashboard_uuid`);
+                )
+                    .andOnNotNull(`${SavedChartsTableName}.dashboard_uuid`)
+                    .andOnNull(`${DashboardsTableName}.deleted_at`);
             })
             .innerJoin(SpaceTableName, function joinSpaces() {
                 this.on(
@@ -2013,14 +2038,16 @@ export class SchedulerModel {
 
         // Dashboard schedulers
         const dashboardSchedulerUuids = await this.database(SchedulerTableName)
-            .select<
-                { scheduler_uuid: string }[]
-            >(`${SchedulerTableName}.scheduler_uuid`)
-            .innerJoin(
-                DashboardsTableName,
-                `${DashboardsTableName}.dashboard_uuid`,
-                `${SchedulerTableName}.dashboard_uuid`,
+            .select<{ scheduler_uuid: string }[]>(
+                `${SchedulerTableName}.scheduler_uuid`,
             )
+            .innerJoin(DashboardsTableName, function nonDeletedDashboardJoin() {
+                this.on(
+                    `${DashboardsTableName}.dashboard_uuid`,
+                    '=',
+                    `${SchedulerTableName}.dashboard_uuid`,
+                ).andOnNull(`${DashboardsTableName}.deleted_at`);
+            })
             .innerJoin(
                 SpaceTableName,
                 `${SpaceTableName}.space_id`,

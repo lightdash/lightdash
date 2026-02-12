@@ -303,7 +303,7 @@ export class ContentService extends BaseService {
     }
 
     /**
-     * Find deleted content in a project
+     * Find deleted content in a project using the ContentModel UNION approach.
      */
     async findDeleted(
         user: SessionUser,
@@ -315,28 +315,44 @@ export class ContentService extends BaseService {
             throw new NotFoundError('Organization not found');
         }
 
-        // For now, only support one project at a time
         const [projectUuid] = filters.projectUuids;
         if (!projectUuid) {
             throw new NotFoundError('Project UUID is required');
         }
 
-        // Only return charts for now (can be extended later)
-        const contentTypes = filters.contentTypes ?? [ContentType.CHART];
-
-        // Aggregate results from all content type services
-        // For now, only charts are supported
-        if (contentTypes.includes(ContentType.CHART)) {
-            return this.savedChartService.getDeletedCharts(
-                user,
-                projectUuid,
-                filters,
-                paginateArgs,
-            );
+        // Check project access
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
         }
 
-        // Return empty results if no supported content types
-        return { data: [] };
+        // Non-admins can only see their own deleted content
+        const isAdmin = user.ability.can(
+            'manage',
+            subject('DeletedContent', { organizationUuid, projectUuid }),
+        );
+        const deletedByUserUuids = isAdmin
+            ? filters.deletedByUserUuids
+            : [user.userUuid];
+
+        const contentTypes = filters.contentTypes ?? [
+            ContentType.CHART,
+            ContentType.DASHBOARD,
+        ];
+
+        return this.contentModel.findDeletedContents(
+            {
+                projectUuids: [projectUuid],
+                contentTypes,
+                search: filters.search,
+                deletedByUserUuids,
+            },
+            paginateArgs,
+        );
     }
 
     /**
@@ -382,8 +398,7 @@ export class ContentService extends BaseService {
                         );
                 }
             case ContentType.DASHBOARD:
-                // TODO: Implement dashboard restore
-                throw new NotFoundError('Dashboard restore not yet supported');
+                return this.dashboardService.restoreDashboard(user, item.uuid);
             case ContentType.SPACE:
                 // TODO: Implement space restore
                 throw new NotFoundError('Space restore not yet supported');
@@ -435,9 +450,9 @@ export class ContentService extends BaseService {
                         );
                 }
             case ContentType.DASHBOARD:
-                // TODO: Implement dashboard permanent delete
-                throw new NotFoundError(
-                    'Dashboard permanent delete not yet supported',
+                return this.dashboardService.permanentlyDeleteDashboard(
+                    user,
+                    item.uuid,
                 );
             case ContentType.SPACE:
                 // TODO: Implement space permanent delete
