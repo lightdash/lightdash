@@ -20,7 +20,7 @@
         "@types/uuid": "^10.0.0"
     },
     "dependencies": {
-        "@casl/ability": "^5.4.3",
+        "@casl/ability": "^6.7.5",
         "@types/lodash": "^4.14.202",
         "ajv": "^8.3.0",
         "ajv-errors": "^3.0.0",
