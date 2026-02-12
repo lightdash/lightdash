@@ -553,6 +553,7 @@ export class SavedChartModel {
             )
             .select('saved_queries_version_uuid')
             .where(`${SavedChartsTableName}.saved_query_uuid`, chartUuid)
+            .whereNull(`${SavedChartsTableName}.deleted_at`)
             .limit(1)
             .orderBy(`${SavedChartVersionsTableName}.created_at`, 'desc');
     }
@@ -857,19 +858,26 @@ export class SavedChartModel {
                     .from<DbSavedChartDetails>(SavedChartsTableName)
                     .leftJoin(
                         DashboardsTableName,
-                        `${DashboardsTableName}.dashboard_uuid`,
-                        `${SavedChartsTableName}.dashboard_uuid`,
+                        function nonDeletedDashboardJoin() {
+                            this.on(
+                                `${DashboardsTableName}.dashboard_uuid`,
+                                '=',
+                                `${SavedChartsTableName}.dashboard_uuid`,
+                            ).andOnNull(`${DashboardsTableName}.deleted_at`);
+                        },
                     )
                     .innerJoin(SpaceTableName, function spaceJoin() {
                         this.on(
                             `${SpaceTableName}.space_id`,
                             '=',
                             `${DashboardsTableName}.space_id`,
-                        ).orOn(
-                            `${SpaceTableName}.space_id`,
-                            '=',
-                            `${SavedChartsTableName}.space_id`,
-                        );
+                        )
+                            .orOn(
+                                `${SpaceTableName}.space_id`,
+                                '=',
+                                `${SavedChartsTableName}.space_id`,
+                            )
+                            .andOnNull(`${SpaceTableName}.deleted_at`);
                     })
                     .innerJoin(
                         ProjectTableName,
@@ -1342,7 +1350,8 @@ export class SavedChartModel {
                     's.project_id',
                 )
                 .where('p.project_uuid', projectUuid)
-                .whereNull('sq.deleted_at'),
+                .whereNull('sq.deleted_at')
+                .whereNull('s.deleted_at'),
 
             // Second part of UNION - charts saved inside dashboards
             this.database
@@ -1366,7 +1375,9 @@ export class SavedChartModel {
                     's.project_id',
                 )
                 .where('p.project_uuid', projectUuid)
-                .whereNull('sq.deleted_at'),
+                .whereNull('sq.deleted_at')
+                .whereNull('d.deleted_at')
+                .whereNull('s.deleted_at'),
         ]);
     }
 
@@ -1622,11 +1633,13 @@ export class SavedChartModel {
                 slug: `${SavedChartsTableName}.slug`,
                 viewsCount: `${SavedChartsTableName}.views_count`,
             })
-            .leftJoin(
-                DashboardsTableName,
-                `${DashboardsTableName}.dashboard_uuid`,
-                `${SavedChartsTableName}.dashboard_uuid`,
-            )
+            .leftJoin(DashboardsTableName, function nonDeletedDashboardJoin() {
+                this.on(
+                    `${DashboardsTableName}.dashboard_uuid`,
+                    '=',
+                    `${SavedChartsTableName}.dashboard_uuid`,
+                ).andOnNull(`${DashboardsTableName}.deleted_at`);
+            })
             .joinRaw(
                 `INNER JOIN ${SpaceTableName} ON ${SpaceTableName}.space_id = COALESCE(${SavedChartsTableName}.space_id, ${DashboardsTableName}.space_id) AND ${SpaceTableName}.deleted_at IS NULL`,
             )
@@ -1673,21 +1686,25 @@ export class SavedChartModel {
                 projectUuid: 'projects.project_uuid',
                 organizationUuid: 'organizations.organization_uuid',
             })
-            .leftJoin(
-                DashboardsTableName,
-                `${DashboardsTableName}.dashboard_uuid`,
-                `${SavedChartsTableName}.dashboard_uuid`,
-            )
+            .leftJoin(DashboardsTableName, function nonDeletedDashboardJoin() {
+                this.on(
+                    `${DashboardsTableName}.dashboard_uuid`,
+                    '=',
+                    `${SavedChartsTableName}.dashboard_uuid`,
+                ).andOnNull(`${DashboardsTableName}.deleted_at`);
+            })
             .innerJoin(SpaceTableName, function spaceJoin() {
                 this.on(
                     `${SpaceTableName}.space_id`,
                     '=',
                     `${DashboardsTableName}.space_id`,
-                ).orOn(
-                    `${SpaceTableName}.space_id`,
-                    '=',
-                    `${SavedChartsTableName}.space_id`,
-                );
+                )
+                    .orOn(
+                        `${SpaceTableName}.space_id`,
+                        '=',
+                        `${SavedChartsTableName}.space_id`,
+                    )
+                    .andOnNull(`${SpaceTableName}.deleted_at`);
             })
             .innerJoin(
                 SavedChartVersionsTableName,
@@ -1744,21 +1761,25 @@ export class SavedChartModel {
                 `${SavedChartsTableName}.saved_query_id`,
                 'saved_queries_versions.saved_query_id',
             )
-            .leftJoin(
-                DashboardsTableName,
-                `${DashboardsTableName}.dashboard_uuid`,
-                `${SavedChartsTableName}.dashboard_uuid`,
-            )
+            .leftJoin(DashboardsTableName, function nonDeletedDashboardJoin() {
+                this.on(
+                    `${DashboardsTableName}.dashboard_uuid`,
+                    '=',
+                    `${SavedChartsTableName}.dashboard_uuid`,
+                ).andOnNull(`${DashboardsTableName}.deleted_at`);
+            })
             .innerJoin(SpaceTableName, function spaceJoin() {
                 this.on(
                     `${SpaceTableName}.space_id`,
                     '=',
                     `${DashboardsTableName}.space_id`,
-                ).orOn(
-                    `${SpaceTableName}.space_id`,
-                    '=',
-                    `${SavedChartsTableName}.space_id`,
-                );
+                )
+                    .orOn(
+                        `${SpaceTableName}.space_id`,
+                        '=',
+                        `${SavedChartsTableName}.space_id`,
+                    )
+                    .andOnNull(`${SpaceTableName}.deleted_at`);
             })
             .leftJoin(
                 'projects',
@@ -1861,6 +1882,7 @@ export class SavedChartModel {
             )
             .where('space_uuid', targetSpaceUuid)
             .where(`${ProjectTableName}.project_uuid`, projectUuid)
+            .whereNull(`${SpaceTableName}.deleted_at`)
             .first();
 
         if (!space) {
@@ -1888,21 +1910,25 @@ export class SavedChartModel {
         userUuid?: string,
     ): Promise<KnexPaginatedData<DeletedChartContentSummary[]>> {
         const query = this.database(SavedChartsTableName)
-            .leftJoin(
-                DashboardsTableName,
-                `${DashboardsTableName}.dashboard_uuid`,
-                `${SavedChartsTableName}.dashboard_uuid`,
-            )
+            .leftJoin(DashboardsTableName, function nonDeletedDashboardJoin() {
+                this.on(
+                    `${DashboardsTableName}.dashboard_uuid`,
+                    '=',
+                    `${SavedChartsTableName}.dashboard_uuid`,
+                ).andOnNull(`${DashboardsTableName}.deleted_at`);
+            })
             .innerJoin(SpaceTableName, function spaceJoin() {
                 this.on(
                     `${SpaceTableName}.space_id`,
                     '=',
                     `${DashboardsTableName}.space_id`,
-                ).orOn(
-                    `${SpaceTableName}.space_id`,
-                    '=',
-                    `${SavedChartsTableName}.space_id`,
-                );
+                )
+                    .orOn(
+                        `${SpaceTableName}.space_id`,
+                        '=',
+                        `${SavedChartsTableName}.space_id`,
+                    )
+                    .andOnNull(`${SpaceTableName}.deleted_at`);
             })
             .innerJoin(
                 ProjectTableName,

@@ -149,6 +149,7 @@ export class SpacePermissionModel {
                             `${ProjectMembershipsTableName}.user_id`,
                         )
                         .whereIn(`${SpaceTableName}.space_uuid`, spaceUuids)
+                        .whereNull(`${SpaceTableName}.deleted_at`)
                         .modify((qb) => {
                             if (filters?.userUuid) {
                                 void qb.where(
@@ -191,6 +192,7 @@ export class SpacePermissionModel {
                                     `${SpaceTableName}.space_uuid`,
                                     spaceUuids,
                                 )
+                                .whereNull(`${SpaceTableName}.deleted_at`)
                                 .modify((qb) => {
                                     if (filters?.userUuid) {
                                         void qb.where(
@@ -257,6 +259,7 @@ export class SpacePermissionModel {
                             `${OrganizationMembershipsTableName}.user_id`,
                         )
                         .whereIn(`${SpaceTableName}.space_uuid`, spaceUuids)
+                        .whereNull(`${SpaceTableName}.deleted_at`)
                         .modify((qb) => {
                             if (filters?.userUuid) {
                                 void qb.where(
@@ -317,7 +320,8 @@ export class SpacePermissionModel {
                         `${OrganizationTableName}.organization_id`,
                         `${ProjectTableName}.organization_id`,
                     )
-                    .whereIn(`${SpaceTableName}.space_uuid`, spaceUuids);
+                    .whereIn(`${SpaceTableName}.space_uuid`, spaceUuids)
+                    .whereNull(`${SpaceTableName}.deleted_at`);
 
                 return rows.reduce<
                     Record<

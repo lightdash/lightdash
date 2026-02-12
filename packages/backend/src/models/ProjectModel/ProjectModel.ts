@@ -1652,10 +1652,12 @@ export class ProjectModel {
                 .select('project_id');
             const projectId = project.project_id;
 
-            const dbSpaces = await trx(SpaceTableName).whereIn(
-                'space_uuid',
-                spaces.map((s) => s.uuid),
-            );
+            const dbSpaces = await trx(SpaceTableName)
+                .whereIn(
+                    'space_uuid',
+                    spaces.map((s) => s.uuid),
+                )
+                .whereNull('deleted_at');
 
             Logger.info(
                 `Copying ${spaces.length} spaces on ${previewProjectUuid}`,
@@ -1706,6 +1708,8 @@ export class ProjectModel {
                 WHERE
                     child.project_id = ?
                     AND parent.project_id = ?
+                    AND child.deleted_at IS NULL
+                    AND parent.deleted_at IS NULL
                     AND subpath(child.path, 0, nlevel(child.path) - 1) = parent.path
                     AND nlevel(child.path) > 1;`,
                 [previewProject.project_id, previewProject.project_id],
@@ -2400,7 +2404,8 @@ export class ProjectModel {
                         .update({
                             dashboard_uuid: newDashboardUuid,
                         })
-                        .where('saved_query_id', chart.saved_query_id);
+                        .where('saved_query_id', chart.saved_query_id)
+                        .whereNull('deleted_at');
                 },
             );
             await Promise.all(updateChartInDashboards);

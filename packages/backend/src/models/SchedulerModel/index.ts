@@ -692,7 +692,8 @@ export class SchedulerModel {
                 enabled,
                 updated_at: new Date(),
             })
-            .where('scheduler_uuid', schedulerUuid);
+            .where('scheduler_uuid', schedulerUuid)
+            .whereNull('deleted_at');
 
         return this.getSchedulerAndTargets(schedulerUuid);
     }
@@ -707,7 +708,8 @@ export class SchedulerModel {
                     created_by: newOwnerUserUuid,
                     updated_at: new Date(),
                 })
-                .whereIn('scheduler_uuid', schedulerUuids);
+                .whereIn('scheduler_uuid', schedulerUuids)
+                .whereNull('deleted_at');
         });
     }
 
@@ -748,7 +750,8 @@ export class SchedulerModel {
                             : null,
                     include_links: scheduler.includeLinks !== false,
                 })
-                .where('scheduler_uuid', scheduler.schedulerUuid);
+                .where('scheduler_uuid', scheduler.schedulerUuid)
+                .whereNull('deleted_at');
 
             const slackTargetsToUpdate = scheduler.targets.reduce<string[]>(
                 (acc, target) =>
@@ -1365,7 +1368,8 @@ export class SchedulerModel {
                 async ({ schedulerUuid, cron }) => {
                     await trx(SchedulerTableName)
                         .update({ cron })
-                        .where('scheduler_uuid', schedulerUuid);
+                        .where('scheduler_uuid', schedulerUuid)
+                        .whereNull('deleted_at');
                 },
             );
 

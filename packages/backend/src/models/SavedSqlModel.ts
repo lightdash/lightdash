@@ -301,7 +301,8 @@ export class SavedSqlModel {
                 last_version_updated_at: new Date(),
                 last_version_updated_by_user_uuid: data.userUuid,
             })
-            .where('saved_sql_uuid', data.savedSqlUuid);
+            .where('saved_sql_uuid', data.savedSqlUuid)
+            .whereNull('deleted_at');
         return savedSqlVersionUuid;
     }
 
@@ -358,7 +359,8 @@ export class SavedSqlModel {
                         description: data.sqlChart.unversionedData.description,
                         space_uuid: data.sqlChart.unversionedData.spaceUuid,
                     })
-                    .where('saved_sql_uuid', data.savedSqlUuid);
+                    .where('saved_sql_uuid', data.savedSqlUuid)
+                    .whereNull('deleted_at');
             }
 
             let savedSqlVersionUuid: string | null = null;
@@ -433,7 +435,8 @@ export class SavedSqlModel {
         const updateCount = await tx(SavedSqlTableName)
             .update({ space_uuid: targetSpaceUuid })
             .where('saved_sql_uuid', savedSqlUuid)
-            .where('project_uuid', projectUuid);
+            .where('project_uuid', projectUuid)
+            .whereNull('deleted_at');
 
         if (updateCount !== 1) {
             throw new Error('Failed to move saved sql to space');

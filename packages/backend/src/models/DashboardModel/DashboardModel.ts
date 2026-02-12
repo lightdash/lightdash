@@ -1156,6 +1156,7 @@ export class DashboardModel {
         const dashboardId = await this.database.transaction(async (trx) => {
             const [space] = await trx(SpaceTableName)
                 .where('space_uuid', spaceUuid)
+                .whereNull('deleted_at')
                 .select(`${SpaceTableName}.*`)
                 .limit(1);
             if (!space) {
@@ -1538,6 +1539,7 @@ export class DashboardModel {
                 `${DashboardVersionsTableName}.dashboard_id`,
             )
             .where(`${DashboardsTableName}.dashboard_uuid`, dashboardUuid)
+            .whereNull(`${DashboardsTableName}.deleted_at`)
             .orderBy(`${DashboardVersionsTableName}.created_at`, 'desc')
             .limit(1);
     }
@@ -1579,6 +1581,7 @@ export class DashboardModel {
                 `${UserTableName}.last_name`,
             )
             .where(`${DashboardsTableName}.dashboard_uuid`, dashboardUuid)
+            .whereNull(`${DashboardsTableName}.deleted_at`)
             .andWhere(function whereRecentVersionsOrCurrentVersion() {
                 void this.whereRaw(
                     `${DashboardVersionsTableName}.created_at >= DATE(current_timestamp - interval '?? days')`,
@@ -1853,15 +1856,22 @@ export class DashboardModel {
                     `${DashboardTilesTableName}.dashboard_version_id`,
                 );
             })
-            .leftJoin(
-                SavedSqlTableName,
-                `${DashboardTileSqlChartTableName}.saved_sql_uuid`,
-                `${SavedSqlTableName}.saved_sql_uuid`,
-            )
+            .leftJoin(SavedSqlTableName, function nonDeletedSavedSqlJoin() {
+                this.on(
+                    `${DashboardTileSqlChartTableName}.saved_sql_uuid`,
+                    '=',
+                    `${SavedSqlTableName}.saved_sql_uuid`,
+                ).andOnNull(`${SavedSqlTableName}.deleted_at`);
+            })
             .leftJoin(
                 SavedChartsTableName,
-                `${DashboardTileChartTableName}.saved_chart_id`,
-                `${SavedChartsTableName}.saved_query_id`,
+                function nonDeletedSavedChartsJoin() {
+                    this.on(
+                        `${DashboardTileChartTableName}.saved_chart_id`,
+                        '=',
+                        `${SavedChartsTableName}.saved_query_id`,
+                    ).andOnNull(`${SavedChartsTableName}.deleted_at`);
+                },
             )
             .where(
                 `${DashboardTilesTableName}.dashboard_version_id`,
@@ -2045,6 +2055,7 @@ export class DashboardModel {
             )
             .where('space_uuid', targetSpaceUuid)
             .where('project_uuid', projectUuid)
+            .whereNull(`${SpaceTableName}.deleted_at`)
             .first();
 
         if (!space) {
