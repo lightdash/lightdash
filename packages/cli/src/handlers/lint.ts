@@ -343,6 +343,6 @@ export async function lintHandler(options: LintOptions): Promise<void> {
 
     // Exit with error if there were validation failures
     if (invalidResults.length > 0) {
-        process.exit(1);
+        process.exit(2);
     }
 }
