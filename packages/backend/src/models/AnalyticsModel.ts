@@ -289,11 +289,13 @@ export class AnalyticsModel {
                     `${SpaceTableName}.name as space_name`,
                 )
                 .from(AnalyticsChartViewsTableName)
-                .leftJoin(
-                    SavedChartsTableName,
-                    `${SavedChartsTableName}.saved_query_uuid`,
-                    `${AnalyticsChartViewsTableName}.chart_uuid`,
-                )
+                .leftJoin(SavedChartsTableName, function nonDeletedChartJoin() {
+                    this.on(
+                        `${SavedChartsTableName}.saved_query_uuid`,
+                        '=',
+                        `${AnalyticsChartViewsTableName}.chart_uuid`,
+                    ).andOnNull(`${SavedChartsTableName}.deleted_at`);
+                })
                 .leftJoin(
                     UserTableName,
                     `${UserTableName}.user_uuid`,

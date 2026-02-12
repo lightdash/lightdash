@@ -60,6 +60,8 @@ export const generateUniqueSlugScopedToProject = async (
     let matchingSlugs: string[];
     switch (tableName) {
         case 'saved_queries':
+            // NOTE: no `deleted_at IS NULL` filter here because
+            // we need to check for soft deleted charts as well
             matchingSlugs = await trx(SavedChartsTableName)
                 .leftJoin(
                     DashboardsTableName,

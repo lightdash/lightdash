@@ -562,6 +562,7 @@ export class SavedChartModel {
                 `${SavedChartVersionsTableName}.updated_by_user_uuid`,
                 `${UserTableName}.user_uuid`,
             )
+            .whereNull(`${SavedChartsTableName}.deleted_at`)
             .select<
                 VersionSummaryRow[]
             >(`${SavedChartsTableName}.saved_query_uuid`, `${SavedChartVersionsTableName}.saved_queries_version_uuid`, `${SavedChartVersionsTableName}.created_at`, `${UserTableName}.user_uuid`, `${UserTableName}.first_name`, `${UserTableName}.last_name`)
@@ -649,7 +650,12 @@ export class SavedChartModel {
         await this.database.transaction(async (trx) => {
             const [savedChart] = await trx('saved_queries')
                 .select(['saved_query_id'])
-                .where('saved_query_uuid', savedChartUuid);
+                .where('saved_query_uuid', savedChartUuid)
+                .whereNull('deleted_at');
+
+            if (!savedChart) {
+                throw new NotFoundError('Saved chart not found');
+            }
 
             await createSavedChartVersion(trx, savedChart.saved_query_id, {
                 ...data,
@@ -665,7 +671,8 @@ export class SavedChartModel {
                     last_version_updated_at: new Date(),
                     last_version_updated_by_user_uuid: user?.userUuid,
                 })
-                .where('saved_query_uuid', savedChartUuid);
+                .where('saved_query_uuid', savedChartUuid)
+                .whereNull('deleted_at');
         });
 
         return this.get(savedChartUuid);
@@ -687,7 +694,8 @@ export class SavedChartModel {
                 )?.spaceId,
                 dashboard_uuid: data.spaceUuid ? null : undefined, // remove dashboard_uuid when moving chart to space
             })
-            .where('saved_query_uuid', savedChartUuid);
+            .where('saved_query_uuid', savedChartUuid)
+            .whereNull('deleted_at');
         return this.get(savedChartUuid);
     }
 
@@ -707,7 +715,8 @@ export class SavedChartModel {
                             )
                         )?.spaceId,
                     })
-                    .where('saved_query_uuid', savedChart.uuid),
+                    .where('saved_query_uuid', savedChart.uuid)
+                    .whereNull('deleted_at'),
             );
             await Promise.all(promises);
         });
@@ -716,10 +725,24 @@ export class SavedChartModel {
         );
     }
 
-    async delete(savedChartUuid: string): Promise<SavedChartDAO> {
+    async permanentDelete(savedChartUuid: string): Promise<SavedChartDAO> {
         const savedChart = await this.get(savedChartUuid);
         await this.database('saved_queries')
             .delete()
+            .where('saved_query_uuid', savedChartUuid);
+        return savedChart;
+    }
+
+    async softDelete(
+        savedChartUuid: string,
+        userUuid: string,
+    ): Promise<SavedChartDAO> {
+        const savedChart = await this.get(savedChartUuid);
+        await this.database('saved_queries')
+            .update({
+                deleted_at: new Date(),
+                deleted_by_user_uuid: userUuid,
+            })
             .where('saved_query_uuid', savedChartUuid);
         return savedChart;
     }
@@ -911,6 +934,7 @@ export class SavedChartModel {
                         `${PinnedListTableName}.pinned_list_uuid`,
                     ])
                     .orderBy('saved_queries_versions.created_at', 'desc')
+                    .whereNull(`${SavedChartsTableName}.deleted_at`)
                     .limit(1);
 
                 if (isUuid) {
@@ -1229,7 +1253,8 @@ export class SavedChartModel {
         const chartsNotInTilesUuids = await this.database(SavedChartsTableName)
             .pluck(`saved_query_uuid`)
             .whereIn(`${SavedChartsTableName}.dashboard_uuid`, dashboardUuids)
-            .whereNotIn(`saved_query_id`, getChartsInTilesQuery);
+            .whereNotIn(`saved_query_id`, getChartsInTilesQuery)
+            .whereNull(`${SavedChartsTableName}.deleted_at`);
 
         return chartsNotInTilesUuids;
     }
@@ -1262,7 +1287,8 @@ export class SavedChartModel {
                     'p.project_id',
                     's.project_id',
                 )
-                .where('p.project_uuid', projectUuid),
+                .where('p.project_uuid', projectUuid)
+                .whereNull('sq.deleted_at'),
 
             // Second part of UNION - charts saved inside dashboards
             this.database
@@ -1285,7 +1311,8 @@ export class SavedChartModel {
                     'p.project_id',
                     's.project_id',
                 )
-                .where('p.project_uuid', projectUuid),
+                .where('p.project_uuid', projectUuid)
+                .whereNull('sq.deleted_at'),
         ]);
     }
 
@@ -1377,6 +1404,7 @@ export class SavedChartModel {
     async getSlugsForUuids(uuids: string[]): Promise<string[]> {
         const charts = await this.database('saved_queries')
             .whereIn('saved_queries.saved_query_uuid', uuids)
+            .whereNull('saved_queries.deleted_at')
             .select('saved_queries.slug');
         return charts.map((chart) => chart.slug);
     }
@@ -1554,7 +1582,8 @@ export class SavedChartModel {
                 PinnedListTableName,
                 `${PinnedListTableName}.pinned_list_uuid`,
                 `${PinnedChartTableName}.pinned_list_uuid`,
-            );
+            )
+            .whereNull(`${SavedChartsTableName}.deleted_at`);
     }
 
     async getInfoForAvailableFilters(savedChartUuids: string[]): Promise<
@@ -1612,7 +1641,8 @@ export class SavedChartModel {
                                            where saved_queries.saved_query_id = ${SavedChartVersionsTableName}.saved_query_id
                                            order by ${SavedChartVersionsTableName}.created_at desc
                                            limit 1)`),
-            );
+            )
+            .whereNull(`${SavedChartsTableName}.deleted_at`);
 
         if (charts.length === 0) {
             throw new NotFoundError('Saved queries not found');
@@ -1673,7 +1703,8 @@ export class SavedChartModel {
                                            where saved_queries.saved_query_id = ${SavedChartVersionsTableName}.saved_query_id
                                            order by ${SavedChartVersionsTableName}.created_at desc
                                            limit 1)`),
-            );
+            )
+            .whereNull(`${SavedChartsTableName}.deleted_at`);
     }
 
     async findChartsWithCustomFields(projectUuid: string): Promise<
@@ -1762,7 +1793,8 @@ export class SavedChartModel {
         const updateCount = await tx(SavedChartsTableName)
             // if we move a chart from a dashboard to a space, we need to set the dashboard_uuid to null
             .update({ space_id: space.space_id, dashboard_uuid: null })
-            .where('saved_query_uuid', savedChartUuid);
+            .where('saved_query_uuid', savedChartUuid)
+            .whereNull('deleted_at');
 
         if (updateCount !== 1) {
             throw new Error('Failed to move saved chart to space');
