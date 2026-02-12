@@ -49,7 +49,8 @@ export class EmbedModel {
 
         const dashboards = await this.database('dashboards')
             .select()
-            .whereIn('dashboard_uuid', embed.dashboard_uuids);
+            .whereIn('dashboard_uuid', embed.dashboard_uuids)
+            .whereNull('deleted_at');
 
         const validDashboardUuids = dashboards.map(
             (dashboard) => dashboard.dashboard_uuid,
