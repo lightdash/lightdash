@@ -48,6 +48,7 @@ import {
     UserAccessOptions,
     type AccessOption,
 } from './ShareSpaceSelect';
+import classes from './ShareSpaceUserList.module.css';
 import { getInitials, getUserNameOrEmail } from './Utils';
 
 export interface ShareSpaceUserListProps {
@@ -74,6 +75,26 @@ const UserAccessSelectItem = forwardRef<HTMLDivElement, AccessOption>(
         </Stack>
     ),
 );
+
+const getAccessColor = (
+    role: SpaceMemberRole | UserAccessAction,
+): [string, number] => {
+    switch (role) {
+        case SpaceMemberRole.ADMIN:
+        case UserAccessAction.ADMIN:
+            return ['blue', 6];
+        case SpaceMemberRole.EDITOR:
+        case UserAccessAction.EDITOR:
+            return ['green', 6];
+        case SpaceMemberRole.VIEWER:
+        case UserAccessAction.VIEWER:
+            return ['yellow', 8];
+        case UserAccessAction.DELETE:
+            return ['red', 6];
+        default:
+            return ['gray', 6];
+    }
+};
 
 type SortOrder = 'name' | 'role';
 
@@ -224,6 +245,7 @@ const UserAccessList: FC<UserAccessListProps> = ({
                         spacing="sm"
                         position="apart"
                         noWrap
+                        className={classes.userRow}
                     >
                         <Group>
                             <Avatar
@@ -261,7 +283,9 @@ const UserAccessList: FC<UserAccessListProps> = ({
                                 ProjectMemberRole.ADMIN) ? (
                             <Badge
                                 size="xs"
-                                color="ldGray.6"
+                                color={getAccessColor(sharedUser.role).join(
+                                    '.',
+                                )}
                                 radius="xs"
                                 mr={'xs'}
                             >
@@ -279,16 +303,22 @@ const UserAccessList: FC<UserAccessListProps> = ({
                                 multiline
                             >
                                 <Select
-                                    styles={{
-                                        input: {
-                                            fontWeight: 500,
-                                            textAlign: disabled
-                                                ? undefined
-                                                : 'right',
-                                        },
-                                        rightSection: {
-                                            pointerEvents: 'none',
-                                        },
+                                    styles={(theme) => {
+                                        const [c, s] = getAccessColor(
+                                            sharedUser.role,
+                                        );
+                                        return {
+                                            input: {
+                                                fontWeight: 500,
+                                                textAlign: disabled
+                                                    ? undefined
+                                                    : 'right',
+                                                color: theme.colors[c]?.[s],
+                                            },
+                                            rightSection: {
+                                                pointerEvents: 'none',
+                                            },
+                                        };
                                     }}
                                     size="xs"
                                     variant={disabled ? 'default' : 'unstyled'}
@@ -400,6 +430,7 @@ const GroupsAccessList: FC<GroupAccessListProps> = ({
                         spacing="sm"
                         position="apart"
                         noWrap
+                        className={classes.userRow}
                     >
                         <Group>
                             <Avatar size={'sm'} radius="xl" color="blue">
@@ -415,14 +446,20 @@ const GroupsAccessList: FC<GroupAccessListProps> = ({
                         </Group>
 
                         <Select
-                            styles={{
-                                input: {
-                                    fontWeight: 500,
-                                    textAlign: disabled ? undefined : 'right',
-                                },
-                                rightSection: {
-                                    pointerEvents: 'none',
-                                },
+                            styles={(theme) => {
+                                const [c, s] = getAccessColor(group.spaceRole);
+                                return {
+                                    input: {
+                                        fontWeight: 500,
+                                        textAlign: disabled
+                                            ? undefined
+                                            : 'right',
+                                        color: theme.colors[c]?.[s],
+                                    },
+                                    rightSection: {
+                                        pointerEvents: 'none',
+                                    },
+                                };
                             }}
                             size="xs"
                             variant={disabled ? 'default' : 'unstyled'}
@@ -680,7 +717,7 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
             {accessByType.direct.length > 0 && (
                 <>
                     <Group spacing={6} noWrap mt="sm">
-                        <Text fw={400} span c="ldGray.6">
+                        <Text fw={400} span c="ldGray.6" mr="sm">
                             User access
                         </Text>
                         <Tooltip
@@ -709,11 +746,13 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
                                                 ? IconSortAZ
                                                 : IconLockOpen
                                         }
-                                        size="sm"
+                                        size="md"
+                                        color="ldGray.5"
                                     />
                                     <MantineIcon
                                         icon={IconChevronDown}
-                                        size={10}
+                                        size="sm"
+                                        color="ldGray.5"
                                     />
                                 </Group>
                             </ActionIcon>
