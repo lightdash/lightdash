@@ -73,7 +73,6 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
         setShowGridX,
         setShowGridY,
         setShowXAxis,
-        setShowYAxis,
         setShowLeftYAxis,
         setShowRightYAxis,
         setShowAxisTicks,

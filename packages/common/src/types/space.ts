@@ -35,13 +35,6 @@ export type ProjectSpaceAccess = {
     from: ProjectSpaceAccessOrigin;
 };
 
-export type UserInfo = {
-    userUuid: string;
-    firstName: string;
-    lastName: string;
-    email: string;
-};
-
 export type SpaceAccessInput = {
     spaceUuid: string;
     isPrivate: boolean;
@@ -89,7 +82,7 @@ export type SpaceSummary = Pick<
     | 'parentSpaceUuid'
     | 'path'
 > & {
-    userAccess: SpaceShare | undefined;
+    userAccess: SpaceAccess | undefined;
     access: string[];
     chartCount: number;
     dashboardCount: number;
@@ -115,11 +108,15 @@ export type UpdateSpace = {
     inheritParentPermissions?: boolean;
 };
 
-export type SpaceShare = {
-    userUuid: string;
+export type SpaceAccessUserMetadata = {
     firstName: string;
     lastName: string;
     email: string;
+};
+
+// Access data for checking Space access permissions with CASL where only the role/access data matters.
+export type SpaceAccess = {
+    userUuid: string;
     role: SpaceMemberRole;
     hasDirectAccess: boolean;
     projectRole: ProjectMemberRole | undefined;
@@ -133,17 +130,8 @@ export type SpaceShare = {
         | undefined;
 };
 
-// Lightweight version of SpaceShare without user metadata (firstName, lastName, email).
-// Used for CASL permission checks where only the role/access data matters.
-export type SpaceAccess = Pick<
-    SpaceShare,
-    | 'userUuid'
-    | 'role'
-    | 'hasDirectAccess'
-    | 'inheritedFrom'
-    | 'projectRole'
-    | 'inheritedRole'
->;
+// Full space share with user metadata, used for frontend display
+export type SpaceShare = SpaceAccess & SpaceAccessUserMetadata;
 
 export type SpaceGroup = {
     groupUuid: string;
