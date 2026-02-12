@@ -1,4 +1,3 @@
-import { type PutObjectCommandInput } from '@aws-sdk/client-s3';
 import { type WarehouseResults } from '@lightdash/common';
 import { type ReadStream } from 'fs';
 import { type PassThrough, type Readable } from 'stream';
@@ -20,7 +19,7 @@ export interface FileStorageClient {
     ): Promise<string>;
 
     uploadCsv(
-        csv: PutObjectCommandInput['Body'],
+        csv: string,
         csvName: string,
         attachmentDownloadName?: string,
     ): Promise<string>;

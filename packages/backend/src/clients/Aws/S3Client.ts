@@ -146,7 +146,7 @@ export class S3Client extends S3BaseClient implements FileStorageClient {
     }
 
     async uploadCsv(
-        csv: PutObjectCommandInput['Body'],
+        csv: string,
         csvName: string,
         attachmentDownloadName?: string,
     ): Promise<string> {

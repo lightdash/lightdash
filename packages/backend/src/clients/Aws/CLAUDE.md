@@ -104,7 +104,7 @@ graph TD
 - **Cross-Bucket Transforms**: Always use transformAndExportResults() utility to convert cached results to user downloads. Never write user-facing files to the results bucket
 - **Authentication**: Both clients support IAM role credentials (preferred) or access key/secret key via env vars
 - **Pre-signed URLs**: All uploads return pre-signed URLs with expiration times configured in lightdashConfig.s3.expirationTime
-- **Streaming Support**: S3ResultsFileStorageClient provides createUploadStream() and S3Client provides createResultsExportUploadStream() for memory-efficient uploading
+- **Streaming Support**: S3ResultsFileStorageClient provides createUploadStream() and S3Client provides createUploadStream() for memory-efficient uploading
 - **Content-Disposition**: File names in Content-Disposition headers are automatically set from filename parameter for proper browser downloads
 - **File Extensions**: S3ResultsFileStorageClient automatically adds .jsonl extension if not present in filename
 - **Base Class**: Both clients extend S3CacheClient which provides uploadResults(), getResults(), and getResultsMetadata() methods
