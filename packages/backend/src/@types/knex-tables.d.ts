@@ -145,6 +145,8 @@ import {
     CatalogTagsTableName,
     type MetricsTreeEdgesTable,
     MetricsTreeEdgesTableName,
+    type MetricsTreeLocksTable,
+    MetricsTreeLocksTableName,
     type MetricsTreeNodesTable,
     MetricsTreeNodesTableName,
     type MetricsTreesTable,
@@ -431,6 +433,7 @@ declare module 'knex/types/tables' {
         [CatalogTagsTableName]: CatalogTagsTable;
         [ServiceAccountsTableName]: ServiceAccountTable;
         [MetricsTreeEdgesTableName]: MetricsTreeEdgesTable;
+        [MetricsTreeLocksTableName]: MetricsTreeLocksTable;
         [MetricsTreesTableName]: MetricsTreesTable;
         [MetricsTreeNodesTableName]: MetricsTreeNodesTable;
         [SpotlightTableConfigTableName]: SpotlightTableConfigTable;

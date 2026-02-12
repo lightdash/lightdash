@@ -144,6 +144,12 @@ export type CatalogMetricsTreeEdge = {
 
 // --- Saved Metrics Trees ---
 
+export type MetricsTreeLockInfo = {
+    lockedByUserUuid: string;
+    lockedByUserName: string;
+    acquiredAt: Date;
+};
+
 export type MetricsTree = {
     metricsTreeUuid: string;
     projectUuid: string;
@@ -155,10 +161,12 @@ export type MetricsTree = {
     updatedByUserUuid: string | null;
     createdAt: Date;
     updatedAt: Date;
+    generation: number;
 };
 
 export type MetricsTreeSummary = MetricsTree & {
     nodeCount: number;
+    lock: MetricsTreeLockInfo | null;
 };
 
 export type MetricsTreeNodePosition = {
@@ -176,6 +184,7 @@ export type MetricsTreeNode = MetricsTreeNodePosition & {
 export type MetricsTreeWithDetails = MetricsTree & {
     nodes: MetricsTreeNode[];
     edges: CatalogMetricsTreeEdge[];
+    lock: MetricsTreeLockInfo | null;
 };
 
 // --- Saved Metrics Trees API Types ---
@@ -199,6 +208,17 @@ export type ApiCreateMetricsTreePayload = {
 export type ApiUpdateMetricsTreePayload = {
     name?: string;
     description?: string;
+    /** The generation the client was editing. Used for conflict detection. */
+    expectedGeneration: number;
+    nodes: Array<{
+        catalogSearchUuid: string;
+        xPosition?: number;
+        yPosition?: number;
+    }>;
+    edges: Array<{
+        sourceCatalogSearchUuid: string;
+        targetCatalogSearchUuid: string;
+    }>;
 };
 
 export type ApiAddMetricsTreeNodesPayload = {
@@ -226,6 +246,16 @@ export type ApiGetMetricsTreeResponse = {
 export type ApiCreateMetricsTreeResponse = {
     status: 'ok';
     results: MetricsTree;
+};
+
+export type ApiUpdateMetricsTreeResponse = {
+    status: 'ok';
+    results: MetricsTreeWithDetails;
+};
+
+export type ApiMetricsTreeLockResponse = {
+    status: 'ok';
+    results: MetricsTreeLockInfo;
 };
 
 export type ApiGetUnassignedMetricsResponse = {

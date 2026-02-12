@@ -39,6 +39,7 @@ import {
     type ApiCreateMetricsTreePayload,
     type ApiMetricsTreeEdgePayload,
     type ApiSort,
+    type ApiUpdateMetricsTreePayload,
     type CatalogFieldMap,
     type CatalogItem,
     type CatalogItemWithTagUuids,
@@ -47,6 +48,7 @@ import {
     type KnexPaginateArgs,
     type KnexPaginatedData,
     type MetricsTree,
+    type MetricsTreeLockInfo,
     type MetricsTreeSummary,
     type MetricsTreeWithDetails,
     type PrevMetricsTreeNode,
@@ -1673,5 +1675,118 @@ export class CatalogService<
             payload.nodes,
             payload.edges,
         );
+    }
+
+    async acquireTreeLock(
+        user: SessionUser,
+        projectUuid: string,
+        metricsTreeUuid: string,
+    ): Promise<MetricsTreeLockInfo> {
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('MetricsTree', { projectUuid, organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError(
+                `User ${user.userUuid} does not have permission to edit metrics tree ${metricsTreeUuid}`,
+            );
+        }
+
+        return this.catalogModel.acquireTreeLock(
+            metricsTreeUuid,
+            user.userUuid,
+        );
+    }
+
+    async refreshTreeLockHeartbeat(
+        user: SessionUser,
+        projectUuid: string,
+        metricsTreeUuid: string,
+    ): Promise<boolean> {
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('MetricsTree', { projectUuid, organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        return this.catalogModel.refreshTreeLockHeartbeat(
+            metricsTreeUuid,
+            user.userUuid,
+        );
+    }
+
+    async releaseTreeLock(
+        user: SessionUser,
+        projectUuid: string,
+        metricsTreeUuid: string,
+    ): Promise<void> {
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('MetricsTree', { projectUuid, organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        await this.catalogModel.releaseTreeLock(metricsTreeUuid, user.userUuid);
+    }
+
+    async updateMetricsTree(
+        user: SessionUser,
+        projectUuid: string,
+        metricsTreeUuid: string,
+        payload: ApiUpdateMetricsTreePayload,
+    ): Promise<MetricsTreeWithDetails> {
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('MetricsTree', { projectUuid, organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError(
+                `User ${user.userUuid} does not have permission to update metrics tree ${metricsTreeUuid}`,
+            );
+        }
+
+        const lock = await this.catalogModel.getTreeLock(metricsTreeUuid);
+        if (!lock || lock.lockedByUserUuid !== user.userUuid) {
+            throw new ForbiddenError(
+                'You must hold the edit lock to update this tree',
+            );
+        }
+
+        const result = await this.catalogModel.updateMetricsTree(
+            projectUuid,
+            metricsTreeUuid,
+            user.userUuid,
+            {
+                name: payload.name,
+                description: payload.description,
+            },
+            payload.nodes,
+            payload.edges,
+            payload.expectedGeneration,
+        );
+
+        await this.catalogModel.releaseTreeLock(metricsTreeUuid, user.userUuid);
+
+        return result;
     }
 }

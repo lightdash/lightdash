@@ -18,9 +18,12 @@ import {
     type ApiGetMetricsTreeResponse,
     type ApiGetMetricsTreesResponse,
     type ApiMetricsTreeEdgePayload,
+    type ApiMetricsTreeLockResponse,
     type ApiMetricsWithAssociatedTimeDimensionResponse,
     type ApiSort,
     type ApiSuccessEmpty,
+    type ApiUpdateMetricsTreePayload,
+    type ApiUpdateMetricsTreeResponse,
     type CatalogCategoryFilterMode,
     type CatalogItemIcon,
     type KnexPaginateArgs,
@@ -34,6 +37,7 @@ import {
     Patch,
     Path,
     Post,
+    Put,
     Query,
     Request,
     Response,
@@ -190,6 +194,132 @@ export class CatalogController extends BaseController {
         return {
             status: 'ok',
             results,
+        };
+    }
+
+    /**
+     * Update a saved metrics tree including nodes and edges
+     * @summary Update metrics tree
+     * @param projectUuid
+     * @param metricsTreeUuid
+     * @param body Updated tree data including nodes and edges
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Patch('/metrics/trees/{metricsTreeUuid}')
+    @OperationId('updateMetricsTree')
+    async updateMetricsTree(
+        @Path() projectUuid: string,
+        @Path() metricsTreeUuid: string,
+        @Body() body: ApiUpdateMetricsTreePayload,
+        @Request() req: express.Request,
+    ): Promise<ApiUpdateMetricsTreeResponse> {
+        this.setStatus(200);
+
+        const results = await this.services
+            .getCatalogService()
+            .updateMetricsTree(req.user!, projectUuid, metricsTreeUuid, body);
+
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
+     * Acquire an edit lock on a metrics tree
+     * @summary Acquire tree lock
+     * @param projectUuid
+     * @param metricsTreeUuid
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('/metrics/trees/{metricsTreeUuid}/lock')
+    @OperationId('acquireMetricsTreeLock')
+    async acquireMetricsTreeLock(
+        @Path() projectUuid: string,
+        @Path() metricsTreeUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiMetricsTreeLockResponse> {
+        this.setStatus(200);
+
+        const results = await this.services
+            .getCatalogService()
+            .acquireTreeLock(req.user!, projectUuid, metricsTreeUuid);
+
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
+     * Refresh the heartbeat on an edit lock to keep it alive
+     * @summary Refresh tree lock heartbeat
+     * @param projectUuid
+     * @param metricsTreeUuid
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Put('/metrics/trees/{metricsTreeUuid}/lock/heartbeat')
+    @OperationId('refreshMetricsTreeLockHeartbeat')
+    async refreshMetricsTreeLockHeartbeat(
+        @Path() projectUuid: string,
+        @Path() metricsTreeUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        this.setStatus(200);
+
+        await this.services
+            .getCatalogService()
+            .refreshTreeLockHeartbeat(req.user!, projectUuid, metricsTreeUuid);
+
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    /**
+     * Release an edit lock on a metrics tree
+     * @summary Release tree lock
+     * @param projectUuid
+     * @param metricsTreeUuid
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Delete('/metrics/trees/{metricsTreeUuid}/lock')
+    @OperationId('releaseMetricsTreeLock')
+    async releaseMetricsTreeLock(
+        @Path() projectUuid: string,
+        @Path() metricsTreeUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        this.setStatus(200);
+
+        await this.services
+            .getCatalogService()
+            .releaseTreeLock(req.user!, projectUuid, metricsTreeUuid);
+
+        return {
+            status: 'ok',
+            results: undefined,
         };
     }
 

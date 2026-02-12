@@ -1,4 +1,5 @@
 import {
+    AlreadyExistsError,
     CatalogCategoryFilterMode,
     CatalogFilter,
     CatalogItemIcon,
@@ -32,6 +33,7 @@ import {
     type KnexPaginateArgs,
     type KnexPaginatedData,
     type MetricsTree,
+    type MetricsTreeLockInfo,
     type MetricsTreeSummary,
     type MetricsTreeWithDetails,
     type PrevMetricsTreeNode,
@@ -48,6 +50,7 @@ import {
     CatalogTagsTableName,
     DbCatalogTagIn,
     MetricsTreeEdgesTableName,
+    MetricsTreeLocksTableName,
     MetricsTreeNodesTableName,
     MetricsTreesTableName,
     getDbCatalogColumnFromCatalogProperty,
@@ -90,6 +93,32 @@ export enum CatalogSearchContext {
 export type CatalogModelArguments = {
     database: Knex;
     lightdashConfig: LightdashConfig;
+};
+
+type DbMetricsTreeWithLock = DbMetricsTree & {
+    lock_user_uuid: string | null;
+    lock_user_first_name: string | null;
+    lock_user_last_name: string | null;
+    lock_acquired_at: Date | null;
+};
+
+const parseLockInfo = (
+    row: DbMetricsTreeWithLock,
+): MetricsTreeLockInfo | null => {
+    if (
+        row.lock_user_uuid === null ||
+        row.lock_user_first_name === null ||
+        row.lock_acquired_at === null
+    ) {
+        return null;
+    }
+
+    return {
+        lockedByUserUuid: row.lock_user_uuid,
+        lockedByUserName:
+            `${row.lock_user_first_name} ${row.lock_user_last_name ?? ''}`.trim(),
+        acquiredAt: row.lock_acquired_at,
+    };
 };
 
 export class CatalogModel {
@@ -1818,32 +1847,67 @@ export class CatalogModel {
 
     // --- Saved Metrics Trees ---
 
+    /** Locks with heartbeat older than this are considered expired */
+    private static readonly LOCK_EXPIRY_MINUTES = 2;
+
+    private getLockExpiryCondition() {
+        return this.database.raw(
+            `${MetricsTreeLocksTableName}.last_heartbeat_at > NOW() - INTERVAL '${CatalogModel.LOCK_EXPIRY_MINUTES} minutes'`,
+        );
+    }
+
     async getMetricsTrees(
         projectUuid: string,
         paginateArgs?: KnexPaginateArgs,
     ): Promise<KnexPaginatedData<MetricsTreeSummary[]>> {
+        const lockExpiryCondition = this.getLockExpiryCondition();
+
         const query = this.database(MetricsTreesTableName)
-            .select<(DbMetricsTree & { node_count: number })[]>(
+            .select(
                 `${MetricsTreesTableName}.*`,
                 this.database.raw(
-                    `COALESCE(COUNT(${MetricsTreeNodesTableName}.catalog_search_uuid), 0)::int as node_count`,
+                    `COALESCE(COUNT(DISTINCT ${MetricsTreeNodesTableName}.catalog_search_uuid), 0)::int as node_count`,
                 ),
+                `${MetricsTreeLocksTableName}.locked_by_user_uuid as lock_user_uuid`,
+                `lock_users.first_name as lock_user_first_name`,
+                `lock_users.last_name as lock_user_last_name`,
+                `${MetricsTreeLocksTableName}.acquired_at as lock_acquired_at`,
             )
             .leftJoin(
                 MetricsTreeNodesTableName,
                 `${MetricsTreesTableName}.metrics_tree_uuid`,
                 `${MetricsTreeNodesTableName}.metrics_tree_uuid`,
             )
+            .leftJoin(MetricsTreeLocksTableName, function lockJoin() {
+                void this.on(
+                    `${MetricsTreesTableName}.metrics_tree_uuid`,
+                    '=',
+                    `${MetricsTreeLocksTableName}.metrics_tree_uuid`,
+                ).andOn(lockExpiryCondition);
+            })
+            .leftJoin(
+                `${UserTableName} as lock_users`,
+                `${MetricsTreeLocksTableName}.locked_by_user_uuid`,
+                `lock_users.user_uuid`,
+            )
             .where(`${MetricsTreesTableName}.project_uuid`, projectUuid)
-            .groupBy(`${MetricsTreesTableName}.metrics_tree_uuid`)
+            .groupBy(
+                `${MetricsTreesTableName}.metrics_tree_uuid`,
+                `${MetricsTreeLocksTableName}.locked_by_user_uuid`,
+                `lock_users.first_name`,
+                `lock_users.last_name`,
+                `${MetricsTreeLocksTableName}.acquired_at`,
+                `${MetricsTreeLocksTableName}.last_heartbeat_at`,
+            )
             .orderBy(`${MetricsTreesTableName}.updated_at`, 'desc');
 
-        const result = await KnexPaginate.paginate(query, paginateArgs);
+        const result = await KnexPaginate.paginate(
+            query.select<(DbMetricsTreeWithLock & { node_count: number })[]>(),
+            paginateArgs,
+        );
 
         return {
-            data: (
-                result.data as (DbMetricsTree & { node_count: number })[]
-            ).map((row) => ({
+            data: result.data.map((row) => ({
                 metricsTreeUuid: row.metrics_tree_uuid,
                 projectUuid: row.project_uuid,
                 slug: row.slug,
@@ -1854,7 +1918,9 @@ export class CatalogModel {
                 updatedByUserUuid: row.updated_by_user_uuid,
                 createdAt: row.created_at,
                 updatedAt: row.updated_at,
+                generation: row.generation,
                 nodeCount: row.node_count,
+                lock: parseLockInfo(row),
             })),
             pagination: result.pagination,
         };
@@ -1918,6 +1984,7 @@ export class CatalogModel {
                 updatedByUserUuid: created.updated_by_user_uuid,
                 createdAt: created.created_at,
                 updatedAt: created.updated_at,
+                generation: created.generation,
             };
         });
     }
@@ -1926,12 +1993,33 @@ export class CatalogModel {
         projectUuid: string,
         metricsTreeUuid: string,
     ): Promise<MetricsTreeWithDetails> {
-        // Fetch tree metadata
+        const lockExpiryCondition = this.getLockExpiryCondition();
+
         const tree = await this.database(MetricsTreesTableName)
-            .where({
-                metrics_tree_uuid: metricsTreeUuid,
-                project_uuid: projectUuid,
+            .select<DbMetricsTreeWithLock>(
+                `${MetricsTreesTableName}.*`,
+                `${MetricsTreeLocksTableName}.locked_by_user_uuid as lock_user_uuid`,
+                `lock_users.first_name as lock_user_first_name`,
+                `lock_users.last_name as lock_user_last_name`,
+                `${MetricsTreeLocksTableName}.acquired_at as lock_acquired_at`,
+            )
+            .leftJoin(MetricsTreeLocksTableName, function lockJoin() {
+                void this.on(
+                    `${MetricsTreesTableName}.metrics_tree_uuid`,
+                    '=',
+                    `${MetricsTreeLocksTableName}.metrics_tree_uuid`,
+                ).andOn(lockExpiryCondition);
             })
+            .leftJoin(
+                `${UserTableName} as lock_users`,
+                `${MetricsTreeLocksTableName}.locked_by_user_uuid`,
+                `lock_users.user_uuid`,
+            )
+            .where(
+                `${MetricsTreesTableName}.metrics_tree_uuid`,
+                metricsTreeUuid,
+            )
+            .andWhere(`${MetricsTreesTableName}.project_uuid`, projectUuid)
             .first();
 
         if (!tree) {
@@ -2019,9 +2107,238 @@ export class CatalogModel {
             createdAt: tree.created_at,
             updatedAt: tree.updated_at,
             updatedByUserUuid: tree.updated_by_user_uuid,
+            generation: tree.generation,
             nodes,
             edges,
+            lock: parseLockInfo(tree),
         };
+    }
+
+    // --- Metrics Tree Locks ---
+
+    async acquireTreeLock(
+        metricsTreeUuid: string,
+        userUuid: string,
+    ): Promise<MetricsTreeLockInfo> {
+        // Atomic upsert: insert a new lock, or overwrite if expired/same user.
+        // If the lock is held by a different user and not expired, the WHERE
+        // on the merge prevents the update and RETURNING yields no rows.
+        const lockExpiryThreshold = this.database.raw(
+            `NOW() - INTERVAL '${CatalogModel.LOCK_EXPIRY_MINUTES} minutes'`,
+        );
+
+        const result = await this.database(MetricsTreeLocksTableName)
+            .insert({
+                metrics_tree_uuid: metricsTreeUuid,
+                locked_by_user_uuid: userUuid,
+            })
+            .onConflict('metrics_tree_uuid')
+            .merge({
+                locked_by_user_uuid: userUuid,
+                acquired_at: this.database.fn.now() as unknown as Date,
+                last_heartbeat_at: this.database.fn.now() as unknown as Date,
+            })
+            .where(`${MetricsTreeLocksTableName}.locked_by_user_uuid`, userUuid)
+            .orWhere(
+                `${MetricsTreeLocksTableName}.last_heartbeat_at`,
+                '<=',
+                lockExpiryThreshold,
+            )
+            .returning('*');
+
+        if (result.length === 0) {
+            throw new AlreadyExistsError(
+                'Tree is being edited by another user',
+            );
+        }
+
+        const lock = result[0];
+
+        const user = await this.database(UserTableName)
+            .select('first_name', 'last_name')
+            .where('user_uuid', userUuid)
+            .first();
+
+        return {
+            lockedByUserUuid: lock.locked_by_user_uuid,
+            lockedByUserName:
+                `${user!.first_name} ${user!.last_name ?? ''}`.trim(),
+            acquiredAt: lock.acquired_at,
+        };
+    }
+
+    async refreshTreeLockHeartbeat(
+        metricsTreeUuid: string,
+        userUuid: string,
+    ): Promise<boolean> {
+        const updated = await this.database(MetricsTreeLocksTableName)
+            .where({
+                metrics_tree_uuid: metricsTreeUuid,
+                locked_by_user_uuid: userUuid,
+            })
+            .update({
+                last_heartbeat_at: this.database.fn.now() as unknown as Date,
+            });
+
+        return updated > 0;
+    }
+
+    async releaseTreeLock(
+        metricsTreeUuid: string,
+        userUuid: string,
+    ): Promise<void> {
+        await this.database(MetricsTreeLocksTableName)
+            .where({
+                metrics_tree_uuid: metricsTreeUuid,
+                locked_by_user_uuid: userUuid,
+            })
+            .delete();
+    }
+
+    async getTreeLock(
+        metricsTreeUuid: string,
+    ): Promise<MetricsTreeLockInfo | null> {
+        const lockRow = await this.database(MetricsTreeLocksTableName)
+            .select(
+                `${MetricsTreeLocksTableName}.*`,
+                `${UserTableName}.first_name`,
+                `${UserTableName}.last_name`,
+            )
+            .join(
+                UserTableName,
+                `${MetricsTreeLocksTableName}.locked_by_user_uuid`,
+                `${UserTableName}.user_uuid`,
+            )
+            .where(
+                `${MetricsTreeLocksTableName}.metrics_tree_uuid`,
+                metricsTreeUuid,
+            )
+            .andWhere(this.getLockExpiryCondition())
+            .first();
+
+        if (!lockRow) return null;
+
+        return {
+            lockedByUserUuid: lockRow.locked_by_user_uuid,
+            lockedByUserName:
+                `${lockRow.first_name} ${lockRow.last_name ?? ''}`.trim(),
+            acquiredAt: lockRow.acquired_at,
+        };
+    }
+
+    // --- Update Metrics Tree ---
+
+    async updateMetricsTree(
+        projectUuid: string,
+        metricsTreeUuid: string,
+        userUuid: string,
+        update: {
+            name?: string;
+            description?: string;
+        },
+        nodes: Array<{
+            catalogSearchUuid: string;
+            xPosition?: number;
+            yPosition?: number;
+        }>,
+        edges: Array<{
+            sourceCatalogSearchUuid: string;
+            targetCatalogSearchUuid: string;
+        }>,
+        expectedGeneration: number,
+    ): Promise<MetricsTreeWithDetails> {
+        await this.database.transaction(async (trx) => {
+            // Update tree metadata
+            const updateFields: Record<string, unknown> = {
+                updated_at: trx.fn.now(),
+                updated_by_user_uuid: userUuid,
+                generation: trx.raw('generation + 1'),
+            };
+            if (update.name !== undefined) {
+                updateFields.name = update.name;
+            }
+            if (update.description !== undefined) {
+                updateFields.description = update.description;
+            }
+
+            const updated = await trx(MetricsTreesTableName)
+                .where({
+                    metrics_tree_uuid: metricsTreeUuid,
+                    generation: expectedGeneration,
+                })
+                .update(updateFields);
+
+            if (updated === 0) {
+                throw new AlreadyExistsError(
+                    'This tree was modified while you were editing. Please refresh and try again.',
+                );
+            }
+
+            // Replace UI nodes: delete existing UI nodes, re-insert new ones
+            await trx(MetricsTreeNodesTableName)
+                .where({
+                    metrics_tree_uuid: metricsTreeUuid,
+                    source: 'ui',
+                })
+                .delete();
+
+            if (nodes.length > 0) {
+                const dbNodes: DbMetricsTreeNodeIn[] = nodes.map((node) => ({
+                    metrics_tree_uuid: metricsTreeUuid,
+                    catalog_search_uuid: node.catalogSearchUuid,
+                    x_position: node.xPosition ?? null,
+                    y_position: node.yPosition ?? null,
+                    source: 'ui' as const,
+                }));
+                await trx(MetricsTreeNodesTableName)
+                    .insert(dbNodes)
+                    .onConflict(['metrics_tree_uuid', 'catalog_search_uuid'])
+                    .merge({
+                        x_position: trx.raw(
+                            'EXCLUDED.x_position',
+                        ) as unknown as number,
+                        y_position: trx.raw(
+                            'EXCLUDED.y_position',
+                        ) as unknown as number,
+                    });
+            }
+
+            // Replace UI edges for this tree's nodes
+            // First get all node UUIDs (including YAML nodes that may still exist)
+            const allNodeUuids = await trx(MetricsTreeNodesTableName)
+                .where({ metrics_tree_uuid: metricsTreeUuid })
+                .pluck('catalog_search_uuid');
+
+            // Delete UI edges where both source and target are in this tree
+            if (allNodeUuids.length > 0) {
+                await trx(MetricsTreeEdgesTableName)
+                    .where({ project_uuid: projectUuid, source: 'ui' })
+                    .whereIn('source_metric_catalog_search_uuid', allNodeUuids)
+                    .whereIn('target_metric_catalog_search_uuid', allNodeUuids)
+                    .delete();
+            }
+
+            if (edges.length > 0) {
+                const dbEdges: DbMetricsTreeEdgeIn[] = edges.map((edge) => ({
+                    source_metric_catalog_search_uuid:
+                        edge.sourceCatalogSearchUuid,
+                    target_metric_catalog_search_uuid:
+                        edge.targetCatalogSearchUuid,
+                    created_by_user_uuid: userUuid,
+                    project_uuid: projectUuid,
+                    source: 'ui' as const,
+                }));
+                await trx(MetricsTreeEdgesTableName)
+                    .insert(dbEdges)
+                    .onConflict([
+                        'source_metric_catalog_search_uuid',
+                        'target_metric_catalog_search_uuid',
+                    ])
+                    .ignore();
+            }
+        });
+
+        return this.getMetricsTreeByUuid(projectUuid, metricsTreeUuid);
     }
 
     async getDistinctOwners(projectUuid: string): Promise<
