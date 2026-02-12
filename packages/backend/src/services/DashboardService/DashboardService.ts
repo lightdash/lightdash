@@ -1022,9 +1022,24 @@ export class DashboardService
             }
         }
 
-        const deletedDashboard = this.lightdashConfig.softDelete.enabled
-            ? await this.dashboardModel.softDelete(dashboardUuid, user.userUuid)
-            : await this.dashboardModel.permanentDelete(dashboardUuid);
+        let deletedDashboard: DashboardDAO;
+        if (this.lightdashConfig.softDelete.enabled) {
+            deletedDashboard = await this.dashboardModel.softDelete(
+                dashboardUuid,
+                user.userUuid,
+            );
+
+            // Cascade: soft-delete associated schedulers
+            if (this.lightdashConfig.softDelete.enabled) {
+                await this.schedulerModel.softDeleteByDashboardUuid(
+                    dashboardUuid,
+                    user.userUuid,
+                );
+            }
+        } else {
+            deletedDashboard =
+                await this.dashboardModel.permanentDelete(dashboardUuid);
+        }
 
         this.analytics.track({
             event: 'dashboard.deleted',
@@ -1058,6 +1073,9 @@ export class DashboardService
         }
 
         await this.dashboardModel.restore(dashboardUuid);
+
+        // Cascade: restore associated schedulers
+        await this.schedulerModel.restoreByDashboardUuid(dashboardUuid);
     }
 
     async permanentlyDeleteDashboard(
