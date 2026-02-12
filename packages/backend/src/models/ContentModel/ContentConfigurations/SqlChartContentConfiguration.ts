@@ -28,7 +28,6 @@ type SelectSavedSql = SummaryContentRow<{
 export const sqlChartContentConfiguration: ContentConfiguration<SelectSavedSql> =
     {
         shouldQueryBeIncluded: (filters: ContentFilters) => {
-            if (filters.deleted) return false; // SQL charts don't support soft delete
             const contentTypeMatch =
                 !filters.contentTypes ||
                 filters.contentTypes?.includes(ContentType.CHART);
@@ -112,10 +111,18 @@ export const sqlChartContentConfiguration: ContentConfiguration<SelectSavedSql> 
                     knex.raw(
                         `${SavedSqlTableName}.first_viewed_at::timestamp as first_viewed_at`,
                     ),
-                    knex.raw(`NULL::timestamp as deleted_at`),
-                    knex.raw(`NULL as deleted_by_user_uuid`),
-                    knex.raw(`NULL as deleted_by_user_first_name`),
-                    knex.raw(`NULL as deleted_by_user_last_name`),
+                    knex.raw(
+                        `${SavedSqlTableName}.deleted_at::timestamp as deleted_at`,
+                    ),
+                    knex.raw(
+                        `${SavedSqlTableName}.deleted_by_user_uuid as deleted_by_user_uuid`,
+                    ),
+                    knex.raw(
+                        `(SELECT first_name FROM ${UserTableName} WHERE user_uuid = ${SavedSqlTableName}.deleted_by_user_uuid) as deleted_by_user_first_name`,
+                    ),
+                    knex.raw(
+                        `(SELECT last_name FROM ${UserTableName} WHERE user_uuid = ${SavedSqlTableName}.deleted_by_user_uuid) as deleted_by_user_last_name`,
+                    ),
                     knex.raw(`json_build_object(
                     'source','${ChartSourceType.SQL}',
                     'chart_kind', ${SavedSqlTableName}.last_version_chart_kind,
@@ -124,6 +131,22 @@ export const sqlChartContentConfiguration: ContentConfiguration<SelectSavedSql> 
                 ) as metadata`),
                 ])
                 .where((builder) => {
+                    if (filters.deleted) {
+                        void builder.whereNotNull(
+                            `${SavedSqlTableName}.deleted_at`,
+                        );
+                        if (filters.deletedByUserUuids) {
+                            void builder.whereIn(
+                                `${SavedSqlTableName}.deleted_by_user_uuid`,
+                                filters.deletedByUserUuids,
+                            );
+                        }
+                    } else {
+                        void builder.whereNull(
+                            `${SavedSqlTableName}.deleted_at`,
+                        );
+                    }
+
                     if (filters.projectUuids) {
                         void builder.whereIn(
                             `${ProjectTableName}.project_uuid`,
