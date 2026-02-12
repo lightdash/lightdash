@@ -5,27 +5,21 @@ import {
     Background,
     ReactFlow,
     Panel as ReactFlowPanel,
-    type Connection,
     type Edge,
     type EdgeTypes,
     type NodeTypes,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { useCallback, type FC } from 'react';
+import type { FC } from 'react';
 import { Panel, PanelGroup } from 'react-resizable-panels';
 import MantineIcon from '../../../../components/common/MantineIcon';
-import useTracking from '../../../../providers/Tracking/useTracking';
-import { EventName } from '../../../../types/Events';
-import { useAppSelector } from '../../../sqlRunner/store/hooks';
-import {
-    useCreateMetricsTreeEdge,
-    useDeleteMetricsTreeEdge,
-} from '../../hooks/useMetricsTree';
 import { CanvasTimeFramePicker } from '../visualization/CanvasTimeFramePicker';
 import styles from './Canvas.module.css';
 import MetricsSidebar from './MetricsSidebar';
 import DefaultEdge from './TreeComponents/edges/DefaultEdge';
-import ExpandedNode from './TreeComponents/nodes/ExpandedNode';
+import ExpandedNode, {
+    type ExpandedNodeData,
+} from './TreeComponents/nodes/ExpandedNode';
 import { type CanvasMetric } from './canvasLayoutUtils';
 import { useCanvasFlow } from './useCanvasFlow';
 
@@ -35,76 +29,26 @@ const nodeTypes: NodeTypes = { expanded: ExpandedNode };
 type Props = {
     metrics: CanvasMetric[];
     edges: CatalogMetricsTreeEdge[];
-    viewOnly?: boolean;
+    viewOnly: boolean;
+    /** Called when canvas nodes/edges change so parent can capture state for save */
+    onCanvasStateChange?: (nodes: ExpandedNodeData[], edges: Edge[]) => void;
 };
 
-const Canvas: FC<Props> = ({ metrics, edges, viewOnly = false }) => {
-    const { track } = useTracking();
+const SavedTreeCanvasFlow: FC<Props> = ({
+    metrics,
+    edges,
+    viewOnly,
+    onCanvasStateChange,
+}) => {
     const theme = useMantineTheme();
-    const [userUuid, projectUuid, organizationUuid] = useAppSelector(
-        ({ metricsCatalog }) => [
-            metricsCatalog.user?.userUuid,
-            metricsCatalog.projectUuid,
-            metricsCatalog.organizationUuid,
-        ],
-    );
-    const { mutateAsync: createMetricsTreeEdge } = useCreateMetricsTreeEdge();
-    const { mutateAsync: deleteMetricsTreeEdge } = useDeleteMetricsTreeEdge();
-
-    const handleEdgeCreated = useCallback(
-        async (params: Connection) => {
-            if (projectUuid) {
-                await createMetricsTreeEdge({
-                    projectUuid,
-                    sourceCatalogSearchUuid: params.source,
-                    targetCatalogSearchUuid: params.target,
-                });
-
-                track({
-                    name: EventName.METRICS_CATALOG_TREES_EDGE_CREATED,
-                    properties: {
-                        userId: userUuid,
-                        organizationId: organizationUuid,
-                        projectId: projectUuid,
-                    },
-                });
-            }
-        },
-        [projectUuid, createMetricsTreeEdge, track, userUuid, organizationUuid],
-    );
-
-    const handleEdgesDeleted = useCallback(
-        async (edgesToDelete: Edge[]) => {
-            if (projectUuid) {
-                const promises = edgesToDelete.map(async (edge) => {
-                    await deleteMetricsTreeEdge({
-                        projectUuid,
-                        sourceCatalogSearchUuid: edge.source,
-                        targetCatalogSearchUuid: edge.target,
-                    });
-
-                    track({
-                        name: EventName.METRICS_CATALOG_TREES_EDGE_REMOVED,
-                        properties: {
-                            userId: userUuid,
-                            organizationId: organizationUuid,
-                            projectId: projectUuid,
-                        },
-                    });
-                });
-
-                await Promise.all(promises);
-            }
-        },
-        [projectUuid, deleteMetricsTreeEdge, track, userUuid, organizationUuid],
-    );
 
     const flow = useCanvasFlow({
         metrics,
         edges,
         viewOnly,
-        onEdgeCreated: handleEdgeCreated,
-        onEdgesDeleted: handleEdgesDeleted,
+        preventResetAfterInit: !viewOnly, // In edit mode, prevent background refetch resets
+        onCanvasStateChange,
+        // No onEdgeCreated/onEdgesDeleted -- edges stay local until explicit save
     });
 
     return (
@@ -178,4 +122,4 @@ const Canvas: FC<Props> = ({ metrics, edges, viewOnly = false }) => {
     );
 };
 
-export default Canvas;
+export default SavedTreeCanvasFlow;

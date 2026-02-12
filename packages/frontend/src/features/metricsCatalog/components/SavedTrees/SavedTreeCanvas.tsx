@@ -1,4 +1,4 @@
-import type { CatalogField, CatalogMetricsTreeEdge } from '@lightdash/common';
+import type { CatalogMetricsTreeEdge } from '@lightdash/common';
 import {
     Box,
     Button,
@@ -26,12 +26,8 @@ import {
     setSavedTreeEditMode,
 } from '../../store/metricsCatalogSlice';
 import { SavedTreeEditMode } from '../../types';
-import {
-    extractNodePositions,
-    mapCanvasStateToCreatePayload,
-    mapTreeNodesToCatalogFields,
-} from '../../utils/savedTreeDataMappers';
-import Canvas from '../Canvas';
+import { mapCanvasStateToCreatePayload } from '../../utils/savedTreeDataMappers';
+import SavedTreeCanvasFlow from '../Canvas/SavedTreeCanvasFlow';
 import type { ExpandedNodeData } from '../Canvas/TreeComponents/nodes/ExpandedNode';
 import classes from './SavedTreeCanvas.module.css';
 
@@ -184,11 +180,10 @@ const SavedTreeCanvas: FC<SavedTreeCanvasProps> = ({ mode, treeUuid }) => {
                     </Button>
                 </Group>
                 <Box className={classes.canvasContainer}>
-                    <Canvas
+                    <SavedTreeCanvasFlow
                         metrics={allMetrics}
                         edges={EMPTY_EDGES}
                         viewOnly={false}
-                        persistEdgesImmediately={false}
                         onCanvasStateChange={handleCanvasStateChange}
                     />
                 </Box>
@@ -207,12 +202,6 @@ const SavedTreeCanvas: FC<SavedTreeCanvasProps> = ({ mode, treeUuid }) => {
 
     // View mode: tree loaded
     if (treeDetails) {
-        const metrics: CatalogField[] = mapTreeNodesToCatalogFields(
-            treeDetails.nodes,
-        );
-        const treeEdges: CatalogMetricsTreeEdge[] = treeDetails.edges;
-        const positions = extractNodePositions(treeDetails.nodes);
-
         return (
             <Stack h="100%" gap={0}>
                 <Group
@@ -243,11 +232,10 @@ const SavedTreeCanvas: FC<SavedTreeCanvasProps> = ({ mode, treeUuid }) => {
                     </Tooltip>
                 </Group>
                 <Box className={classes.canvasContainer}>
-                    <Canvas
-                        metrics={metrics}
-                        edges={treeEdges}
+                    <SavedTreeCanvasFlow
+                        metrics={treeDetails.nodes}
+                        edges={treeDetails.edges}
                         viewOnly
-                        nodePositions={positions}
                     />
                 </Box>
             </Stack>
