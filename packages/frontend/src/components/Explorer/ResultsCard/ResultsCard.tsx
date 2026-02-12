@@ -1,11 +1,5 @@
 import { subject } from '@casl/ability';
-import {
-    ActionIcon,
-    Group,
-    Popover,
-    SegmentedControl,
-    Tooltip,
-} from '@mantine/core';
+import { ActionIcon, Group, Popover, SegmentedControl } from '@mantine/core';
 import { IconShare2 } from '@tabler/icons-react';
 import {
     memo,
@@ -63,28 +57,10 @@ const ResultsCard: FC = memo(() => {
     const columnOrder = useExplorerSelector(selectColumnOrder);
 
     // Check if grouped view is available
-    const {
-        isSqlPivotEnabled,
-        isGroupedDisabled,
-        isTableViz,
-        hasPivotColumns,
-        hasNoResults,
-        exceedsColumnLimit,
-        maxColumnLimit,
-    } = useGroupedResultsAvailability();
+    const { isSqlPivotEnabled, isGroupedDisabled } =
+        useGroupedResultsAvailability();
     const isGroupedView =
         viewMode === ResultsViewMode.GROUPED && !isGroupedDisabled;
-
-    // Tooltip message when grouped results is disabled
-    const groupedDisabledTooltip = isTableViz
-        ? 'See table visualization above'
-        : hasNoResults
-          ? 'No results to group'
-          : exceedsColumnLimit
-            ? `Exceeds ${maxColumnLimit} column limit`
-            : !hasPivotColumns
-              ? 'No grouped or pivoted data'
-              : undefined;
 
     // Reset to results view when grouped becomes unavailable
     useEffect(() => {
@@ -158,32 +134,24 @@ const ResultsCard: FC = memo(() => {
                 resultsIsOpen &&
                 tableName && (
                     <Group spacing="xs" noWrap>
-                        {isSqlPivotEnabled && (
-                            <Tooltip
-                                label={groupedDisabledTooltip}
-                                disabled={!isGroupedDisabled}
-                                position="top"
-                                withinPortal
-                            >
-                                <SegmentedControl
-                                    size="xs"
-                                    data={[
-                                        {
-                                            label: 'Results',
-                                            value: ResultsViewMode.RESULTS,
-                                        },
-                                        {
-                                            label: 'Chart results',
-                                            value: ResultsViewMode.GROUPED,
-                                            disabled: isGroupedDisabled,
-                                        },
-                                    ]}
-                                    value={viewMode}
-                                    onChange={(value) =>
-                                        setViewMode(value as ResultsViewMode)
-                                    }
-                                />
-                            </Tooltip>
+                        {isSqlPivotEnabled && !isGroupedDisabled && (
+                            <SegmentedControl
+                                size="xs"
+                                data={[
+                                    {
+                                        label: 'Results',
+                                        value: ResultsViewMode.RESULTS,
+                                    },
+                                    {
+                                        label: 'Chart results',
+                                        value: ResultsViewMode.GROUPED,
+                                    },
+                                ]}
+                                value={viewMode}
+                                onChange={(value) =>
+                                    setViewMode(value as ResultsViewMode)
+                                }
+                            />
                         )}
 
                         {/* Hide AddColumnButton when in grouped view */}
