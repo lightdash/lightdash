@@ -66,72 +66,75 @@ const user = await userModel.findUserByEmail('john.doe@example.com');
   - Methods that start with `create` validate input and return the created entity
   - Methods that start with `update` modify an entity and return the updated version
   - Methods that start with `delete` remove an entity and typically return void
+</importantToKnow>
 
 ## Soft Delete Pattern
 
-The `saved_queries` table supports soft delete. When `SOFT_DELETE_ENABLED=true`, charts are soft-deleted (marked with `deleted_at` timestamp) instead of permanently removed.
+Multiple tables support soft delete via `deleted_at` + `deleted_by_user_uuid` columns. When `lightdashConfig.softDelete.enabled` is true, records are soft-deleted instead of permanently removed.
 
-### Key Points
+### Tables with Soft Delete
 
-- Columns: `deleted_at` (timestamp), `deleted_by_user_uuid` (UUID)
-- Partial index: `idx_saved_queries_not_deleted` for fast queries on non-deleted items
-- Feature flag: `lightdashConfig.softDelete.enabled` controls behavior in SavedChartService
+| Table           | Constant               | Entity file               |
+| --------------- | ---------------------- | ------------------------- |
+| `saved_queries` | `SavedChartsTableName` | `entities/savedCharts.ts` |
+| `dashboards`    | `DashboardsTableName`  | `entities/dashboards.ts`  |
+| `spaces`        | `SpaceTableName`       | `entities/spaces.ts`      |
+| `saved_sql`     | `SavedSqlTableName`    | `entities/savedSql.ts`    |
+| `scheduler`     | `SchedulerTableName`   | `entities/scheduler.ts`   |
 
-### When Modifying Queries
+Each has partial indexes for `WHERE deleted_at IS NULL` and `WHERE deleted_at IS NOT NULL`.
 
-Any query that touches `saved_queries` must filter out soft-deleted records:
+### IMPORTANT: Filtering Soft-Deleted Records
 
-**Direct Knex query:**
+Any query that reads from the tables above **must** filter out soft-deleted records — otherwise deleted data leaks into results.
+
+**Direct query — add `whereNull`:**
 
 ```typescript
-const charts = await this.database(SavedChartsTableName)
-    .whereNull('deleted_at') // ADD THIS
-    .where('project_uuid', projectUuid);
+this.database(SavedChartsTableName).whereNull('deleted_at');
 ```
 
-**Knex join (simple):**
+**Simple join — add `whereNull` on joined table:**
 
 ```typescript
-.leftJoin(SavedChartsTableName, ...)
-.whereNull(`${SavedChartsTableName}.deleted_at`)  // ADD THIS
+.leftJoin(DashboardsTableName, ...)
+.whereNull(`${DashboardsTableName}.deleted_at`)
 ```
 
-**Knex join (function syntax - for join conditions):**
+**Function-style join — use `andOnNull` in the join condition:**
 
 ```typescript
-.leftJoin(SavedChartsTableName, function () {
-    this.on('column1', '=', 'column2')
-        .andOnNull(`${SavedChartsTableName}.deleted_at`);  // ADD THIS
+.leftJoin(DashboardsTableName, function () {
+    this.on('col1', '=', 'col2')
+        .andOnNull(`${DashboardsTableName}.deleted_at`);
 })
 ```
 
-**Raw SQL join:**
+**Raw SQL — add `AND deleted_at IS NULL`:**
 
 ```sql
--- Add to join condition:
-left join ${SavedChartsTableName} sq on sq.saved_query_uuid = ... AND sq.deleted_at IS NULL
-```
-
-**Raw SQL WHERE clause:**
-
-```sql
+LEFT JOIN ${DashboardsTableName} d ON d.dashboard_uuid = ... AND d.deleted_at IS NULL
 WHERE ... AND sq.deleted_at IS NULL
 ```
 
-### Finding Queries That Need Soft Delete Filters
+### Finding Queries That Need Filters
 
-The table is `saved_queries`, exported as `SavedChartsTableName` from entities.
+Search both `packages/backend/src/models/` and `packages/backend/src/ee/models/` for usages:
 
 ```bash
-# Search for the table name (covers string literals and raw SQL)
-grep -rn "saved_queries" packages/backend/src/models/
-
-# Search for the constant (covers Knex queries using the constant)
-grep -rn "SavedChartsTableName" packages/backend/src/models/
+grep -rn "saved_queries\|SavedChartsTableName" packages/backend/src/models/ packages/backend/src/ee/models/
+grep -rn "dashboards\|DashboardsTableName" packages/backend/src/models/ packages/backend/src/ee/models/
+grep -rn "spaces\|SpaceTableName" packages/backend/src/models/ packages/backend/src/ee/models/
+grep -rn "saved_sql\|SavedSqlTableName" packages/backend/src/models/ packages/backend/src/ee/models/
+grep -rn "scheduler\|SchedulerTableName" packages/backend/src/models/ packages/backend/src/ee/models/
 ```
 
-Review each result. If it's a SELECT, JOIN, or subquery that returns chart data, it needs `whereNull('deleted_at')` or `AND deleted_at IS NULL`.
-</importantToKnow>
+Review each result. If it's a SELECT, JOIN, or subquery returning data, it needs the `deleted_at IS NULL` filter.
+
+### When NOT to filter by `deleted_at IS NULL`
+
+- **Slug generation**: Slugs must be unique across all records including deleted ones. Deleted content can be restored, so slug uniqueness checks must include soft-deleted rows.
+- **Soft delete feature itself**: Queries that list deleted content (`whereNotNull('deleted_at')`), restore deleted content, or permanently delete content should obviously not exclude deleted records.
 
 <links>
 - Database entities: @/packages/backend/src/database/entities

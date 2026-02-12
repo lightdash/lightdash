@@ -1291,6 +1291,7 @@ export class SavedChartModel {
                 `${DashboardVersionsTableName}.dashboard_id`,
             )
             .whereIn(`${DashboardsTableName}.dashboard_uuid`, dashboardUuids)
+            .whereNull(`${DashboardsTableName}.deleted_at`)
             .andWhere(
                 // filter by last version
                 `${DashboardVersionsTableName}.dashboard_version_id`,
