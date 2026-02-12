@@ -1,5 +1,5 @@
 .stickyHeader {
-    position: sticky;
+    position: sticky !important;
     top: 0;
     z-index: var(--dashboard-header-zindex);
     background-color: var(--mantine-color-body);

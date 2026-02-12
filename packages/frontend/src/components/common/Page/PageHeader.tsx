@@ -10,7 +10,6 @@ type Props = PropsWithChildren<{
 const PageHeader: FC<Props> = ({ cardProps, children }) => (
     <Card
         component={Flex}
-        pos="relative"
         h={PAGE_HEADER_HEIGHT}
         px="lg"
         py="md"
