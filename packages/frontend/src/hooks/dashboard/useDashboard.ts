@@ -23,6 +23,7 @@ import {
 import { useNavigate, useParams } from 'react-router';
 import { lightdashApi } from '../../api';
 import { pollJobStatus } from '../../features/scheduler/hooks/useScheduler';
+import useApp from '../../providers/App/useApp';
 import useToaster from '../toaster/useToaster';
 import useQueryError from '../useQueryError';
 import useDashboardStorage from './useDashboardStorage';
@@ -574,6 +575,10 @@ export const useDuplicateDashboardMutation = (
 
 export const useDashboardDeleteMutation = () => {
     const queryClient = useQueryClient();
+    const navigate = useNavigate();
+    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const { health } = useApp();
+    const isSoftDeleteEnabled = health.data?.softDelete.enabled ?? false;
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<null, ApiError, string>(deleteDashboard, {
         onSuccess: async () => {
@@ -590,6 +595,17 @@ export const useDashboardDeleteMutation = () => {
             await queryClient.invalidateQueries(['content']);
             showToastSuccess({
                 title: `Deleted! Dashboard was deleted.`,
+                action:
+                    isSoftDeleteEnabled && projectUuid
+                        ? {
+                              children: 'Go to recently deleted',
+                              icon: IconArrowRight,
+                              onClick: () =>
+                                  navigate(
+                                      `/generalSettings/projectManagement/${projectUuid}/recentlyDeleted`,
+                                  ),
+                          }
+                        : undefined,
             });
         },
         onError: ({ error }) => {
