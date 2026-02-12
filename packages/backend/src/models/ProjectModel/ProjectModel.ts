@@ -1849,11 +1849,13 @@ export class ProjectModel {
 
             // Create a mapping of the old saved SQLs to the new saved SQLs
             const savedSQLInDashboards = await trx('saved_sql')
-                .leftJoin(
-                    'dashboards',
-                    'saved_sql.dashboard_uuid',
-                    'dashboards.dashboard_uuid',
-                )
+                .leftJoin('dashboards', function nonDeletedDashboardJoin() {
+                    this.on(
+                        'saved_sql.dashboard_uuid',
+                        '=',
+                        'dashboards.dashboard_uuid',
+                    ).andOnNull('dashboards.deleted_at');
+                })
                 .leftJoin('spaces', 'dashboards.space_id', 'spaces.space_id')
                 .where('spaces.project_id', projectId)
                 .andWhere('saved_sql.space_uuid', null)
@@ -1999,11 +2001,13 @@ export class ProjectModel {
                     : [];
 
             const chartsInDashboards = await trx('saved_queries')
-                .leftJoin(
-                    'dashboards',
-                    'saved_queries.dashboard_uuid',
-                    'dashboards.dashboard_uuid',
-                )
+                .leftJoin('dashboards', function nonDeletedDashboardJoin() {
+                    this.on(
+                        'saved_queries.dashboard_uuid',
+                        '=',
+                        'dashboards.dashboard_uuid',
+                    ).andOnNull('dashboards.deleted_at');
+                })
                 .leftJoin('spaces', 'dashboards.space_id', 'spaces.space_id')
                 .where('spaces.project_id', projectId)
                 .andWhere('saved_queries.space_id', null)
@@ -2184,6 +2188,7 @@ export class ProjectModel {
                 .leftJoin('spaces', 'dashboards.space_id', 'spaces.space_id')
                 .whereIn('dashboards.space_id', spaceIds)
                 .andWhere('spaces.project_id', projectId)
+                .whereNull('dashboards.deleted_at')
                 .select<DbDashboard[]>('dashboards.*');
 
             const dashboardIds = dashboards.map((d) => d.dashboard_id);
