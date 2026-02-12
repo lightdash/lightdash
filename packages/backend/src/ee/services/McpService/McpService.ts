@@ -827,12 +827,14 @@ export class McpService extends BaseService {
                             ),
                     };
 
+                    const populatedAdditionalMetrics = populateCustomMetricsSQL(
+                        queryTool.customMetrics,
+                        explore,
+                    );
+
                     const results = await runAsyncQuery(
                         query,
-                        populateCustomMetricsSQL(
-                            queryTool.customMetrics,
-                            explore,
-                        ),
+                        populatedAdditionalMetrics,
                     );
 
                     if (results.rows.length === 0) {
@@ -906,7 +908,7 @@ export class McpService extends BaseService {
                             sorts: queryTool.queryConfig.sorts,
                             limit: query.limit,
                             filters: queryTool.filters ?? {},
-                            additionalMetrics: query.additionalMetrics,
+                            additionalMetrics: populatedAdditionalMetrics,
                             tableCalculations: query.tableCalculations,
                         },
                         tableConfig: {
