@@ -95,7 +95,8 @@ export class AnalyticsModel {
                         'COALESCE(first_viewed_at, NOW())',
                     ) as unknown as Date, // update first_viewed_at if it is null
                 })
-                .where('saved_query_uuid', chartUuid);
+                .where('saved_query_uuid', chartUuid)
+                .whereNull('deleted_at');
         });
     }
 
@@ -119,7 +120,8 @@ export class AnalyticsModel {
                     ) as unknown as Date,
                     last_viewed_at: trx.raw('NOW()') as unknown as Date,
                 })
-                .where('saved_sql_uuid', sqlChartUuid);
+                .where('saved_sql_uuid', sqlChartUuid)
+                .whereNull('deleted_at');
         });
     }
 
@@ -152,7 +154,8 @@ export class AnalyticsModel {
                         'COALESCE(first_viewed_at, NOW())',
                     ) as unknown as Date, // update first_viewed_at if it is null
                 })
-                .where('dashboard_uuid', dashboardUuid);
+                .where('dashboard_uuid', dashboardUuid)
+                .whereNull('deleted_at');
         });
     }
 

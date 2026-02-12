@@ -1621,6 +1621,7 @@ export class DashboardModel {
                     VersionSummaryRow[]
                 >(`${DashboardsTableName}.dashboard_uuid`, `${DashboardVersionsTableName}.dashboard_version_uuid`, `${DashboardVersionsTableName}.created_at`, `${UserTableName}.user_uuid`, `${UserTableName}.first_name`, `${UserTableName}.last_name`)
                 .where(`${DashboardsTableName}.dashboard_uuid`, dashboardUuid)
+                .whereNull(`${DashboardsTableName}.deleted_at`)
                 .andWhereNot(
                     `${DashboardVersionsTableName}.dashboard_version_uuid`,
                     versions[0].dashboard_version_uuid,
