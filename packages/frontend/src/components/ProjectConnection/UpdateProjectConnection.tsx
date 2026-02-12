@@ -9,7 +9,11 @@ import {
 import { Alert, Anchor, Box, Button, Card, Flex } from '@mantine/core';
 import { IconExclamationCircle, IconExternalLink } from '@tabler/icons-react';
 import { type FC } from 'react';
-import { useProject, useUpdateMutation } from '../../hooks/useProject';
+import {
+    useProject,
+    useUpdateMutation,
+    useUpdateWarehouseCredentialsMutation,
+} from '../../hooks/useProject';
 import { useProjectCompileLogs } from '../../hooks/useProjectCompileLogs';
 import { useAbilityContext } from '../../providers/Ability/useAbilityContext';
 import useApp from '../../providers/App/useApp';
@@ -84,7 +88,17 @@ const UpdateProjectConnection: FC<{
         validateInputOnBlur: true,
     });
 
+    const showSaveCredentials = !!health.data?.isSaveCredentialsFormEnabled;
+    const {
+        mutate: updateWarehouseCredentials,
+        isLoading: isSavingCredentials,
+    } = useUpdateWarehouseCredentialsMutation(projectUuid);
+
     const { track } = useTracking();
+
+    const handleSaveCredentials = () => {
+        updateWarehouseCredentials(form.values.warehouse);
+    };
 
     const handleSubmit = async ({
         name,
@@ -182,15 +196,28 @@ const UpdateProjectConnection: FC<{
                                 </Button>
                             )}
                         </Box>
-                        <Button
-                            type="submit"
-                            loading={isSaving}
-                            disabled={isDisabled}
-                        >
-                            {project.dbtConnection?.type === DbtProjectType.NONE
-                                ? 'Save and test'
-                                : 'Test & deploy project'}
-                        </Button>
+                        <Flex gap="sm">
+                            {showSaveCredentials && (
+                                <Button
+                                    variant="default"
+                                    loading={isSavingCredentials}
+                                    disabled={isDisabled}
+                                    onClick={handleSaveCredentials}
+                                >
+                                    Save credentials
+                                </Button>
+                            )}
+                            <Button
+                                type="submit"
+                                loading={isSaving}
+                                disabled={isDisabled}
+                            >
+                                {project.dbtConnection?.type ===
+                                DbtProjectType.NONE
+                                    ? 'Save and test'
+                                    : 'Test & deploy project'}
+                            </Button>
+                        </Flex>
                     </Card>
                 </FormContainer>
             </form>

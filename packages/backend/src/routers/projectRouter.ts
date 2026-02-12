@@ -43,6 +43,28 @@ projectRouter.patch(
     },
 );
 
+projectRouter.put(
+    '/warehouse-credentials',
+    allowApiKeyAuthentication,
+    isAuthenticated,
+    unauthorisedInDemo,
+    async (req, res, next) => {
+        req.services
+            .getProjectService()
+            .updateWarehouseCredentials(
+                getObjectValue(req.params, 'projectUuid'),
+                req.account!,
+                { warehouseConnection: req.body.warehouseConnection },
+            )
+            .then(() => {
+                res.json({
+                    status: 'ok',
+                });
+            })
+            .catch(next);
+    },
+);
+
 projectRouter.get(
     '/search/:query',
     allowApiKeyAuthentication,

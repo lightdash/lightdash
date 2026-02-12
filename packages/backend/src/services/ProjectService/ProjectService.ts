@@ -138,6 +138,7 @@ import {
     type RunQueryTags,
     SavedChartDAO,
     SavedChartsInfoForDashboardAvailableFilters,
+    sensitiveCredentialsFieldNames,
     SessionUser,
     snakeCaseName,
     SnowflakeAuthenticationType,
@@ -1966,6 +1967,91 @@ export class ProjectService extends BaseService {
         return {
             jobUuid: job.jobUuid,
         };
+    }
+
+    /* 
+    Similar code to updateAndScheduleAsyncWork, but only for warehouse credentials
+    This will not trigger any job 
+    We could reuse this method in updateAndScheduleAsyncWork to avoid code duplication
+    */
+    async updateWarehouseCredentials(
+        projectUuid: string,
+        account: Account,
+        data: { warehouseConnection: CreateWarehouseCredentials },
+    ): Promise<void> {
+        assertIsAccountWithOrg(account);
+        const savedProject =
+            await this.projectModel.getWithSensitiveFields(projectUuid);
+        if (
+            account.user.ability.cannot(
+                'update',
+                subject('Project', {
+                    organizationUuid: savedProject.organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const updatedProjectData: UpdateProject = {
+            name: savedProject.name,
+            dbtConnection: savedProject.dbtConnection,
+            dbtVersion: savedProject.dbtVersion,
+            warehouseConnection: data.warehouseConnection,
+        };
+
+        const resolvedData = await this._resolveWarehouseClientCredentials(
+            updatedProjectData,
+            account.user.id,
+            savedProject.organizationUuid,
+        );
+
+        const updatedProject = ProjectModel.mergeMissingProjectConfigSecrets(
+            resolvedData,
+            savedProject,
+        );
+
+        // extra security measure, let's remove all sensitive credentials when authentication type is NONE on Snowflake
+        if (
+            updatedProject.warehouseConnection.type ===
+                WarehouseTypes.SNOWFLAKE &&
+            updatedProject.warehouseConnection.authenticationType ===
+                SnowflakeAuthenticationType.NONE
+        ) {
+            updatedProject.warehouseConnection =
+                OrganizationWarehouseCredentialsModel.stripSensitiveCredentials(
+                    updatedProject.warehouseConnection,
+                ) as CreateWarehouseCredentials;
+        }
+
+        this.validateConfigSecrets(updatedProject);
+
+        await this.projectModel.update(projectUuid, updatedProject);
+
+        if (
+            hasConnectionChanges(
+                { warehouseConnection: savedProject.warehouseConnection },
+                { warehouseConnection: updatedProject.warehouseConnection },
+            )
+        ) {
+            this.adminNotificationService
+                .notifyConnectionSettingsChange({
+                    organizationUuid: savedProject.organizationUuid,
+                    projectUuid,
+                    projectName: savedProject.name,
+                    changedBy: account,
+                })
+                .catch((error) => {
+                    this.logger.error(
+                        'Failed to send connection settings change notification',
+                        {
+                            error,
+                            projectUuid,
+                        },
+                    );
+                });
+        }
     }
 
     async testAndCompileProject(
