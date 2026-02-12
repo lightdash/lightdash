@@ -26,6 +26,8 @@ import {
     IconChevronDown,
     IconChevronUp,
     IconDatabase,
+    IconLockOpen,
+    IconSortAZ,
     IconUsers,
     type Icon as TablerIconType,
 } from '@tabler/icons-react';
@@ -73,22 +75,30 @@ const UserAccessSelectItem = forwardRef<HTMLDivElement, AccessOption>(
     ),
 );
 
-const sortByRole =
-    (sessionUserUuid: string | undefined) => (a: SpaceShare, b: SpaceShare) => {
-        const roleOrder = [
-            SpaceMemberRole.VIEWER,
-            SpaceMemberRole.EDITOR,
-            SpaceMemberRole.ADMIN,
-        ];
-        const aRole = roleOrder.indexOf(a.role);
-        const bRole = roleOrder.indexOf(b.role);
-        // order by session user
+type SortOrder = 'name' | 'role';
+
+const sortAccessList =
+    (sessionUserUuid: string | undefined, sortOrder: SortOrder) =>
+    (a: SpaceShare, b: SpaceShare) => {
+        // session user always first
         if (a.userUuid === sessionUserUuid) return -1;
         if (b.userUuid === sessionUserUuid) return 1;
-        // order by role
-        if (aRole > bRole) return -1;
-        if (aRole < bRole) return 1;
-        return 0;
+
+        if (sortOrder === 'role') {
+            const roleOrder = [
+                SpaceMemberRole.VIEWER,
+                SpaceMemberRole.EDITOR,
+                SpaceMemberRole.ADMIN,
+            ];
+            const aRole = roleOrder.indexOf(a.role);
+            const bRole = roleOrder.indexOf(b.role);
+            if (aRole !== bRole) return bRole - aRole;
+        }
+
+        // alphabetical by name (primary for 'name', tiebreaker for 'role')
+        const aName = `${a.firstName} ${a.lastName}`.toLowerCase();
+        const bName = `${b.firstName} ${b.lastName}`.toLowerCase();
+        return aName.localeCompare(bName);
     };
 
 type ListCollapseProps = {
@@ -151,6 +161,7 @@ type UserAccessListProps = {
     ) => void;
     pageSize?: number;
     disabled?: boolean;
+    sortOrder: SortOrder;
 };
 const UserAccessList: FC<UserAccessListProps> = ({
     isPrivate,
@@ -159,17 +170,18 @@ const UserAccessList: FC<UserAccessListProps> = ({
     onAccessChange,
     pageSize,
     disabled = false,
+    sortOrder,
 }) => {
     const [page, setPage] = useState(1);
 
     // TODO: Paginate space access from backend
     const paginatedList: SpaceShare[][] = useMemo(() => {
         const sortedList = structuredClone(accessList).sort(
-            sortByRole(sessionUser?.userUuid),
+            sortAccessList(sessionUser?.userUuid, sortOrder),
         );
 
         return chunk(sortedList, pageSize ?? DEFAULT_PAGE_SIZE);
-    }, [accessList, pageSize, sessionUser?.userUuid]);
+    }, [accessList, pageSize, sessionUser?.userUuid, sortOrder]);
 
     const handleNextPage = useCallback(() => {
         if (page < paginatedList.length) {
@@ -461,6 +473,7 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
     sessionUser,
     disabled = false,
 }) => {
+    const [sortOrder, setSortOrder] = useState<SortOrder>('name');
     const { showToastError } = useToaster();
     const { mutate: unshareSpaceMutation } = useDeleteSpaceShareMutation(
         projectUuid,
@@ -630,6 +643,7 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
                         sessionUser={sessionUser}
                         onAccessChange={handleAccessChange}
                         disabled={disabled}
+                        sortOrder={sortOrder}
                     />
                 </ListCollapse>
             )}
@@ -645,6 +659,7 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
                         sessionUser={sessionUser}
                         onAccessChange={handleAccessChange}
                         disabled={disabled}
+                        sortOrder={sortOrder}
                     />
                 </ListCollapse>
             )}
@@ -664,9 +679,46 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
             )}
             {accessByType.direct.length > 0 && (
                 <>
-                    <Text fw={400} span c="ldGray.6">
-                        User access
-                    </Text>
+                    <Group spacing={6} noWrap mt="sm">
+                        <Text fw={400} span c="ldGray.6">
+                            User access
+                        </Text>
+                        <Tooltip
+                            label={
+                                sortOrder === 'name'
+                                    ? 'Sort by access level'
+                                    : 'Sort by name'
+                            }
+                            position="top"
+                            withArrow
+                            withinPortal
+                        >
+                            <ActionIcon
+                                size="sm"
+                                variant="subtle"
+                                onClick={() =>
+                                    setSortOrder((prev) =>
+                                        prev === 'name' ? 'role' : 'name',
+                                    )
+                                }
+                            >
+                                <Group spacing={2} noWrap>
+                                    <MantineIcon
+                                        icon={
+                                            sortOrder === 'name'
+                                                ? IconSortAZ
+                                                : IconLockOpen
+                                        }
+                                        size="sm"
+                                    />
+                                    <MantineIcon
+                                        icon={IconChevronDown}
+                                        size={10}
+                                    />
+                                </Group>
+                            </ActionIcon>
+                        </Tooltip>
+                    </Group>
                     <UserAccessList
                         isPrivate={space.isPrivate}
                         accessList={accessByType.direct}
@@ -674,6 +726,7 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
                         onAccessChange={handleAccessChange}
                         pageSize={5}
                         disabled={disabled}
+                        sortOrder={sortOrder}
                     />
                 </>
             )}
