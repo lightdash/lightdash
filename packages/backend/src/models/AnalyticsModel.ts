@@ -311,7 +311,8 @@ export class AnalyticsModel {
                     `${ProjectTableName}.project_id`,
                     `${SpaceTableName}.project_id`,
                 )
-                .where(`${ProjectTableName}.project_uuid`, projectUuid);
+                .where(`${ProjectTableName}.project_uuid`, projectUuid)
+                .whereNull(`${SpaceTableName}.deleted_at`);
 
             const dashboardViews = trx
                 .select<RawViewType[]>(
@@ -347,7 +348,8 @@ export class AnalyticsModel {
                     `${ProjectTableName}.project_id`,
                     `${SpaceTableName}.project_id`,
                 )
-                .where(`${ProjectTableName}.project_uuid`, projectUuid);
+                .where(`${ProjectTableName}.project_uuid`, projectUuid)
+                .whereNull(`${SpaceTableName}.deleted_at`);
 
             return chartViews
                 .union(dashboardViews)

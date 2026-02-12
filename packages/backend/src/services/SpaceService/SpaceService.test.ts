@@ -7,10 +7,14 @@ import {
 import knex from 'knex';
 import { getTracker, MockClient, Tracker } from 'knex-mock-client';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
+import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
+import { SpaceTableName } from '../../database/entities/spaces';
 import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SpaceModel } from '../../models/SpaceModel';
+import { DashboardService } from '../DashboardService/DashboardService';
+import { SavedChartService } from '../SavedChartsService/SavedChartService';
 import { SpacePermissionService } from './SpacePermissionService';
 import { SpaceService } from './SpaceService';
 import {
@@ -31,11 +35,14 @@ describe('SpaceService', () => {
     beforeEach(() => {
         service = new SpaceService({
             analytics: analyticsMock,
+            lightdashConfig: lightdashConfigMock,
             projectModel: {} as ProjectModel,
             spaceModel: new SpaceModel({ database: db }),
             pinnedListModel: {} as PinnedListModel,
             featureFlagModel: {} as FeatureFlagModel,
             spacePermissionService: {} as SpacePermissionService,
+            savedChartService: {} as SavedChartService,
+            dashboardService: {} as DashboardService,
         });
     });
 
@@ -77,7 +84,7 @@ describe('SpaceService', () => {
                 const testUser = createTestUser(user);
                 const testSpace = createTestSpace(space);
 
-                tracker.on.select('spaces').response([
+                tracker.on.select(SpaceTableName).response([
                     createSpaceAccessResponse({
                         ...user,
                         ...access,
@@ -119,7 +126,7 @@ describe('SpaceService', () => {
                 const testUser = createTestUser(user);
                 const testSpace = createTestSpace(space);
 
-                tracker.on.select('spaces').response([
+                tracker.on.select(SpaceTableName).response([
                     createSpaceAccessResponse({
                         ...user,
                         ...access,
@@ -252,7 +259,7 @@ describe('SpaceService', () => {
                     const testUser = createTestUser(user);
                     const testSpace = createTestSpace(space);
 
-                    tracker.on.select('spaces').response([
+                    tracker.on.select(SpaceTableName).response([
                         createSpaceAccessResponse({
                             ...user,
                             ...access,
@@ -428,7 +435,7 @@ describe('SpaceService', () => {
                     const testUser = createTestUser(user);
                     const testSpace = createTestSpace(space);
 
-                    tracker.on.select('spaces').response([
+                    tracker.on.select(SpaceTableName).response([
                         createSpaceAccessResponse({
                             ...user,
                             ...access,
@@ -618,7 +625,7 @@ describe('SpaceService', () => {
                         isPrivate: space.isPrivate,
                     });
 
-                    tracker.on.select('spaces').response([response]);
+                    tracker.on.select(SpaceTableName).response([response]);
 
                     const result = await service._userCanActionSpace(
                         testUser,
@@ -672,7 +679,7 @@ describe('SpaceService', () => {
                         isPrivate: space.isPrivate,
                     });
 
-                    tracker.on.select('spaces').response([response]);
+                    tracker.on.select(SpaceTableName).response([response]);
 
                     const result = await service._userCanActionSpace(
                         testUser,
@@ -821,7 +828,7 @@ describe('SpaceService', () => {
                         projectGroupRoles: user.projectGroupRoles || [],
                     });
 
-                    tracker.on.select('spaces').response([response]);
+                    tracker.on.select(SpaceTableName).response([response]);
 
                     const result = await service._userCanActionSpace(
                         testUser,

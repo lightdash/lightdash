@@ -17,20 +17,26 @@ import {
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
+import { LightdashConfig } from '../../config/parseConfig';
 import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { BaseService } from '../BaseService';
+import type { DashboardService } from '../DashboardService/DashboardService';
+import type { SavedChartService } from '../SavedChartsService/SavedChartService';
 import { SpacePermissionService } from './SpacePermissionService';
 
 type SpaceServiceArguments = {
     analytics: LightdashAnalytics;
+    lightdashConfig: LightdashConfig;
     projectModel: ProjectModel;
     spaceModel: SpaceModel;
     pinnedListModel: PinnedListModel;
     featureFlagModel: FeatureFlagModel;
     spacePermissionService: SpacePermissionService;
+    savedChartService: SavedChartService;
+    dashboardService: DashboardService;
 };
 
 export const hasDirectAccessToSpace = (
@@ -82,6 +88,8 @@ export const hasViewAccessToSpace = (
 export class SpaceService extends BaseService implements BulkActionable<Knex> {
     private readonly analytics: LightdashAnalytics;
 
+    private readonly lightdashConfig: LightdashConfig;
+
     private readonly projectModel: ProjectModel;
 
     private readonly spaceModel: SpaceModel;
@@ -92,14 +100,21 @@ export class SpaceService extends BaseService implements BulkActionable<Knex> {
 
     private readonly spacePermissionService: SpacePermissionService;
 
+    private readonly savedChartService: SavedChartService;
+
+    private readonly dashboardService: DashboardService;
+
     constructor(args: SpaceServiceArguments) {
         super();
         this.analytics = args.analytics;
+        this.lightdashConfig = args.lightdashConfig;
         this.projectModel = args.projectModel;
         this.spaceModel = args.spaceModel;
         this.pinnedListModel = args.pinnedListModel;
         this.featureFlagModel = args.featureFlagModel;
         this.spacePermissionService = args.spacePermissionService;
+        this.savedChartService = args.savedChartService;
+        this.dashboardService = args.dashboardService;
     }
 
     /** @internal For unit testing only */
@@ -401,7 +416,40 @@ export class SpaceService extends BaseService implements BulkActionable<Knex> {
         }
 
         const space = await this.spaceModel.getSpaceSummary(spaceUuid);
-        await this.spaceModel.deleteSpace(spaceUuid);
+
+        if (this.lightdashConfig.softDelete.enabled) {
+            // Get all content UUIDs BEFORE soft-deleting
+            const chartUuids =
+                await this.spaceModel.getChartUuidsInSpace(spaceUuid);
+            const dashboardUuids =
+                await this.spaceModel.getDashboardUuidsInSpace(spaceUuid);
+            const childSpaceUuids =
+                await this.spaceModel.getChildSpaceUuids(spaceUuid);
+
+            // Soft-delete charts (this cascades to schedulers via SavedChartService)
+            for (const chartUuid of chartUuids) {
+                // eslint-disable-next-line no-await-in-loop
+                await this.savedChartService.delete(user, chartUuid);
+            }
+
+            // Soft-delete dashboards (this cascades to dashboard-scoped charts and schedulers)
+            for (const dashboardUuid of dashboardUuids) {
+                // eslint-disable-next-line no-await-in-loop
+                await this.dashboardService.delete(user, dashboardUuid);
+            }
+
+            // Recursively soft-delete child spaces (calling deleteSpace recursively)
+            for (const childSpaceUuid of childSpaceUuids) {
+                // eslint-disable-next-line no-await-in-loop
+                await this.deleteSpace(user, childSpaceUuid);
+            }
+
+            // Finally soft-delete the space itself
+            await this.spaceModel.softDelete(spaceUuid, user.userUuid);
+        } else {
+            await this.spaceModel.permanentDelete(spaceUuid);
+        }
+
         this.analytics.track({
             event: 'space.deleted',
             userId: user.userUuid,
@@ -410,6 +458,111 @@ export class SpaceService extends BaseService implements BulkActionable<Knex> {
                 spaceId: spaceUuid,
                 projectId: space.projectUuid,
                 isNested: !!space.parentSpaceUuid,
+            },
+        });
+    }
+
+    async restoreSpace(user: SessionUser, spaceUuid: string): Promise<void> {
+        const space = await this.spaceModel.getSpaceSummary(spaceUuid, {
+            deleted: true,
+        });
+
+        // Permission check
+        const isAdmin = user.ability.can(
+            'manage',
+            subject('DeletedContent', {
+                organizationUuid: space.organizationUuid,
+                projectUuid: space.projectUuid,
+            }),
+        );
+
+        if (!isAdmin && space.deletedBy?.userUuid !== user.userUuid) {
+            throw new ForbiddenError(
+                'You can only restore content you deleted',
+            );
+        }
+
+        // Restore the space first
+        await this.spaceModel.restore(spaceUuid);
+
+        // Get and restore charts that were cascade-deleted (same user)
+        if (space.deletedBy?.userUuid) {
+            const deletedChartUuids =
+                await this.spaceModel.getChartUuidsInSpace(spaceUuid, {
+                    deleted: true,
+                    deletedByUserUuid: space.deletedBy.userUuid,
+                });
+            for (const chartUuid of deletedChartUuids) {
+                // eslint-disable-next-line no-await-in-loop
+                await this.savedChartService.restoreChart(user, chartUuid);
+            }
+
+            // Get and restore dashboards that were cascade-deleted (same user)
+            const deletedDashboardUuids =
+                await this.spaceModel.getDashboardUuidsInSpace(spaceUuid, {
+                    deleted: true,
+                    deletedByUserUuid: space.deletedBy.userUuid,
+                });
+            for (const dashboardUuid of deletedDashboardUuids) {
+                // eslint-disable-next-line no-await-in-loop
+                await this.dashboardService.restoreDashboard(
+                    user,
+                    dashboardUuid,
+                );
+            }
+
+            // Restore child spaces that were cascade-deleted (same user)
+            const deletedChildSpaceUuids =
+                await this.spaceModel.getChildSpaceUuids(spaceUuid, {
+                    deleted: true,
+                    deletedByUserUuid: space.deletedBy.userUuid,
+                });
+            for (const childSpaceUuid of deletedChildSpaceUuids) {
+                // eslint-disable-next-line no-await-in-loop
+                await this.restoreSpace(user, childSpaceUuid);
+            }
+        }
+
+        this.analytics.track({
+            event: 'space.restored',
+            userId: user.userUuid,
+            properties: {
+                name: space.name,
+                spaceId: spaceUuid,
+                projectId: space.projectUuid,
+            },
+        });
+    }
+
+    async permanentlyDeleteSpace(
+        user: SessionUser,
+        spaceUuid: string,
+    ): Promise<void> {
+        const space = await this.spaceModel.getSpaceSummary(spaceUuid, {
+            deleted: true,
+        });
+
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('DeletedContent', {
+                    organizationUuid: space.organizationUuid,
+                    projectUuid: space.projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        await this.spaceModel.permanentDelete(spaceUuid);
+
+        this.analytics.track({
+            event: 'space.permanently_deleted',
+            userId: user.userUuid,
+            properties: {
+                name: space.name,
+                spaceId: spaceUuid,
+                projectId: space.projectUuid,
             },
         });
     }

@@ -192,6 +192,11 @@ export class ContentModel {
                     ...base,
                     contentType: ContentType.DASHBOARD,
                 };
+            case ContentType.SPACE:
+                return {
+                    ...base,
+                    contentType: ContentType.SPACE,
+                };
             default:
                 throw new Error(
                     `Unexpected content type in deleted results: ${row.content_type}`,
