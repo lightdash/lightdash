@@ -107,7 +107,7 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                 user.data?.ability?.cannot(
                     'manage',
                     subject('SqlRunner', {
-                        organizationUuid: user.data?.organizationUuid,
+                        organizationUuid,
                         projectUuid,
                         access: userAccess ? [userAccess] : [],
                     }),
@@ -121,6 +121,8 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                     'manage',
                     subject('SavedChart', {
                         ...item.data,
+                        projectUuid,
+                        organizationUuid,
                         access: userAccess ? [userAccess] : [],
                     }),
                 )
@@ -138,6 +140,8 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                     'manage',
                     subject('Dashboard', {
                         ...item.data,
+                        projectUuid,
+                        organizationUuid,
                         access: userAccess ? [userAccess] : [],
                     }),
                 )
@@ -155,6 +159,8 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                     'manage',
                     subject('Space', {
                         ...item.data,
+                        projectUuid,
+                        organizationUuid,
                         access: userAccess ? [userAccess] : [],
                     }),
                 )
