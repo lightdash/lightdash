@@ -45,8 +45,32 @@ export async function loadLightdashModel(
 }
 
 /**
+ * Check if a YAML file contains a Lightdash model definition
+ * A valid model file must have a `type` field with value 'model', 'model/v1beta', or 'model/v1'
+ */
+async function isLightdashModelFile(filePath: string): Promise<boolean> {
+    try {
+        const fileContents = await fs.promises.readFile(filePath, 'utf8');
+        const parsed = yaml.load(fileContents) as { type?: string } | null;
+
+        if (!parsed || typeof parsed !== 'object') {
+            return false;
+        }
+
+        // Check for valid model type values
+        const validModelTypes = ['model', 'model/v1beta', 'model/v1'];
+        return validModelTypes.includes(parsed.type ?? '');
+    } catch {
+        return false;
+    }
+}
+
+/**
  * Find all Lightdash YAML model files in a directory
- * Looks for files in the lightdash/models directory
+ * Looks for files in the lightdash/models directory that contain `type: model`
+ *
+ * This explicitly checks the YAML content for `type: model` (or versioned variants)
+ * to avoid false positives from other YAML files (e.g., content-as-code spaces).
  */
 export async function findLightdashModelFiles(
     projectDir: string,
@@ -60,7 +84,7 @@ export async function findLightdashModelFiles(
         return [];
     }
 
-    const files: string[] = [];
+    const yamlFiles: string[] = [];
 
     async function walkDir(dir: string) {
         const entries = await fs.promises.readdir(dir, { withFileTypes: true });
@@ -74,13 +98,27 @@ export async function findLightdashModelFiles(
                 entry.isFile() &&
                 (entry.name.endsWith('.yml') || entry.name.endsWith('.yaml'))
             ) {
-                files.push(fullPath);
+                yamlFiles.push(fullPath);
             }
         }
     }
 
     await walkDir(lightdashModelsDir);
-    return files;
+
+    // Filter to only include files that actually contain `type: model`
+    const modelFiles: string[] = [];
+    for (const filePath of yamlFiles) {
+        const isModel = await isLightdashModelFile(filePath);
+        if (isModel) {
+            modelFiles.push(filePath);
+        } else {
+            GlobalState.debug(
+                `Skipping ${filePath}: not a valid Lightdash model file (missing type: model)`,
+            );
+        }
+    }
+
+    return modelFiles;
 }
 
 /**

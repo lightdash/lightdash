@@ -21,7 +21,7 @@ import { createProject } from './createProject';
 import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
 import { DbtCompileOptions } from './dbt/compile';
 import { deploy } from './deploy';
-import { detectProjectType } from './projectType';
+import { CliProjectType, detectProjectType } from '../lightdash/projectType';
 
 type PreviewHandlerOptions = DbtCompileOptions & {
     projectDir: string;
@@ -303,40 +303,50 @@ export const previewHandler = async (
             },
         });
 
-        const context = await getDbtContext({
-            projectDir: absoluteProjectPath,
-            targetPath: options.targetPath,
-        });
-        const manifestFilePath = path.join(context.targetDir, 'manifest.json');
-
         const pressToShutdown = GlobalState.startSpinner(
             `  Press [ENTER] to shutdown preview...`,
         );
 
-        const watcher = chokidar
-            .watch(manifestFilePath)
-            .on('change', async () => {
-                pressToShutdown.stop();
-
-                console.error(
-                    `${styles.title(
-                        '↻',
-                    )}   Detected changes on dbt project. Updating preview`,
-                );
-                watcher.unwatch(manifestFilePath);
-                // Deploying will change manifest.json too, so we need to stop watching the file until it is deployed
-                if (project) {
-                    await deploy(await compile(options), {
-                        ...options,
-                        projectUuid: project.projectUuid,
-                    });
-                }
-
-                console.error(`${styles.success('✔')}   Preview updated \n`);
-                pressToShutdown.start();
-
-                watcher.add(manifestFilePath);
+        // Only set up dbt manifest file watching for dbt projects
+        // YAML-only projects don't have a manifest.json to watch
+        let watcher: chokidar.FSWatcher | undefined;
+        if (projectTypeConfig.type === CliProjectType.Dbt) {
+            const context = await getDbtContext({
+                projectDir: absoluteProjectPath,
+                targetPath: options.targetPath,
             });
+            const manifestFilePath = path.join(
+                context.targetDir,
+                'manifest.json',
+            );
+
+            watcher = chokidar
+                .watch(manifestFilePath)
+                .on('change', async () => {
+                    pressToShutdown.stop();
+
+                    console.error(
+                        `${styles.title(
+                            '↻',
+                        )}   Detected changes on dbt project. Updating preview`,
+                    );
+                    watcher!.unwatch(manifestFilePath);
+                    // Deploying will change manifest.json too, so we need to stop watching the file until it is deployed
+                    if (project) {
+                        await deploy(await compile(options), {
+                            ...options,
+                            projectUuid: project.projectUuid,
+                        });
+                    }
+
+                    console.error(
+                        `${styles.success('✔')}   Preview updated \n`,
+                    );
+                    pressToShutdown.start();
+
+                    watcher!.add(manifestFilePath);
+                });
+        }
 
         await inquirer.prompt([
             {
@@ -347,6 +357,11 @@ export const previewHandler = async (
             },
         ]);
         pressToShutdown.clear();
+
+        // Clean up watcher if it was created
+        if (watcher) {
+            await watcher.close();
+        }
     } catch (e) {
         spinner.fail(`Error creating developer preview: ${getErrorMessage(e)}`);
 

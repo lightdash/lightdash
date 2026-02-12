@@ -6,7 +6,7 @@
  * - A dbt project (requires dbt)
  *
  * Detection order:
- * 1. If ANY Lightdash YAML models exist in lightdash/models/ → YAML-only project
+ * 1. If ANY Lightdash YAML models exist (with `type: model`) → YAML-only project
  * 2. Otherwise → dbt project
  *
  * For YAML-only projects:
@@ -19,10 +19,18 @@
 
 import path from 'path';
 import GlobalState from '../globalState';
-import { findLightdashModelFiles } from '../lightdash/loader';
+import { findLightdashModelFiles } from './loader';
+
+/**
+ * Enum for project types to ensure type safety
+ */
+export enum CliProjectType {
+    LightdashYaml = 'lightdash-yaml',
+    Dbt = 'dbt',
+}
 
 export type LightdashYamlProjectConfig = {
-    type: 'lightdash-yaml';
+    type: CliProjectType.LightdashYaml;
     /**
      * YAML-only projects don't load warehouse credentials from dbt profiles
      */
@@ -38,7 +46,7 @@ export type LightdashYamlProjectConfig = {
 };
 
 export type DbtProjectConfig = {
-    type: 'dbt';
+    type: CliProjectType.Dbt;
     /**
      * User-controlled: whether to load warehouse credentials from dbt profiles
      */
@@ -58,13 +66,13 @@ export type ProjectTypeConfig = LightdashYamlProjectConfig | DbtProjectConfig;
 export function isLightdashYamlProject(
     config: ProjectTypeConfig,
 ): config is LightdashYamlProjectConfig {
-    return config.type === 'lightdash-yaml';
+    return config.type === CliProjectType.LightdashYaml;
 }
 
 export function isDbtProject(
     config: ProjectTypeConfig,
 ): config is DbtProjectConfig {
-    return config.type === 'dbt';
+    return config.type === CliProjectType.Dbt;
 }
 
 type DetectProjectTypeOptions = {
@@ -86,6 +94,9 @@ type DetectProjectTypeOptions = {
 /**
  * Detect project type based on project contents
  *
+ * Detection is based on YAML files containing `type: model` (or versioned variants).
+ * This ensures we don't get false positives from other YAML files like content-as-code spaces.
+ *
  * If ANY Lightdash YAML models exist → YAML-only project (dbt options ignored)
  * Otherwise → dbt project (user controls dbt options)
  */
@@ -94,7 +105,7 @@ export async function detectProjectType(
 ): Promise<ProjectTypeConfig> {
     const absoluteProjectPath = path.resolve(options.projectDir);
 
-    // Check for Lightdash YAML models first
+    // Check for Lightdash YAML models (files with `type: model`)
     const yamlModelFiles = await findLightdashModelFiles(absoluteProjectPath);
 
     if (yamlModelFiles.length > 0) {
@@ -102,7 +113,7 @@ export async function detectProjectType(
             `> Found ${yamlModelFiles.length} Lightdash YAML model(s), using YAML-only project mode`,
         );
         return {
-            type: 'lightdash-yaml',
+            type: CliProjectType.LightdashYaml,
             warehouseCredentials: false,
             skipDbtCompile: true,
             skipWarehouseCatalog: true,
@@ -114,7 +125,7 @@ export async function detectProjectType(
         '> No Lightdash YAML models found, using dbt project mode',
     );
     return {
-        type: 'dbt',
+        type: CliProjectType.Dbt,
         warehouseCredentials: options.userOptions?.warehouseCredentials,
         skipDbtCompile: options.userOptions?.skipDbtCompile,
         skipWarehouseCatalog: options.userOptions?.skipWarehouseCatalog,

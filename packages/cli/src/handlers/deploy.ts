@@ -29,7 +29,7 @@ import {
 import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
 import { DbtCompileOptions } from './dbt/compile';
 import { tryGetDbtVersion } from './dbt/getDbtVersion';
-import { detectProjectType } from './projectType';
+import { CliProjectType, detectProjectType } from '../lightdash/projectType';
 
 type DeployHandlerOptions = DbtCompileOptions & {
     projectDir: string;
@@ -284,8 +284,11 @@ export const deployHandler = async (originalOptions: DeployHandlerOptions) => {
     }
 
     // Only check dbt version for dbt projects (YAML-only projects don't need dbt)
+    // For YAML-only projects, we return success: false to indicate dbt wasn't checked,
+    // with null error since this is expected behavior, not an error condition.
+    // This allows downstream code to distinguish "dbt check skipped" from "dbt check failed".
     const dbtVersionResult =
-        projectTypeConfig.type === 'dbt'
+        projectTypeConfig.type === CliProjectType.Dbt
             ? await tryGetDbtVersion()
             : { success: false as const, error: null };
     await checkLightdashVersion();

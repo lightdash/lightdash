@@ -30,7 +30,7 @@ import * as styles from '../styles';
 import { DbtCompileOptions, maybeCompileModelsAndJoins } from './dbt/compile';
 import { tryGetDbtVersion } from './dbt/getDbtVersion';
 import getWarehouseClient from './dbt/getWarehouseClient';
-import { detectProjectType } from './projectType';
+import { detectProjectType } from '../lightdash/projectType';
 
 export type CompileHandlerOptions = DbtCompileOptions & {
     projectDir: string;
