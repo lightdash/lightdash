@@ -805,7 +805,7 @@ export class SavedChartService
 
     private async checkPermissions(
         account: Account,
-        space: Omit<SpaceSummary, 'userAccess'>,
+        space: Omit<SpaceSummary, 'userAccess' | 'access'>,
         savedChart: SavedChartDAO,
     ): Promise<SpaceAccess[]> {
         let access;

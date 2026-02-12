@@ -496,7 +496,7 @@ export class CoderService extends BaseService {
         user: SessionUser,
         project: Project,
         content: T[],
-        spaces: Omit<SpaceSummary, 'userAccess'>[],
+        spaces: Omit<SpaceSummary, 'userAccess' | 'access'>[],
     ): Promise<T[]> {
         if (
             user.ability.can(
@@ -1184,7 +1184,10 @@ export class CoderService extends BaseService {
         user: SessionUser,
         skipSpaceCreate?: boolean,
         publicSpaceCreate?: boolean,
-    ): Promise<{ space: Omit<SpaceSummary, 'userAccess'>; created: boolean }> {
+    ): Promise<{
+        space: Omit<SpaceSummary, 'userAccess' | 'access'>;
+        created: boolean;
+    }> {
         const [existingSpace] = await this.spaceModel.find({
             path: getLtreePathFromContentAsCodePath(spaceSlug),
             projectUuid,
@@ -1305,7 +1308,6 @@ export class CoderService extends BaseService {
                 ...newSpaces[newSpaces.length - 1],
                 chartCount: 0,
                 dashboardCount: 0,
-                access: [],
             },
             created: true,
         };

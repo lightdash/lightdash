@@ -125,8 +125,7 @@ export class ContentService extends BaseService {
                 user,
                 spaceUuids,
             );
-
-        return this.contentModel.findSummaryContents(
+        const result = await this.contentModel.findSummaryContents(
             {
                 ...filters,
                 projectUuids: allowedProjectUuids,
@@ -139,6 +138,38 @@ export class ContentService extends BaseService {
             queryArgs,
             paginateArgs,
         );
+
+        const spaceContentUuids = result.data
+            .filter(
+                (
+                    item,
+                ): item is Extract<
+                    SummaryContent,
+                    { contentType: ContentType.SPACE }
+                > => item.contentType === ContentType.SPACE,
+            )
+            .map((item) => item.uuid);
+
+        if (spaceContentUuids.length === 0) {
+            return result;
+        }
+
+        const directAccessBySpace =
+            await this.spacePermissionService.getDirectSpaceUserUuids(
+                spaceContentUuids,
+            );
+
+        return {
+            ...result,
+            data: result.data.map((item) =>
+                item.contentType === ContentType.SPACE
+                    ? {
+                          ...item,
+                          access: directAccessBySpace[item.uuid] ?? [],
+                      }
+                    : item,
+            ),
+        };
     }
 
     async bulkMove(

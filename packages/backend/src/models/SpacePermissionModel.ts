@@ -4,7 +4,7 @@ import {
     OrganizationSpaceAccess,
     ProjectSpaceAccess,
     ProjectSpaceAccessOrigin,
-    SpaceAccessUserMetadata,
+    type SpaceAccessUserMetadata,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { EmailTableName } from '../database/entities/emails';
@@ -357,7 +357,11 @@ export class SpacePermissionModel {
             )
             .where(`${EmailTableName}.is_primary`, true)
             .whereIn(`${UserTableName}.user_uuid`, userUuids)
-            .select<(SpaceAccessUserMetadata & { userUuid: string })[]>({
+            .select<
+                ({
+                    userUuid: string;
+                } & SpaceAccessUserMetadata)[]
+            >({
                 userUuid: `${UserTableName}.user_uuid`,
                 firstName: `${UserTableName}.first_name`,
                 lastName: `${UserTableName}.last_name`,

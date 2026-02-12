@@ -265,6 +265,10 @@ export class SpaceService extends BaseService implements BulkActionable<Knex> {
         }
 
         const space = await this.spaceModel.getSpaceSummary(spaceUuid);
+        const accessContext =
+            await this.spacePermissionService.getAllSpaceAccessContext(
+                spaceUuid,
+            );
 
         // TODO: legacy nested space check. How do we migrate this?
         const isNested = !(await this.spaceModel.isRootSpace(spaceUuid));
@@ -294,7 +298,7 @@ export class SpaceService extends BaseService implements BulkActionable<Knex> {
                 spaceId: spaceUuid,
                 projectId: space.projectUuid,
                 isPrivate: space.isPrivate,
-                userAccessCount: space.access.length,
+                userAccessCount: accessContext.access.length,
                 isNested,
             },
         });

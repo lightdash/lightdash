@@ -1019,7 +1019,6 @@ export class PromoteService extends BaseService {
         const newSpaceChanges = Array.from(newSpaces.values()).map((space) => {
             const promotedSpace: PromotedSpace = {
                 ...space,
-                access: [],
                 chartCount: 0,
                 dashboardCount: 0,
             };

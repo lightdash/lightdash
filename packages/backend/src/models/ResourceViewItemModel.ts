@@ -14,15 +14,15 @@ import {
 } from '../database/entities/pinnedList';
 import { ProjectTableName } from '../database/entities/projects';
 import { SavedChartsTableName } from '../database/entities/savedCharts';
-import {
-    SpaceTableName,
-    SpaceUserAccessTableName,
-} from '../database/entities/spaces';
-import { UserTableName } from '../database/entities/users';
+import { SpaceTableName } from '../database/entities/spaces';
 import { SpaceModel } from './SpaceModel';
 
 type ResourceViewItemModelArguments = {
     database: Knex;
+};
+
+type ResourceViewSpaceItemBase = Omit<ResourceViewSpaceItem, 'data'> & {
+    data: Omit<ResourceViewSpaceItem['data'], 'access' | 'accessListLength'>;
 };
 
 const getCharts = async (
@@ -197,7 +197,7 @@ const getAllSpaces = async (
     knex: Knex,
     projectUuid: string,
     pinnedListUuid: string,
-): Promise<ResourceViewSpaceItem[]> => {
+): Promise<ResourceViewSpaceItemBase[]> => {
     const spaces = await knex
         .with('space_counts', (qb) =>
             qb
@@ -263,16 +263,6 @@ const getAllSpaces = async (
             `${SpaceTableName}.space_uuid`,
         )
         .leftJoin(
-            SpaceUserAccessTableName,
-            `${SpaceTableName}.space_uuid`,
-            `${SpaceUserAccessTableName}.space_uuid`,
-        )
-        .leftJoin(
-            UserTableName,
-            `${SpaceUserAccessTableName}.user_uuid`,
-            `${UserTableName}.user_uuid`,
-        )
-        .leftJoin(
             'space_counts as sc',
             'sc.space_id',
             `${SpaceTableName}.space_id`,
@@ -285,22 +275,8 @@ const getAllSpaces = async (
             order: `${PinnedSpaceTableName}.order`,
             name: knex.raw(`max(${SpaceTableName}.name)`),
             is_private: knex.raw(SpaceModel.getRootSpaceIsPrivateQuery()),
-            access: knex.raw(SpaceModel.getRootSpaceAccessQuery(UserTableName)),
             parent_space_uuid: `${SpaceTableName}.parent_space_uuid`,
             path: `${SpaceTableName}.path`,
-            access_list_length: knex.raw(`
-                CASE
-                    WHEN ${SpaceTableName}.parent_space_uuid IS NOT NULL THEN
-                        (SELECT COUNT(DISTINCT sua2.user_uuid)
-                         FROM ${SpaceUserAccessTableName} sua2
-                         JOIN ${SpaceTableName} root_space ON sua2.space_uuid = root_space.space_uuid
-                         WHERE root_space.path @> ${SpaceTableName}.path
-                         AND nlevel(root_space.path) = 1
-                         LIMIT 1)
-                    ELSE
-                        COUNT(DISTINCT ${SpaceUserAccessTableName}.user_uuid)
-                END
-            `),
             dashboard_count: knex.raw('COALESCE(sc.dashboard_count, 0)'),
             chart_count: knex.raw('COALESCE(sc.chart_count, 0)'),
         })
@@ -324,7 +300,7 @@ const getAllSpaces = async (
         })
         .orderBy(`${PinnedSpaceTableName}.order`, 'asc');
 
-    return spaces.map<ResourceViewSpaceItem>((row) => ({
+    return spaces.map<ResourceViewSpaceItemBase>((row) => ({
         type: ResourceViewItemType.SPACE,
         data: {
             organizationUuid: row.organization_uuid,
@@ -334,10 +310,8 @@ const getAllSpaces = async (
             uuid: row.space_uuid,
             name: row.name,
             isPrivate: row.is_private,
-            accessListLength: Number(row.access_list_length),
             dashboardCount: Number(row.dashboard_count),
             chartCount: Number(row.chart_count),
-            access: row.access,
             parentSpaceUuid: row.parent_space_uuid,
             path: row.path,
         },
@@ -383,7 +357,7 @@ export class ResourceViewItemModel {
     async getAllSpacesByPinnedListUuid(
         projectUuid: string,
         pinnedListUuid: string,
-    ): Promise<ResourceViewSpaceItem[]> {
+    ): Promise<ResourceViewSpaceItemBase[]> {
         return getAllSpaces(this.database, projectUuid, pinnedListUuid);
     }
 }

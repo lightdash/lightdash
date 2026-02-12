@@ -93,6 +93,23 @@ export class PinningService extends BaseService {
         const allowedPinnedSpaces = allPinnedSpaces.filter(
             ({ data: { uuid } }) => allowedSpaceUuids.includes(uuid),
         );
+        const directAccessBySpace =
+            await this.spacePermissionService.getDirectSpaceUserUuids(
+                allowedPinnedSpaces.map(({ data }) => data.uuid),
+            );
+        const allowedPinnedSpacesWithAccess = allowedPinnedSpaces.map(
+            (spaceItem) => {
+                const access = directAccessBySpace[spaceItem.data.uuid] ?? [];
+                return {
+                    ...spaceItem,
+                    data: {
+                        ...spaceItem.data,
+                        access,
+                        accessListLength: access.length,
+                    },
+                };
+            },
+        );
         const { charts: allowedCharts, dashboards: allowedDashboards } =
             await this.resourceViewItemModel.getAllowedChartsAndDashboards(
                 projectUuid,
@@ -100,7 +117,11 @@ export class PinningService extends BaseService {
                 allowedSpaceUuids,
             );
 
-        return [...allowedPinnedSpaces, ...allowedCharts, ...allowedDashboards];
+        return [
+            ...allowedPinnedSpacesWithAccess,
+            ...allowedCharts,
+            ...allowedDashboards,
+        ];
     }
 
     async updatePinnedItemsOrder(

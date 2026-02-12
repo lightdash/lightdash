@@ -9,7 +9,7 @@ export enum PromotionAction {
     DELETE = 'delete',
 }
 
-export type PromotedSpace = Omit<SpaceSummary, 'userAccess'>;
+export type PromotedSpace = Omit<SpaceSummary, 'userAccess' | 'access'>;
 
 export type PromotedDashboard = DashboardDAO & {
     spaceSlug: string;

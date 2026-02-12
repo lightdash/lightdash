@@ -57,7 +57,7 @@ export type Space = {
     pinnedListOrder: number | null;
     slug: string;
     // Nested Spaces MVP - disables nested spaces' access changes
-    childSpaces: Omit<SpaceSummary, 'userAccess'>[];
+    childSpaces: Omit<SpaceSummary, 'userAccess' | 'access'>[];
     parentSpaceUuid: string | null;
     inheritParentPermissions: boolean;
     // ltree path serialized as string

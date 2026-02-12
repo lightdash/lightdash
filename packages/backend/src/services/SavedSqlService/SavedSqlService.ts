@@ -226,11 +226,27 @@ export class SavedSqlService
                 organizationId: savedChart.organization.organizationUuid,
             },
         });
+
+        const userMetadataByUuid =
+            await this.spacePermissionService.getUserMetadataByUuids([
+                user.userUuid,
+            ]);
+        const firstAccess = spaceCtx.access[0];
+        const firstAccessUserMetadata = firstAccess
+            ? userMetadataByUuid[firstAccess.userUuid]
+            : undefined;
+
         return {
             ...savedChart,
             space: {
                 ...savedChart.space,
-                userAccess: spaceCtx.access[0],
+                userAccess:
+                    firstAccess && firstAccessUserMetadata
+                        ? {
+                              ...firstAccess,
+                              ...firstAccessUserMetadata,
+                          }
+                        : undefined,
             },
         };
     }

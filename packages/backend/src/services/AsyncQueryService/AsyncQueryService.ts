@@ -2332,7 +2332,7 @@ export class AsyncQueryService extends ProjectService {
         account: Account,
         projectUuid: string,
         savedChartUuid: string,
-        space: Omit<SpaceSummary, 'userAccess'>,
+        space: Omit<SpaceSummary, 'userAccess' | 'access'>,
     ) {
         if (isJwtUser(account)) {
             await this.permissionsService.checkEmbedPermissions(

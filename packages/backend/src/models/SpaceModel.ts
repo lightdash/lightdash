@@ -100,29 +100,6 @@ export class SpaceModel {
         `;
     }
 
-    /**
-     * Nested spaces MVP - get access list from root space
-     * Returns a raw SQL expression to get user access for a space.
-     * For nested spaces, it retrieves access from the root space.
-     * @returns SQL string for retrieving access information
-     */
-    static getRootSpaceAccessQuery(sharedWithTableName: string): string {
-        return `
-            CASE
-                WHEN ${SpaceTableName}.parent_space_uuid IS NOT NULL THEN
-                    (SELECT COALESCE(json_agg(sua.user_uuid) FILTER (WHERE sua.user_uuid IS NOT NULL), '[]')
-                     FROM ${SpaceUserAccessTableName} sua
-                     JOIN ${SpaceTableName} root_space ON sua.space_uuid = root_space.space_uuid
-                     WHERE root_space.path @> ${SpaceTableName}.path
-                     AND nlevel(root_space.path) = 1
-                     AND root_space.project_id = ${SpaceTableName}.project_id
-                     LIMIT 1)
-                ELSE
-                    COALESCE(json_agg(${sharedWithTableName}.user_uuid) FILTER (WHERE ${sharedWithTableName}.user_uuid IS NOT NULL), '[]')
-            END
-        `;
-    }
-
     static async getSpaceIdAndName(db: Knex, spaceUuid: string | undefined) {
         if (spaceUuid === undefined) return undefined;
 
@@ -362,7 +339,7 @@ export class SpaceModel {
             deleted?: boolean;
         },
         { trx = this.database }: { trx?: Knex } = { trx: this.database },
-    ): Promise<Omit<SpaceSummary, 'userAccess'>[]> {
+    ): Promise<Omit<SpaceSummary, 'userAccess' | 'access'>[]> {
         return Sentry.startSpan(
             {
                 op: 'SpaceModel.find',
@@ -391,16 +368,6 @@ export class SpaceModel {
                         `${PinnedSpaceTableName}.pinned_list_uuid`,
                     )
                     .leftJoin(
-                        `${SpaceUserAccessTableName}`,
-                        `${SpaceUserAccessTableName}.space_uuid`,
-                        `${SpaceTableName}.space_uuid`,
-                    )
-                    .leftJoin(
-                        `${UserTableName} as shared_with`,
-                        `${SpaceUserAccessTableName}.user_uuid`,
-                        'shared_with.user_uuid',
-                    )
-                    .leftJoin(
                         `${UserTableName} as deleted_by_user`,
                         `${SpaceTableName}.deleted_by_user_uuid`,
                         'deleted_by_user.user_uuid',
@@ -425,9 +392,6 @@ export class SpaceModel {
                         name: trx.raw(`max(${SpaceTableName}.name)`),
                         isPrivate: trx.raw(
                             SpaceModel.getRootSpaceIsPrivateQuery(),
-                        ),
-                        access: trx.raw(
-                            SpaceModel.getRootSpaceAccessQuery('shared_with'),
                         ),
                         pinnedListUuid: `${PinnedListTableName}.pinned_list_uuid`,
                         pinnedListOrder: `${PinnedSpaceTableName}.order`,
@@ -1115,7 +1079,7 @@ export class SpaceModel {
     async getSpaceSummary(
         spaceUuid: string,
         options?: { deleted?: boolean },
-    ): Promise<Omit<SpaceSummary, 'userAccess'>> {
+    ): Promise<Omit<SpaceSummary, 'userAccess' | 'access'>> {
         return wrapSentryTransaction(
             'SpaceModel.getSpaceSummary',
             {},

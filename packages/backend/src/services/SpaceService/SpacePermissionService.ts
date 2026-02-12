@@ -215,4 +215,55 @@ export class SpacePermissionService extends BaseService {
     ): Promise<Record<string, SpaceAccessUserMetadata>> {
         return this.spacePermissionModel.getUserMetadataByUuids(userUuids);
     }
+
+    async getDirectSpaceUserUuids(
+        spaceUuids: string[],
+    ): Promise<Record<string, string[]>> {
+        const uniqueSpaceUuids = [...new Set(spaceUuids)];
+        if (uniqueSpaceUuids.length === 0) {
+            return {};
+        }
+
+        const rootSpaceUuids = await Promise.all(
+            uniqueSpaceUuids.map((spaceUuid) =>
+                this.spaceModel
+                    .getSpaceRootFromCacheOrDB(spaceUuid)
+                    .then((r) => r.spaceRoot),
+            ),
+        );
+
+        const spaceUuidToRootSpaceUuid = new Map(
+            uniqueSpaceUuids.map((spaceUuid, index) => [
+                spaceUuid,
+                rootSpaceUuids[index],
+            ]),
+        );
+
+        const uniqueRootSpaceUuids = [...new Set(rootSpaceUuids)];
+        const directAccessByRootSpace =
+            await this.spacePermissionModel.getDirectSpaceAccess(
+                uniqueRootSpaceUuids,
+            );
+
+        const directUsersByRootSpace = Object.fromEntries(
+            Object.entries(directAccessByRootSpace).map(
+                ([spaceUuid, directAccess]) => [
+                    spaceUuid,
+                    [...new Set(directAccess.map((access) => access.userUuid))],
+                ],
+            ),
+        );
+
+        return Object.fromEntries(
+            uniqueSpaceUuids.map((spaceUuid) => {
+                const rootSpaceUuid = spaceUuidToRootSpaceUuid.get(spaceUuid);
+                return [
+                    spaceUuid,
+                    rootSpaceUuid
+                        ? (directUsersByRootSpace[rootSpaceUuid] ?? [])
+                        : [],
+                ];
+            }),
+        );
+    }
 }

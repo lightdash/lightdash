@@ -5,10 +5,7 @@ import { OrganizationTableName } from '../../../database/entities/organizations'
 import { PinnedSpaceTableName } from '../../../database/entities/pinnedList';
 import { ProjectTableName } from '../../../database/entities/projects';
 import { SavedChartsTableName } from '../../../database/entities/savedCharts';
-import {
-    SpaceTableName,
-    SpaceUserAccessTableName,
-} from '../../../database/entities/spaces';
+import { SpaceTableName } from '../../../database/entities/spaces';
 import { UserTableName } from '../../../database/entities/users';
 import { SpaceModel } from '../../SpaceModel';
 import {
@@ -68,16 +65,6 @@ export const spaceContentConfiguration: ContentConfiguration<SpaceContentRow> =
                     `${SpaceTableName}.created_by_user_id`,
                 )
                 .leftJoin(
-                    `${SpaceUserAccessTableName}`,
-                    `${SpaceUserAccessTableName}.space_uuid`,
-                    `${SpaceTableName}.space_uuid`,
-                )
-                .leftJoin(
-                    `${UserTableName} as shared_with`,
-                    `${SpaceUserAccessTableName}.user_uuid`,
-                    'shared_with.user_uuid',
-                )
-                .leftJoin(
                     `${UserTableName} as deleted_by_user`,
                     `${SpaceTableName}.deleted_by_user_uuid`,
                     'deleted_by_user.user_uuid',
@@ -132,9 +119,7 @@ export const spaceContentConfiguration: ContentConfiguration<SpaceContentRow> =
                                     ),
                                     'parentSpaceUuid', ${SpaceTableName}.parent_space_uuid,
                                     'path', ${SpaceTableName}.path,
-                                    'access', (${SpaceModel.getRootSpaceAccessQuery(
-                                        'shared_with',
-                                    )}),
+                                    'access', '[]'::json,
                                     'isPrivate', (${SpaceModel.getRootSpaceIsPrivateQuery()}),
                                     'inheritParentPermissions', ${SpaceTableName}.inherit_parent_permissions,
                                     'pinnedListOrder', ${PinnedSpaceTableName}.order

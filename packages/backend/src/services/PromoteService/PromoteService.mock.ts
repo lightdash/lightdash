@@ -52,14 +52,13 @@ const organizationUuid = 'organization-uuid';
 const promotedProjectUuid = 'promoted-project-uuid';
 const upstreamProjectUuid = 'upstream-project-uuid';
 
-export const promotedSpace: PromotedChart['space'] = {
+export const promotedSpace: NonNullable<PromotedChart['space']> = {
     organizationUuid,
     projectUuid: promotedProjectUuid,
     uuid: 'promoted-space-uuid',
     name: 'Jaffle shop',
     isPrivate: false,
     inheritParentPermissions: true,
-    access: [],
     pinnedListUuid: null,
     pinnedListOrder: null,
     chartCount: 0,
@@ -69,14 +68,13 @@ export const promotedSpace: PromotedChart['space'] = {
     path: 'jaffle_shop',
 };
 
-export const upstreamSpace: UpstreamChart['space'] = {
+export const upstreamSpace: NonNullable<UpstreamChart['space']> = {
     organizationUuid,
     projectUuid: upstreamProjectUuid,
     uuid: 'upstream-space-uuid',
     name: 'Jaffle shop',
     isPrivate: false,
     inheritParentPermissions: true,
-    access: [],
     pinnedListUuid: null,
     pinnedListOrder: null,
     chartCount: 0,
