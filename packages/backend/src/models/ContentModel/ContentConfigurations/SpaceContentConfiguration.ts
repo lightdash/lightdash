@@ -12,7 +12,10 @@ import {
     SpaceUserAccessTableName,
 } from '../../../database/entities/spaces';
 import { UserTableName } from '../../../database/entities/users';
-import { SpaceModel } from '../../SpaceModel';
+import {
+    getRootSpaceAccessQuery,
+    getRootSpaceIsPrivateQuery,
+} from '../../SpacePermissionModel';
 import {
     ContentConfiguration,
     ContentFilters,
@@ -155,10 +158,8 @@ export const spaceContentConfiguration: ContentConfiguration<SpaceContentRow> =
                         }),
                         'parentSpaceUuid', ${SpaceTableName}.parent_space_uuid,
                         'path', ${SpaceTableName}.path,
-                        'access', (${SpaceModel.getRootSpaceAccessQuery(
-                            'shared_with',
-                        )}),
-                        'isPrivate', (${SpaceModel.getRootSpaceIsPrivateQuery()}),
+                        'access', (${getRootSpaceAccessQuery('shared_with')}),
+                        'isPrivate', (${getRootSpaceIsPrivateQuery()}),
                         'inheritParentPermissions', ${SpaceTableName}.inherit_parent_permissions,
                         'pinnedListOrder', ${PinnedSpaceTableName}.order
                         ${
