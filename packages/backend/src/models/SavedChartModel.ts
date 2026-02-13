@@ -409,32 +409,13 @@ export const createSavedChart = async (
                 space_id: null,
             };
         } else {
-            const getSpaceIdAndName = async () => {
-                if (spaceUuid) {
-                    const space = await SpaceModel.getSpaceIdAndName(
-                        trx,
-                        spaceUuid,
-                    );
-                    if (space === undefined)
-                        throw Error(`Missing space with uuid ${spaceUuid}`);
-                    return {
-                        spaceId: space.spaceId,
-                        name: space.name,
-                    };
-                }
-                const firstSpace = await SpaceModel.getFirstAccessibleSpace(
-                    trx,
-                    projectUuid,
-                    userUuid,
-                );
-                return {
-                    spaceId: firstSpace.space_id,
-                    name: firstSpace.name,
-                };
-            };
-            const { spaceId, name: spaceName } = await getSpaceIdAndName();
-
-            if (!spaceId) throw new NotFoundError('No space found');
+            if (!spaceUuid) {
+                throw new NotFoundError('No space specified for chart');
+            }
+            const space = await SpaceModel.getSpaceIdAndName(trx, spaceUuid);
+            if (space === undefined)
+                throw Error(`Missing space with uuid ${spaceUuid}`);
+            const { spaceId } = space;
             chart = {
                 ...baseChart,
                 dashboard_uuid: null,
