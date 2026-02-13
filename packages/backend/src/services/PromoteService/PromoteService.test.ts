@@ -556,6 +556,95 @@ describe('PromoteService dashboard changes', () => {
             },
         });
     });
+
+    test('getPromotionDashboardChanges deduplicates duplicate saved chart tiles', async () => {
+        const chartTile = promotedDashboard.dashboard.tiles.find(
+            (tile) => tile.type === DashboardTileTypes.SAVED_CHART,
+        );
+        if (!chartTile || !chartTile.properties.savedChartUuid) {
+            throw new Error('Expected dashboard saved chart tile');
+        }
+
+        const dashboardWithDuplicateChartTiles = {
+            ...promotedDashboard,
+            dashboard: {
+                ...promotedDashboard.dashboard,
+                tiles: [
+                    ...promotedDashboard.dashboard.tiles,
+                    {
+                        ...chartTile,
+                        uuid: 'duplicate-saved-chart-tile',
+                    },
+                ],
+            },
+        };
+
+        (savedChartModel.get as jest.Mock).mockImplementationOnce(
+            async () => promotedChart.chart,
+        );
+        (savedChartModel.find as jest.Mock).mockImplementationOnce(
+            async () => [],
+        );
+        (spaceModel.find as jest.Mock).mockImplementationOnce(async () => []);
+        (spaceModel.find as jest.Mock).mockImplementationOnce(async () => []);
+
+        const [changes, promotedCharts] =
+            await service.getPromotionDashboardChanges(
+                user,
+                dashboardWithDuplicateChartTiles,
+                missingUpstreamDashboard,
+            );
+
+        expect(savedChartModel.get).toHaveBeenCalledTimes(1);
+        expect(savedChartModel.find).toHaveBeenCalledTimes(1);
+        expect(changes.charts.length).toBe(1);
+        expect(promotedCharts.length).toBe(1);
+    });
+
+    test('getPromotionDashboardChanges deduplicates duplicate SQL chart tiles', async () => {
+        const sqlTile = promotedDashboardWithSqlTile.dashboard.tiles.find(
+            (tile) => tile.type === DashboardTileTypes.SQL_CHART,
+        );
+        if (!sqlTile || !sqlTile.properties.savedSqlUuid) {
+            throw new Error('Expected dashboard SQL chart tile');
+        }
+
+        const dashboardWithDuplicateSqlTiles = {
+            ...promotedDashboardWithSqlTile,
+            dashboard: {
+                ...promotedDashboardWithSqlTile.dashboard,
+                tiles: [
+                    sqlTile,
+                    {
+                        ...sqlTile,
+                        uuid: 'duplicate-sql-chart-tile',
+                    },
+                ],
+            },
+        };
+
+        (savedSqlModel.getByUuid as jest.Mock).mockImplementationOnce(
+            async () => promotedSqlChart,
+        );
+        (savedSqlModel.find as jest.Mock).mockImplementationOnce(
+            async () => [],
+        );
+        (spaceModel.find as jest.Mock).mockImplementationOnce(async () => []);
+        (spaceModel.find as jest.Mock).mockImplementationOnce(async () => []);
+
+        const [changes, , promotedSqlCharts, sqlChanges] =
+            await service.getPromotionDashboardChanges(
+                user,
+                dashboardWithDuplicateSqlTiles,
+                missingUpstreamDashboard,
+            );
+
+        expect(savedSqlModel.getByUuid).toHaveBeenCalledTimes(1);
+        expect(savedSqlModel.find).toHaveBeenCalledTimes(1);
+        expect(changes.charts.length).toBe(0);
+        expect(promotedSqlCharts.length).toBe(1);
+        expect(sqlChanges.length).toBe(1);
+    });
 });
 
 describe('PromoteService promoting and mutating changes', () => {

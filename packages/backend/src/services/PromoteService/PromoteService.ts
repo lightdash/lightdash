@@ -1817,30 +1817,35 @@ export class PromoteService extends BaseService {
     > {
         const upstreamProjectUuid = upstreamDashboard.projectUuid;
 
-        const chartUuids = promotedDashboard.dashboard.tiles.reduce<string[]>(
-            (acc, tile) => {
-                if (
-                    isDashboardChartTileType(tile) &&
-                    tile.properties.savedChartUuid
-                ) {
-                    return [...acc, tile.properties.savedChartUuid];
-                }
-                return acc;
-            },
-            [],
+        const chartUuids = Array.from(
+            promotedDashboard.dashboard.tiles.reduce<Set<string>>(
+                (acc, tile) => {
+                    if (
+                        isDashboardChartTileType(tile) &&
+                        tile.properties.savedChartUuid
+                    ) {
+                        acc.add(tile.properties.savedChartUuid);
+                    }
+                    return acc;
+                },
+                new Set<string>(),
+            ),
         );
 
-        const savedSqlUuids = promotedDashboard.dashboard.tiles.reduce<
-            string[]
-        >((acc, tile) => {
-            if (
-                tile.type === DashboardTileTypes.SQL_CHART &&
-                tile.properties.savedSqlUuid
-            ) {
-                return [...acc, tile.properties.savedSqlUuid];
-            }
-            return acc;
-        }, []);
+        const savedSqlUuids = Array.from(
+            promotedDashboard.dashboard.tiles.reduce<Set<string>>(
+                (acc, tile) => {
+                    if (
+                        tile.type === DashboardTileTypes.SQL_CHART &&
+                        tile.properties.savedSqlUuid
+                    ) {
+                        acc.add(tile.properties.savedSqlUuid);
+                    }
+                    return acc;
+                },
+                new Set<string>(),
+            ),
+        );
 
         const chartPromises = chartUuids.map((chartUuid) =>
             this.getPromoteCharts(
