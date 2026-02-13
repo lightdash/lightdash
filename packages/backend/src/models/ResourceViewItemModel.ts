@@ -19,7 +19,10 @@ import {
     SpaceUserAccessTableName,
 } from '../database/entities/spaces';
 import { UserTableName } from '../database/entities/users';
-import { SpaceModel } from './SpaceModel';
+import {
+    getRootSpaceAccessQuery,
+    getRootSpaceIsPrivateQuery,
+} from './SpacePermissionModel';
 
 type ResourceViewItemModelArguments = {
     database: Knex;
@@ -284,8 +287,8 @@ const getAllSpaces = async (
             space_uuid: `${PinnedSpaceTableName}.space_uuid`,
             order: `${PinnedSpaceTableName}.order`,
             name: knex.raw(`max(${SpaceTableName}.name)`),
-            is_private: knex.raw(SpaceModel.getRootSpaceIsPrivateQuery()),
-            access: knex.raw(SpaceModel.getRootSpaceAccessQuery(UserTableName)),
+            is_private: knex.raw(getRootSpaceIsPrivateQuery()),
+            access: knex.raw(getRootSpaceAccessQuery(UserTableName)),
             parent_space_uuid: `${SpaceTableName}.parent_space_uuid`,
             path: `${SpaceTableName}.path`,
             access_list_length: knex.raw(`

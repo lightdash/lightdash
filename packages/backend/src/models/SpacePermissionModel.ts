@@ -22,6 +22,52 @@ import {
 import { UserTableName } from '../database/entities/users';
 import { wrapSentryTransaction } from '../utils';
 
+/**
+ * ! This needs to be removed once nested spaces permissions are fully implemented
+ * ! Used for SpaceContent and ResouceViewItem model
+ * Nested spaces MVP - get access list from root space
+ * Returns a raw SQL expression to get user access for a space.
+ * For nested spaces, it retrieves access from the root space.
+ * @returns SQL string for retrieving access information
+ */
+export const getRootSpaceAccessQuery = (
+    sharedWithTableName: string,
+): string => `
+                CASE
+                    WHEN ${SpaceTableName}.parent_space_uuid IS NOT NULL THEN
+                        (SELECT COALESCE(json_agg(sua.user_uuid) FILTER (WHERE sua.user_uuid IS NOT NULL), '[]')
+                         FROM ${SpaceUserAccessTableName} sua
+                         JOIN ${SpaceTableName} root_space ON sua.space_uuid = root_space.space_uuid
+                         WHERE root_space.path @> ${SpaceTableName}.path
+                         AND nlevel(root_space.path) = 1
+                         AND root_space.project_id = ${SpaceTableName}.project_id
+                         LIMIT 1)
+                    ELSE
+                        COALESCE(json_agg(${sharedWithTableName}.user_uuid) FILTER (WHERE ${sharedWithTableName}.user_uuid IS NOT NULL), '[]')
+                END
+            `;
+
+/**
+ * ! This needs to be removed once nested spaces permissions are fully implemented
+ * Nested spaces MVP - get is_private from root space
+ * Returns a raw SQL expression to determine if a space is private.
+ * For nested spaces, it checks the root space's privacy setting.
+ * @returns SQL string for determining privacy setting
+ */
+export const getRootSpaceIsPrivateQuery = (): string => `
+                CASE
+                    WHEN ${SpaceTableName}.parent_space_uuid IS NOT NULL THEN
+                        (SELECT ps.is_private
+                         FROM ${SpaceTableName} ps
+                         WHERE ps.path @> ${SpaceTableName}.path
+                         AND nlevel(ps.path) = 1
+                         AND ps.project_id = ${SpaceTableName}.project_id
+                         LIMIT 1)
+                    ELSE
+                        ${SpaceTableName}.is_private
+                END
+            `;
+
 export class SpacePermissionModel {
     constructor(private readonly database: Knex) {}
 
