@@ -50,6 +50,8 @@ export class FeatureFlagModel {
                 this.getTableColumnCustomizationEnabled.bind(this),
             [FeatureFlags.GoogleChatEnabled]:
                 this.getGoogleChatEnabled.bind(this),
+            [FeatureFlags.UserImpersonation]:
+                this.getUserImpersonationEnabled.bind(this),
         };
     }
 
@@ -284,6 +286,32 @@ export class FeatureFlagModel {
             (user !== undefined
                 ? await isFeatureFlagEnabled(
                       FeatureFlags.EnableTableColumnCustomization,
+                      {
+                          userUuid: user.userUuid,
+                          organizationUuid: user.organizationUuid,
+                      },
+                      {
+                          throwOnTimeout: false,
+                          timeoutMilliseconds: 500,
+                      },
+                  )
+                : false);
+
+        return {
+            id: featureFlagId,
+            enabled,
+        };
+    }
+
+    private async getUserImpersonationEnabled({
+        user,
+        featureFlagId,
+    }: FeatureFlagLogicArgs) {
+        const enabled =
+            this.lightdashConfig.userImpersonation.enabled ??
+            (user !== undefined
+                ? await isFeatureFlagEnabled(
+                      FeatureFlags.UserImpersonation,
                       {
                           userUuid: user.userUuid,
                           organizationUuid: user.organizationUuid,

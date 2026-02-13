@@ -87,6 +87,12 @@ export enum FeatureFlags {
      * Enable Google Chat as a scheduled delivery destination
      */
     GoogleChatEnabled = 'google-chat-enabled',
+
+    /**
+     * Enable admin user impersonation. When disabled, impersonation
+     * actions are blocked and active sessions are cleared.
+     */
+    UserImpersonation = 'user-impersonation',
 }
 
 export type FeatureFlag = {
