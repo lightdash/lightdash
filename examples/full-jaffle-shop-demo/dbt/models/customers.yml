@@ -94,7 +94,7 @@ models:
               type: string
               sql: "CONCAT(${first_name}, ' ', ${last_name})"
               any_attributes:
-                is_demo: true
+                is_demo: "true"
                 name: [demo, demo2]
       - name: age
         description: Customer's age
