@@ -1,3 +1,15 @@
+# [0.2466.0](https://github.com/lightdash/lightdash/compare/0.2465.0...0.2466.0) (2026-02-13)
+
+
+### Bug Fixes
+
+* validator table crash when scrolling (React error [#185](https://github.com/lightdash/lightdash/issues/185)) ([#20310](https://github.com/lightdash/lightdash/issues/20310)) ([73b8dfc](https://github.com/lightdash/lightdash/commit/73b8dfc0d09a5ac4bf5a50cb75b4bca4a45eb323))
+
+
+### Features
+
+* per-channel persistent download URL expiration ([#20309](https://github.com/lightdash/lightdash/issues/20309)) ([06f4fec](https://github.com/lightdash/lightdash/commit/06f4fec931aa17ecb4dd9d874a62424ad171ffee))
+
 # [0.2465.0](https://github.com/lightdash/lightdash/compare/0.2464.0...0.2465.0) (2026-02-13)
 
 
