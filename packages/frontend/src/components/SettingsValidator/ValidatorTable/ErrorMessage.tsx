@@ -9,8 +9,7 @@ import {
 } from '@lightdash/common';
 import { Mark, Stack, Text } from '@mantine-8/core';
 import { type FC } from 'react';
-// eslint-disable-next-line css-modules/no-unused-class
-import classes from './ValidatorTable.module.css';
+import classes from './ErrorMessage.module.css';
 
 const CustomMark: FC<React.PropsWithChildren<{}>> = ({ children }) => (
     <Mark color="ldGray" px={2} fw={500} fz="xs" className={classes.customMark}>

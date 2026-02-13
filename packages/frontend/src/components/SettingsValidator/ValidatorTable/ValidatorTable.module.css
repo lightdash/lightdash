@@ -59,9 +59,3 @@
     color: unset;
     text-decoration: none;
 }
-
-/* Mark component override for ErrorMessage */
-.customMark {
-    text-transform: none;
-    border-radius: 2px;
-}

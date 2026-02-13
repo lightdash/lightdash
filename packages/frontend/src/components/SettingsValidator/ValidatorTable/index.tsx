@@ -32,7 +32,6 @@ import MantineIcon from '../../common/MantineIcon';
 import { ChartIcon, IconBox } from '../../common/ResourceIcon';
 import { getLinkToResource } from '../utils/utils';
 import { ErrorMessage } from './ErrorMessage';
-// eslint-disable-next-line css-modules/no-unused-class
 import classes from './ValidatorTable.module.css';
 
 const isDeleted = (validationError: ValidationResponse) =>
@@ -303,8 +302,8 @@ export const ValidatorTable: FC<{
                 )}
                 <Table.Tbody>
                     {paddingTop > 0 && (
-                        <tr>
-                            <td
+                        <Table.Tr>
+                            <Table.Td
                                 colSpan={3}
                                 style={{
                                     height: paddingTop,
@@ -312,7 +311,7 @@ export const ValidatorTable: FC<{
                                     border: 'none',
                                 }}
                             />
-                        </tr>
+                        </Table.Tr>
                     )}
                     {virtualRows.map((virtualRow) => {
                         const validationError = data[virtualRow.index];
@@ -331,8 +330,8 @@ export const ValidatorTable: FC<{
                         );
                     })}
                     {paddingBottom > 0 && (
-                        <tr>
-                            <td
+                        <Table.Tr>
+                            <Table.Td
                                 colSpan={3}
                                 style={{
                                     height: paddingBottom,
@@ -340,7 +339,7 @@ export const ValidatorTable: FC<{
                                     border: 'none',
                                 }}
                             />
-                        </tr>
+                        </Table.Tr>
                     )}
                 </Table.Tbody>
             </Table>
