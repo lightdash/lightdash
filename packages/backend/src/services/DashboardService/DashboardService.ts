@@ -405,21 +405,13 @@ export class DashboardService
         projectUuid: string,
         dashboard: CreateDashboard,
     ): Promise<Dashboard> {
-        const getFirstSpace = async () => {
-            const space = await this.spaceModel.getFirstAccessibleSpace(
+        const resolvedSpaceUuid =
+            dashboard.spaceUuid ??
+            (await this.spacePermissionService.getFirstViewableSpaceUuid(
+                user,
                 projectUuid,
-                user.userUuid,
-            );
-            return {
-                organizationUuid: space.organization_uuid,
-                uuid: space.space_uuid,
-                isPrivate: space.is_private,
-                name: space.name,
-            };
-        };
-        const space = dashboard.spaceUuid
-            ? await this.spaceModel.get(dashboard.spaceUuid)
-            : await getFirstSpace();
+            ));
+        const space = await this.spaceModel.get(resolvedSpaceUuid);
 
         const { isPrivate, access } =
             await this.spacePermissionService.getSpaceAccessContext(
