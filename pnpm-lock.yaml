@@ -683,8 +683,8 @@ importers:
   packages/common:
     dependencies:
       '@casl/ability':
-        specifier: ^5.4.3
-        version: 5.4.4
+        specifier: ^6.7.5
+        version: 6.8.0
       '@types/lodash':
         specifier: ^4.14.202
         version: 4.14.202
@@ -2420,6 +2420,9 @@ packages:
 
   '@casl/ability@5.4.4':
     resolution: {integrity: sha512-7+GOnMUq6q4fqtDDesymBXTS9LSDVezYhFiSJ8Rn3f0aQLeRm7qHn66KWbej4niCOvm0XzNj9jzpkK0yz6hUww==}
+
+  '@casl/ability@6.8.0':
+    resolution: {integrity: sha512-Ipt4mzI4gSgnomFdaPjaLgY2MWuXqAEZLrU6qqWBB7khGiBBuuEp6ytYDnq09bRXqcjaeeHiaCvCGFbBA2SpvA==}
 
   '@casl/react@3.0.0':
     resolution: {integrity: sha512-1/+mHe9MmYVHzy4YrRqS/eZfSMCZdClgcbfohpMui0n4l4x6Ab4Q+Tok6ZGqzqG05vtBVT+pgb77YyZhzSEboQ==}
@@ -7196,6 +7199,7 @@ packages:
 
   antlr4ng-cli@1.0.7:
     resolution: {integrity: sha512-qN2FsDBmLvsQcA5CWTrPz8I8gNXeS1fgXBBhI78VyxBSBV/EJgqy8ks6IDTC9jyugpl40csCQ4sL5K4i2YZ/2w==}
+    deprecated: 'This package is deprecated and will no longer be updated. Please use the new antlr-ng package instead: https://github.com/mike-lischke/antlr-ng'
     hasBin: true
 
   antlr4ng@2.0.11:
@@ -18088,6 +18092,10 @@ snapshots:
   '@bcoe/v8-coverage@0.2.3': {}
 
   '@casl/ability@5.4.4':
+    dependencies:
+      '@ucast/mongo2js': 1.3.3
+
+  '@casl/ability@6.8.0':
     dependencies:
       '@ucast/mongo2js': 1.3.3
 
