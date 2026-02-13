@@ -114,7 +114,7 @@ echo "DBT_DEMO_DIR=$(pwd)/examples/full-jaffle-shop-demo" >> .env.development.lo
 
 **IMPORTANT: You MUST ask the user for permission before modifying CLAUDE.local.md.** Use AskUserQuestion to confirm:
 
-> "The docker-dev setup can add PM2 commands and debugging instructions to CLAUDE.local.md. This includes PM2 start/stop/restart commands and guidance on using the /debug skill with Spotlight. May I add these instructions?"
+> "The docker-dev setup can add PM2 commands and debugging instructions to CLAUDE.local.md. This includes PM2 start/stop/restart commands and guidance on using the /debug-local skill with Spotlight. May I add these instructions?"
 
 **Only proceed with this step after the user confirms.** If declined, skip this step and continue with the remaining setup.
 
@@ -149,9 +149,9 @@ pnpm pm2:stop           # Stop all services
 
 ## Debugging
 
-**When facing problems, the first step is always to use the `/debug` skill** to understand what's happening. This skill provides a comprehensive debugging workflow.
+**When facing problems, the first step is always to use the `/debug-local` skill** to understand what's happening. This skill provides a comprehensive debugging workflow.
 
-Use the `/debug` skill for comprehensive debugging workflows combining:
+Use the `/debug-local` skill for comprehensive debugging workflows combining:
 
 -   **PM2 logs**: `pnpm pm2:logs:api` to view API server logs with trace IDs
 -   **Spotlight MCP**: Query traces and errors programmatically via `mcp__spotlight__search_traces`, `mcp__spotlight__get_traces`, `mcp__spotlight__search_errors`
