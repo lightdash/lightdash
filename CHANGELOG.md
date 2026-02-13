@@ -1,3 +1,10 @@
+# [0.2461.0](https://github.com/lightdash/lightdash/compare/0.2460.0...0.2461.0) (2026-02-13)
+
+
+### Features
+
+* **wip:** improved previews for lightdash yml projects ([#20198](https://github.com/lightdash/lightdash/issues/20198)) ([9b746d3](https://github.com/lightdash/lightdash/commit/9b746d36d09df902b2fc4e32cde676e495bff2a6))
+
 # [0.2460.0](https://github.com/lightdash/lightdash/compare/0.2459.3...0.2460.0) (2026-02-13)
 
 
