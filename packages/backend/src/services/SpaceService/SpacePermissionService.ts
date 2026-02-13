@@ -6,6 +6,7 @@ import {
     type SessionUser,
     type SpaceAccess,
     type SpaceAccessUserMetadata,
+    type SpaceGroup,
 } from '@lightdash/common';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SpacePermissionModel } from '../../models/SpacePermissionModel';
@@ -141,7 +142,7 @@ export class SpacePermissionService extends BaseService {
         // Getting the root space uuids since for nested spaces that's what is used
         const rootSpaceUuids = await Promise.all(
             uniqueSpaceUuids.map((uuid) =>
-                this.spaceModel
+                this.spacePermissionModel
                     .getSpaceRootFromCacheOrDB(uuid)
                     .then((r) => r.spaceRoot),
             ),
@@ -208,6 +209,22 @@ export class SpacePermissionService extends BaseService {
                 rootSpaceAccessContext[rootSpaceUuid],
             ]),
         );
+    }
+
+    /**
+     * Checks if a space is a root space (i.e. has no parent).
+     * Delegates to SpacePermissionModel which uses a cached ltree lookup.
+     */
+    async isRootSpace(spaceUuid: string): Promise<boolean> {
+        return this.spacePermissionModel.isRootSpace(spaceUuid);
+    }
+
+    /**
+     * Gets group access for a space, resolving to the root space for nested spaces.
+     * Delegates to SpacePermissionModel.
+     */
+    async getGroupAccess(spaceUuid: string): Promise<SpaceGroup[]> {
+        return this.spacePermissionModel.getGroupAccess(spaceUuid);
     }
 
     async getUserMetadataByUuids(

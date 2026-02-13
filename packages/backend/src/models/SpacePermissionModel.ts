@@ -1,14 +1,20 @@
 import {
     DirectSpaceAccess,
     DirectSpaceAccessOrigin,
+    InvalidSpaceStateError,
+    NotFoundError,
     OrganizationSpaceAccess,
     ProjectSpaceAccess,
     ProjectSpaceAccessOrigin,
     SpaceAccessUserMetadata,
+    type SpaceGroup,
 } from '@lightdash/common';
+import * as Sentry from '@sentry/node';
 import { Knex } from 'knex';
+import NodeCache from 'node-cache';
 import { EmailTableName } from '../database/entities/emails';
 import { GroupMembershipTableName } from '../database/entities/groupMemberships';
+import { GroupTableName } from '../database/entities/groups';
 import { OrganizationMembershipsTableName } from '../database/entities/organizationMemberships';
 import { OrganizationTableName } from '../database/entities/organizations';
 import { ProjectGroupAccessTableName } from '../database/entities/projectGroupAccess';
@@ -21,6 +27,15 @@ import {
 } from '../database/entities/spaces';
 import { UserTableName } from '../database/entities/users';
 import { wrapSentryTransaction } from '../utils';
+
+// Initialize cache with 30 seconds TTL
+const spaceRootCache =
+    process.env.EXPERIMENTAL_CACHE === 'true'
+        ? new NodeCache({
+              stdTTL: 30, // time to live in seconds
+              checkperiod: 60, // cleanup interval in seconds
+          })
+        : undefined;
 
 /**
  * ! This needs to be removed once nested spaces permissions are fully implemented
@@ -411,5 +426,105 @@ export class SpacePermissionModel {
             });
 
         return Object.fromEntries(rows.map((r) => [r.userUuid, r]));
+    }
+
+    /**
+     * Gets the group access for a space, resolving to the root space for nested spaces.
+     * @param spaceUuid - The UUID of the space to get group access for
+     * @returns The group access entries for the space (or its root space)
+     */
+    async getGroupAccess(spaceUuid: string): Promise<SpaceGroup[]> {
+        const { spaceRoot: spaceOrRootUuid } =
+            await this.getSpaceRootFromCacheOrDB(spaceUuid);
+
+        const access = await this.database
+            .table(SpaceGroupAccessTableName)
+            .select({
+                groupUuid: `${SpaceGroupAccessTableName}.group_uuid`,
+                spaceRole: `${SpaceGroupAccessTableName}.space_role`,
+                groupName: `${GroupTableName}.name`,
+            })
+            .leftJoin(
+                `${GroupTableName}`,
+                `${GroupTableName}.group_uuid`,
+                `${SpaceGroupAccessTableName}.group_uuid`,
+            )
+            .where('space_uuid', spaceOrRootUuid);
+        return access;
+    }
+
+    /**
+     * Checks if a space is a root space
+     * @param spaceUuid - The UUID of the space to check
+     * @returns True if the space is a root space, false otherwise
+     */
+    async isRootSpace(spaceUuid: string): Promise<boolean> {
+        const { spaceRoot: rootSpaceUuid } =
+            await this.getSpaceRootFromCacheOrDB(spaceUuid);
+        return rootSpaceUuid === spaceUuid;
+    }
+
+    /**
+     * Gets the root space UUID for a given space UUID, using a cache-aside pattern.
+     *
+     * This method uses PostgreSQL's ltree extension to find the root space of a hierarchy.
+     * The spaces are stored in a tree structure where:
+     * - Root spaces have a path with a single level (e.g., "my-space")
+     * - Child spaces have paths that include their parent hierarchy (e.g., "my-space.my-child-space")
+     * @param spaceUuid Space UUID to get the root for
+     * @returns Root space UUID (or itself if it's already a root space) and whether it was a cache hit
+     */
+    async getSpaceRootFromCacheOrDB(spaceUuid: string) {
+        const cacheKey = spaceUuid;
+        // Try to get from cache first
+        const cachedSpaceRoot = spaceRootCache?.get<string>(cacheKey);
+
+        if (cachedSpaceRoot) {
+            // Return cached result
+            return { spaceRoot: cachedSpaceRoot, cacheHit: true };
+        }
+        // If not in cache, get from database
+        const spaceRoot = await this.getSpaceRoot(spaceUuid);
+        // Store in cache
+        spaceRootCache?.set(cacheKey, spaceRoot);
+        return { spaceRoot, cacheHit: false };
+    }
+
+    private async getSpaceRoot(spaceUuid: string): Promise<string> {
+        const space = await this.database(SpaceTableName)
+            .select(['path', 'project_id', 'parent_space_uuid'])
+            .where('space_uuid', spaceUuid)
+            .first();
+
+        if (!space || !space.path) {
+            throw new NotFoundError(
+                `Space with uuid ${spaceUuid} does not exist`,
+            );
+        }
+
+        const root = await this.database(SpaceTableName)
+            .select('space_uuid')
+            .whereRaw('nlevel(path) = 1')
+            .andWhereRaw('path @> ?', [space.path])
+            .andWhere('project_id', space.project_id)
+            .first();
+
+        if (!root) {
+            const error = new InvalidSpaceStateError(
+                `Root space for space for ${spaceUuid} not found`,
+            );
+
+            Sentry.captureException(error, {
+                extra: {
+                    spaceUuid,
+                    parentSpaceUuid: space.parent_space_uuid,
+                    path: space.path,
+                },
+            });
+
+            throw error;
+        }
+
+        return root.space_uuid;
     }
 }
