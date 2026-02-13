@@ -15,6 +15,8 @@ import {
     IconDotsVertical,
     IconEdit,
     IconInfoCircle,
+    IconMoon,
+    IconSun,
     IconTrash,
 } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
@@ -28,7 +30,6 @@ type PaletteItemProps = {
     isActive: boolean;
     onSetActive?: ((uuid: string) => void) | undefined;
     readOnly?: boolean;
-    theme?: 'light' | 'dark';
 };
 
 export const PaletteItem: FC<PaletteItemProps> = ({
@@ -36,7 +37,6 @@ export const PaletteItem: FC<PaletteItemProps> = ({
     isActive,
     onSetActive,
     readOnly,
-    theme = 'light',
 }) => {
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -48,10 +48,8 @@ export const PaletteItem: FC<PaletteItemProps> = ({
         setIsDeleteModalOpen(false);
     };
 
-    const displayColors =
-        theme === 'dark' && palette.darkColors
-            ? palette.darkColors
-            : palette.colors;
+    const hasDarkColors =
+        palette.darkColors !== null && palette.darkColors !== undefined;
 
     return (
         <>
@@ -64,17 +62,58 @@ export const PaletteItem: FC<PaletteItemProps> = ({
                 onMouseLeave={() => setIsHovered(false)}
             >
                 <Flex justify="space-between" align="center">
-                    <Group spacing="xs">
+                    <Group spacing="sm">
                         <Group spacing="two">
-                            {displayColors.slice(0, 5).map((color, index) => (
-                                <ColorSwatch
-                                    key={color + index}
-                                    size={18}
-                                    color={color}
-                                />
-                            ))}
+                            <Tooltip label="Light mode" position="top">
+                                <Group spacing="two">
+                                    <MantineIcon
+                                        icon={IconSun}
+                                        size="sm"
+                                        color="foreground"
+                                    />
+                                    {palette.colors
+                                        .slice(0, 5)
+                                        .map((color, index) => (
+                                            <ColorSwatch
+                                                key={`light-${color}-${index}`}
+                                                size={18}
+                                                color={color}
+                                            />
+                                        ))}
+                                </Group>
+                            </Tooltip>
+                            {hasDarkColors && (
+                                <>
+                                    <Text c="ldGray.3" mx={4}>
+                                        /
+                                    </Text>
+                                    <Tooltip label="Dark mode" position="top">
+                                        <Group spacing="two">
+                                            <MantineIcon
+                                                icon={IconMoon}
+                                                size="sm"
+                                                color="foreground"
+                                            />
+                                            {palette
+                                                .darkColors!.slice(0, 5)
+                                                .map((color, index) => (
+                                                    <ColorSwatch
+                                                        key={`dark-${color}-${index}`}
+                                                        size={18}
+                                                        color={color}
+                                                    />
+                                                ))}
+                                        </Group>
+                                    </Tooltip>
+                                </>
+                            )}
                         </Group>
+                        <Text c="ldGray.3" mx={4}>
+                            |
+                        </Text>
+
                         <Text fw={500}>{palette.name}</Text>
+
                         {readOnly && (
                             <Tooltip
                                 label="This palette is read only. It has been configured as the override color palette for your organization. While this is set, you cannot update/edit, or delete this palette."
@@ -153,6 +192,7 @@ export const PaletteItem: FC<PaletteItemProps> = ({
             </Paper>
 
             <EditPaletteModal
+                key={`edit-palette-modal-${isEditModalOpen}`}
                 palette={palette}
                 opened={isEditModalOpen}
                 onClose={() => setIsEditModalOpen(false)}

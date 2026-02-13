@@ -7,7 +7,6 @@ import {
     Text,
     Title,
     Tooltip,
-    useMantineColorScheme,
 } from '@mantine/core';
 import { IconInfoCircle, IconPlus } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
@@ -28,7 +27,6 @@ const AppearanceColorSettings: FC = () => {
     const { data: palettes = [], isLoading: isPalettesLoading } =
         useColorPalettes();
 
-    const { colorScheme } = useMantineColorScheme();
     const setActivePalette = useSetActiveColorPalette();
 
     const [isCreatePaletteModalOpen, setIsCreatePaletteModalOpen] =
@@ -78,7 +76,6 @@ const AppearanceColorSettings: FC = () => {
                             health?.appearance.overrideColorPalette &&
                             organization?.organizationUuid && (
                                 <PaletteItem
-                                    theme={colorScheme}
                                     palette={{
                                         colorPaletteUuid: 'custom',
                                         createdAt: new Date(),
@@ -99,7 +96,6 @@ const AppearanceColorSettings: FC = () => {
                             )}
                         {palettes.map((palette) => (
                             <PaletteItem
-                                theme={colorScheme}
                                 key={palette.colorPaletteUuid}
                                 palette={palette}
                                 isActive={
