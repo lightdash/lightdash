@@ -61,12 +61,14 @@ export type FindFieldFn = (
     args: KnexPaginateArgs & {
         table: ToolFindFieldsArgs['table'];
         fieldSearchQuery: ToolFindFieldsArgs['fieldSearchQueries'][number];
+        explore: Explore;
     },
 ) => Promise<{
     fields: CatalogField[];
     pagination: Pagination | undefined;
-    explore?: Explore;
 }>;
+
+export type GetExploreFn = (args: { table: string }) => Promise<Explore>;
 
 export type FindContentFn = (args: {
     searchQuery: ToolFindContentArgs['searchQueries'][number];

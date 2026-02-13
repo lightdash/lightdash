@@ -134,6 +134,7 @@ import {
     FindContentFn,
     FindExploresFn,
     FindFieldFn,
+    GetExploreFn,
     GetPromptFn,
     ListExploresFn,
     RunAsyncQueryFn,
@@ -2497,6 +2498,16 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                 );
             });
 
+        const getExplore: GetExploreFn = async ({ table }) => {
+            const agentSettings = await this.getAgentSettings(user, prompt);
+            return this.getExplore(
+                user,
+                projectUuid,
+                agentSettings.tags,
+                table,
+            );
+        };
+
         const findExplores: FindExploresFn = (args) =>
             wrapSentryTransaction('AiAgent.findExplores', args, async () => {
                 const agentSettings = await this.getAgentSettings(user, prompt);
@@ -2588,15 +2599,6 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                         },
                     );
 
-                const agentSettings = await this.getAgentSettings(user, prompt);
-
-                const explore = await this.getExplore(
-                    user,
-                    projectUuid,
-                    agentSettings.tags,
-                    args.table,
-                );
-
                 const { data: catalogItems, pagination } =
                     await this.catalogService.searchCatalog({
                         projectUuid,
@@ -2611,7 +2613,7 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                         },
                         userAttributes,
                         fullTextSearchOperator: 'OR',
-                        filteredExplores: [explore],
+                        filteredExplores: [args.explore],
                     });
 
                 // TODO: we should not filter here, search should be returning a proper type
@@ -2619,7 +2621,7 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                     (item) => item.type === CatalogType.Field,
                 );
 
-                return { fields: catalogFields, pagination, explore };
+                return { fields: catalogFields, pagination };
             });
 
         const updateProgress: UpdateProgressFn = (progress) =>
@@ -2858,6 +2860,7 @@ Use them as a reference, but do all the due dilligence and follow the instructio
 
         return {
             listExplores,
+            getExplore,
             findContent,
             findFields,
             findExplores,
@@ -2932,6 +2935,7 @@ Use them as a reference, but do all the due dilligence and follow the instructio
 
         const {
             listExplores,
+            getExplore,
             findContent,
             findFields,
             findExplores,
@@ -2984,6 +2988,7 @@ Use them as a reference, but do all the due dilligence and follow the instructio
 
         const dependencies: AiAgentDependencies = {
             listExplores,
+            getExplore,
             findContent,
             findFields,
             findExplores,

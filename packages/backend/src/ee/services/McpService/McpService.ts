@@ -84,6 +84,7 @@ import {
     FindContentFn,
     FindExploresFn,
     FindFieldFn,
+    GetExploreFn,
     RunAsyncQueryFn,
     SearchFieldValuesFn,
 } from '../ai/types/aiAgentDependencies';
@@ -459,13 +460,14 @@ export class McpService extends BaseService {
                     projectUuid,
                 );
 
-                const findFields: FindFieldFn =
+                const { findFields, getExplore } =
                     await this.getFindFieldsFunction(
                         argsWithProject,
                         extra as McpProtocolContext,
                     );
 
                 const findFieldsTool = getFindFields({
+                    getExplore,
                     findFields,
                     updateProgress: async () => {}, // No-op for MCP context
                     pageSize: 15,
@@ -1320,7 +1322,7 @@ export class McpService extends BaseService {
     async getFindFieldsFunction(
         toolArgs: Omit<ToolFindFieldsArgs, 'type'> & { projectUuid: string },
         context: McpProtocolContext,
-    ): Promise<FindFieldFn> {
+    ): Promise<{ findFields: FindFieldFn; getExplore: GetExploreFn }> {
         const { user, account } = context.authInfo!.extra;
         const { organizationUuid } = user;
         const { projectUuid } = toolArgs;
@@ -1354,16 +1356,17 @@ export class McpService extends BaseService {
         const userAttributeOverrides =
             await this.getUserAttributeOverridesFromContext(context);
 
+        const getExplore: GetExploreFn = async ({ table }) =>
+            this.getExplore(
+                user,
+                projectUuid,
+                tagsFromContext,
+                table,
+                userAttributeOverrides,
+            );
+
         const findFields: FindFieldFn = (args) =>
             wrapSentryTransaction('McpService.findFields', args, async () => {
-                const explore = await this.getExplore(
-                    user,
-                    projectUuid,
-                    tagsFromContext,
-                    args.table,
-                    userAttributeOverrides,
-                );
-
                 const { data: catalogItems, pagination } =
                     await this.catalogService.searchCatalog({
                         projectUuid,
@@ -1378,7 +1381,7 @@ export class McpService extends BaseService {
                         },
                         userAttributes,
                         fullTextSearchOperator: 'OR',
-                        filteredExplores: [explore],
+                        filteredExplores: [args.explore],
                     });
 
                 const catalogFields = catalogItems.filter(
@@ -1388,7 +1391,7 @@ export class McpService extends BaseService {
                 return { fields: catalogFields, pagination };
             });
 
-        return findFields;
+        return { findFields, getExplore };
     }
 
     async getFindContentFunction(
