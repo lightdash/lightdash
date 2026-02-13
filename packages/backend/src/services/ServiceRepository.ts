@@ -768,7 +768,6 @@ export class ServiceRepository
             'spacePermissionService',
             () =>
                 new SpacePermissionService(
-                    this.models.getSpaceModel(),
                     this.models.getSpacePermissionModel(),
                 ),
         );

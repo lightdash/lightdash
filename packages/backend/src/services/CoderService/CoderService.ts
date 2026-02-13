@@ -1260,7 +1260,9 @@ export class CoderService extends BaseService {
                         this.spacePermissionService.getAllSpaceAccessContext(
                             parentSpaceUuid,
                         ),
-                        this.spaceModel.getGroupAccess(parentSpaceUuid),
+                        this.spacePermissionService.getGroupAccess(
+                            parentSpaceUuid,
+                        ),
                     ]);
 
                     const userAccessPromises = ctx.access
