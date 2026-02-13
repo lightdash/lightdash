@@ -90,6 +90,10 @@ export const buildAccount = ({
         isRegisteredUser: () => userType === 'registered',
         isJwtUser: () => accountType === 'jwt',
         isAnonymousUser: () => userType === 'anonymous',
+        isServiceAccount: () => accountType === 'service-account',
+        isPatUser: () => accountType === 'pat',
+        isOauthUser: () => accountType === 'oauth',
+        isAuthenticated: () => true,
     }) as unknown as Account;
 
 export const validExplore: Explore = {

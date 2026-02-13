@@ -1121,10 +1121,12 @@ export class ProjectService extends BaseService {
         projectUuid,
         userId,
         isRegisteredUser,
+        isServiceAccount = false,
     }: {
         projectUuid: string;
         userId: string;
         isRegisteredUser: boolean;
+        isServiceAccount?: boolean;
     }) {
         // First, check if project uses organization-level credentials
         const project = await this.projectModel.get(projectUuid);
@@ -1147,6 +1149,13 @@ export class ProjectService extends BaseService {
             credentials = await this.refreshCredentials(
                 credentials, // This credentials are already loaded from organization
                 userId,
+            );
+        }
+
+        // Service accounts cannot use personal warehouse credentials
+        if (isServiceAccount && credentials.requireUserCredentials) {
+            throw new ForbiddenError(
+                'Service accounts cannot run queries when user credentials are required.',
             );
         }
 
@@ -3417,6 +3426,7 @@ export class ProjectService extends BaseService {
                             projectUuid,
                             userId: account.user.id,
                             isRegisteredUser: account.isRegisteredUser(),
+                            isServiceAccount: account.isServiceAccount(),
                         });
                     const { warehouseClient, sshTunnel } =
                         await this._getWarehouseClient(
@@ -5881,6 +5891,7 @@ export class ProjectService extends BaseService {
                 projectUuid,
                 userId: account.user.id,
                 isRegisteredUser: account.isRegisteredUser(),
+                isServiceAccount: account.isServiceAccount(),
             }),
             {
                 snowflakeVirtualWarehouse: explore.warehouse,
@@ -5940,6 +5951,7 @@ export class ProjectService extends BaseService {
             projectUuid,
             userId: account.user.id,
             isRegisteredUser: account.isRegisteredUser(),
+            isServiceAccount: account.isServiceAccount(),
         });
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
@@ -6584,6 +6596,7 @@ export class ProjectService extends BaseService {
                 projectUuid,
                 userId: account.user.id,
                 isRegisteredUser: account.isRegisteredUser(),
+                isServiceAccount: account.isServiceAccount(),
             }),
         );
 

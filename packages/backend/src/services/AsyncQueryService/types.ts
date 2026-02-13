@@ -148,6 +148,7 @@ export type RunAsyncWarehouseQueryArgs = {
     userId: string;
     // Is the user in the database?
     isRegisteredUser: boolean;
+    isServiceAccount?: boolean;
     projectUuid: string;
     queryTags: RunQueryTags;
     query: string;
