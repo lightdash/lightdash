@@ -14,6 +14,7 @@ import {
     Box,
     Group,
     RangeSlider,
+    ScrollArea,
     Select,
     Slider,
     Stack,
@@ -81,7 +82,8 @@ const ColorItem: FC<ColorItemProps> = ({
 };
 
 export const Display: FC = memo(() => {
-    const { visualizationConfig, itemsMap } = useVisualizationContext();
+    const { visualizationConfig, itemsMap, resultsData, colorPalette } =
+        useVisualizationContext();
 
     // Ref to hold the current setDataLayerOpacity function
     const setDataLayerOpacityRef = useRef<
@@ -121,29 +123,58 @@ export const Display: FC = memo(() => {
         );
     }, [itemsMap]);
 
-    if (!isMapVisualizationConfig(visualizationConfig)) {
+    const mapChartConfig = isMapVisualizationConfig(visualizationConfig)
+        ? visualizationConfig.chartConfig
+        : null;
+
+    // Unique string values for categorical color picker (first 50)
+    const MAX_COLOR_VALUES = 50;
+    const { uniqueStringValues, remainingCount } = useMemo(() => {
+        if (!mapChartConfig)
+            return { uniqueStringValues: [], remainingCount: 0 };
+        const { valueFieldId } = mapChartConfig.validConfig;
+        const valueItem = valueFieldId ? itemsMap?.[valueFieldId] : undefined;
+        const isNumeric = isNumericItem(valueItem);
+        const isHeatmapType =
+            mapChartConfig.validConfig.locationType === MapChartType.HEATMAP;
+        if (isNumeric || isHeatmapType || !valueFieldId || !resultsData?.rows)
+            return { uniqueStringValues: [], remainingCount: 0 };
+        const seen = new Set<string>();
+        for (const row of resultsData.rows) {
+            const cell = row[valueFieldId];
+            if (cell?.value?.raw != null && cell.value.raw !== '') {
+                seen.add(String(cell.value.raw));
+            }
+        }
+        const sorted = Array.from(seen).sort();
+        return {
+            uniqueStringValues: sorted.slice(0, MAX_COLOR_VALUES),
+            remainingCount: Math.max(0, sorted.length - MAX_COLOR_VALUES),
+        };
+    }, [mapChartConfig, itemsMap, resultsData?.rows]);
+
+    if (!mapChartConfig) {
         return null;
     }
 
     const {
-        chartConfig: {
-            validConfig,
-            addColor,
-            removeColor,
-            updateColor,
-            setShowLegend,
-            setSaveMapExtent,
-            setMinBubbleSize,
-            setMaxBubbleSize,
-            setSizeFieldId,
-            setValueFieldId,
-            setHeatmapConfig,
-            setTileBackground,
-            setBackgroundColor,
-            setNoDataColor,
-            setDataLayerOpacity,
-        },
-    } = visualizationConfig;
+        validConfig,
+        addColor,
+        removeColor,
+        updateColor,
+        setShowLegend,
+        setSaveMapExtent,
+        setMinBubbleSize,
+        setMaxBubbleSize,
+        setSizeFieldId,
+        setValueFieldId,
+        setHeatmapConfig,
+        setTileBackground,
+        setBackgroundColor,
+        setNoDataColor,
+        setDataLayerOpacity,
+        setColorOverride,
+    } = mapChartConfig;
 
     const colors = validConfig.colorRange ?? DEFAULT_MAP_COLORS;
     const canAddColor = colors.length < 5;
@@ -172,6 +203,7 @@ export const Display: FC = memo(() => {
     // Show color range for numeric values OR heatmaps (which use density-based coloring)
     const showColorRange = isValueFieldNumeric || isHeatmap;
     const hasSizeField = !!validConfig.sizeFieldId;
+    const colorOverrides = validConfig.colorOverrides ?? {};
 
     // Update the ref with the current function
     setDataLayerOpacityRef.current = setDataLayerOpacity;
@@ -264,22 +296,71 @@ export const Display: FC = memo(() => {
                             </Stack>
                         </Config.Group>
                     )}
-                    {!showColorRange && !isAreaMap && (
+                    {!showColorRange && uniqueStringValues.length > 0 && (
                         <Config.Group>
-                            <Config.Label>Color</Config.Label>
-                            <ColorSelector
-                                color={colors[Math.floor(colors.length / 2)]}
-                                swatches={ECHARTS_DEFAULT_COLORS}
-                                onColorChange={(newColor) => {
-                                    // Set a single color in the middle of the range
-                                    updateColor(
-                                        Math.floor(colors.length / 2),
-                                        newColor,
-                                    );
-                                }}
-                            />
+                            <Stack w="100%" gap="xs">
+                                <Config.Label>Value colors</Config.Label>
+                                <ScrollArea.Autosize mah={300}>
+                                    <Stack gap="xs">
+                                        {uniqueStringValues.map((val, idx) => (
+                                            <Group
+                                                key={val}
+                                                gap="xs"
+                                                wrap="nowrap"
+                                            >
+                                                <ColorSelector
+                                                    color={
+                                                        colorOverrides[val] ??
+                                                        colorPalette[
+                                                            idx %
+                                                                colorPalette.length
+                                                        ]
+                                                    }
+                                                    swatches={colorPalette}
+                                                    onColorChange={(c) =>
+                                                        setColorOverride(val, c)
+                                                    }
+                                                />
+                                                <Text fz="xs" truncate>
+                                                    {val}
+                                                </Text>
+                                            </Group>
+                                        ))}
+                                        {remainingCount > 0 && (
+                                            <Text
+                                                fz="xs"
+                                                c="dimmed"
+                                                fs="italic"
+                                            >
+                                                {remainingCount} more colored
+                                                automatically
+                                            </Text>
+                                        )}
+                                    </Stack>
+                                </ScrollArea.Autosize>
+                            </Stack>
                         </Config.Group>
                     )}
+                    {!showColorRange &&
+                        uniqueStringValues.length === 0 &&
+                        !isAreaMap && (
+                            <Config.Group>
+                                <Config.Label>Color</Config.Label>
+                                <ColorSelector
+                                    color={
+                                        colors[Math.floor(colors.length / 2)]
+                                    }
+                                    swatches={ECHARTS_DEFAULT_COLORS}
+                                    onColorChange={(newColor) => {
+                                        // Set a single color in the middle of the range
+                                        updateColor(
+                                            Math.floor(colors.length / 2),
+                                            newColor,
+                                        );
+                                    }}
+                                />
+                            </Config.Group>
+                        )}
                     {(isScatterMap || isAreaMap) && (
                         <>
                             <Config.Label mt="xs">
