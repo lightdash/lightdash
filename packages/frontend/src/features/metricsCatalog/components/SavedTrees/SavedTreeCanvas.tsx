@@ -11,7 +11,7 @@ import {
     TextInput,
     Tooltip,
 } from '@mantine-8/core';
-import { useWindowEvent } from '@mantine-8/hooks';
+import { useDisclosure, useWindowEvent } from '@mantine-8/hooks';
 import { IconLock, IconPencil } from '@tabler/icons-react';
 import type { Edge } from '@xyflow/react';
 import {
@@ -22,8 +22,10 @@ import {
     useState,
     type FC,
 } from 'react';
+import { useBlocker } from 'react-router';
 import { BASE_API_URL } from '../../../../api';
 import MantineIcon from '../../../../components/common/MantineIcon';
+import MantineModal from '../../../../components/common/MantineModal';
 import SuboptimalState from '../../../../components/common/SuboptimalState/SuboptimalState';
 import { useAppDispatch, useAppSelector } from '../../../sqlRunner/store/hooks';
 import { useMetricsCatalog } from '../../hooks/useMetricsCatalog';
@@ -44,7 +46,7 @@ import {
     mapCanvasStateToCreatePayload,
     mapCanvasStateToUpdatePayload,
 } from '../../utils/savedTreeDataMappers';
-import { clearDraft, saveDraft } from '../../utils/treeDraftStorage';
+import { useTreeDraft } from '../../utils/treeDraftStorage';
 import type { CanvasMetric } from '../Canvas/canvasLayoutUtils';
 import SavedTreeCanvasFlow from '../Canvas/SavedTreeCanvasFlow';
 import type { ExpandedNodeData } from '../Canvas/TreeComponents/nodes/ExpandedNode';
@@ -131,6 +133,8 @@ const SavedTreeCanvas: FC<SavedTreeCanvasProps> = ({ mode, treeUuid }) => {
 
     const [treeName, setTreeName] = useState('');
     const [hasNodes, setHasNodes] = useState(false);
+    const hasUnsavedChanges =
+        isEditingExisting || hasNodes || treeName.trim() !== '';
     const canvasStateRef = useRef<{
         nodes: ExpandedNodeData[];
         edges: Edge[];
@@ -145,13 +149,12 @@ const SavedTreeCanvas: FC<SavedTreeCanvasProps> = ({ mode, treeUuid }) => {
     const { mutateAsync: acquireLock, isLoading: isAcquiringLock } =
         useAcquireTreeLock();
     const { mutateAsync: releaseLock } = useReleaseTreeLock();
+    const { saveDraft, clearDraft } = useTreeDraft(treeUuid);
 
     const handleLockLost = useCallback(() => {
-        if (treeUuid) {
-            clearDraft(treeUuid);
-        }
+        clearDraft();
         dispatch(setSavedTreeEditMode(SavedTreeEditMode.VIEW));
-    }, [dispatch, treeUuid]);
+    }, [dispatch, clearDraft]);
 
     useTreeLockHeartbeat(
         projectUuid,
@@ -161,7 +164,7 @@ const SavedTreeCanvas: FC<SavedTreeCanvasProps> = ({ mode, treeUuid }) => {
     );
 
     useWindowEvent('beforeunload', (e) => {
-        if (!isEditingExisting || !projectUuid || !treeUuid) return;
+        if (!hasUnsavedChanges || !isEditMode) return;
         e.preventDefault();
     });
 
@@ -170,6 +173,14 @@ const SavedTreeCanvas: FC<SavedTreeCanvasProps> = ({ mode, treeUuid }) => {
         if (!isEditingExisting || !projectUuid || !treeUuid) return;
         const url = `${BASE_API_URL}api/v1/projects/${projectUuid}/dataCatalog/metrics/trees/${treeUuid}/lock`;
         void fetch(url, { method: 'DELETE', keepalive: true });
+    });
+
+    // Block in-app navigation when there are unsaved changes,
+    // but allow query-string-only changes (e.g. filter updates)
+    const blocker = useBlocker(({ currentLocation, nextLocation }) => {
+        if (!isEditMode || !hasUnsavedChanges) return false;
+        if (nextLocation.pathname === currentLocation.pathname) return false;
+        return true;
     });
 
     useEffect(() => {
@@ -195,31 +206,28 @@ const SavedTreeCanvas: FC<SavedTreeCanvasProps> = ({ mode, treeUuid }) => {
             canvasStateRef.current = { nodes, edges };
             setHasNodes(nodes.length > 0);
 
-            // Auto-save draft for existing tree edits
-            if (treeUuid) {
-                if (draftTimerRef.current) {
-                    clearTimeout(draftTimerRef.current);
-                }
-                draftTimerRef.current = setTimeout(() => {
-                    saveDraft(treeUuid, {
-                        nodes: nodes.map((n) => ({
-                            catalogSearchUuid: n.id,
-                            xPosition: Math.round(n.position.x),
-                            yPosition: Math.round(n.position.y),
-                        })),
-                        edges: edges.map((e) => ({
-                            sourceCatalogSearchUuid: e.source,
-                            targetCatalogSearchUuid: e.target,
-                        })),
-                        name: treeNameRef.current,
-                        description: '',
-                        savedAt: Date.now(),
-                        generation: generationRef.current,
-                    });
-                }, 1000);
+            if (draftTimerRef.current) {
+                clearTimeout(draftTimerRef.current);
             }
+            draftTimerRef.current = setTimeout(() => {
+                saveDraft({
+                    nodes: nodes.map((n) => ({
+                        catalogSearchUuid: n.id,
+                        xPosition: Math.round(n.position.x),
+                        yPosition: Math.round(n.position.y),
+                    })),
+                    edges: edges.map((e) => ({
+                        sourceCatalogSearchUuid: e.source,
+                        targetCatalogSearchUuid: e.target,
+                    })),
+                    name: treeNameRef.current,
+                    description: '',
+                    savedAt: Date.now(),
+                    generation: generationRef.current,
+                });
+            }, 1000);
         },
-        [treeUuid],
+        [saveDraft],
     );
 
     const handleBack = () => {
@@ -227,9 +235,15 @@ const SavedTreeCanvas: FC<SavedTreeCanvasProps> = ({ mode, treeUuid }) => {
         dispatch(setSavedTreeEditMode(SavedTreeEditMode.VIEW));
     };
 
+    const [
+        discardModalOpened,
+        { open: openDiscardModal, close: closeDiscardModal },
+    ] = useDisclosure(false);
+
     const handleDiscard = () => {
+        closeDiscardModal();
         if (isEditingExisting && projectUuid && treeUuid) {
-            clearDraft(treeUuid);
+            clearDraft();
             void releaseLock({
                 projectUuid,
                 metricsTreeUuid: treeUuid,
@@ -241,6 +255,14 @@ const SavedTreeCanvas: FC<SavedTreeCanvasProps> = ({ mode, treeUuid }) => {
         } else {
             dispatch(setActiveTreeUuid(null));
             dispatch(setSavedTreeEditMode(SavedTreeEditMode.VIEW));
+        }
+    };
+
+    const handleDiscardClick = () => {
+        if (hasUnsavedChanges) {
+            openDiscardModal();
+        } else {
+            handleDiscard();
         }
     };
 
@@ -265,7 +287,7 @@ const SavedTreeCanvas: FC<SavedTreeCanvasProps> = ({ mode, treeUuid }) => {
                 payload,
             });
 
-            clearDraft(treeUuid);
+            clearDraft();
             dispatch(setSavedTreeEditMode(SavedTreeEditMode.VIEW));
         } else {
             // Create new tree
@@ -332,7 +354,7 @@ const SavedTreeCanvas: FC<SavedTreeCanvasProps> = ({ mode, treeUuid }) => {
                             variant="default"
                             size="compact-sm"
                             color="gray"
-                            onClick={handleDiscard}
+                            onClick={handleDiscardClick}
                         >
                             Discard
                         </Button>
@@ -359,6 +381,29 @@ const SavedTreeCanvas: FC<SavedTreeCanvasProps> = ({ mode, treeUuid }) => {
                         sidebarFilter={sidebarFilter}
                     />
                 </Box>
+                <MantineModal
+                    opened={discardModalOpened}
+                    onClose={closeDiscardModal}
+                    title="Discard changes"
+                    description="Are you sure you want to discard your unsaved changes?"
+                    confirmLabel="Discard"
+                    onConfirm={handleDiscard}
+                    cancelLabel="Keep editing"
+                />
+                {blocker.state === 'blocked' && (
+                    <MantineModal
+                        opened
+                        onClose={() => blocker.reset()}
+                        title="Unsaved changes"
+                        description="You have unsaved changes. Are you sure you want to leave?"
+                        confirmLabel="Leave"
+                        onConfirm={() => {
+                            handleDiscard();
+                            blocker.proceed();
+                        }}
+                        cancelLabel="Stay"
+                    />
+                )}
             </Stack>
         );
     }

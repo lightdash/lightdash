@@ -1,3 +1,6 @@
+import { useLocalStorage } from '@mantine-8/hooks';
+import { useCallback } from 'react';
+
 type TreeDraft = {
     nodes: Array<{
         catalogSearchUuid: string;
@@ -17,20 +20,24 @@ type TreeDraft = {
 
 const DRAFT_KEY_PREFIX = 'lightdash-tree-draft-';
 
-const getDraftKey = (treeUuid: string) => `${DRAFT_KEY_PREFIX}${treeUuid}`;
+export const useTreeDraft = (treeUuid: string | null) => {
+    const [, setDraft, removeDraft] = useLocalStorage<TreeDraft | null>({
+        key: `${DRAFT_KEY_PREFIX}${treeUuid ?? '__none__'}`,
+        defaultValue: null,
+    });
 
-export const saveDraft = (treeUuid: string, draft: TreeDraft): void => {
-    try {
-        localStorage.setItem(getDraftKey(treeUuid), JSON.stringify(draft));
-    } catch {
-        // localStorage may be full or unavailable — silently ignore
-    }
-};
+    const saveDraft = useCallback(
+        (draft: TreeDraft) => {
+            if (!treeUuid) return;
+            setDraft(draft);
+        },
+        [treeUuid, setDraft],
+    );
 
-export const clearDraft = (treeUuid: string): void => {
-    try {
-        localStorage.removeItem(getDraftKey(treeUuid));
-    } catch {
-        // silently ignore
-    }
+    const clearDraft = useCallback(() => {
+        if (!treeUuid) return;
+        removeDraft();
+    }, [treeUuid, removeDraft]);
+
+    return { saveDraft, clearDraft };
 };
