@@ -210,6 +210,7 @@ export const AiChartQuickOptions = ({
                             ? 'Remove from verified answers'
                             : 'Add to verified answers'
                     }
+                    position="bottom"
                 >
                     <ActionIcon
                         size="xs"
