@@ -91,16 +91,29 @@ export class SpaceModel {
         return { spaceId: space.space_id, name: space.name };
     }
 
-    static async getFirstAccessibleSpace(
-        db: Knex,
-        projectUuid: string,
-        userUuid: string,
-    ): Promise<
-        DbSpace &
-            Pick<DbPinnedList, 'pinned_list_uuid'> &
-            Pick<DBPinnedSpace, 'order'>
-    > {
-        const space = await db(SpaceTableName)
+    async getRootSpaceUuidsForProject(projectUuid: string): Promise<string[]> {
+        const spaces = await this.database(SpaceTableName)
+            .innerJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_id`,
+                `${SpaceTableName}.project_id`,
+            )
+            .where(`${ProjectTableName}.project_uuid`, projectUuid)
+            .whereNull(`${SpaceTableName}.parent_space_uuid`)
+            .whereNull(`${SpaceTableName}.deleted_at`)
+            .select(`${SpaceTableName}.space_uuid`);
+        return spaces.map((s: { space_uuid: string }) => s.space_uuid);
+    }
+
+    async getSpaceWithQueries(projectUuid: string): Promise<Space> {
+        const rootSpaceUuids =
+            await this.getRootSpaceUuidsForProject(projectUuid);
+        if (rootSpaceUuids.length === 0) {
+            throw new NotFoundError(
+                `No space found for project with id: ${projectUuid}`,
+            );
+        }
+        const space = await this.database(SpaceTableName)
             .innerJoin(
                 ProjectTableName,
                 `${ProjectTableName}.project_id`,
@@ -121,62 +134,23 @@ export class SpaceModel {
                 `${PinnedListTableName}.pinned_list_uuid`,
                 `${PinnedSpaceTableName}.pinned_list_uuid`,
             )
-            .leftJoin(
-                SpaceUserAccessTableName,
-                `${SpaceUserAccessTableName}.space_uuid`,
-                `${SpaceTableName}.space_uuid`,
-            )
-            .leftJoin(
-                UserTableName,
-                `${SpaceUserAccessTableName}.user_uuid`,
-                `${UserTableName}.user_uuid`,
-            )
-            .where((q) => {
-                void q
-                    .where(`${UserTableName}.user_uuid`, userUuid)
-                    .orWhere(`${SpaceTableName}.is_private`, false);
-            })
-            .where(`${ProjectTableName}.project_uuid`, projectUuid)
-            // Nested spaces MVP - only consider root spaces
-            .whereNull(`${SpaceTableName}.parent_space_uuid`)
+            .where(`${SpaceTableName}.space_uuid`, rootSpaceUuids[0])
             .select<
-                (DbSpace &
+                DbSpace &
                     Pick<DbPinnedList, 'pinned_list_uuid'> &
-                    Pick<DBPinnedSpace, 'order'>)[]
+                    Pick<DBPinnedSpace, 'order'>
             >([
-                `${SpaceTableName}.space_id`,
-                `${SpaceTableName}.space_uuid`,
-                `${SpaceTableName}.name`,
-                `${SpaceTableName}.created_at`,
-                `${SpaceTableName}.project_id`,
+                `${SpaceTableName}.*`,
                 `${OrganizationTableName}.organization_uuid`,
                 `${PinnedListTableName}.pinned_list_uuid`,
                 `${PinnedSpaceTableName}.order`,
             ])
             .first();
-
-        if (space === undefined) {
+        if (!space) {
             throw new NotFoundError(
                 `No space found for project with id: ${projectUuid}`,
             );
         }
-
-        return space;
-    }
-
-    async getFirstAccessibleSpace(projectUuid: string, userUuid: string) {
-        return SpaceModel.getFirstAccessibleSpace(
-            this.database,
-            projectUuid,
-            userUuid,
-        );
-    }
-
-    async getSpaceWithQueries(
-        projectUuid: string,
-        userUuid: string,
-    ): Promise<Space> {
-        const space = await this.getFirstAccessibleSpace(projectUuid, userUuid);
         const savedQueries = await this.database(SavedChartsTableName)
             .leftJoin(
                 SpaceTableName,

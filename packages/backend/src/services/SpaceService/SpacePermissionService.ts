@@ -221,6 +221,29 @@ export class SpacePermissionService extends BaseService {
         return this.spacePermissionModel.getGroupAccess(rootSpaceUuid);
     }
 
+    /**
+     * Returns the UUID of the first root space the actor can view in the project.
+     * Uses CASL-based permission checking via getAccessibleSpaceUuids.
+     */
+    async getFirstViewableSpaceUuid(
+        actor: Pick<SessionUser, 'ability' | 'userUuid'>,
+        projectUuid: string,
+    ): Promise<string> {
+        const allRootSpaceUuids =
+            await this.spaceModel.getRootSpaceUuidsForProject(projectUuid);
+        const accessible = await this.getAccessibleSpaceUuids(
+            'view',
+            actor,
+            allRootSpaceUuids,
+        );
+        if (accessible.length === 0) {
+            throw new NotFoundError(
+                `No viewable space found for project ${projectUuid}`,
+            );
+        }
+        return accessible[0];
+    }
+
     async getUserMetadataByUuids(
         userUuids: string[],
     ): Promise<Record<string, SpaceAccessUserMetadata>> {
