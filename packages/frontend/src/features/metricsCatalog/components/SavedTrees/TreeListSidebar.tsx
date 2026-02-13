@@ -30,6 +30,9 @@ const TreeListSidebar: FC = () => {
     const activeTreeUuid = useAppSelector(
         (state) => state.metricsCatalog.activeTreeUuid,
     );
+    const canManageMetricsTree = useAppSelector(
+        (state) => state.metricsCatalog.abilities.canManageMetricsTree,
+    );
 
     const { data: treesData, isLoading } = useMetricsTrees(projectUuid);
     const trees = treesData?.data ?? [];
@@ -68,18 +71,23 @@ const TreeListSidebar: FC = () => {
                             wrap="nowrap"
                         >
                             <Text fz="sm" fw={600} c="ldGray.7">
-                                Trees
+                                Saved Trees
                             </Text>
-                            <Button
-                                variant="subtle"
-                                size="compact-xs"
-                                leftSection={
-                                    <MantineIcon icon={IconPlus} size={14} />
-                                }
-                                onClick={handleNewTree}
-                            >
-                                New
-                            </Button>
+                            {canManageMetricsTree && (
+                                <Button
+                                    variant="subtle"
+                                    size="compact-xs"
+                                    leftSection={
+                                        <MantineIcon
+                                            icon={IconPlus}
+                                            size={14}
+                                        />
+                                    }
+                                    onClick={handleNewTree}
+                                >
+                                    New
+                                </Button>
+                            )}
                         </Group>
 
                         <ScrollArea style={{ flex: 1 }} offsetScrollbars>
@@ -131,7 +139,7 @@ const TreeListSidebar: FC = () => {
                                                             <MantineIcon
                                                                 icon={IconLock}
                                                                 size={12}
-                                                                color="yellow.6"
+                                                                color="foreground"
                                                             />
                                                         </Tooltip>
                                                     )}
