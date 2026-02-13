@@ -8,7 +8,7 @@ import {
     ContentType,
     DeletedContentFilters,
     DeletedContentItem,
-    DeletedContentSummary,
+    DeletedContentWithDescendants,
     ForbiddenError,
     KnexPaginateArgs,
     KnexPaginatedData,
@@ -309,7 +309,7 @@ export class ContentService extends BaseService {
         user: SessionUser,
         filters: DeletedContentFilters,
         paginateArgs?: KnexPaginateArgs,
-    ): Promise<KnexPaginatedData<DeletedContentSummary[]>> {
+    ): Promise<KnexPaginatedData<DeletedContentWithDescendants[]>> {
         const { organizationUuid } = user;
         if (organizationUuid === undefined) {
             throw new NotFoundError('Organization not found');

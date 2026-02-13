@@ -7,6 +7,9 @@ import {
 import { OrganizationTableName } from '../../../database/entities/organizations';
 import { PinnedDashboardTableName } from '../../../database/entities/pinnedList';
 import { ProjectTableName } from '../../../database/entities/projects';
+import { SavedChartsTableName } from '../../../database/entities/savedCharts';
+import { SavedSqlTableName } from '../../../database/entities/savedSql';
+import { SchedulerTableName } from '../../../database/entities/scheduler';
 import { SpaceTableName } from '../../../database/entities/spaces';
 import { UserTableName } from '../../../database/entities/users';
 import {
@@ -127,7 +130,30 @@ export const dashboardContentConfiguration: ContentConfiguration<SummaryContentR
                     knex.raw(
                         `(SELECT last_name FROM users WHERE user_uuid = ${DashboardsTableName}.deleted_by_user_uuid) as deleted_by_user_last_name`,
                     ),
-                    knex.raw(`json_build_object() as metadata`),
+                    knex.raw(
+                        `json_build_object(${
+                            filters.includeDescendantCounts
+                                ? `
+                                'chartCount', (
+                                    SELECT count(*) FROM (
+                                        SELECT sq.saved_query_id FROM ${SavedChartsTableName} sq
+                                            WHERE sq.dashboard_uuid = ${DashboardsTableName}.dashboard_uuid
+                                        UNION ALL
+                                        SELECT 1 FROM ${SavedSqlTableName} ss
+                                            WHERE ss.dashboard_uuid = ${DashboardsTableName}.dashboard_uuid
+                                    ) _
+                                ),
+                                'schedulerCount', (
+                                    SELECT count(*) FROM ${SchedulerTableName} sch
+                                    WHERE sch.dashboard_uuid = ${DashboardsTableName}.dashboard_uuid
+                                        OR sch.saved_chart_uuid IN (
+                                            SELECT sq.saved_query_uuid FROM ${SavedChartsTableName} sq
+                                            WHERE sq.dashboard_uuid = ${DashboardsTableName}.dashboard_uuid
+                                        )
+                                )`
+                                : ''
+                        }) as metadata`,
+                    ),
                 ])
                 .where((builder) => {
                     if (filters.projectUuids) {

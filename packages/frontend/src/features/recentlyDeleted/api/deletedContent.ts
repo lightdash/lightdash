@@ -1,7 +1,7 @@
 import {
     type ContentType,
     type DeletedContentItem,
-    type DeletedContentSummary,
+    type DeletedContentWithDescendants,
     type KnexPaginatedData,
 } from '@lightdash/common';
 import { lightdashApi } from '../../../api';
@@ -15,7 +15,9 @@ export type DeletedContentApiParams = {
     deletedByUserUuids?: string[];
 };
 
-type DeletedContentApiResponse = KnexPaginatedData<DeletedContentSummary[]>;
+type DeletedContentApiResponse = KnexPaginatedData<
+    DeletedContentWithDescendants[]
+>;
 
 export async function getDeletedContent(
     params: DeletedContentApiParams,

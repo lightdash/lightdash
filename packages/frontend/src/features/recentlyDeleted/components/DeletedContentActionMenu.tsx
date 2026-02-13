@@ -1,4 +1,4 @@
-import { type DeletedContentSummary } from '@lightdash/common';
+import { type DeletedContentWithDescendants } from '@lightdash/common';
 import { ActionIcon, Menu } from '@mantine-8/core';
 import { IconDotsVertical, IconRestore, IconTrash } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
@@ -6,7 +6,7 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
 
 interface Props {
-    item: DeletedContentSummary;
+    item: DeletedContentWithDescendants;
     onRestore: () => void;
     onPermanentlyDelete: () => void;
     isLoading?: boolean;

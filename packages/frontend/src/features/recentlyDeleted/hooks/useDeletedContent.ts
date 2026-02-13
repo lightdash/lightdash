@@ -2,7 +2,7 @@ import {
     ContentType,
     type ApiError,
     type DeletedContentItem,
-    type DeletedContentSummary,
+    type DeletedContentWithDescendants,
     type KnexPaginatedData,
 } from '@lightdash/common';
 import { IconArrowRight } from '@tabler/icons-react';
@@ -34,7 +34,7 @@ export function useInfiniteDeletedContent(
     params: UseInfiniteDeletedContentParams,
 ) {
     return useInfiniteQuery<
-        KnexPaginatedData<DeletedContentSummary[]>,
+        KnexPaginatedData<DeletedContentWithDescendants[]>,
         ApiError
     >({
         queryKey: [

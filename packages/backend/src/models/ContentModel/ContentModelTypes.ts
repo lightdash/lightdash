@@ -28,6 +28,7 @@ export type ContentFilters = {
     };
     deleted?: boolean;
     deletedByUserUuids?: string[];
+    includeDescendantCounts?: boolean;
 };
 
 export type ContentArgs = {

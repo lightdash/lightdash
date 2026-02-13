@@ -14,8 +14,8 @@ import {
     CustomDimensionType,
     CustomSqlDimension,
     DBFieldTypes,
-    DeletedChartContentSummary,
     DeletedContentFilters,
+    DeletedDbtChartContentSummary,
     DimensionOverrides,
     ECHARTS_DEFAULT_COLORS,
     Filters,
@@ -1885,7 +1885,7 @@ export class SavedChartModel {
         filters: DeletedContentFilters,
         paginateArgs?: KnexPaginateArgs,
         userUuid?: string,
-    ): Promise<KnexPaginatedData<DeletedChartContentSummary[]>> {
+    ): Promise<KnexPaginatedData<DeletedDbtChartContentSummary[]>> {
         const query = this.database(SavedChartsTableName)
             .leftJoin(
                 DashboardsTableName,
