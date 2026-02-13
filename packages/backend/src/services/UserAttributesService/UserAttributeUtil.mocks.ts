@@ -264,3 +264,153 @@ export const EXPLORE_FILTERED_WITH_ACCESS_LEVEL_1_2_3: Explore = {
         ...EXPLORE_WITH_TABLE_AND_DIMENSION_REQUIRED_ATTRIBUTES.tables,
     },
 };
+
+// ============================================================================
+// anyAttributes mocks (OR logic)
+// ============================================================================
+
+// Table with anyAttributes - user needs ANY of these attributes (OR logic)
+export const EXPLORE_WITH_TABLE_ANY_ATTRIBUTES: Explore = {
+    ...EXPLORE_WITH_NO_REQUIRED_ATTRIBUTES,
+    tables: {
+        orders: {
+            ...EXPLORE_WITH_NO_REQUIRED_ATTRIBUTES.tables.orders!,
+            anyAttributes: {
+                department: ['sales', 'finance'],
+            },
+        },
+        payments: {
+            ...EXPLORE_WITH_NO_REQUIRED_ATTRIBUTES.tables.payments!,
+            anyAttributes: {
+                role: 'analyst',
+            },
+        },
+    },
+};
+
+// Dimension with anyAttributes
+export const EXPLORE_WITH_DIMENSION_ANY_ATTRIBUTES: Explore = {
+    ...EXPLORE_WITH_NO_REQUIRED_ATTRIBUTES,
+    tables: {
+        orders: {
+            ...EXPLORE_WITH_NO_REQUIRED_ATTRIBUTES.tables.orders!,
+        },
+        payments: {
+            ...EXPLORE_WITH_NO_REQUIRED_ATTRIBUTES.tables.payments!,
+            dimensions: {
+                ...EXPLORE_WITH_NO_REQUIRED_ATTRIBUTES.tables.payments!
+                    .dimensions,
+                name: {
+                    ...EXPLORE_WITH_NO_REQUIRED_ATTRIBUTES.tables.payments!
+                        .dimensions.name!,
+                    anyAttributes: {
+                        department: ['hr', 'finance'],
+                    },
+                },
+            },
+        },
+    },
+};
+
+// Table with BOTH requiredAttributes (AND) and anyAttributes (OR)
+export const EXPLORE_WITH_TABLE_REQUIRED_AND_ANY_ATTRIBUTES: Explore = {
+    ...EXPLORE_WITH_NO_REQUIRED_ATTRIBUTES,
+    tables: {
+        orders: {
+            ...EXPLORE_WITH_NO_REQUIRED_ATTRIBUTES.tables.orders!,
+            requiredAttributes: {
+                access_level: '1',
+            },
+            anyAttributes: {
+                department: ['sales', 'marketing'],
+            },
+        },
+        payments: {
+            ...EXPLORE_WITH_NO_REQUIRED_ATTRIBUTES.tables.payments!,
+            requiredAttributes: {
+                access_level: '2',
+            },
+            anyAttributes: {
+                role: ['analyst', 'admin'],
+            },
+        },
+    },
+};
+
+// Combined: table with required and dimension with any
+export const EXPLORE_WITH_TABLE_AND_DIMENSION_ANY_ATTRIBUTES: Explore = {
+    ...EXPLORE_WITH_TABLE_ANY_ATTRIBUTES,
+    tables: {
+        orders: {
+            ...EXPLORE_WITH_TABLE_ANY_ATTRIBUTES.tables.orders!,
+        },
+        payments: {
+            ...EXPLORE_WITH_TABLE_ANY_ATTRIBUTES.tables.payments!,
+            dimensions: {
+                ...EXPLORE_WITH_TABLE_ANY_ATTRIBUTES.tables.payments!
+                    .dimensions,
+                name: {
+                    ...EXPLORE_WITH_TABLE_ANY_ATTRIBUTES.tables.payments!
+                        .dimensions.name!,
+                    anyAttributes: {
+                        department: 'hr',
+                    },
+                },
+            },
+        },
+    },
+};
+
+// Expected filtered result when user has role=analyst (matches payments/base table anyAttributes)
+// but NOT department in sales/finance (so orders is filtered out)
+export const EXPLORE_FILTERED_WITH_ROLE_ANALYST: Explore = {
+    ...EXPLORE_WITH_TABLE_AND_DIMENSION_ANY_ATTRIBUTES,
+    joinedTables: [],
+    tables: {
+        payments: {
+            ...EXPLORE_WITH_TABLE_AND_DIMENSION_ANY_ATTRIBUTES.tables.payments!,
+            metrics: {
+                total_revenue:
+                    EXPLORE_WITH_TABLE_AND_DIMENSION_ANY_ATTRIBUTES.tables
+                        .payments!.metrics.total_revenue!,
+            },
+            dimensions: {
+                // Note: dim_amount_diff is excluded because it references orders table
+                amount: EXPLORE_WITH_TABLE_AND_DIMENSION_ANY_ATTRIBUTES.tables
+                    .payments!.dimensions.amount!,
+            },
+        },
+    },
+    unfilteredTables: {
+        ...EXPLORE_WITH_TABLE_AND_DIMENSION_ANY_ATTRIBUTES.tables,
+    },
+};
+
+// Expected filtered result when user has both department=sales and role=analyst
+export const EXPLORE_FILTERED_WITH_SALES_AND_ANALYST: Explore = {
+    ...EXPLORE_WITH_TABLE_AND_DIMENSION_ANY_ATTRIBUTES,
+    tables: {
+        orders: EXPLORE_WITH_TABLE_AND_DIMENSION_ANY_ATTRIBUTES.tables.orders!,
+        payments: {
+            ...EXPLORE_WITH_TABLE_AND_DIMENSION_ANY_ATTRIBUTES.tables.payments!,
+            dimensions: {
+                amount: EXPLORE_WITH_TABLE_AND_DIMENSION_ANY_ATTRIBUTES.tables
+                    .payments!.dimensions.amount!,
+                dim_amount_diff:
+                    EXPLORE_WITH_TABLE_AND_DIMENSION_ANY_ATTRIBUTES.tables
+                        .payments!.dimensions.dim_amount_diff!,
+            },
+        },
+    },
+    unfilteredTables: {
+        ...EXPLORE_WITH_TABLE_AND_DIMENSION_ANY_ATTRIBUTES.tables,
+    },
+};
+
+// Expected filtered result when user has department=hr (matches dimension anyAttributes)
+export const EXPLORE_FILTERED_WITH_SALES_ANALYST_HR: Explore = {
+    ...EXPLORE_WITH_TABLE_AND_DIMENSION_ANY_ATTRIBUTES,
+    unfilteredTables: {
+        ...EXPLORE_WITH_TABLE_AND_DIMENSION_ANY_ATTRIBUTES.tables,
+    },
+};
