@@ -11,8 +11,8 @@ import {
     CreateSavedChart,
     CreateSavedChartVersion,
     CreateSchedulerAndTargetsWithoutIds,
-    DeletedChartContentSummary,
     DeletedContentFilters,
+    DeletedDbtChartContentSummary,
     ExploreType,
     ForbiddenError,
     GoogleSheetsTransientError,
@@ -1547,7 +1547,7 @@ export class SavedChartService
         projectUuid: string,
         filters: DeletedContentFilters,
         paginateArgs?: KnexPaginateArgs,
-    ): Promise<KnexPaginatedData<DeletedChartContentSummary[]>> {
+    ): Promise<KnexPaginatedData<DeletedDbtChartContentSummary[]>> {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
 
