@@ -12,6 +12,7 @@ import {
     NotFoundError,
     ParameterError,
     PromotedChart as PromotedChangeChart,
+    PromotedSqlChart as PromotedChangeSqlChart,
     PromotedSpace,
     PromotionAction,
     PromotionChanges,
@@ -1088,7 +1089,7 @@ export class PromoteService extends BaseService {
             );
 
         // We're going to be updating this structure with new UUIDs if we need to create the items (eg: spaces)
-        const [promotionChanges, promotedCharts] =
+        const [promotionChanges, , , sqlCharts] =
             await this.getPromotionDashboardChanges(
                 user,
                 promotedDashboard,
@@ -1097,6 +1098,10 @@ export class PromoteService extends BaseService {
 
         return {
             ...promotionChanges,
+            sqlCharts: sqlCharts.map((sqlChartChange) => ({
+                action: sqlChartChange.action,
+                data: PromoteService.toPromotedSqlChartChange(sqlChartChange),
+            })),
             spaces: PromoteService.sortSpaceChanges(promotionChanges.spaces),
         };
     }
@@ -1509,6 +1514,21 @@ export class PromoteService extends BaseService {
                 },
                 versionedData,
             },
+        };
+    }
+
+    static toPromotedSqlChartChange(
+        sqlChartChange: PromotedSqlChartChange,
+    ): PromotedChangeSqlChart {
+        return {
+            uuid: sqlChartChange.data.uuid,
+            oldUuid: sqlChartChange.data.oldUuid,
+            slug: sqlChartChange.data.slug,
+            projectUuid: sqlChartChange.data.projectUuid,
+            name: sqlChartChange.data.unversionedData.name,
+            description: sqlChartChange.data.unversionedData.description,
+            spaceSlug: sqlChartChange.data.spaceSlug,
+            spacePath: sqlChartChange.data.spacePath,
         };
     }
 
