@@ -1,3 +1,10 @@
+# [0.2463.0](https://github.com/lightdash/lightdash/compare/0.2462.0...0.2463.0) (2026-02-13)
+
+
+### Features
+
+* prevent service accounts from using personal warehouse credentials ([#20300](https://github.com/lightdash/lightdash/issues/20300)) ([8b5d4cc](https://github.com/lightdash/lightdash/commit/8b5d4cc571b2bdb558a0900872caeecd9ebd2d69))
+
 # [0.2462.0](https://github.com/lightdash/lightdash/compare/0.2461.0...0.2462.0) (2026-02-13)
 
 
