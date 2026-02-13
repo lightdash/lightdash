@@ -1015,7 +1015,10 @@ export class ValidationModel {
                         });
                     }
                 })
-                .orderBy(sortColumn, sortDirection)
+                .orderBy([
+                    { column: sortColumn, order: sortDirection },
+                    { column: 'validation_id', order: 'asc' },
+                ])
                 .limit(paginateArgs.pageSize)
                 .offset((paginateArgs.page - 1) * paginateArgs.pageSize);
 

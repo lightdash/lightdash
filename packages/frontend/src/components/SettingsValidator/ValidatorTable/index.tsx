@@ -373,7 +373,6 @@ export const ValidatorTable: FC<{
                         return (
                             <TableValidationItem
                                 key={validationError.validationId}
-                                ref={rowVirtualizer.measureElement}
                                 data-index={virtualRow.index}
                                 projectUuid={projectUuid}
                                 validationError={validationError}
