@@ -109,6 +109,11 @@
                                 }
                             },
                             "required": ["model", "dimension"]
+                        },
+                        "order": {
+                            "description": "Explicit display order (lower numbers appear first, parameters without order appear last)",
+                            "type": "integer",
+                            "minimum": 0
                         }
                     },
                     "required": ["label"],

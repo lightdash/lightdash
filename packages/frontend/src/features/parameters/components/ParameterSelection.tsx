@@ -55,7 +55,13 @@ export const ParameterSelection: FC<ParameterSelectionProps> = ({
     pinnedParameters = [],
     onParameterPin,
 }) => {
-    const parameterKeys = parameters ? Object.keys(parameters) : [];
+    const parameterKeys = parameters
+        ? Object.keys(parameters).sort(
+              (a, b) =>
+                  (parameters[a]?.order ?? Infinity) -
+                  (parameters[b]?.order ?? Infinity),
+          )
+        : [];
     const selectedParametersCount = Object.values(parameterValues).filter(
         (value) => value !== null && value !== '',
     ).length;
