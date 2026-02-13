@@ -1,7 +1,67 @@
+.scrollContainer {
+    overflow-y: auto;
+    max-height: calc(100dvh - 350px);
+}
+
+.table {
+    --table-highlight-on-hover-color: var(--mantine-color-ldGray-0);
+    table-layout: fixed;
+}
+
+.table thead tr th {
+    font-size: var(--mantine-font-size-xs);
+    color: var(--mantine-color-ldGray-6);
+    font-weight: 600;
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-md);
+    background-color: var(--mantine-color-ldGray-0);
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    border-bottom: none;
+    box-shadow: inset 0px -1px 0px 0px var(--mantine-color-ldGray-3);
+    border-radius: 0;
+}
+
+.table tbody tr td {
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-md);
+    vertical-align: middle;
+}
+
+/* Pinned row */
 .pinnedRow {
     border-left: 3px solid var(--mantine-color-yellow-5);
 }
 
 .pinnedRow td:first-child {
     padding-left: calc(var(--mantine-spacing-md) - 3px);
+}
+
+@keyframes pinnedFlash {
+    0%,
+    100% {
+        background-color: transparent;
+    }
+    50% {
+        background-color: var(--mantine-color-yellow-1);
+    }
+}
+
+.pinnedRowFlash {
+    animation: pinnedFlash 4s 2;
+}
+
+/* Unstyled anchor for resource links */
+.anchorUnstyled {
+    color: unset;
+}
+
+.anchorUnstyled:hover {
+    color: unset;
+    text-decoration: none;
+}
+
+/* Mark component override for ErrorMessage */
+.customMark {
+    text-transform: none;
+    border-radius: 2px;
 }
