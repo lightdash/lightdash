@@ -483,6 +483,23 @@
                                     ]
                                 }
                             },
+                            "any_attributes": {
+                                "type": "object",
+                                "properties": {},
+                                "additionalProperties": {
+                                    "oneOf": [
+                                        {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        {
+                                            "type": "string"
+                                        }
+                                    ]
+                                }
+                            },
                             "parameters": {
                                 "type": ["object", "null"],
                                 "description": "Define parameters that can be used in SQL queries",
@@ -1133,6 +1150,23 @@
                                                         ]
                                                     }
                                                 },
+                                                "any_attributes": {
+                                                    "type": "object",
+                                                    "properties": {},
+                                                    "additionalProperties": {
+                                                        "oneOf": [
+                                                            {
+                                                                "type": "array",
+                                                                "items": {
+                                                                    "type": "string"
+                                                                }
+                                                            },
+                                                            {
+                                                                "type": "string"
+                                                            }
+                                                        ]
+                                                    }
+                                                },
                                                 "spotlight": {
                                                     "type": "object",
                                                     "description": "Configure dimension visibility in the Metrics Explorer",
@@ -1318,6 +1352,23 @@
                                                             ]
                                                         },
                                                         "required_attributes": {
+                                                            "type": "object",
+                                                            "properties": {},
+                                                            "additionalProperties": {
+                                                                "oneOf": [
+                                                                    {
+                                                                        "type": "array",
+                                                                        "items": {
+                                                                            "type": "string"
+                                                                        }
+                                                                    },
+                                                                    {
+                                                                        "type": "string"
+                                                                    }
+                                                                ]
+                                                            }
+                                                        },
+                                                        "any_attributes": {
                                                             "type": "object",
                                                             "properties": {},
                                                             "additionalProperties": {

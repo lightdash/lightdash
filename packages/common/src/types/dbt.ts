@@ -128,6 +128,7 @@ export type DbtModelLightdashConfig = ExploreConfig &
         sql_where?: string; // alias for sql_filter
         sql_from?: string; // overrides dbt model relation_name
         required_attributes?: Record<string, string | string[]>;
+        any_attributes?: Record<string, string | string[]>;
         group_details?: Record<string, DbtModelGroup>;
         default_time_dimension?: {
             field: string;
@@ -197,6 +198,7 @@ export type DbtColumnLightdashDimension = {
     colors?: Record<string, string>;
     urls?: FieldUrl[];
     required_attributes?: Record<string, string | string[]>;
+    any_attributes?: Record<string, string | string[]>;
     ai_hint?: string | string[];
     image?: {
         url: string;
@@ -535,6 +537,7 @@ type ConvertModelMetricArgs = {
     tableLabel: string;
     dimensionReference?: string;
     requiredAttributes?: Record<string, string | string[]>;
+    anyAttributes?: Record<string, string | string[]>;
     spotlightConfig?: LightdashProjectConfig['spotlight'];
     modelCategories?: string[];
     modelOwner?: string;
@@ -548,6 +551,7 @@ export const convertModelMetric = ({
     tableLabel,
     dimensionReference,
     requiredAttributes,
+    anyAttributes,
     spotlightConfig,
     modelCategories = [],
     modelOwner,
@@ -591,6 +595,7 @@ export const convertModelMetric = ({
         percentile: metric.percentile,
         dimensionReference,
         requiredAttributes,
+        anyAttributes,
         ...(metric.urls ? { urls: metric.urls } : null),
         ...(metric.tags
             ? {
@@ -624,6 +629,7 @@ type ConvertColumnMetricArgs = Omit<ConvertModelMetricArgs, 'metric'> & {
     dimensionName?: string;
     dimensionSql: string;
     requiredAttributes?: Record<string, string | string[]>;
+    anyAttributes?: Record<string, string | string[]>;
     modelCategories?: string[];
 };
 
@@ -636,6 +642,7 @@ export const convertColumnMetric = ({
     source,
     tableLabel,
     requiredAttributes,
+    anyAttributes,
     spotlightConfig,
     modelCategories = [],
     modelOwner,
@@ -661,6 +668,7 @@ export const convertColumnMetric = ({
             ? getItemId({ table: modelName, name: dimensionName })
             : undefined,
         requiredAttributes,
+        anyAttributes,
         ...(metric.default_time_dimension
             ? {
                   defaultTimeDimension: {

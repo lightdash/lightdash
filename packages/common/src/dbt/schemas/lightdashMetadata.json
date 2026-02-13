@@ -17,6 +17,23 @@
                 ]
             }
         },
+        "AnyAttributes": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": {
+                "oneOf": [
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "type": "string"
+                    }
+                ]
+            }
+        },
         "Compact": {
             "type": "string",
             "enum": [
@@ -181,6 +198,9 @@
                 },
                 "required_attributes": {
                     "$ref": "#/definitions/RequiredAttributes"
+                },
+                "any_attributes": {
+                    "$ref": "#/definitions/AnyAttributes"
                 }
             }
         },
@@ -227,6 +247,9 @@
                 },
                 "required_attributes": {
                     "$ref": "#/definitions/RequiredAttributes"
+                },
+                "any_attributes": {
+                    "$ref": "#/definitions/AnyAttributes"
                 }
             }
         },
@@ -402,6 +425,9 @@
                 },
                 "required_attributes": {
                     "$ref": "#/definitions/RequiredAttributes"
+                },
+                "any_attributes": {
+                    "$ref": "#/definitions/AnyAttributes"
                 }
             },
             "default": {}

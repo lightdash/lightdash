@@ -4610,8 +4610,12 @@ export class ProjectService extends BaseService {
         const { userAttributes } = await this.getUserAttributes({ account });
 
         return exploreSummaries.reduce<SummaryExplore[]>((acc, summary) => {
-            const { baseTableRequiredAttributes, ...rest } = summary;
-            const summaryExplore: SummaryExplore = rest; // Just type assertion to remove the baseTableRequiredAttributes
+            const {
+                baseTableRequiredAttributes,
+                baseTableAnyAttributes,
+                ...rest
+            } = summary;
+            const summaryExplore: SummaryExplore = rest; // Just type assertion to remove the baseTableRequiredAttributes and baseTableAnyAttributes
 
             if (!includeErrors && 'errors' in summaryExplore) {
                 return acc;
@@ -4621,6 +4625,7 @@ export class ProjectService extends BaseService {
             if (
                 !doesExploreMatchRequiredAttributes(
                     baseTableRequiredAttributes,
+                    baseTableAnyAttributes,
                     userAttributes,
                 )
             ) {

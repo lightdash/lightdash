@@ -153,6 +153,7 @@ export class CatalogService<
             if (
                 doesExploreMatchRequiredAttributes(
                     explore.tables[explore.baseTable].requiredAttributes,
+                    explore.tables[explore.baseTable].anyAttributes,
                     userAttributes,
                 )
             ) {
@@ -238,6 +239,7 @@ export class CatalogService<
             if (
                 doesExploreMatchRequiredAttributes(
                     explore.tables[explore.baseTable].requiredAttributes,
+                    explore.tables[explore.baseTable].anyAttributes,
                     userAttributes,
                 )
             ) {
@@ -358,6 +360,7 @@ export class CatalogService<
                 if (
                     !doesExploreMatchRequiredAttributes(
                         explore.tables[explore.baseTable].requiredAttributes,
+                        explore.tables[explore.baseTable].anyAttributes,
                         userAttributes,
                     )
                 ) {
@@ -767,6 +770,7 @@ export class CatalogService<
         if (
             !doesExploreMatchRequiredAttributes(
                 explore.tables[explore.baseTable].requiredAttributes,
+                explore.tables[explore.baseTable].anyAttributes,
                 userAttributes,
             )
         ) {

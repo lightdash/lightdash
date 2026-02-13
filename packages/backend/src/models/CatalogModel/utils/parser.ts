@@ -25,6 +25,7 @@ const parseFieldFromMetricOrDimension = (
         tags: string[];
         categories: Pick<Tag, 'tagUuid' | 'color' | 'name' | 'yamlReference'>[];
         requiredAttributes: Record<string, string | string[]> | undefined;
+        anyAttributes: Record<string, string | string[]> | undefined;
         chartUsage: number | undefined;
         icon: CatalogItemIcon | null;
         searchRank?: number;
@@ -43,6 +44,7 @@ const parseFieldFromMetricOrDimension = (
     type: CatalogType.Field,
     aiHints: convertToAiHints(field.aiHint) ?? null,
     requiredAttributes: catalogArgs.requiredAttributes,
+    anyAttributes: catalogArgs.anyAttributes,
     tags: catalogArgs.tags,
     categories: catalogArgs.categories,
     chartUsage: catalogArgs.chartUsage,
@@ -73,6 +75,7 @@ export const parseFieldsFromCompiledTable = (
             categories: [],
             requiredAttributes:
                 field.requiredAttributes ?? table.requiredAttributes,
+            anyAttributes: field.anyAttributes ?? table.anyAttributes,
             // ! since we're not pulling from the catalog search table these do not exist (keep compatibility with data catalog)
             chartUsage: undefined,
             catalogSearchUuid: '',
@@ -119,6 +122,7 @@ export const parseCatalog = (
             description: dbCatalog.description || undefined,
             type: CatalogType.Table,
             requiredAttributes: dbCatalog.required_attributes ?? undefined,
+            anyAttributes: dbCatalog.any_attributes ?? undefined,
             tags: dbCatalog.explore.tags,
             categories: dbCatalog.catalog_tags,
             chartUsage: dbCatalog.chart_usage ?? undefined,
@@ -163,6 +167,7 @@ export const parseCatalog = (
         tags: dbCatalog.explore.tags,
         categories: dbCatalog.catalog_tags,
         requiredAttributes: dbCatalog.required_attributes ?? undefined,
+        anyAttributes: dbCatalog.any_attributes ?? undefined,
         chartUsage: dbCatalog.chart_usage ?? 0,
         icon: dbCatalog.icon ?? null,
         searchRank: dbCatalog.search_rank,
