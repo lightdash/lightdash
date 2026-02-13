@@ -4,12 +4,14 @@ import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
+import { SavedSqlModel } from '../../models/SavedSqlModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { PromoteService } from './PromoteService';
 import {
     existingUpstreamChart,
     existingUpstreamDashboard,
+    existingUpstreamSqlChart,
     missingUpstreamChart,
     missingUpstreamDashboard,
     promotedChart,
@@ -17,6 +19,8 @@ import {
     promotedDashboard,
     promotedDashboardWithChartWithinDashboard,
     promotedDashboardWithNewPrivateSpace,
+    promotedDashboardWithSqlTile,
+    promotedSqlChart,
     upstreamFullSpace,
     upstreamSpace,
     user,
@@ -28,6 +32,20 @@ const savedChartModel = {
     get: jest.fn(async () => promotedChart.chart),
     find: jest.fn(async () => [existingUpstreamChart.chart]),
     create: jest.fn(async () => existingUpstreamChart.chart),
+};
+
+const savedSqlModel = {
+    getByUuid: jest.fn(async () => promotedSqlChart),
+    find: jest.fn(async () => []),
+    create: jest.fn(async () => ({
+        savedSqlUuid: existingUpstreamSqlChart.savedSqlUuid,
+        slug: existingUpstreamSqlChart.slug,
+        savedSqlVersionUuid: 'saved-sql-version-uuid',
+    })),
+    update: jest.fn(async () => ({
+        savedSqlUuid: existingUpstreamSqlChart.savedSqlUuid,
+        savedSqlVersionUuid: 'saved-sql-version-uuid',
+    })),
 };
 
 const spaceModel = {
@@ -66,6 +84,7 @@ describe('PromoteService chart changes', () => {
         analytics: analyticsMock,
         projectModel: projectModel as unknown as ProjectModel,
         savedChartModel: savedChartModel as unknown as SavedChartModel,
+        savedSqlModel: savedSqlModel as unknown as SavedSqlModel,
         spaceModel: spaceModel as unknown as SpaceModel,
         dashboardModel: {} as DashboardModel,
         spacePermissionService:
@@ -242,6 +261,7 @@ describe('PromoteService dashboard changes', () => {
         analytics: analyticsMock,
         projectModel: projectModel as unknown as ProjectModel,
         savedChartModel: savedChartModel as unknown as SavedChartModel,
+        savedSqlModel: savedSqlModel as unknown as SavedSqlModel,
         spaceModel: spaceModel as unknown as SpaceModel,
         dashboardModel: {} as DashboardModel,
         spacePermissionService:
@@ -485,6 +505,51 @@ describe('PromoteService dashboard changes', () => {
                 promotedDashboardWithChartWithinDashboard.dashboard.name,
         });
     });
+
+    test('getPromotionDashboardChanges discovers SQL chart tiles and SQL space requirements', async () => {
+        (savedSqlModel.getByUuid as jest.Mock).mockImplementationOnce(
+            async () => promotedSqlChart,
+        );
+        (savedSqlModel.find as jest.Mock).mockImplementationOnce(
+            async () => [],
+        );
+        (spaceModel.find as jest.Mock).mockImplementationOnce(async () => []);
+        (spaceModel.find as jest.Mock).mockImplementationOnce(async () => []);
+        (spaceModel.find as jest.Mock).mockImplementationOnce(async () => []);
+
+        const [changes, promotedCharts, promotedSqlCharts, sqlChanges] =
+            await service.getPromotionDashboardChanges(
+                user,
+                promotedDashboardWithSqlTile,
+                missingUpstreamDashboard,
+            );
+
+        expect(changes.charts.length).toBe(1);
+        expect(changes.spaces.length).toBe(1);
+        expect(changes.dashboards.length).toBe(1);
+        expect(promotedCharts.length).toBe(1);
+        expect(promotedSqlCharts.length).toBe(1);
+        expect(sqlChanges.length).toBe(1);
+        expect(sqlChanges[0].action).toBe(PromotionAction.CREATE);
+        expect(sqlChanges[0].data).toEqual({
+            oldUuid: promotedSqlChart.savedSqlUuid,
+            uuid: promotedSqlChart.savedSqlUuid,
+            slug: promotedSqlChart.slug,
+            projectUuid: missingUpstreamDashboard.projectUuid,
+            spaceSlug: promotedDashboard.space.slug,
+            spacePath: promotedDashboard.space.path,
+            unversionedData: {
+                name: promotedSqlChart.name,
+                description: promotedSqlChart.description,
+                spaceUuid: promotedSqlChart.space.uuid,
+            },
+            versionedData: {
+                sql: promotedSqlChart.sql,
+                limit: promotedSqlChart.limit,
+                config: promotedSqlChart.config,
+            },
+        });
+    });
 });
 
 describe('PromoteService promoting and mutating changes', () => {
@@ -494,6 +559,7 @@ describe('PromoteService promoting and mutating changes', () => {
         analytics: analyticsMock,
         projectModel: projectModel as unknown as ProjectModel,
         savedChartModel: savedChartModel as unknown as SavedChartModel,
+        savedSqlModel: savedSqlModel as unknown as SavedSqlModel,
         spaceModel: spaceModel as unknown as SpaceModel,
         dashboardModel: dashboardModel as unknown as DashboardModel,
         spacePermissionService:
@@ -856,5 +922,179 @@ describe('PromoteService promoting and mutating changes', () => {
             newTile.type === DashboardTileTypes.SAVED_CHART &&
                 newTile.properties.savedChartUuid,
         ).toEqual(createdChart.uuid);
+    });
+
+    test('upsertSqlCharts create path remaps dashboard SQL tile savedSqlUuid', async () => {
+        const dashboardWithOnlySqlTile = {
+            ...promotedDashboardWithSqlTile,
+            dashboard: {
+                ...promotedDashboardWithSqlTile.dashboard,
+                tiles: promotedDashboardWithSqlTile.dashboard.tiles.filter(
+                    (tile) => tile.type === DashboardTileTypes.SQL_CHART,
+                ),
+            },
+        };
+
+        (savedSqlModel.getByUuid as jest.Mock).mockImplementationOnce(
+            async () => promotedSqlChart,
+        );
+        (savedSqlModel.find as jest.Mock).mockImplementationOnce(
+            async () => [],
+        );
+        (spaceModel.find as jest.Mock).mockImplementationOnce(async () => [
+            existingUpstreamDashboard.space,
+        ]);
+        (spaceModel.find as jest.Mock).mockImplementationOnce(async () => [
+            existingUpstreamDashboard.space,
+        ]);
+        (savedSqlModel.create as jest.Mock).mockImplementationOnce(
+            async () => ({
+                savedSqlUuid: 'new-upstream-sql-chart-uuid',
+                slug: promotedSqlChart.slug,
+                savedSqlVersionUuid: 'saved-sql-version-uuid',
+            }),
+        );
+
+        const [changes, , , sqlChanges] =
+            await service.getPromotionDashboardChanges(
+                user,
+                dashboardWithOnlySqlTile,
+                missingUpstreamDashboard,
+            );
+
+        const newChanges = await service.upsertSqlCharts(
+            user,
+            changes,
+            sqlChanges,
+        );
+
+        expect(savedSqlModel.create).toHaveBeenCalledTimes(1);
+        expect(savedSqlModel.create).toHaveBeenCalledWith(
+            user.userUuid,
+            missingUpstreamDashboard.projectUuid,
+            {
+                name: promotedSqlChart.name,
+                description: promotedSqlChart.description,
+                spaceUuid: existingUpstreamDashboard.space?.uuid,
+                sql: promotedSqlChart.sql,
+                limit: promotedSqlChart.limit,
+                config: promotedSqlChart.config,
+                slug: promotedSqlChart.slug,
+            },
+        );
+
+        const sqlTile = newChanges.dashboards[0].data.tiles.find(
+            (tile) => tile.type === DashboardTileTypes.SQL_CHART,
+        );
+        expect(
+            sqlTile?.type === DashboardTileTypes.SQL_CHART
+                ? sqlTile.properties.savedSqlUuid
+                : undefined,
+        ).toBe('new-upstream-sql-chart-uuid');
+    });
+
+    test('upsertSqlCharts update/no-change paths remap to upstream SQL UUID without create', async () => {
+        const dashboardWithOnlySqlTile = {
+            ...promotedDashboardWithSqlTile,
+            dashboard: {
+                ...promotedDashboardWithSqlTile.dashboard,
+                tiles: promotedDashboardWithSqlTile.dashboard.tiles.filter(
+                    (tile) => tile.type === DashboardTileTypes.SQL_CHART,
+                ),
+            },
+        };
+
+        (savedSqlModel.getByUuid as jest.Mock).mockImplementationOnce(
+            async () => ({
+                ...promotedSqlChart,
+                lastUpdatedAt: new Date('2025-01-01T00:00:00.000Z'),
+                name: 'new sql chart title',
+            }),
+        );
+        (savedSqlModel.find as jest.Mock).mockImplementationOnce(async () => [
+            {
+                saved_sql_uuid: existingUpstreamSqlChart.savedSqlUuid,
+                name: 'old sql chart title',
+                description: promotedSqlChart.description,
+                slug: existingUpstreamSqlChart.slug,
+                dashboard_uuid: null,
+                created_at: existingUpstreamSqlChart.createdAt,
+                last_version_updated_at: new Date('2024-01-01T00:00:00.000Z'),
+                views_count: existingUpstreamSqlChart.views,
+                first_viewed_at: existingUpstreamSqlChart.firstViewedAt,
+                last_viewed_at: existingUpstreamSqlChart.lastViewedAt,
+                sql: existingUpstreamSqlChart.sql,
+                limit: existingUpstreamSqlChart.limit,
+                config: existingUpstreamSqlChart.config,
+                chart_kind: existingUpstreamSqlChart.chartKind,
+                space_uuid: existingUpstreamSqlChart.space.uuid,
+                path: promotedDashboard.space.path,
+                project_uuid: missingUpstreamDashboard.projectUuid,
+                organization_uuid: user.organizationUuid,
+                updated_at: new Date('2024-01-01T00:00:00.000Z'),
+                spaceName: existingUpstreamSqlChart.space.name,
+                space_is_private: existingUpstreamSqlChart.space.isPrivate,
+                dashboardName: null,
+                created_by_user_uuid: user.userUuid,
+                created_by_user_first_name: user.firstName,
+                created_by_user_last_name: user.lastName,
+                last_version_updated_by_user_uuid: user.userUuid,
+                last_version_updated_by_user_first_name: user.firstName,
+                last_version_updated_by_user_last_name: user.lastName,
+            },
+        ]);
+        (spaceModel.find as jest.Mock).mockImplementationOnce(async () => [
+            existingUpstreamDashboard.space,
+        ]);
+        (spaceModel.find as jest.Mock).mockImplementationOnce(async () => [
+            existingUpstreamDashboard.space,
+        ]);
+
+        const [changes, , , sqlChanges] =
+            await service.getPromotionDashboardChanges(
+                user,
+                dashboardWithOnlySqlTile,
+                missingUpstreamDashboard,
+            );
+
+        expect(sqlChanges[0].action).toBe(PromotionAction.UPDATE);
+        expect(sqlChanges[0].data.oldUuid).toBe(promotedSqlChart.savedSqlUuid);
+        expect(sqlChanges[0].data.uuid).toBe(
+            existingUpstreamSqlChart.savedSqlUuid,
+        );
+
+        const newChanges = await service.upsertSqlCharts(
+            user,
+            changes,
+            sqlChanges,
+        );
+
+        expect(savedSqlModel.create).toHaveBeenCalledTimes(0);
+        expect(savedSqlModel.update).toHaveBeenCalledTimes(1);
+        expect(savedSqlModel.update).toHaveBeenCalledWith({
+            userUuid: user.userUuid,
+            savedSqlUuid: existingUpstreamSqlChart.savedSqlUuid,
+            sqlChart: {
+                unversionedData: {
+                    name: 'new sql chart title',
+                    description: promotedSqlChart.description,
+                    spaceUuid: existingUpstreamDashboard.space?.uuid,
+                },
+                versionedData: {
+                    sql: promotedSqlChart.sql,
+                    limit: promotedSqlChart.limit,
+                    config: promotedSqlChart.config,
+                },
+            },
+        });
+
+        const sqlTile = newChanges.dashboards[0].data.tiles.find(
+            (tile) => tile.type === DashboardTileTypes.SQL_CHART,
+        );
+        expect(
+            sqlTile?.type === DashboardTileTypes.SQL_CHART
+                ? sqlTile.properties.savedSqlUuid
+                : undefined,
+        ).toBe(existingUpstreamSqlChart.savedSqlUuid);
     });
 });
