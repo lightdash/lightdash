@@ -57,7 +57,9 @@ export const Parameters: FC<Props> = ({
         );
     }
 
-    const paramEntries = Object.entries(parameters);
+    const paramEntries = Object.entries(parameters).sort(
+        ([, a], [, b]) => (a.order ?? Infinity) - (b.order ?? Infinity),
+    );
 
     return (
         <>
