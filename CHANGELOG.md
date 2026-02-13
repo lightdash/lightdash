@@ -1,3 +1,10 @@
+## [0.2459.2](https://github.com/lightdash/lightdash/compare/0.2459.1...0.2459.2) (2026-02-13)
+
+
+### Bug Fixes
+
+* content invalidation across deletion operations ([#20286](https://github.com/lightdash/lightdash/issues/20286)) ([993264e](https://github.com/lightdash/lightdash/commit/993264e6afd36d04b0e6cf77ee065b5d3b7e19de))
+
 ## [0.2459.1](https://github.com/lightdash/lightdash/compare/0.2459.0...0.2459.1) (2026-02-13)
 
 
