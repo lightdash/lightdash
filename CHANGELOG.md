@@ -1,3 +1,17 @@
+# [0.2462.0](https://github.com/lightdash/lightdash/compare/0.2461.0...0.2462.0) (2026-02-13)
+
+
+### Bug Fixes
+
+* deduplicate repeated chart and SQL chart tiles during dashboard promotion ([#20297](https://github.com/lightdash/lightdash/issues/20297)) ([fa994d5](https://github.com/lightdash/lightdash/commit/fa994d5028558c7aeb124f74a0fe0af790bdc709))
+
+
+### Features
+
+* add backend SQL chart promotion support to dashboard promotion pipeline ([#20294](https://github.com/lightdash/lightdash/issues/20294)) ([21fc3f7](https://github.com/lightdash/lightdash/commit/21fc3f733c7309e1a92247fa5032442e4f13fe55))
+* add individual SQL chart promotion flow (API + SQL Runner UI) ([#20296](https://github.com/lightdash/lightdash/issues/20296)) ([ab90926](https://github.com/lightdash/lightdash/commit/ab90926270f488ffcef17b91029c22af431bc4b0))
+* include SQL chart changes in dashboard promotion diffs and confirm modal ([#20295](https://github.com/lightdash/lightdash/issues/20295)) ([96d7b20](https://github.com/lightdash/lightdash/commit/96d7b20542b2eb727340c47f23c00e534b30384a))
+
 # [0.2461.0](https://github.com/lightdash/lightdash/compare/0.2460.0...0.2461.0) (2026-02-13)
 
 
