@@ -249,11 +249,13 @@ export class ValidationModel {
                 ).andOnNull(`${SavedChartsTableName}.deleted_at`);
             })
             // Join to chart's direct space (for charts saved directly in a space)
-            .leftJoin(
-                SpaceTableName,
-                `${SpaceTableName}.space_id`,
-                `${SavedChartsTableName}.space_id`,
-            )
+            .leftJoin(SpaceTableName, function nonDeletedSpaceJoin() {
+                this.on(
+                    `${SpaceTableName}.space_id`,
+                    '=',
+                    `${SavedChartsTableName}.space_id`,
+                ).andOnNull(`${SpaceTableName}.deleted_at`);
+            })
             // Join to dashboard's space for charts saved in dashboards (space_id is NULL)
             // Uses saved_charts.dashboard_uuid which directly references the dashboard
             .leftJoin(DashboardsTableName, function nonDeletedDashboardJoin() {
@@ -265,8 +267,13 @@ export class ValidationModel {
             })
             .leftJoin(
                 `${SpaceTableName} as ${dashboardSpaceAlias}`,
-                `${dashboardSpaceAlias}.space_id`,
-                `${DashboardsTableName}.space_id`,
+                function nonDeletedDashboardSpaceJoin() {
+                    this.on(
+                        `${dashboardSpaceAlias}.space_id`,
+                        '=',
+                        `${DashboardsTableName}.space_id`,
+                    ).andOnNull(`${dashboardSpaceAlias}.deleted_at`);
+                },
             )
             .leftJoin(
                 UserTableName,
@@ -366,11 +373,13 @@ export class ValidationModel {
                     `${ValidationTableName}.dashboard_uuid`,
                 ).andOnNull(`${DashboardsTableName}.deleted_at`);
             })
-            .leftJoin(
-                SpaceTableName,
-                `${DashboardsTableName}.space_id`,
-                `${SpaceTableName}.space_id`,
-            )
+            .leftJoin(SpaceTableName, function nonDeletedSpaceJoin() {
+                this.on(
+                    `${DashboardsTableName}.space_id`,
+                    '=',
+                    `${SpaceTableName}.space_id`,
+                ).andOnNull(`${SpaceTableName}.deleted_at`);
+            })
             .leftJoin(
                 `${DashboardVersionsTableName}`,
                 `${DashboardsTableName}.dashboard_id`,
@@ -569,25 +578,36 @@ export class ValidationModel {
         const dashboardSpaceAlias = 'dashboard_space';
 
         const chartSubquery = this.database(ValidationTableName)
-            .leftJoin(
-                SavedChartsTableName,
-                `${SavedChartsTableName}.saved_query_uuid`,
-                `${ValidationTableName}.saved_chart_uuid`,
-            )
-            .leftJoin(
-                SpaceTableName,
-                `${SpaceTableName}.space_id`,
-                `${SavedChartsTableName}.space_id`,
-            )
-            .leftJoin(
-                DashboardsTableName,
-                `${DashboardsTableName}.dashboard_uuid`,
-                `${SavedChartsTableName}.dashboard_uuid`,
-            )
+            .leftJoin(SavedChartsTableName, function nonDeletedChartJoin() {
+                this.on(
+                    `${SavedChartsTableName}.saved_query_uuid`,
+                    '=',
+                    `${ValidationTableName}.saved_chart_uuid`,
+                ).andOnNull(`${SavedChartsTableName}.deleted_at`);
+            })
+            .leftJoin(SpaceTableName, function nonDeletedSpaceJoin() {
+                this.on(
+                    `${SpaceTableName}.space_id`,
+                    '=',
+                    `${SavedChartsTableName}.space_id`,
+                ).andOnNull(`${SpaceTableName}.deleted_at`);
+            })
+            .leftJoin(DashboardsTableName, function nonDeletedDashboardJoin() {
+                this.on(
+                    `${DashboardsTableName}.dashboard_uuid`,
+                    '=',
+                    `${SavedChartsTableName}.dashboard_uuid`,
+                ).andOnNull(`${DashboardsTableName}.deleted_at`);
+            })
             .leftJoin(
                 `${SpaceTableName} as ${dashboardSpaceAlias}`,
-                `${dashboardSpaceAlias}.space_id`,
-                `${DashboardsTableName}.space_id`,
+                function nonDeletedDashboardSpaceJoin() {
+                    this.on(
+                        `${dashboardSpaceAlias}.space_id`,
+                        '=',
+                        `${DashboardsTableName}.space_id`,
+                    ).andOnNull(`${dashboardSpaceAlias}.deleted_at`);
+                },
             )
             .leftJoin(
                 UserTableName,
@@ -627,16 +647,20 @@ export class ValidationModel {
             ]);
 
         const dashboardSubquery = this.database(ValidationTableName)
-            .leftJoin(
-                DashboardsTableName,
-                `${DashboardsTableName}.dashboard_uuid`,
-                `${ValidationTableName}.dashboard_uuid`,
-            )
-            .leftJoin(
-                SpaceTableName,
-                `${DashboardsTableName}.space_id`,
-                `${SpaceTableName}.space_id`,
-            )
+            .leftJoin(DashboardsTableName, function nonDeletedDashboardJoin() {
+                this.on(
+                    `${DashboardsTableName}.dashboard_uuid`,
+                    '=',
+                    `${ValidationTableName}.dashboard_uuid`,
+                ).andOnNull(`${DashboardsTableName}.deleted_at`);
+            })
+            .leftJoin(SpaceTableName, function nonDeletedSpaceJoin() {
+                this.on(
+                    `${DashboardsTableName}.space_id`,
+                    '=',
+                    `${SpaceTableName}.space_id`,
+                ).andOnNull(`${SpaceTableName}.deleted_at`);
+            })
             .leftJoin(
                 DashboardVersionsTableName,
                 `${DashboardsTableName}.dashboard_id`,
@@ -775,25 +799,36 @@ export class ValidationModel {
         };
 
         const chartSubquery = this.database(ValidationTableName)
-            .leftJoin(
-                SavedChartsTableName,
-                `${SavedChartsTableName}.saved_query_uuid`,
-                `${ValidationTableName}.saved_chart_uuid`,
-            )
-            .leftJoin(
-                SpaceTableName,
-                `${SpaceTableName}.space_id`,
-                `${SavedChartsTableName}.space_id`,
-            )
-            .leftJoin(
-                DashboardsTableName,
-                `${DashboardsTableName}.dashboard_uuid`,
-                `${SavedChartsTableName}.dashboard_uuid`,
-            )
+            .leftJoin(SavedChartsTableName, function nonDeletedChartJoin() {
+                this.on(
+                    `${SavedChartsTableName}.saved_query_uuid`,
+                    '=',
+                    `${ValidationTableName}.saved_chart_uuid`,
+                ).andOnNull(`${SavedChartsTableName}.deleted_at`);
+            })
+            .leftJoin(SpaceTableName, function nonDeletedSpaceJoin() {
+                this.on(
+                    `${SpaceTableName}.space_id`,
+                    '=',
+                    `${SavedChartsTableName}.space_id`,
+                ).andOnNull(`${SpaceTableName}.deleted_at`);
+            })
+            .leftJoin(DashboardsTableName, function nonDeletedDashboardJoin() {
+                this.on(
+                    `${DashboardsTableName}.dashboard_uuid`,
+                    '=',
+                    `${SavedChartsTableName}.dashboard_uuid`,
+                ).andOnNull(`${DashboardsTableName}.deleted_at`);
+            })
             .leftJoin(
                 `${SpaceTableName} as ${dashboardSpaceAlias}`,
-                `${dashboardSpaceAlias}.space_id`,
-                `${DashboardsTableName}.space_id`,
+                function nonDeletedDashboardSpaceJoin() {
+                    this.on(
+                        `${dashboardSpaceAlias}.space_id`,
+                        '=',
+                        `${DashboardsTableName}.space_id`,
+                    ).andOnNull(`${dashboardSpaceAlias}.deleted_at`);
+                },
             )
             .leftJoin(
                 UserTableName,
@@ -854,16 +889,20 @@ export class ValidationModel {
             ]);
 
         const dashboardSubquery = this.database(ValidationTableName)
-            .leftJoin(
-                DashboardsTableName,
-                `${DashboardsTableName}.dashboard_uuid`,
-                `${ValidationTableName}.dashboard_uuid`,
-            )
-            .leftJoin(
-                SpaceTableName,
-                `${DashboardsTableName}.space_id`,
-                `${SpaceTableName}.space_id`,
-            )
+            .leftJoin(DashboardsTableName, function nonDeletedDashboardJoin() {
+                this.on(
+                    `${DashboardsTableName}.dashboard_uuid`,
+                    '=',
+                    `${ValidationTableName}.dashboard_uuid`,
+                ).andOnNull(`${DashboardsTableName}.deleted_at`);
+            })
+            .leftJoin(SpaceTableName, function nonDeletedSpaceJoin() {
+                this.on(
+                    `${DashboardsTableName}.space_id`,
+                    '=',
+                    `${SpaceTableName}.space_id`,
+                ).andOnNull(`${SpaceTableName}.deleted_at`);
+            })
             .leftJoin(
                 DashboardVersionsTableName,
                 `${DashboardsTableName}.dashboard_id`,

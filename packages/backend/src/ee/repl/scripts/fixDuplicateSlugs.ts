@@ -30,25 +30,33 @@ export function getFixDuplicateSlugsScripts(
             const queryBase = trx(SavedChartsTableName)
                 .leftJoin(
                     DashboardsTableName,
-                    `${DashboardsTableName}.dashboard_uuid`,
-                    `${SavedChartsTableName}.dashboard_uuid`,
+                    function nonDeletedDashboardJoin() {
+                        this.on(
+                            `${DashboardsTableName}.dashboard_uuid`,
+                            '=',
+                            `${SavedChartsTableName}.dashboard_uuid`,
+                        ).andOnNull(`${DashboardsTableName}.deleted_at`);
+                    },
                 )
                 .innerJoin(SpaceTableName, function spaceJoin() {
                     this.on(
                         `${SpaceTableName}.space_id`,
                         '=',
                         `${DashboardsTableName}.space_id`,
-                    ).orOn(
-                        `${SpaceTableName}.space_id`,
-                        '=',
-                        `${SavedChartsTableName}.space_id`,
-                    );
+                    )
+                        .orOn(
+                            `${SpaceTableName}.space_id`,
+                            '=',
+                            `${SavedChartsTableName}.space_id`,
+                        )
+                        .andOnNull(`${SpaceTableName}.deleted_at`);
                 })
                 .innerJoin(
                     ProjectTableName,
                     `${SpaceTableName}.project_id`,
                     `${ProjectTableName}.project_id`,
-                );
+                )
+                .whereNull(`${SavedChartsTableName}.deleted_at`);
 
             if (opts.projectUuid) {
                 void queryBase.where(
@@ -243,16 +251,19 @@ export function getFixDuplicateSlugsScripts(
 
         return database.transaction(async (trx) => {
             const queryBase = trx(DashboardsTableName)
-                .innerJoin(
-                    SpaceTableName,
-                    `${SpaceTableName}.space_id`,
-                    `${DashboardsTableName}.space_id`,
-                )
+                .innerJoin(SpaceTableName, function nonDeletedSpaceJoin() {
+                    this.on(
+                        `${SpaceTableName}.space_id`,
+                        '=',
+                        `${DashboardsTableName}.space_id`,
+                    ).andOnNull(`${SpaceTableName}.deleted_at`);
+                })
                 .innerJoin(
                     ProjectTableName,
                     `${ProjectTableName}.project_id`,
                     `${SpaceTableName}.project_id`,
-                );
+                )
+                .whereNull(`${DashboardsTableName}.deleted_at`);
 
             const duplicateSlugs = await queryBase
                 .clone()

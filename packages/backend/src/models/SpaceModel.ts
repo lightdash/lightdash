@@ -111,6 +111,7 @@ export class SpaceModel {
                      WHERE ps.path @> ${SpaceTableName}.path
                      AND nlevel(ps.path) = 1
                      AND ps.project_id = ${SpaceTableName}.project_id
+                     AND ps.deleted_at IS NULL
                      LIMIT 1)
                 ELSE
                     ${SpaceTableName}.is_private
@@ -134,6 +135,7 @@ export class SpaceModel {
                      WHERE root_space.path @> ${SpaceTableName}.path
                      AND nlevel(root_space.path) = 1
                      AND root_space.project_id = ${SpaceTableName}.project_id
+                     AND root_space.deleted_at IS NULL
                      LIMIT 1)
                 ELSE
                     COALESCE(json_agg(${sharedWithTableName}.user_uuid) FILTER (WHERE ${sharedWithTableName}.user_uuid IS NOT NULL), '[]')
@@ -146,7 +148,8 @@ export class SpaceModel {
 
         const [space] = await db(SpaceTableName)
             .select(['space_id', 'name'])
-            .where('space_uuid', spaceUuid);
+            .where('space_uuid', spaceUuid)
+            .whereNull('deleted_at');
         return { spaceId: space.space_id, name: space.name };
     }
 
@@ -196,6 +199,7 @@ export class SpaceModel {
                     .orWhere(`${SpaceTableName}.is_private`, false);
             })
             .where(`${ProjectTableName}.project_uuid`, projectUuid)
+            .whereNull(`${SpaceTableName}.deleted_at`)
             // Nested spaces MVP - only consider root spaces
             .whereNull(`${SpaceTableName}.parent_space_uuid`)
             .select<
@@ -860,6 +864,7 @@ export class SpaceModel {
                     )
                     .where(`${EmailTableName}.is_primary`, true)
                     .whereIn(`${SpaceTableName}.space_uuid`, spaceUuids)
+                    .whereNull(`${SpaceTableName}.deleted_at`)
                     .modify((query) => {
                         if (filters?.userUuid) {
                             void query.where(
@@ -1363,6 +1368,7 @@ export class SpaceModel {
                     )
                     .where(`${EmailTableName}.is_primary`, true)
                     .whereIn(`${SpaceTableName}.space_uuid`, spaceUuids)
+                    .whereNull(`${SpaceTableName}.deleted_at`)
                     .modify((qb) => {
                         if (userUuid) {
                             void qb.where(
@@ -1832,11 +1838,13 @@ export class SpaceModel {
                 `${OrganizationTableName}.organization_id`,
                 `${ProjectTableName}.organization_id`,
             )
-            .leftJoin(
-                DashboardsTableName,
-                `${DashboardsTableName}.dashboard_uuid`,
-                `${chartTable}.dashboard_uuid`,
-            )
+            .leftJoin(DashboardsTableName, function nonDeletedDashboardJoin() {
+                this.on(
+                    `${DashboardsTableName}.dashboard_uuid`,
+                    '=',
+                    `${chartTable}.dashboard_uuid`,
+                ).andOnNull(`${DashboardsTableName}.deleted_at`);
+            })
             .whereNull(`${chartTable}.deleted_at`)
             .select<
                 {
@@ -2182,6 +2190,7 @@ export class SpaceModel {
                 `shared_with.user_uuid`,
             )
             .whereIn(`${SpaceTableName}.space_uuid`, spaceUuids)
+            .whereNull(`${SpaceTableName}.deleted_at`)
             .select({
                 spaceUuid: `${SpaceTableName}.space_uuid`,
                 organizationUuid: `${OrganizationTableName}.organization_uuid`,
@@ -2232,6 +2241,7 @@ export class SpaceModel {
         const space = await this.database(SpaceTableName)
             .select('path', 'name', 'space_uuid')
             .where('space_uuid', spaceUuid)
+            .whereNull('deleted_at')
             .first();
 
         if (!space) {
@@ -2247,6 +2257,7 @@ export class SpaceModel {
                 `${SpaceTableName}.project_id`,
             )
             .where(`${ProjectTableName}.project_uuid`, projectUuid)
+            .whereNull(`${SpaceTableName}.deleted_at`)
             .whereRaw('path @> ?::ltree AND path != ?::ltree', [
                 space.path,
                 space.path,
@@ -2322,6 +2333,7 @@ export class SpaceModel {
         const space = await this.database(SpaceTableName)
             .select('path')
             .where('space_uuid', spaceUuid)
+            .whereNull('deleted_at')
             .first();
 
         if (!space) {
@@ -2339,6 +2351,7 @@ export class SpaceModel {
             )
             .whereRaw('?::ltree <@ path', [space.path])
             .andWhereNot('space_uuid', spaceUuid)
+            .whereNull(`${SpaceTableName}.deleted_at`)
             .andWhere(`${ProjectTableName}.project_uuid`, projectUuid);
 
         return ancestors.map((ancestor) => ancestor.space_uuid);
@@ -2375,6 +2388,7 @@ export class SpaceModel {
                 const space = await this.database(SpaceTableName)
                     .select('path', 'project_id')
                     .where('space_uuid', spaceUuid)
+                    .whereNull('deleted_at')
                     .first();
 
                 if (!space) {
@@ -2397,6 +2411,7 @@ export class SpaceModel {
                         space.path,
                     ])
                     .andWhere('project_id', space.project_id)
+                    .whereNull(`${SpaceTableName}.deleted_at`)
                     .orderByRaw(`nlevel(${SpaceTableName}.path) DESC`); // Leaf first, root last
 
                 // Build the inheritance chain - stop at first inherit=false (but include it)
@@ -2451,6 +2466,7 @@ export class SpaceModel {
                 `${SpaceTableName}.project_id`,
             )
             .whereRaw('?::ltree <@ path', [path])
+            .whereNull(`${SpaceTableName}.deleted_at`)
             .andWhere(`${ProjectTableName}.project_uuid`, projectUuid)
             .orderByRaw('nlevel(path) DESC')
             .first();
@@ -2524,6 +2540,7 @@ export class SpaceModel {
             .select('path')
             .where('space_uuid', parentSpaceUuid)
             .where('project_id', projectId)
+            .whereNull('deleted_at')
             .first();
 
         if (!parentSpace) {
@@ -2737,7 +2754,8 @@ export class SpaceModel {
                 is_private: space.isPrivate,
                 inherit_parent_permissions: space.inheritParentPermissions,
             })
-            .where('space_uuid', spaceUuid);
+            .where('space_uuid', spaceUuid)
+            .whereNull('deleted_at');
         return this.getFullSpace(spaceUuid);
     }
 
@@ -2770,7 +2788,8 @@ export class SpaceModel {
                     .select('path')
                     .from(SpaceTableName)
                     .where('space_uuid', spaceUuid)
-                    .andWhere('project_id', project.project_id); // scope the space being moved to the project
+                    .andWhere('project_id', project.project_id)
+                    .whereNull('deleted_at');
             })
             .with('target_parent', (query) => {
                 if (targetSpaceUuid === null) {
@@ -2783,7 +2802,8 @@ export class SpaceModel {
                         .select('path')
                         .from(SpaceTableName)
                         .where('space_uuid', targetSpaceUuid)
-                        .andWhere('project_id', project.project_id); // scope the target parent space to the project
+                        .andWhere('project_id', project.project_id)
+                        .whereNull('deleted_at');
                 }
             })
             .select(tx.raw('1')) // We only care if a row exists
@@ -2827,10 +2847,13 @@ export class SpaceModel {
                     m.space_uuid = ?
                     -- Scope the space being moved ('m') to the correct project and UUID.
                     AND m.project_id = ?
+                    AND m.deleted_at IS NULL
                     -- Ensure the parent space 'p' also belongs to the same project.
                     AND s.project_id = m.project_id
+                    AND s.deleted_at IS NULL
                     AND s.path <@ m.path
                     AND ((?::uuid) IS NULL OR p.project_id = m.project_id)
+                    AND ((?::uuid) IS NULL OR p.deleted_at IS NULL)
             `,
             [
                 spaceUuid,
@@ -2839,6 +2862,7 @@ export class SpaceModel {
                 targetSpaceUuid,
                 spaceUuid,
                 project.project_id,
+                targetSpaceUuid,
                 targetSpaceUuid,
             ],
         );
@@ -2935,6 +2959,7 @@ export class SpaceModel {
         const space = await this.database(SpaceTableName)
             .select(['path', 'project_id', 'parent_space_uuid'])
             .where('space_uuid', spaceUuid)
+            .whereNull('deleted_at')
             .first();
 
         if (!space || !space.path) {
@@ -2948,6 +2973,7 @@ export class SpaceModel {
             .whereRaw('nlevel(path) = 1')
             .andWhereRaw('path @> ?', [space.path])
             .andWhere('project_id', space.project_id)
+            .whereNull('deleted_at')
             .first();
 
         if (!root) {

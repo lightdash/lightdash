@@ -11,12 +11,14 @@ import { SpaceTableName } from '../../../../database/entities/spaces';
 import { EncryptionUtil } from '../../../../utils/EncryptionUtil/EncryptionUtil';
 
 export async function seed(knex: Knex): Promise<void> {
-    const dashboard = await knex('dashboards')
-        .leftJoin(
-            SpaceTableName,
-            `${DashboardsTableName}.space_id`,
-            `${SpaceTableName}.space_id`,
-        )
+    const dashboard = await knex(DashboardsTableName)
+        .leftJoin(SpaceTableName, function nonDeletedSpaceJoin() {
+            this.on(
+                `${DashboardsTableName}.space_id`,
+                '=',
+                `${SpaceTableName}.space_id`,
+            ).andOnNull(`${SpaceTableName}.deleted_at`);
+        })
         .innerJoin(
             ProjectTableName,
             `${SpaceTableName}.project_id`,
@@ -24,6 +26,7 @@ export async function seed(knex: Knex): Promise<void> {
         )
         .select('dashboard_uuid')
         .where(`${ProjectTableName}.project_uuid`, SEED_PROJECT.project_uuid)
+        .whereNull(`${DashboardsTableName}.deleted_at`)
         .first();
 
     if (dashboard === undefined) {

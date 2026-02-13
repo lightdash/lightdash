@@ -37,7 +37,7 @@ select
   100 * COUNT(DISTINCT(user_uuid)) / ${userUuids.length} AS count
 from analytics_chart_views
   left join ${SavedChartsTableName} sq on sq.saved_query_uuid = analytics_chart_views.chart_uuid AND sq.deleted_at IS NULL
-  left join ${SpaceTableName} s on s.space_id  = sq.space_id
+  left join ${SpaceTableName} s on s.space_id  = sq.space_id AND s.deleted_at IS NULL
   left join projects on projects.project_id = s.project_id
 WHERE user_uuid in ('${userUuids.join(`','`)}')
   AND projects.project_uuid = '${projectUuid}'
@@ -56,7 +56,7 @@ select
 from analytics_chart_views
   LEFT JOIN users ON users.user_uuid = analytics_chart_views.user_uuid
   left join ${SavedChartsTableName} sq on sq.saved_query_uuid = analytics_chart_views.chart_uuid AND sq.deleted_at IS NULL
-  left join ${SpaceTableName} s on s.space_id  = sq.space_id
+  left join ${SpaceTableName} s on s.space_id  = sq.space_id AND s.deleted_at IS NULL
   left join projects on projects.project_id = s.project_id
 WHERE users.user_uuid in ('${userUuids.join(`','`)}')
   AND projects.project_uuid = '${projectUuid}'
@@ -80,7 +80,7 @@ select
 from saved_queries_versions
   LEFT JOIN users ON users.user_uuid = saved_queries_versions.updated_by_user_uuid
   left join ${SavedChartsTableName} sq on sq.saved_query_id = saved_queries_versions.saved_query_id AND sq.deleted_at IS NULL
-  left join ${SpaceTableName} s on s.space_id  = sq.space_id
+  left join ${SpaceTableName} s on s.space_id  = sq.space_id AND s.deleted_at IS NULL
   left join projects on projects.project_id = s.project_id
 WHERE users.user_uuid in ('${userUuids.join(`','`)}')
   AND projects.project_uuid = '${projectUuid}'
@@ -102,7 +102,7 @@ select
 from users
   LEFT JOIN analytics_chart_views ON users.user_uuid = analytics_chart_views.user_uuid
   left join ${SavedChartsTableName} sq on sq.saved_query_uuid = analytics_chart_views.chart_uuid AND sq.deleted_at IS NULL
-  left join ${SpaceTableName} s on s.space_id  = sq.space_id
+  left join ${SpaceTableName} s on s.space_id  = sq.space_id AND s.deleted_at IS NULL
   left join projects on projects.project_id = s.project_id
 WHERE users.user_uuid in ('${userUuids.join(`','`)}') AND users.first_name <> ''
   AND
@@ -146,7 +146,7 @@ query_executed AS (
     COUNT(DISTINCT(chart_uuid)) AS num_queries_executed
   FROM analytics_chart_views acv  -- this is a table with one row per query executed
     left join ${SavedChartsTableName} sq on sq.saved_query_uuid = acv.chart_uuid AND sq.deleted_at IS NULL
-    left join ${SpaceTableName} s on s.space_id  = sq.space_id
+    left join ${SpaceTableName} s on s.space_id  = sq.space_id AND s.deleted_at IS NULL
     left join projects on projects.project_id = s.project_id
   WHERE  projects.project_uuid = '${projectUuid}'
   GROUP BY 1, 2
@@ -206,7 +206,7 @@ SELECT
   sq.name
 FROM public.analytics_chart_views
   left join ${SavedChartsTableName} sq on sq.saved_query_uuid  = chart_uuid AND sq.deleted_at IS NULL
-  left join ${SpaceTableName} s on s.space_id  = sq.space_id
+  left join ${SpaceTableName} s on s.space_id  = sq.space_id AND s.deleted_at IS NULL
   left join projects on projects.project_id = s.project_id
 where projects.project_uuid = '${projectUuid}'
 group by chart_uuid, sq.name
@@ -221,7 +221,7 @@ SELECT
   d.name
 FROM public.analytics_dashboard_views dv
   left join ${DashboardsTableName} d  on d.dashboard_uuid  = dv.dashboard_uuid AND d.deleted_at IS NULL
-  left join ${SpaceTableName} s on s.space_id  = d.space_id
+  left join ${SpaceTableName} s on s.space_id  = d.space_id AND s.deleted_at IS NULL
   left join projects on projects.project_id = s.project_id
 where projects.project_uuid = '${projectUuid}'
 group by dv.dashboard_uuid, d.name
@@ -241,7 +241,7 @@ WITH RankedResults AS (
   FROM public.analytics_dashboard_views dv
   LEFT JOIN users u ON u.user_uuid = dv.user_uuid
   LEFT JOIN ${DashboardsTableName} d ON dv.dashboard_uuid = d.dashboard_uuid AND d.deleted_at IS NULL
-  left join ${SpaceTableName} s on s.space_id  = d.space_id
+  left join ${SpaceTableName} s on s.space_id  = d.space_id AND s.deleted_at IS NULL
   left join projects on projects.project_id = s.project_id
   WHERE projects.project_uuid = '${projectUuid}'
     AND u.user_uuid IS NOT NULL
@@ -287,7 +287,7 @@ SELECT
   ) as last_viewed_by_user_name
 FROM ${SavedChartsTableName} sq
 LEFT JOIN users cu ON cu.user_uuid = sq.last_version_updated_by_user_uuid
-LEFT JOIN ${SpaceTableName} s ON s.space_id = sq.space_id
+LEFT JOIN ${SpaceTableName} s ON s.space_id = sq.space_id AND s.deleted_at IS NULL
 LEFT JOIN projects p ON p.project_id = s.project_id
 LEFT JOIN analytics_chart_views cv ON cv.chart_uuid = sq.saved_query_uuid
 WHERE p.project_uuid = ?
@@ -343,7 +343,7 @@ LEFT JOIN (
   ORDER BY dashboard_id, created_at ASC
 ) first_version ON first_version.dashboard_id = d.dashboard_id
 LEFT JOIN users cu ON cu.user_uuid = first_version.updated_by_user_uuid
-LEFT JOIN ${SpaceTableName} s ON s.space_id = d.space_id
+LEFT JOIN ${SpaceTableName} s ON s.space_id = d.space_id AND s.deleted_at IS NULL
 LEFT JOIN projects p ON p.project_id = s.project_id
 LEFT JOIN analytics_dashboard_views adv ON adv.dashboard_uuid = d.dashboard_uuid
 WHERE p.project_uuid = ? AND d.deleted_at IS NULL
