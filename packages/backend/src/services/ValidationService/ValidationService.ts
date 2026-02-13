@@ -53,7 +53,6 @@ import { ValidationModel } from '../../models/ValidationModel/ValidationModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { BaseService } from '../BaseService';
 import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
-import { hasViewAccessToSpace } from '../SpaceService/SpaceService';
 
 type ValidationServiceArguments = {
     lightdashConfig: LightdashConfig;

@@ -57,11 +57,8 @@ const dashboardModel = {
 };
 
 const spaceModel = {
-    getFullSpace: jest.fn(async () => publicSpace),
     getSpaceSummary: jest.fn(async () => publicSpace),
     getFirstAccessibleSpace: jest.fn(async () => space),
-    getUserSpaceAccess: jest.fn(async () => []),
-    getUserSpacesAccess: jest.fn(async () => ({})),
 };
 const analyticsModel = {
     addDashboardViewEvent: jest.fn(async () => null),

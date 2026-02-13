@@ -67,24 +67,6 @@ export const hasDirectAccessToSpace = (
     return hasAccess;
 };
 
-export const hasViewAccessToSpace = (
-    user: SessionUser,
-    space: Pick<
-        Space | SpaceSummary,
-        'projectUuid' | 'organizationUuid' | 'isPrivate'
-    >,
-    access: SpaceShare[],
-): boolean =>
-    user.ability.can(
-        'view',
-        subject('Space', {
-            organizationUuid: space.organizationUuid,
-            projectUuid: space.projectUuid,
-            isPrivate: space.isPrivate,
-            access,
-        }),
-    );
-
 export class SpaceService extends BaseService implements BulkActionable<Knex> {
     private readonly analytics: LightdashAnalytics;
 
@@ -121,39 +103,56 @@ export class SpaceService extends BaseService implements BulkActionable<Knex> {
     async _userCanActionSpace(
         user: Pick<SessionUser, 'ability' | 'userUuid'>,
         contentType: 'Space' | 'Dashboard' | 'Chart',
-        space: Pick<
-            SpaceSummary,
-            'organizationUuid' | 'projectUuid' | 'isPrivate' | 'uuid'
-        >,
+        space: Pick<SpaceSummary, 'uuid'>,
         action: AbilityAction,
-        logDiagnostics: boolean = false,
-        options: { useInheritedAccess: boolean } = {
-            useInheritedAccess: false,
-        },
     ): Promise<boolean> {
-        const userAccess = await this.spaceModel.getUserSpaceAccess(
-            user.userUuid,
-            space.uuid,
-            options,
-        );
-        const ss = subject(contentType, {
-            organizationUuid: space.organizationUuid,
-            projectUuid: space.projectUuid,
-            isPrivate: space.isPrivate,
-            access: userAccess,
-        });
-        if (logDiagnostics) {
-            const rule = user.ability.relevantRuleFor(action, ss);
-            console.log('action 👇');
-            console.log(action);
-            console.log('subject 👇');
-            console.log(ss);
-            console.log('rule 👇');
-            console.log(rule);
-            console.log(rule?.conditions);
-        }
+        const spaceCtx =
+            await this.spacePermissionService.getSpaceAccessContext(
+                user.userUuid,
+                space.uuid,
+            );
+        return user.ability.can(action, subject(contentType, spaceCtx));
+    }
 
-        return user.ability.can(action, ss);
+    /**
+     * Assembles a full Space object by combining core space data with
+     * access info from SpacePermissionService and user metadata.
+     */
+    private async assembleFullSpace(spaceUuid: string): Promise<Space> {
+        const space = await this.spaceModel.get(spaceUuid);
+        const [ctx, groupsAccess, breadcrumbs] = await Promise.all([
+            this.spacePermissionService.getAllSpaceAccessContext(spaceUuid),
+            this.spaceModel.getGroupAccess(spaceUuid),
+            this.spaceModel.getSpaceBreadcrumbs(spaceUuid, space.projectUuid),
+        ]);
+
+        const userInfoMap =
+            await this.spacePermissionService.getUserMetadataByUuids(
+                ctx.access.map((a) => a.userUuid),
+            );
+
+        const access: SpaceShare[] = ctx.access.map((a) => ({
+            ...a,
+            firstName: userInfoMap[a.userUuid]?.firstName ?? '',
+            lastName: userInfoMap[a.userUuid]?.lastName ?? '',
+            email: userInfoMap[a.userUuid]?.email ?? '',
+        }));
+
+        const [queries, dashboards, childSpaces] = await Promise.all([
+            this.spaceModel.getSpaceQueries([spaceUuid]),
+            this.spaceModel.getSpaceDashboards([spaceUuid]),
+            this.spaceModel.find({ parentSpaceUuid: spaceUuid }),
+        ]);
+
+        return {
+            ...space,
+            queries,
+            dashboards,
+            childSpaces,
+            access,
+            groupsAccess,
+            breadcrumbs,
+        };
     }
 
     async getSpace(
@@ -165,7 +164,7 @@ export class SpaceService extends BaseService implements BulkActionable<Knex> {
             throw new ForbiddenError();
         }
 
-        return this.spaceModel.getFullSpace(spaceUuid);
+        return this.assembleFullSpace(spaceUuid);
     }
 
     async createSpace(
@@ -282,7 +281,7 @@ export class SpaceService extends BaseService implements BulkActionable<Knex> {
             inheritParentPermissions = !isPrivate;
         }
 
-        const updatedSpace = await this.spaceModel.update(spaceUuid, {
+        await this.spaceModel.update(spaceUuid, {
             ...updateSpace,
             isPrivate,
             inheritParentPermissions,
@@ -299,7 +298,7 @@ export class SpaceService extends BaseService implements BulkActionable<Knex> {
                 isNested,
             },
         });
-        return updatedSpace;
+        return this.assembleFullSpace(spaceUuid);
     }
 
     private async hasAccess(

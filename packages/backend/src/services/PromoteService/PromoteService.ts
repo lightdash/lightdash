@@ -3,7 +3,6 @@ import {
     AlreadyExistsError,
     ChartSummary,
     DashboardDAO,
-    FeatureFlags,
     ForbiddenError,
     getDeepestPaths,
     getErrorMessage,
@@ -18,7 +17,8 @@ import {
     SavedChartDAO,
     SessionUser,
     Space,
-    SpaceShare,
+    SpaceAccess,
+    SpaceGroup,
     SpaceSummary,
     UnexpectedServerError,
 } from '@lightdash/common';
@@ -26,24 +26,24 @@ import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
-import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { BaseService } from '../BaseService';
+import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 
 export type PromotedChart = {
     projectUuid: string;
     chart: SavedChartDAO;
     space: PromotedSpace; // even if chart belongs to dashboard, this is not undefined
     spaces: PromotedSpace[];
-    access: SpaceShare[];
+    access: SpaceAccess[];
 };
 export type UpstreamChart = {
     projectUuid: string;
     chart: (ChartSummary & { updatedAt: Date }) | undefined;
     space: PromotedSpace | undefined;
-    access: SpaceShare[];
+    access: SpaceAccess[];
     dashboardUuid?: string; // dashboard uuid if chart belongs to dashboard
 };
 export type PromotedDashboard = {
@@ -51,7 +51,7 @@ export type PromotedDashboard = {
     dashboard: DashboardDAO;
     space: PromotedSpace;
     spaces: PromotedSpace[];
-    access: SpaceShare[];
+    access: SpaceAccess[];
 };
 
 export type UpstreamDashboard = {
@@ -60,7 +60,7 @@ export type UpstreamDashboard = {
         | Pick<DashboardDAO, 'uuid' | 'name' | 'spaceUuid' | 'description'>
         | undefined;
     space: PromotedSpace | undefined;
-    access: SpaceShare[];
+    access: SpaceAccess[];
 };
 
 type PromoteServiceArguments = {
@@ -70,7 +70,7 @@ type PromoteServiceArguments = {
     spaceModel: SpaceModel;
     savedChartModel: SavedChartModel;
     dashboardModel: DashboardModel;
-    featureFlagModel: FeatureFlagModel;
+    spacePermissionService: SpacePermissionService;
 };
 
 const isChartWithinDashboard = (chart: Pick<SavedChartDAO, 'dashboardUuid'>) =>
@@ -89,7 +89,7 @@ export class PromoteService extends BaseService {
 
     private readonly dashboardModel: DashboardModel;
 
-    private readonly featureFlagModel: FeatureFlagModel;
+    private readonly spacePermissionService: SpacePermissionService;
 
     constructor(args: PromoteServiceArguments) {
         super();
@@ -99,14 +99,7 @@ export class PromoteService extends BaseService {
         this.projectModel = args.projectModel;
         this.spaceModel = args.spaceModel;
         this.dashboardModel = args.dashboardModel;
-        this.featureFlagModel = args.featureFlagModel;
-    }
-
-    private async getNestedPermissionsFlag(user: SessionUser) {
-        return this.featureFlagModel.get({
-            user,
-            featureFlagId: FeatureFlags.NestedSpacesPermissions,
-        });
+        this.spacePermissionService = args.spacePermissionService;
     }
 
     private async trackAnalytics(
@@ -204,30 +197,31 @@ export class PromoteService extends BaseService {
         const upstreamSpace =
             upstreamSpaces.length === 1 ? upstreamSpaces[0] : undefined;
 
-        const nestedPermissionsFlag = await this.getNestedPermissionsFlag(user);
+        const promotedCtx =
+            await this.spacePermissionService.getSpaceAccessContext(
+                user.userUuid,
+                promotedSpace.uuid,
+            );
+        const upstreamCtx = upstreamSpace
+            ? await this.spacePermissionService.getSpaceAccessContext(
+                  user.userUuid,
+                  upstreamSpace.uuid,
+              )
+            : undefined;
+
         return {
             promotedChart: {
                 chart: savedChart,
                 projectUuid: upstreamProjectUuid,
                 space: promotedSpace,
                 spaces: promotedSpaceAncestors,
-                access: await this.spaceModel.getUserSpaceAccess(
-                    user.userUuid,
-                    promotedSpace.uuid,
-                    { useInheritedAccess: nestedPermissionsFlag.enabled },
-                ),
+                access: promotedCtx.access,
             },
             upstreamChart: {
                 chart: upstreamChart,
                 projectUuid: upstreamProjectUuid,
                 space: upstreamSpace,
-                access: upstreamSpace
-                    ? await this.spaceModel.getUserSpaceAccess(
-                          user.userUuid,
-                          upstreamSpace.uuid,
-                          { useInheritedAccess: nestedPermissionsFlag.enabled },
-                      )
-                    : [],
+                access: upstreamCtx?.access ?? [],
             },
         };
     }
@@ -901,14 +895,6 @@ export class PromoteService extends BaseService {
         const updatedSpaces = spaceChanges.filter(
             (change) => change.action === PromotionAction.UPDATE,
         );
-        const nestedPermissionsFlag = await this.featureFlagModel.get({
-            user: {
-                userUuid: user.userUuid,
-                organizationUuid: user.organizationUuid,
-                organizationName: user.organizationName,
-            },
-            featureFlagId: FeatureFlags.NestedSpacesPermissions,
-        });
         const updatedSpacePromises = updatedSpaces.map((spaceChange) =>
             // Only update name, promotion should not change permissions
             this.spaceModel.update(spaceChange.data.uuid, {
@@ -994,30 +980,31 @@ export class PromoteService extends BaseService {
                 parentSpaceUuid = space.uuid;
 
                 if (data.isPrivate) {
-                    const promotedSpaceWithAccess =
-                        await this.spaceModel.getFullSpace(data.uuid, {
-                            useInheritedAccess: nestedPermissionsFlag.enabled,
-                        });
+                    const [ctx, groupsAccess] = await Promise.all([
+                        this.spacePermissionService.getAllSpaceAccessContext(
+                            data.uuid,
+                        ),
+                        this.spaceModel.getGroupAccess(data.uuid),
+                    ]);
 
-                    const userAccessPromises = promotedSpaceWithAccess.access
-                        .filter((access) => access.hasDirectAccess)
-                        .map((userAccess) =>
+                    const userAccessPromises = ctx.access
+                        .filter((a: SpaceAccess) => a.hasDirectAccess)
+                        .map((a: SpaceAccess) =>
                             this.spaceModel.addSpaceAccess(
                                 space.uuid,
-                                userAccess.userUuid,
-                                userAccess.role,
+                                a.userUuid,
+                                a.role,
                             ),
                         );
 
-                    const groupAccessPromises =
-                        promotedSpaceWithAccess.groupsAccess.map(
-                            (groupAccess) =>
-                                this.spaceModel.addSpaceGroupAccess(
-                                    space.uuid,
-                                    groupAccess.groupUuid,
-                                    groupAccess.spaceRole,
-                                ),
-                        );
+                    const groupAccessPromises = groupsAccess.map(
+                        (groupAccess: SpaceGroup) =>
+                            this.spaceModel.addSpaceGroupAccess(
+                                space.uuid,
+                                groupAccess.groupUuid,
+                                groupAccess.spaceRole,
+                            ),
+                    );
 
                     await Promise.all([
                         ...userAccessPromises,
@@ -1407,20 +1394,28 @@ export class PromoteService extends BaseService {
             );
         }
 
-        const nestedPermissionsFlag = await this.getNestedPermissionsFlag(user);
+        const promotedCtx =
+            await this.spacePermissionService.getSpaceAccessContext(
+                user.userUuid,
+                promotedSpace.uuid,
+            );
+
         const promotedDashboard: PromotedDashboard = {
             dashboard,
             projectUuid: dashboard.projectUuid,
             space: promotedSpace,
             spaces: promotedSpaceAncestors,
-            access: await this.spaceModel.getUserSpaceAccess(
-                user.userUuid,
-                promotedSpace.uuid,
-                { useInheritedAccess: nestedPermissionsFlag.enabled },
-            ),
+            access: promotedCtx.access,
         };
         const upstreamSpace =
             upstreamSpaces.length === 1 ? upstreamSpaces[0] : undefined;
+
+        const upstreamCtx = upstreamSpace
+            ? await this.spacePermissionService.getSpaceAccessContext(
+                  user.userUuid,
+                  upstreamSpace.uuid,
+              )
+            : undefined;
 
         const upstreamDashboard: UpstreamDashboard = {
             dashboard:
@@ -1429,13 +1424,7 @@ export class PromoteService extends BaseService {
                     : undefined,
             projectUuid: upstreamProjectUuid,
             space: upstreamSpace,
-            access: upstreamSpace
-                ? await this.spaceModel.getUserSpaceAccess(
-                      user.userUuid,
-                      upstreamSpace.uuid,
-                      { useInheritedAccess: nestedPermissionsFlag.enabled },
-                  )
-                : [],
+            access: upstreamCtx?.access ?? [],
         };
 
         return { promotedDashboard, upstreamDashboard };
