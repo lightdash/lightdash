@@ -26,7 +26,11 @@ import {
     user,
 } from './PromoteService.mock';
 
-const projectModel = {};
+const projectModel = {
+    getSummary: jest.fn(async () => ({
+        upstreamProjectUuid: existingUpstreamDashboard.projectUuid,
+    })),
+};
 
 const savedChartModel = {
     get: jest.fn(async () => promotedChart.chart),
@@ -62,6 +66,8 @@ const spaceModel = {
 };
 const dashboardModel = {
     create: jest.fn(async () => existingUpstreamDashboard.dashboard),
+    getByIdOrSlug: jest.fn(async () => promotedDashboardWithSqlTile.dashboard),
+    find: jest.fn(async () => []),
 };
 const spacePermissionService = {
     getSpaceAccessContext: jest.fn(async () => ({
@@ -1096,5 +1102,54 @@ describe('PromoteService promoting and mutating changes', () => {
                 ? sqlTile.properties.savedSqlUuid
                 : undefined,
         ).toBe(existingUpstreamSqlChart.savedSqlUuid);
+    });
+
+    test('getPromoteDashboardDiff includes sqlCharts for SQL runner tiles', async () => {
+        const dashboardWithOnlySqlTile = {
+            ...promotedDashboardWithSqlTile.dashboard,
+            tiles: promotedDashboardWithSqlTile.dashboard.tiles.filter(
+                (tile) => tile.type === DashboardTileTypes.SQL_CHART,
+            ),
+        };
+
+        (projectModel.getSummary as jest.Mock).mockImplementationOnce(
+            async () => ({
+                upstreamProjectUuid: existingUpstreamDashboard.projectUuid,
+            }),
+        );
+        (dashboardModel.getByIdOrSlug as jest.Mock).mockImplementationOnce(
+            async () => dashboardWithOnlySqlTile,
+        );
+        (dashboardModel.find as jest.Mock).mockImplementationOnce(
+            async () => [],
+        );
+        (spaceModel.find as jest.Mock).mockImplementation(async () => []);
+        (savedSqlModel.getByUuid as jest.Mock).mockImplementationOnce(
+            async () => promotedSqlChart,
+        );
+        (savedSqlModel.find as jest.Mock).mockImplementationOnce(
+            async () => [],
+        );
+
+        const changes = await service.getPromoteDashboardDiff(
+            user,
+            dashboardWithOnlySqlTile.uuid,
+        );
+
+        expect(changes.sqlCharts).toEqual([
+            {
+                action: PromotionAction.CREATE,
+                data: {
+                    uuid: promotedSqlChart.savedSqlUuid,
+                    oldUuid: promotedSqlChart.savedSqlUuid,
+                    slug: promotedSqlChart.slug,
+                    projectUuid: existingUpstreamDashboard.projectUuid,
+                    name: promotedSqlChart.name,
+                    description: promotedSqlChart.description,
+                    spaceSlug: promotedDashboard.space.slug,
+                    spacePath: promotedDashboard.space.path,
+                },
+            },
+        ]);
     });
 });

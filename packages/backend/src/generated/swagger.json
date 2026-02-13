@@ -16798,8 +16798,63 @@
                     }
                 ]
             },
+            "PromotedSqlChart": {
+                "properties": {
+                    "spacePath": {
+                        "type": "string"
+                    },
+                    "spaceSlug": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "oldUuid": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "spacePath",
+                    "spaceSlug",
+                    "description",
+                    "name",
+                    "projectUuid",
+                    "slug",
+                    "oldUuid",
+                    "uuid"
+                ],
+                "type": "object"
+            },
             "PromotionChanges": {
                 "properties": {
+                    "sqlCharts": {
+                        "items": {
+                            "properties": {
+                                "data": {
+                                    "$ref": "#/components/schemas/PromotedSqlChart"
+                                },
+                                "action": {
+                                    "$ref": "#/components/schemas/PromotionAction"
+                                }
+                            },
+                            "required": ["data", "action"],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
                     "charts": {
                         "items": {
                             "properties": {
