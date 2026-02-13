@@ -412,12 +412,14 @@ export class AiAgentService {
         user: SessionUser,
         projectUuid: string,
         availableTags: string[] | null,
+        exploreNames?: string[],
     ) {
         return wrapSentryTransaction(
             'AiAgent.getAvailableExplores',
             {
                 projectUuid,
                 availableTags,
+                exploreNames,
             },
             async () => {
                 const { organizationUuid } = user;
@@ -434,6 +436,7 @@ export class AiAgentService {
                     await this.projectModel.findExploresFromCache(
                         projectUuid,
                         'name',
+                        exploreNames,
                     ),
                 );
 
@@ -467,14 +470,12 @@ export class AiAgentService {
         availableTags: string[] | null,
         exploreName: string,
     ) {
-        const explores = await this.getAvailableExplores(
+        const [explore] = await this.getAvailableExplores(
             user,
             projectUuid,
             availableTags,
+            [exploreName],
         );
-
-        const explore = explores.find((e) => e.name === exploreName);
-
         if (!explore) {
             throw new NotFoundError('Explore not found');
         }

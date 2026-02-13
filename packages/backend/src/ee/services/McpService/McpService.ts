@@ -1140,12 +1140,14 @@ export class McpService extends BaseService {
         projectUuid: string,
         availableTags: string[] | null,
         userAttributeOverrides?: UserAttributeValueMap,
+        exploreNames?: string[],
     ) {
         return wrapSentryTransaction(
             'AiAgent.getAvailableExplores',
             {
                 projectUuid,
                 availableTags,
+                exploreNames,
             },
             async () => {
                 const { organizationUuid } = user;
@@ -1167,6 +1169,7 @@ export class McpService extends BaseService {
                     await this.projectModel.findExploresFromCache(
                         projectUuid,
                         'name',
+                        exploreNames,
                     ),
                 );
 
@@ -1201,15 +1204,13 @@ export class McpService extends BaseService {
         exploreName: string,
         userAttributeOverrides?: UserAttributeValueMap,
     ) {
-        const explores = await this.getAvailableExplores(
+        const [explore] = await this.getAvailableExplores(
             user,
             projectUuid,
             availableTags,
             userAttributeOverrides,
+            [exploreName],
         );
-
-        const explore = explores.find((e) => e.name === exploreName);
-
         if (!explore) {
             throw new NotFoundError('Explore not found');
         }
