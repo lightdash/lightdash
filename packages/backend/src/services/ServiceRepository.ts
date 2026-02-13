@@ -853,6 +853,7 @@ export class ServiceRepository
                         this.models.getUserWarehouseCredentialsModel(),
                     warehouseAvailableTablesModel:
                         this.models.getWarehouseAvailableTablesModel(),
+                    featureFlagModel: this.models.getFeatureFlagModel(),
                 }),
         );
     }

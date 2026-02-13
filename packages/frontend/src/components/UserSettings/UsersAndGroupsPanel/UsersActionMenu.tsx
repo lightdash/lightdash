@@ -1,5 +1,5 @@
 import {
-    OrganizationMemberRole,
+    FeatureFlags,
     type OrganizationMemberProfile,
     type OrganizationMemberProfileWithGroups,
 } from '@lightdash/common';
@@ -35,6 +35,7 @@ import {
     useUserSchedulersSummary,
 } from '../../../hooks/useOrganizationUsers';
 import { useStartImpersonation } from '../../../hooks/user/useImpersonation';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
@@ -95,8 +96,14 @@ const UsersActionMenu: FC<UsersActionMenuProps> = ({
     const { mutate: startImpersonation, isLoading: isStartingImpersonation } =
         useStartImpersonation();
 
+    const { data: impersonationFlag } = useServerFeatureFlag(
+        FeatureFlags.UserImpersonation,
+    );
+    const isImpersonationEnabled = impersonationFlag?.enabled ?? true;
+
     const canImpersonate =
-        currentUser.data?.role === OrganizationMemberRole.ADMIN &&
+        isImpersonationEnabled &&
+        !!currentUser.data?.ability?.can('impersonate', 'User') &&
         user.isActive &&
         !user.isPending &&
         currentUser.data?.userUuid !== user.userUuid;

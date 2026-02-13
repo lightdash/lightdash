@@ -83,6 +83,12 @@ export enum FeatureFlags {
      * Enable saved metrics tree in metrics catalog
      */
     SavedMetricsTree = 'saved-metrics-tree',
+
+    /**
+     * Enable admin user impersonation. When disabled, impersonation
+     * actions are blocked and active sessions are cleared.
+     */
+    UserImpersonation = 'user-impersonation',
 }
 
 export type FeatureFlag = {

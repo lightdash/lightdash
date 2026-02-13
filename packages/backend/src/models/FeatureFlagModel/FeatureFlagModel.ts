@@ -48,6 +48,8 @@ export class FeatureFlagModel {
                 this.getAdminChangeNotifications.bind(this),
             [FeatureFlags.SavedMetricsTree]:
                 this.getSavedMetricsTreeEnabled.bind(this),
+            [FeatureFlags.UserImpersonation]:
+                this.getUserImpersonationEnabled.bind(this),
         };
     }
 
@@ -267,6 +269,33 @@ export class FeatureFlagModel {
                       organizationUuid: user.organizationUuid,
                   })
                 : false);
+        return {
+            id: featureFlagId,
+            enabled,
+        };
+    }
+
+    private async getUserImpersonationEnabled({
+        user,
+        featureFlagId,
+    }: FeatureFlagLogicArgs) {
+        const enabled =
+            this.lightdashConfig.userImpersonation.enabled ??
+            (user
+                ? await isFeatureFlagEnabled(
+                      FeatureFlags.UserImpersonation,
+                      {
+                          userUuid: user.userUuid,
+                          organizationUuid: user.organizationUuid,
+                      },
+                      {
+                          throwOnTimeout: false,
+                          timeoutMilliseconds: 500,
+                      },
+                      true,
+                  )
+                : true);
+
         return {
             id: featureFlagId,
             enabled,
