@@ -3,6 +3,7 @@ import {
     type ApiError,
     type ApiUpdateSqlChart,
     type CreateSqlChart,
+    type PromotionChanges,
     type SqlChart,
     type UpdateSqlChart,
 } from '@lightdash/common';
@@ -151,6 +152,26 @@ const deleteSavedSqlChart = async (projectUuid: string, savedSqlUuid: string) =>
         body: undefined,
     });
 
+const promoteSavedSqlChart = async (
+    projectUuid: string,
+    savedSqlUuid: string,
+) =>
+    lightdashApi<SqlChart>({
+        url: `/projects/${projectUuid}/sqlRunner/saved/${savedSqlUuid}/promote`,
+        method: 'POST',
+        body: undefined,
+    });
+
+const getPromoteSavedSqlChartDiff = async (
+    projectUuid: string,
+    savedSqlUuid: string,
+) =>
+    lightdashApi<PromotionChanges>({
+        url: `/projects/${projectUuid}/sqlRunner/saved/${savedSqlUuid}/promoteDiff`,
+        method: 'GET',
+        body: undefined,
+    });
+
 export const useDeleteSqlChartMutation = (
     projectUuid: string,
     savedSqlUuid: string,
@@ -187,6 +208,56 @@ export const useDeleteSqlChartMutation = (
             onError: ({ error }) => {
                 showToastApiError({
                     title: `Failed to delete chart`,
+                    apiError: error,
+                });
+            },
+        },
+    );
+};
+
+export const usePromoteSqlChartMutation = (projectUuid: string) => {
+    const { showToastSuccess, showToastApiError } = useToaster();
+
+    return useMutation<SqlChart, ApiError, string>(
+        (savedSqlUuid) => promoteSavedSqlChart(projectUuid, savedSqlUuid),
+        {
+            mutationKey: ['sqlRunner', 'promoteSqlChart', projectUuid],
+            onSuccess: (data) => {
+                showToastSuccess({
+                    title: `Success! SQL chart promoted.`,
+                    action: {
+                        children: 'Open chart',
+                        icon: IconArrowRight,
+                        onClick: () => {
+                            window.open(
+                                `/projects/${data.project.projectUuid}/sql-runner/${data.slug}`,
+                                '_blank',
+                            );
+                        },
+                    },
+                });
+            },
+            onError: ({ error }) => {
+                showToastApiError({
+                    title: `Failed to promote SQL chart`,
+                    apiError: error,
+                });
+            },
+        },
+    );
+};
+
+export const usePromoteSqlChartDiffMutation = (projectUuid: string) => {
+    const { showToastApiError } = useToaster();
+
+    return useMutation<PromotionChanges, ApiError, string>(
+        (savedSqlUuid) =>
+            getPromoteSavedSqlChartDiff(projectUuid, savedSqlUuid),
+        {
+            mutationKey: ['sqlRunner', 'promoteSqlChartDiff', projectUuid],
+            onError: ({ error }) => {
+                showToastApiError({
+                    title: `Failed to get diff from SQL chart`,
                     apiError: error,
                 });
             },

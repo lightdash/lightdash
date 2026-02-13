@@ -14093,6 +14093,548 @@
                 },
                 "type": "object"
             },
+            "PromotionAction": {
+                "enum": ["no changes", "create", "update", "delete"],
+                "type": "string"
+            },
+            "Pick_SpaceSummary.Exclude_keyofSpaceSummary.userAccess__": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "access": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "isPrivate": {
+                        "type": "boolean"
+                    },
+                    "inheritParentPermissions": {
+                        "type": "boolean"
+                    },
+                    "pinnedListUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "pinnedListOrder": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "parentSpaceUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "path": {
+                        "type": "string"
+                    },
+                    "chartCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "dashboardCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "deletedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "deletedBy": {
+                        "properties": {
+                            "lastName": {
+                                "type": "string"
+                            },
+                            "firstName": {
+                                "type": "string"
+                            },
+                            "userUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["lastName", "firstName", "userUuid"],
+                        "type": "object"
+                    }
+                },
+                "required": [
+                    "name",
+                    "projectUuid",
+                    "organizationUuid",
+                    "uuid",
+                    "access",
+                    "isPrivate",
+                    "inheritParentPermissions",
+                    "pinnedListUuid",
+                    "pinnedListOrder",
+                    "slug",
+                    "parentSpaceUuid",
+                    "path",
+                    "chartCount",
+                    "dashboardCount"
+                ],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_SpaceSummary.userAccess_": {
+                "$ref": "#/components/schemas/Pick_SpaceSummary.Exclude_keyofSpaceSummary.userAccess__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "PromotedSpace": {
+                "$ref": "#/components/schemas/Omit_SpaceSummary.userAccess_"
+            },
+            "Pick_Dashboard.Exclude_keyofDashboard.isPrivate-or-access__": {
+                "properties": {
+                    "description": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "parameters": {
+                        "$ref": "#/components/schemas/DashboardParameters"
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "versionUuid": {
+                        "type": "string"
+                    },
+                    "spaceUuid": {
+                        "type": "string"
+                    },
+                    "pinnedListUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "pinnedListOrder": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "deletedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "deletedBy": {
+                        "properties": {
+                            "lastName": {
+                                "type": "string"
+                            },
+                            "firstName": {
+                                "type": "string"
+                            },
+                            "userUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["lastName", "firstName", "userUuid"],
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "dashboardVersionId": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "tiles": {
+                        "items": {
+                            "$ref": "#/components/schemas/DashboardTile"
+                        },
+                        "type": "array"
+                    },
+                    "filters": {
+                        "$ref": "#/components/schemas/DashboardFilters"
+                    },
+                    "updatedByUser": {
+                        "$ref": "#/components/schemas/UpdatedByUser"
+                    },
+                    "spaceName": {
+                        "type": "string"
+                    },
+                    "views": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "firstViewedAt": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "tabs": {
+                        "items": {
+                            "$ref": "#/components/schemas/DashboardTab"
+                        },
+                        "type": "array"
+                    },
+                    "config": {
+                        "$ref": "#/components/schemas/DashboardConfig"
+                    }
+                },
+                "required": [
+                    "name",
+                    "projectUuid",
+                    "organizationUuid",
+                    "uuid",
+                    "updatedAt",
+                    "versionUuid",
+                    "spaceUuid",
+                    "pinnedListUuid",
+                    "pinnedListOrder",
+                    "slug",
+                    "dashboardVersionId",
+                    "tiles",
+                    "filters",
+                    "spaceName",
+                    "views",
+                    "firstViewedAt",
+                    "tabs"
+                ],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_Dashboard.isPrivate-or-access_": {
+                "$ref": "#/components/schemas/Pick_Dashboard.Exclude_keyofDashboard.isPrivate-or-access__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "DashboardDAO": {
+                "$ref": "#/components/schemas/Omit_Dashboard.isPrivate-or-access_"
+            },
+            "PromotedDashboard": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/DashboardDAO"
+                    },
+                    {
+                        "properties": {
+                            "spacePath": {
+                                "type": "string"
+                            },
+                            "spaceSlug": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["spacePath", "spaceSlug"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "Pick_SavedChart.Exclude_keyofSavedChart.isPrivate-or-access__": {
+                "properties": {
+                    "description": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "parameters": {
+                        "$ref": "#/components/schemas/ParametersValuesMap"
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "chartConfig": {
+                        "$ref": "#/components/schemas/ChartConfig"
+                    },
+                    "spaceUuid": {
+                        "type": "string"
+                    },
+                    "pinnedListUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "pinnedListOrder": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "deletedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "deletedBy": {
+                        "properties": {
+                            "lastName": {
+                                "type": "string"
+                            },
+                            "firstName": {
+                                "type": "string"
+                            },
+                            "userUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["lastName", "firstName", "userUuid"],
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "updatedByUser": {
+                        "$ref": "#/components/schemas/UpdatedByUser"
+                    },
+                    "spaceName": {
+                        "type": "string"
+                    },
+                    "tableName": {
+                        "type": "string"
+                    },
+                    "metricQuery": {
+                        "$ref": "#/components/schemas/MetricQuery"
+                    },
+                    "pivotConfig": {
+                        "properties": {
+                            "columns": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["columns"],
+                        "type": "object"
+                    },
+                    "tableConfig": {
+                        "properties": {
+                            "columnOrder": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["columnOrder"],
+                        "type": "object"
+                    },
+                    "dashboardUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "dashboardName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "colorPalette": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": [
+                    "name",
+                    "projectUuid",
+                    "organizationUuid",
+                    "uuid",
+                    "updatedAt",
+                    "chartConfig",
+                    "spaceUuid",
+                    "pinnedListUuid",
+                    "pinnedListOrder",
+                    "slug",
+                    "spaceName",
+                    "tableName",
+                    "metricQuery",
+                    "tableConfig",
+                    "dashboardUuid",
+                    "dashboardName",
+                    "colorPalette"
+                ],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_SavedChart.isPrivate-or-access_": {
+                "$ref": "#/components/schemas/Pick_SavedChart.Exclude_keyofSavedChart.isPrivate-or-access__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "SavedChartDAO": {
+                "$ref": "#/components/schemas/Omit_SavedChart.isPrivate-or-access_"
+            },
+            "PromotedChart": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/SavedChartDAO"
+                    },
+                    {
+                        "properties": {
+                            "oldUuid": {
+                                "type": "string"
+                            },
+                            "spacePath": {
+                                "type": "string"
+                            },
+                            "spaceSlug": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["oldUuid", "spacePath", "spaceSlug"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "PromotedSqlChart": {
+                "properties": {
+                    "spacePath": {
+                        "type": "string"
+                    },
+                    "spaceSlug": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "oldUuid": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "spacePath",
+                    "spaceSlug",
+                    "description",
+                    "name",
+                    "projectUuid",
+                    "slug",
+                    "oldUuid",
+                    "uuid"
+                ],
+                "type": "object"
+            },
+            "PromotionChanges": {
+                "properties": {
+                    "sqlCharts": {
+                        "items": {
+                            "properties": {
+                                "data": {
+                                    "$ref": "#/components/schemas/PromotedSqlChart"
+                                },
+                                "action": {
+                                    "$ref": "#/components/schemas/PromotionAction"
+                                }
+                            },
+                            "required": ["data", "action"],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "charts": {
+                        "items": {
+                            "properties": {
+                                "data": {
+                                    "$ref": "#/components/schemas/PromotedChart"
+                                },
+                                "action": {
+                                    "$ref": "#/components/schemas/PromotionAction"
+                                }
+                            },
+                            "required": ["data", "action"],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "dashboards": {
+                        "items": {
+                            "properties": {
+                                "data": {
+                                    "$ref": "#/components/schemas/PromotedDashboard"
+                                },
+                                "action": {
+                                    "$ref": "#/components/schemas/PromotionAction"
+                                }
+                            },
+                            "required": ["data", "action"],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "spaces": {
+                        "items": {
+                            "properties": {
+                                "data": {
+                                    "$ref": "#/components/schemas/PromotedSpace"
+                                },
+                                "action": {
+                                    "$ref": "#/components/schemas/PromotionAction"
+                                }
+                            },
+                            "required": ["data", "action"],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["charts", "dashboards", "spaces"],
+                "type": "object"
+            },
+            "ApiPromotionChangesResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/PromotionChanges"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "Pick_Explore.name_": {
                 "properties": {
                     "name": {
@@ -14568,102 +15110,6 @@
                 },
                 "required": ["spaceRole", "groupName", "groupUuid"],
                 "type": "object"
-            },
-            "Pick_SpaceSummary.Exclude_keyofSpaceSummary.userAccess__": {
-                "properties": {
-                    "name": {
-                        "type": "string"
-                    },
-                    "projectUuid": {
-                        "type": "string"
-                    },
-                    "organizationUuid": {
-                        "type": "string"
-                    },
-                    "uuid": {
-                        "type": "string"
-                    },
-                    "access": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "isPrivate": {
-                        "type": "boolean"
-                    },
-                    "inheritParentPermissions": {
-                        "type": "boolean"
-                    },
-                    "pinnedListUuid": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "pinnedListOrder": {
-                        "type": "number",
-                        "format": "double",
-                        "nullable": true
-                    },
-                    "slug": {
-                        "type": "string"
-                    },
-                    "parentSpaceUuid": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "path": {
-                        "type": "string"
-                    },
-                    "chartCount": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "dashboardCount": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "deletedAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "deletedBy": {
-                        "properties": {
-                            "lastName": {
-                                "type": "string"
-                            },
-                            "firstName": {
-                                "type": "string"
-                            },
-                            "userUuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["lastName", "firstName", "userUuid"],
-                        "type": "object"
-                    }
-                },
-                "required": [
-                    "name",
-                    "projectUuid",
-                    "organizationUuid",
-                    "uuid",
-                    "access",
-                    "isPrivate",
-                    "inheritParentPermissions",
-                    "pinnedListUuid",
-                    "pinnedListOrder",
-                    "slug",
-                    "parentSpaceUuid",
-                    "path",
-                    "chartCount",
-                    "dashboardCount"
-                ],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "Omit_SpaceSummary.userAccess_": {
-                "$ref": "#/components/schemas/Pick_SpaceSummary.Exclude_keyofSpaceSummary.userAccess__",
-                "description": "Construct a type with the properties of T except for those in type K."
             },
             "Space": {
                 "properties": {
@@ -16458,456 +16904,10 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_SavedChart.Exclude_keyofSavedChart.isPrivate-or-access__": {
-                "properties": {
-                    "description": {
-                        "type": "string"
-                    },
-                    "name": {
-                        "type": "string"
-                    },
-                    "projectUuid": {
-                        "type": "string"
-                    },
-                    "organizationUuid": {
-                        "type": "string"
-                    },
-                    "uuid": {
-                        "type": "string"
-                    },
-                    "parameters": {
-                        "$ref": "#/components/schemas/ParametersValuesMap"
-                    },
-                    "updatedAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "chartConfig": {
-                        "$ref": "#/components/schemas/ChartConfig"
-                    },
-                    "spaceUuid": {
-                        "type": "string"
-                    },
-                    "pinnedListUuid": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "pinnedListOrder": {
-                        "type": "number",
-                        "format": "double",
-                        "nullable": true
-                    },
-                    "slug": {
-                        "type": "string"
-                    },
-                    "spaceName": {
-                        "type": "string"
-                    },
-                    "dashboardUuid": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "dashboardName": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "updatedByUser": {
-                        "$ref": "#/components/schemas/UpdatedByUser"
-                    },
-                    "deletedAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "deletedBy": {
-                        "properties": {
-                            "lastName": {
-                                "type": "string"
-                            },
-                            "firstName": {
-                                "type": "string"
-                            },
-                            "userUuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["lastName", "firstName", "userUuid"],
-                        "type": "object",
-                        "nullable": true
-                    },
-                    "tableName": {
-                        "type": "string"
-                    },
-                    "metricQuery": {
-                        "$ref": "#/components/schemas/MetricQuery"
-                    },
-                    "pivotConfig": {
-                        "properties": {
-                            "columns": {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array"
-                            }
-                        },
-                        "required": ["columns"],
-                        "type": "object"
-                    },
-                    "tableConfig": {
-                        "properties": {
-                            "columnOrder": {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array"
-                            }
-                        },
-                        "required": ["columnOrder"],
-                        "type": "object"
-                    },
-                    "colorPalette": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    }
-                },
-                "required": [
-                    "name",
-                    "projectUuid",
-                    "organizationUuid",
-                    "uuid",
-                    "updatedAt",
-                    "chartConfig",
-                    "spaceUuid",
-                    "pinnedListUuid",
-                    "pinnedListOrder",
-                    "slug",
-                    "spaceName",
-                    "dashboardUuid",
-                    "dashboardName",
-                    "tableName",
-                    "metricQuery",
-                    "tableConfig",
-                    "colorPalette"
-                ],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "Omit_SavedChart.isPrivate-or-access_": {
-                "$ref": "#/components/schemas/Pick_SavedChart.Exclude_keyofSavedChart.isPrivate-or-access__",
-                "description": "Construct a type with the properties of T except for those in type K."
-            },
-            "SavedChartDAO": {
-                "$ref": "#/components/schemas/Omit_SavedChart.isPrivate-or-access_"
-            },
             "ApiPromoteChartResponse": {
                 "properties": {
                     "results": {
                         "$ref": "#/components/schemas/SavedChartDAO"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "PromotionAction": {
-                "enum": ["no changes", "create", "update", "delete"],
-                "type": "string"
-            },
-            "PromotedSpace": {
-                "$ref": "#/components/schemas/Omit_SpaceSummary.userAccess_"
-            },
-            "Pick_Dashboard.Exclude_keyofDashboard.isPrivate-or-access__": {
-                "properties": {
-                    "description": {
-                        "type": "string"
-                    },
-                    "name": {
-                        "type": "string"
-                    },
-                    "projectUuid": {
-                        "type": "string"
-                    },
-                    "organizationUuid": {
-                        "type": "string"
-                    },
-                    "uuid": {
-                        "type": "string"
-                    },
-                    "parameters": {
-                        "$ref": "#/components/schemas/DashboardParameters"
-                    },
-                    "updatedAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "versionUuid": {
-                        "type": "string"
-                    },
-                    "spaceUuid": {
-                        "type": "string"
-                    },
-                    "pinnedListUuid": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "pinnedListOrder": {
-                        "type": "number",
-                        "format": "double",
-                        "nullable": true
-                    },
-                    "slug": {
-                        "type": "string"
-                    },
-                    "spaceName": {
-                        "type": "string"
-                    },
-                    "updatedByUser": {
-                        "$ref": "#/components/schemas/UpdatedByUser"
-                    },
-                    "views": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "firstViewedAt": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "string",
-                                "format": "date-time"
-                            }
-                        ],
-                        "nullable": true
-                    },
-                    "deletedAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "deletedBy": {
-                        "properties": {
-                            "lastName": {
-                                "type": "string"
-                            },
-                            "firstName": {
-                                "type": "string"
-                            },
-                            "userUuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["lastName", "firstName", "userUuid"],
-                        "type": "object",
-                        "nullable": true
-                    },
-                    "dashboardVersionId": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "tiles": {
-                        "items": {
-                            "$ref": "#/components/schemas/DashboardTile"
-                        },
-                        "type": "array"
-                    },
-                    "filters": {
-                        "$ref": "#/components/schemas/DashboardFilters"
-                    },
-                    "tabs": {
-                        "items": {
-                            "$ref": "#/components/schemas/DashboardTab"
-                        },
-                        "type": "array"
-                    },
-                    "config": {
-                        "$ref": "#/components/schemas/DashboardConfig"
-                    }
-                },
-                "required": [
-                    "name",
-                    "projectUuid",
-                    "organizationUuid",
-                    "uuid",
-                    "updatedAt",
-                    "versionUuid",
-                    "spaceUuid",
-                    "pinnedListUuid",
-                    "pinnedListOrder",
-                    "slug",
-                    "spaceName",
-                    "views",
-                    "firstViewedAt",
-                    "dashboardVersionId",
-                    "tiles",
-                    "filters",
-                    "tabs"
-                ],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "Omit_Dashboard.isPrivate-or-access_": {
-                "$ref": "#/components/schemas/Pick_Dashboard.Exclude_keyofDashboard.isPrivate-or-access__",
-                "description": "Construct a type with the properties of T except for those in type K."
-            },
-            "DashboardDAO": {
-                "$ref": "#/components/schemas/Omit_Dashboard.isPrivate-or-access_"
-            },
-            "PromotedDashboard": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/DashboardDAO"
-                    },
-                    {
-                        "properties": {
-                            "spacePath": {
-                                "type": "string"
-                            },
-                            "spaceSlug": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["spacePath", "spaceSlug"],
-                        "type": "object"
-                    }
-                ]
-            },
-            "PromotedChart": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/SavedChartDAO"
-                    },
-                    {
-                        "properties": {
-                            "oldUuid": {
-                                "type": "string"
-                            },
-                            "spacePath": {
-                                "type": "string"
-                            },
-                            "spaceSlug": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["oldUuid", "spacePath", "spaceSlug"],
-                        "type": "object"
-                    }
-                ]
-            },
-            "PromotedSqlChart": {
-                "properties": {
-                    "spacePath": {
-                        "type": "string"
-                    },
-                    "spaceSlug": {
-                        "type": "string"
-                    },
-                    "description": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "name": {
-                        "type": "string"
-                    },
-                    "projectUuid": {
-                        "type": "string"
-                    },
-                    "slug": {
-                        "type": "string"
-                    },
-                    "oldUuid": {
-                        "type": "string"
-                    },
-                    "uuid": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "spacePath",
-                    "spaceSlug",
-                    "description",
-                    "name",
-                    "projectUuid",
-                    "slug",
-                    "oldUuid",
-                    "uuid"
-                ],
-                "type": "object"
-            },
-            "PromotionChanges": {
-                "properties": {
-                    "sqlCharts": {
-                        "items": {
-                            "properties": {
-                                "data": {
-                                    "$ref": "#/components/schemas/PromotedSqlChart"
-                                },
-                                "action": {
-                                    "$ref": "#/components/schemas/PromotionAction"
-                                }
-                            },
-                            "required": ["data", "action"],
-                            "type": "object"
-                        },
-                        "type": "array"
-                    },
-                    "charts": {
-                        "items": {
-                            "properties": {
-                                "data": {
-                                    "$ref": "#/components/schemas/PromotedChart"
-                                },
-                                "action": {
-                                    "$ref": "#/components/schemas/PromotionAction"
-                                }
-                            },
-                            "required": ["data", "action"],
-                            "type": "object"
-                        },
-                        "type": "array"
-                    },
-                    "dashboards": {
-                        "items": {
-                            "properties": {
-                                "data": {
-                                    "$ref": "#/components/schemas/PromotedDashboard"
-                                },
-                                "action": {
-                                    "$ref": "#/components/schemas/PromotionAction"
-                                }
-                            },
-                            "required": ["data", "action"],
-                            "type": "object"
-                        },
-                        "type": "array"
-                    },
-                    "spaces": {
-                        "items": {
-                            "properties": {
-                                "data": {
-                                    "$ref": "#/components/schemas/PromotedSpace"
-                                },
-                                "action": {
-                                    "$ref": "#/components/schemas/PromotionAction"
-                                }
-                            },
-                            "required": ["data", "action"],
-                            "type": "object"
-                        },
-                        "type": "array"
-                    }
-                },
-                "required": ["charts", "dashboards", "spaces"],
-                "type": "object"
-            },
-            "ApiPromotionChangesResponse": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/PromotionChanges"
                     },
                     "status": {
                         "type": "string",
@@ -29701,6 +29701,108 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/sqlRunner/saved/{uuid}/promote": {
+            "post": {
+                "operationId": "promoteSqlChart",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSqlChart"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Promote SQL chart to upstream project",
+                "summary": "Promote SQL chart",
+                "tags": ["SQL runner"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "the uuid for the project",
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "the uuid for the saved sql chart",
+                        "in": "path",
+                        "name": "uuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/sqlRunner/saved/{uuid}/promoteDiff": {
+            "get": {
+                "operationId": "promoteSqlChartDiff",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiPromotionChangesResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get diff from SQL chart to promote",
+                "summary": "Get SQL chart promotion diff",
+                "tags": ["SQL runner"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "the uuid for the project",
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "the uuid for the saved sql chart",
+                        "in": "path",
+                        "name": "uuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/projects/{projectUuid}/sqlRunner/refresh-catalog": {
