@@ -1376,35 +1376,26 @@ export class MetricQueryBuilder {
                         metricObject.table,
                     );
                     metricReferences.forEach((metricReference) => {
+                        const refId = getItemId({
+                            table: metricReference.refTable,
+                            name: metricReference.refName,
+                        });
+                        // Skip dimension references — only process metric references
+                        if (!this.availableMetrics[refId]) {
+                            return;
+                        }
                         const isInMetricsObjects = metricsObjects.some(
-                            (metric) =>
-                                getItemId(metric) ===
-                                getItemId({
-                                    table: metricReference.refTable,
-                                    name: metricReference.refName,
-                                }),
+                            (metric) => getItemId(metric) === refId,
                         );
                         const isInReferencedMetricObjects = acc.some(
-                            (metric) =>
-                                getItemId(metric) ===
-                                getItemId({
-                                    table: metricReference.refTable,
-                                    name: metricReference.refName,
-                                }),
+                            (metric) => getItemId(metric) === refId,
                         );
                         // Only add if doesn't exist in metricsObjects or referencedMetricObjects
                         if (
                             !isInMetricsObjects &&
                             !isInReferencedMetricObjects
                         ) {
-                            acc.push(
-                                this.getMetricFromId(
-                                    getItemId({
-                                        table: metricReference.refTable,
-                                        name: metricReference.refName,
-                                    }),
-                                ),
-                            );
+                            acc.push(this.getMetricFromId(refId));
                         }
                     });
                 }
