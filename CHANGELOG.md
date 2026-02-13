@@ -1,3 +1,10 @@
+# [0.2465.0](https://github.com/lightdash/lightdash/compare/0.2464.0...0.2465.0) (2026-02-13)
+
+
+### Features
+
+* improve permissions UX + some styles ([#20308](https://github.com/lightdash/lightdash/issues/20308)) ([0cb7e1b](https://github.com/lightdash/lightdash/commit/0cb7e1b82af212033eec795795df6650939647f3))
+
 # [0.2464.0](https://github.com/lightdash/lightdash/compare/0.2463.1...0.2464.0) (2026-02-13)
 
 
