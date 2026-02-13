@@ -6,6 +6,7 @@ import {
     type SessionUser,
     type SpaceAccess,
     type SpaceAccessUserMetadata,
+    type SpaceGroup,
 } from '@lightdash/common';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SpacePermissionModel } from '../../models/SpacePermissionModel';
@@ -208,6 +209,16 @@ export class SpacePermissionService extends BaseService {
                 rootSpaceAccessContext[rootSpaceUuid],
             ]),
         );
+    }
+
+    /**
+     * Gets group access for a space.
+     * Resolves to the root space for nested spaces.
+     */
+    async getGroupAccess(spaceUuid: string): Promise<SpaceGroup[]> {
+        const { spaceRoot: rootSpaceUuid } =
+            await this.spaceModel.getSpaceRootFromCacheOrDB(spaceUuid);
+        return this.spacePermissionModel.getGroupAccess(rootSpaceUuid);
     }
 
     async getUserMetadataByUuids(

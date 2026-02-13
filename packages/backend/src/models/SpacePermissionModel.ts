@@ -1,14 +1,20 @@
 import {
     DirectSpaceAccess,
     DirectSpaceAccessOrigin,
+    InvalidSpaceStateError,
+    NotFoundError,
     OrganizationSpaceAccess,
     ProjectSpaceAccess,
     ProjectSpaceAccessOrigin,
     SpaceAccessUserMetadata,
+    type SpaceGroup,
 } from '@lightdash/common';
+import * as Sentry from '@sentry/node';
 import { Knex } from 'knex';
+import NodeCache from 'node-cache';
 import { EmailTableName } from '../database/entities/emails';
 import { GroupMembershipTableName } from '../database/entities/groupMemberships';
+import { GroupTableName } from '../database/entities/groups';
 import { OrganizationMembershipsTableName } from '../database/entities/organizationMemberships';
 import { OrganizationTableName } from '../database/entities/organizations';
 import { ProjectGroupAccessTableName } from '../database/entities/projectGroupAccess';
@@ -411,5 +417,27 @@ export class SpacePermissionModel {
             });
 
         return Object.fromEntries(rows.map((r) => [r.userUuid, r]));
+    }
+
+    /**
+     * Gets the group access for a space.
+     * @param spaceUuid - The UUID of the space to get group access for
+     * @returns The group access entries for the space (or its root space)
+     */
+    async getGroupAccess(spaceUuid: string): Promise<SpaceGroup[]> {
+        const access = await this.database
+            .table(SpaceGroupAccessTableName)
+            .select({
+                groupUuid: `${SpaceGroupAccessTableName}.group_uuid`,
+                spaceRole: `${SpaceGroupAccessTableName}.space_role`,
+                groupName: `${GroupTableName}.name`,
+            })
+            .leftJoin(
+                `${GroupTableName}`,
+                `${GroupTableName}.group_uuid`,
+                `${SpaceGroupAccessTableName}.group_uuid`,
+            )
+            .where('space_uuid', spaceUuid);
+        return access;
     }
 }
