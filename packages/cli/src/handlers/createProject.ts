@@ -327,7 +327,10 @@ For a better user experience, we recommend enabling Snowflake OAuth authenticati
         name: options.name,
         type: options.type,
         warehouseConnection: credentials,
-        copyWarehouseConnectionFromUpstreamProject: isDbtCloudCLI,
+        copyWarehouseConnectionFromUpstreamProject:
+            isDbtCloudCLI ||
+            (options.warehouseCredentials === false &&
+                options.upstreamProjectUuid !== undefined),
         dbtConnection: {
             type: DbtProjectType.NONE,
             target: targetName,
