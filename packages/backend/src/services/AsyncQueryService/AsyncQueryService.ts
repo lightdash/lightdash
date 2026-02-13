@@ -336,6 +336,7 @@ export class AsyncQueryService extends ProjectService {
                 projectUuid: queryHistory.projectUuid,
                 userId: account.user.id,
                 isRegisteredUser: account.isRegisteredUser(),
+                isServiceAccount: account.isServiceAccount(),
             }),
         );
 
@@ -1369,6 +1370,7 @@ export class AsyncQueryService extends ProjectService {
     public async runAsyncWarehouseQuery({
         userId,
         isRegisteredUser,
+        isServiceAccount,
         projectUuid,
         query,
         fieldsMap,
@@ -1407,6 +1409,7 @@ export class AsyncQueryService extends ProjectService {
                 projectUuid,
                 userId,
                 isRegisteredUser,
+                isServiceAccount,
             });
 
             warehouseCredentialsType = warehouseCredentials.type;
@@ -1777,6 +1780,7 @@ export class AsyncQueryService extends ProjectService {
                             projectUuid,
                             userId: account.user.id,
                             isRegisteredUser: account.isRegisteredUser(),
+                            isServiceAccount: account.isServiceAccount(),
                         });
 
                     const warehouseCredentialsType = warehouseCredentials.type;
@@ -1960,6 +1964,7 @@ export class AsyncQueryService extends ProjectService {
                     void this.runAsyncWarehouseQuery({
                         userId: account.user.id,
                         isRegisteredUser: account.isRegisteredUser(),
+                        isServiceAccount: account.isServiceAccount(),
                         projectUuid,
                         query,
                         fieldsMap,
@@ -2065,6 +2070,7 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             userId: account.user.id,
             isRegisteredUser: account.isRegisteredUser(),
+            isServiceAccount: account.isServiceAccount(),
         });
 
         const warehouseSqlBuilder = warehouseSqlBuilderFromType(
@@ -2251,6 +2257,7 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             userId: account.user.id,
             isRegisteredUser: account.isRegisteredUser(),
+            isServiceAccount: account.isServiceAccount(),
         });
 
         const warehouseSqlBuilder = warehouseSqlBuilderFromType(
@@ -2503,6 +2510,7 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             userId: account.user.id,
             isRegisteredUser: account.isRegisteredUser(),
+            isServiceAccount: account.isServiceAccount(),
         });
 
         const warehouseSqlBuilder = warehouseSqlBuilderFromType(
@@ -2617,6 +2625,7 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             userId: account.user.id,
             isRegisteredUser: account.isRegisteredUser(),
+            isServiceAccount: account.isServiceAccount(),
         });
 
         const warehouseSqlBuilder = warehouseSqlBuilderFromType(
@@ -2968,6 +2977,7 @@ export class AsyncQueryService extends ProjectService {
                 projectUuid,
                 userId: account.user.id,
                 isRegisteredUser: account.isRegisteredUser(),
+                isServiceAccount: account.isServiceAccount(),
             }),
         );
 
