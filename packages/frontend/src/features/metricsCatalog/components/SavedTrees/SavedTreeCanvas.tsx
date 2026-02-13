@@ -27,6 +27,7 @@ import { BASE_API_URL } from '../../../../api';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import MantineModal from '../../../../components/common/MantineModal';
 import SuboptimalState from '../../../../components/common/SuboptimalState/SuboptimalState';
+import useApp from '../../../../providers/App/useApp';
 import { useAppDispatch, useAppSelector } from '../../../sqlRunner/store/hooks';
 import { useMetricsCatalog } from '../../hooks/useMetricsCatalog';
 import {
@@ -62,6 +63,8 @@ type SavedTreeCanvasProps = {
 
 const SavedTreeCanvas: FC<SavedTreeCanvasProps> = ({ mode, treeUuid }) => {
     const dispatch = useAppDispatch();
+    const { user } = useApp();
+    const currentUserUuid = user?.data?.userUuid;
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
     );
@@ -151,6 +154,11 @@ const SavedTreeCanvas: FC<SavedTreeCanvasProps> = ({ mode, treeUuid }) => {
     const { mutateAsync: releaseLock } = useReleaseTreeLock();
     const { saveDraft, clearDraft } = useTreeDraft(treeUuid);
 
+    const exitToList = useCallback(() => {
+        dispatch(setActiveTreeUuid(null));
+        dispatch(setSavedTreeEditMode(SavedTreeEditMode.VIEW));
+    }, [dispatch]);
+
     const handleLockLost = useCallback(() => {
         clearDraft();
         dispatch(setSavedTreeEditMode(SavedTreeEditMode.VIEW));
@@ -194,7 +202,7 @@ const SavedTreeCanvas: FC<SavedTreeCanvasProps> = ({ mode, treeUuid }) => {
         treeNameRef.current = treeName;
     }, [treeName]);
 
-    const generationRef = useRef(treeDetails?.generation ?? 1);
+    const generationRef = useRef(1);
     useEffect(() => {
         if (treeDetails) {
             generationRef.current = treeDetails.generation;
@@ -230,10 +238,7 @@ const SavedTreeCanvas: FC<SavedTreeCanvasProps> = ({ mode, treeUuid }) => {
         [saveDraft],
     );
 
-    const handleBack = () => {
-        dispatch(setActiveTreeUuid(null));
-        dispatch(setSavedTreeEditMode(SavedTreeEditMode.VIEW));
-    };
+    const handleBack = exitToList;
 
     const [
         discardModalOpened,
@@ -253,8 +258,7 @@ const SavedTreeCanvas: FC<SavedTreeCanvasProps> = ({ mode, treeUuid }) => {
             // Go back to view mode for this tree
             dispatch(setSavedTreeEditMode(SavedTreeEditMode.VIEW));
         } else {
-            dispatch(setActiveTreeUuid(null));
-            dispatch(setSavedTreeEditMode(SavedTreeEditMode.VIEW));
+            exitToList();
         }
     };
 
@@ -419,9 +423,11 @@ const SavedTreeCanvas: FC<SavedTreeCanvasProps> = ({ mode, treeUuid }) => {
 
     // View mode: tree loaded
     if (treeDetails) {
+        const lockerName = treeDetails.lock?.lockedByUserName;
         const lockByOther =
             treeDetails.lock !== null &&
-            treeDetails.lock.lockedByUserUuid !== undefined;
+            treeDetails.lock.lockedByUserUuid !== undefined &&
+            treeDetails.lock.lockedByUserUuid !== currentUserUuid;
 
         return (
             <Stack h="100%" gap={0}>
@@ -444,7 +450,7 @@ const SavedTreeCanvas: FC<SavedTreeCanvasProps> = ({ mode, treeUuid }) => {
                                     <MantineIcon icon={IconLock} size={12} />
                                 }
                             >
-                                Editing by {treeDetails.lock!.lockedByUserName}
+                                Editing by {lockerName}
                             </Badge>
                         )}
                     </Group>
@@ -458,9 +464,7 @@ const SavedTreeCanvas: FC<SavedTreeCanvasProps> = ({ mode, treeUuid }) => {
                             Close
                         </Button>
                         {lockByOther ? (
-                            <Tooltip
-                                label={`Being edited by ${treeDetails.lock!.lockedByUserName}`}
-                            >
+                            <Tooltip label={`Being edited by ${lockerName}`}>
                                 <Button
                                     size="compact-sm"
                                     variant="default"
