@@ -786,6 +786,7 @@ export class AsyncQueryService extends ProjectService {
         hiddenFields = [],
         pivotConfig,
         attachmentDownloadName,
+        expirationSecondsOverride,
     }: DownloadAsyncQueryResultsArgs): Promise<
         | ApiDownloadAsyncQueryResults
         | ApiDownloadAsyncQueryResultsAsCsv
@@ -930,6 +931,7 @@ export class AsyncQueryService extends ProjectService {
                         createdByUserUuid: isJwtUser(account)
                             ? null
                             : account.user.userUuid,
+                        expirationSecondsOverride,
                     });
                 }
                 return this.downloadAsyncQueryResultsAsFormattedFile(
@@ -955,6 +957,7 @@ export class AsyncQueryService extends ProjectService {
                             ? null
                             : account.user.userUuid,
                         fileType: DownloadFileType.CSV,
+                        expirationSecondsOverride,
                     },
                 );
             case DownloadFileType.XLSX: {
@@ -1011,6 +1014,7 @@ export class AsyncQueryService extends ProjectService {
                             createdByUserUuid: isJwtUser(account)
                                 ? null
                                 : account.user.userUuid,
+                            expirationSeconds: expirationSecondsOverride,
                         },
                     );
                 return {
@@ -1062,6 +1066,7 @@ export class AsyncQueryService extends ProjectService {
             projectUuid: string;
             createdByUserUuid: string | null;
             fileType: DownloadFileType;
+            expirationSecondsOverride?: number;
         },
     ): Promise<{ fileUrl: string; truncated: boolean }> {
         // Generate a unique filename
@@ -1132,6 +1137,8 @@ export class AsyncQueryService extends ProjectService {
                     organizationUuid: persistentUrlContext.organizationUuid,
                     projectUuid: persistentUrlContext.projectUuid,
                     createdByUserUuid: persistentUrlContext.createdByUserUuid,
+                    expirationSeconds:
+                        persistentUrlContext.expirationSecondsOverride,
                 });
             return { fileUrl: persistentUrl, truncated: result.truncated };
         }

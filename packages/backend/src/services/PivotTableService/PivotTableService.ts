@@ -100,6 +100,7 @@ export class PivotTableService extends BaseService {
         pivotDetails,
         organizationUuid,
         createdByUserUuid,
+        expirationSecondsOverride,
     }: {
         resultsFileName: string;
         fields: ItemsMap;
@@ -118,6 +119,7 @@ export class PivotTableService extends BaseService {
         };
         organizationUuid: string;
         createdByUserUuid: string | null;
+        expirationSecondsOverride?: number;
     }): Promise<{ fileUrl: string; truncated: boolean }> {
         const { onlyRaw, customLabels, pivotConfig, attachmentDownloadName } =
             options;
@@ -170,6 +172,7 @@ export class PivotTableService extends BaseService {
             pivotDetails,
             organizationUuid,
             createdByUserUuid,
+            expirationSecondsOverride,
         });
 
         return {
@@ -196,6 +199,7 @@ export class PivotTableService extends BaseService {
         pivotDetails,
         organizationUuid,
         createdByUserUuid,
+        expirationSecondsOverride,
     }: {
         name?: string;
         projectUuid: string;
@@ -211,6 +215,7 @@ export class PivotTableService extends BaseService {
         metricsAsRows?: boolean;
         organizationUuid: string;
         createdByUserUuid: string | null;
+        expirationSecondsOverride?: number;
     }): Promise<AttachmentUrl> {
         // PivotDetails.valuesColumns is just an array objects, we need to convert it to a map so we can format the pivoted results
         // See AsyncQueryService.ts line 1126 for more details on why we're using pivotColumnName as the key
@@ -258,6 +263,7 @@ export class PivotTableService extends BaseService {
             truncated,
             organizationUuid,
             createdByUserUuid,
+            expirationSecondsOverride,
         });
     }
 
@@ -271,6 +277,7 @@ export class PivotTableService extends BaseService {
         truncated = false,
         organizationUuid,
         createdByUserUuid,
+        expirationSecondsOverride,
     }: {
         csvContent: string;
         fileName: string;
@@ -278,6 +285,7 @@ export class PivotTableService extends BaseService {
         truncated?: boolean;
         organizationUuid: string;
         createdByUserUuid: string | null;
+        expirationSecondsOverride?: number;
     }): Promise<AttachmentUrl> {
         const fileId = PivotTableService.generateFileId(fileName, truncated);
         const filePath = `/tmp/${fileId}`;
@@ -311,6 +319,7 @@ export class PivotTableService extends BaseService {
                     organizationUuid,
                     projectUuid,
                     createdByUserUuid,
+                    expirationSeconds: expirationSecondsOverride,
                 });
             return {
                 filename: fileName,

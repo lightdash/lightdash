@@ -324,6 +324,9 @@ export const lightdashConfigMock: LightdashConfig = {
     persistentDownloadUrls: {
         enabled: false,
         expirationSeconds: 259200,
+        expirationSecondsEmail: undefined,
+        expirationSecondsSlack: undefined,
+        expirationSecondsMsTeams: undefined,
     },
     softDelete: {
         enabled: false,

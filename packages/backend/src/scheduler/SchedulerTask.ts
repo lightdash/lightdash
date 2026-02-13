@@ -298,6 +298,7 @@ export default class SchedulerTask {
     protected async getNotificationPageData(
         scheduler: CreateSchedulerAndTargets,
         jobId: string,
+        expirationSecondsOverride?: number,
     ): Promise<NotificationPayloadBase['page']> {
         const {
             createdBy: userUuid,
@@ -489,6 +490,7 @@ export default class SchedulerTask {
                                     ),
                                     pivotConfig: getPivotConfig(chart),
                                     columnOrder: chart.tableConfig.columnOrder,
+                                    expirationSecondsOverride,
                                 },
                             );
                         csvUrl = {
@@ -627,6 +629,7 @@ export default class SchedulerTask {
                                             pivotConfig: getPivotConfig(chart),
                                             columnOrder:
                                                 chart.tableConfig.columnOrder,
+                                            expirationSecondsOverride,
                                         },
                                     );
                                 return {
@@ -702,6 +705,7 @@ export default class SchedulerTask {
                                                         ? chart.config
                                                         : undefined,
                                                 ),
+                                            expirationSecondsOverride,
                                         },
                                     );
                                 return {
@@ -900,9 +904,17 @@ export default class SchedulerTask {
             });
 
             // Backwards compatibility for old scheduled deliveries
+            const slackExpiration =
+                this.lightdashConfig.persistentDownloadUrls
+                    .expirationSecondsSlack ??
+                this.lightdashConfig.persistentDownloadUrls.expirationSeconds;
             const notificationPageData =
                 notification.page ??
-                (await this.getNotificationPageData(scheduler, jobId));
+                (await this.getNotificationPageData(
+                    scheduler,
+                    jobId,
+                    slackExpiration,
+                ));
 
             const {
                 url,
@@ -922,6 +934,7 @@ export default class SchedulerTask {
                 );
 
             const showExpirationWarning = format !== SchedulerFormat.IMAGE;
+            const slackExpirationDays = Math.ceil(slackExpiration / 86400);
             const schedulerFooter = includeLinks
                 ? `<${url}?${setUuidParam(
                       'scheduler_uuid',
@@ -939,9 +952,8 @@ export default class SchedulerTask {
                     cron,
                     timezone || defaultSchedulerTimezone,
                 )} from Lightdash.\n${
-                    showExpirationWarning &&
-                    this.fileStorageClient.expirationDays
-                        ? `For security reasons, delivered files expire after *${this.fileStorageClient.expirationDays}* days.`
+                    showExpirationWarning
+                        ? `For security reasons, delivered files expire after *${slackExpirationDays}* days.`
                         : ''
                 }`,
                 includeLinks,
@@ -964,9 +976,7 @@ export default class SchedulerTask {
                         : 'data alert';
 
                     const expiration = slackImageUrl.expiring
-                        ? `For security reasons, delivered files expire after ${
-                              this.fileStorageClient.expirationDays ?? 3
-                          } days.`
+                        ? `For security reasons, delivered files expire after ${slackExpirationDays} days.`
                         : '';
 
                     const blocks = getChartThresholdAlertBlocks({
@@ -994,9 +1004,7 @@ export default class SchedulerTask {
                     );
 
                 const expiration = slackImageUrl.expiring
-                    ? `For security reasons, delivered files expire after ${
-                          this.fileStorageClient.expirationDays ?? 3
-                      } days.`
+                    ? `For security reasons, delivered files expire after ${slackExpirationDays} days.`
                     : '';
                 const blocks = getChartAndDashboardBlocks({
                     ...getBlocksArgs,
@@ -1233,9 +1241,17 @@ export default class SchedulerTask {
             });
 
             // Backwards compatibility for old scheduled deliveries
+            const msTeamsExpiration =
+                this.lightdashConfig.persistentDownloadUrls
+                    .expirationSecondsMsTeams ??
+                this.lightdashConfig.persistentDownloadUrls.expirationSeconds;
             const notificationPageData =
                 notification.page ??
-                (await this.getNotificationPageData(scheduler, jobId));
+                (await this.getNotificationPageData(
+                    scheduler,
+                    jobId,
+                    msTeamsExpiration,
+                ));
 
             const {
                 url,
@@ -2071,9 +2087,17 @@ export default class SchedulerTask {
             });
 
             // Backwards compatibility for old scheduled deliveries
+            const emailExpiration =
+                this.lightdashConfig.persistentDownloadUrls
+                    .expirationSecondsEmail ??
+                this.lightdashConfig.persistentDownloadUrls.expirationSeconds;
             const notificationPageData =
                 notification.page ??
-                (await this.getNotificationPageData(scheduler, jobId));
+                (await this.getNotificationPageData(
+                    scheduler,
+                    jobId,
+                    emailExpiration,
+                ));
 
             const {
                 url,
@@ -2129,9 +2153,7 @@ export default class SchedulerTask {
                     details.description || '',
                     thresholdMessage,
                     new Date().toLocaleDateString('en-GB'),
-                    `For security reasons, delivered files expire after ${
-                        this.fileStorageClient.expirationDays ?? 3
-                    } days`,
+                    `For security reasons, delivered files expire after ${Math.ceil(emailExpiration / 86400)} days`,
                     imageUrl,
                     url,
                     schedulerUrl,
@@ -2160,7 +2182,7 @@ export default class SchedulerTask {
                     schedulerUrl,
                     includeLinks,
                     pdfFile?.source,
-                    this.fileStorageClient.expirationDays,
+                    Math.ceil(emailExpiration / 86400),
                 );
             } else if (savedChartUuid) {
                 if (csvUrl === undefined) {
@@ -2182,7 +2204,7 @@ export default class SchedulerTask {
                     url,
                     schedulerUrl,
                     includeLinks,
-                    this.fileStorageClient.expirationDays,
+                    Math.ceil(emailExpiration / 86400),
                     csvOptions?.asAttachment,
                     format,
                 );
@@ -2207,7 +2229,7 @@ export default class SchedulerTask {
                     url,
                     schedulerUrl,
                     includeLinks,
-                    this.fileStorageClient.expirationDays,
+                    Math.ceil(emailExpiration / 86400),
                     csvOptions?.asAttachment,
                     format,
                     failures,
@@ -3061,10 +3083,89 @@ export default class SchedulerTask {
                 }
             }
 
-            const page =
-                scheduler.format === SchedulerFormat.GSHEETS
-                    ? undefined
-                    : await this.getNotificationPageData(scheduler, jobId);
+            let page: NotificationPayloadBase['page'] | undefined;
+            let perChannelPages:
+                | {
+                      email?: NotificationPayloadBase['page'];
+                      slack?: NotificationPayloadBase['page'];
+                      msteams?: NotificationPayloadBase['page'];
+                  }
+                | undefined;
+
+            if (scheduler.format === SchedulerFormat.GSHEETS) {
+                page = undefined;
+            } else {
+                const {
+                    expirationSeconds,
+                    expirationSecondsEmail,
+                    expirationSecondsSlack,
+                    expirationSecondsMsTeams,
+                } = this.lightdashConfig.persistentDownloadUrls;
+
+                const emailExpiration =
+                    expirationSecondsEmail ?? expirationSeconds;
+                const slackExpiration =
+                    expirationSecondsSlack ?? expirationSeconds;
+                const msTeamsExpiration =
+                    expirationSecondsMsTeams ?? expirationSeconds;
+
+                const hasEmail = targets.some(
+                    (t) =>
+                        !isCreateSchedulerSlackTarget(t) &&
+                        !isCreateSchedulerMsTeamsTarget(t),
+                );
+                const hasSlack = targets.some(isCreateSchedulerSlackTarget);
+                const hasMsTeams = targets.some(isCreateSchedulerMsTeamsTarget);
+
+                const expirationToChannels = new Map<
+                    number,
+                    Set<'email' | 'slack' | 'msteams'>
+                >();
+                const addToMap = (
+                    expiration: number,
+                    channel: 'email' | 'slack' | 'msteams',
+                ) => {
+                    const existing = expirationToChannels.get(expiration);
+                    if (existing) {
+                        existing.add(channel);
+                    } else {
+                        expirationToChannels.set(
+                            expiration,
+                            new Set([channel]),
+                        );
+                    }
+                };
+                if (hasEmail) addToMap(emailExpiration, 'email');
+                if (hasSlack) addToMap(slackExpiration, 'slack');
+                if (hasMsTeams) addToMap(msTeamsExpiration, 'msteams');
+
+                const pageByChannel = await Array.from(
+                    expirationToChannels.entries(),
+                ).reduce(
+                    async (accPromise, [expiration, channels]) => {
+                        const acc = await accPromise;
+                        const channelPage = await this.getNotificationPageData(
+                            scheduler,
+                            jobId,
+                            expiration,
+                        );
+                        for (const channel of channels) {
+                            acc[channel] = channelPage;
+                        }
+                        return acc;
+                    },
+                    Promise.resolve(
+                        {} as Record<string, NotificationPayloadBase['page']>,
+                    ),
+                );
+
+                perChannelPages = pageByChannel;
+                page =
+                    pageByChannel.email ??
+                    pageByChannel.slack ??
+                    pageByChannel.msteams;
+            }
+
             const scheduledJobs =
                 await this.schedulerClient.generateJobsForSchedulerTargets(
                     scheduledTime,
@@ -3072,6 +3173,7 @@ export default class SchedulerTask {
                     page,
                     jobId,
                     traceProperties,
+                    perChannelPages,
                 );
 
             // Create scheduled jobs for targets

@@ -884,6 +884,9 @@ export type LightdashConfig = {
     persistentDownloadUrls: {
         enabled: boolean;
         expirationSeconds: number;
+        expirationSecondsEmail: number | undefined;
+        expirationSecondsSlack: number | undefined;
+        expirationSecondsMsTeams: number | undefined;
     };
     extendedUsageAnalytics: {
         enabled: boolean;
@@ -1716,6 +1719,15 @@ export const parseConfig = (): LightdashConfig => {
                 getIntegerFromEnvironmentVariable(
                     'PERSISTENT_DOWNLOAD_URL_EXPIRATION_SECONDS',
                 ) ?? 259200, // 3 days, matches S3_EXPIRATION_TIME default
+            expirationSecondsEmail: getIntegerFromEnvironmentVariable(
+                'PERSISTENT_DOWNLOAD_URL_EXPIRATION_SECONDS_EMAIL',
+            ),
+            expirationSecondsSlack: getIntegerFromEnvironmentVariable(
+                'PERSISTENT_DOWNLOAD_URL_EXPIRATION_SECONDS_SLACK',
+            ),
+            expirationSecondsMsTeams: getIntegerFromEnvironmentVariable(
+                'PERSISTENT_DOWNLOAD_URL_EXPIRATION_SECONDS_MSTEAMS',
+            ),
         },
         extendedUsageAnalytics: {
             enabled: process.env.EXTENDED_USAGE_ANALYTICS === 'true',
