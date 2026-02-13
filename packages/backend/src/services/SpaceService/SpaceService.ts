@@ -122,7 +122,7 @@ export class SpaceService extends BaseService implements BulkActionable<Knex> {
         const space = await this.spaceModel.get(spaceUuid);
         const [ctx, groupsAccess, breadcrumbs] = await Promise.all([
             this.spacePermissionService.getAllSpaceAccessContext(spaceUuid),
-            this.spaceModel.getGroupAccess(spaceUuid),
+            this.spacePermissionService.getGroupAccess(spaceUuid),
             this.spaceModel.getSpaceBreadcrumbs(spaceUuid, space.projectUuid),
         ]);
 
@@ -267,7 +267,8 @@ export class SpaceService extends BaseService implements BulkActionable<Knex> {
         const space = await this.spaceModel.getSpaceSummary(spaceUuid);
 
         // TODO: legacy nested space check. How do we migrate this?
-        const isNested = !(await this.spaceModel.isRootSpace(spaceUuid));
+        const isNested =
+            !(await this.spacePermissionService.isRootSpace(spaceUuid));
         if (isNested && 'isPrivate' in updateSpace) {
             throw new ForbiddenError(`Can't change privacy for a nested space`);
         }
@@ -580,7 +581,8 @@ export class SpaceService extends BaseService implements BulkActionable<Knex> {
 
         // Nested Spaces MVP - disables nested spaces' access changes when feature flag is off
 
-        const isNested = !(await this.spaceModel.isRootSpace(spaceUuid));
+        const isNested =
+            !(await this.spacePermissionService.isRootSpace(spaceUuid));
         if (isNested) {
             throw new ForbiddenError(
                 `Can't change user access to a nested space`,
@@ -606,7 +608,8 @@ export class SpaceService extends BaseService implements BulkActionable<Knex> {
         }
 
         // Nested Spaces MVP - disables nested spaces' access changes when feature flag is off
-        const isNested = !(await this.spaceModel.isRootSpace(spaceUuid));
+        const isNested =
+            !(await this.spacePermissionService.isRootSpace(spaceUuid));
         if (isNested) {
             throw new ForbiddenError(
                 `Can't change user access to a nested space`,
@@ -629,7 +632,8 @@ export class SpaceService extends BaseService implements BulkActionable<Knex> {
         }
 
         // Nested Spaces MVP - disables nested spaces' access changes when feature flag is off
-        const isNested = !(await this.spaceModel.isRootSpace(spaceUuid));
+        const isNested =
+            !(await this.spacePermissionService.isRootSpace(spaceUuid));
         if (isNested) {
             throw new ForbiddenError(
                 `Can't change group access to a nested space`,
@@ -655,7 +659,8 @@ export class SpaceService extends BaseService implements BulkActionable<Knex> {
         }
 
         // Nested Spaces MVP - disables nested spaces' access changes when feature flag is off
-        const isNested = !(await this.spaceModel.isRootSpace(spaceUuid));
+        const isNested =
+            !(await this.spacePermissionService.isRootSpace(spaceUuid));
         if (isNested) {
             throw new ForbiddenError(
                 `Can't change group access to a nested space`,

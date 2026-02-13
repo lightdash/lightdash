@@ -8,7 +8,6 @@ import {
     type SpaceAccessUserMetadata,
     type SpaceGroup,
 } from '@lightdash/common';
-import { SpaceModel } from '../../models/SpaceModel';
 import { SpacePermissionModel } from '../../models/SpacePermissionModel';
 import { BaseService } from '../BaseService';
 
@@ -20,10 +19,7 @@ type SpaceAccessContextForCasl = {
 };
 
 export class SpacePermissionService extends BaseService {
-    constructor(
-        private readonly spaceModel: SpaceModel,
-        private readonly spacePermissionModel: SpacePermissionModel,
-    ) {
+    constructor(private readonly spacePermissionModel: SpacePermissionModel) {
         super();
     }
 

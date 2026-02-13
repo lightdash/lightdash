@@ -984,7 +984,7 @@ export class PromoteService extends BaseService {
                         this.spacePermissionService.getAllSpaceAccessContext(
                             data.uuid,
                         ),
-                        this.spaceModel.getGroupAccess(data.uuid),
+                        this.spacePermissionService.getGroupAccess(data.uuid),
                     ]);
 
                     const userAccessPromises = ctx.access

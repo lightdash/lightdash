@@ -36,11 +36,9 @@ const spaceModel = {
     getSpaceAncestors: jest.fn(async () => []),
     createSpace: jest.fn(async () => existingUpstreamChart.space),
     createSpaceWithAncestors: jest.fn(async () => existingUpstreamChart.space),
-    getGroupAccess: jest.fn(async () => upstreamFullSpace.groupsAccess),
     addSpaceAccess: jest.fn(async () => {}),
     addSpaceGroupAccess: jest.fn(async () => {}),
     update: jest.fn(async () => {}),
-    isRootSpace: jest.fn(async () => true),
 };
 const dashboardModel = {
     create: jest.fn(async () => existingUpstreamDashboard.dashboard),
@@ -58,6 +56,8 @@ const spacePermissionService = {
         isPrivate: false,
         access: upstreamFullSpace.access,
     })),
+    getGroupAccess: jest.fn(async () => upstreamFullSpace.groupsAccess),
+    isRootSpace: jest.fn(async () => true),
 };
 describe('PromoteService chart changes', () => {
     const service = new PromoteService({
