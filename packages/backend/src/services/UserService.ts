@@ -15,6 +15,7 @@ import {
     DeleteOpenIdentity,
     EmailStatusExpiring,
     ExpiredError,
+    FeatureFlags,
     ForbiddenError,
     getEmailDomain,
     hasInviteCode,
@@ -58,6 +59,7 @@ import { LightdashConfig } from '../config/parseConfig';
 import Logger from '../logging/logger';
 import { PersonalAccessTokenModel } from '../models/DashboardModel/PersonalAccessTokenModel';
 import { EmailModel } from '../models/EmailModel';
+import { FeatureFlagModel } from '../models/FeatureFlagModel/FeatureFlagModel';
 import { GroupsModel } from '../models/GroupsModel';
 import { InviteLinkModel } from '../models/InviteLinkModel';
 import { OpenIdIdentityModel } from '../models/OpenIdIdentitiesModel';
@@ -90,6 +92,7 @@ type UserServiceArguments = {
     organizationAllowedEmailDomainsModel: OrganizationAllowedEmailDomainsModel;
     userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
     warehouseAvailableTablesModel: WarehouseAvailableTablesModel;
+    featureFlagModel: FeatureFlagModel;
 };
 
 export class UserService extends BaseService {
@@ -125,6 +128,8 @@ export class UserService extends BaseService {
 
     private readonly warehouseAvailableTablesModel: WarehouseAvailableTablesModel;
 
+    private readonly featureFlagModel: FeatureFlagModel;
+
     private readonly emailOneTimePasscodeExpirySeconds = 60 * 15;
 
     private readonly emailOneTimePasscodeMaxAttempts = 5;
@@ -146,6 +151,7 @@ export class UserService extends BaseService {
         organizationAllowedEmailDomainsModel,
         userWarehouseCredentialsModel,
         warehouseAvailableTablesModel,
+        featureFlagModel,
     }: UserServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -165,6 +171,7 @@ export class UserService extends BaseService {
             organizationAllowedEmailDomainsModel;
         this.userWarehouseCredentialsModel = userWarehouseCredentialsModel;
         this.warehouseAvailableTablesModel = warehouseAvailableTablesModel;
+        this.featureFlagModel = featureFlagModel;
     }
 
     private identifyUser(
@@ -303,8 +310,7 @@ export class UserService extends BaseService {
                     const emailDomain = getEmailDomain(userEmail);
                     if (
                         allowedEmailDomains.emailDomains.some(
-                            (domain) =>
-                                domain.toLowerCase() === emailDomain,
+                            (domain) => domain.toLowerCase() === emailDomain,
                         ) &&
                         allowedEmailDomains.projects.length > 0
                     ) {
@@ -1590,6 +1596,15 @@ export class UserService extends BaseService {
             return requestUser;
         }
 
+        // If feature flag is off, clear any active impersonation
+        if (!(await this.isImpersonationEnabled(requestUser))) {
+            this.logger.warn(
+                `Impersonation feature flag is disabled, clearing impersonation for admin ${passportUser.id}`,
+            );
+            clearImpersonation();
+            return requestUser;
+        }
+
         // Validate admin can still impersonate
         if (
             !requestUser.isActive ||
@@ -2104,6 +2119,19 @@ export class UserService extends BaseService {
         return openId !== undefined;
     }
 
+    private async isImpersonationEnabled(
+        user: Pick<
+            LightdashUser,
+            'userUuid' | 'organizationUuid' | 'organizationName'
+        >,
+    ): Promise<boolean> {
+        const flag = await this.featureFlagModel.get({
+            user,
+            featureFlagId: FeatureFlags.UserImpersonation,
+        });
+        return flag.enabled;
+    }
+
     async startImpersonation(
         adminUser: SessionUser,
         targetUserUuid: string,
@@ -2122,6 +2150,10 @@ export class UserService extends BaseService {
             }) => void;
         },
     ): Promise<void> {
+        if (!(await this.isImpersonationEnabled(adminUser))) {
+            throw new ForbiddenError('User impersonation is not enabled');
+        }
+
         if (!isSessionAuth) {
             throw new ForbiddenError(
                 'Impersonation requires session authentication',

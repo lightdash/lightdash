@@ -329,4 +329,7 @@ export const lightdashConfigMock: LightdashConfig = {
         enabled: false,
         retentionDays: 30,
     },
+    userImpersonation: {
+        enabled: undefined,
+    },
 };
