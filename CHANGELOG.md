@@ -1,3 +1,10 @@
+## [0.2459.1](https://github.com/lightdash/lightdash/compare/0.2459.0...0.2459.1) (2026-02-13)
+
+
+### Bug Fixes
+
+* maps no data color picker style ([#20285](https://github.com/lightdash/lightdash/issues/20285)) ([5782932](https://github.com/lightdash/lightdash/commit/578293205b3cc0f6ef8480e6a6962951364d657f))
+
 # [0.2459.0](https://github.com/lightdash/lightdash/compare/0.2458.2...0.2459.0) (2026-02-13)
 
 
