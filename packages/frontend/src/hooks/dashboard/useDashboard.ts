@@ -25,6 +25,7 @@ import { lightdashApi } from '../../api';
 import { pollJobStatus } from '../../features/scheduler/hooks/useScheduler';
 import useApp from '../../providers/App/useApp';
 import useToaster from '../toaster/useToaster';
+import { invalidateContent } from '../useContent';
 import useQueryError from '../useQueryError';
 import useDashboardStorage from './useDashboardStorage';
 
@@ -582,17 +583,10 @@ export const useDashboardDeleteMutation = () => {
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<null, ApiError, string>(deleteDashboard, {
         onSuccess: async () => {
-            await queryClient.invalidateQueries(['dashboards']);
-            await queryClient.invalidateQueries(['space']);
-
+            await invalidateContent(queryClient, projectUuid!);
             await queryClient.invalidateQueries([
                 'dashboards-containing-chart',
             ]);
-            await queryClient.invalidateQueries(['pinned_items']);
-            await queryClient.invalidateQueries([
-                'most-popular-and-recently-updated',
-            ]);
-            await queryClient.invalidateQueries(['content']);
             await queryClient.invalidateQueries(['deletedContent']);
             showToastSuccess({
                 title: `Deleted! Dashboard was deleted.`,
