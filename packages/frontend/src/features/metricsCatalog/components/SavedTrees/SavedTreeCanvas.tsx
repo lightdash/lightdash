@@ -68,6 +68,9 @@ const SavedTreeCanvas: FC<SavedTreeCanvasProps> = ({ mode, treeUuid }) => {
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
     );
+    const canManageMetricsTree = useAppSelector(
+        (state) => state.metricsCatalog.abilities.canManageMetricsTree,
+    );
     const search = useAppSelector((state) => state.metricsCatalog.search);
     const categoryFilters = useAppSelector(
         (state) => state.metricsCatalog.categoryFilters,
@@ -346,6 +349,8 @@ const SavedTreeCanvas: FC<SavedTreeCanvasProps> = ({ mode, treeUuid }) => {
                 >
                     <Group gap="sm" wrap="nowrap" style={{ flex: 1 }}>
                         <TextInput
+                            required
+                            variant="subtle"
                             placeholder="Tree name"
                             value={treeName}
                             onChange={(e) => setTreeName(e.currentTarget.value)}
@@ -458,40 +463,45 @@ const SavedTreeCanvas: FC<SavedTreeCanvasProps> = ({ mode, treeUuid }) => {
                         <Button
                             variant="default"
                             size="compact-sm"
-                            color="gray"
                             onClick={handleBack}
                         >
                             Close
                         </Button>
-                        {lockByOther ? (
-                            <Tooltip label={`Being edited by ${lockerName}`}>
+                        {canManageMetricsTree &&
+                            (lockByOther ? (
+                                <Tooltip
+                                    label={`Being edited by ${lockerName}`}
+                                >
+                                    <Button
+                                        size="compact-sm"
+                                        variant="default"
+                                        leftSection={
+                                            <MantineIcon
+                                                icon={IconPencil}
+                                                size={14}
+                                            />
+                                        }
+                                        disabled
+                                    >
+                                        Edit
+                                    </Button>
+                                </Tooltip>
+                            ) : (
                                 <Button
                                     size="compact-sm"
                                     variant="default"
+                                    onClick={handleEditClick}
+                                    loading={isAcquiringLock}
                                     leftSection={
                                         <MantineIcon
                                             icon={IconPencil}
                                             size={14}
                                         />
                                     }
-                                    disabled
                                 >
                                     Edit
                                 </Button>
-                            </Tooltip>
-                        ) : (
-                            <Button
-                                size="compact-sm"
-                                variant="default"
-                                onClick={handleEditClick}
-                                loading={isAcquiringLock}
-                                leftSection={
-                                    <MantineIcon icon={IconPencil} size={14} />
-                                }
-                            >
-                                Edit
-                            </Button>
-                        )}
+                            ))}
                     </Group>
                 </Group>
                 <Box className={classes.canvasContainer}>
