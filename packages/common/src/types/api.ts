@@ -54,6 +54,8 @@ import {
     type ApiGetMetricsTreeResponse,
     type ApiGetMetricsTreesResponse,
     type ApiMetricsCatalog,
+    type ApiMetricsTreeLockResponse,
+    type ApiUpdateMetricsTreeResponse,
 } from './catalog';
 import { type ApiGetChangeResponse } from './changeset';
 import {
@@ -817,6 +819,8 @@ type ApiResults =
     | ApiGetMetricsTree['results']
     | ApiGetMetricsTreeResponse['results']
     | ApiGetMetricsTreesResponse['results']
+    | ApiMetricsTreeLockResponse['results']
+    | ApiUpdateMetricsTreeResponse['results']
     | ApiMetricsExplorerTotalResults['results']
     | ApiGetSpotlightTableConfig['results']
     | ApiCalculateSubtotalsResponse['results']

@@ -1,8 +1,10 @@
+import { AlreadyExistsError } from '@lightdash/common';
 import knex, { Knex } from 'knex';
 import { getTracker, MockClient, Tracker } from 'knex-mock-client';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import {
     MetricsTreeEdgesTableName,
+    MetricsTreeLocksTableName,
     MetricsTreeNodesTableName,
     MetricsTreesTableName,
 } from '../../database/entities/catalog';
@@ -10,6 +12,7 @@ import { CatalogModel } from './CatalogModel';
 
 const MOCK_PROJECT_UUID = 'project-uuid-1';
 const MOCK_USER_UUID = 'user-uuid-1';
+const MOCK_OTHER_USER_UUID = 'user-uuid-2';
 const MOCK_TREE_UUID = 'tree-uuid-1';
 const MOCK_TIMESTAMP = new Date('2026-01-01T00:00:00Z');
 
@@ -332,6 +335,226 @@ describe('CatalogModel', () => {
             expect(edgesInsert.bindings).toContain('metric-a');
             expect(edgesInsert.bindings).toContain('metric-b');
             expect(edgesInsert.bindings).not.toContain('metric-c');
+        });
+    });
+
+    describe('acquireTreeLock', () => {
+        const MOCK_LOCK_ROW = {
+            metrics_tree_uuid: MOCK_TREE_UUID,
+            locked_by_user_uuid: MOCK_USER_UUID,
+            acquired_at: MOCK_TIMESTAMP,
+            last_heartbeat_at: new Date(),
+        };
+
+        test('should acquire lock when no existing lock', async () => {
+            tracker.on
+                .insert(({ sql }) => sql.includes(MetricsTreeLocksTableName))
+                .responseOnce([MOCK_LOCK_ROW]);
+
+            // SELECT user info
+            tracker.on
+                .select(({ sql }) => sql.includes('users'))
+                .responseOnce([{ first_name: 'John', last_name: 'Doe' }]);
+
+            const result = await model.acquireTreeLock(
+                MOCK_TREE_UUID,
+                MOCK_USER_UUID,
+            );
+
+            expect(result).toEqual({
+                lockedByUserUuid: MOCK_USER_UUID,
+                lockedByUserName: 'John Doe',
+                acquiredAt: MOCK_TIMESTAMP,
+            });
+
+            expect(tracker.history.insert).toHaveLength(1);
+            // Verify the upsert uses onConflict merge
+            const insertQuery = tracker.history.insert[0];
+            expect(insertQuery.sql).toContain('on conflict');
+        });
+
+        test('should re-acquire lock when same user holds it', async () => {
+            // Atomic upsert succeeds (same user matches WHERE condition)
+            tracker.on
+                .insert(({ sql }) => sql.includes(MetricsTreeLocksTableName))
+                .responseOnce([MOCK_LOCK_ROW]);
+
+            // SELECT user info
+            tracker.on
+                .select(({ sql }) => sql.includes('users'))
+                .responseOnce([{ first_name: 'John', last_name: 'Doe' }]);
+
+            const result = await model.acquireTreeLock(
+                MOCK_TREE_UUID,
+                MOCK_USER_UUID,
+            );
+
+            expect(result.lockedByUserUuid).toEqual(MOCK_USER_UUID);
+            expect(tracker.history.insert).toHaveLength(1);
+        });
+
+        test('should acquire lock when existing lock is expired', async () => {
+            // Atomic upsert succeeds (expired heartbeat matches WHERE condition)
+            tracker.on
+                .insert(({ sql }) => sql.includes(MetricsTreeLocksTableName))
+                .responseOnce([MOCK_LOCK_ROW]);
+
+            // SELECT user info
+            tracker.on
+                .select(({ sql }) => sql.includes('users'))
+                .responseOnce([{ first_name: 'John', last_name: 'Doe' }]);
+
+            const result = await model.acquireTreeLock(
+                MOCK_TREE_UUID,
+                MOCK_USER_UUID,
+            );
+
+            expect(result.lockedByUserUuid).toEqual(MOCK_USER_UUID);
+            expect(tracker.history.insert).toHaveLength(1);
+        });
+
+        test('should throw when different user holds active lock', async () => {
+            // Atomic upsert returns empty (WHERE conditions not met)
+            tracker.on
+                .insert(({ sql }) => sql.includes(MetricsTreeLocksTableName))
+                .responseOnce([]);
+
+            await expect(
+                model.acquireTreeLock(MOCK_TREE_UUID, MOCK_USER_UUID),
+            ).rejects.toThrow(AlreadyExistsError);
+
+            // Only the failed upsert attempt, no user SELECT
+            expect(tracker.history.insert).toHaveLength(1);
+            expect(tracker.history.select).toHaveLength(0);
+        });
+
+        test('should format user name without last name', async () => {
+            // Atomic upsert succeeds
+            tracker.on
+                .insert(({ sql }) => sql.includes(MetricsTreeLocksTableName))
+                .responseOnce([MOCK_LOCK_ROW]);
+
+            // SELECT user with null last name
+            tracker.on
+                .select(({ sql }) => sql.includes('users'))
+                .responseOnce([{ first_name: 'John', last_name: null }]);
+
+            const result = await model.acquireTreeLock(
+                MOCK_TREE_UUID,
+                MOCK_USER_UUID,
+            );
+
+            expect(result.lockedByUserName).toEqual('John');
+        });
+    });
+
+    describe('refreshTreeLockHeartbeat', () => {
+        test('should return true when lock is refreshed', async () => {
+            // UPDATE returns 1 row affected
+            tracker.on
+                .update(({ sql }) => sql.includes(MetricsTreeLocksTableName))
+                .responseOnce(1);
+
+            const result = await model.refreshTreeLockHeartbeat(
+                MOCK_TREE_UUID,
+                MOCK_USER_UUID,
+            );
+
+            expect(result).toBe(true);
+
+            // Verify update targets the correct tree + user
+            const updateQuery = tracker.history.update[0];
+            expect(updateQuery.bindings).toContain(MOCK_TREE_UUID);
+            expect(updateQuery.bindings).toContain(MOCK_USER_UUID);
+        });
+
+        test('should return false when no matching lock exists', async () => {
+            // UPDATE returns 0 rows affected (no lock found)
+            tracker.on
+                .update(({ sql }) => sql.includes(MetricsTreeLocksTableName))
+                .responseOnce(0);
+
+            const result = await model.refreshTreeLockHeartbeat(
+                MOCK_TREE_UUID,
+                MOCK_USER_UUID,
+            );
+
+            expect(result).toBe(false);
+        });
+    });
+
+    describe('releaseTreeLock', () => {
+        test('should delete lock for the given tree and user', async () => {
+            tracker.on
+                .delete(({ sql }) => sql.includes(MetricsTreeLocksTableName))
+                .responseOnce([]);
+
+            await model.releaseTreeLock(MOCK_TREE_UUID, MOCK_USER_UUID);
+
+            expect(tracker.history.delete).toHaveLength(1);
+
+            const deleteQuery = tracker.history.delete[0];
+            expect(deleteQuery.bindings).toContain(MOCK_TREE_UUID);
+            expect(deleteQuery.bindings).toContain(MOCK_USER_UUID);
+        });
+    });
+
+    describe('getTreeLock', () => {
+        test('should return lock info when active lock exists', async () => {
+            tracker.on
+                .select(
+                    ({ sql }) =>
+                        sql.includes(MetricsTreeLocksTableName) &&
+                        sql.includes('users'),
+                )
+                .responseOnce([
+                    {
+                        metrics_tree_uuid: MOCK_TREE_UUID,
+                        locked_by_user_uuid: MOCK_USER_UUID,
+                        acquired_at: MOCK_TIMESTAMP,
+                        last_heartbeat_at: new Date(),
+                        first_name: 'John',
+                        last_name: 'Doe',
+                    },
+                ]);
+
+            const result = await model.getTreeLock(MOCK_TREE_UUID);
+
+            expect(result).toEqual({
+                lockedByUserUuid: MOCK_USER_UUID,
+                lockedByUserName: 'John Doe',
+                acquiredAt: MOCK_TIMESTAMP,
+            });
+        });
+
+        test('should return null when no lock exists', async () => {
+            tracker.on
+                .select(
+                    ({ sql }) =>
+                        sql.includes(MetricsTreeLocksTableName) &&
+                        sql.includes('users'),
+                )
+                .responseOnce([]);
+
+            const result = await model.getTreeLock(MOCK_TREE_UUID);
+
+            expect(result).toBeNull();
+        });
+
+        test('should include expiry condition in query', async () => {
+            tracker.on
+                .select(
+                    ({ sql }) =>
+                        sql.includes(MetricsTreeLocksTableName) &&
+                        sql.includes('users'),
+                )
+                .responseOnce([]);
+
+            await model.getTreeLock(MOCK_TREE_UUID);
+
+            const selectQuery = tracker.history.select[0];
+            // The query should include the heartbeat expiry check
+            expect(selectQuery.sql).toContain('last_heartbeat_at');
         });
     });
 });

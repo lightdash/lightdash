@@ -178,6 +178,7 @@ export type DbMetricsTree = {
     updated_by_user_uuid: string | null;
     created_at: Date;
     updated_at: Date;
+    generation: number;
 };
 
 export type DbMetricsTreeIn = Pick<
@@ -192,7 +193,11 @@ export type DbMetricsTreeIn = Pick<
 
 export type DbMetricsTreeUpdate = Pick<
     DbMetricsTree,
-    'name' | 'description' | 'updated_at' | 'updated_by_user_uuid'
+    | 'name'
+    | 'description'
+    | 'updated_at'
+    | 'updated_by_user_uuid'
+    | 'generation'
 >;
 
 export type MetricsTreesTable = Knex.CompositeTableType<
@@ -234,4 +239,31 @@ export type MetricsTreeNodesTable = Knex.CompositeTableType<
     DbMetricsTreeNode,
     DbMetricsTreeNodeIn,
     Partial<DbMetricsTreeNodeUpdate>
+>;
+
+// --- Metrics Tree Locks ---
+
+export const MetricsTreeLocksTableName = 'metrics_tree_locks';
+
+export type DbMetricsTreeLock = {
+    metrics_tree_uuid: string;
+    locked_by_user_uuid: string;
+    acquired_at: Date;
+    last_heartbeat_at: Date;
+};
+
+export type DbMetricsTreeLockIn = Pick<
+    DbMetricsTreeLock,
+    'metrics_tree_uuid' | 'locked_by_user_uuid'
+>;
+
+export type DbMetricsTreeLockUpdate = Pick<
+    DbMetricsTreeLock,
+    'locked_by_user_uuid' | 'acquired_at' | 'last_heartbeat_at'
+>;
+
+export type MetricsTreeLocksTable = Knex.CompositeTableType<
+    DbMetricsTreeLock,
+    DbMetricsTreeLockIn,
+    Partial<DbMetricsTreeLockUpdate>
 >;
