@@ -1,3 +1,11 @@
+# [0.2460.0](https://github.com/lightdash/lightdash/compare/0.2459.3...0.2460.0) (2026-02-13)
+
+
+### Features
+
+* add editing functionality to saved metrics trees ([#20278](https://github.com/lightdash/lightdash/issues/20278)) ([2469b0e](https://github.com/lightdash/lightdash/commit/2469b0e2dbc5513ea770d8be59dd405ae821c435)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+* add metrics tree locking system for collaborative editing ([#20274](https://github.com/lightdash/lightdash/issues/20274)) ([109439f](https://github.com/lightdash/lightdash/commit/109439fb06809384613b026788cb9a97b35cdb93))
+
 ## [0.2459.3](https://github.com/lightdash/lightdash/compare/0.2459.2...0.2459.3) (2026-02-13)
 
 
