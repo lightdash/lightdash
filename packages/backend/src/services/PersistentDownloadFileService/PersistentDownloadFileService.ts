@@ -37,6 +37,7 @@ export class PersistentDownloadFileService extends BaseService {
         organizationUuid: string;
         projectUuid: string | null;
         createdByUserUuid: string | null;
+        expirationSeconds?: number;
     }): Promise<string> {
         if (!this.lightdashConfig.persistentDownloadUrls.enabled) {
             this.logger.debug(
@@ -46,8 +47,9 @@ export class PersistentDownloadFileService extends BaseService {
         }
 
         const fileNanoid = nanoid();
-        const { expirationSeconds } =
-            this.lightdashConfig.persistentDownloadUrls;
+        const expirationSeconds =
+            data.expirationSeconds ??
+            this.lightdashConfig.persistentDownloadUrls.expirationSeconds;
         const expiresAt = new Date(Date.now() + expirationSeconds * 1000);
         await this.persistentDownloadFileModel.create({
             nanoid: fileNanoid,

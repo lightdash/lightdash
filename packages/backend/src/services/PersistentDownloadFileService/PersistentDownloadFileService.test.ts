@@ -99,6 +99,48 @@ describe('PersistentDownloadFileService', () => {
 
             jest.restoreAllMocks();
         });
+
+        it('should use expirationSeconds override when provided', async () => {
+            mockModelCreate.mockResolvedValue(undefined);
+            const now = Date.now();
+            jest.spyOn(Date, 'now').mockReturnValue(now);
+
+            const service = createService({
+                enabled: true,
+                expirationSeconds: 259200,
+            });
+
+            await service.createPersistentUrl({
+                ...baseData,
+                expirationSeconds: 86400,
+            });
+
+            const createCall = mockModelCreate.mock.calls[0][0];
+            expect(createCall.expiresAt.getTime()).toBe(now + 86400 * 1000);
+
+            jest.restoreAllMocks();
+        });
+
+        it('should fall back to config expirationSeconds when override is undefined', async () => {
+            mockModelCreate.mockResolvedValue(undefined);
+            const now = Date.now();
+            jest.spyOn(Date, 'now').mockReturnValue(now);
+
+            const service = createService({
+                enabled: true,
+                expirationSeconds: 259200,
+            });
+
+            await service.createPersistentUrl({
+                ...baseData,
+                expirationSeconds: undefined,
+            });
+
+            const createCall = mockModelCreate.mock.calls[0][0];
+            expect(createCall.expiresAt.getTime()).toBe(now + 259200 * 1000);
+
+            jest.restoreAllMocks();
+        });
     });
 
     describe('getSignedUrl', () => {

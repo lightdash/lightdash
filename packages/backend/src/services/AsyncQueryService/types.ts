@@ -47,6 +47,7 @@ export type DownloadAsyncQueryResultsArgs = Omit<
     hiddenFields?: string[];
     pivotConfig?: PivotConfig;
     attachmentDownloadName?: string;
+    expirationSecondsOverride?: number;
 };
 
 export type ScheduleDownloadAsyncQueryResultsArgs = Omit<

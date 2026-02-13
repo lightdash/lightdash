@@ -551,6 +551,10 @@ export default class EmailClient {
                 host: this.lightdashConfig.siteUrl,
                 schedulerUrl,
                 expirationDays,
+                expirationDaysLabel:
+                    expirationDays !== undefined
+                        ? `${expirationDays} ${expirationDays === 1 ? 'day' : 'days'}`
+                        : undefined,
                 deliveryType,
                 includeLinks,
             },
@@ -610,6 +614,10 @@ export default class EmailClient {
                 host: this.lightdashConfig.siteUrl,
                 schedulerUrl,
                 expirationDays,
+                expirationDaysLabel:
+                    expirationDays !== undefined
+                        ? `${expirationDays} ${expirationDays === 1 ? 'day' : 'days'}`
+                        : undefined,
                 includeLinks,
                 hasAttachment: attachments && attachments.length > 0,
                 attachmentCount: attachments?.length || 0,
@@ -678,6 +686,10 @@ export default class EmailClient {
                 host: this.lightdashConfig.siteUrl,
                 schedulerUrl,
                 expirationDays,
+                expirationDaysLabel:
+                    expirationDays !== undefined
+                        ? `${expirationDays} ${expirationDays === 1 ? 'day' : 'days'}`
+                        : undefined,
                 includeLinks,
                 hasAttachments: emailAttachments && emailAttachments.length > 0,
                 attachmentCount: emailAttachments?.length || 0,
