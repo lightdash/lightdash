@@ -4936,6 +4936,9 @@
                         "type": "number",
                         "format": "double"
                     },
+                    "colorOverrides": {
+                        "$ref": "#/components/schemas/Record_string.string_"
+                    },
                     "colorRange": {
                         "items": {
                             "type": "string"
@@ -8251,6 +8254,19 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
+                                                            "success",
+                                                            "error"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": ["status"],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
                                                             "error",
                                                             "success"
                                                         ]
@@ -8266,12 +8282,12 @@
                                                             "topMatchingFields": {
                                                                 "items": {
                                                                     "properties": {
-                                                                        "chartUsage": {
+                                                                        "searchRank": {
                                                                             "type": "number",
                                                                             "format": "double",
                                                                             "nullable": true
                                                                         },
-                                                                        "searchRank": {
+                                                                        "chartUsage": {
                                                                             "type": "number",
                                                                             "format": "double",
                                                                             "nullable": true
@@ -8279,10 +8295,10 @@
                                                                         "fieldType": {
                                                                             "type": "string"
                                                                         },
-                                                                        "tableName": {
+                                                                        "label": {
                                                                             "type": "string"
                                                                         },
-                                                                        "label": {
+                                                                        "tableName": {
                                                                             "type": "string"
                                                                         },
                                                                         "name": {
@@ -8291,8 +8307,8 @@
                                                                     },
                                                                     "required": [
                                                                         "fieldType",
-                                                                        "tableName",
                                                                         "label",
+                                                                        "tableName",
                                                                         "name"
                                                                     ],
                                                                     "type": "object"
@@ -8302,16 +8318,16 @@
                                                             "exploreSearchResults": {
                                                                 "items": {
                                                                     "properties": {
+                                                                        "searchRank": {
+                                                                            "type": "number",
+                                                                            "format": "double",
+                                                                            "nullable": true
+                                                                        },
                                                                         "joinedTables": {
                                                                             "items": {
                                                                                 "type": "string"
                                                                             },
                                                                             "type": "array",
-                                                                            "nullable": true
-                                                                        },
-                                                                        "searchRank": {
-                                                                            "type": "number",
-                                                                            "format": "double",
                                                                             "nullable": true
                                                                         },
                                                                         "label": {
@@ -8386,12 +8402,12 @@
                                                                         "results": {
                                                                             "items": {
                                                                                 "properties": {
-                                                                                    "chartUsage": {
+                                                                                    "searchRank": {
                                                                                         "type": "number",
                                                                                         "format": "double",
                                                                                         "nullable": true
                                                                                     },
-                                                                                    "searchRank": {
+                                                                                    "chartUsage": {
                                                                                         "type": "number",
                                                                                         "format": "double",
                                                                                         "nullable": true
@@ -8399,10 +8415,10 @@
                                                                                     "fieldType": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "tableName": {
+                                                                                    "label": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "label": {
+                                                                                    "tableName": {
                                                                                         "type": "string"
                                                                                     },
                                                                                     "name": {
@@ -8411,8 +8427,8 @@
                                                                                 },
                                                                                 "required": [
                                                                                     "fieldType",
-                                                                                    "tableName",
                                                                                     "label",
+                                                                                    "tableName",
                                                                                     "name"
                                                                                 ],
                                                                                 "type": "object"
@@ -25537,7 +25553,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2458.0",
+        "version": "0.2459.3",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
