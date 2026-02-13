@@ -1,3 +1,10 @@
+## [0.2463.1](https://github.com/lightdash/lightdash/compare/0.2463.0...0.2463.1) (2026-02-13)
+
+
+### Bug Fixes
+
+* optimize find fields tool to avoid calling `findExploresFromCache` multiple times ([#20287](https://github.com/lightdash/lightdash/issues/20287)) ([cd0a201](https://github.com/lightdash/lightdash/commit/cd0a2019a5c41f5e16d5c3577efab0b340848b47))
+
 # [0.2463.0](https://github.com/lightdash/lightdash/compare/0.2462.0...0.2463.0) (2026-02-13)
 
 
