@@ -1,3 +1,10 @@
+# [0.2467.0](https://github.com/lightdash/lightdash/compare/0.2466.0...0.2467.0) (2026-02-13)
+
+
+### Features
+
+* improve color palette display with light/dark mode indicators ([#20311](https://github.com/lightdash/lightdash/issues/20311)) ([4a4dab4](https://github.com/lightdash/lightdash/commit/4a4dab4d8c9e77c3f35815d58153103e4fffc6a5)), closes [#20298](https://github.com/lightdash/lightdash/issues/20298)
+
 # [0.2466.0](https://github.com/lightdash/lightdash/compare/0.2465.0...0.2466.0) (2026-02-13)
 
 
