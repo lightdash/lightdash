@@ -57,9 +57,12 @@ export const Parameters: FC<Props> = ({
         );
     }
 
-    const paramEntries = Object.entries(parameters).sort(
-        ([, a], [, b]) => (a.order ?? Infinity) - (b.order ?? Infinity),
-    );
+    const paramEntries = Object.entries(parameters).sort(([, a], [, b]) => {
+        const aOrder = a.order ?? Infinity;
+        const bOrder = b.order ?? Infinity;
+        if (aOrder === bOrder) return 0;
+        return aOrder - bOrder;
+    });
 
     return (
         <>
