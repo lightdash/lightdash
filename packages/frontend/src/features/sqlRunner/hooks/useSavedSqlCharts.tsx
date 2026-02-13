@@ -16,6 +16,7 @@ import {
 import { useNavigate } from 'react-router';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { invalidateContent } from '../../../hooks/useContent';
 import useApp from '../../../providers/App/useApp';
 
 export type GetSavedSqlChartParams = {
@@ -165,14 +166,8 @@ export const useDeleteSqlChartMutation = (
         {
             mutationKey: ['sqlRunner', 'deleteSqlChart', savedSqlUuid],
             onSuccess: async () => {
+                await invalidateContent(queryClient, projectUuid);
                 await queryClient.invalidateQueries(['sqlRunner']);
-                await queryClient.invalidateQueries(['spaces']);
-                await queryClient.invalidateQueries(['space']);
-                await queryClient.invalidateQueries(['pinned_items']);
-                await queryClient.invalidateQueries([
-                    'most-popular-and-recently-updated',
-                ]);
-                await queryClient.invalidateQueries(['content']);
                 await queryClient.invalidateQueries(['deletedContent']);
 
                 showToastSuccess({

@@ -20,6 +20,7 @@ import { lightdashApi } from '../api';
 import useApp from '../providers/App/useApp';
 import { convertDateFilters } from '../utils/dateFilter';
 import useToaster from './toaster/useToaster';
+import { invalidateContent } from './useContent';
 import useSearchParams from './useSearchParams';
 
 const createSavedQuery = async (
@@ -208,13 +209,7 @@ export const useSavedQueryDeleteMutation = () => {
         {
             mutationKey: ['saved_query_create'],
             onSuccess: async () => {
-                await queryClient.invalidateQueries(['spaces']);
-                await queryClient.invalidateQueries(['space']);
-                await queryClient.invalidateQueries(['pinned_items']);
-                await queryClient.invalidateQueries([
-                    'most-popular-and-recently-updated',
-                ]);
-                await queryClient.invalidateQueries(['content']);
+                await invalidateContent(queryClient, projectUuid!);
                 await queryClient.invalidateQueries(['deletedContent']);
 
                 showToastSuccess({

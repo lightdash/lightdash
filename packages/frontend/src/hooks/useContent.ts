@@ -112,7 +112,7 @@ const postContentBulkAction = async ({
     });
 };
 
-const invalidateContent = async (
+export const invalidateContent = async (
     queryClient: QueryClient,
     projectUuid: string,
 ) => {
@@ -125,6 +125,7 @@ const invalidateContent = async (
         queryClient.invalidateQueries(['space', projectUuid]),
         queryClient.invalidateQueries(['space']),
         queryClient.invalidateQueries(['spaces']),
+        queryClient.invalidateQueries([projectUuid, 'search']),
     ]);
 };
 

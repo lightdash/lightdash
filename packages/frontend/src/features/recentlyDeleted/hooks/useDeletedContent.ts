@@ -13,6 +13,7 @@ import {
 } from '@tanstack/react-query';
 import { useNavigate } from 'react-router';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { invalidateContent } from '../../../hooks/useContent';
 import {
     getDeletedContent,
     permanentlyDeleteContent,
@@ -71,7 +72,7 @@ export function useRestoreDeletedContent(projectUuid: string) {
 
     return useMutation<undefined, ApiError, DeletedContentItem>({
         mutationFn: (item) => restoreDeletedContent(projectUuid, item),
-        onSuccess: (_data, item) => {
+        onSuccess: async (_data, item) => {
             showToastSuccess({
                 title: 'Content restored',
                 subtitle: 'The item has been restored successfully.',
@@ -105,15 +106,8 @@ export function useRestoreDeletedContent(projectUuid: string) {
                               }
                             : undefined,
             });
-            void queryClient.invalidateQueries({
-                queryKey: ['deletedContent'],
-            });
-
-            if (item.contentType === ContentType.SPACE) {
-                void queryClient.invalidateQueries({
-                    queryKey: ['content'],
-                });
-            }
+            await invalidateContent(queryClient, projectUuid);
+            await queryClient.invalidateQueries(['deletedContent']);
         },
         onError: ({ error }) => {
             showToastApiError({
@@ -130,14 +124,13 @@ export function usePermanentlyDeleteContent(projectUuid: string) {
 
     return useMutation<undefined, ApiError, DeletedContentItem>({
         mutationFn: (item) => permanentlyDeleteContent(projectUuid, item),
-        onSuccess: () => {
+        onSuccess: async () => {
             showToastSuccess({
                 title: 'Content permanently deleted',
                 subtitle: 'The item has been permanently deleted.',
             });
-            void queryClient.invalidateQueries({
-                queryKey: ['deletedContent'],
-            });
+            await invalidateContent(queryClient, projectUuid);
+            await queryClient.invalidateQueries(['deletedContent']);
         },
         onError: ({ error }) => {
             showToastApiError({
