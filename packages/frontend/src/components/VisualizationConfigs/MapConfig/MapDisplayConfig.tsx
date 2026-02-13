@@ -200,6 +200,16 @@ export const Display: FC = memo(() => {
                             />
                         </Config.Group>
                     )}
+                    {(isAreaMap || isScatterMap) && (
+                        <Group my="xs">
+                            <ColorSelector
+                                color={validConfig.noDataColor ?? '#f3f3f3'}
+                                swatches={ECHARTS_DEFAULT_COLORS}
+                                onColorChange={setNoDataColor}
+                            />
+                            <Config.Label>No data color</Config.Label>
+                        </Group>
+                    )}
                     {showColorRange && (
                         <Config.Group mb="xs">
                             <Stack w="100%" gap="xs">
@@ -272,7 +282,7 @@ export const Display: FC = memo(() => {
                     )}
                     {(isScatterMap || isAreaMap) && (
                         <>
-                            <Config.Label mt="sm">
+                            <Config.Label mt="xs">
                                 Data layer opacity
                             </Config.Label>
                             <Slider
@@ -293,16 +303,7 @@ export const Display: FC = memo(() => {
                             />
                         </>
                     )}
-                    {(isAreaMap || isScatterMap) && (
-                        <Config.Group>
-                            <Config.Label>No data color</Config.Label>
-                            <ColorSelector
-                                color={validConfig.noDataColor ?? '#f3f3f3'}
-                                swatches={ECHARTS_DEFAULT_COLORS}
-                                onColorChange={setNoDataColor}
-                            />
-                        </Config.Group>
-                    )}
+
                     {isBackgroundNone && (
                         <Config.Group>
                             <Config.Label>Background color</Config.Label>
