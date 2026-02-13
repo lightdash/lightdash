@@ -1,3 +1,10 @@
+# [0.2459.0](https://github.com/lightdash/lightdash/compare/0.2458.2...0.2459.0) (2026-02-13)
+
+
+### Features
+
+* make space share sort stable ([#20271](https://github.com/lightdash/lightdash/issues/20271)) ([95cf8ca](https://github.com/lightdash/lightdash/commit/95cf8caae38b648b34903265b567b87349b1c484))
+
 ## [0.2458.2](https://github.com/lightdash/lightdash/compare/0.2458.1...0.2458.2) (2026-02-12)
 
 
