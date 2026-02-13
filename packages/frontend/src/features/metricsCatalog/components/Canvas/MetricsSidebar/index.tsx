@@ -14,7 +14,7 @@ import {
     IconGripVertical,
     IconInfoCircle,
 } from '@tabler/icons-react';
-import { useMemo, type DragEvent, type FC } from 'react';
+import React, { useCallback, useMemo, type DragEvent, type FC } from 'react';
 import { Panel, PanelResizeHandle } from 'react-resizable-panels';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useIsTruncated } from '../../../../../hooks/useIsTruncated';
@@ -33,77 +33,80 @@ type DraggableMetricItemProps = {
     ) => void;
 };
 
-const DraggableMetricItem: FC<DraggableMetricItemProps> = ({
-    node,
-    onDragStart,
-}) => {
-    const title = useMemo(
-        () => friendlyName(node.data.label),
-        [node.data.label],
-    );
-
-    const { ref, isTruncated } = useIsTruncated();
-    return (
-        <Paper
-            p="xs"
-            draggable
-            onDragStart={(event) => onDragStart(event, node)}
-            className={classes.draggableItem}
-        >
-            <Group gap="xs" wrap="nowrap">
-                <MantineIcon
-                    icon={IconGripVertical}
-                    size={14}
-                    color="ldGray.5"
-                />
-                <Tooltip label={title} disabled={!isTruncated} openDelay={500}>
-                    <Text
-                        size="xs"
-                        c="ldGray.7"
-                        fw={500}
-                        truncate
-                        style={{ flex: 1 }}
-                        ref={ref}
-                    >
-                        {title}
-                    </Text>
-                </Tooltip>
-                <Tooltip
-                    label={
-                        <Text size="xs" fw="bold">
-                            Table:{' '}
-                            <Text span fw="normal">
-                                {node.data.tableName}
-                            </Text>
-                        </Text>
-                    }
-                >
-                    <MantineIcon
-                        icon={IconInfoCircle}
-                        size={12}
-                        color="ldGray.4"
-                    />
-                </Tooltip>
-            </Group>
-        </Paper>
-    );
-};
-
-const MetricsSidebar: FC<MetricsSidebarProps> = ({ nodes }) => {
-    const handleDragStart = (
-        event: DragEvent<HTMLDivElement>,
-        node: ExpandedNodeData,
-    ) => {
-        event.dataTransfer.setData(
-            'application/reactflow',
-            JSON.stringify({
-                catalogSearchUuid: node.id,
-                name: node.data.label,
-                tableName: node.data.tableName,
-            }),
+const DraggableMetricItem: FC<DraggableMetricItemProps> = React.memo(
+    ({ node, onDragStart }) => {
+        const title = useMemo(
+            () => friendlyName(node.data.label),
+            [node.data.label],
         );
-        event.dataTransfer.effectAllowed = 'move';
-    };
+
+        const { ref, isTruncated } = useIsTruncated();
+        return (
+            <Paper
+                p="xs"
+                draggable
+                onDragStart={(event) => onDragStart(event, node)}
+                className={classes.draggableItem}
+            >
+                <Group gap="xs" wrap="nowrap">
+                    <MantineIcon
+                        icon={IconGripVertical}
+                        size={14}
+                        color="ldGray.5"
+                    />
+                    <Tooltip
+                        label={title}
+                        disabled={!isTruncated}
+                        openDelay={500}
+                    >
+                        <Text
+                            size="xs"
+                            c="ldGray.7"
+                            fw={500}
+                            truncate
+                            style={{ flex: 1 }}
+                            ref={ref}
+                        >
+                            {title}
+                        </Text>
+                    </Tooltip>
+                    <Tooltip
+                        label={
+                            <Text size="xs" fw="bold">
+                                Table:{' '}
+                                <Text span fw="normal">
+                                    {node.data.tableName}
+                                </Text>
+                            </Text>
+                        }
+                    >
+                        <MantineIcon
+                            icon={IconInfoCircle}
+                            size={12}
+                            color="ldGray.4"
+                        />
+                    </Tooltip>
+                </Group>
+            </Paper>
+        );
+    },
+);
+
+const MetricsSidebar: FC<MetricsSidebarProps> = React.memo(({ nodes }) => {
+    const handleDragStart = useCallback(
+        (event: DragEvent<HTMLDivElement>, node: ExpandedNodeData) => {
+            event.dataTransfer.setData(
+                'application/reactflow',
+                JSON.stringify({
+                    catalogSearchUuid: node.id,
+                    name: node.data.label,
+                    tableName: node.data.tableName,
+                }),
+            );
+            event.dataTransfer.effectAllowed = 'move';
+        },
+        [],
+    );
 
     return (
         <>
@@ -176,6 +179,6 @@ const MetricsSidebar: FC<MetricsSidebarProps> = ({ nodes }) => {
             </Box>
         </>
     );
-};
+});
 
 export default MetricsSidebar;

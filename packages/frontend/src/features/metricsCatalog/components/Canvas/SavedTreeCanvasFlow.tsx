@@ -32,6 +32,8 @@ type Props = {
     viewOnly: boolean;
     /** Called when canvas nodes/edges change so parent can capture state for save */
     onCanvasStateChange?: (nodes: ExpandedNodeData[], edges: Edge[]) => void;
+    /** Optional filter applied only to the sidebar list (not the canvas) */
+    sidebarFilter?: (node: ExpandedNodeData) => boolean;
 };
 
 const SavedTreeCanvasFlow: FC<Props> = ({
@@ -39,6 +41,7 @@ const SavedTreeCanvasFlow: FC<Props> = ({
     edges,
     viewOnly,
     onCanvasStateChange,
+    sidebarFilter,
 }) => {
     const theme = useMantineTheme();
 
@@ -48,6 +51,7 @@ const SavedTreeCanvasFlow: FC<Props> = ({
         viewOnly,
         preventResetAfterInit: !viewOnly, // In edit mode, prevent background refetch resets
         onCanvasStateChange,
+        sidebarFilter,
         // No onEdgeCreated/onEdgesDeleted -- edges stay local until explicit save
     });
 

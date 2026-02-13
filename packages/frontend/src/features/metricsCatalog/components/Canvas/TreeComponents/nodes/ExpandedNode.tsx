@@ -255,4 +255,4 @@ const ExpandedNode: React.FC<NodeProps<ExpandedNodeData>> = ({
     );
 };
 
-export default ExpandedNode;
+export default React.memo(ExpandedNode);

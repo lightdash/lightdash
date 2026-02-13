@@ -43,15 +43,19 @@ type UseCanvasFlowArgs = {
     preventResetAfterInit?: boolean;
     /** Called when canvas nodes/edges change so parent can capture state */
     onCanvasStateChange?: (nodes: ExpandedNodeData[], edges: Edge[]) => void;
+    /** Optional filter applied only to sidebar nodes (not to canvas nodes) */
+    sidebarFilter?: (node: ExpandedNodeData) => boolean;
 };
 
 export const useCanvasFlow = ({
     metrics,
     edges: edgesProp,
+    viewOnly,
     onEdgeCreated,
     onEdgesDeleted,
     preventResetAfterInit = false,
     onCanvasStateChange,
+    sidebarFilter,
 }: UseCanvasFlowArgs) => {
     const { fitView, getNode, getEdge, screenToFlowPosition } = useReactFlow<
         ExpandedNodeData,
@@ -378,15 +382,17 @@ export const useCanvasFlow = ({
         );
     }, [timeFrame, rollingDays, setCurrentNodes]);
 
-    // Remove nodes from canvas if they no longer exist in metrics
+    // Remove nodes from canvas if they no longer exist in metrics.
+    // In edit mode, skip auto-removal so filtered metrics don't remove canvas nodes.
     const removeNodeChanges = useMemo<NodeRemoveChange[]>(() => {
+        if (!viewOnly) return [];
         return currentNodes
             .filter((node) => !allNodes.some((n) => n.id === node.id))
             .map((node) => ({
                 id: node.id,
                 type: 'remove',
             }));
-    }, [currentNodes, allNodes]);
+    }, [currentNodes, allNodes, viewOnly]);
 
     useEffect(() => {
         if (removeNodeChanges.length > 0) {
@@ -401,12 +407,13 @@ export const useCanvasFlow = ({
         }
     }, [currentNodes, currentEdges, onCanvasStateChange]);
 
-    // Sidebar nodes: all nodes not currently on the canvas
+    // Sidebar nodes: all nodes not currently on the canvas, optionally filtered
     const sidebarNodes = useMemo(() => {
-        return allNodes.filter(
+        const notOnCanvas = allNodes.filter(
             (node) => !currentNodes.some((n) => n.id === node.id),
         );
-    }, [currentNodes, allNodes]);
+        return sidebarFilter ? notOnCanvas.filter(sidebarFilter) : notOnCanvas;
+    }, [currentNodes, allNodes, sidebarFilter]);
 
     return {
         currentNodes,
