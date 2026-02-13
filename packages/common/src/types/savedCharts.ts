@@ -190,6 +190,8 @@ export type MapChart = {
     showLegend?: boolean;
     // Color range (array of 2-5 colors for gradient)
     colorRange?: string[];
+    // Per-value color overrides for categorical (string) color fields
+    colorOverrides?: Record<string, string>;
     // Map extent settings (zoom and center are saved when user enables "save map extent")
     defaultZoom?: number;
     defaultCenterLat?: number;
