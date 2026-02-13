@@ -1,3 +1,15 @@
+# [0.2464.0](https://github.com/lightdash/lightdash/compare/0.2463.1...0.2464.0) (2026-02-13)
+
+
+### Bug Fixes
+
+* Tooltip for 'Add to Verified Answers' is obscured by the toolbar ([#20307](https://github.com/lightdash/lightdash/issues/20307)) ([c32e7df](https://github.com/lightdash/lightdash/commit/c32e7df945a4174f0f627ba408d378565b3dc06a))
+
+
+### Features
+
+* add confirmation modal for discarding tree changes ([#20304](https://github.com/lightdash/lightdash/issues/20304)) ([e992307](https://github.com/lightdash/lightdash/commit/e992307ff4ae7aac57ac19fe182f360d0030be4d))
+
 ## [0.2463.1](https://github.com/lightdash/lightdash/compare/0.2463.0...0.2463.1) (2026-02-13)
 
 
