@@ -121,4 +121,112 @@ describe('AthenaWarehouseClient', () => {
             });
         });
     });
+
+    describe('getAllTables with multi-schema', () => {
+        const mockSend = jest.fn();
+
+        beforeEach(() => {
+            mockAthenaClient.mockImplementation(() => ({
+                send: mockSend,
+            }));
+        });
+
+        test('should list tables from single schema', async () => {
+            mockSend.mockResolvedValueOnce({
+                TableMetadataList: [
+                    { Name: 'table1' },
+                    { Name: 'table2' },
+                ],
+                NextToken: undefined,
+            });
+
+            const client = new AthenaWarehouseClient({
+                ...baseCredentials,
+                schema: 'my_database',
+            });
+            const tables = await client.getAllTables();
+
+            expect(tables).toEqual([
+                {
+                    database: 'AwsDataCatalog',
+                    schema: 'my_database',
+                    table: 'table1',
+                },
+                {
+                    database: 'AwsDataCatalog',
+                    schema: 'my_database',
+                    table: 'table2',
+                },
+            ]);
+        });
+
+        test('should list tables from comma-separated schemas', async () => {
+            // First schema tables
+            mockSend.mockResolvedValueOnce({
+                TableMetadataList: [{ Name: 'table_a' }],
+                NextToken: undefined,
+            });
+            // Second schema tables
+            mockSend.mockResolvedValueOnce({
+                TableMetadataList: [{ Name: 'table_b' }],
+                NextToken: undefined,
+            });
+
+            const client = new AthenaWarehouseClient({
+                ...baseCredentials,
+                schema: 'db1, db2',
+            });
+            const tables = await client.getAllTables();
+
+            expect(tables).toEqual([
+                {
+                    database: 'AwsDataCatalog',
+                    schema: 'db1',
+                    table: 'table_a',
+                },
+                {
+                    database: 'AwsDataCatalog',
+                    schema: 'db2',
+                    table: 'table_b',
+                },
+            ]);
+        });
+
+        test('should list all databases when schema is empty', async () => {
+            // ListDatabasesCommand response
+            mockSend.mockResolvedValueOnce({
+                DatabaseList: [{ Name: 'db_x' }, { Name: 'db_y' }],
+                NextToken: undefined,
+            });
+            // Tables for db_x
+            mockSend.mockResolvedValueOnce({
+                TableMetadataList: [{ Name: 'tbl1' }],
+                NextToken: undefined,
+            });
+            // Tables for db_y
+            mockSend.mockResolvedValueOnce({
+                TableMetadataList: [{ Name: 'tbl2' }],
+                NextToken: undefined,
+            });
+
+            const client = new AthenaWarehouseClient({
+                ...baseCredentials,
+                schema: '',
+            });
+            const tables = await client.getAllTables();
+
+            expect(tables).toEqual([
+                {
+                    database: 'AwsDataCatalog',
+                    schema: 'db_x',
+                    table: 'tbl1',
+                },
+                {
+                    database: 'AwsDataCatalog',
+                    schema: 'db_y',
+                    table: 'tbl2',
+                },
+            ]);
+        });
+    });
 });

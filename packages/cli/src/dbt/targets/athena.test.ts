@@ -58,6 +58,31 @@ describe('convertAthenaSchema', () => {
         });
     });
 
+    test('should parse empty schema (all databases)', () => {
+        const target = {
+            type: 'athena',
+            region_name: 'us-east-1',
+            database: 'AwsDataCatalog',
+            s3_staging_dir: 's3://test-results/',
+        };
+
+        const result = convertAthenaSchema(target);
+        expect(result.schema).toBe('');
+    });
+
+    test('should preserve comma-separated schemas', () => {
+        const target = {
+            type: 'athena',
+            region_name: 'us-east-1',
+            database: 'AwsDataCatalog',
+            schema: 'db1, db2, db3',
+            s3_staging_dir: 's3://test-results/',
+        };
+
+        const result = convertAthenaSchema(target);
+        expect(result.schema).toBe('db1, db2, db3');
+    });
+
     test('should throw parse error for invalid Athena target', () => {
         expect(() =>
             convertAthenaSchema({
