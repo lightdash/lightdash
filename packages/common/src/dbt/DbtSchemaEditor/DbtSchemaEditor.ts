@@ -73,7 +73,31 @@ export default class DbtSchemaEditor {
                 validate.errors || [],
                 { indent: 2 },
             );
-            throw new ParseError(`Invalid schema file: ${filename}\n${errors}`);
+
+            // Add helpful hints for common YAML errors
+            let errorMessage = `Invalid schema file: ${filename}\n${errors}`;
+
+            // Check for validation errors that might indicate indentation issues
+            const indentationErrors = validate.errors?.filter(
+                (err) =>
+                    err.message === 'must be object' &&
+                    (err.instancePath.includes('/metrics') ||
+                        err.instancePath.includes('/additional_dimensions')),
+            );
+
+            if (indentationErrors && indentationErrors.length > 0) {
+                const errorTypes = new Set(
+                    indentationErrors.map((err) =>
+                        err.instancePath.includes('/metrics')
+                            ? 'metrics'
+                            : 'additional_dimensions',
+                    ),
+                );
+                const fieldNames = Array.from(errorTypes).join(' and ');
+                errorMessage += `\n\nCommon cause: Check YAML indentation for ${fieldNames} configuration. Field names must be properly indented under their parent key.`;
+            }
+
+            throw new ParseError(errorMessage);
         }
     }
 
