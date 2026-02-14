@@ -100,7 +100,7 @@
                     },
                     "tabUuid": {
                         "type": ["string", "null"],
-                        "description": "UUID of the tab this tile belongs to, or null for default tab"
+                        "description": "Unique identifier of the tab this tile belongs to (can be any unique string within the dashboard), or null for default tab"
                     },
                     "properties": {
                         "type": "object",
@@ -247,7 +247,7 @@
                 "properties": {
                     "uuid": {
                         "type": "string",
-                        "description": "Unique identifier for the tab"
+                        "description": "Unique identifier for the tab (can be any unique string within the dashboard)"
                     },
                     "name": {
                         "type": "string",
