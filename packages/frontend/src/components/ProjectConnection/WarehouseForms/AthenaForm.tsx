@@ -26,8 +26,7 @@ export const AthenaSchemaInput: FC<{
         <TextInput
             name="warehouse.schema"
             label="Schema"
-            description="This is the schema name (database in Athena)."
-            required
+            description="This is the schema name (database in Athena). Leave empty to browse all databases, or use comma-separated values for multiple databases."
             {...form.getInputProps('warehouse.schema')}
             disabled={disabled}
         />
@@ -125,8 +124,7 @@ const AthenaForm: FC<{
                 <TextInput
                     name="warehouse.schema"
                     label="Database"
-                    description="This is the Athena database name (also known as schema)."
-                    required
+                    description="This is the Athena database name (also known as schema). Leave empty to browse all databases, or use comma-separated values for multiple databases."
                     {...form.getInputProps('warehouse.schema')}
                     disabled={disabled}
                 />
