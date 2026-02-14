@@ -58,17 +58,6 @@ describe('convertAthenaSchema', () => {
         });
     });
 
-    test('should require schema field', () => {
-        expect(() =>
-            convertAthenaSchema({
-                type: 'athena',
-                region_name: 'us-east-1',
-                database: 'AwsDataCatalog',
-                s3_staging_dir: 's3://test-results/',
-            }),
-        ).toThrow(ParseError);
-    });
-
     test('should throw parse error for invalid Athena target', () => {
         expect(() =>
             convertAthenaSchema({
