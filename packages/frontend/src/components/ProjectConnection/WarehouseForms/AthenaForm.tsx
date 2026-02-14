@@ -26,7 +26,8 @@ export const AthenaSchemaInput: FC<{
         <TextInput
             name="warehouse.schema"
             label="Schema"
-            description="This is the schema name (database in Athena). Leave empty to browse all databases, or use comma-separated values for multiple databases."
+            description="This is the default schema name (database in Athena)."
+            required
             {...form.getInputProps('warehouse.schema')}
             disabled={disabled}
         />
@@ -124,9 +125,34 @@ const AthenaForm: FC<{
                 <TextInput
                     name="warehouse.schema"
                     label="Database"
-                    description="This is the Athena database name (also known as schema). Leave empty to browse all databases, or use comma-separated values for multiple databases."
+                    description="This is the default Athena database name (also known as schema)."
+                    required
                     {...form.getInputProps('warehouse.schema')}
                     disabled={disabled}
+                />
+                <TextInput
+                    name="warehouse.accessibleSchemas"
+                    label="Additional databases"
+                    description="Comma-separated list of additional Athena databases to explore. Supports wildcards: * (any characters), ? (single character). E.g. 'sales_*' or '*'."
+                    {...form.getInputProps('warehouse.accessibleSchemas')}
+                    placeholder="db2, db3"
+                    disabled={disabled}
+                    value={
+                        Array.isArray(warehouse.accessibleSchemas)
+                            ? warehouse.accessibleSchemas.join(', ')
+                            : ''
+                    }
+                    onChange={(e) => {
+                        const val = e.currentTarget.value;
+                        const schemas = val
+                            .split(',')
+                            .map((s: string) => s.trim())
+                            .filter((s: string) => s !== '');
+                        form.setFieldValue(
+                            'warehouse.accessibleSchemas',
+                            schemas,
+                        );
+                    }}
                 />
                 <TextInput
                     name="warehouse.s3StagingDir"
