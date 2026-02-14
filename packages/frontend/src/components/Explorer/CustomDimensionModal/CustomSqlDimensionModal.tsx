@@ -26,11 +26,13 @@ import {
     explorerActions,
     selectCustomDimensions,
     selectTableCalculations,
+    selectUnsavedChartVersion,
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
 import { SqlEditor } from '../../../features/tableCalculation/components/SqlForm';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { useOptimisticExplorerUrlUpdate } from '../../../hooks/useExplorerRoute';
 import { useCustomDimensionsAceEditorCompleter } from '../../../hooks/useExplorerAceEditorCompleter';
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
@@ -55,6 +57,8 @@ export const CustomSqlDimensionModal: FC<{
     const dispatch = useExplorerDispatch();
     const customDimensions = useExplorerSelector(selectCustomDimensions);
     const tableCalculations = useExplorerSelector(selectTableCalculations);
+    const unsavedChartVersion = useExplorerSelector(selectUnsavedChartVersion);
+    const updateUrlOptimistically = useOptimisticExplorerUrlUpdate();
 
     const toggleModal = () =>
         dispatch(explorerActions.toggleCustomDimensionModal());
@@ -147,6 +151,18 @@ export const CustomSqlDimensionModal: FC<{
                 const updatedDimensions = (customDimensions ?? []).map((dim) =>
                     dim.id === item.id ? { ...customDim, id: item.id } : dim,
                 );
+
+                // Optimistically update URL BEFORE dispatching Redux action
+                // This prevents race condition where component remounts before URL sync
+                const updatedChartVersion = {
+                    ...unsavedChartVersion,
+                    metricQuery: {
+                        ...unsavedChartVersion.metricQuery,
+                        customDimensions: updatedDimensions,
+                    },
+                };
+                updateUrlOptimistically(updatedChartVersion);
+
                 dispatch(
                     explorerActions.setCustomDimensions(updatedDimensions),
                 );
@@ -154,6 +170,27 @@ export const CustomSqlDimensionModal: FC<{
                     title: 'Custom dimension edited successfully',
                 });
             } else {
+                // Optimistically update URL BEFORE dispatching Redux action
+                // This prevents race condition where component remounts before URL sync
+                const newCustomDimensions = [
+                    ...(customDimensions ?? []),
+                    customDim,
+                ];
+                const customDimensionId = getItemId(customDim);
+                const newDimensions = unsavedChartVersion.metricQuery.dimensions.includes(customDimensionId)
+                    ? unsavedChartVersion.metricQuery.dimensions
+                    : [...unsavedChartVersion.metricQuery.dimensions, customDimensionId];
+
+                const updatedChartVersion = {
+                    ...unsavedChartVersion,
+                    metricQuery: {
+                        ...unsavedChartVersion.metricQuery,
+                        customDimensions: newCustomDimensions,
+                        dimensions: newDimensions,
+                    },
+                };
+                updateUrlOptimistically(updatedChartVersion);
+
                 dispatch(explorerActions.addCustomDimension(customDim));
                 showToastSuccess({
                     title: 'Custom dimension added successfully',
