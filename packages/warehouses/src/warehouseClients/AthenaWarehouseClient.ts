@@ -203,15 +203,11 @@ export class AthenaWarehouseClient extends WarehouseBaseClient<CreateAthenaCrede
         }
     }
 
-    private parseSchemas(): string[] {
-        const { schema } = this.credentials;
-        if (!schema || schema.trim() === '') {
-            return [];
-        }
-        return schema
-            .split(',')
-            .map((s) => s.trim())
-            .filter((s) => s !== '');
+    private static matchesGlob(name: string, pattern: string): boolean {
+        const regex = new RegExp(
+            `^${pattern.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*').replace(/\?/g, '.')}$`,
+        );
+        return regex.test(name);
     }
 
     private async listAllDatabases(): Promise<string[]> {
@@ -241,11 +237,33 @@ export class AthenaWarehouseClient extends WarehouseBaseClient<CreateAthenaCrede
     }
 
     private async getTargetSchemas(): Promise<string[]> {
-        const schemas = this.parseSchemas();
-        if (schemas.length === 0) {
-            return this.listAllDatabases();
+        const { schema, accessibleSchemas } = this.credentials;
+        const explicit: string[] = schema ? [schema] : [];
+        const patterns: string[] = [];
+
+        (accessibleSchemas ?? [])
+            .map((s) => s.trim())
+            .filter((s) => s !== '')
+            .forEach((trimmed) => {
+                if (trimmed.includes('*') || trimmed.includes('?')) {
+                    patterns.push(trimmed);
+                } else {
+                    explicit.push(trimmed);
+                }
+            });
+
+        if (patterns.length > 0) {
+            const allDatabases = await this.listAllDatabases();
+            allDatabases
+                .filter((db) =>
+                    patterns.some((p) =>
+                        AthenaWarehouseClient.matchesGlob(db, p),
+                    ),
+                )
+                .forEach((db) => explicit.push(db));
         }
-        return schemas;
+
+        return [...new Set(explicit)];
     }
 
     private async waitForQueryCompletion(
@@ -344,17 +362,14 @@ export class AthenaWarehouseClient extends WarehouseBaseClient<CreateAthenaCrede
             }
 
             // Start query execution
-            // When schema is empty or comma-separated, omit Database
-            // so SQL must use fully-qualified table names
-            const schemas = this.parseSchemas();
             const queryExecutionContext: {
                 Database?: string;
                 Catalog?: string;
             } = {
                 Catalog: this.credentials.database,
             };
-            if (schemas.length === 1) {
-                queryExecutionContext.Database = schemas[0];
+            if (this.credentials.schema) {
+                queryExecutionContext.Database = this.credentials.schema;
             }
 
             const startResponse = await this.client.send(
@@ -568,6 +583,12 @@ export class AthenaWarehouseClient extends WarehouseBaseClient<CreateAthenaCrede
     ): Promise<WarehouseCatalog> {
         const db = database || this.credentials.database;
         const sch = schema || this.credentials.schema;
+
+        if (!sch) {
+            throw new WarehouseConnectionError(
+                `Cannot get fields for table '${tableName}' without an explicit schema`,
+            );
+        }
 
         try {
             const response = await this.client.send(

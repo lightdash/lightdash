@@ -11,6 +11,7 @@ jest.mock('@aws-sdk/client-athena', () => ({
 }));
 
 // Must import after mocks are set up
+// eslint-disable-next-line import/first
 import { AthenaWarehouseClient } from './AthenaWarehouseClient';
 
 const baseCredentials: CreateAthenaCredentials = {
@@ -96,13 +97,13 @@ describe('AthenaWarehouseClient', () => {
             ]);
         });
 
-        test('should list tables from comma-separated schemas', async () => {
-            // First schema tables
+        test('should list tables from schema and accessibleSchemas', async () => {
+            // Default schema tables
             mockSend.mockResolvedValueOnce({
                 TableMetadataList: [{ Name: 'table_a' }],
                 NextToken: undefined,
             });
-            // Second schema tables
+            // Additional schema tables
             mockSend.mockResolvedValueOnce({
                 TableMetadataList: [{ Name: 'table_b' }],
                 NextToken: undefined,
@@ -110,7 +111,8 @@ describe('AthenaWarehouseClient', () => {
 
             const client = new AthenaWarehouseClient({
                 ...baseCredentials,
-                schema: 'db1, db2',
+                schema: 'db1',
+                accessibleSchemas: ['db2'],
             });
             const tables = await client.getAllTables();
 
@@ -128,39 +130,266 @@ describe('AthenaWarehouseClient', () => {
             ]);
         });
 
-        test('should list all databases when schema is empty', async () => {
-            // ListDatabasesCommand response
+        test('should deduplicate schemas when accessibleSchemas contains the default schema', async () => {
             mockSend.mockResolvedValueOnce({
-                DatabaseList: [{ Name: 'db_x' }, { Name: 'db_y' }],
-                NextToken: undefined,
-            });
-            // Tables for db_x
-            mockSend.mockResolvedValueOnce({
-                TableMetadataList: [{ Name: 'tbl1' }],
-                NextToken: undefined,
-            });
-            // Tables for db_y
-            mockSend.mockResolvedValueOnce({
-                TableMetadataList: [{ Name: 'tbl2' }],
+                TableMetadataList: [{ Name: 'table1' }],
                 NextToken: undefined,
             });
 
             const client = new AthenaWarehouseClient({
                 ...baseCredentials,
-                schema: '',
+                schema: 'db1',
+                accessibleSchemas: ['db1'],
             });
             const tables = await client.getAllTables();
 
             expect(tables).toEqual([
                 {
                     database: 'AwsDataCatalog',
-                    schema: 'db_x',
+                    schema: 'db1',
+                    table: 'table1',
+                },
+            ]);
+            expect(mockSend).toHaveBeenCalledTimes(1);
+        });
+
+        test('should list tables from only the default schema when accessibleSchemas is empty', async () => {
+            mockSend.mockResolvedValueOnce({
+                TableMetadataList: [{ Name: 'tbl1' }],
+                NextToken: undefined,
+            });
+
+            const client = new AthenaWarehouseClient({
+                ...baseCredentials,
+                schema: 'my_db',
+                accessibleSchemas: [],
+            });
+            const tables = await client.getAllTables();
+
+            expect(tables).toEqual([
+                {
+                    database: 'AwsDataCatalog',
+                    schema: 'my_db',
                     table: 'tbl1',
+                },
+            ]);
+        });
+
+        test('should expand * wildcard to all databases', async () => {
+            // ListDatabasesCommand response
+            mockSend.mockResolvedValueOnce({
+                DatabaseList: [
+                    { Name: 'db_alpha' },
+                    { Name: 'db_beta' },
+                    { Name: 'my_database' },
+                ],
+                NextToken: undefined,
+            });
+            // Tables for my_database (default schema)
+            mockSend.mockResolvedValueOnce({
+                TableMetadataList: [{ Name: 't1' }],
+                NextToken: undefined,
+            });
+            // Tables for db_alpha
+            mockSend.mockResolvedValueOnce({
+                TableMetadataList: [{ Name: 't2' }],
+                NextToken: undefined,
+            });
+            // Tables for db_beta
+            mockSend.mockResolvedValueOnce({
+                TableMetadataList: [{ Name: 't3' }],
+                NextToken: undefined,
+            });
+
+            const client = new AthenaWarehouseClient({
+                ...baseCredentials,
+                schema: 'my_database',
+                accessibleSchemas: ['*'],
+            });
+            const tables = await client.getAllTables();
+
+            expect(tables).toEqual([
+                {
+                    database: 'AwsDataCatalog',
+                    schema: 'my_database',
+                    table: 't1',
                 },
                 {
                     database: 'AwsDataCatalog',
-                    schema: 'db_y',
-                    table: 'tbl2',
+                    schema: 'db_alpha',
+                    table: 't2',
+                },
+                {
+                    database: 'AwsDataCatalog',
+                    schema: 'db_beta',
+                    table: 't3',
+                },
+            ]);
+        });
+
+        test('should expand prefix wildcard pattern', async () => {
+            // ListDatabasesCommand response
+            mockSend.mockResolvedValueOnce({
+                DatabaseList: [
+                    { Name: 'sales_us' },
+                    { Name: 'sales_eu' },
+                    { Name: 'marketing' },
+                ],
+                NextToken: undefined,
+            });
+            // Tables for default schema
+            mockSend.mockResolvedValueOnce({
+                TableMetadataList: [{ Name: 't0' }],
+                NextToken: undefined,
+            });
+            // Tables for sales_us
+            mockSend.mockResolvedValueOnce({
+                TableMetadataList: [{ Name: 't1' }],
+                NextToken: undefined,
+            });
+            // Tables for sales_eu
+            mockSend.mockResolvedValueOnce({
+                TableMetadataList: [{ Name: 't2' }],
+                NextToken: undefined,
+            });
+
+            const client = new AthenaWarehouseClient({
+                ...baseCredentials,
+                schema: 'my_database',
+                accessibleSchemas: ['sales_*'],
+            });
+            const tables = await client.getAllTables();
+
+            expect(tables).toEqual([
+                {
+                    database: 'AwsDataCatalog',
+                    schema: 'my_database',
+                    table: 't0',
+                },
+                {
+                    database: 'AwsDataCatalog',
+                    schema: 'sales_us',
+                    table: 't1',
+                },
+                {
+                    database: 'AwsDataCatalog',
+                    schema: 'sales_eu',
+                    table: 't2',
+                },
+            ]);
+        });
+
+        test('should support ? single-character wildcard', async () => {
+            // ListDatabasesCommand response
+            mockSend.mockResolvedValueOnce({
+                DatabaseList: [
+                    { Name: 'db_a' },
+                    { Name: 'db_b' },
+                    { Name: 'db_ab' },
+                ],
+                NextToken: undefined,
+            });
+            // Tables for default schema
+            mockSend.mockResolvedValueOnce({
+                TableMetadataList: [{ Name: 't0' }],
+                NextToken: undefined,
+            });
+            // Tables for db_a
+            mockSend.mockResolvedValueOnce({
+                TableMetadataList: [{ Name: 't1' }],
+                NextToken: undefined,
+            });
+            // Tables for db_b
+            mockSend.mockResolvedValueOnce({
+                TableMetadataList: [{ Name: 't2' }],
+                NextToken: undefined,
+            });
+
+            const client = new AthenaWarehouseClient({
+                ...baseCredentials,
+                schema: 'my_database',
+                accessibleSchemas: ['db_?'],
+            });
+            const tables = await client.getAllTables();
+
+            // db_ab should NOT match db_? (? matches exactly one character)
+            expect(tables).toEqual([
+                {
+                    database: 'AwsDataCatalog',
+                    schema: 'my_database',
+                    table: 't0',
+                },
+                {
+                    database: 'AwsDataCatalog',
+                    schema: 'db_a',
+                    table: 't1',
+                },
+                {
+                    database: 'AwsDataCatalog',
+                    schema: 'db_b',
+                    table: 't2',
+                },
+            ]);
+        });
+
+        test('should mix explicit schemas and wildcard patterns', async () => {
+            // ListDatabasesCommand response (for wildcard resolution)
+            mockSend.mockResolvedValueOnce({
+                DatabaseList: [
+                    { Name: 'prod_us' },
+                    { Name: 'prod_eu' },
+                    { Name: 'staging' },
+                ],
+                NextToken: undefined,
+            });
+            // Tables for default schema
+            mockSend.mockResolvedValueOnce({
+                TableMetadataList: [{ Name: 't0' }],
+                NextToken: undefined,
+            });
+            // Tables for staging (explicit)
+            mockSend.mockResolvedValueOnce({
+                TableMetadataList: [{ Name: 't1' }],
+                NextToken: undefined,
+            });
+            // Tables for prod_us (matched by wildcard)
+            mockSend.mockResolvedValueOnce({
+                TableMetadataList: [{ Name: 't2' }],
+                NextToken: undefined,
+            });
+            // Tables for prod_eu (matched by wildcard)
+            mockSend.mockResolvedValueOnce({
+                TableMetadataList: [{ Name: 't3' }],
+                NextToken: undefined,
+            });
+
+            const client = new AthenaWarehouseClient({
+                ...baseCredentials,
+                schema: 'my_database',
+                accessibleSchemas: ['staging', 'prod_*'],
+            });
+            const tables = await client.getAllTables();
+
+            expect(tables).toEqual([
+                {
+                    database: 'AwsDataCatalog',
+                    schema: 'my_database',
+                    table: 't0',
+                },
+                {
+                    database: 'AwsDataCatalog',
+                    schema: 'staging',
+                    table: 't1',
+                },
+                {
+                    database: 'AwsDataCatalog',
+                    schema: 'prod_us',
+                    table: 't2',
+                },
+                {
+                    database: 'AwsDataCatalog',
+                    schema: 'prod_eu',
+                    table: 't3',
                 },
             ]);
         });

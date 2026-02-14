@@ -13,7 +13,7 @@ export type AthenaTarget = {
     type: 'athena';
     region_name: string;
     database: string;
-    schema?: string;
+    schema: string;
     s3_staging_dir: string;
     s3_data_dir?: string;
     aws_access_key_id?: string;
@@ -38,7 +38,6 @@ export const athenaSchema: JSONSchemaType<AthenaTarget> = {
         },
         schema: {
             type: 'string',
-            nullable: true,
         },
         s3_staging_dir: {
             type: 'string',
@@ -68,7 +67,7 @@ export const athenaSchema: JSONSchemaType<AthenaTarget> = {
             nullable: true,
         },
     },
-    required: ['type', 'region_name', 'database', 's3_staging_dir'],
+    required: ['type', 'region_name', 'database', 'schema', 's3_staging_dir'],
 };
 
 export const convertAthenaSchema = (
@@ -84,7 +83,7 @@ export const convertAthenaSchema = (
             type: WarehouseTypes.ATHENA,
             region: target.region_name,
             database: target.database,
-            schema: target.schema ?? '',
+            schema: target.schema,
             s3StagingDir: target.s3_staging_dir,
             s3DataDir: target.s3_data_dir,
             // CLI is intentionally permissive here: when keys are absent in a dbt
