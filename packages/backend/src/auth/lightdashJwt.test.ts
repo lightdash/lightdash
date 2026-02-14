@@ -216,4 +216,84 @@ describe('JwtUtil', () => {
         decodeLightdashJwt(invalidToken, encodedSecret);
         expect(mockErrorLogger).toHaveBeenCalledTimes(1);
     });
+
+    it('should throw ForbiddenError when dashboardFiltersInteractivity is at root level', () => {
+        const secret = encryptionUtil.decrypt(encodedSecret);
+        const misconfiguredPayload = {
+            content: {
+                type: 'dashboard',
+                dashboardUuid: 'test-dashboard-uuid',
+            },
+            dashboardFiltersInteractivity: {
+                enabled: 'all',
+            },
+        };
+        const invalidToken = jwt.sign(misconfiguredPayload, secret, {
+            expiresIn: '1h',
+        });
+
+        expect(() => {
+            decodeLightdashJwt(invalidToken, encodedSecret);
+        }).toThrow(ForbiddenError);
+
+        try {
+            decodeLightdashJwt(invalidToken, encodedSecret);
+        } catch (e) {
+            expect((e as ForbiddenError).message).toContain('dashboardFiltersInteractivity');
+            expect((e as ForbiddenError).message).toContain('inside the \'content\' object');
+        }
+    });
+
+    it('should throw ForbiddenError when multiple interactivity options are at root level', () => {
+        const secret = encryptionUtil.decrypt(encodedSecret);
+        const misconfiguredPayload = {
+            content: {
+                type: 'dashboard',
+                dashboardUuid: 'test-dashboard-uuid',
+            },
+            dashboardFiltersInteractivity: {
+                enabled: 'all',
+            },
+            canExportCsv: true,
+            canDateZoom: false,
+        };
+        const invalidToken = jwt.sign(misconfiguredPayload, secret, {
+            expiresIn: '1h',
+        });
+
+        expect(() => {
+            decodeLightdashJwt(invalidToken, encodedSecret);
+        }).toThrow(ForbiddenError);
+
+        try {
+            decodeLightdashJwt(invalidToken, encodedSecret);
+        } catch (e) {
+            expect((e as ForbiddenError).message).toContain('dashboardFiltersInteractivity');
+            expect((e as ForbiddenError).message).toContain('canExportCsv');
+            expect((e as ForbiddenError).message).toContain('canDateZoom');
+        }
+    });
+
+    it('should accept correctly placed dashboardFiltersInteractivity inside content', () => {
+        const correctPayload: CreateEmbedJwt = {
+            content: {
+                type: 'dashboard',
+                dashboardUuid: 'test-dashboard-uuid',
+                dashboardFiltersInteractivity: {
+                    enabled: 'all',
+                },
+            },
+        };
+
+        const token = encodeLightdashJwt(correctPayload, encodedSecret, '1h');
+        const decoded = decodeLightdashJwt(token, encodedSecret);
+
+        expect(decoded.content.type).toBe('dashboard');
+        if ('dashboardUuid' in decoded.content) {
+            expect(decoded.content.dashboardFiltersInteractivity).toEqual({
+                enabled: 'all',
+            });
+        }
+        expect(mockErrorLogger).not.toHaveBeenCalled();
+    });
 });

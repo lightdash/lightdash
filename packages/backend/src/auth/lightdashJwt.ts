@@ -51,6 +51,33 @@ export function decodeLightdashJwt(
         );
         const decodedToken = verify(token, secret) as CreateEmbedJwt;
 
+        // Check for common configuration mistakes before full validation
+        const hasRootLevelInteractivity = 'dashboardFiltersInteractivity' in decodedToken ||
+            'parameterInteractivity' in decodedToken ||
+            'canExportCsv' in decodedToken ||
+            'canExportImages' in decodedToken ||
+            'canExportPagePdf' in decodedToken ||
+            'canDateZoom' in decodedToken ||
+            'canExplore' in decodedToken ||
+            'canViewUnderlyingData' in decodedToken;
+
+        if (hasRootLevelInteractivity) {
+            const misconfiguredFields = [];
+            if ('dashboardFiltersInteractivity' in decodedToken) misconfiguredFields.push('dashboardFiltersInteractivity');
+            if ('parameterInteractivity' in decodedToken) misconfiguredFields.push('parameterInteractivity');
+            if ('canExportCsv' in decodedToken) misconfiguredFields.push('canExportCsv');
+            if ('canExportImages' in decodedToken) misconfiguredFields.push('canExportImages');
+            if ('canExportPagePdf' in decodedToken) misconfiguredFields.push('canExportPagePdf');
+            if ('canDateZoom' in decodedToken) misconfiguredFields.push('canDateZoom');
+            if ('canExplore' in decodedToken) misconfiguredFields.push('canExplore');
+            if ('canViewUnderlyingData' in decodedToken) misconfiguredFields.push('canViewUnderlyingData');
+
+            const errorMsg = `JWT configuration error: The following fields must be placed inside the 'content' object, not at the root level: ${misconfiguredFields.join(', ')}. Please move these fields inside your 'content' object.`;
+
+            Logger.error(errorMsg);
+            throw new ForbiddenError(errorMsg);
+        }
+
         // Alert if the token is not in the expected format so we can inform the org before enforcing validation
         try {
             EmbedJwtSchema.parse(decodedToken);
