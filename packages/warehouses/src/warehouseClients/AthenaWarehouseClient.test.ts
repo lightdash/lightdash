@@ -393,5 +393,139 @@ describe('AthenaWarehouseClient', () => {
                 },
             ]);
         });
+
+        test('should ignore empty strings in accessibleSchemas', async () => {
+            mockSend.mockResolvedValueOnce({
+                TableMetadataList: [{ Name: 'table1' }],
+                NextToken: undefined,
+            });
+            mockSend.mockResolvedValueOnce({
+                TableMetadataList: [{ Name: 'table2' }],
+                NextToken: undefined,
+            });
+
+            const client = new AthenaWarehouseClient({
+                ...baseCredentials,
+                schema: 'db1',
+                accessibleSchemas: ['', 'db2', '  '],
+            });
+            const tables = await client.getAllTables();
+
+            expect(tables).toEqual([
+                {
+                    database: 'AwsDataCatalog',
+                    schema: 'db1',
+                    table: 'table1',
+                },
+                {
+                    database: 'AwsDataCatalog',
+                    schema: 'db2',
+                    table: 'table2',
+                },
+            ]);
+        });
+
+        test('should return only default schema tables when wildcard matches nothing', async () => {
+            // ListDatabasesCommand response
+            mockSend.mockResolvedValueOnce({
+                DatabaseList: [{ Name: 'unrelated_db' }],
+                NextToken: undefined,
+            });
+            // Tables for default schema
+            mockSend.mockResolvedValueOnce({
+                TableMetadataList: [{ Name: 'table1' }],
+                NextToken: undefined,
+            });
+
+            const client = new AthenaWarehouseClient({
+                ...baseCredentials,
+                schema: 'my_database',
+                accessibleSchemas: ['nonexistent_*'],
+            });
+            const tables = await client.getAllTables();
+
+            expect(tables).toEqual([
+                {
+                    database: 'AwsDataCatalog',
+                    schema: 'my_database',
+                    table: 'table1',
+                },
+            ]);
+        });
+
+        test('should paginate through listAllDatabases', async () => {
+            // First page of ListDatabasesCommand
+            mockSend.mockResolvedValueOnce({
+                DatabaseList: [{ Name: 'db_page1' }],
+                NextToken: 'token123',
+            });
+            // Second page of ListDatabasesCommand
+            mockSend.mockResolvedValueOnce({
+                DatabaseList: [{ Name: 'db_page2' }],
+                NextToken: undefined,
+            });
+            // Tables for default schema
+            mockSend.mockResolvedValueOnce({
+                TableMetadataList: [{ Name: 't0' }],
+                NextToken: undefined,
+            });
+            // Tables for db_page1
+            mockSend.mockResolvedValueOnce({
+                TableMetadataList: [{ Name: 't1' }],
+                NextToken: undefined,
+            });
+            // Tables for db_page2
+            mockSend.mockResolvedValueOnce({
+                TableMetadataList: [{ Name: 't2' }],
+                NextToken: undefined,
+            });
+
+            const client = new AthenaWarehouseClient({
+                ...baseCredentials,
+                schema: 'my_database',
+                accessibleSchemas: ['db_*'],
+            });
+            const tables = await client.getAllTables();
+
+            expect(tables).toEqual([
+                {
+                    database: 'AwsDataCatalog',
+                    schema: 'my_database',
+                    table: 't0',
+                },
+                {
+                    database: 'AwsDataCatalog',
+                    schema: 'db_page1',
+                    table: 't1',
+                },
+                {
+                    database: 'AwsDataCatalog',
+                    schema: 'db_page2',
+                    table: 't2',
+                },
+            ]);
+        });
+
+        test('should throw error when wildcard matches exceed limit', async () => {
+            // Generate 101 databases to exceed MAX_WILDCARD_MATCHES (100)
+            const databases = Array.from({ length: 101 }, (_, i) => ({
+                Name: `db_${i}`,
+            }));
+
+            mockSend.mockResolvedValueOnce({
+                DatabaseList: databases,
+                NextToken: undefined,
+            });
+
+            const client = new AthenaWarehouseClient({
+                ...baseCredentials,
+                schema: 'my_database',
+                accessibleSchemas: ['*'],
+            });
+
+            await expect(client.getAllTables()).rejects.toThrow(
+                /Wildcard pattern matched 101 databases, exceeding the limit of 100/,
+            );
+        });
     });
 });

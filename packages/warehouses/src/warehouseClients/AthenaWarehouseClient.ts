@@ -156,6 +156,7 @@ export class AthenaSqlBuilder extends WarehouseBaseSqlBuilder {
 
 const POLL_INTERVAL_MS = 500;
 const MAX_POLL_ATTEMPTS = 1200; // 10 minutes max wait
+const MAX_WILDCARD_MATCHES = 100;
 
 export class AthenaWarehouseClient extends WarehouseBaseClient<CreateAthenaCredentials> {
     client: AthenaClient;
@@ -254,13 +255,17 @@ export class AthenaWarehouseClient extends WarehouseBaseClient<CreateAthenaCrede
 
         if (patterns.length > 0) {
             const allDatabases = await this.listAllDatabases();
-            allDatabases
-                .filter((db) =>
-                    patterns.some((p) =>
-                        AthenaWarehouseClient.matchesGlob(db, p),
-                    ),
-                )
-                .forEach((db) => explicit.push(db));
+            const matched = allDatabases.filter((db) =>
+                patterns.some((p) =>
+                    AthenaWarehouseClient.matchesGlob(db, p),
+                ),
+            );
+            if (matched.length > MAX_WILDCARD_MATCHES) {
+                throw new WarehouseConnectionError(
+                    `Wildcard pattern matched ${matched.length} databases, exceeding the limit of ${MAX_WILDCARD_MATCHES}. Use more specific patterns.`,
+                );
+            }
+            matched.forEach((db) => explicit.push(db));
         }
 
         return [...new Set(explicit)];
@@ -362,15 +367,14 @@ export class AthenaWarehouseClient extends WarehouseBaseClient<CreateAthenaCrede
             }
 
             // Start query execution
-            const queryExecutionContext: {
-                Database?: string;
-                Catalog?: string;
-            } = {
-                Catalog: this.credentials.database,
-            };
-            if (this.credentials.schema) {
-                queryExecutionContext.Database = this.credentials.schema;
-            }
+            const queryExecutionContext = this.credentials.schema
+                ? {
+                      Catalog: this.credentials.database,
+                      Database: this.credentials.schema,
+                  }
+                : {
+                      Catalog: this.credentials.database,
+                  };
 
             const startResponse = await this.client.send(
                 new StartQueryExecutionCommand({
@@ -559,8 +563,9 @@ export class AthenaWarehouseClient extends WarehouseBaseClient<CreateAthenaCrede
     async getAllTables(): Promise<
         { database: string; schema: string; table: string }[]
     > {
+        let targetSchemas: string[] = [];
         try {
-            const targetSchemas = await this.getTargetSchemas();
+            targetSchemas = await this.getTargetSchemas();
 
             const results = await processPromisesInBatches(
                 targetSchemas,
@@ -570,8 +575,11 @@ export class AthenaWarehouseClient extends WarehouseBaseClient<CreateAthenaCrede
 
             return results.flat();
         } catch (e: unknown) {
+            if (e instanceof WarehouseConnectionError) {
+                throw e;
+            }
             throw new WarehouseConnectionError(
-                `Failed to list tables in '${this.credentials.database}'. ${getErrorMessage(e)}`,
+                `Failed to list tables in catalog '${this.credentials.database}' for schemas [${targetSchemas.join(', ')}]. ${getErrorMessage(e)}`,
             );
         }
     }
