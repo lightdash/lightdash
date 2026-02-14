@@ -134,7 +134,6 @@ const AthenaForm: FC<{
                     name="warehouse.accessibleSchemas"
                     label="Additional databases"
                     description="Comma-separated list of additional Athena databases to explore. Supports wildcards: * (any characters), ? (single character). E.g. 'sales_*' or '*'."
-                    {...form.getInputProps('warehouse.accessibleSchemas')}
                     placeholder="db2, db3"
                     disabled={disabled}
                     value={
@@ -152,7 +151,21 @@ const AthenaForm: FC<{
                             'warehouse.accessibleSchemas',
                             schemas,
                         );
+                        const invalid = schemas.filter(
+                            (s: string) => !/^[a-zA-Z0-9_*?-]+$/.test(s),
+                        );
+                        if (invalid.length > 0) {
+                            form.setFieldError(
+                                'warehouse.accessibleSchemas',
+                                `Invalid pattern: ${invalid.join(', ')}. Only alphanumeric characters, underscores, hyphens, *, and ? are allowed.`,
+                            );
+                        } else {
+                            form.clearFieldError(
+                                'warehouse.accessibleSchemas',
+                            );
+                        }
                     }}
+                    error={form.errors['warehouse.accessibleSchemas']}
                 />
                 <TextInput
                     name="warehouse.s3StagingDir"
