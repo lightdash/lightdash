@@ -197,6 +197,7 @@ export type CreateAthenaCredentials = {
     workGroup?: string;
     threads?: number;
     numRetries?: number;
+    accessibleSchemas?: string[];
     requireUserCredentials?: boolean;
     startOfWeek?: WeekDay | null;
 };
