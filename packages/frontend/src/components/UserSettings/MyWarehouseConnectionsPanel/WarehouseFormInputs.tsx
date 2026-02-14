@@ -123,6 +123,25 @@ export const WarehouseFormInputs: FC<{
                     credentialsName={databricksCredentialsName}
                 />
             );
+        case WarehouseTypes.ATHENA:
+            return (
+                <>
+                    <TextInput
+                        required
+                        size="xs"
+                        label="Access key ID"
+                        disabled={disabled}
+                        {...form.getInputProps('credentials.accessKeyId')}
+                    />
+                    <PasswordInput
+                        required
+                        size="xs"
+                        label="Secret access key"
+                        disabled={disabled}
+                        {...form.getInputProps('credentials.secretAccessKey')}
+                    />
+                </>
+            );
         default:
             return null;
     }
