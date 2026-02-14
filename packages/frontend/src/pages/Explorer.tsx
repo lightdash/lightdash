@@ -18,6 +18,7 @@ import {
 } from '../features/explorer/store';
 import { useExplore } from '../hooks/useExplore';
 import { useExplorerQueryEffects } from '../hooks/useExplorerQueryEffects';
+import { useExplorerHistory } from '../hooks/useExplorerHistory';
 import {
     useExplorerRoute,
     useExplorerUrlState,
@@ -28,6 +29,9 @@ import { defaultState } from '../providers/Explorer/defaultState';
 const ExplorerContent = memo(() => {
     // Sync URL params to Redux
     useExplorerRoute();
+
+    // Enable undo via browser back button
+    useExplorerHistory();
 
     // Run the query effects hook - orchestrates all query effects
     useExplorerQueryEffects();
