@@ -7,11 +7,13 @@ import { Select } from '@mantine/core';
 import { type FilterInputsProps } from '.';
 import { getPlaceholderByFilterTypeAndOperator } from '../utils/getPlaceholderByFilterTypeAndOperator';
 import DefaultFilterInputs from './DefaultFilterInputs';
+import { useInitialAutoFocus } from './useInitialAutoFocus';
 
 const BooleanFilterInputs = <T extends BaseFilterRule>(
     props: FilterInputsProps<T>,
 ) => {
     const { rule, onChange, disabled, filterType, popoverProps } = props;
+    const autoFocus = useInitialAutoFocus();
 
     const isFilterRuleDisabled = isFilterRule(rule) && rule.disabled;
 
@@ -34,7 +36,7 @@ const BooleanFilterInputs = <T extends BaseFilterRule>(
                     onDropdownOpen={popoverProps?.onOpen}
                     onDropdownClose={popoverProps?.onClose}
                     disabled={disabled}
-                    autoFocus={true}
+                    autoFocus={autoFocus}
                     initiallyOpened={currentValue === null && !disabled}
                     placeholder={placeholder}
                     data={[
