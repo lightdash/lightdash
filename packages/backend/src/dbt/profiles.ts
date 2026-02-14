@@ -260,21 +260,12 @@ const credentialsTarget = (
                 );
             }
 
-            // dbt requires a single schema value; when empty or
-            // comma-separated, fall back to the first value or 'default'
-            const athenaSchema = (() => {
-                const raw = credentials.schema.trim();
-                if (raw === '') return 'default';
-                const first = raw.split(',')[0].trim();
-                return first || 'default';
-            })();
-
             return {
                 target: {
                     type: WarehouseTypes.ATHENA,
                     region_name: credentials.region,
                     database: credentials.database,
-                    schema: athenaSchema,
+                    schema: credentials.schema || 'default',
                     s3_staging_dir: credentials.s3StagingDir,
                     s3_data_dir: credentials.s3DataDir || undefined,
                     work_group: credentials.workGroup || undefined,
