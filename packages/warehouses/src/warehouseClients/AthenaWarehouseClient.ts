@@ -3,6 +3,7 @@ import {
     GetQueryExecutionCommand,
     GetQueryResultsCommand,
     GetTableMetadataCommand,
+    ListDatabasesCommand,
     ListTableMetadataCommand,
     QueryExecutionState,
     StartQueryExecutionCommand,
@@ -202,6 +203,51 @@ export class AthenaWarehouseClient extends WarehouseBaseClient<CreateAthenaCrede
         }
     }
 
+    private parseSchemas(): string[] {
+        const { schema } = this.credentials;
+        if (!schema || schema.trim() === '') {
+            return [];
+        }
+        return schema
+            .split(',')
+            .map((s) => s.trim())
+            .filter((s) => s !== '');
+    }
+
+    private async listAllDatabases(): Promise<string[]> {
+        const databases: string[] = [];
+        let nextToken: string | undefined;
+
+        do {
+            // eslint-disable-next-line no-await-in-loop
+            const response = await this.client.send(
+                new ListDatabasesCommand({
+                    CatalogName: this.credentials.database,
+                    NextToken: nextToken,
+                    MaxResults: 50,
+                }),
+            );
+
+            response.DatabaseList?.forEach((db) => {
+                if (db.Name) {
+                    databases.push(db.Name);
+                }
+            });
+
+            nextToken = response.NextToken;
+        } while (nextToken);
+
+        return databases;
+    }
+
+    private async getTargetSchemas(): Promise<string[]> {
+        const schemas = this.parseSchemas();
+        if (schemas.length === 0) {
+            return this.listAllDatabases();
+        }
+        return schemas;
+    }
+
     private async waitForQueryCompletion(
         queryExecutionId: string,
     ): Promise<void> {
@@ -298,13 +344,23 @@ export class AthenaWarehouseClient extends WarehouseBaseClient<CreateAthenaCrede
             }
 
             // Start query execution
+            // When schema is empty or comma-separated, omit Database
+            // so SQL must use fully-qualified table names
+            const schemas = this.parseSchemas();
+            const queryExecutionContext: {
+                Database?: string;
+                Catalog?: string;
+            } = {
+                Catalog: this.credentials.database,
+            };
+            if (schemas.length === 1) {
+                queryExecutionContext.Database = schemas[0];
+            }
+
             const startResponse = await this.client.send(
                 new StartQueryExecutionCommand({
                     QueryString: alteredQuery,
-                    QueryExecutionContext: {
-                        Database: this.credentials.schema,
-                        Catalog: this.credentials.database,
-                    },
+                    QueryExecutionContext: queryExecutionContext,
                     ResultConfiguration: {
                         OutputLocation: this.credentials.s3StagingDir,
                     },
@@ -451,47 +507,58 @@ export class AthenaWarehouseClient extends WarehouseBaseClient<CreateAthenaCrede
         }, {});
     }
 
+    private async listTablesForSchema(
+        schemaName: string,
+    ): Promise<{ database: string; schema: string; table: string }[]> {
+        const tables: { database: string; schema: string; table: string }[] =
+            [];
+        let nextToken: string | undefined;
+
+        do {
+            // eslint-disable-next-line no-await-in-loop
+            const response = await this.client.send(
+                new ListTableMetadataCommand({
+                    CatalogName: this.credentials.database,
+                    DatabaseName: schemaName,
+                    NextToken: nextToken,
+                    MaxResults: 50,
+                }),
+            );
+
+            response.TableMetadataList?.forEach((tableMeta) => {
+                if (tableMeta.Name) {
+                    tables.push({
+                        database: this.credentials.database,
+                        schema: schemaName,
+                        table: tableMeta.Name,
+                    });
+                }
+            });
+
+            nextToken = response.NextToken;
+        } while (nextToken);
+
+        return tables;
+    }
+
     async getAllTables(): Promise<
         { database: string; schema: string; table: string }[]
     > {
-        const tables: { database: string; schema: string; table: string }[] =
-            [];
-
         try {
-            let nextToken: string | undefined;
+            const targetSchemas = await this.getTargetSchemas();
 
-            do {
-                // eslint-disable-next-line no-await-in-loop
-                const response = await this.client.send(
-                    new ListTableMetadataCommand({
-                        CatalogName: this.credentials.database,
-                        DatabaseName: this.credentials.schema,
-                        NextToken: nextToken,
-                        MaxResults: 50,
-                    }),
-                );
+            const results = await processPromisesInBatches(
+                targetSchemas,
+                DEFAULT_BATCH_SIZE,
+                async (schemaName) => this.listTablesForSchema(schemaName),
+            );
 
-                response.TableMetadataList?.forEach((tableMeta) => {
-                    if (tableMeta.Name) {
-                        tables.push({
-                            database: this.credentials.database,
-                            schema: this.credentials.schema,
-                            table: tableMeta.Name,
-                        });
-                    }
-                });
-
-                nextToken = response.NextToken;
-            } while (nextToken);
+            return results.flat();
         } catch (e: unknown) {
             throw new WarehouseConnectionError(
-                `Failed to list tables in '${this.credentials.database}.${
-                    this.credentials.schema
-                }'. ${getErrorMessage(e)}`,
+                `Failed to list tables in '${this.credentials.database}'. ${getErrorMessage(e)}`,
             );
         }
-
-        return tables;
     }
 
     async getFields(
