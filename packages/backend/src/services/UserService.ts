@@ -15,6 +15,7 @@ import {
     DeleteOpenIdentity,
     EmailStatusExpiring,
     ExpiredError,
+    FeatureFlags,
     ForbiddenError,
     getEmailDomain,
     hasInviteCode,
@@ -58,6 +59,7 @@ import { LightdashConfig } from '../config/parseConfig';
 import Logger from '../logging/logger';
 import { PersonalAccessTokenModel } from '../models/DashboardModel/PersonalAccessTokenModel';
 import { EmailModel } from '../models/EmailModel';
+import { FeatureFlagModel } from '../models/FeatureFlagModel/FeatureFlagModel';
 import { GroupsModel } from '../models/GroupsModel';
 import { InviteLinkModel } from '../models/InviteLinkModel';
 import { OpenIdIdentityModel } from '../models/OpenIdIdentitiesModel';
@@ -90,6 +92,7 @@ type UserServiceArguments = {
     organizationAllowedEmailDomainsModel: OrganizationAllowedEmailDomainsModel;
     userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
     warehouseAvailableTablesModel: WarehouseAvailableTablesModel;
+    featureFlagModel: FeatureFlagModel;
 };
 
 export class UserService extends BaseService {
@@ -125,6 +128,8 @@ export class UserService extends BaseService {
 
     private readonly warehouseAvailableTablesModel: WarehouseAvailableTablesModel;
 
+    private readonly featureFlagModel: FeatureFlagModel;
+
     private readonly emailOneTimePasscodeExpirySeconds = 60 * 15;
 
     private readonly emailOneTimePasscodeMaxAttempts = 5;
@@ -146,6 +151,7 @@ export class UserService extends BaseService {
         organizationAllowedEmailDomainsModel,
         userWarehouseCredentialsModel,
         warehouseAvailableTablesModel,
+        featureFlagModel,
     }: UserServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -165,6 +171,7 @@ export class UserService extends BaseService {
             organizationAllowedEmailDomainsModel;
         this.userWarehouseCredentialsModel = userWarehouseCredentialsModel;
         this.warehouseAvailableTablesModel = warehouseAvailableTablesModel;
+        this.featureFlagModel = featureFlagModel;
     }
 
     private identifyUser(
@@ -303,8 +310,7 @@ export class UserService extends BaseService {
                     const emailDomain = getEmailDomain(userEmail);
                     if (
                         allowedEmailDomains.emailDomains.some(
-                            (domain) =>
-                                domain.toLowerCase() === emailDomain,
+                            (domain) => domain.toLowerCase() === emailDomain,
                         ) &&
                         allowedEmailDomains.projects.length > 0
                     ) {
@@ -1572,6 +1578,69 @@ export class UserService extends BaseService {
         );
     }
 
+    /**
+     * Resolves the session user, handling impersonation if active.
+     * When impersonation is active, validates that the admin still has
+     * permission to impersonate and the target user is still valid,
+     * then returns the target user. Calls clearImpersonation if the
+     * session is no longer valid.
+     */
+    async resolveSessionUser(
+        passportUser: { id: string; organization: string },
+        impersonation: { targetUserUuid: string } | undefined,
+        clearImpersonation: () => void,
+    ): Promise<SessionUser> {
+        const requestUser = await this.findSessionUser(passportUser);
+
+        if (!impersonation) {
+            return requestUser;
+        }
+
+        // If feature flag is off, clear any active impersonation
+        if (!(await this.isImpersonationEnabled(requestUser))) {
+            this.logger.warn(
+                `Impersonation feature flag is disabled, clearing impersonation for admin ${passportUser.id}`,
+            );
+            clearImpersonation();
+            return requestUser;
+        }
+
+        // Validate admin can still impersonate
+        if (
+            !requestUser.isActive ||
+            requestUser.ability.cannot(
+                'impersonate',
+                subject('User', {
+                    organizationUuid: requestUser.organizationUuid,
+                }),
+            )
+        ) {
+            this.logger.warn(
+                `Impersonation admin ${passportUser.id} is no longer authorized, clearing impersonation`,
+            );
+            clearImpersonation();
+            return requestUser;
+        }
+
+        // Load the impersonated user
+        const targetUser = await this.getSessionByUserUuid(
+            impersonation.targetUserUuid,
+        );
+
+        if (
+            !targetUser.isActive ||
+            targetUser.organizationUuid !== requestUser.organizationUuid
+        ) {
+            this.logger.warn(
+                `Impersonation target ${impersonation.targetUserUuid} is no longer valid, clearing impersonation`,
+            );
+            clearImpersonation();
+            return requestUser;
+        }
+
+        return targetUser;
+    }
+
     static async generateGoogleAccessToken(
         refreshToken: string,
         type: 'gdrive' | 'bigquery' = 'gdrive',
@@ -2048,5 +2117,131 @@ export class UserService extends BaseService {
         );
 
         return openId !== undefined;
+    }
+
+    private async isImpersonationEnabled(
+        user: Pick<
+            LightdashUser,
+            'userUuid' | 'organizationUuid' | 'organizationName'
+        >,
+    ): Promise<boolean> {
+        const flag = await this.featureFlagModel.get({
+            user,
+            featureFlagId: FeatureFlags.UserImpersonation,
+        });
+        return flag.enabled;
+    }
+
+    async startImpersonation(
+        adminUser: SessionUser,
+        targetUserUuid: string,
+        {
+            isSessionAuth,
+            getImpersonation,
+            setImpersonation,
+        }: {
+            isSessionAuth: boolean;
+            getImpersonation: () => { targetUserUuid: string } | undefined;
+            setImpersonation: (data: {
+                adminUserUuid: string;
+                adminName: string;
+                targetUserUuid: string;
+                startedAt: string;
+            }) => void;
+        },
+    ): Promise<void> {
+        if (!(await this.isImpersonationEnabled(adminUser))) {
+            throw new ForbiddenError('User impersonation is not enabled');
+        }
+
+        if (!isSessionAuth) {
+            throw new ForbiddenError(
+                'Impersonation requires session authentication',
+            );
+        }
+
+        // Prevent recursive impersonation
+        if (getImpersonation()) {
+            throw new ForbiddenError(
+                'Cannot start impersonation while already impersonating',
+            );
+        }
+
+        // Prevent self-impersonation
+        if (adminUser.userUuid === targetUserUuid) {
+            throw new ParameterError('Cannot impersonate yourself');
+        }
+
+        // Load target user details
+        const targetUser =
+            await this.userModel.getUserDetailsByUuid(targetUserUuid);
+
+        // Check permissions using CASL
+        if (
+            adminUser.ability.cannot(
+                'impersonate',
+                subject('User', {
+                    organizationUuid: targetUser.organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                "You don't have permissions to impersonate users",
+            );
+        }
+
+        // Target must be active
+        if (!targetUser.isActive) {
+            throw new ForbiddenError('Cannot impersonate an inactive user');
+        }
+
+        setImpersonation({
+            adminUserUuid: adminUser.userUuid,
+            adminName: `${adminUser.firstName} ${adminUser.lastName}`,
+            targetUserUuid,
+            startedAt: new Date().toISOString(),
+        });
+
+        this.analytics.track({
+            event: 'user.impersonation_started',
+            userId: adminUser.userUuid,
+            properties: {
+                adminUserUuid: adminUser.userUuid,
+                targetUserUuid,
+                organizationUuid: adminUser.organizationUuid!,
+            },
+        });
+    }
+
+    async stopImpersonation({
+        getImpersonation,
+        clearImpersonation,
+    }: {
+        getImpersonation: () =>
+            | { adminUserUuid: string; targetUserUuid: string }
+            | undefined;
+        clearImpersonation: () => void;
+    }): Promise<void> {
+        const impersonation = getImpersonation();
+
+        if (!impersonation) {
+            return;
+        }
+
+        const { adminUserUuid, targetUserUuid } = impersonation;
+        const adminUser =
+            await this.userModel.getUserDetailsByUuid(adminUserUuid);
+
+        this.analytics.track({
+            event: 'user.impersonation_stopped',
+            userId: adminUserUuid,
+            properties: {
+                adminUserUuid,
+                targetUserUuid,
+                organizationUuid: adminUser.organizationUuid!,
+            },
+        });
+
+        clearImpersonation();
     }
 }

@@ -344,6 +344,9 @@ const applyOrganizationMemberStaticAbilities: Record<
         can('manage', 'DeletedContent', {
             organizationUuid: member.organizationUuid,
         });
+        can('impersonate', 'User', {
+            organizationUuid: member.organizationUuid,
+        });
     },
 };
 

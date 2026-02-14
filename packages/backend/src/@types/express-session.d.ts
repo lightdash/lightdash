@@ -15,5 +15,11 @@ declare module 'express-session' {
             messageTs?: string | undefined;
             threadTs?: string | undefined;
         };
+        impersonation?: {
+            adminUserUuid: string;
+            adminName: string;
+            targetUserUuid: string;
+            startedAt: string;
+        };
     }
 }
