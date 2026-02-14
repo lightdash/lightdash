@@ -87,7 +87,7 @@ const warehouseClientMock: WarehouseClient = {
         throw new NotImplementedError('getCatalog not implemented');
     },
     getMetricSql() {
-        throw new NotImplementedError('getCatalog not implemented');
+        throw new NotImplementedError('getMetricSql not implemented');
     },
     getStartOfWeek() {
         throw new NotImplementedError('getCatalog not implemented');

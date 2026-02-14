@@ -10,6 +10,7 @@ import {
     type Table,
 } from '../types/explore';
 import {
+    MetricType,
     friendlyName,
     isCustomBinDimension,
     isNonAggregateMetric,
@@ -754,6 +755,12 @@ export class ExploreCompiler {
                 ? { tablesRequiredAttributes }
                 : {}),
             ...(parameterReferences.length > 0 ? { parameterReferences } : {}),
+            ...(compiledMetric.valueSql !== undefined
+                ? { compiledValueSql: compiledMetric.valueSql }
+                : {}),
+            ...(compiledMetric.compiledDistinctKeys
+                ? { compiledDistinctKeys: compiledMetric.compiledDistinctKeys }
+                : {}),
         };
     }
 
@@ -761,7 +768,12 @@ export class ExploreCompiler {
         metric: Metric,
         tables: Record<string, Table>,
         availableParameters: string[],
-    ): { sql: string; tablesReferences: Set<string> } {
+    ): {
+        sql: string;
+        tablesReferences: Set<string>;
+        valueSql?: string;
+        compiledDistinctKeys?: string[];
+    } {
         // Metric might have references to other dimensions
         if (!tables[metric.table]) {
             throw new CompileError(
@@ -955,12 +967,41 @@ export class ExploreCompiler {
                 ' AND ',
             )}) THEN (${renderedSql}) ELSE NULL END`;
         }
+        if (metric.type === MetricType.SUM_DISTINCT) {
+            if (!metric.distinctKeys || metric.distinctKeys.length === 0) {
+                throw new CompileError(
+                    `Metric "${metric.name}" of type "sum_distinct" requires a "distinct_keys" property`,
+                    {},
+                );
+            }
+            const compiledKeys = metric.distinctKeys.map((keyRef) => {
+                const compiled = this.compileDimensionReference(
+                    keyRef,
+                    tables,
+                    metric.table,
+                    { fieldType: 'metric', fieldName: metric.name },
+                );
+                tablesReferences = new Set([
+                    ...tablesReferences,
+                    ...compiled.tablesReferences,
+                ]);
+                return compiled.sql;
+            });
+            // CTE-based dedup is handled by MetricQueryBuilder; store metadata here
+            return {
+                sql: `SUM(${renderedSql})`, // fallback compiledSql
+                tablesReferences,
+                valueSql: renderedSql,
+                compiledDistinctKeys: compiledKeys,
+            };
+        }
+
         const compiledSql = this.warehouseClient.getMetricSql(
             renderedSql,
             metric,
         );
 
-        return { sql: compiledSql, tablesReferences };
+        return { sql: compiledSql, tablesReferences, valueSql: renderedSql };
     }
 
     compileDimension(

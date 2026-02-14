@@ -157,6 +157,7 @@ export const getAxisTypeFromField = (item?: ItemsMap[string]): string => {
             case MetricType.COUNT:
             case MetricType.COUNT_DISTINCT:
             case MetricType.SUM:
+            case MetricType.SUM_DISTINCT:
             case MetricType.MIN:
             case MetricType.MAX:
             case MetricType.PERCENT_OF_PREVIOUS:
@@ -497,6 +498,7 @@ const getMinAndMaxReferenceLines = (
                 case MetricType.COUNT:
                 case MetricType.COUNT_DISTINCT:
                 case MetricType.SUM:
+                case MetricType.SUM_DISTINCT:
                 case MetricType.MEDIAN:
                 case MetricType.PERCENTILE:
                 case MetricType.MIN:
@@ -711,11 +713,7 @@ const formatLabelWithOptions = (
         nameParts.push(labelName);
     }
 
-    if (
-        showSeriesName &&
-        metricFieldName &&
-        metricFieldName !== labelName
-    ) {
+    if (showSeriesName && metricFieldName && metricFieldName !== labelName) {
         nameParts.push(`(${metricFieldName})`);
     }
 

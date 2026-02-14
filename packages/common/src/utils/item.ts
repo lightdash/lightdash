@@ -38,6 +38,7 @@ export const isNumericType = (
         MetricType.COUNT,
         MetricType.COUNT_DISTINCT,
         MetricType.SUM,
+        MetricType.SUM_DISTINCT,
         MetricType.MIN,
         MetricType.MAX,
         MetricType.PERCENT_OF_PREVIOUS,
