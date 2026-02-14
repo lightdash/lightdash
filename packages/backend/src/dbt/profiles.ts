@@ -265,7 +265,7 @@ const credentialsTarget = (
                     type: WarehouseTypes.ATHENA,
                     region_name: credentials.region,
                     database: credentials.database,
-                    schema: credentials.schema || 'default',
+                    schema: credentials.schema,
                     s3_staging_dir: credentials.s3StagingDir,
                     s3_data_dir: credentials.s3DataDir || undefined,
                     work_group: credentials.workGroup || undefined,
