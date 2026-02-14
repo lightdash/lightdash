@@ -271,6 +271,10 @@ const credentialsTarget = (
                     work_group: credentials.workGroup || undefined,
                     threads: credentials.threads || DEFAULT_THREADS,
                     num_retries: credentials.numRetries || undefined,
+                    aws_assume_role_arn:
+                        credentials.assumeRoleArn || undefined,
+                    aws_assume_role_external_id:
+                        credentials.assumeRoleExternalId || undefined,
                     ...(athenaAuthenticationType ===
                     AthenaAuthenticationType.ACCESS_KEY
                         ? {
