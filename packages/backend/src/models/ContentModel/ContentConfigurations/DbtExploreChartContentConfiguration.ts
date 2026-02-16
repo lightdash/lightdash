@@ -13,6 +13,7 @@ import {
 } from '../../../database/entities/pinnedList';
 import { ProjectTableName } from '../../../database/entities/projects';
 import { SavedChartsTableName } from '../../../database/entities/savedCharts';
+import { SchedulerTableName } from '../../../database/entities/scheduler';
 import { SpaceTableName } from '../../../database/entities/spaces';
 import { UserTableName } from '../../../database/entities/users';
 import {
@@ -135,6 +136,14 @@ export const dbtExploreChartContentConfiguration: ContentConfiguration<SelectSav
                     'chart_kind', ${SavedChartsTableName}.last_version_chart_kind,
                     'dashboard_uuid', ${DashboardsTableName}.dashboard_uuid,
                     'dashboard_name', ${DashboardsTableName}.name
+                    ${
+                        filters.includeDescendantCounts
+                            ? `, 'schedulerCount', (
+                                SELECT count(*) FROM ${SchedulerTableName} sch
+                                WHERE sch.saved_chart_uuid = ${SavedChartsTableName}.saved_query_uuid
+                            )`
+                            : ''
+                    }
                  ) as metadata`),
                 ])
                 .where((builder) => {

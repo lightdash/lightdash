@@ -5,6 +5,8 @@ import { OrganizationTableName } from '../../../database/entities/organizations'
 import { PinnedSpaceTableName } from '../../../database/entities/pinnedList';
 import { ProjectTableName } from '../../../database/entities/projects';
 import { SavedChartsTableName } from '../../../database/entities/savedCharts';
+import { SavedSqlTableName } from '../../../database/entities/savedSql';
+import { SchedulerTableName } from '../../../database/entities/scheduler';
 import {
     SpaceTableName,
     SpaceUserAccessTableName,
@@ -21,6 +23,8 @@ import {
 type SpaceContentRow = SummaryContentRow<{
     dashboardCount: number;
     chartCount: number;
+    nestedSpaceCount: number;
+    schedulerCount: number;
     parentSpaceUuid: string | null;
     path: string;
     access: string[];
@@ -116,30 +120,71 @@ export const spaceContentConfiguration: ContentConfiguration<SpaceContentRow> =
                     `${SpaceTableName}.deleted_by_user_uuid`,
                     'deleted_by_user.first_name as deleted_by_user_first_name',
                     'deleted_by_user.last_name as deleted_by_user_last_name',
-                    knex.raw(
-                        `json_build_object(
-                                    'chartCount', (
-                                        SELECT count(DISTINCT ${SavedChartsTableName}.saved_query_id)
-                                        FROM ${SavedChartsTableName}
-                                        WHERE ${SavedChartsTableName}.space_id = ${SpaceTableName}.space_id
-                                        AND ${SavedChartsTableName}.deleted_at IS NULL
-                                    ),
-                                    'dashboardCount', (
-                                        SELECT count(DISTINCT ${DashboardsTableName}.dashboard_id)
-                                        FROM ${DashboardsTableName}
-                                        WHERE ${DashboardsTableName}.space_id = ${SpaceTableName}.space_id
-                                        AND ${DashboardsTableName}.deleted_at IS NULL
-                                    ),
-                                    'parentSpaceUuid', ${SpaceTableName}.parent_space_uuid,
-                                    'path', ${SpaceTableName}.path,
-                                    'access', (${SpaceModel.getRootSpaceAccessQuery(
-                                        'shared_with',
-                                    )}),
-                                    'isPrivate', (${SpaceModel.getRootSpaceIsPrivateQuery()}),
-                                    'inheritParentPermissions', ${SpaceTableName}.inherit_parent_permissions,
-                                    'pinnedListOrder', ${PinnedSpaceTableName}.order
-                                ) as metadata`,
-                    ),
+                    knex.raw(`json_build_object(
+                        'dashboardCount', (${
+                            filters.includeDescendantCounts
+                                ? `SELECT count(*) FROM ${DashboardsTableName} d
+                                    INNER JOIN ${SpaceTableName} s2 ON s2.space_id = d.space_id
+                                    WHERE s2.path <@ ${SpaceTableName}.path`
+                                : `SELECT count(DISTINCT ${DashboardsTableName}.dashboard_id)
+                                    FROM ${DashboardsTableName}
+                                    WHERE ${DashboardsTableName}.space_id = ${SpaceTableName}.space_id
+                                    AND ${DashboardsTableName}.deleted_at IS NULL`
+                        }),
+                        'chartCount', (${
+                            filters.includeDescendantCounts
+                                ? `SELECT count(*) FROM (
+                                        SELECT sq.saved_query_id FROM ${SavedChartsTableName} sq
+                                            INNER JOIN ${SpaceTableName} s2 ON s2.space_id = sq.space_id WHERE s2.path <@ ${SpaceTableName}.path
+                                        UNION ALL
+                                        SELECT sq.saved_query_id FROM ${SavedChartsTableName} sq
+                                            INNER JOIN ${DashboardsTableName} d ON d.dashboard_uuid = sq.dashboard_uuid
+                                            INNER JOIN ${SpaceTableName} s2 ON s2.space_id = d.space_id WHERE s2.path <@ ${SpaceTableName}.path
+                                        UNION ALL
+                                        SELECT 1 FROM ${SavedSqlTableName} ss
+                                            INNER JOIN ${SpaceTableName} s2 ON s2.space_uuid = ss.space_uuid WHERE s2.path <@ ${SpaceTableName}.path
+                                        UNION ALL
+                                        SELECT 1 FROM ${SavedSqlTableName} ss
+                                            INNER JOIN ${DashboardsTableName} d ON d.dashboard_uuid = ss.dashboard_uuid
+                                            INNER JOIN ${SpaceTableName} s2 ON s2.space_id = d.space_id WHERE s2.path <@ ${SpaceTableName}.path
+                                    ) _`
+                                : `SELECT count(DISTINCT ${SavedChartsTableName}.saved_query_id)
+                                    FROM ${SavedChartsTableName}
+                                    WHERE ${SavedChartsTableName}.space_id = ${SpaceTableName}.space_id
+                                    AND ${SavedChartsTableName}.deleted_at IS NULL`
+                        }),
+                        'parentSpaceUuid', ${SpaceTableName}.parent_space_uuid,
+                        'path', ${SpaceTableName}.path,
+                        'access', (${SpaceModel.getRootSpaceAccessQuery(
+                            'shared_with',
+                        )}),
+                        'isPrivate', (${SpaceModel.getRootSpaceIsPrivateQuery()}),
+                        'inheritParentPermissions', ${SpaceTableName}.inherit_parent_permissions,
+                        'pinnedListOrder', ${PinnedSpaceTableName}.order
+                        ${
+                            filters.includeDescendantCounts
+                                ? `, 'nestedSpaceCount', (
+                                    SELECT count(*) FROM ${SpaceTableName} s2
+                                    WHERE s2.path <@ ${SpaceTableName}.path AND s2.space_id != ${SpaceTableName}.space_id
+                                ),
+                                'schedulerCount', (
+                                    SELECT count(*) FROM ${SchedulerTableName} sch
+                                    WHERE sch.dashboard_uuid IN (
+                                            SELECT d.dashboard_uuid FROM ${DashboardsTableName} d
+                                            INNER JOIN ${SpaceTableName} s2 ON s2.space_id = d.space_id WHERE s2.path <@ ${SpaceTableName}.path
+                                        )
+                                        OR sch.saved_chart_uuid IN (
+                                            SELECT sq.saved_query_uuid FROM ${SavedChartsTableName} sq
+                                                INNER JOIN ${SpaceTableName} s2 ON s2.space_id = sq.space_id WHERE s2.path <@ ${SpaceTableName}.path
+                                            UNION ALL
+                                            SELECT sq.saved_query_uuid FROM ${SavedChartsTableName} sq
+                                                INNER JOIN ${DashboardsTableName} d ON d.dashboard_uuid = sq.dashboard_uuid
+                                                INNER JOIN ${SpaceTableName} s2 ON s2.space_id = d.space_id WHERE s2.path <@ ${SpaceTableName}.path
+                                        )
+                                )`
+                                : ''
+                        }
+                    ) as metadata`),
                 ])
                 .where((builder) => {
                     if (filters.projectUuids) {

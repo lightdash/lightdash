@@ -1,11 +1,11 @@
 import {
     assertUnreachable,
+    ChartSourceType,
     ContentType,
-    type DeletedContentSummary,
+    type DeletedContentWithDescendants,
 } from '@lightdash/common';
 import {
     ActionIcon,
-    Badge,
     Box,
     Card,
     Group,
@@ -18,13 +18,11 @@ import {
 import { useDebouncedValue } from '@mantine/hooks';
 import {
     IconCalendar,
-    IconChartBar,
     IconClock,
     IconFolder,
     IconLayoutDashboard,
     IconRefresh,
     IconSearch,
-    IconTag,
     IconTextCaption,
     IconUser,
     IconX,
@@ -46,6 +44,7 @@ import {
 } from 'react';
 import Callout from '../../../components/common/Callout';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { ChartIcon, IconBox } from '../../../components/common/ResourceIcon';
 import useApp from '../../../providers/App/useApp';
 import {
     useInfiniteDeletedContent,
@@ -56,6 +55,48 @@ import { useDeletedContentFilters } from '../hooks/useDeletedContentFilters';
 import { ContentTypeFilter } from './ContentTypeFilter';
 import { DeletedByFilter } from './DeletedByFilter';
 import DeletedContentActionMenu from './DeletedContentActionMenu';
+
+function getDeletedContentDescription(
+    item: DeletedContentWithDescendants,
+): string | null {
+    const parts: string[] = [];
+    if (item.contentType === ContentType.SPACE) {
+        if (item.nestedSpaceCount > 0)
+            parts.push(
+                `${item.nestedSpaceCount} space${item.nestedSpaceCount !== 1 ? 's' : ''}`,
+            );
+        if (item.dashboardCount > 0)
+            parts.push(
+                `${item.dashboardCount} dashboard${item.dashboardCount !== 1 ? 's' : ''}`,
+            );
+        if (item.chartCount > 0)
+            parts.push(
+                `${item.chartCount} chart${item.chartCount !== 1 ? 's' : ''}`,
+            );
+        if (item.schedulerCount > 0)
+            parts.push(
+                `${item.schedulerCount} scheduled deliver${item.schedulerCount !== 1 ? 'ies' : 'y'}`,
+            );
+    } else if (item.contentType === ContentType.DASHBOARD) {
+        if (item.chartCount > 0)
+            parts.push(
+                `${item.chartCount} chart${item.chartCount !== 1 ? 's' : ''}`,
+            );
+        if (item.schedulerCount > 0)
+            parts.push(
+                `${item.schedulerCount} scheduled deliver${item.schedulerCount !== 1 ? 'ies' : 'y'}`,
+            );
+    } else if (
+        item.contentType === ContentType.CHART &&
+        item.source === ChartSourceType.DBT_EXPLORE
+    ) {
+        if (item.schedulerCount > 0)
+            parts.push(
+                `${item.schedulerCount} scheduled deliver${item.schedulerCount !== 1 ? 'ies' : 'y'}`,
+            );
+    }
+    return parts.length > 0 ? `Contains ${parts.join(', ')}` : null;
+}
 
 interface Props {
     projectUuid: string;
@@ -127,7 +168,7 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
                 debouncedSearchAndFilters.apiFilters.deletedByUserUuids,
         });
 
-    const flatData = useMemo<DeletedContentSummary[]>(
+    const flatData = useMemo<DeletedContentWithDescendants[]>(
         () => data?.pages?.flatMap((page) => page.data) ?? [],
         [data],
     );
@@ -136,7 +177,9 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
     const totalFetched = flatData.length;
 
     // Workaround for memoization issue with mantine-react-table
-    const [tableData, setTableData] = useState<DeletedContentSummary[]>([]);
+    const [tableData, setTableData] = useState<DeletedContentWithDescendants[]>(
+        [],
+    );
     useEffect(() => {
         setTableData(flatData);
     }, [flatData]);
@@ -178,7 +221,7 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
         fetchMoreOnBottomReached(tableContainerRef.current);
     }, [fetchMoreOnBottomReached]);
 
-    const columns = useMemo<MRT_ColumnDef<DeletedContentSummary>[]>(
+    const columns = useMemo<MRT_ColumnDef<DeletedContentWithDescendants>[]>(
         () => [
             {
                 accessorKey: 'name',
@@ -191,14 +234,30 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
                     </Group>
                 ),
                 Cell: ({ row }) => {
-                    const icon = (() => {
+                    const resourceIcon = (() => {
                         switch (row.original.contentType) {
                             case ContentType.CHART:
-                                return IconChartBar;
+                                return (
+                                    <ChartIcon
+                                        chartKind={
+                                            row.original.chartKind ?? undefined
+                                        }
+                                    />
+                                );
                             case ContentType.DASHBOARD:
-                                return IconLayoutDashboard;
+                                return (
+                                    <IconBox
+                                        icon={IconLayoutDashboard}
+                                        color="green.6"
+                                    />
+                                );
                             case ContentType.SPACE:
-                                return IconFolder;
+                                return (
+                                    <IconBox
+                                        icon={IconFolder}
+                                        color="violet.6"
+                                    />
+                                );
                             default:
                                 return assertUnreachable(
                                     row.original,
@@ -206,50 +265,23 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
                                 );
                         }
                     })();
-                    return (
-                        <Group gap="xs" wrap="nowrap">
-                            <MantineIcon
-                                icon={icon}
-                                size="md"
-                                color="ldGray.6"
-                            />
-                            <Text fw={600} fz="xs" lineClamp={1}>
-                                {row.original.name}
-                            </Text>
-                        </Group>
+                    const description = getDeletedContentDescription(
+                        row.original,
                     );
-                },
-            },
-            {
-                accessorKey: 'contentType',
-                header: 'Type',
-                size: 100,
-                Header: ({ column }) => (
-                    <Group gap="two" wrap="nowrap">
-                        <MantineIcon icon={IconTag} color="ldGray.6" />
-                        {column.columnDef.header}
-                    </Group>
-                ),
-                Cell: ({ row }) => {
-                    const label = (() => {
-                        switch (row.original.contentType) {
-                            case ContentType.CHART:
-                                return 'Chart';
-                            case ContentType.DASHBOARD:
-                                return 'Dashboard';
-                            case ContentType.SPACE:
-                                return 'Space';
-                            default:
-                                return assertUnreachable(
-                                    row.original,
-                                    `Unknown content type`,
-                                );
-                        }
-                    })();
                     return (
-                        <Badge variant="light" size="sm" radius="sm" fw={400}>
-                            {label}
-                        </Badge>
+                        <Group gap="sm" wrap="nowrap">
+                            {resourceIcon}
+                            <Box>
+                                <Text fw={600} fz="sm" lineClamp={1}>
+                                    {row.original.name}
+                                </Text>
+                                {description && (
+                                    <Text fz={12} c="dimmed" lineClamp={1}>
+                                        {description}
+                                    </Text>
+                                )}
+                            </Box>
+                        </Group>
                     );
                 },
             },
@@ -275,7 +307,7 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
                           Cell: ({
                               row,
                           }: {
-                              row: { original: DeletedContentSummary };
+                              row: { original: DeletedContentWithDescendants };
                           }) =>
                               row.original.deletedBy ? (
                                   <Text fz="xs" c="ldGray.6">
@@ -287,7 +319,7 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
                                       Unknown
                                   </Text>
                               ),
-                      } as MRT_ColumnDef<DeletedContentSummary>,
+                      } as MRT_ColumnDef<DeletedContentWithDescendants>,
                   ]
                 : []),
             {

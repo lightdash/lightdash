@@ -2,12 +2,26 @@ import type { ChartSourceType, ContentType } from './content';
 import type { KnexPaginatedData } from './knex-paginate';
 import type { ChartKind } from './savedCharts';
 
-export type DeletedChartContentSummary = {
+// ---------------------------------------------------------------------------
+// Utility: WithDescendantCounts
+// ---------------------------------------------------------------------------
+type DescendantCountKey = 'nestedSpace' | 'dashboard' | 'chart' | 'scheduler';
+
+export type WithDescendantCounts<T, K extends DescendantCountKey = never> = [
+    K,
+] extends [never]
+    ? T
+    : T & { [P in K as `${P}Count`]: number };
+
+// ---------------------------------------------------------------------------
+// Base deleted-content shapes (no descendant counts)
+// ---------------------------------------------------------------------------
+
+type DeletedChartBase = {
     uuid: string;
     name: string;
     description: string | null;
     contentType: ContentType.CHART;
-    source: ChartSourceType;
     chartKind: ChartKind | null;
     deletedAt: Date;
     deletedBy: {
@@ -20,6 +34,18 @@ export type DeletedChartContentSummary = {
     projectUuid: string;
     organizationUuid: string;
 };
+
+export type DeletedDbtChartContentSummary = DeletedChartBase & {
+    source: ChartSourceType.DBT_EXPLORE;
+};
+
+export type DeletedSqlChartContentSummary = DeletedChartBase & {
+    source: ChartSourceType.SQL;
+};
+
+export type DeletedChartContentSummary =
+    | DeletedDbtChartContentSummary
+    | DeletedSqlChartContentSummary;
 
 export type DeletedDashboardContentSummary = {
     uuid: string;
@@ -60,6 +86,21 @@ export type DeletedContentSummary =
     | DeletedDashboardContentSummary
     | DeletedSpaceContentSummary;
 
+// ---------------------------------------------------------------------------
+// Content-with-descendant-counts (returned by ContentModel / API)
+// ---------------------------------------------------------------------------
+export type DeletedContentWithDescendants =
+    | WithDescendantCounts<DeletedDbtChartContentSummary, 'scheduler'>
+    | WithDescendantCounts<DeletedSqlChartContentSummary, never>
+    | WithDescendantCounts<
+          DeletedDashboardContentSummary,
+          'chart' | 'scheduler'
+      >
+    | WithDescendantCounts<
+          DeletedSpaceContentSummary,
+          'nestedSpace' | 'dashboard' | 'chart' | 'scheduler'
+      >;
+
 export type DeletedContentFilters = {
     projectUuids: string[];
     search?: string;
@@ -70,7 +111,7 @@ export type DeletedContentFilters = {
 // API types
 export type ApiDeletedContentResponse = {
     status: 'ok';
-    results: KnexPaginatedData<DeletedContentSummary[]>;
+    results: KnexPaginatedData<DeletedContentWithDescendants[]>;
 };
 
 export type DeletedContentItem =
