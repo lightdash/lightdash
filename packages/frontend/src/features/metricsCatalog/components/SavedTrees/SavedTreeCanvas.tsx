@@ -1,18 +1,25 @@
 import type { CatalogMetricsTreeEdge } from '@lightdash/common';
 import {
+    ActionIcon,
     Badge,
     Box,
     Button,
     Center,
     Group,
     Loader,
+    Menu,
     Stack,
     Text,
     TextInput,
     Tooltip,
 } from '@mantine-8/core';
 import { useDisclosure, useWindowEvent } from '@mantine-8/hooks';
-import { IconLock, IconPencil } from '@tabler/icons-react';
+import {
+    IconDotsVertical,
+    IconLock,
+    IconPencil,
+    IconTrash,
+} from '@tabler/icons-react';
 import type { Edge } from '@xyflow/react';
 import {
     useCallback,
@@ -33,6 +40,7 @@ import { useMetricsCatalog } from '../../hooks/useMetricsCatalog';
 import {
     useAcquireTreeLock,
     useCreateSavedMetricsTree,
+    useDeleteSavedMetricsTree,
     useMetricsTreeDetails,
     useReleaseTreeLock,
     useTreeLockHeartbeat,
@@ -155,7 +163,11 @@ const SavedTreeCanvas: FC<SavedTreeCanvasProps> = ({ mode, treeUuid }) => {
     const { mutateAsync: acquireLock, isLoading: isAcquiringLock } =
         useAcquireTreeLock();
     const { mutateAsync: releaseLock } = useReleaseTreeLock();
+    const { mutateAsync: deleteTree, isLoading: isDeleting } =
+        useDeleteSavedMetricsTree();
     const { saveDraft, clearDraft } = useTreeDraft(treeUuid);
+
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
     const exitToList = useCallback(() => {
         dispatch(setActiveTreeUuid(null));
@@ -315,6 +327,18 @@ const SavedTreeCanvas: FC<SavedTreeCanvasProps> = ({ mode, treeUuid }) => {
         }
     };
 
+    const handleDelete = async () => {
+        if (!projectUuid || !treeUuid) return;
+
+        try {
+            await deleteTree({ projectUuid, metricsTreeUuid: treeUuid });
+            setIsDeleteModalOpen(false);
+            exitToList();
+        } catch {
+            setIsDeleteModalOpen(false);
+        }
+    };
+
     const handleEditClick = async () => {
         if (!projectUuid || !treeUuid) return;
 
@@ -365,7 +389,7 @@ const SavedTreeCanvas: FC<SavedTreeCanvasProps> = ({ mode, treeUuid }) => {
                             color="gray"
                             onClick={handleDiscardClick}
                         >
-                            Discard
+                            Cancel
                         </Button>
                         <Button
                             size="compact-sm"
@@ -429,10 +453,11 @@ const SavedTreeCanvas: FC<SavedTreeCanvasProps> = ({ mode, treeUuid }) => {
     // View mode: tree loaded
     if (treeDetails) {
         const lockerName = treeDetails.lock?.lockedByUserName;
+        const isLocked = treeDetails.lock !== null;
         const lockByOther =
-            treeDetails.lock !== null &&
-            treeDetails.lock.lockedByUserUuid !== undefined &&
-            treeDetails.lock.lockedByUserUuid !== currentUserUuid;
+            isLocked &&
+            treeDetails.lock?.lockedByUserUuid !== undefined &&
+            treeDetails.lock?.lockedByUserUuid !== currentUserUuid;
 
         return (
             <Stack h="100%" gap={0}>
@@ -467,41 +492,71 @@ const SavedTreeCanvas: FC<SavedTreeCanvasProps> = ({ mode, treeUuid }) => {
                         >
                             Close
                         </Button>
-                        {canManageMetricsTree &&
-                            (lockByOther ? (
-                                <Tooltip
-                                    label={`Being edited by ${lockerName}`}
-                                >
-                                    <Button
-                                        size="compact-sm"
-                                        variant="default"
-                                        leftSection={
-                                            <MantineIcon
-                                                icon={IconPencil}
-                                                size={14}
-                                            />
-                                        }
-                                        disabled
+                        {canManageMetricsTree && (
+                            <Menu
+                                position="bottom-end"
+                                withArrow
+                                withinPortal
+                                shadow="md"
+                            >
+                                <Menu.Target>
+                                    <ActionIcon
+                                        variant="subtle"
+                                        color="gray"
+                                        loading={isAcquiringLock}
                                     >
-                                        Edit
-                                    </Button>
-                                </Tooltip>
-                            ) : (
-                                <Button
-                                    size="compact-sm"
-                                    variant="default"
-                                    onClick={handleEditClick}
-                                    loading={isAcquiringLock}
-                                    leftSection={
-                                        <MantineIcon
-                                            icon={IconPencil}
-                                            size={14}
-                                        />
-                                    }
-                                >
-                                    Edit
-                                </Button>
-                            ))}
+                                        <MantineIcon icon={IconDotsVertical} />
+                                    </ActionIcon>
+                                </Menu.Target>
+                                <Menu.Dropdown>
+                                    {lockByOther ? (
+                                        <Tooltip
+                                            label={`Being edited by ${lockerName}`}
+                                        >
+                                            <Menu.Item
+                                                leftSection={
+                                                    <MantineIcon
+                                                        icon={IconPencil}
+                                                    />
+                                                }
+                                                disabled
+                                            >
+                                                Edit
+                                            </Menu.Item>
+                                        </Tooltip>
+                                    ) : (
+                                        <Menu.Item
+                                            leftSection={
+                                                <MantineIcon
+                                                    icon={IconPencil}
+                                                />
+                                            }
+                                            onClick={handleEditClick}
+                                        >
+                                            Edit
+                                        </Menu.Item>
+                                    )}
+                                    <Menu.Divider />
+                                    <Tooltip
+                                        label={`Cannot delete while being edited${lockerName ? ` by ${lockerName}` : ''}`}
+                                        disabled={!isLocked}
+                                    >
+                                        <Menu.Item
+                                            leftSection={
+                                                <MantineIcon icon={IconTrash} />
+                                            }
+                                            color="red"
+                                            disabled={isLocked}
+                                            onClick={() =>
+                                                setIsDeleteModalOpen(true)
+                                            }
+                                        >
+                                            Delete
+                                        </Menu.Item>
+                                    </Tooltip>
+                                </Menu.Dropdown>
+                            </Menu>
+                        )}
                     </Group>
                 </Group>
                 <Box className={classes.canvasContainer}>
@@ -511,6 +566,16 @@ const SavedTreeCanvas: FC<SavedTreeCanvasProps> = ({ mode, treeUuid }) => {
                         viewOnly
                     />
                 </Box>
+                <MantineModal
+                    opened={isDeleteModalOpen}
+                    onClose={() => setIsDeleteModalOpen(false)}
+                    title="Delete metrics tree"
+                    variant="delete"
+                    resourceType="metrics tree"
+                    resourceLabel={treeDetails.name}
+                    onConfirm={handleDelete}
+                    confirmLoading={isDeleting}
+                />
             </Stack>
         );
     }
