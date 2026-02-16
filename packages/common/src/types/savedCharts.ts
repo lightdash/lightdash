@@ -45,6 +45,7 @@ export enum ChartType {
 export enum ComparisonFormatTypes {
     RAW = 'raw',
     PERCENTAGE = 'percentage',
+    VALUE = 'value',
 }
 
 export enum ComparisonDiffTypes {
@@ -76,6 +77,7 @@ export type BigNumber = {
     comparisonLabel?: string;
     /** Conditional formatting rules */
     conditionalFormattings?: ConditionalFormattingConfig[];
+    comparisonField?: string;
 };
 
 export const PieChartValueLabels = {
