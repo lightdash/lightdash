@@ -14,7 +14,6 @@ import {
     type NodeRemoveChange,
     type NodeReplaceChange,
 } from '@xyflow/react';
-import partition from 'lodash/partition';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import {
@@ -45,6 +44,8 @@ type UseCanvasFlowArgs = {
     onCanvasStateChange?: (nodes: ExpandedNodeData[], edges: Edge[]) => void;
     /** Optional filter applied only to sidebar nodes (not to canvas nodes) */
     sidebarFilter?: (node: ExpandedNodeData) => boolean;
+    /** All YAML edges for the project — used to inject YAML edges reactively in edit mode */
+    allProjectYamlEdges?: CatalogMetricsTreeEdge[];
 };
 
 export const useCanvasFlow = ({
@@ -56,6 +57,7 @@ export const useCanvasFlow = ({
     preventResetAfterInit = false,
     onCanvasStateChange,
     sidebarFilter,
+    allProjectYamlEdges,
 }: UseCanvasFlowArgs) => {
     const { fitView, getNode, getEdge, screenToFlowPosition } = useReactFlow<
         ExpandedNodeData,
@@ -113,27 +115,71 @@ export const useCanvasFlow = ({
     // Track whether the canvas has been initialized (used to prevent resets in draft mode)
     const isCanvasInitializedRef = useRef(false);
 
-    // YAML edge deletion protection
+    // --- Reactive YAML edge injection (edit mode only) ---
+    // Stable string of sorted canvas node IDs — avoids re-running on every drag/reposition
+    const canvasNodeIdString = useMemo(
+        () =>
+            currentNodes
+                .map((n) => n.id)
+                .sort()
+                .join(','),
+        [currentNodes],
+    );
+
+    // Convert API YAML edges to ReactFlow edges, filtered to nodes currently on canvas
+    const yamlEdgesForCanvas = useMemo<Edge[]>(() => {
+        if (!allProjectYamlEdges?.length) return [];
+        const nodeIds = new Set(canvasNodeIdString.split(','));
+        return allProjectYamlEdges
+            .filter(
+                (e) =>
+                    nodeIds.has(e.source.catalogSearchUuid) &&
+                    nodeIds.has(e.target.catalogSearchUuid),
+            )
+            .map((e) => ({
+                id: `${e.source.catalogSearchUuid}_${e.target.catalogSearchUuid}`,
+                source: e.source.catalogSearchUuid,
+                target: e.target.catalogSearchUuid,
+                type: 'yaml' as const,
+                markerEnd: { type: MarkerType.ArrowClosed },
+            }));
+    }, [allProjectYamlEdges, canvasNodeIdString]);
+
+    // Sync YAML edges into currentEdges: add new ones, remove stale ones
+    useEffect(() => {
+        if (!allProjectYamlEdges) return; // Feature not active
+        setCurrentEdges((prev) => {
+            const existingIds = new Set(prev.map((e) => e.id));
+            const yamlIdsForCanvas = new Set(
+                yamlEdgesForCanvas.map((e) => e.id),
+            );
+            // Remove stale YAML edges (node removed from canvas)
+            const withoutStale = prev.filter(
+                (e) => e.type !== 'yaml' || yamlIdsForCanvas.has(e.id),
+            );
+            // Add new YAML edges (node added to canvas)
+            const newEdges = yamlEdgesForCanvas.filter(
+                (e) => !existingIds.has(e.id),
+            );
+            if (newEdges.length === 0 && withoutStale.length === prev.length) {
+                return prev; // Referential stability — no re-render
+            }
+            return [...withoutStale, ...newEdges];
+        });
+    }, [allProjectYamlEdges, yamlEdgesForCanvas, setCurrentEdges]);
+
+    // YAML edge deletion protection — silently filter YAML removals
+    // (handles both explicit deletion and cascade from node removal)
     const handleEdgesChange = useCallback(
         (changes: EdgeChange[]) => {
-            const [blockedYamlChanges, allowedChanges] = partition(
-                changes,
-                (change) => {
-                    if (change.type !== 'remove') return false;
-                    return getEdge(change.id)?.type === 'yaml';
-                },
-            );
-            if (blockedYamlChanges.length > 0) {
-                showToastInfo({
-                    title: 'Cannot delete YAML-defined edge',
-                    subtitle:
-                        'This connection is defined in your dbt YAML files. Update your YAML to remove it.',
-                });
-            }
+            const allowedChanges = changes.filter((change) => {
+                if (change.type !== 'remove') return true;
+                return getEdge(change.id)?.type !== 'yaml';
+            });
 
             onEdgesChange(allowedChanges);
         },
-        [getEdge, onEdgesChange, showToastInfo],
+        [getEdge, onEdgesChange],
     );
 
     // Dagre layout
@@ -256,9 +302,19 @@ export const useCanvasFlow = ({
         [setCurrentEdges, onEdgeCreated],
     );
 
-    // Delete handler: filters yaml edges, then delegates to callback
+    // Delete handler: filters yaml edges, shows toast for blocked ones, then delegates to callback
     const handleEdgesDelete = useCallback(
         async (edgesToDelete: Edge[]) => {
+            const hasYamlEdges = edgesToDelete.some(
+                (edge) => edge.type === 'yaml',
+            );
+            if (hasYamlEdges) {
+                showToastInfo({
+                    title: 'Cannot delete YAML-defined edge',
+                    subtitle:
+                        'This connection is defined in your dbt YAML files. Update your YAML to remove it.',
+                });
+            }
             if (onEdgesDeleted) {
                 const deletableEdges = edgesToDelete.filter(
                     (edge) => edge.type !== 'yaml',
@@ -266,7 +322,7 @@ export const useCanvasFlow = ({
                 await onEdgesDeleted(deletableEdges);
             }
         },
-        [onEdgesDeleted],
+        [onEdgesDeleted, showToastInfo],
     );
 
     // Drag-drop handlers

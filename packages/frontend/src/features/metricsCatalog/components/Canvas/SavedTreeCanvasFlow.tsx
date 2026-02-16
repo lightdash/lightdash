@@ -34,6 +34,8 @@ type Props = {
     onCanvasStateChange?: (nodes: ExpandedNodeData[], edges: Edge[]) => void;
     /** Optional filter applied only to the sidebar list (not the canvas) */
     sidebarFilter?: (node: ExpandedNodeData) => boolean;
+    /** All YAML edges for the project — used to inject YAML edges reactively in edit mode */
+    allProjectYamlEdges?: CatalogMetricsTreeEdge[];
 };
 
 const SavedTreeCanvasFlow: FC<Props> = ({
@@ -42,6 +44,7 @@ const SavedTreeCanvasFlow: FC<Props> = ({
     viewOnly,
     onCanvasStateChange,
     sidebarFilter,
+    allProjectYamlEdges,
 }) => {
     const theme = useMantineTheme();
 
@@ -52,6 +55,7 @@ const SavedTreeCanvasFlow: FC<Props> = ({
         preventResetAfterInit: !viewOnly, // In edit mode, prevent background refetch resets
         onCanvasStateChange,
         sidebarFilter,
+        allProjectYamlEdges,
         // No onEdgeCreated/onEdgesDeleted -- edges stay local until explicit save
     });
 
