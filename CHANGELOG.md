@@ -1,3 +1,10 @@
+# [0.2468.0](https://github.com/lightdash/lightdash/compare/0.2467.0...0.2468.0) (2026-02-16)
+
+
+### Features
+
+* add descendant counts to deleted content ([#20289](https://github.com/lightdash/lightdash/issues/20289)) ([9073d48](https://github.com/lightdash/lightdash/commit/9073d48db9cb2bee3c49c555b67acde497b23c38))
+
 # [0.2467.0](https://github.com/lightdash/lightdash/compare/0.2466.0...0.2467.0) (2026-02-13)
 
 
