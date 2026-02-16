@@ -1625,7 +1625,12 @@ export class SpaceModel {
 
     private async getSpaceRoot(spaceUuid: string): Promise<string> {
         const space = await this.database(SpaceTableName)
-            .select(['path', 'project_id', 'parent_space_uuid'])
+            .select([
+                'path',
+                'project_id',
+                'parent_space_uuid',
+                'is_default_user_space',
+            ])
             .where('space_uuid', spaceUuid)
             .first();
 
@@ -1633,6 +1638,12 @@ export class SpaceModel {
             throw new NotFoundError(
                 `Space with uuid ${spaceUuid} does not exist`,
             );
+        }
+
+        if (space.is_default_user_space) {
+            // EXPLAINME: default user spaces are treated like a root space
+            // this is because they should manage their own permissions
+            return spaceUuid;
         }
 
         const root = await this.database(SpaceTableName)
