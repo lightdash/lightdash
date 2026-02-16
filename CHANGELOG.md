@@ -1,3 +1,15 @@
+# [0.2472.0](https://github.com/lightdash/lightdash/compare/0.2471.2...0.2472.0) (2026-02-16)
+
+
+### Bug Fixes
+
+* role cy test leaking data into groups.cy.ts ([#20349](https://github.com/lightdash/lightdash/issues/20349)) ([f18e8eb](https://github.com/lightdash/lightdash/commit/f18e8eb71a26c62aeb0aa2c34a8ae7f3e34c3822))
+
+
+### Features
+
+* add saved metrics tree feature flag ([#20348](https://github.com/lightdash/lightdash/issues/20348)) ([3f5ff0d](https://github.com/lightdash/lightdash/commit/3f5ff0d405cf34087d62fb85dbc7367f90970a1d))
+
 ## [0.2471.2](https://github.com/lightdash/lightdash/compare/0.2471.1...0.2471.2) (2026-02-16)
 
 
