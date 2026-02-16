@@ -890,13 +890,24 @@ export class SavedChartService
     ): Promise<SavedChart> {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
+
+        // Resolve space UUID if neither spaceUuid nor dashboardUuid is provided
+        const resolvedSpaceUuid =
+            savedChart.spaceUuid ??
+            (!savedChart.dashboardUuid
+                ? await this.spacePermissionService.getFirstViewableSpaceUuid(
+                      user,
+                      projectUuid,
+                  )
+                : undefined);
+
         let isPrivate = false;
         let access: SpaceAccess[] = [];
-        if (savedChart.spaceUuid) {
+        if (resolvedSpaceUuid) {
             const spaceAccessContext =
                 await this.spacePermissionService.getSpaceAccessContext(
                     user.userUuid,
-                    savedChart.spaceUuid,
+                    resolvedSpaceUuid,
                 );
             isPrivate = spaceAccessContext.isPrivate;
             access = spaceAccessContext.access;
@@ -927,14 +938,29 @@ export class SavedChartService
             throw new ForbiddenError();
         }
 
+        if (!resolvedSpaceUuid && !savedChart.dashboardUuid) {
+            throw new Error(
+                'Unable to save chart; no space or dashboard provided.',
+            );
+        }
+
+        const chartToCreate = resolvedSpaceUuid
+            ? {
+                  ...savedChart,
+                  spaceUuid: resolvedSpaceUuid,
+                  dashboardUuid: null as null,
+                  slug: generateSlug(savedChart.name),
+                  updatedByUser: user,
+              }
+            : {
+                  ...savedChart,
+                  slug: generateSlug(savedChart.name),
+                  updatedByUser: user,
+              };
         const newSavedChart = await this.savedChartModel.create(
             projectUuid,
             user.userUuid,
-            {
-                ...savedChart,
-                slug: generateSlug(savedChart.name),
-                updatedByUser: user,
-            },
+            chartToCreate,
         );
 
         const cachedExplore = await this.projectModel.getExploreFromCache(

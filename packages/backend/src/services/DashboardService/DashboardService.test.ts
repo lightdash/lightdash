@@ -58,7 +58,7 @@ const dashboardModel = {
 
 const spaceModel = {
     getSpaceSummary: jest.fn(async () => publicSpace),
-    getFirstAccessibleSpace: jest.fn(async () => space),
+    get: jest.fn(async () => publicSpace),
 };
 const analyticsModel = {
     addDashboardViewEvent: jest.fn(async () => null),
@@ -107,6 +107,7 @@ const spacePermissionService = {
     getSpacesAccessContext: jest.fn(
         async (_userUuid: string, spaceUuids: string[]) => spaceContexts,
     ),
+    getFirstViewableSpaceUuid: jest.fn(async () => publicSpace.uuid),
 };
 
 jest.spyOn(analyticsMock, 'track');
@@ -159,10 +160,14 @@ describe('DashboardService', () => {
     test('should create dashboard', async () => {
         const result = await service.create(user, projectUuid, createDashboard);
 
-        expect(result).toEqual({ ...dashboard, isPrivate: space.is_private });
+        expect(result).toEqual({
+            ...dashboard,
+            isPrivate: publicSpace.isPrivate,
+            access: publicSpace.access,
+        });
         expect(dashboardModel.create).toHaveBeenCalledTimes(1);
         expect(dashboardModel.create).toHaveBeenCalledWith(
-            space.space_uuid,
+            publicSpace.uuid,
             createDashboardWithSlug,
             user,
             projectUuid,
@@ -181,10 +186,14 @@ describe('DashboardService', () => {
             createDashboardWithTileIds,
         );
 
-        expect(result).toEqual({ ...dashboard, isPrivate: space.is_private });
+        expect(result).toEqual({
+            ...dashboard,
+            isPrivate: publicSpace.isPrivate,
+            access: publicSpace.access,
+        });
         expect(dashboardModel.create).toHaveBeenCalledTimes(1);
         expect(dashboardModel.create).toHaveBeenCalledWith(
-            space.space_uuid,
+            publicSpace.uuid,
             createDashboardWithTileIds,
             user,
             projectUuid,
