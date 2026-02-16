@@ -141,7 +141,7 @@ const MetricsSidebar: FC<MetricsSidebarProps> = React.memo(({ nodes }) => {
                             <ActionIcon
                                 title="Documentation"
                                 component="a"
-                                href="https://docs.lightdash.com/guides/metrics-catalog#canvas-view-alpha"
+                                href="https://docs.lightdash.com/guides/metrics-catalog/canvas"
                                 target="_blank"
                                 variant="transparent"
                                 size="xs"
