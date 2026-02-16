@@ -1,7 +1,9 @@
+import { subject } from '@casl/ability';
 import {
     createDashboardFilterRuleFromField,
     isDimension,
     isFilterableDimension,
+    isMetric,
     type FilterDashboardToRule,
 } from '@lightdash/common';
 import {
@@ -14,13 +16,18 @@ import {
 } from '@mantine-8/core';
 import { useClipboard } from '@mantine/hooks';
 import { IconCopy } from '@tabler/icons-react';
-import { type FC } from 'react';
+import mapValues from 'lodash/mapValues';
+import { useMemo, type FC } from 'react';
 import { useLocation } from 'react-router';
 import { FilterDashboardTo } from '../../features/dashboardFilters/FilterDashboardTo';
 import type { TooltipFieldInfo } from '../../hooks/leaflet/useLeafletMapConfig';
 import useToaster from '../../hooks/toaster/useToaster';
+import { useProjectUuid } from '../../hooks/useProjectUuid';
+import { Can } from '../../providers/Ability';
+import useApp from '../../providers/App/useApp';
 import MantineIcon from '../common/MantineIcon';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
+import DrillDownMenuItem from '../MetricQueryData/DrillDownMenuItem';
 
 const getFormattedValue = (
     rowData: Record<string, any>,
@@ -64,6 +71,22 @@ const MapContextMenu: FC<MapContextMenuProps> = ({
     const { showToastSuccess } = useToaster();
     const clipboard = useClipboard({ timeout: 200 });
     const { itemsMap } = useVisualizationContext();
+    const { user } = useApp();
+    const projectUuid = useProjectUuid();
+
+    const fieldValues = useMemo(
+        () => (rowData ? mapValues(rowData, (v) => v?.value) : undefined),
+        [rowData],
+    );
+
+    const visibleFields = tooltipFields.filter((f) => f.visible);
+
+    const drillMetricItem = useMemo(() => {
+        if (!itemsMap) return undefined;
+        return visibleFields
+            .map((f) => itemsMap[f.fieldId])
+            .find((f) => f && isMetric(f));
+    }, [visibleFields, itemsMap]);
 
     if ((!rowData && !noData) || !itemsMap) {
         return null;
@@ -78,7 +101,6 @@ const MapContextMenu: FC<MapContextMenuProps> = ({
         }
     };
 
-    const visibleFields = tooltipFields.filter((f) => f.visible);
     const tooltipFieldIds = new Set(tooltipFields.map((f) => f.fieldId));
 
     const filters: FilterDashboardToRule[] =
@@ -162,17 +184,40 @@ const MapContextMenu: FC<MapContextMenuProps> = ({
                     )
                 )}
 
-                {copyValue && (
+                {(copyValue || (rowData && fieldValues && drillMetricItem)) && (
                     <>
                         <Menu.Divider />
-                        <Menu.Item
-                            leftSection={<MantineIcon icon={IconCopy} />}
-                            onClick={handleCopy}
-                        >
-                            {visibleFields.length > 1
-                                ? 'Copy values'
-                                : 'Copy value'}
-                        </Menu.Item>
+                        {copyValue && (
+                            <Menu.Item
+                                leftSection={<MantineIcon icon={IconCopy} />}
+                                onClick={handleCopy}
+                            >
+                                {visibleFields.length > 1
+                                    ? 'Copy values'
+                                    : 'Copy value'}
+                            </Menu.Item>
+                        )}
+                        {rowData && fieldValues && drillMetricItem && (
+                            <Can
+                                I="manage"
+                                this={subject('Explore', {
+                                    organizationUuid:
+                                        user.data?.organizationUuid,
+                                    projectUuid,
+                                })}
+                            >
+                                <DrillDownMenuItem
+                                    item={drillMetricItem}
+                                    fieldValues={fieldValues}
+                                    trackingData={{
+                                        organizationId:
+                                            user?.data?.organizationUuid,
+                                        userId: user?.data?.userUuid,
+                                        projectId: projectUuid,
+                                    }}
+                                />
+                            </Can>
+                        )}
                     </>
                 )}
 
