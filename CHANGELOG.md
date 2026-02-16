@@ -1,3 +1,10 @@
+## [0.2473.1](https://github.com/lightdash/lightdash/compare/0.2473.0...0.2473.1) (2026-02-16)
+
+
+### Bug Fixes
+
+* spread dashboardCSSVars to ensure CSS vars are present ([#20336](https://github.com/lightdash/lightdash/issues/20336)) ([8269bf3](https://github.com/lightdash/lightdash/commit/8269bf3bc01947dbc7284b263589e36c474fd7be))
+
 # [0.2473.0](https://github.com/lightdash/lightdash/compare/0.2472.0...0.2473.0) (2026-02-16)
 
 
