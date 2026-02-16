@@ -619,6 +619,7 @@ export const refreshDatabricksOAuthToken = async (
     host: string,
     clientId: string,
     refreshToken: string,
+    clientSecret?: string,
 ): Promise<{
     accessToken: string;
     refreshToken: string;
@@ -626,16 +627,21 @@ export const refreshDatabricksOAuthToken = async (
 }> => {
     const tokenUrl = `https://${host}/oidc/v1/token`;
 
+    const params = new URLSearchParams({
+        grant_type: 'refresh_token',
+        refresh_token: refreshToken,
+        client_id: clientId,
+    });
+    if (clientSecret) {
+        params.set('client_secret', clientSecret);
+    }
+
     const response = await fetch(tokenUrl, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
         },
-        body: new URLSearchParams({
-            grant_type: 'refresh_token',
-            refresh_token: refreshToken,
-            client_id: clientId,
-        }).toString(),
+        body: params.toString(),
     });
 
     if (!response.ok) {

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import {
+    DatabricksAuthenticationType,
     SnowflakeAuthenticationType,
     WarehouseTypes,
     type CreateAthenaCredentials,
@@ -86,5 +87,19 @@ export const snowflakeSsoUserCredentialsSchema = z
         password: z.string().optional(),
         authenticationType: z.literal(SnowflakeAuthenticationType.SSO),
         refreshToken: z.string(),
+    })
+    .strict();
+
+// Zod schema for validating Databricks OAuth U2M user warehouse credentials
+// Requires refreshToken and allows optional compatibility fields
+export const databricksOauthU2mUserCredentialsSchema = z
+    .object({
+        type: z.literal(WarehouseTypes.DATABRICKS),
+        authenticationType: z.literal(DatabricksAuthenticationType.OAUTH_U2M),
+        refreshToken: z.string(),
+        personalAccessToken: z.string().optional(),
+        database: z.string().optional(),
+        serverHostName: z.string().optional(),
+        httpPath: z.string().optional(),
     })
     .strict();
