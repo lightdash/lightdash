@@ -167,9 +167,9 @@ describe('Lightdash dashboard', () => {
         ).then((response) => {
             // Get the latest dashboard created via API
             const dashboard = response.body.results
-                .sort((d) => d.updatedAt)
+                .sort((d: Dashboard) => d.updatedAt)
                 .reverse()
-                .find((s) => s.name === dashboardName);
+                .find((s: Dashboard) => s.name === dashboardName);
 
             cy.request(`${apiUrl}/dashboards/${dashboard.uuid}`).then(
                 (dashboardResponse) => {
@@ -219,9 +219,9 @@ describe('Lightdash dashboard', () => {
         ).then((response) => {
             // Get the latest dashboard created via API
             const dashboard = response.body.results
-                .sort((d) => d.updatedAt)
+                .sort((d: Dashboard) => d.updatedAt)
                 .reverse()
-                .find((s) => s.name === dashboardName);
+                .find((s: Dashboard) => s.name === dashboardName);
 
             cy.request(`${apiUrl}/dashboards/${dashboard.uuid}`).then(
                 (dashboardResponse) => {
@@ -451,6 +451,58 @@ describe('Lightdash dashboard', () => {
 
                 // Clean up
                 cy.deleteDashboardsByName([testDashboardName]);
+            });
+        });
+    });
+
+    describe('Dashboard space selection', () => {
+        const spaceSelectionDashboardName = 'Dashboard space selection test';
+
+        beforeEach(() => {
+            cy.login();
+        });
+
+        after(() => {
+            cy.login();
+            cy.deleteDashboardsByName([spaceSelectionDashboardName]);
+        });
+
+        it('Should create a dashboard in the specified space', () => {
+            const projectUuid = SEED_PROJECT.project_uuid;
+            const spaceName = `test-space-${Date.now()}`;
+
+            cy.createSpace(projectUuid, spaceName).then((spaceUuid) => {
+                createDashboard(projectUuid, {
+                    ...dashboardMock,
+                    name: spaceSelectionDashboardName,
+                    spaceUuid,
+                }).then((dashboard) => {
+                    expect(dashboard.spaceUuid).to.eq(spaceUuid);
+                });
+            });
+        });
+
+        it('Should create a dashboard in the first accessible space when no spaceUuid is provided', () => {
+            const projectUuid = SEED_PROJECT.project_uuid;
+
+            createDashboard(projectUuid, {
+                ...dashboardMock,
+                name: spaceSelectionDashboardName,
+            }).then((dashboard) => {
+                expect(dashboard.spaceUuid).to.exist;
+                expect(dashboard.spaceUuid).to.be.a('string');
+
+                // Verify the space exists in the project
+                cy.request<{
+                    results: Array<{ uuid: string }>;
+                }>(`${apiUrl}/projects/${projectUuid}/spaces`).then(
+                    (spacesResponse) => {
+                        const spaceUuids = spacesResponse.body.results.map(
+                            (s) => s.uuid,
+                        );
+                        expect(spaceUuids).to.include(dashboard.spaceUuid);
+                    },
+                );
             });
         });
     });
