@@ -5714,6 +5714,7 @@ export class ProjectService extends BaseService {
                 const ctx = spacesCtx[spaceSummary.uuid];
                 return {
                     ...spaceSummary,
+                    isPrivate: ctx?.isPrivate ?? spaceSummary.isPrivate,
                     access: ctx
                         ? ctx.access
                               .filter((a) => a.hasDirectAccess)

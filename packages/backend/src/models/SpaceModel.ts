@@ -55,7 +55,6 @@ import {
     generateUniqueSpaceSlug,
 } from '../utils/SlugUtils';
 import type { GetDashboardDetailsQuery } from './DashboardModel/DashboardModel';
-import { getRootSpaceIsPrivateQuery } from './SpacePermissionModel';
 
 type SpaceModelArguments = {
     database: Knex;
@@ -229,9 +228,7 @@ export class SpaceModel {
                 `${DashboardsTableName}.dashboard_uuid`,
                 `${DashboardsTableName}.name as dashboard_name`,
                 `${SavedChartsTableName}.slug`,
-                this.database.raw(
-                    `${getRootSpaceIsPrivateQuery()} AS is_private`,
-                ),
+                `${SpaceTableName}.is_private`,
             ])
             .orderBy(`${SavedChartsTableName}.last_version_updated_at`, 'desc')
             .where(`${SavedChartsTableName}.space_id`, space.space_id)
@@ -330,7 +327,7 @@ export class SpaceModel {
                         projectUuid: `${ProjectTableName}.project_uuid`,
                         uuid: `${SpaceTableName}.space_uuid`,
                         name: `${SpaceTableName}.name`,
-                        isPrivate: trx.raw(getRootSpaceIsPrivateQuery()),
+                        isPrivate: `${SpaceTableName}.is_private`,
                         pinnedListUuid: `${PinnedListTableName}.pinned_list_uuid`,
                         pinnedListOrder: `${PinnedSpaceTableName}.order`,
                         chartCount: trx
@@ -472,9 +469,6 @@ export class SpaceModel {
                     Pick<DBPinnedSpace, 'order'>)[]
             >([
                 `${SpaceTableName}.*`,
-                this.database.raw(
-                    `${getRootSpaceIsPrivateQuery()} AS is_private`,
-                ),
                 `${ProjectTableName}.project_uuid`,
                 `${OrganizationTableName}.organization_uuid`,
 

@@ -146,6 +146,7 @@ export class SpaceService extends BaseService implements BulkActionable<Knex> {
 
         return {
             ...space,
+            isPrivate: ctx.isPrivate,
             queries,
             dashboards,
             childSpaces,
