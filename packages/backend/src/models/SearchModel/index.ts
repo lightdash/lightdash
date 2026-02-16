@@ -1220,6 +1220,8 @@ export class SearchModel {
                                             : undefined,
                                         tablesRequiredAttributes:
                                             field.tablesRequiredAttributes,
+                                        tablesAnyAttributes:
+                                            field.tablesAnyAttributes,
                                         regexMatchCount: fieldRegexMatchCount,
                                     });
                                 }

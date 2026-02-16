@@ -730,6 +730,18 @@ export class ExploreCompiler {
             },
             {},
         );
+        const tablesAnyAttributes = Array.from(
+            compiledMetric.tablesReferences,
+        ).reduce<Record<string, Record<string, string | string[]>>>(
+            (acc, tableReference) => {
+                const table = tables[tableReference] as Table | undefined;
+                if (table?.anyAttributes) {
+                    acc[tableReference] = table.anyAttributes;
+                }
+                return acc;
+            },
+            {},
+        );
 
         const compiledSql = compiledMetric.sql;
 
@@ -752,6 +764,9 @@ export class ExploreCompiler {
             tablesReferences: Array.from(compiledMetric.tablesReferences),
             ...(Object.keys(tablesRequiredAttributes).length
                 ? { tablesRequiredAttributes }
+                : {}),
+            ...(Object.keys(tablesAnyAttributes).length
+                ? { tablesAnyAttributes }
                 : {}),
             ...(parameterReferences.length > 0 ? { parameterReferences } : {}),
         };
@@ -981,6 +996,18 @@ export class ExploreCompiler {
             },
             {},
         );
+        const tablesAnyAttributes = Array.from(
+            compiledDimension.tablesReferences,
+        ).reduce<Record<string, Record<string, string | string[]>>>(
+            (acc, tableReference) => {
+                const table = tables[tableReference] as Table | undefined;
+                if (table?.anyAttributes) {
+                    acc[tableReference] = table.anyAttributes;
+                }
+                return acc;
+            },
+            {},
+        );
 
         const compiledSql = compiledDimension.sql;
 
@@ -1002,6 +1029,9 @@ export class ExploreCompiler {
             tablesReferences: Array.from(compiledDimension.tablesReferences),
             ...(Object.keys(tablesRequiredAttributes).length
                 ? { tablesRequiredAttributes }
+                : {}),
+            ...(Object.keys(tablesAnyAttributes).length
+                ? { tablesAnyAttributes }
                 : {}),
             ...(parameterReferences.length > 0 ? { parameterReferences } : {}),
         };

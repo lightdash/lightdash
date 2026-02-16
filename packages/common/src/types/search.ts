@@ -150,6 +150,7 @@ export type FieldSearchResult = Pick<
         string,
         Record<string, string | string[]>
     >;
+    tablesAnyAttributes?: Record<string, Record<string, string | string[]>>;
     explore: string;
     exploreLabel: string;
     regexMatchCount: number;
