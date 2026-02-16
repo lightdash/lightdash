@@ -1,9 +1,11 @@
 import { subject } from '@casl/ability';
 import {
     ForbiddenError,
-    PinnedItems,
-    SessionUser,
-    UpdatePinnedItemOrder,
+    ResourceViewItemType,
+    type PinnedItems,
+    type ResourceViewSpaceItem,
+    type SessionUser,
+    type UpdatePinnedItemOrder,
 } from '@lightdash/common';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
@@ -84,15 +86,43 @@ export class PinningService extends BaseService {
             return [];
         }
 
-        const allPinnedSpaces =
+        const allPinnedSpaceBases =
             await this.resourceViewItemModel.getAllSpacesByPinnedListUuid(
                 projectUuid,
                 pinnedListUuid,
             );
 
-        const allowedPinnedSpaces = allPinnedSpaces.filter(
+        const allowedPinnedSpaceBases = allPinnedSpaceBases.filter(
             ({ data: { uuid } }) => allowedSpaceUuids.includes(uuid),
         );
+
+        // Enrich pinned spaces with access data from SpacePermissionService
+        const pinnedSpaceUuids = allowedPinnedSpaceBases.map(
+            (s) => s.data.uuid,
+        );
+        const spacesCtx =
+            await this.spacePermissionService.getSpacesAccessContext(
+                user.userUuid,
+                pinnedSpaceUuids,
+            );
+        const allowedPinnedSpaces: ResourceViewSpaceItem[] =
+            allowedPinnedSpaceBases.map((item) => {
+                const ctx = spacesCtx[item.data.uuid];
+                const directAccessUuids = ctx
+                    ? ctx.access
+                          .filter((a) => a.hasDirectAccess)
+                          .map((a) => a.userUuid)
+                    : [];
+                return {
+                    type: ResourceViewItemType.SPACE,
+                    data: {
+                        ...item.data,
+                        access: directAccessUuids,
+                        accessListLength: directAccessUuids.length,
+                    },
+                };
+            });
+
         const { charts: allowedCharts, dashboards: allowedDashboards } =
             await this.resourceViewItemModel.getAllowedChartsAndDashboards(
                 projectUuid,
