@@ -11,12 +11,18 @@ import {
     Switch,
     TextInput,
 } from '@mantine/core';
-import startCase from 'lodash/startCase';
 import { isBigNumberVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import FieldSelect from '../../common/FieldSelect';
 import { Config } from '../common/Config';
 import { StyleOptions } from './common';
+
+type CompareTarget = 'previous_row' | 'another_field';
+
+const getCompareTarget = (
+    format: ComparisonFormatTypes | undefined,
+): CompareTarget =>
+    format === ComparisonFormatTypes.VALUE ? 'another_field' : 'previous_row';
 
 export const Comparison: React.FC = () => {
     const { visualizationConfig, itemsMap } = useVisualizationContext();
@@ -43,10 +49,12 @@ export const Comparison: React.FC = () => {
 
     const comparisonFieldItem = getField(comparisonField);
 
-    // Filter out selectedField from available comparison fields
     const comparisonFieldItems = Object.values(itemsMap ?? {}).filter(
         (item) => getItemId(item) !== selectedField,
     );
+
+    const compareTarget = getCompareTarget(comparisonFormat);
+    const isPreviousRow = compareTarget === 'previous_row';
 
     return (
         <Stack>
@@ -65,39 +73,106 @@ export const Comparison: React.FC = () => {
                     {showComparison ? (
                         <>
                             <Group spacing="xs">
-                                <Config.Label>Compare by</Config.Label>
+                                <Config.Label>Compare to</Config.Label>
                                 <SegmentedControl
                                     data={[
                                         {
-                                            value: ComparisonFormatTypes.RAW,
-                                            label: `${startCase(
-                                                ComparisonFormatTypes.RAW,
-                                            )} value`,
+                                            value: 'previous_row' as CompareTarget,
+                                            label: 'Previous row',
                                         },
                                         {
-                                            value: ComparisonFormatTypes.PERCENTAGE,
-                                            label: startCase(
-                                                ComparisonFormatTypes.PERCENTAGE,
-                                            ),
-                                        },
-                                        {
-                                            value: ComparisonFormatTypes.VALUE,
-                                            label: 'Value',
+                                            value: 'another_field' as CompareTarget,
+                                            label: 'Another field',
                                         },
                                     ]}
-                                    value={comparisonFormat}
-                                    onChange={(e) => {
-                                        setComparisonFormat(
-                                            e as ComparisonFormatTypes,
-                                        );
+                                    value={compareTarget}
+                                    onChange={(value) => {
+                                        if (value === 'another_field') {
+                                            setComparisonFormat(
+                                                ComparisonFormatTypes.VALUE,
+                                            );
+                                        } else {
+                                            setComparisonFormat(
+                                                ComparisonFormatTypes.RAW,
+                                            );
+                                            setComparisonField(undefined);
+                                        }
                                     }}
                                 />
                             </Group>
 
-                            {comparisonFormat ===
-                                ComparisonFormatTypes.VALUE && (
+                            {isPreviousRow && (
+                                <>
+                                    <Group spacing="xs">
+                                        <Config.Label>Format</Config.Label>
+                                        <SegmentedControl
+                                            data={[
+                                                {
+                                                    value: ComparisonFormatTypes.RAW,
+                                                    label: 'Number',
+                                                },
+                                                {
+                                                    value: ComparisonFormatTypes.PERCENTAGE,
+                                                    label: 'Percentage',
+                                                },
+                                            ]}
+                                            value={
+                                                comparisonFormat ===
+                                                ComparisonFormatTypes.PERCENTAGE
+                                                    ? ComparisonFormatTypes.PERCENTAGE
+                                                    : ComparisonFormatTypes.RAW
+                                            }
+                                            onChange={(e) => {
+                                                setComparisonFormat(
+                                                    e as ComparisonFormatTypes,
+                                                );
+                                            }}
+                                        />
+                                    </Group>
+
+                                    <Switch
+                                        label="Flip positive color"
+                                        checked={flipColors}
+                                        onChange={() => {
+                                            setFlipColors(!flipColors);
+                                        }}
+                                        labelPosition="left"
+                                        styles={{
+                                            label: {
+                                                paddingLeft: 0,
+                                            },
+                                        }}
+                                    />
+
+                                    {showStyle &&
+                                        comparisonFormat ===
+                                            ComparisonFormatTypes.RAW && (
+                                            <Select
+                                                label="Style"
+                                                data={StyleOptions}
+                                                value={
+                                                    bigNumberComparisonStyle ??
+                                                    ''
+                                                }
+                                                onChange={(newValue) => {
+                                                    if (!newValue) {
+                                                        setBigNumberComparisonStyle(
+                                                            undefined,
+                                                        );
+                                                    } else {
+                                                        setBigNumberComparisonStyle(
+                                                            newValue as CompactOrAlias,
+                                                        );
+                                                    }
+                                                }}
+                                            />
+                                        )}
+                                </>
+                            )}
+
+                            {!isPreviousRow && (
                                 <FieldSelect
-                                    label="Comparison field"
+                                    label="Field"
                                     item={comparisonFieldItem}
                                     items={comparisonFieldItems}
                                     onChange={(newValue) => {
@@ -110,44 +185,6 @@ export const Comparison: React.FC = () => {
                                     hasGrouping
                                 />
                             )}
-
-                            {comparisonFormat !==
-                                ComparisonFormatTypes.VALUE && (
-                                <Switch
-                                    label="Flip positive color"
-                                    checked={flipColors}
-                                    onChange={() => {
-                                        setFlipColors(!flipColors);
-                                    }}
-                                    labelPosition="left"
-                                    styles={{
-                                        label: {
-                                            paddingLeft: 0,
-                                        },
-                                    }}
-                                />
-                            )}
-
-                            {showStyle &&
-                                comparisonFormat ===
-                                    ComparisonFormatTypes.RAW && (
-                                    <Select
-                                        label="Format"
-                                        data={StyleOptions}
-                                        value={bigNumberComparisonStyle ?? ''}
-                                        onChange={(newValue) => {
-                                            if (!newValue) {
-                                                setBigNumberComparisonStyle(
-                                                    undefined,
-                                                );
-                                            } else {
-                                                setBigNumberComparisonStyle(
-                                                    newValue as CompactOrAlias,
-                                                );
-                                            }
-                                        }}
-                                    />
-                                )}
 
                             <TextInput
                                 label="Comparison label"
