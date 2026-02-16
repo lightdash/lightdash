@@ -1,3 +1,10 @@
+# [0.2473.0](https://github.com/lightdash/lightdash/compare/0.2472.0...0.2473.0) (2026-02-16)
+
+
+### Features
+
+* add drill-into to maps ([#20333](https://github.com/lightdash/lightdash/issues/20333)) ([7ff56a6](https://github.com/lightdash/lightdash/commit/7ff56a68e4af86e1b988cd6796c316833b0b5ecb))
+
 # [0.2472.0](https://github.com/lightdash/lightdash/compare/0.2471.2...0.2472.0) (2026-02-16)
 
 
