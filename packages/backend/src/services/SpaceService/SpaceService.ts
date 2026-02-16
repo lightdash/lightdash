@@ -122,7 +122,7 @@ export class SpaceService extends BaseService implements BulkActionable<Knex> {
         const space = await this.spaceModel.get(spaceUuid);
         const [ctx, groupsAccess, breadcrumbs] = await Promise.all([
             this.spacePermissionService.getAllSpaceAccessContext(spaceUuid),
-            this.spaceModel.getGroupAccess(spaceUuid),
+            this.spacePermissionService.getGroupAccess(spaceUuid),
             this.spaceModel.getSpaceBreadcrumbs(spaceUuid, space.projectUuid),
         ]);
 

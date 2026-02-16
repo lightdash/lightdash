@@ -704,26 +704,6 @@ export class SpaceModel {
         );
     }
 
-    async getGroupAccess(spaceUuid: string): Promise<SpaceGroup[]> {
-        const { spaceRoot: spaceOrRootUuid } =
-            await this.getSpaceRootFromCacheOrDB(spaceUuid);
-
-        const access = await this.database
-            .table(SpaceGroupAccessTableName)
-            .select({
-                groupUuid: `${SpaceGroupAccessTableName}.group_uuid`,
-                spaceRole: `${SpaceGroupAccessTableName}.space_role`,
-                groupName: `${GroupTableName}.name`,
-            })
-            .leftJoin(
-                `${GroupTableName}`,
-                `${GroupTableName}.group_uuid`,
-                `${SpaceGroupAccessTableName}.group_uuid`,
-            )
-            .where('space_uuid', spaceOrRootUuid);
-        return access;
-    }
-
     private async getSpaceCharts(
         chartsTable: {
             name: string;
