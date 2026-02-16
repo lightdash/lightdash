@@ -119,6 +119,15 @@ const bigqueryConfig: WarehouseConfig = {
             return `EXTRACT(${datePart}(${bigqueryStartOfWeekMap[startOfWeek]}) FROM ${originalSql})`;
         }
 
+        // BigQuery DAYOFWEEK: 1=Sunday, 2=Monday, ..., 7=Saturday
+        if (
+            timeFrame === TimeFrames.DAY_OF_WEEK_INDEX &&
+            isWeekDay(startOfWeek)
+        ) {
+            const nativeOffset = ((startOfWeek + 1) % 7) + 1;
+            return `MOD(EXTRACT(DAYOFWEEK FROM ${originalSql}) - ${nativeOffset} + 7, 7) + 1`;
+        }
+
         return `EXTRACT(${datePart} FROM ${originalSql})`;
     },
     getSqlForDatePartName: (
@@ -207,6 +216,15 @@ const postgresConfig: WarehouseConfig = {
             return `DATE_PART('${datePart}', (${originalSql} - interval '${intervalDiff}'))`;
         }
 
+        // PostgreSQL DOW: 0=Sunday, 1=Monday, ..., 6=Saturday
+        if (
+            timeFrame === TimeFrames.DAY_OF_WEEK_INDEX &&
+            isWeekDay(startOfWeek)
+        ) {
+            const nativeOffset = (startOfWeek + 1) % 7;
+            return `MOD(CAST(DATE_PART('DOW', ${originalSql}) AS INT) - ${nativeOffset} + 7, 7) + 1`;
+        }
+
         return `DATE_PART('${datePart}', ${originalSql})`;
     },
     getSqlForDatePartName: (timeFrame: TimeFrames, originalSql: string) => {
@@ -252,6 +270,15 @@ const databricksConfig: WarehouseConfig = {
             return `DATE_PART('${datePart}', (${originalSql} - interval '${intervalDiff}'))`;
         }
 
+        // Databricks DOW: 0=Sunday, 1=Monday, ..., 6=Saturday
+        if (
+            timeFrame === TimeFrames.DAY_OF_WEEK_INDEX &&
+            isWeekDay(startOfWeek)
+        ) {
+            const nativeOffset = (startOfWeek + 1) % 7;
+            return `MOD(CAST(DATE_PART('DOW', ${originalSql}) AS INT) - ${nativeOffset} + 7, 7) + 1`;
+        }
+
         return `DATE_PART('${datePart}', ${originalSql})`;
     },
     getSqlForDatePartName: (timeFrame: TimeFrames, originalSql: string) => {
@@ -294,6 +321,15 @@ const trinoConfig: WarehouseConfig = {
         if (timeFrame === TimeFrames.WEEK_NUM && isWeekDay(startOfWeek)) {
             const intervalDiff = `'${startOfWeek}' day`;
             return `EXTRACT(${datePart} FROM (${originalSql} - interval ${intervalDiff}))`;
+        }
+
+        // Trino DOW (ISO): 1=Monday, 2=Tuesday, ..., 7=Sunday
+        if (
+            timeFrame === TimeFrames.DAY_OF_WEEK_INDEX &&
+            isWeekDay(startOfWeek)
+        ) {
+            const nativeOffset = startOfWeek + 1;
+            return `MOD(EXTRACT(DOW FROM ${originalSql}) - ${nativeOffset} + 7, 7) + 1`;
         }
 
         return `EXTRACT(${datePart} FROM ${originalSql})`;
@@ -348,7 +384,12 @@ const clickhouseConfig: WarehouseConfig = {
                 );
         }
     },
-    getSqlForDatePart: (timeFrame: TimeFrames, originalSql: string) => {
+    getSqlForDatePart: (
+        timeFrame: TimeFrames,
+        originalSql: string,
+        _,
+        startOfWeek,
+    ) => {
         const clickhouseTimeFrameMap: Record<TimeFrames, string | null> = {
             ...timeFrameToDatePartMap,
             [TimeFrames.DAY_OF_WEEK_INDEX]: 'toDayOfWeek',
@@ -361,6 +402,15 @@ const clickhouseConfig: WarehouseConfig = {
             [TimeFrames.HOUR_OF_DAY_NUM]: 'toHour',
             [TimeFrames.MINUTE_OF_HOUR_NUM]: 'toMinute',
         };
+
+        // ClickHouse toDayOfWeek (ISO): 1=Monday, 2=Tuesday, ..., 7=Sunday
+        if (
+            timeFrame === TimeFrames.DAY_OF_WEEK_INDEX &&
+            isWeekDay(startOfWeek)
+        ) {
+            const nativeOffset = startOfWeek + 1;
+            return `modulo(toDayOfWeek(${originalSql}) - ${nativeOffset} + 7, 7) + 1`;
+        }
 
         const extractFunction = clickhouseTimeFrameMap[timeFrame];
         if (!extractFunction) {
