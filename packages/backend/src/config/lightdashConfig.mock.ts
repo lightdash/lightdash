@@ -315,6 +315,9 @@ export const lightdashConfigMock: LightdashConfig = {
     maps: {
         enabled: false,
     },
+    savedMetricsTree: {
+        enabled: undefined,
+    },
     nestedSpacesPermissions: {
         enabled: false,
     },

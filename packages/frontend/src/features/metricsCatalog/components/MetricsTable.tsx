@@ -43,7 +43,7 @@ import {
 import { useLocation, useNavigate } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
-import { useClientFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
@@ -80,9 +80,10 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
     const theme = useMantineTheme();
     const location = useLocation();
     const navigate = useNavigate();
-    const isSavedMetricsTreeEnabled = useClientFeatureFlag(
+    const { data: savedMetricsTreeFlag } = useServerFeatureFlag(
         FeatureFlags.SavedMetricsTree,
     );
+    const isSavedMetricsTreeEnabled = savedMetricsTreeFlag?.enabled ?? false;
 
     const userUuid = useAppSelector(
         (state) => state.metricsCatalog.user?.userUuid,

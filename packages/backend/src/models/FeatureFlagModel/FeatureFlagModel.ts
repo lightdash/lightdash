@@ -46,6 +46,8 @@ export class FeatureFlagModel {
                 this.getNestedSpacesPermissionsEnabled.bind(this),
             [FeatureFlags.AdminChangeNotifications]:
                 this.getAdminChangeNotifications.bind(this),
+            [FeatureFlags.SavedMetricsTree]:
+                this.getSavedMetricsTreeEnabled.bind(this),
         };
     }
 
@@ -246,6 +248,24 @@ export class FeatureFlagModel {
                           timeoutMilliseconds: 500,
                       },
                   )
+                : false);
+        return {
+            id: featureFlagId,
+            enabled,
+        };
+    }
+
+    private async getSavedMetricsTreeEnabled({
+        user,
+        featureFlagId,
+    }: FeatureFlagLogicArgs) {
+        const enabled =
+            this.lightdashConfig.savedMetricsTree.enabled ??
+            (user
+                ? await isFeatureFlagEnabled(FeatureFlags.SavedMetricsTree, {
+                      userUuid: user.userUuid,
+                      organizationUuid: user.organizationUuid,
+                  })
                 : false);
         return {
             id: featureFlagId,
