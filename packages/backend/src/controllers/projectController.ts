@@ -29,6 +29,7 @@ import {
     ParameterError,
     RequestMethod,
     SqlChartAsCode,
+    UpdateDefaultUserSpaces,
     UpdateMetadata,
     UpdateProjectMember,
     UserWarehouseCredentials,
@@ -577,6 +578,34 @@ export class ProjectController extends BaseController {
         await this.services
             .getProjectService()
             .updateMetadata(req.user!, projectUuid, body);
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    /**
+     * Toggle default user spaces for a project.
+     * When enabled, creates personal spaces for all eligible users.
+     * @summary Update default user spaces setting
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Patch('{projectUuid}/hasDefaultUserSpaces')
+    @OperationId('updateDefaultUserSpaces')
+    async updateDefaultUserSpaces(
+        @Path() projectUuid: string,
+        @Body() body: UpdateDefaultUserSpaces,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        this.setStatus(200);
+        await this.services
+            .getProjectService()
+            .updateDefaultUserSpaces(req.user!, projectUuid, body);
         return {
             status: 'ok',
             results: undefined,

@@ -155,6 +155,7 @@ import {
     TableSelectionType,
     type Tag,
     UnexpectedServerError,
+    UpdateDefaultUserSpaces,
     UpdateMetadata,
     UpdateProject,
     UpdateProjectMember,
@@ -5546,6 +5547,31 @@ export class ProjectService extends BaseService {
         }
 
         await this.projectModel.updateMetadata(projectUuid, data);
+    }
+
+    async updateDefaultUserSpaces(
+        user: SessionUser,
+        projectUuid: string,
+        data: UpdateDefaultUserSpaces,
+    ): Promise<void> {
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        await this.projectModel.updateDefaultUserSpaces(
+            projectUuid,
+            data.hasDefaultUserSpaces,
+        );
     }
 
     async deleteProjectAccess(

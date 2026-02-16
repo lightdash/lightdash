@@ -223,6 +223,10 @@ export type UpdateProjectMember = {
 export type UpdateMetadata = {
     upstreamProjectUuid?: string | null; // null means we unset this value
 };
+
+export type UpdateDefaultUserSpaces = {
+    hasDefaultUserSpaces: boolean;
+};
 export type ApiCompiledQueryResults = {
     query: string;
     pivotQuery?: string;
