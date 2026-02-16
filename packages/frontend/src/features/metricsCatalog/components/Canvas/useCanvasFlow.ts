@@ -81,9 +81,7 @@ export const useCanvasFlow = ({
             : undefined;
 
     const timeValuesRef = useRef({ timeFrame, rollingDays });
-    useEffect(() => {
-        timeValuesRef.current = { timeFrame, rollingDays };
-    }, [timeFrame, rollingDays]);
+    timeValuesRef.current = { timeFrame, rollingDays };
 
     // Compute derived data using extracted utilities
     const persistedPositionIds = useMemo(
@@ -112,8 +110,18 @@ export const useCanvasFlow = ({
     const [currentEdges, setCurrentEdges, onEdgesChange] =
         useEdgesState(initialEdges);
 
+    // Sync refs during render so stable callbacks always read fresh state
+    const nodesRef = useRef(currentNodes);
+    nodesRef.current = currentNodes;
+    const edgesRef = useRef(currentEdges);
+    edgesRef.current = currentEdges;
+
     // Track whether the canvas has been initialized (used to prevent resets in draft mode)
     const isCanvasInitializedRef = useRef(false);
+
+    // Track reset cycles to avoid stale time-propagation writes (Fix 3)
+    const resetCountRef = useRef(0);
+    const lastSeenResetRef = useRef(0);
 
     // --- Reactive YAML edge injection (edit mode only) ---
     // Stable string of sorted canvas node IDs — avoids re-running on every drag/reposition
@@ -182,21 +190,24 @@ export const useCanvasFlow = ({
         [getEdge, onEdgesChange],
     );
 
-    // Dagre layout
+    // Dagre layout — reads from refs so the callback is stable across node/edge changes
     const applyLayout = useCallback(
         ({
             renderTwice = true,
             removeUnconnected = false,
         }: { renderTwice?: boolean; removeUnconnected?: boolean } = {}) => {
+            const nodes = nodesRef.current;
+            const edges = edgesRef.current;
+
             const nodesToLayout = removeUnconnected
-                ? currentNodes.filter((node) =>
-                      currentEdges.some(
+                ? nodes.filter((node) =>
+                      edges.some(
                           (edge) =>
                               edge.source === node.id ||
                               edge.target === node.id,
                       ),
                   )
-                : currentNodes;
+                : nodes;
 
             // Skip layout if nodes aren't measured yet
             const allNodesMeasured = nodesToLayout.every(
@@ -209,7 +220,7 @@ export const useCanvasFlow = ({
                 return;
             }
 
-            const layout = getNodeLayout(nodesToLayout, currentEdges);
+            const layout = getNodeLayout(nodesToLayout, edges);
 
             setCurrentNodes(layout.nodes);
             setCurrentEdges(layout.edges);
@@ -227,7 +238,7 @@ export const useCanvasFlow = ({
                 void fitView({ maxZoom: 1.2 });
             });
         },
-        [currentNodes, currentEdges, setCurrentNodes, setCurrentEdges, fitView],
+        [setCurrentNodes, setCurrentEdges, fitView],
     );
 
     // Node position change handling
@@ -391,6 +402,7 @@ export const useCanvasFlow = ({
         setCurrentNodes(nodesWithTimeData);
         setCurrentEdges(initialEdges);
         setIsLayoutReady(false);
+        resetCountRef.current += 1;
     }, [
         initialNodes,
         initialEdges,
@@ -402,10 +414,11 @@ export const useCanvasFlow = ({
     // Apply layout when nodes are initialized and the initial layout is not ready.
     // Skip Dagre layout when all nodes have saved positions (they're already placed correctly).
     useEffect(() => {
-        if (nodesInitialized && !isLayoutReady && currentNodes.length > 0) {
+        const nodes = nodesRef.current;
+        if (nodesInitialized && !isLayoutReady && nodes.length > 0) {
             const allHaveSavedPositions =
                 persistedPositionIds.size > 0 &&
-                currentNodes.every((node) => persistedPositionIds.has(node.id));
+                nodes.every((node) => persistedPositionIds.has(node.id));
 
             if (allHaveSavedPositions) {
                 setIsLayoutReady(true);
@@ -420,13 +433,17 @@ export const useCanvasFlow = ({
         applyLayout,
         nodesInitialized,
         isLayoutReady,
-        currentNodes,
         persistedPositionIds,
         fitView,
     ]);
 
-    // Propagate time frame changes to all nodes
+    // Propagate time frame changes to all nodes.
+    // Skip when a reset just ran — the reset effect already applied current time values.
     useEffect(() => {
+        if (resetCountRef.current !== lastSeenResetRef.current) {
+            lastSeenResetRef.current = resetCountRef.current;
+            return;
+        }
         setCurrentNodes((nodes) =>
             nodes.map((node) => ({
                 ...node,
@@ -456,12 +473,42 @@ export const useCanvasFlow = ({
         }
     }, [removeNodeChanges, onNodesChange]);
 
-    // Notify parent of canvas state changes for save functionality
+    const prevStructureRef = useRef('');
+    const notifyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
     useEffect(() => {
-        if (onCanvasStateChange) {
+        if (!onCanvasStateChange) return;
+
+        const edgeIdString = currentEdges
+            .map((e) => e.id)
+            .sort()
+            .join(',');
+        const structureKey = `${canvasNodeIdString}|${edgeIdString}`;
+        const isStructuralChange = structureKey !== prevStructureRef.current;
+        prevStructureRef.current = structureKey;
+
+        if (isStructuralChange) {
+            if (notifyTimerRef.current) {
+                clearTimeout(notifyTimerRef.current);
+                notifyTimerRef.current = null;
+            }
             onCanvasStateChange(currentNodes, currentEdges);
+            return;
         }
-    }, [currentNodes, currentEdges, onCanvasStateChange]);
+
+        if (notifyTimerRef.current) clearTimeout(notifyTimerRef.current);
+        notifyTimerRef.current = setTimeout(() => {
+            notifyTimerRef.current = null;
+            onCanvasStateChange(currentNodes, currentEdges);
+        }, 150);
+
+        return () => {
+            if (notifyTimerRef.current) {
+                clearTimeout(notifyTimerRef.current);
+                notifyTimerRef.current = null;
+            }
+        };
+    }, [currentNodes, currentEdges, canvasNodeIdString, onCanvasStateChange]);
 
     // Sidebar nodes: all nodes not currently on the canvas, optionally filtered
     const sidebarNodes = useMemo(() => {
