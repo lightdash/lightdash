@@ -5599,6 +5599,9 @@
                         "$ref": "#/components/schemas/FieldCompilationError",
                         "description": "When partial compilation mode is enabled, fields that fail to compile\nwill have this property set instead of causing the entire explore to fail."
                     },
+                    "tablesAnyAttributes": {
+                        "$ref": "#/components/schemas/Record_string.Record_string.string-or-string-Array__"
+                    },
                     "tablesRequiredAttributes": {
                         "$ref": "#/components/schemas/Record_string.Record_string.string-or-string-Array__"
                     },
@@ -8256,6 +8259,19 @@
                                                         "type": "string",
                                                         "enum": ["error"],
                                                         "nullable": false
+                                                    }
+                                                },
+                                                "required": ["status"],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "success",
+                                                            "error"
+                                                        ]
                                                     }
                                                 },
                                                 "required": ["status"],

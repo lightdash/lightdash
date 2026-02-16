@@ -130,6 +130,10 @@ export class SearchService extends BaseService {
                 Object.values(field.tablesRequiredAttributes || {}).some(
                     (tableHaveUserAttributes) =>
                         tableHaveUserAttributes !== undefined,
+                ) ||
+                Object.values(field.tablesAnyAttributes || {}).some(
+                    (tableHaveUserAttributes) =>
+                        tableHaveUserAttributes !== undefined,
                 ),
         );
         const tablesHaveUserAttributes = results.tables.some(
@@ -149,23 +153,30 @@ export class SearchService extends BaseService {
                             userUuid: user.userUuid,
                         },
                     );
-                filteredFields = results.fields.filter(
-                    (field) =>
-                        checkUserAttributesAccess(
+                filteredFields = results.fields.filter((field) => {
+                    // Check field-level attributes
+                    if (
+                        !checkUserAttributesAccess(
                             field.requiredAttributes,
                             field.anyAttributes,
                             userAttributes,
-                        ) &&
-                        Object.values(
-                            field.tablesRequiredAttributes || {},
-                        ).every((tableHaveUserAttributes) =>
-                            checkUserAttributesAccess(
-                                tableHaveUserAttributes,
-                                undefined,
-                                userAttributes,
-                            ),
+                        )
+                    )
+                        return false;
+
+                    // Check table-level attributes for all referenced tables
+                    const tableRefs = new Set([
+                        ...Object.keys(field.tablesRequiredAttributes || {}),
+                        ...Object.keys(field.tablesAnyAttributes || {}),
+                    ]);
+                    return [...tableRefs].every((tableRef) =>
+                        checkUserAttributesAccess(
+                            field.tablesRequiredAttributes?.[tableRef],
+                            field.tablesAnyAttributes?.[tableRef],
+                            userAttributes,
                         ),
-                );
+                    );
+                });
                 filteredTables = results.tables.filter(
                     (table) =>
                         isTableErrorSearchResult(table) ||
