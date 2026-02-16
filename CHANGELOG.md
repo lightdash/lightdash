@@ -1,3 +1,10 @@
+## [0.2469.1](https://github.com/lightdash/lightdash/compare/0.2469.0...0.2469.1) (2026-02-16)
+
+
+### Bug Fixes
+
+* prevent search engines from indexing persistent download files ([#20325](https://github.com/lightdash/lightdash/issues/20325)) ([fb09093](https://github.com/lightdash/lightdash/commit/fb090934f2daaf16fa23a456a5be4d627df3fe37))
+
 # [0.2469.0](https://github.com/lightdash/lightdash/compare/0.2468.0...0.2469.0) (2026-02-16)
 
 
