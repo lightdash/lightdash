@@ -181,13 +181,12 @@ const AgentsWelcome = () => {
                         </Stack>
                     </Paper>
                     <Paper
+                        variant="dotted"
                         p="xl"
                         shadow="subtle"
                         component={Stack}
                         gap="xxs"
                         align="center"
-                        withBorder
-                        style={{ borderStyle: 'dashed' }}
                     >
                         <Title order={5}>Ready to get started?</Title>
                         <Text size="sm" c="dimmed">

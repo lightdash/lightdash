@@ -109,7 +109,7 @@ const QueryWarnings: FC<QueryWarningsProps> = ({ queryWarnings }) => {
                                     queryWarnings.length / WARNINGS_PER_PAGE,
                                 )
                             }
-                            position="center"
+                            justify="center"
                         />
                     </Box>
                 )}

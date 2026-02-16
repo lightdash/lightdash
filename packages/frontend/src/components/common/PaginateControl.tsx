@@ -1,4 +1,4 @@
-import { Group, Pagination, Text, type GroupProps } from '@mantine/core';
+import { Group, Pagination, Text, type GroupProps } from '@mantine-8/core';
 import { IconChevronLeft, IconChevronRight } from '@tabler/icons-react';
 import type { FC } from 'react';
 
@@ -22,7 +22,7 @@ const PaginateControl: FC<PaginateControlProps> = ({
 }) => {
     return (
         <Group {...rest}>
-            <Text color="ldGray.7" size="xs">
+            <Text c="ldGray.7" size="xs">
                 Page{' '}
                 <Text span fw={600}>
                     {currentPage}
@@ -38,7 +38,7 @@ const PaginateControl: FC<PaginateControlProps> = ({
                 onNextPage={onNextPage}
                 onPreviousPage={onPreviousPage}
             >
-                <Group spacing="xs" position="center">
+                <Group gap="xs" justify="center">
                     <Pagination.Previous
                         icon={IconChevronLeft}
                         disabled={!hasPreviousPage}

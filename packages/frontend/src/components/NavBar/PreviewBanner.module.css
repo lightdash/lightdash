@@ -1,0 +1,3 @@
+.banner {
+    z-index: var(--mantine-z-index-app);
+}

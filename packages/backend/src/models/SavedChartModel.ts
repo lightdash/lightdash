@@ -4,14 +4,18 @@ import {
     BinType,
     ChartConfig,
     ChartKind,
+    ChartSourceType,
     ChartSummary,
     ChartVersionSummary,
+    ContentType,
     CreateSavedChart,
     CreateSavedChartVersion,
     CustomBinDimension,
     CustomDimensionType,
     CustomSqlDimension,
     DBFieldTypes,
+    DeletedContentFilters,
+    DeletedDbtChartContentSummary,
     DimensionOverrides,
     ECHARTS_DEFAULT_COLORS,
     Filters,
@@ -23,6 +27,8 @@ import {
     isFormat,
     isSqlTableCalculation,
     isTemplateTableCalculation,
+    KnexPaginateArgs,
+    KnexPaginatedData,
     LightdashUser,
     MetricFilterRule,
     MetricOverrides,
@@ -75,6 +81,7 @@ import {
 } from '../database/entities/savedCharts';
 import { SpaceTableName } from '../database/entities/spaces';
 import { UserTableName } from '../database/entities/users';
+import KnexPaginate from '../database/pagination';
 import { wrapSentryTransaction } from '../utils';
 import { generateUniqueSlug } from '../utils/SlugUtils';
 import { SpaceModel } from './SpaceModel';
@@ -402,32 +409,13 @@ export const createSavedChart = async (
                 space_id: null,
             };
         } else {
-            const getSpaceIdAndName = async () => {
-                if (spaceUuid) {
-                    const space = await SpaceModel.getSpaceIdAndName(
-                        trx,
-                        spaceUuid,
-                    );
-                    if (space === undefined)
-                        throw Error(`Missing space with uuid ${spaceUuid}`);
-                    return {
-                        spaceId: space.spaceId,
-                        name: space.name,
-                    };
-                }
-                const firstSpace = await SpaceModel.getFirstAccessibleSpace(
-                    trx,
-                    projectUuid,
-                    userUuid,
-                );
-                return {
-                    spaceId: firstSpace.space_id,
-                    name: firstSpace.name,
-                };
-            };
-            const { spaceId, name: spaceName } = await getSpaceIdAndName();
-
-            if (!spaceId) throw new NotFoundError('No space found');
+            if (!spaceUuid) {
+                throw new NotFoundError('No space specified for chart');
+            }
+            const space = await SpaceModel.getSpaceIdAndName(trx, spaceUuid);
+            if (space === undefined)
+                throw Error(`Missing space with uuid ${spaceUuid}`);
+            const { spaceId } = space;
             chart = {
                 ...baseChart,
                 dashboard_uuid: null,
@@ -562,6 +550,7 @@ export class SavedChartModel {
                 `${SavedChartVersionsTableName}.updated_by_user_uuid`,
                 `${UserTableName}.user_uuid`,
             )
+            .whereNull(`${SavedChartsTableName}.deleted_at`)
             .select<
                 VersionSummaryRow[]
             >(`${SavedChartsTableName}.saved_query_uuid`, `${SavedChartVersionsTableName}.saved_queries_version_uuid`, `${SavedChartVersionsTableName}.created_at`, `${UserTableName}.user_uuid`, `${UserTableName}.first_name`, `${UserTableName}.last_name`)
@@ -647,16 +636,21 @@ export class SavedChartModel {
         user: SessionUser | undefined,
     ): Promise<SavedChartDAO> {
         await this.database.transaction(async (trx) => {
-            const [savedChart] = await trx('saved_queries')
+            const [savedChart] = await trx(SavedChartsTableName)
                 .select(['saved_query_id'])
-                .where('saved_query_uuid', savedChartUuid);
+                .where('saved_query_uuid', savedChartUuid)
+                .whereNull('deleted_at');
+
+            if (!savedChart) {
+                throw new NotFoundError('Saved chart not found');
+            }
 
             await createSavedChartVersion(trx, savedChart.saved_query_id, {
                 ...data,
                 updatedByUser: user,
             });
 
-            await trx('saved_queries')
+            await trx(SavedChartsTableName)
                 .update({
                     last_version_chart_kind: getChartKind(
                         data.chartConfig.type,
@@ -665,7 +659,8 @@ export class SavedChartModel {
                     last_version_updated_at: new Date(),
                     last_version_updated_by_user_uuid: user?.userUuid,
                 })
-                .where('saved_query_uuid', savedChartUuid);
+                .where('saved_query_uuid', savedChartUuid)
+                .whereNull('deleted_at');
         });
 
         return this.get(savedChartUuid);
@@ -675,7 +670,7 @@ export class SavedChartModel {
         savedChartUuid: string,
         data: UpdateSavedChart,
     ): Promise<SavedChartDAO> {
-        await this.database('saved_queries')
+        await this.database(SavedChartsTableName)
             .update({
                 name: data.name,
                 description: data.description,
@@ -687,7 +682,8 @@ export class SavedChartModel {
                 )?.spaceId,
                 dashboard_uuid: data.spaceUuid ? null : undefined, // remove dashboard_uuid when moving chart to space
             })
-            .where('saved_query_uuid', savedChartUuid);
+            .where('saved_query_uuid', savedChartUuid)
+            .whereNull('deleted_at');
         return this.get(savedChartUuid);
     }
 
@@ -696,7 +692,7 @@ export class SavedChartModel {
     ): Promise<SavedChartDAO[]> {
         await this.database.transaction(async (trx) => {
             const promises = data.map(async (savedChart) =>
-                trx('saved_queries')
+                trx(SavedChartsTableName)
                     .update({
                         name: savedChart.name,
                         description: savedChart.description,
@@ -707,7 +703,8 @@ export class SavedChartModel {
                             )
                         )?.spaceId,
                     })
-                    .where('saved_query_uuid', savedChart.uuid),
+                    .where('saved_query_uuid', savedChart.uuid)
+                    .whereNull('deleted_at'),
             );
             await Promise.all(promises);
         });
@@ -716,10 +713,24 @@ export class SavedChartModel {
         );
     }
 
-    async delete(savedChartUuid: string): Promise<SavedChartDAO> {
+    async permanentDelete(savedChartUuid: string): Promise<SavedChartDAO> {
         const savedChart = await this.get(savedChartUuid);
-        await this.database('saved_queries')
+        await this.database(SavedChartsTableName)
             .delete()
+            .where('saved_query_uuid', savedChartUuid);
+        return savedChart;
+    }
+
+    async softDelete(
+        savedChartUuid: string,
+        userUuid: string,
+    ): Promise<SavedChartDAO> {
+        const savedChart = await this.get(savedChartUuid);
+        await this.database(SavedChartsTableName)
+            .update({
+                deleted_at: new Date(),
+                deleted_by_user_uuid: userUuid,
+            })
             .where('saved_query_uuid', savedChartUuid);
         return savedChart;
     }
@@ -760,20 +771,23 @@ export class SavedChartModel {
             .select(`${SavedChartsTableName}.saved_query_id`)
             .distinct()
             .from(SavedChartsTableName)
-            .leftJoin(
-                DashboardsTableName,
-                `${DashboardsTableName}.dashboard_uuid`,
-                `${SavedChartsTableName}.dashboard_uuid`,
-            )
+            .leftJoin(DashboardsTableName, function nonDeletedDashboardJoin() {
+                this.on(
+                    `${DashboardsTableName}.dashboard_uuid`,
+                    '=',
+                    `${SavedChartsTableName}.dashboard_uuid`,
+                ).andOnNull(`${DashboardsTableName}.deleted_at`);
+            })
             .joinRaw(
-                `INNER JOIN ${SpaceTableName} ON ${SpaceTableName}.space_id = COALESCE(${SavedChartsTableName}.space_id, ${DashboardsTableName}.space_id)`,
+                `INNER JOIN ${SpaceTableName} ON ${SpaceTableName}.space_id = COALESCE(${SavedChartsTableName}.space_id, ${DashboardsTableName}.space_id) AND ${SpaceTableName}.deleted_at IS NULL`,
             )
             .innerJoin(
                 ProjectTableName,
                 `${SpaceTableName}.project_id`,
                 `${ProjectTableName}.project_id`,
             )
-            .where(`${ProjectTableName}.project_uuid`, projectUuid);
+            .where(`${ProjectTableName}.project_uuid`, projectUuid)
+            .whereNull(`${SavedChartsTableName}.deleted_at`);
 
         // Get latest versions for these charts
         const latestVersions = this.database
@@ -809,6 +823,7 @@ export class SavedChartModel {
     async get(
         savedChartUuidOrSlug: string,
         versionUuid?: string,
+        options?: { deleted?: boolean },
     ): Promise<SavedChartDAO> {
         return Sentry.startSpan(
             {
@@ -872,6 +887,12 @@ export class SavedChartModel {
                         `${PinnedListTableName}.pinned_list_uuid`,
                         `${PinnedChartTableName}.pinned_list_uuid`,
                     )
+                    // Join for deleted_by user info
+                    .leftJoin(
+                        `${UserTableName} as deleted_by_user`,
+                        `${SavedChartsTableName}.deleted_by_user_uuid`,
+                        'deleted_by_user.user_uuid',
+                    )
                     .select<
                         (DbSavedChartDetails & {
                             space_uuid: string;
@@ -879,6 +900,10 @@ export class SavedChartModel {
                             dashboardName: string | null;
                             color_palette: string[] | null;
                             slug: string;
+                            deleted_at: Date | null;
+                            deleted_by_user_uuid: string | null;
+                            deleted_by_user_first_name: string | null;
+                            deleted_by_user_last_name: string | null;
                         })[]
                     >([
                         `${ProjectTableName}.project_uuid`,
@@ -909,9 +934,24 @@ export class SavedChartModel {
                         `${SpaceTableName}.space_uuid`,
                         `${SpaceTableName}.name as spaceName`,
                         `${PinnedListTableName}.pinned_list_uuid`,
+                        `${SavedChartsTableName}.deleted_at`,
+                        `${SavedChartsTableName}.deleted_by_user_uuid`,
+                        'deleted_by_user.first_name as deleted_by_user_first_name',
+                        'deleted_by_user.last_name as deleted_by_user_last_name',
                     ])
                     .orderBy('saved_queries_versions.created_at', 'desc')
                     .limit(1);
+
+                // Filter by deleted status: deleted=true gets deleted charts, deleted=false (default) gets non-deleted
+                if (options?.deleted) {
+                    void chartQuery.whereNotNull(
+                        `${SavedChartsTableName}.deleted_at`,
+                    );
+                } else {
+                    void chartQuery.whereNull(
+                        `${SavedChartsTableName}.deleted_at`,
+                    );
+                }
 
                 if (isUuid) {
                     void chartQuery.where((builder) => {
@@ -1171,6 +1211,24 @@ export class SavedChartModel {
                     dashboardName: savedQuery.dashboardName,
                     colorPalette: getColorPalette(),
                     slug: savedQuery.slug,
+                    // Soft delete fields (only populated when deleted: true)
+                    ...(savedQuery.deleted_at
+                        ? {
+                              deletedAt: savedQuery.deleted_at,
+                              deletedBy: savedQuery.deleted_by_user_uuid
+                                  ? {
+                                        userUuid:
+                                            savedQuery.deleted_by_user_uuid,
+                                        firstName:
+                                            savedQuery.deleted_by_user_first_name ??
+                                            '',
+                                        lastName:
+                                            savedQuery.deleted_by_user_last_name ??
+                                            '',
+                                    }
+                                  : null,
+                          }
+                        : {}),
                 };
             },
         );
@@ -1229,7 +1287,8 @@ export class SavedChartModel {
         const chartsNotInTilesUuids = await this.database(SavedChartsTableName)
             .pluck(`saved_query_uuid`)
             .whereIn(`${SavedChartsTableName}.dashboard_uuid`, dashboardUuids)
-            .whereNotIn(`saved_query_id`, getChartsInTilesQuery);
+            .whereNotIn(`saved_query_id`, getChartsInTilesQuery)
+            .whereNull(`${SavedChartsTableName}.deleted_at`);
 
         return chartsNotInTilesUuids;
     }
@@ -1239,15 +1298,16 @@ export class SavedChartModel {
         qb: Knex.QueryBuilder,
         projectUuid: string,
     ) {
+        const maxVersionSubquery =
+            '(SELECT MAX(sqv.saved_queries_version_id) FROM saved_queries_versions sqv WHERE sqv.saved_query_id = sq.saved_query_id)';
         return qb.unionAll([
             // First part of UNION - charts in space
             this.database
                 .select({
                     saved_query_uuid: 'sq.saved_query_uuid',
                     name: 'sq.name',
-                    saved_queries_version_id: this.database.raw(
-                        'MAX(sqv.saved_queries_version_id)',
-                    ),
+                    saved_queries_version_id:
+                        this.database.raw(maxVersionSubquery),
                     dashboard_uuid: 'sq.dashboard_uuid',
                 })
                 .from(`${SavedChartsTableName} as sq`)
@@ -1261,21 +1321,16 @@ export class SavedChartModel {
                     'p.project_id',
                     's.project_id',
                 )
-                .leftJoin(
-                    `${SavedChartVersionsTableName} as sqv`,
-                    'sq.saved_query_id',
-                    'sqv.saved_query_id',
-                )
                 .where('p.project_uuid', projectUuid)
-                .groupBy('sq.saved_query_uuid', 'sq.name', 'sq.dashboard_uuid'),
+                .whereNull('sq.deleted_at'),
 
+            // Second part of UNION - charts saved inside dashboards
             this.database
                 .select({
                     saved_query_uuid: 'sq.saved_query_uuid',
                     name: 'sq.name',
-                    saved_queries_version_id: this.database.raw(
-                        'MAX(sqv.saved_queries_version_id)',
-                    ),
+                    saved_queries_version_id:
+                        this.database.raw(maxVersionSubquery),
                     dashboard_uuid: 'sq.dashboard_uuid',
                 })
                 .from(`${SavedChartsTableName} as sq`)
@@ -1290,13 +1345,8 @@ export class SavedChartModel {
                     'p.project_id',
                     's.project_id',
                 )
-                .leftJoin(
-                    `${SavedChartVersionsTableName} as sqv`,
-                    'sq.saved_query_id',
-                    'sqv.saved_query_id',
-                )
                 .where('p.project_uuid', projectUuid)
-                .groupBy('sq.saved_query_uuid', 'sq.name', 'sq.dashboard_uuid'),
+                .whereNull('sq.deleted_at'),
         ]);
     }
 
@@ -1321,6 +1371,8 @@ export class SavedChartModel {
             pivotDimensions: string[];
         }>
     > {
+        // Optimized: Use scalar subqueries instead of multiple LEFT JOINs to avoid cartesian product.
+        // Previously, joining 6 child tables caused row explosion (e.g., 5 fields × 2 calcs × 3 metrics = 30+ rows per chart)
         const cteName = 'chart_last_version_cte';
         const savedCharts = await this.database
             .with(cteName, (qb) =>
@@ -1337,31 +1389,31 @@ export class SavedChartModel {
                 chartConfig: 'saved_queries_versions.chart_config',
                 pivotDimensions: 'saved_queries_versions.pivot_dimensions',
                 dimensions: this.database.raw(
-                    "COALESCE(ARRAY_AGG(DISTINCT svf.name) FILTER (WHERE svf.field_type = 'dimension'), '{}')",
+                    `COALESCE((SELECT ARRAY_AGG(DISTINCT svf.name) FROM saved_queries_version_fields svf WHERE svf.saved_queries_version_id = saved_queries_versions.saved_queries_version_id AND svf.field_type = 'dimension'), '{}')`,
                 ),
                 metrics: this.database.raw(
-                    "COALESCE(ARRAY_AGG(DISTINCT svf.name) FILTER (WHERE svf.field_type = 'metric'), '{}')",
+                    `COALESCE((SELECT ARRAY_AGG(DISTINCT svf.name) FROM saved_queries_version_fields svf WHERE svf.saved_queries_version_id = saved_queries_versions.saved_queries_version_id AND svf.field_type = 'metric'), '{}')`,
                 ),
                 tableCalculations: this.database.raw(
-                    "COALESCE(ARRAY_AGG(DISTINCT sqvtc.name) FILTER (WHERE sqvtc.name IS NOT NULL), '{}')",
+                    `COALESCE((SELECT ARRAY_AGG(DISTINCT sqvtc.name) FROM saved_queries_version_table_calculations sqvtc WHERE sqvtc.saved_queries_version_id = saved_queries_versions.saved_queries_version_id), '{}')`,
                 ),
                 customMetrics: this.database.raw(
-                    "COALESCE(ARRAY_AGG(DISTINCT (sqvam.table || '_' || sqvam.name)) FILTER (WHERE sqvam.name IS NOT NULL), '{}')",
+                    `COALESCE((SELECT ARRAY_AGG(DISTINCT (sqvam.table || '_' || sqvam.name)) FROM saved_queries_version_additional_metrics sqvam WHERE sqvam.saved_queries_version_id = saved_queries_versions.saved_queries_version_id), '{}')`,
                 ),
                 customMetricsFilters: this.database.raw(
-                    "COALESCE(ARRAY_AGG(DISTINCT (sqvam.filters)) FILTER (WHERE sqvam.filters IS NOT NULL), '{}')",
+                    `COALESCE((SELECT ARRAY_AGG(sqvam.filters) FROM saved_queries_version_additional_metrics sqvam WHERE sqvam.saved_queries_version_id = saved_queries_versions.saved_queries_version_id AND sqvam.filters IS NOT NULL), '{}')`,
                 ),
                 customMetricsBaseDimensions: this.database.raw(
-                    "COALESCE(ARRAY_AGG(DISTINCT (sqvam.table || '_' || sqvam.base_dimension_name)) FILTER (WHERE sqvam.base_dimension_name IS NOT NULL), '{}')",
+                    `COALESCE((SELECT ARRAY_AGG(DISTINCT (sqvam.table || '_' || sqvam.base_dimension_name)) FROM saved_queries_version_additional_metrics sqvam WHERE sqvam.saved_queries_version_id = saved_queries_versions.saved_queries_version_id AND sqvam.base_dimension_name IS NOT NULL), '{}')`,
                 ),
                 customBinDimensions: this.database.raw(
-                    "COALESCE(ARRAY_AGG(DISTINCT sqvcd.id) FILTER (WHERE sqvcd.id IS NOT NULL), '{}')",
+                    `COALESCE((SELECT ARRAY_AGG(DISTINCT sqvcd.id) FROM saved_queries_version_custom_dimensions sqvcd WHERE sqvcd.saved_queries_version_id = saved_queries_versions.saved_queries_version_id), '{}')`,
                 ),
                 customSqlDimensions: this.database.raw(
-                    "COALESCE(ARRAY_AGG(DISTINCT sqvcsd.id) FILTER (WHERE sqvcsd.id IS NOT NULL), '{}')",
+                    `COALESCE((SELECT ARRAY_AGG(DISTINCT sqvcsd.id) FROM saved_queries_version_custom_sql_dimensions sqvcsd WHERE sqvcsd.saved_queries_version_id = saved_queries_versions.saved_queries_version_id), '{}')`,
                 ),
                 sorts: this.database.raw(
-                    "COALESCE(ARRAY_AGG(DISTINCT sqvs.field_name) FILTER (WHERE sqvs.field_name IS NOT NULL), '{}')",
+                    `COALESCE((SELECT ARRAY_AGG(DISTINCT sqvs.field_name) FROM saved_queries_version_sorts sqvs WHERE sqvs.saved_queries_version_id = saved_queries_versions.saved_queries_version_id), '{}')`,
                 ),
             })
             .from(cteName)
@@ -1369,38 +1421,7 @@ export class SavedChartModel {
                 SavedChartVersionsTableName,
                 `${cteName}.saved_queries_version_id`,
                 'saved_queries_versions.saved_queries_version_id',
-            )
-            .leftJoin(
-                'saved_queries_version_fields as svf',
-                'saved_queries_versions.saved_queries_version_id',
-                'svf.saved_queries_version_id',
-            )
-            .leftJoin(
-                'saved_queries_version_table_calculations as sqvtc',
-                'saved_queries_versions.saved_queries_version_id',
-                'sqvtc.saved_queries_version_id',
-            )
-            .leftJoin(
-                'saved_queries_version_additional_metrics as sqvam',
-                'saved_queries_versions.saved_queries_version_id',
-                'sqvam.saved_queries_version_id',
-            )
-            .leftJoin(
-                'saved_queries_version_custom_dimensions as sqvcd',
-                'saved_queries_versions.saved_queries_version_id',
-                'sqvcd.saved_queries_version_id',
-            )
-            .leftJoin(
-                'saved_queries_version_custom_sql_dimensions as sqvcsd',
-                'saved_queries_versions.saved_queries_version_id',
-                'sqvcsd.saved_queries_version_id',
-            )
-            .leftJoin(
-                'saved_queries_version_sorts as sqvs',
-                'saved_queries_versions.saved_queries_version_id',
-                'sqvs.saved_queries_version_id',
-            )
-            .groupBy(1, 2, 3, 4, 5, 6, 7, 8, 9);
+            );
 
         // Filter out charts that are saved in a dashboard and don't belong to any tile in their dashboard last version
         const chartsNotInTilesUuids =
@@ -1415,9 +1436,10 @@ export class SavedChartModel {
     }
 
     async getSlugsForUuids(uuids: string[]): Promise<string[]> {
-        const charts = await this.database('saved_queries')
-            .whereIn('saved_queries.saved_query_uuid', uuids)
-            .select('saved_queries.slug');
+        const charts = await this.database(SavedChartsTableName)
+            .whereIn(`${SavedChartsTableName}.saved_query_uuid`, uuids)
+            .whereNull(`${SavedChartsTableName}.deleted_at`)
+            .select(`${SavedChartsTableName}.slug`);
         return charts.map((chart) => chart.slug);
     }
 
@@ -1503,17 +1525,26 @@ export class SavedChartModel {
                         })
                         // Deduplicate results since dashboard_versions JOIN can produce
                         // multiple rows when a chart appears in multiple dashboard versions
-                        .distinctOn('saved_queries.saved_query_uuid');
+                        .distinctOn(`${SavedChartsTableName}.saved_query_uuid`);
                 }
 
                 if (filters.spaceUuids) {
-                    void query.whereIn('spaces.space_uuid', filters.spaceUuids);
+                    void query.whereIn(
+                        `${SpaceTableName}.space_uuid`,
+                        filters.spaceUuids,
+                    );
                 }
                 if (filters.slug) {
-                    void query.where('saved_queries.slug', filters.slug);
+                    void query.where(
+                        `${SavedChartsTableName}.slug`,
+                        filters.slug,
+                    );
                 }
                 if (filters.slugs) {
-                    void query.whereIn('saved_queries.slug', filters.slugs);
+                    void query.whereIn(
+                        `${SavedChartsTableName}.slug`,
+                        filters.slugs,
+                    );
                 }
 
                 if (filters.exploreName) {
@@ -1529,7 +1560,7 @@ export class SavedChartModel {
                             'saved_queries_versions.explore_name',
                             filters.exploreName,
                         )
-                        .distinctOn('saved_queries.saved_query_uuid');
+                        .distinctOn(`${SavedChartsTableName}.saved_query_uuid`);
                 }
                 if (filters.exploreNames) {
                     void query
@@ -1542,7 +1573,7 @@ export class SavedChartModel {
                             'saved_queries_versions.explore_name',
                             filters.exploreNames,
                         )
-                        .distinctOn('saved_queries.saved_query_uuid');
+                        .distinctOn(`${SavedChartsTableName}.saved_query_uuid`);
                 }
                 const chartSummaries = await query;
                 return chartSummaries.map((chart) => ({
@@ -1554,22 +1585,22 @@ export class SavedChartModel {
     }
 
     private getChartSummaryQuery() {
-        return this.database('saved_queries')
+        return this.database(SavedChartsTableName)
             .select({
-                uuid: 'saved_queries.saved_query_uuid',
-                name: 'saved_queries.name',
-                description: 'saved_queries.description',
-                spaceUuid: 'spaces.space_uuid',
-                spaceName: 'spaces.name',
+                uuid: `${SavedChartsTableName}.saved_query_uuid`,
+                name: `${SavedChartsTableName}.name`,
+                description: `${SavedChartsTableName}.description`,
+                spaceUuid: `${SpaceTableName}.space_uuid`,
+                spaceName: `${SpaceTableName}.name`,
                 projectUuid: 'projects.project_uuid',
                 organizationUuid: 'organizations.organization_uuid',
                 pinnedListUuid: `${PinnedListTableName}.pinned_list_uuid`,
-                chartKind: 'saved_queries.last_version_chart_kind',
+                chartKind: `${SavedChartsTableName}.last_version_chart_kind`,
                 dashboardUuid: `${DashboardsTableName}.dashboard_uuid`,
                 dashboardName: `${DashboardsTableName}.name`,
-                updatedAt: `saved_queries.last_version_updated_at`,
-                slug: `saved_queries.slug`,
-                viewsCount: 'saved_queries.views_count',
+                updatedAt: `${SavedChartsTableName}.last_version_updated_at`,
+                slug: `${SavedChartsTableName}.slug`,
+                viewsCount: `${SavedChartsTableName}.views_count`,
             })
             .leftJoin(
                 DashboardsTableName,
@@ -1577,9 +1608,13 @@ export class SavedChartModel {
                 `${SavedChartsTableName}.dashboard_uuid`,
             )
             .joinRaw(
-                `INNER JOIN ${SpaceTableName} ON ${SpaceTableName}.space_id = COALESCE(${SavedChartsTableName}.space_id, ${DashboardsTableName}.space_id)`,
+                `INNER JOIN ${SpaceTableName} ON ${SpaceTableName}.space_id = COALESCE(${SavedChartsTableName}.space_id, ${DashboardsTableName}.space_id) AND ${SpaceTableName}.deleted_at IS NULL`,
             )
-            .leftJoin('projects', 'spaces.project_id', 'projects.project_id')
+            .leftJoin(
+                'projects',
+                `${SpaceTableName}.project_id`,
+                'projects.project_id',
+            )
             .leftJoin(
                 OrganizationTableName,
                 'organizations.organization_id',
@@ -1594,7 +1629,8 @@ export class SavedChartModel {
                 PinnedListTableName,
                 `${PinnedListTableName}.pinned_list_uuid`,
                 `${PinnedChartTableName}.pinned_list_uuid`,
-            );
+            )
+            .whereNull(`${SavedChartsTableName}.deleted_at`);
     }
 
     async getInfoForAvailableFilters(savedChartUuids: string[]): Promise<
@@ -1604,15 +1640,15 @@ export class SavedChartModel {
             Pick<Project, 'projectUuid'> &
             Pick<Organization, 'organizationUuid'>)[]
     > {
-        const charts = await this.database('saved_queries')
+        const charts = await this.database(SavedChartsTableName)
             .whereIn(
                 `${SavedChartsTableName}.saved_query_uuid`,
                 savedChartUuids,
             )
             .select({
-                uuid: 'saved_queries.saved_query_uuid',
-                name: 'saved_queries.name',
-                spaceUuid: 'spaces.space_uuid',
+                uuid: `${SavedChartsTableName}.saved_query_uuid`,
+                name: `${SavedChartsTableName}.name`,
+                spaceUuid: `${SpaceTableName}.space_uuid`,
                 tableName: `${SavedChartVersionsTableName}.explore_name`,
                 projectUuid: 'projects.project_uuid',
                 organizationUuid: 'organizations.organization_uuid',
@@ -1635,10 +1671,14 @@ export class SavedChartModel {
             })
             .innerJoin(
                 SavedChartVersionsTableName,
-                'saved_queries.saved_query_id',
+                `${SavedChartsTableName}.saved_query_id`,
                 'saved_queries_versions.saved_query_id',
             )
-            .leftJoin('projects', 'spaces.project_id', 'projects.project_id')
+            .leftJoin(
+                'projects',
+                `${SpaceTableName}.project_id`,
+                'projects.project_id',
+            )
             .leftJoin(
                 OrganizationTableName,
                 'organizations.organization_id',
@@ -1649,10 +1689,12 @@ export class SavedChartModel {
                 `saved_queries_version_id`,
                 this.database.raw(`(select saved_queries_version_id
                                            from ${SavedChartVersionsTableName}
-                                           where saved_queries.saved_query_id = ${SavedChartVersionsTableName}.saved_query_id
+                                           where ${SavedChartsTableName}.saved_query_id = ${SavedChartVersionsTableName}.saved_query_id
                                            order by ${SavedChartVersionsTableName}.created_at desc
                                            limit 1)`),
-            );
+            )
+            .whereNull(`${SavedChartsTableName}.deleted_at`)
+            .whereNull(`${SpaceTableName}.deleted_at`);
 
         if (charts.length === 0) {
             throw new NotFoundError('Saved queries not found');
@@ -1668,18 +1710,18 @@ export class SavedChartModel {
                 Pick<LightdashUser, 'firstName' | 'lastName'>
         >
     > {
-        return this.database('saved_queries')
+        return this.database(SavedChartsTableName)
             .select({
-                uuid: 'saved_queries.saved_query_uuid',
-                name: 'saved_queries.name',
-                description: 'saved_queries.description',
+                uuid: `${SavedChartsTableName}.saved_query_uuid`,
+                name: `${SavedChartsTableName}.name`,
+                description: `${SavedChartsTableName}.description`,
                 tableName: `${SavedChartVersionsTableName}.explore_name`,
                 firstName: `${UserTableName}.first_name`,
                 lastName: `${UserTableName}.last_name`,
             })
             .innerJoin(
                 SavedChartVersionsTableName,
-                'saved_queries.saved_query_id',
+                `${SavedChartsTableName}.saved_query_id`,
                 'saved_queries_versions.saved_query_id',
             )
             .leftJoin(
@@ -1698,7 +1740,11 @@ export class SavedChartModel {
                     `${SavedChartsTableName}.space_id`,
                 );
             })
-            .leftJoin('projects', 'spaces.project_id', 'projects.project_id')
+            .leftJoin(
+                'projects',
+                `${SpaceTableName}.project_id`,
+                'projects.project_id',
+            )
             .leftJoin(
                 UserTableName,
                 `${SavedChartVersionsTableName}.updated_by_user_uuid`,
@@ -1710,10 +1756,12 @@ export class SavedChartModel {
                 `saved_queries_version_id`,
                 this.database.raw(`(select saved_queries_version_id
                                            from ${SavedChartVersionsTableName}
-                                           where saved_queries.saved_query_id = ${SavedChartVersionsTableName}.saved_query_id
+                                           where ${SavedChartsTableName}.saved_query_id = ${SavedChartVersionsTableName}.saved_query_id
                                            order by ${SavedChartVersionsTableName}.created_at desc
                                            limit 1)`),
-            );
+            )
+            .whereNull(`${SavedChartsTableName}.deleted_at`)
+            .whereNull(`${SpaceTableName}.deleted_at`);
     }
 
     async findChartsWithCustomFields(projectUuid: string): Promise<
@@ -1802,10 +1850,161 @@ export class SavedChartModel {
         const updateCount = await tx(SavedChartsTableName)
             // if we move a chart from a dashboard to a space, we need to set the dashboard_uuid to null
             .update({ space_id: space.space_id, dashboard_uuid: null })
-            .where('saved_query_uuid', savedChartUuid);
+            .where('saved_query_uuid', savedChartUuid)
+            .whereNull('deleted_at');
 
         if (updateCount !== 1) {
             throw new Error('Failed to move saved chart to space');
+        }
+    }
+
+    /**
+     * Get deleted charts for a project with optional filters
+     */
+    async getDeletedCharts(
+        projectUuid: string,
+        filters: DeletedContentFilters,
+        paginateArgs?: KnexPaginateArgs,
+        userUuid?: string,
+    ): Promise<KnexPaginatedData<DeletedDbtChartContentSummary[]>> {
+        const query = this.database(SavedChartsTableName)
+            .leftJoin(
+                DashboardsTableName,
+                `${DashboardsTableName}.dashboard_uuid`,
+                `${SavedChartsTableName}.dashboard_uuid`,
+            )
+            .innerJoin(SpaceTableName, function spaceJoin() {
+                this.on(
+                    `${SpaceTableName}.space_id`,
+                    '=',
+                    `${DashboardsTableName}.space_id`,
+                ).orOn(
+                    `${SpaceTableName}.space_id`,
+                    '=',
+                    `${SavedChartsTableName}.space_id`,
+                );
+            })
+            .innerJoin(
+                ProjectTableName,
+                `${SpaceTableName}.project_id`,
+                `${ProjectTableName}.project_id`,
+            )
+            .innerJoin(
+                OrganizationTableName,
+                `${ProjectTableName}.organization_id`,
+                `${OrganizationTableName}.organization_id`,
+            )
+            .leftJoin(
+                UserTableName,
+                `${SavedChartsTableName}.deleted_by_user_uuid`,
+                `${UserTableName}.user_uuid`,
+            )
+            .select<
+                {
+                    uuid: string;
+                    name: string;
+                    description: string | null;
+                    chart_kind: ChartKind | null;
+                    deleted_at: Date;
+                    deleted_by_user_uuid: string | null;
+                    first_name: string | null;
+                    last_name: string | null;
+                    space_uuid: string;
+                    space_name: string;
+                    project_uuid: string;
+                    organization_uuid: string;
+                }[]
+            >([
+                `${SavedChartsTableName}.saved_query_uuid as uuid`,
+                `${SavedChartsTableName}.name`,
+                `${SavedChartsTableName}.description`,
+                `${SavedChartsTableName}.last_version_chart_kind as chart_kind`,
+                `${SavedChartsTableName}.deleted_at`,
+                `${SavedChartsTableName}.deleted_by_user_uuid`,
+                `${UserTableName}.first_name`,
+                `${UserTableName}.last_name`,
+                `${SpaceTableName}.space_uuid`,
+                `${SpaceTableName}.name as space_name`,
+                `${ProjectTableName}.project_uuid`,
+                `${OrganizationTableName}.organization_uuid`,
+            ])
+            .where(`${ProjectTableName}.project_uuid`, projectUuid)
+            .whereNotNull(`${SavedChartsTableName}.deleted_at`);
+
+        // Filter by user if not admin (when userUuid is provided)
+        if (userUuid) {
+            void query.where(
+                `${SavedChartsTableName}.deleted_by_user_uuid`,
+                userUuid,
+            );
+        }
+
+        // Apply search filter
+        if (filters.search) {
+            void query.whereILike(
+                `${SavedChartsTableName}.name`,
+                `%${filters.search}%`,
+            );
+        }
+
+        // Apply deletedByUserUuids filter
+        if (
+            filters.deletedByUserUuids &&
+            filters.deletedByUserUuids.length > 0
+        ) {
+            void query.whereIn(
+                `${SavedChartsTableName}.deleted_by_user_uuid`,
+                filters.deletedByUserUuids,
+            );
+        }
+
+        // Order by deleted_at descending (most recently deleted first)
+        void query.orderBy(`${SavedChartsTableName}.deleted_at`, 'desc');
+
+        const { pagination, data } = await KnexPaginate.paginate(
+            query,
+            paginateArgs,
+        );
+
+        return {
+            pagination,
+            data: data.map((chart) => ({
+                uuid: chart.uuid,
+                name: chart.name,
+                description: chart.description,
+                contentType: ContentType.CHART as const,
+                source: ChartSourceType.DBT_EXPLORE,
+                chartKind: chart.chart_kind,
+                deletedAt: chart.deleted_at,
+                deletedBy: chart.deleted_by_user_uuid
+                    ? {
+                          userUuid: chart.deleted_by_user_uuid,
+                          firstName: chart.first_name ?? '',
+                          lastName: chart.last_name ?? '',
+                      }
+                    : null,
+                spaceUuid: chart.space_uuid,
+                spaceName: chart.space_name,
+                projectUuid: chart.project_uuid,
+                organizationUuid: chart.organization_uuid,
+            })),
+        };
+    }
+
+    /**
+     * Restore a soft-deleted chart
+     */
+    async restore(savedChartUuid: string): Promise<void> {
+        const updateCount = await this.database(SavedChartsTableName)
+            .update({
+                deleted_at: null,
+                deleted_by_user_uuid: null,
+            })
+            .where('saved_query_uuid', savedChartUuid)
+            .whereNotNull('deleted_at');
+
+        if (updateCount !== 1) {
+            throw new NotFoundError('Deleted chart not found');
         }
     }
 }

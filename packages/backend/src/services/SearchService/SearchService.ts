@@ -19,8 +19,8 @@ import { SearchModel } from '../../models/SearchModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { UserAttributesModel } from '../../models/UserAttributesModel';
 import { BaseService } from '../BaseService';
-import { hasViewAccessToSpace } from '../SpaceService/SpaceService';
-import { hasUserAttributes } from '../UserAttributesService/UserAttributeUtils';
+import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
+import { checkUserAttributesAccess } from '../UserAttributesService/UserAttributeUtils';
 
 type SearchServiceArguments = {
     analytics: LightdashAnalytics;
@@ -28,6 +28,7 @@ type SearchServiceArguments = {
     projectModel: ProjectModel;
     spaceModel: SpaceModel;
     userAttributesModel: UserAttributesModel;
+    spacePermissionService: SpacePermissionService;
 };
 
 export class SearchService extends BaseService {
@@ -41,6 +42,8 @@ export class SearchService extends BaseService {
 
     private readonly userAttributesModel: UserAttributesModel;
 
+    private readonly spacePermissionService: SpacePermissionService;
+
     constructor(args: SearchServiceArguments) {
         super();
         this.analytics = args.analytics;
@@ -48,6 +51,7 @@ export class SearchService extends BaseService {
         this.projectModel = args.projectModel;
         this.spaceModel = args.spaceModel;
         this.userAttributesModel = args.userAttributesModel;
+        this.spacePermissionService = args.spacePermissionService;
     }
 
     async getSearchResults(
@@ -91,15 +95,13 @@ export class SearchService extends BaseService {
                 ...results.spaces.map((space) => space.uuid),
             ]),
         ];
-        const spaces = await Promise.all(
-            spaceUuids.map((spaceUuid) =>
-                this.spaceModel.getSpaceSummary(spaceUuid),
-            ),
-        );
-        const spacesAccess = await this.spaceModel.getUserSpacesAccess(
-            user.userUuid,
-            spaces.map((s) => s.uuid),
-        );
+
+        const accessibleSpaceUuids =
+            await this.spacePermissionService.getAccessibleSpaceUuids(
+                'view',
+                user,
+                spaceUuids,
+            );
 
         const filterItem = async (
             item:
@@ -110,15 +112,7 @@ export class SearchService extends BaseService {
         ) => {
             const spaceUuid: string =
                 'spaceUuid' in item ? item.spaceUuid : item.uuid;
-            const itemSpace = spaces.find((s) => s.uuid === spaceUuid);
-            return (
-                itemSpace &&
-                hasViewAccessToSpace(
-                    user,
-                    itemSpace,
-                    spacesAccess[spaceUuid] ?? [],
-                )
-            );
+            return accessibleSpaceUuids.includes(spaceUuid);
         };
 
         const hasExploreAccess = user.ability.can(
@@ -132,7 +126,12 @@ export class SearchService extends BaseService {
         const dimensionsHaveUserAttributes = results.fields.some(
             (field) =>
                 field.requiredAttributes !== undefined ||
+                field.anyAttributes !== undefined ||
                 Object.values(field.tablesRequiredAttributes || {}).some(
+                    (tableHaveUserAttributes) =>
+                        tableHaveUserAttributes !== undefined,
+                ) ||
+                Object.values(field.tablesAnyAttributes || {}).some(
                     (tableHaveUserAttributes) =>
                         tableHaveUserAttributes !== undefined,
                 ),
@@ -140,7 +139,8 @@ export class SearchService extends BaseService {
         const tablesHaveUserAttributes = results.tables.some(
             (table) =>
                 !isTableErrorSearchResult(table) &&
-                table.requiredAttributes !== undefined,
+                (table.requiredAttributes !== undefined ||
+                    table.anyAttributes !== undefined),
         );
         let filteredFields: FieldSearchResult[] = [];
         let filteredTables: (TableSearchResult | TableErrorSearchResult)[] = [];
@@ -153,26 +153,36 @@ export class SearchService extends BaseService {
                             userUuid: user.userUuid,
                         },
                     );
-                filteredFields = results.fields.filter(
-                    (field) =>
-                        hasUserAttributes(
+                filteredFields = results.fields.filter((field) => {
+                    // Check field-level attributes
+                    if (
+                        !checkUserAttributesAccess(
                             field.requiredAttributes,
+                            field.anyAttributes,
                             userAttributes,
-                        ) &&
-                        Object.values(
-                            field.tablesRequiredAttributes || {},
-                        ).every((tableHaveUserAttributes) =>
-                            hasUserAttributes(
-                                tableHaveUserAttributes,
-                                userAttributes,
-                            ),
+                        )
+                    )
+                        return false;
+
+                    // Check table-level attributes for all referenced tables
+                    const tableRefs = new Set([
+                        ...Object.keys(field.tablesRequiredAttributes || {}),
+                        ...Object.keys(field.tablesAnyAttributes || {}),
+                    ]);
+                    return [...tableRefs].every((tableRef) =>
+                        checkUserAttributesAccess(
+                            field.tablesRequiredAttributes?.[tableRef],
+                            field.tablesAnyAttributes?.[tableRef],
+                            userAttributes,
                         ),
-                );
+                    );
+                });
                 filteredTables = results.tables.filter(
                     (table) =>
                         isTableErrorSearchResult(table) ||
-                        hasUserAttributes(
+                        checkUserAttributesAccess(
                             table.requiredAttributes,
+                            table.anyAttributes,
                             userAttributes,
                         ),
                 );

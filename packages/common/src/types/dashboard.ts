@@ -8,7 +8,7 @@ import {
     type SavedChartType,
 } from './savedCharts';
 import type { SchedulerAndTargets } from './scheduler';
-import { type SpaceShare } from './space';
+import { type SpaceAccess } from './space';
 import { type UpdatedByUser } from './user';
 import { type ValidationSummary } from './validation';
 
@@ -176,6 +176,7 @@ export type Dashboard = {
     organizationUuid: string;
     projectUuid: string;
     dashboardVersionId: number;
+    versionUuid: string;
     uuid: string;
     name: string;
     description?: string;
@@ -192,9 +193,15 @@ export type Dashboard = {
     pinnedListOrder: number | null;
     tabs: DashboardTab[];
     isPrivate: boolean | null;
-    access: SpaceShare[] | null;
+    access: SpaceAccess[] | null;
     slug: string;
     config?: DashboardConfig;
+    deletedAt?: Date;
+    deletedBy?: {
+        userUuid: string;
+        firstName: string;
+        lastName: string;
+    } | null;
 };
 
 export enum DashboardSummaryTone {
@@ -360,4 +367,28 @@ export type ApiDashboardPaginatedSchedulersResponse = {
 export type ApiCreateDashboardSchedulerResponse = {
     status: 'ok';
     results: SchedulerAndTargets;
+};
+
+export type DashboardVersionSummary = {
+    dashboardUuid: string;
+    versionUuid: string;
+    createdAt: Date;
+    createdBy: Pick<
+        UpdatedByUser,
+        'userUuid' | 'firstName' | 'lastName'
+    > | null;
+};
+
+export type DashboardHistory = {
+    history: DashboardVersionSummary[];
+};
+
+export type ApiGetDashboardHistoryResponse = {
+    status: 'ok';
+    results: DashboardHistory;
+};
+
+export type ApiDashboardRollbackResponse = {
+    status: 'ok';
+    results: undefined;
 };

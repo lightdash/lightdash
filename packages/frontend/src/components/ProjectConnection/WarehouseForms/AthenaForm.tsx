@@ -1,13 +1,15 @@
-import { WarehouseTypes } from '@lightdash/common';
+import { AthenaAuthenticationType, WarehouseTypes } from '@lightdash/common';
 import {
     Anchor,
     NumberInput,
     PasswordInput,
+    Select,
     Stack,
     TextInput,
 } from '@mantine/core';
-import { type FC } from 'react';
+import { useEffect, type FC } from 'react';
 import { useToggle } from 'react-use';
+import useHealth from '../../../hooks/health/useHealth';
 import FormCollapseButton from '../FormCollapseButton';
 import { useFormContext } from '../formContext';
 import FormSection from '../Inputs/FormSection';
@@ -37,9 +39,54 @@ const AthenaForm: FC<{
 }> = ({ disabled }) => {
     const [isOpen, toggleOpen] = useToggle(false);
     const { savedProject } = useProjectFormContext();
+    const health = useHealth();
     const requireSecrets: boolean =
         savedProject?.warehouseConnection?.type !== WarehouseTypes.ATHENA;
     const form = useFormContext();
+
+    const warehouse = form.values.warehouse;
+
+    if (warehouse?.type !== WarehouseTypes.ATHENA) {
+        throw new Error('Athena form is not used for this warehouse type');
+    }
+
+    const isIamRoleAuthEnabled =
+        health.data?.isAthenaWarehouseIamRoleAuthEnabled ?? false;
+
+    const savedAuthenticationType =
+        savedProject?.warehouseConnection?.type === WarehouseTypes.ATHENA
+            ? savedProject.warehouseConnection.authenticationType
+            : undefined;
+
+    const defaultAuthenticationType =
+        savedAuthenticationType ?? AthenaAuthenticationType.ACCESS_KEY;
+
+    useEffect(() => {
+        const currentType = warehouse.authenticationType;
+        const nextType = isIamRoleAuthEnabled
+            ? defaultAuthenticationType
+            : AthenaAuthenticationType.ACCESS_KEY;
+
+        if (
+            currentType === undefined ||
+            (!isIamRoleAuthEnabled &&
+                currentType !== AthenaAuthenticationType.ACCESS_KEY)
+        ) {
+            form.setFieldValue('warehouse.authenticationType', nextType);
+        }
+    }, [
+        defaultAuthenticationType,
+        form,
+        warehouse.authenticationType,
+        isIamRoleAuthEnabled,
+    ]);
+
+    const authenticationType = isIamRoleAuthEnabled
+        ? (warehouse.authenticationType ?? defaultAuthenticationType)
+        : AthenaAuthenticationType.ACCESS_KEY;
+
+    const isAccessKeyAuthentication =
+        authenticationType === AthenaAuthenticationType.ACCESS_KEY;
 
     return (
         <>
@@ -100,32 +147,57 @@ const AthenaForm: FC<{
                     placeholder="s3://your-bucket/data/"
                     disabled={disabled}
                 />
-                <TextInput
-                    name="warehouse.accessKeyId"
-                    label="AWS Access Key ID"
-                    description="Your AWS access key ID."
-                    required
-                    placeholder={
-                        disabled || !requireSecrets
-                            ? '**************'
-                            : undefined
-                    }
-                    {...form.getInputProps('warehouse.accessKeyId')}
-                    disabled={disabled}
-                />
-                <PasswordInput
-                    name="warehouse.secretAccessKey"
-                    label="AWS Secret Access Key"
-                    description="Your AWS secret access key."
-                    required
-                    placeholder={
-                        disabled || !requireSecrets
-                            ? '**************'
-                            : undefined
-                    }
-                    {...form.getInputProps('warehouse.secretAccessKey')}
-                    disabled={disabled}
-                />
+                {isIamRoleAuthEnabled && (
+                    <Select
+                        name="warehouse.authenticationType"
+                        label="Authentication Type"
+                        description="Choose whether to authenticate using AWS access keys or the runtime IAM role."
+                        data={[
+                            {
+                                value: AthenaAuthenticationType.ACCESS_KEY,
+                                label: 'Access Keys',
+                            },
+                            {
+                                value: AthenaAuthenticationType.IAM_ROLE,
+                                label: 'IAM Role',
+                            },
+                        ]}
+                        defaultValue={defaultAuthenticationType}
+                        {...form.getInputProps('warehouse.authenticationType')}
+                        required
+                        disabled={disabled}
+                    />
+                )}
+                {isAccessKeyAuthentication && (
+                    <>
+                        <TextInput
+                            name="warehouse.accessKeyId"
+                            label="AWS Access Key ID"
+                            description="Your AWS access key ID."
+                            required
+                            placeholder={
+                                disabled || !requireSecrets
+                                    ? '**************'
+                                    : undefined
+                            }
+                            {...form.getInputProps('warehouse.accessKeyId')}
+                            disabled={disabled}
+                        />
+                        <PasswordInput
+                            name="warehouse.secretAccessKey"
+                            label="AWS Secret Access Key"
+                            description="Your AWS secret access key."
+                            required
+                            placeholder={
+                                disabled || !requireSecrets
+                                    ? '**************'
+                                    : undefined
+                            }
+                            {...form.getInputProps('warehouse.secretAccessKey')}
+                            disabled={disabled}
+                        />
+                    </>
+                )}
 
                 <FormSection isOpen={isOpen} name="advanced">
                     <Stack mt="sm">

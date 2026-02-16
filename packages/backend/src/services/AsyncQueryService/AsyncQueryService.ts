@@ -84,7 +84,6 @@ import {
     S3Error,
     SchedulerFormat,
     sleep,
-    type SpaceShare,
     type SpaceSummary,
     SqlChart,
     UnexpectedServerError,
@@ -98,12 +97,11 @@ import { createInterface } from 'readline';
 import { Readable, Writable } from 'stream';
 import { v4 as uuidv4 } from 'uuid';
 import { DownloadCsv } from '../../analytics/LightdashAnalytics';
-import { S3Client } from '../../clients/Aws/S3Client';
 import { transformAndExportResults } from '../../clients/Aws/transformAndExportResults';
+import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
 import { S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import { measureTime } from '../../logging/measureTime';
 import { DownloadAuditModel } from '../../models/DownloadAuditModel';
-import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import type { SavedSqlModel } from '../../models/SavedSqlModel';
 import PrometheusMetrics from '../../prometheus';
@@ -130,6 +128,7 @@ import { CreateCacheResult } from '../CacheService/types';
 import { CsvService } from '../CsvService/CsvService';
 import { ExcelService } from '../ExcelService/ExcelService';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
+import { PersistentDownloadFileService } from '../PersistentDownloadFileService/PersistentDownloadFileService';
 import { PivotTableService } from '../PivotTableService/PivotTableService';
 import { getDashboardParametersValuesMap } from '../ProjectService/parameters';
 import {
@@ -166,12 +165,12 @@ type AsyncQueryServiceArguments = ProjectServiceArguments & {
     downloadAuditModel: DownloadAuditModel;
     cacheService?: ICacheService;
     savedSqlModel: SavedSqlModel;
-    featureFlagModel: FeatureFlagModel;
     resultsStorageClient: S3ResultsFileStorageClient;
     pivotTableService: PivotTableService;
     prometheusMetrics?: PrometheusMetrics;
     schedulerClient: SchedulerClient;
     permissionsService: PermissionsService;
+    persistentDownloadFileService: PersistentDownloadFileService;
 };
 
 export class AsyncQueryService extends ProjectService {
@@ -183,11 +182,9 @@ export class AsyncQueryService extends ProjectService {
 
     savedSqlModel: SavedSqlModel;
 
-    featureFlagModel: FeatureFlagModel;
-
     resultsStorageClient: S3ResultsFileStorageClient;
 
-    exportsStorageClient: S3Client;
+    exportsStorageClient: FileStorageClient;
 
     pivotTableService: PivotTableService;
 
@@ -197,55 +194,24 @@ export class AsyncQueryService extends ProjectService {
 
     permissionsService: PermissionsService;
 
+    persistentDownloadFileService: PersistentDownloadFileService;
+
     constructor(args: AsyncQueryServiceArguments) {
         super(args);
         this.queryHistoryModel = args.queryHistoryModel;
         this.downloadAuditModel = args.downloadAuditModel;
         this.cacheService = args.cacheService;
         this.savedSqlModel = args.savedSqlModel;
-        this.featureFlagModel = args.featureFlagModel;
         this.resultsStorageClient = args.resultsStorageClient;
-        this.exportsStorageClient = this.s3Client;
+        this.exportsStorageClient = this.fileStorageClient;
         this.pivotTableService = args.pivotTableService;
         this.prometheusMetrics = args.prometheusMetrics;
         this.schedulerClient = args.schedulerClient;
         this.permissionsService = args.permissionsService;
+        this.persistentDownloadFileService = args.persistentDownloadFileService;
     }
 
-    // ! Duplicate of SavedSqlService.hasAccess
-    private async hasAccess(
-        account: Account,
-        action: 'view' | 'create' | 'update' | 'delete' | 'manage',
-        {
-            spaceUuid,
-            projectUuid,
-            organizationUuid,
-        }: { spaceUuid: string; projectUuid: string; organizationUuid: string },
-    ): Promise<{ hasAccess: boolean; userAccess: SpaceShare | undefined }> {
-        const space = await this.spaceModel.getSpaceSummary(spaceUuid);
-        const access = await this.spaceModel.getUserSpaceAccess(
-            account.user.id,
-            spaceUuid,
-        );
-
-        const hasPermission = account.user.ability.can(
-            action,
-            subject('SavedChart', {
-                organizationUuid,
-                projectUuid,
-                isPrivate: space.isPrivate,
-                access,
-            }),
-        );
-
-        return {
-            hasAccess: hasPermission,
-            userAccess: access[0],
-        };
-    }
-
-    // ! Duplicate of SavedSqlService.hasSavedChartAccess
-    private async hasSavedChartAccess(
+    private async assertSavedChartAccess(
         account: Account,
         action: 'view' | 'create' | 'update' | 'delete' | 'manage',
         savedChart: {
@@ -254,11 +220,24 @@ export class AsyncQueryService extends ProjectService {
             space: Pick<SpaceSummary, 'uuid'>;
         },
     ) {
-        return this.hasAccess(account, action, {
-            spaceUuid: savedChart.space.uuid,
-            projectUuid: savedChart.project.projectUuid,
-            organizationUuid: savedChart.organization.organizationUuid,
-        });
+        const ctx = await this.spacePermissionService.getSpaceAccessContext(
+            account.user.id,
+            savedChart.space.uuid,
+        );
+
+        if (
+            account.user.ability.cannot(
+                action,
+                subject('SavedChart', {
+                    organizationUuid: savedChart.organization.organizationUuid,
+                    projectUuid: savedChart.project.projectUuid,
+                    isPrivate: ctx.isPrivate,
+                    access: ctx.access,
+                }),
+            )
+        ) {
+            throw new ForbiddenError("You don't have access to this chart");
+        }
     }
 
     public getCacheExpiresAt(baseDate: Date) {
@@ -357,6 +336,7 @@ export class AsyncQueryService extends ProjectService {
                 projectUuid: queryHistory.projectUuid,
                 userId: account.user.id,
                 isRegisteredUser: account.isRegisteredUser(),
+                isServiceAccount: account.isServiceAccount(),
             }),
         );
 
@@ -807,6 +787,7 @@ export class AsyncQueryService extends ProjectService {
         hiddenFields = [],
         pivotConfig,
         attachmentDownloadName,
+        expirationSecondsOverride,
     }: DownloadAsyncQueryResultsArgs): Promise<
         | ApiDownloadAsyncQueryResults
         | ApiDownloadAsyncQueryResultsAsCsv
@@ -947,6 +928,11 @@ export class AsyncQueryService extends ProjectService {
                             pivotConfig,
                             attachmentDownloadName,
                         },
+                        organizationUuid,
+                        createdByUserUuid: isJwtUser(account)
+                            ? null
+                            : account.user.userUuid,
+                        expirationSecondsOverride,
                     });
                 }
                 return this.downloadAsyncQueryResultsAsFormattedFile(
@@ -965,49 +951,78 @@ export class AsyncQueryService extends ProjectService {
                         pivotConfig,
                     },
                     attachmentDownloadName,
+                    {
+                        organizationUuid,
+                        projectUuid,
+                        createdByUserUuid: isJwtUser(account)
+                            ? null
+                            : account.user.userUuid,
+                        fileType: DownloadFileType.CSV,
+                        expirationSecondsOverride,
+                    },
                 );
-            case DownloadFileType.XLSX:
+            case DownloadFileType.XLSX: {
                 // Check if this is a pivot table download
-                if (pivotConfig && queryHistory.metricQuery) {
-                    return ExcelService.downloadAsyncPivotTableXlsx({
-                        resultsFileName,
-                        fields,
-                        metricQuery: queryHistory.metricQuery,
-                        resultsStorageClient: this.resultsStorageClient,
-                        exportsStorageClient: this.exportsStorageClient,
-                        lightdashConfig: this.lightdashConfig,
-                        pivotDetails:
-                            AsyncQueryService.getPivotDetailsFromQueryHistory(
-                                queryHistory,
-                            ),
-                        options: {
-                            onlyRaw,
-                            showTableNames,
-                            customLabels,
-                            columnOrder: validColumnOrder,
-                            hiddenFields,
-                            pivotConfig,
-                            attachmentDownloadName,
+                const xlsxResult =
+                    pivotConfig && queryHistory.metricQuery
+                        ? await ExcelService.downloadAsyncPivotTableXlsx({
+                              resultsFileName,
+                              fields,
+                              metricQuery: queryHistory.metricQuery,
+                              resultsStorageClient: this.resultsStorageClient,
+                              exportsStorageClient: this.exportsStorageClient,
+                              lightdashConfig: this.lightdashConfig,
+                              pivotDetails:
+                                  AsyncQueryService.getPivotDetailsFromQueryHistory(
+                                      queryHistory,
+                                  ),
+                              options: {
+                                  onlyRaw,
+                                  showTableNames,
+                                  customLabels,
+                                  columnOrder: validColumnOrder,
+                                  hiddenFields,
+                                  pivotConfig,
+                                  attachmentDownloadName,
+                              },
+                          })
+                        : // Use direct Excel export to bypass PassThrough + Upload hanging issues
+                          await ExcelService.downloadAsyncExcelDirectly(
+                              resultsFileName,
+                              resultFields,
+                              {
+                                  resultsStorageClient:
+                                      this.resultsStorageClient,
+                                  exportsStorageClient:
+                                      this.exportsStorageClient,
+                              },
+                              {
+                                  onlyRaw,
+                                  showTableNames,
+                                  customLabels,
+                                  columnOrder: validColumnOrder,
+                                  hiddenFields,
+                                  attachmentDownloadName,
+                              },
+                          );
+                const xlsxPersistentUrl =
+                    await this.persistentDownloadFileService.createPersistentUrl(
+                        {
+                            s3Key: xlsxResult.s3Key,
+                            fileType: DownloadFileType.XLSX,
+                            organizationUuid,
+                            projectUuid,
+                            createdByUserUuid: isJwtUser(account)
+                                ? null
+                                : account.user.userUuid,
+                            expirationSeconds: expirationSecondsOverride,
                         },
-                    });
-                }
-                // Use direct Excel export to bypass PassThrough + Upload hanging issues
-                return ExcelService.downloadAsyncExcelDirectly(
-                    resultsFileName,
-                    resultFields,
-                    {
-                        resultsStorageClient: this.resultsStorageClient,
-                        exportsStorageClient: this.exportsStorageClient,
-                    },
-                    {
-                        onlyRaw,
-                        showTableNames,
-                        customLabels,
-                        columnOrder: validColumnOrder,
-                        hiddenFields,
-                        attachmentDownloadName,
-                    },
-                );
+                    );
+                return {
+                    fileUrl: xlsxPersistentUrl,
+                    truncated: xlsxResult.truncated,
+                };
+            }
             case undefined:
             case DownloadFileType.JSONL:
                 return this.downloadAsyncQueryResultsAsJson(resultsFileName);
@@ -1047,6 +1062,13 @@ export class AsyncQueryService extends ProjectService {
             pivotConfig?: PivotConfig;
         },
         attachmentDownloadName?: string,
+        persistentUrlContext?: {
+            organizationUuid: string;
+            projectUuid: string;
+            createdByUserUuid: string | null;
+            fileType: DownloadFileType;
+            expirationSecondsOverride?: number;
+        },
     ): Promise<{ fileUrl: string; truncated: boolean }> {
         // Generate a unique filename
         const formattedFileName = service.generateFileId(resultsFileName);
@@ -1076,7 +1098,7 @@ export class AsyncQueryService extends ProjectService {
                 : DownloadFileType.CSV;
 
         // Transform and export the results from results bucket to exports bucket
-        return transformAndExportResults(
+        const result = await transformAndExportResults(
             resultsFileName,
             formattedFileName,
             async (readStream, writeStream) => {
@@ -1098,7 +1120,7 @@ export class AsyncQueryService extends ProjectService {
             },
             {
                 resultsStorageClient: this.resultsStorageClient,
-                exportsStorageClient: this.s3Client,
+                exportsStorageClient: this.fileStorageClient,
             },
             {
                 fileType,
@@ -1107,6 +1129,22 @@ export class AsyncQueryService extends ProjectService {
                     : undefined,
             },
         );
+
+        if (persistentUrlContext) {
+            const persistentUrl =
+                await this.persistentDownloadFileService.createPersistentUrl({
+                    s3Key: formattedFileName,
+                    fileType: persistentUrlContext.fileType,
+                    organizationUuid: persistentUrlContext.organizationUuid,
+                    projectUuid: persistentUrlContext.projectUuid,
+                    createdByUserUuid: persistentUrlContext.createdByUserUuid,
+                    expirationSeconds:
+                        persistentUrlContext.expirationSecondsOverride,
+                });
+            return { fileUrl: persistentUrl, truncated: result.truncated };
+        }
+
+        return result;
     }
 
     private async downloadAsyncQueryResultsAsJson(
@@ -1339,6 +1377,7 @@ export class AsyncQueryService extends ProjectService {
     public async runAsyncWarehouseQuery({
         userId,
         isRegisteredUser,
+        isServiceAccount,
         projectUuid,
         query,
         fieldsMap,
@@ -1377,6 +1416,7 @@ export class AsyncQueryService extends ProjectService {
                 projectUuid,
                 userId,
                 isRegisteredUser,
+                isServiceAccount,
             });
 
             warehouseCredentialsType = warehouseCredentials.type;
@@ -1747,6 +1787,7 @@ export class AsyncQueryService extends ProjectService {
                             projectUuid,
                             userId: account.user.id,
                             isRegisteredUser: account.isRegisteredUser(),
+                            isServiceAccount: account.isServiceAccount(),
                         });
 
                     const warehouseCredentialsType = warehouseCredentials.type;
@@ -1930,6 +1971,7 @@ export class AsyncQueryService extends ProjectService {
                     void this.runAsyncWarehouseQuery({
                         userId: account.user.id,
                         isRegisteredUser: account.isRegisteredUser(),
+                        isServiceAccount: account.isServiceAccount(),
                         projectUuid,
                         query,
                         fieldsMap,
@@ -2035,6 +2077,7 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             userId: account.user.id,
             isRegisteredUser: account.isRegisteredUser(),
+            isServiceAccount: account.isServiceAccount(),
         });
 
         const warehouseSqlBuilder = warehouseSqlBuilderFromType(
@@ -2131,9 +2174,8 @@ export class AsyncQueryService extends ProjectService {
             throw new ForbiddenError('Chart does not belong to project');
         }
 
-        const space =
-            await this.spaceModel.getSpaceSummary(savedChartSpaceUuid);
         let access;
+        let spaceIsPrivate;
         if (isJwtUser(account)) {
             if (!ProjectService.isChartEmbed(account)) {
                 throw new ForbiddenError();
@@ -2149,11 +2191,16 @@ export class AsyncQueryService extends ProjectService {
             // TODO: Get all chartUuids for a given dashboard in the middleware.
             //       https://linear.app/lightdash/issue/CENG-110/front-load-available-charts-for-dashboard-requests
             access = [{ chartUuid: savedChart.uuid }];
+            const space =
+                await this.spaceModel.getSpaceSummary(savedChartSpaceUuid);
+            spaceIsPrivate = space.isPrivate;
         } else {
-            access = await this.spaceModel.getUserSpaceAccess(
+            const ctx = await this.spacePermissionService.getSpaceAccessContext(
                 account.user.id,
-                space.uuid,
+                savedChartSpaceUuid,
             );
+            access = ctx.access;
+            spaceIsPrivate = ctx.isPrivate;
         }
 
         if (
@@ -2162,7 +2209,7 @@ export class AsyncQueryService extends ProjectService {
                 subject('SavedChart', {
                     organizationUuid: savedChartOrganizationUuid,
                     projectUuid,
-                    isPrivate: space.isPrivate,
+                    isPrivate: spaceIsPrivate,
                     access,
                 }),
             ) ||
@@ -2217,6 +2264,7 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             userId: account.user.id,
             isRegisteredUser: account.isRegisteredUser(),
+            isServiceAccount: account.isServiceAccount(),
         });
 
         const warehouseSqlBuilder = warehouseSqlBuilderFromType(
@@ -2306,7 +2354,7 @@ export class AsyncQueryService extends ProjectService {
                 savedChartUuid,
             );
         } else {
-            const access = await this.spaceModel.getUserSpaceAccess(
+            const ctx = await this.spacePermissionService.getSpaceAccessContext(
                 account.user.id,
                 space.uuid,
             );
@@ -2317,8 +2365,8 @@ export class AsyncQueryService extends ProjectService {
                     subject('SavedChart', {
                         organizationUuid: space.organizationUuid,
                         projectUuid,
-                        isPrivate: space.isPrivate,
-                        access,
+                        isPrivate: ctx.isPrivate,
+                        access: ctx.access,
                     }),
                 )
             ) {
@@ -2469,6 +2517,7 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             userId: account.user.id,
             isRegisteredUser: account.isRegisteredUser(),
+            isServiceAccount: account.isServiceAccount(),
         });
 
         const warehouseSqlBuilder = warehouseSqlBuilderFromType(
@@ -2583,6 +2632,7 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             userId: account.user.id,
             isRegisteredUser: account.isRegisteredUser(),
+            isServiceAccount: account.isServiceAccount(),
         });
 
         const warehouseSqlBuilder = warehouseSqlBuilderFromType(
@@ -2934,6 +2984,7 @@ export class AsyncQueryService extends ProjectService {
                 projectUuid,
                 userId: account.user.id,
                 isRegisteredUser: account.isRegisteredUser(),
+                isServiceAccount: account.isServiceAccount(),
             }),
         );
 
@@ -3183,15 +3234,7 @@ export class AsyncQueryService extends ProjectService {
 
         const { account, projectUuid, context, invalidateCache, limit } = args;
 
-        const { hasAccess: hasViewAccess } = await this.hasSavedChartAccess(
-            account,
-            'view',
-            sqlChart,
-        );
-
-        if (!hasViewAccess) {
-            throw new ForbiddenError("You don't have access to this chart");
-        }
+        await this.assertSavedChartAccess(account, 'view', sqlChart);
 
         // Combine default parameter values with request parameters first
         const combinedParameters = await this.combineParameters(
@@ -3278,15 +3321,7 @@ export class AsyncQueryService extends ProjectService {
             limit,
         } = args;
 
-        const { hasAccess: hasViewAccess } = await this.hasSavedChartAccess(
-            account,
-            'view',
-            savedChart,
-        );
-
-        if (!hasViewAccess) {
-            throw new ForbiddenError("You don't have access to this chart");
-        }
+        await this.assertSavedChartAccess(account, 'view', savedChart);
 
         const dashboard =
             await this.dashboardModel.getByIdOrSlug(dashboardUuid);

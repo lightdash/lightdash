@@ -16,8 +16,8 @@ import { type SshTunnel } from '@lightdash/warehouses';
 import { Readable } from 'stream';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import type { S3CacheClient } from '../../clients/Aws/S3CacheClient';
-import { S3Client } from '../../clients/Aws/S3Client';
 import EmailClient from '../../clients/EmailClient/EmailClient';
+import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
 import { type S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import type { LightdashConfig } from '../../config/parseConfig';
@@ -50,9 +50,11 @@ import type { WarehouseAvailableTablesModel } from '../../models/WarehouseAvaila
 import type { SchedulerClient } from '../../scheduler/SchedulerClient';
 import type { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { warehouseClientMock } from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
+import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
 import type { ICacheService } from '../CacheService/ICacheService';
 import { CacheHitCacheResult, MissCacheResult } from '../CacheService/types';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
+import { PersistentDownloadFileService } from '../PersistentDownloadFileService/PersistentDownloadFileService';
 import { PivotTableService } from '../PivotTableService/PivotTableService';
 import {
     allExplores,
@@ -69,6 +71,7 @@ import {
     tablesConfiguration,
     validExplore,
 } from '../ProjectService/ProjectService.mock';
+import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { AsyncQueryService } from './AsyncQueryService';
 import type {
     ExecuteAsyncQueryReturn,
@@ -158,7 +161,7 @@ const getMockedAsyncQueryService = (
             scheduleTask: jest.fn(),
         } as unknown as SchedulerClient,
         downloadFileModel: {} as unknown as DownloadFileModel,
-        s3Client: {} as S3Client,
+        fileStorageClient: {} as FileStorageClient,
         groupsModel: {} as GroupsModel,
         tagsModel: {} as TagsModel,
         catalogModel: {} as CatalogModel,
@@ -197,11 +200,15 @@ const getMockedAsyncQueryService = (
             {} as OrganizationWarehouseCredentialsModel,
         pivotTableService: new PivotTableService({
             lightdashConfig,
-            s3Client: {} as S3Client,
+            fileStorageClient: {} as FileStorageClient,
             downloadFileModel: {} as DownloadFileModel,
+            persistentDownloadFileService: {} as PersistentDownloadFileService,
         }),
         permissionsService: {} as PermissionsService,
+        persistentDownloadFileService: {} as PersistentDownloadFileService,
         projectCompileLogModel: {} as ProjectCompileLogModel,
+        adminNotificationService: {} as AdminNotificationService,
+        spacePermissionService: {} as SpacePermissionService,
         ...overrides,
     });
 

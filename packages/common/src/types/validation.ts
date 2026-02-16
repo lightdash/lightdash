@@ -1,3 +1,5 @@
+import type { ApiSuccess } from './api/success';
+import type { KnexPaginatedData } from './knex-paginate';
 import type { ChartKind } from './savedCharts';
 
 export type ValidationResponseBase = {
@@ -80,10 +82,17 @@ export type CreateValidation =
     | CreateChartValidation
     | CreateDashboardValidation;
 
+/** @deprecated Use ApiPaginatedValidateResponse with GET /validate/list instead */
 export type ApiValidateResponse = {
     status: 'ok';
     results: ValidationResponse[];
 };
+
+export type ApiPaginatedValidateResponse = ApiSuccess<
+    KnexPaginatedData<ValidationResponse[]>
+>;
+
+export type ApiSingleValidationResponse = ApiSuccess<ValidationResponse>;
 
 export type ApiValidationDismissResponse = {
     status: 'ok';

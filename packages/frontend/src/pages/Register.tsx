@@ -4,7 +4,15 @@ import {
     type CreateUserArgs,
     type LightdashUser,
 } from '@lightdash/common';
-import { Anchor, Box, Card, Divider, Stack, Text, Title } from '@mantine/core';
+import {
+    Anchor,
+    Box,
+    Card,
+    Divider,
+    Stack,
+    Text,
+    Title,
+} from '@mantine-8/core';
 import { useMutation } from '@tanstack/react-query';
 import { useEffect, type FC } from 'react';
 import { useLocation } from 'react-router';
@@ -123,7 +131,7 @@ const Register: FC = () => {
                     </Title>
                     {logins}
                 </Card>
-                <Text color="ldGray.6" ta="center">
+                <Text c="ldGray.6" ta="center" fz="sm" fw={500}>
                     By creating an account, you agree to
                     <br />
                     our{' '}

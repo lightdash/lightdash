@@ -140,7 +140,7 @@ const AddTileButton: FC<Props> = ({
                             leftSection={<MantineIcon icon={IconPlus} />}
                         >
                             <Group gap="xxs">
-                                <Text>New chart</Text>
+                                <Text fz="sm">New chart</Text>
                                 <Tooltip label="Charts generated from here are exclusive to this dashboard">
                                     <MantineIcon
                                         icon={IconInfoCircle}

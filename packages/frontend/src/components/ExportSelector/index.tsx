@@ -5,7 +5,7 @@ import {
     type ApiScheduledDownloadCsv,
     type PivotConfig,
 } from '@lightdash/common';
-import { Button, Stack } from '@mantine/core';
+import { Button, Stack } from '@mantine-8/core';
 import { IconArrowLeft, IconFileTypeCsv } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
 import { memo, useState, type FC } from 'react';
@@ -54,7 +54,7 @@ const ExportSelector: FC<
                         color="ldGray.6"
                         size="xs"
                         mb="xs"
-                        leftIcon={<MantineIcon icon={IconArrowLeft} />}
+                        leftSection={<MantineIcon icon={IconArrowLeft} />}
                         variant="subtle"
                         onClick={() => setExportType(undefined)}
                     >
@@ -75,12 +75,12 @@ const ExportSelector: FC<
             );
         } else if (hasGoogleDrive && getGsheetLink) {
             return (
-                <Stack spacing="xs">
+                <Stack gap="xs">
                     <Button
                         size="xs"
                         variant="default"
                         onClick={() => setExportType('csv')}
-                        leftIcon={<MantineIcon icon={IconFileTypeCsv} />}
+                        leftSection={<MantineIcon icon={IconFileTypeCsv} />}
                         disabled={isExportingGoogleSheets}
                         data-testid="chart-export-csv-button"
                     >

@@ -4,7 +4,8 @@ import {
     getItemId,
     type FilterDashboardToRule,
 } from '@lightdash/common';
-import { Menu, Text } from '@mantine/core';
+import { Menu } from '@mantine-8/core';
+import { Text } from '@mantine/core';
 import { IconFilter } from '@tabler/icons-react';
 import isNil from 'lodash/isNil';
 import { type FC } from 'react';
@@ -32,7 +33,7 @@ export const FilterDashboardTo: FC<Props> = ({ filters, onAddFilter }) => {
             {filters.map((filter) => (
                 <Menu.Item
                     key={filter.id}
-                    icon={<MantineIcon icon={IconFilter} />}
+                    leftSection={<MantineIcon icon={IconFilter} />}
                     onClick={() => addFilterCallback(filter, true)}
                 >
                     {Object.values(allFilterableFieldsMap).find(

@@ -1,4 +1,5 @@
 import {
+    AlreadyExistsError,
     CatalogCategoryFilterMode,
     CatalogFilter,
     CatalogItemIcon,
@@ -31,6 +32,11 @@ import {
     type ExploreError,
     type KnexPaginateArgs,
     type KnexPaginatedData,
+    type MetricsTree,
+    type MetricsTreeLockInfo,
+    type MetricsTreeSummary,
+    type MetricsTreeWithDetails,
+    type PrevMetricsTreeNode,
     type SessionUser,
     type TablesConfiguration,
     type Tag,
@@ -44,12 +50,18 @@ import {
     CatalogTagsTableName,
     DbCatalogTagIn,
     MetricsTreeEdgesTableName,
+    MetricsTreeLocksTableName,
+    MetricsTreeNodesTableName,
+    MetricsTreesTableName,
     getDbCatalogColumnFromCatalogProperty,
     type DbCatalog,
     type DbCatalogTagsMigrateIn,
+    type DbMetricsTree,
     type DbMetricsTreeEdge,
     type DbMetricsTreeEdgeDelete,
     type DbMetricsTreeEdgeIn,
+    type DbMetricsTreeIn,
+    type DbMetricsTreeNodeIn,
 } from '../../database/entities/catalog';
 import { EmailTableName } from '../../database/entities/emails';
 import { CachedExploreTableName } from '../../database/entities/projects';
@@ -81,6 +93,32 @@ export enum CatalogSearchContext {
 export type CatalogModelArguments = {
     database: Knex;
     lightdashConfig: LightdashConfig;
+};
+
+type DbMetricsTreeWithLock = DbMetricsTree & {
+    lock_user_uuid: string | null;
+    lock_user_first_name: string | null;
+    lock_user_last_name: string | null;
+    lock_acquired_at: Date | null;
+};
+
+const parseLockInfo = (
+    row: DbMetricsTreeWithLock,
+): MetricsTreeLockInfo | null => {
+    if (
+        row.lock_user_uuid === null ||
+        row.lock_user_first_name === null ||
+        row.lock_acquired_at === null
+    ) {
+        return null;
+    }
+
+    return {
+        lockedByUserUuid: row.lock_user_uuid,
+        lockedByUserName:
+            `${row.lock_user_first_name} ${row.lock_user_last_name ?? ''}`.trim(),
+        acquiredAt: row.lock_acquired_at,
+    };
 };
 
 export class CatalogModel {
@@ -391,6 +429,7 @@ export class CatalogModel {
                                             type: CatalogType.Field,
                                             field_type: FieldType.METRIC,
                                             required_attributes: {},
+                                            any_attributes: {},
                                             yaml_tags: [],
                                             ai_hints: null,
                                             chart_usage: 0,
@@ -751,6 +790,7 @@ export class CatalogModel {
                 'type',
                 `${CachedExploreTableName}.explore`,
                 `required_attributes`,
+                `any_attributes`,
                 `chart_usage`,
                 `${CatalogTableName}.joined_tables`,
                 `${CatalogTableName}.table_name`,
@@ -831,45 +871,85 @@ export class CatalogModel {
             })
             // user attributes filtering
             .andWhere(function userAttributesFiltering() {
-                void this.whereJsonObject('required_attributes', {}).orWhereRaw(
+                void this.whereRaw(
                     `
-                        -- Main check: Ensure there are NO required attributes that fail to match user attributes
-                        -- If ANY required attribute is missing/mismatched, the whole check fails
-                        NOT EXISTS (
-                            -- Iterate through each key-value pair in required_attributes
-                            -- Example required_attributes: {"is_admin": "true", "department": ["sales", "marketing"]}
-                            SELECT 1
-                            FROM jsonb_each(required_attributes) AS ra(key, value)
-                            -- For each required attribute, check if it DOESN'T match user attributes
-                            -- The outer NOT EXISTS + WHERE NOT means ALL conditions must match
-                            WHERE NOT (
-                                CASE
-                                    -- Case 1: Required attribute is an array (e.g., "department": ["sales", "marketing"])
-                                    WHEN jsonb_typeof(value) = 'array' THEN
-                                        -- Check if ANY of the required values exist in user's attributes
-                                        EXISTS (
-                                            -- Get each value from the required array
-                                            SELECT 1
-                                            FROM jsonb_array_elements_text(value) AS req_value
-                                            -- Check if this required value exists in user's attributes array
-                                            WHERE req_value = ANY(
+                        (
+                            -- required_attributes (AND): all conditions must match when present
+                            -- Main check: Ensure there are NO required attributes that fail to match user attributes
+                            -- If ANY required attribute is missing/mismatched, the whole required check fails
+                            NOT EXISTS (
+                                -- Iterate through each key-value pair in required_attributes
+                                -- Example required_attributes: {"is_admin": "true", "department": ["sales", "marketing"]}
+                                SELECT 1
+                                FROM jsonb_each(
+                                    COALESCE(required_attributes, '{}'::jsonb)
+                                ) AS ra(key, value)
+                                -- For each required attribute, check if it DOESN'T match user attributes
+                                -- The outer NOT EXISTS + WHERE NOT means ALL conditions must match
+                                WHERE NOT (
+                                    CASE
+                                        -- Case 1: Required attribute is an array (e.g., "department": ["sales", "marketing"])
+                                        WHEN jsonb_typeof(value) = 'array' THEN
+                                            EXISTS (
+                                                -- Get each value from the required array
+                                                SELECT 1
+                                                FROM jsonb_array_elements_text(value) AS req_value
+                                                -- Check if this required value exists in user's attributes array
+                                                WHERE req_value = ANY(
+                                                    SELECT jsonb_array_elements_text(?::jsonb -> key)
+                                                )
+                                            )
+                                        -- Case 2: Required attribute is a single value (e.g., "is_admin": "true")
+                                        ELSE
+                                            -- Extract single value and check if it exists in user's attributes array
+                                            -- value #>> '{}' converts JSONB value to text
+                                            (value #>> '{}') = ANY(
                                                 SELECT jsonb_array_elements_text(?::jsonb -> key)
                                             )
-                                        )
-
-                                    -- Case 2: Required attribute is a single value (e.g., "is_admin": "true")
-                                    ELSE
-                                        -- Extract the single value and check if it exists in user's attributes array
-                                        -- value #>> '{}' converts JSONB value to text
-                                        -- Example: "true" = ANY(["true", "false"])
-                                        (value #>> '{}') = ANY(
-                                            SELECT jsonb_array_elements_text(?::jsonb -> key)
-                                        )
-                                END
+                                    END
+                                )
+                            )
+                        )
+                        AND
+                        (
+                            -- any_attributes (OR): at least one condition must match when present
+                            -- If any_attributes is empty/undefined, the any-check is a pass-through
+                            COALESCE(any_attributes, '{}'::jsonb) = '{}'::jsonb
+                            OR EXISTS (
+                                -- Iterate through each key-value pair in any_attributes
+                                -- Example any_attributes: {"is_support": "true", "team": ["finance", "support"]}
+                                -- EXISTS means we only need ONE matching condition
+                                SELECT 1
+                                FROM jsonb_each(
+                                    COALESCE(any_attributes, '{}'::jsonb)
+                                ) AS aa(key, value)
+                                WHERE (
+                                    CASE
+                                        -- Case 1: Any attribute is an array, match any item from that array
+                                        WHEN jsonb_typeof(value) = 'array' THEN
+                                            EXISTS (
+                                                -- Get each value from the any-array
+                                                SELECT 1
+                                                FROM jsonb_array_elements_text(value) AS any_value
+                                                -- Check if this candidate value exists in user's attributes array
+                                                WHERE any_value = ANY(
+                                                    SELECT jsonb_array_elements_text(?::jsonb -> key)
+                                                )
+                                            )
+                                        -- Case 2: Any attribute is a single value
+                                        ELSE
+                                            -- Extract single value and check if it exists in user's attributes array
+                                            (value #>> '{}') = ANY(
+                                                SELECT jsonb_array_elements_text(?::jsonb -> key)
+                                            )
+                                    END
+                                )
                             )
                         )
                     `,
                     [
+                        JSON.stringify(userAttributes),
+                        JSON.stringify(userAttributes),
                         JSON.stringify(userAttributes),
                         JSON.stringify(userAttributes),
                     ],
@@ -1586,6 +1666,7 @@ export class CatalogModel {
                 target_metric_catalog_search_uuid: `${MetricsTreeEdgesTableName}.target_metric_catalog_search_uuid`,
                 created_at: `${MetricsTreeEdgesTableName}.created_at`,
                 created_by_user_uuid: `${MetricsTreeEdgesTableName}.created_by_user_uuid`,
+                source: `${MetricsTreeEdgesTableName}.source`,
                 source_metric_name: `source_metric.name`,
                 source_metric_table_name: `source_metric.table_name`,
                 target_metric_name: `target_metric.name`,
@@ -1631,6 +1712,7 @@ export class CatalogModel {
                 createdAt: e.created_at,
                 createdByUserUuid: e.created_by_user_uuid,
                 projectUuid,
+                createdFrom: e.source,
             })),
         };
     }
@@ -1652,6 +1734,7 @@ export class CatalogModel {
                 project_uuid: `${MetricsTreeEdgesTableName}.project_uuid`,
                 created_at: `${MetricsTreeEdgesTableName}.created_at`,
                 created_by_user_uuid: `${MetricsTreeEdgesTableName}.created_by_user_uuid`,
+                source: `${MetricsTreeEdgesTableName}.source`,
                 source_metric_name: `source_metric.name`,
                 source_metric_table_name: `source_metric.table_name`,
                 target_metric_name: `target_metric.name`,
@@ -1683,6 +1766,7 @@ export class CatalogModel {
             createdAt: e.created_at,
             createdByUserUuid: e.created_by_user_uuid,
             projectUuid: e.project_uuid,
+            createdFrom: e.source,
         }));
     }
 
@@ -1715,6 +1799,82 @@ export class CatalogModel {
             .ignore();
     }
 
+    private getHydratedNodesQuery(
+        filter: { projectUuid: string } | { metricsTreeUuid: string },
+    ) {
+        const query = this.database(MetricsTreeNodesTableName)
+            .select<
+                {
+                    metrics_tree_uuid: string;
+                    catalog_search_uuid: string;
+                    name: string;
+                    table_name: string;
+                    x_position: number | null;
+                    y_position: number | null;
+                    source: 'yaml' | 'ui';
+                    created_at: Date;
+                }[]
+            >({
+                metrics_tree_uuid: `${MetricsTreeNodesTableName}.metrics_tree_uuid`,
+                catalog_search_uuid: `${MetricsTreeNodesTableName}.catalog_search_uuid`,
+                name: `${CatalogTableName}.name`,
+                table_name: `${CatalogTableName}.table_name`,
+                x_position: `${MetricsTreeNodesTableName}.x_position`,
+                y_position: `${MetricsTreeNodesTableName}.y_position`,
+                source: `${MetricsTreeNodesTableName}.source`,
+                created_at: `${MetricsTreeNodesTableName}.created_at`,
+            })
+            .innerJoin(
+                CatalogTableName,
+                `${MetricsTreeNodesTableName}.catalog_search_uuid`,
+                `${CatalogTableName}.catalog_search_uuid`,
+            );
+
+        if ('projectUuid' in filter) {
+            return query
+                .innerJoin(
+                    MetricsTreesTableName,
+                    `${MetricsTreeNodesTableName}.metrics_tree_uuid`,
+                    `${MetricsTreesTableName}.metrics_tree_uuid`,
+                )
+                .where(
+                    `${MetricsTreesTableName}.project_uuid`,
+                    filter.projectUuid,
+                );
+        }
+
+        return query.where(
+            `${MetricsTreeNodesTableName}.metrics_tree_uuid`,
+            filter.metricsTreeUuid,
+        );
+    }
+
+    async getAllMetricsTreeNodes(
+        projectUuid: string,
+    ): Promise<PrevMetricsTreeNode[]> {
+        const nodes = await this.getHydratedNodesQuery({ projectUuid });
+
+        return nodes.map((n) => ({
+            metricsTreeUuid: n.metrics_tree_uuid,
+            name: n.name,
+            tableName: n.table_name,
+            xPosition: n.x_position,
+            yPosition: n.y_position,
+            source: n.source,
+            createdAt: n.created_at,
+        }));
+    }
+
+    async migrateMetricsTreeNodes(nodesMigrateIn: DbMetricsTreeNodeIn[]) {
+        if (nodesMigrateIn.length === 0) {
+            return;
+        }
+        await this.database(MetricsTreeNodesTableName)
+            .insert(nodesMigrateIn)
+            .onConflict(['metrics_tree_uuid', 'catalog_search_uuid'])
+            .ignore();
+    }
+
     async hasMetricsInCatalog(projectUuid: string): Promise<boolean> {
         const result = await this.database(CatalogTableName)
             .where({
@@ -1725,6 +1885,520 @@ export class CatalogModel {
             .first();
 
         return result !== undefined;
+    }
+
+    // --- Saved Metrics Trees ---
+
+    /** Locks with heartbeat older than this are considered expired */
+    private static readonly LOCK_EXPIRY_MINUTES = 2;
+
+    private getLockExpiryCondition() {
+        return this.database.raw(
+            `${MetricsTreeLocksTableName}.last_heartbeat_at > NOW() - INTERVAL '${CatalogModel.LOCK_EXPIRY_MINUTES} minutes'`,
+        );
+    }
+
+    async getMetricsTrees(
+        projectUuid: string,
+        paginateArgs?: KnexPaginateArgs,
+    ): Promise<KnexPaginatedData<MetricsTreeSummary[]>> {
+        const lockExpiryCondition = this.getLockExpiryCondition();
+
+        const query = this.database(MetricsTreesTableName)
+            .select(
+                `${MetricsTreesTableName}.*`,
+                this.database.raw(
+                    `COALESCE(COUNT(DISTINCT ${MetricsTreeNodesTableName}.catalog_search_uuid), 0)::int as node_count`,
+                ),
+                `${MetricsTreeLocksTableName}.locked_by_user_uuid as lock_user_uuid`,
+                `lock_users.first_name as lock_user_first_name`,
+                `lock_users.last_name as lock_user_last_name`,
+                `${MetricsTreeLocksTableName}.acquired_at as lock_acquired_at`,
+            )
+            .leftJoin(
+                MetricsTreeNodesTableName,
+                `${MetricsTreesTableName}.metrics_tree_uuid`,
+                `${MetricsTreeNodesTableName}.metrics_tree_uuid`,
+            )
+            .leftJoin(MetricsTreeLocksTableName, function lockJoin() {
+                void this.on(
+                    `${MetricsTreesTableName}.metrics_tree_uuid`,
+                    '=',
+                    `${MetricsTreeLocksTableName}.metrics_tree_uuid`,
+                ).andOn(lockExpiryCondition);
+            })
+            .leftJoin(
+                `${UserTableName} as lock_users`,
+                `${MetricsTreeLocksTableName}.locked_by_user_uuid`,
+                `lock_users.user_uuid`,
+            )
+            .where(`${MetricsTreesTableName}.project_uuid`, projectUuid)
+            .groupBy(
+                `${MetricsTreesTableName}.metrics_tree_uuid`,
+                `${MetricsTreeLocksTableName}.locked_by_user_uuid`,
+                `lock_users.first_name`,
+                `lock_users.last_name`,
+                `${MetricsTreeLocksTableName}.acquired_at`,
+                `${MetricsTreeLocksTableName}.last_heartbeat_at`,
+            )
+            .orderBy(`${MetricsTreesTableName}.updated_at`, 'desc');
+
+        const result = await KnexPaginate.paginate(
+            query.select<(DbMetricsTreeWithLock & { node_count: number })[]>(),
+            paginateArgs,
+        );
+
+        return {
+            data: result.data.map((row) => ({
+                metricsTreeUuid: row.metrics_tree_uuid,
+                projectUuid: row.project_uuid,
+                slug: row.slug,
+                name: row.name,
+                description: row.description,
+                source: row.source,
+                createdByUserUuid: row.created_by_user_uuid,
+                updatedByUserUuid: row.updated_by_user_uuid,
+                createdAt: row.created_at,
+                updatedAt: row.updated_at,
+                generation: row.generation,
+                nodeCount: row.node_count,
+                lock: parseLockInfo(row),
+            })),
+            pagination: result.pagination,
+        };
+    }
+
+    async createMetricsTree(
+        tree: DbMetricsTreeIn,
+        nodes: Array<{
+            catalogSearchUuid: string;
+            xPosition?: number;
+            yPosition?: number;
+        }>,
+        edges: Array<{
+            sourceCatalogSearchUuid: string;
+            targetCatalogSearchUuid: string;
+        }>,
+    ): Promise<MetricsTree> {
+        return this.database.transaction(async (trx) => {
+            const [created] = await trx(MetricsTreesTableName)
+                .insert(tree)
+                .returning('*');
+
+            if (nodes.length > 0) {
+                const dbNodes: DbMetricsTreeNodeIn[] = nodes.map((node) => ({
+                    metrics_tree_uuid: created.metrics_tree_uuid,
+                    catalog_search_uuid: node.catalogSearchUuid,
+                    x_position: node.xPosition ?? null,
+                    y_position: node.yPosition ?? null,
+                    source: tree.source,
+                }));
+                await trx(MetricsTreeNodesTableName).insert(dbNodes);
+            }
+
+            if (edges.length > 0) {
+                const dbEdges: DbMetricsTreeEdgeIn[] = edges.map((edge) => ({
+                    source_metric_catalog_search_uuid:
+                        edge.sourceCatalogSearchUuid,
+                    target_metric_catalog_search_uuid:
+                        edge.targetCatalogSearchUuid,
+                    created_by_user_uuid: tree.created_by_user_uuid,
+                    project_uuid: tree.project_uuid,
+                    source: tree.source,
+                }));
+                await trx(MetricsTreeEdgesTableName)
+                    .insert(dbEdges)
+                    .onConflict([
+                        'source_metric_catalog_search_uuid',
+                        'target_metric_catalog_search_uuid',
+                    ])
+                    .ignore();
+            }
+
+            return {
+                metricsTreeUuid: created.metrics_tree_uuid,
+                projectUuid: created.project_uuid,
+                slug: created.slug,
+                name: created.name,
+                description: created.description,
+                source: created.source,
+                createdByUserUuid: created.created_by_user_uuid,
+                updatedByUserUuid: created.updated_by_user_uuid,
+                createdAt: created.created_at,
+                updatedAt: created.updated_at,
+                generation: created.generation,
+            };
+        });
+    }
+
+    async getMetricsTreeByUuid(
+        projectUuid: string,
+        metricsTreeUuid: string,
+    ): Promise<MetricsTreeWithDetails> {
+        const lockExpiryCondition = this.getLockExpiryCondition();
+
+        const tree = await this.database(MetricsTreesTableName)
+            .select<DbMetricsTreeWithLock>(
+                `${MetricsTreesTableName}.*`,
+                `${MetricsTreeLocksTableName}.locked_by_user_uuid as lock_user_uuid`,
+                `lock_users.first_name as lock_user_first_name`,
+                `lock_users.last_name as lock_user_last_name`,
+                `${MetricsTreeLocksTableName}.acquired_at as lock_acquired_at`,
+            )
+            .leftJoin(MetricsTreeLocksTableName, function lockJoin() {
+                void this.on(
+                    `${MetricsTreesTableName}.metrics_tree_uuid`,
+                    '=',
+                    `${MetricsTreeLocksTableName}.metrics_tree_uuid`,
+                ).andOn(lockExpiryCondition);
+            })
+            .leftJoin(
+                `${UserTableName} as lock_users`,
+                `${MetricsTreeLocksTableName}.locked_by_user_uuid`,
+                `lock_users.user_uuid`,
+            )
+            .where(
+                `${MetricsTreesTableName}.metrics_tree_uuid`,
+                metricsTreeUuid,
+            )
+            .andWhere(`${MetricsTreesTableName}.project_uuid`, projectUuid)
+            .first();
+
+        if (!tree) {
+            throw new NotFoundError(
+                `Metrics tree ${metricsTreeUuid} not found in project ${projectUuid}`,
+            );
+        }
+
+        // Fetch nodes with hydrated catalog data
+        const nodeRows = await this.getHydratedNodesQuery({
+            metricsTreeUuid,
+        });
+
+        const nodes = nodeRows.map((row) => ({
+            catalogSearchUuid: row.catalog_search_uuid,
+            xPosition: row.x_position,
+            yPosition: row.y_position,
+            name: row.name,
+            tableName: row.table_name,
+            source: row.source,
+        }));
+
+        // Fetch edges where both source and target are nodes of this tree
+        const nodeUuids = nodes.map((n) => n.catalogSearchUuid);
+
+        const edgeRows =
+            nodeUuids.length > 0
+                ? await this.database(MetricsTreeEdgesTableName)
+                      .where(
+                          `${MetricsTreeEdgesTableName}.project_uuid`,
+                          projectUuid,
+                      )
+                      .whereIn(
+                          `${MetricsTreeEdgesTableName}.source_metric_catalog_search_uuid`,
+                          nodeUuids,
+                      )
+                      .whereIn(
+                          `${MetricsTreeEdgesTableName}.target_metric_catalog_search_uuid`,
+                          nodeUuids,
+                      )
+                : [];
+
+        // Build a lookup for node data
+        const nodeMap = new Map(nodes.map((n) => [n.catalogSearchUuid, n]));
+
+        const edges: CatalogMetricsTreeEdge[] = edgeRows
+            .map((row) => {
+                const sourceNode = nodeMap.get(
+                    row.source_metric_catalog_search_uuid,
+                );
+                const targetNode = nodeMap.get(
+                    row.target_metric_catalog_search_uuid,
+                );
+                if (!sourceNode || !targetNode) return null;
+
+                return {
+                    source: {
+                        catalogSearchUuid:
+                            row.source_metric_catalog_search_uuid,
+                        name: sourceNode.name,
+                        tableName: sourceNode.tableName,
+                    },
+                    target: {
+                        catalogSearchUuid:
+                            row.target_metric_catalog_search_uuid,
+                        name: targetNode.name,
+                        tableName: targetNode.tableName,
+                    },
+                    createdAt: row.created_at,
+                    createdByUserUuid: row.created_by_user_uuid,
+                    projectUuid: row.project_uuid,
+                    createdFrom: row.source,
+                };
+            })
+            .filter((e): e is CatalogMetricsTreeEdge => e !== null);
+
+        return {
+            metricsTreeUuid: tree.metrics_tree_uuid,
+            projectUuid: tree.project_uuid,
+            slug: tree.slug,
+            name: tree.name,
+            description: tree.description,
+            source: tree.source,
+            createdByUserUuid: tree.created_by_user_uuid,
+            createdAt: tree.created_at,
+            updatedAt: tree.updated_at,
+            updatedByUserUuid: tree.updated_by_user_uuid,
+            generation: tree.generation,
+            nodes,
+            edges,
+            lock: parseLockInfo(tree),
+        };
+    }
+
+    // --- Metrics Tree Locks ---
+
+    async acquireTreeLock(
+        metricsTreeUuid: string,
+        userUuid: string,
+    ): Promise<MetricsTreeLockInfo> {
+        // Atomic upsert: insert a new lock, or overwrite if expired/same user.
+        // If the lock is held by a different user and not expired, the WHERE
+        // on the merge prevents the update and RETURNING yields no rows.
+        const lockExpiryThreshold = this.database.raw(
+            `NOW() - INTERVAL '${CatalogModel.LOCK_EXPIRY_MINUTES} minutes'`,
+        );
+
+        const result = await this.database(MetricsTreeLocksTableName)
+            .insert({
+                metrics_tree_uuid: metricsTreeUuid,
+                locked_by_user_uuid: userUuid,
+            })
+            .onConflict('metrics_tree_uuid')
+            .merge({
+                locked_by_user_uuid: userUuid,
+                acquired_at: this.database.fn.now() as unknown as Date,
+                last_heartbeat_at: this.database.fn.now() as unknown as Date,
+            })
+            .where(`${MetricsTreeLocksTableName}.locked_by_user_uuid`, userUuid)
+            .orWhere(
+                `${MetricsTreeLocksTableName}.last_heartbeat_at`,
+                '<=',
+                lockExpiryThreshold,
+            )
+            .returning('*');
+
+        if (result.length === 0) {
+            throw new AlreadyExistsError(
+                'Tree is being edited by another user',
+            );
+        }
+
+        const lock = result[0];
+
+        const user = await this.database(UserTableName)
+            .select('first_name', 'last_name')
+            .where('user_uuid', userUuid)
+            .first();
+
+        return {
+            lockedByUserUuid: lock.locked_by_user_uuid,
+            lockedByUserName:
+                `${user!.first_name} ${user!.last_name ?? ''}`.trim(),
+            acquiredAt: lock.acquired_at,
+        };
+    }
+
+    async refreshTreeLockHeartbeat(
+        metricsTreeUuid: string,
+        userUuid: string,
+    ): Promise<boolean> {
+        const updated = await this.database(MetricsTreeLocksTableName)
+            .where({
+                metrics_tree_uuid: metricsTreeUuid,
+                locked_by_user_uuid: userUuid,
+            })
+            .update({
+                last_heartbeat_at: this.database.fn.now() as unknown as Date,
+            });
+
+        return updated > 0;
+    }
+
+    async releaseTreeLock(
+        metricsTreeUuid: string,
+        userUuid: string,
+    ): Promise<void> {
+        await this.database(MetricsTreeLocksTableName)
+            .where({
+                metrics_tree_uuid: metricsTreeUuid,
+                locked_by_user_uuid: userUuid,
+            })
+            .delete();
+    }
+
+    async getTreeLock(
+        metricsTreeUuid: string,
+    ): Promise<MetricsTreeLockInfo | null> {
+        const lockRow = await this.database(MetricsTreeLocksTableName)
+            .select(
+                `${MetricsTreeLocksTableName}.*`,
+                `${UserTableName}.first_name`,
+                `${UserTableName}.last_name`,
+            )
+            .join(
+                UserTableName,
+                `${MetricsTreeLocksTableName}.locked_by_user_uuid`,
+                `${UserTableName}.user_uuid`,
+            )
+            .where(
+                `${MetricsTreeLocksTableName}.metrics_tree_uuid`,
+                metricsTreeUuid,
+            )
+            .andWhere(this.getLockExpiryCondition())
+            .first();
+
+        if (!lockRow) return null;
+
+        return {
+            lockedByUserUuid: lockRow.locked_by_user_uuid,
+            lockedByUserName:
+                `${lockRow.first_name} ${lockRow.last_name ?? ''}`.trim(),
+            acquiredAt: lockRow.acquired_at,
+        };
+    }
+
+    // --- Update Metrics Tree ---
+
+    async updateMetricsTree(
+        projectUuid: string,
+        metricsTreeUuid: string,
+        userUuid: string,
+        update: {
+            name?: string;
+            description?: string;
+        },
+        nodes: Array<{
+            catalogSearchUuid: string;
+            xPosition?: number;
+            yPosition?: number;
+        }>,
+        edges: Array<{
+            sourceCatalogSearchUuid: string;
+            targetCatalogSearchUuid: string;
+        }>,
+        expectedGeneration: number,
+    ): Promise<MetricsTreeWithDetails> {
+        await this.database.transaction(async (trx) => {
+            // Update tree metadata
+            const updateFields: Record<string, unknown> = {
+                updated_at: trx.fn.now(),
+                updated_by_user_uuid: userUuid,
+                generation: trx.raw('generation + 1'),
+            };
+            if (update.name !== undefined) {
+                updateFields.name = update.name;
+            }
+            if (update.description !== undefined) {
+                updateFields.description = update.description;
+            }
+
+            const updated = await trx(MetricsTreesTableName)
+                .where({
+                    metrics_tree_uuid: metricsTreeUuid,
+                    generation: expectedGeneration,
+                })
+                .update(updateFields);
+
+            if (updated === 0) {
+                throw new AlreadyExistsError(
+                    'This tree was modified while you were editing. Please refresh and try again.',
+                );
+            }
+
+            // Replace UI nodes: delete existing UI nodes, re-insert new ones
+            await trx(MetricsTreeNodesTableName)
+                .where({
+                    metrics_tree_uuid: metricsTreeUuid,
+                    source: 'ui',
+                })
+                .delete();
+
+            if (nodes.length > 0) {
+                const dbNodes: DbMetricsTreeNodeIn[] = nodes.map((node) => ({
+                    metrics_tree_uuid: metricsTreeUuid,
+                    catalog_search_uuid: node.catalogSearchUuid,
+                    x_position: node.xPosition ?? null,
+                    y_position: node.yPosition ?? null,
+                    source: 'ui' as const,
+                }));
+                await trx(MetricsTreeNodesTableName)
+                    .insert(dbNodes)
+                    .onConflict(['metrics_tree_uuid', 'catalog_search_uuid'])
+                    .merge({
+                        x_position: trx.raw(
+                            'EXCLUDED.x_position',
+                        ) as unknown as number,
+                        y_position: trx.raw(
+                            'EXCLUDED.y_position',
+                        ) as unknown as number,
+                    });
+            }
+
+            // Replace UI edges for this tree's nodes
+            // First get all node UUIDs (including YAML nodes that may still exist)
+            const allNodeUuids = await trx(MetricsTreeNodesTableName)
+                .where({ metrics_tree_uuid: metricsTreeUuid })
+                .pluck('catalog_search_uuid');
+
+            // Delete UI edges where both source and target are in this tree
+            if (allNodeUuids.length > 0) {
+                await trx(MetricsTreeEdgesTableName)
+                    .where({ project_uuid: projectUuid, source: 'ui' })
+                    .whereIn('source_metric_catalog_search_uuid', allNodeUuids)
+                    .whereIn('target_metric_catalog_search_uuid', allNodeUuids)
+                    .delete();
+            }
+
+            if (edges.length > 0) {
+                const dbEdges: DbMetricsTreeEdgeIn[] = edges.map((edge) => ({
+                    source_metric_catalog_search_uuid:
+                        edge.sourceCatalogSearchUuid,
+                    target_metric_catalog_search_uuid:
+                        edge.targetCatalogSearchUuid,
+                    created_by_user_uuid: userUuid,
+                    project_uuid: projectUuid,
+                    source: 'ui' as const,
+                }));
+                await trx(MetricsTreeEdgesTableName)
+                    .insert(dbEdges)
+                    .onConflict([
+                        'source_metric_catalog_search_uuid',
+                        'target_metric_catalog_search_uuid',
+                    ])
+                    .ignore();
+            }
+        });
+
+        return this.getMetricsTreeByUuid(projectUuid, metricsTreeUuid);
+    }
+
+    async deleteMetricsTree(
+        projectUuid: string,
+        metricsTreeUuid: string,
+    ): Promise<void> {
+        const deletedCount = await this.database(MetricsTreesTableName)
+            .where({
+                metrics_tree_uuid: metricsTreeUuid,
+                project_uuid: projectUuid,
+            })
+            .delete();
+
+        if (deletedCount === 0) {
+            throw new NotFoundError(
+                `Metrics tree ${metricsTreeUuid} not found in project ${projectUuid}`,
+            );
+        }
     }
 
     async getDistinctOwners(projectUuid: string): Promise<

@@ -23,3 +23,13 @@ export type AiModel<P extends AiProvider> = {
           }
         | undefined;
 };
+
+/**
+ * Options for generator functions (generateObject calls).
+ * Subset of AiModel used by lightweight generation tasks.
+ */
+export type GeneratorModelOptions = {
+    model: LanguageModel;
+    callOptions?: CallSettings;
+    providerOptions?: Record<string, Record<string, JSONValue>>;
+};

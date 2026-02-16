@@ -303,6 +303,16 @@ const getSeries = createSelector(
     (chartState) => chartState?.series,
 );
 
+const getXAxisDateFormat = createSelector(
+    [(state, chartKind) => selectCurrentCartesianChartState(state, chartKind)],
+    (chartState) => chartState?.display?.xAxis?.dateFormat,
+);
+
+const getXAxisType = createSelector(
+    [(state, chartKind) => selectCurrentCartesianChartState(state, chartKind)],
+    (chartState) => chartState?.fieldConfig?.x?.type,
+);
+
 export const cartesianChartSelectors = {
     getIndexLayoutOptions,
     getValuesLayoutOptions,
@@ -317,4 +327,6 @@ export const cartesianChartSelectors = {
     getErrors,
     getGroupLimit,
     getSeries,
+    getXAxisDateFormat,
+    getXAxisType,
 };

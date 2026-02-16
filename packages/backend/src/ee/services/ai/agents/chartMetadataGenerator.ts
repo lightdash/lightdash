@@ -1,6 +1,7 @@
 import { Field, Filters } from '@lightdash/common';
-import { generateObject, LanguageModel } from 'ai';
+import { generateObject } from 'ai';
 import { z } from 'zod';
+import { GeneratorModelOptions } from '../models/types';
 
 const TITLE_MAX_LENGTH_CHARS = 140;
 const DESCRIPTION_MAX_LENGTH_CHARS = 500;
@@ -56,13 +57,15 @@ function buildFieldLabelMap(fieldsContext: FieldInfo[]): string {
 }
 
 export async function generateChartMetadata(
-    model: LanguageModel,
+    modelOptions: GeneratorModelOptions,
     context: ChartMetadataContext,
 ): Promise<GeneratedChartMetadata> {
     const fieldLabelMap = buildFieldLabelMap(context.fieldsContext);
 
     const result = await generateObject({
-        model,
+        model: modelOptions.model,
+        ...modelOptions.callOptions,
+        providerOptions: modelOptions.providerOptions,
         schema: ChartMetadataSchema,
         messages: [
             {
@@ -92,8 +95,6 @@ ${
 }`,
             },
         ],
-        temperature: 0.3,
     });
-
     return result.object;
 }

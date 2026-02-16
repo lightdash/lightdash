@@ -266,7 +266,7 @@
             "type": "object",
             "description": "Dashboard-level filters that can be applied across all tiles",
             "additionalProperties": false,
-            "required": ["dimensions"],
+            "required": ["dimensions", "metrics", "tableCalculations"],
             "properties": {
                 "dimensions": {
                     "type": "array",
@@ -380,7 +380,7 @@
                             },
                             "tileTargets": {
                                 "type": "object",
-                                "description": "Per-tile filter configuration (tile UUID -> field mapping or false to disable)",
+                                "description": "Per-tile filter configuration, keyed by tile slug. Use tileTargets when a single dashboard filter needs to apply to tiles from different explores, mapping the filter to the equivalent field in each explore. Set to false to exclude a tile from this filter entirely. Example: a 'Date Range' filter might target orders_created_at in the orders explore but customers_signup_date in the customers explore.",
                                 "additionalProperties": {
                                     "oneOf": [
                                         {
@@ -396,10 +396,12 @@
                                             ],
                                             "properties": {
                                                 "fieldId": {
-                                                    "type": "string"
+                                                    "type": "string",
+                                                    "description": "The field ID to filter on for this tile (e.g., 'customers_signup_date' when the default target is 'orders_created_at')"
                                                 },
                                                 "tableName": {
-                                                    "type": "string"
+                                                    "type": "string",
+                                                    "description": "The table/explore containing the field for this tile (e.g., 'customers' when the default target table is 'orders')"
                                                 }
                                             }
                                         }

@@ -119,3 +119,31 @@ id,user_id,order_date,status,order_source,shipping_method,promo_code,order_prior
 118,72,2025-02-25,placed,mobile_app,express,,high,2,38.25,0.0925,USD,east_coast,
 119,58,2025-02-28,completed,website,overnight,LASTFEB,urgent,1,56.99,0.085,USD,west_coast,Last day February
 120,39,2025-03-03,shipped,phone,standard,,normal,5,32.50,0.0875,USD,central,March start
+121,22,2025-12-01,completed,website,express,DEC25,high,2,33.50,0.0875,USD,east_coast,December start
+122,58,2025-12-04,completed,mobile_app,standard,,normal,5,21.25,0.08,USD,west_coast,
+123,81,2025-12-08,shipped,website,overnight,HOLIDAY,urgent,1,47.99,0.0925,USD,central,Holiday rush
+124,35,2025-12-11,completed,phone,express,,high,3,29.75,0.085,USD,east_coast,
+125,96,2025-12-14,completed,website,standard,XMAS25,normal,6,24.50,0.0875,USD,west_coast,Pre-Christmas
+126,47,2025-12-17,completed,mobile_app,overnight,,urgent,1,51.25,0.08,USD,central,Last minute gift
+127,63,2025-12-20,completed,website,express,GIFT25,high,2,37.99,0.0925,USD,east_coast,Christmas gift
+128,14,2025-12-23,completed,phone,overnight,,urgent,1,54.50,0.085,USD,west_coast,Christmas eve rush
+129,72,2025-12-26,completed,website,standard,BOXING,normal,5,26.75,0.0875,USD,central,Boxing day
+130,38,2025-12-29,shipped,mobile_app,express,,high,2,39.25,0.08,USD,east_coast,Year end
+131,15,2026-01-05,completed,website,express,NY2026,high,2,28.99,0.0875,USD,east_coast,New Year 2026 order
+132,48,2026-01-08,completed,mobile_app,standard,,normal,5,19.50,0.08,USD,west_coast,
+133,73,2026-01-12,shipped,website,overnight,WINTER26,urgent,1,45.25,0.0925,USD,central,Winter rush
+134,21,2026-01-15,completed,phone,express,,high,3,31.75,0.085,USD,east_coast,
+135,87,2026-01-18,completed,website,standard,JAN26,normal,6,22.99,0.0875,USD,west_coast,January special
+136,33,2026-01-22,placed,mobile_app,overnight,,urgent,1,48.50,0.08,USD,central,
+137,56,2026-01-25,completed,website,express,FLASH26,high,2,35.25,0.0925,USD,east_coast,Flash sale
+138,94,2026-01-28,shipped,phone,standard,,normal,5,24.75,0.085,USD,west_coast,
+139,17,2026-02-01,completed,website,overnight,FEB2026,urgent,1,52.99,0.0875,USD,central,February kickoff
+140,62,2026-02-03,completed,mobile_app,express,,high,2,36.50,0.08,USD,east_coast,
+141,41,2026-02-06,placed,website,standard,LOVE26,normal,6,26.25,0.0925,USD,west_coast,Pre-Valentine
+142,78,2026-02-10,completed,phone,overnight,,urgent,1,55.75,0.085,USD,central,Valentine rush
+143,29,2026-02-12,shipped,website,express,VDAY26,high,3,38.99,0.0875,USD,east_coast,Valentine delivery
+144,85,2026-02-14,completed,mobile_app,standard,,normal,5,27.50,0.08,USD,west_coast,Valentine's Day
+145,44,2026-02-18,placed,website,overnight,POST26,urgent,1,58.25,0.0925,USD,central,
+146,67,2026-02-21,completed,phone,express,,high,2,40.75,0.085,USD,east_coast,
+147,19,2026-02-25,shipped,website,standard,LATE26,normal,6,29.99,0.0875,USD,west_coast,Late February
+148,52,2026-02-28,completed,mobile_app,overnight,,urgent,1,61.50,0.08,USD,central,Month end

@@ -5,13 +5,12 @@ import {
     type ResourceViewItem,
 } from '@lightdash/common';
 import {
-    Center,
     Indicator,
     Paper,
     Tooltip,
     type IndicatorProps,
     type TooltipProps,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import {
     IconFolder,
     IconLayoutDashboard,
@@ -20,6 +19,7 @@ import {
 import { useRef, useState, type FC, type ReactNode } from 'react';
 import { type StyledComponent } from 'styled-components';
 import MantineIcon, { type MantineIconProps } from '../MantineIcon';
+import classes from './ResourceIcon.module.css';
 import { getChartIcon } from './utils';
 
 interface ResourceIconProps {
@@ -40,16 +40,11 @@ export const IconBox: FC<IconBoxProps> = ({
     ...mantineIconProps
 }) => (
     <Paper
-        display="flex"
-        component={Center}
         w={32}
         h={32}
         radius="md"
         bg={bg}
-        sx={{
-            flexGrow: 0,
-            flexShrink: 0,
-        }}
+        className={classes.iconBox}
     >
         <MantineIcon
             icon={icon}
@@ -136,7 +131,7 @@ export const ResourceIndicator: FC<
             label={
                 <Tooltip
                     {...tooltipProps}
-                    sx={{ pointerEvents: 'auto' }}
+                    className={classes.tooltipPointerEvents}
                     label={
                         <div
                             onMouseEnter={handleLabelMouseEnter}

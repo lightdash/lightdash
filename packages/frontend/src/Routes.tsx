@@ -11,11 +11,11 @@ import UserCompletionModal from './components/UserCompletionModal';
 import FunnelBuilder from './features/funnelBuilder/FunnelBuilderPage';
 import { MetricCatalogView } from './features/metricsCatalog/types';
 import AuthPopupResult from './pages/AuthPopupResult';
-import Catalog from './pages/Catalog';
 import ChartHistory from './pages/ChartHistory';
 import CreateProject from './pages/CreateProject';
 import CreateProjectSettings from './pages/CreateProjectSettings';
 import Dashboard from './pages/Dashboard';
+import DashboardHistory from './pages/DashboardHistory';
 import Explorer from './pages/Explorer';
 import Home from './pages/Home';
 import Invite from './pages/Invite';
@@ -206,6 +206,17 @@ const DASHBOARD_ROUTES: RouteObject[] = [
         path: '/projects/:projectUuid/dashboards/:dashboardUuid',
         children: [
             {
+                path: '/projects/:projectUuid/dashboards/:dashboardUuid/history',
+                element: (
+                    <>
+                        <NavBar />
+                        <TrackPage name={PageName.DASHBOARD_HISTORY}>
+                            <DashboardHistory />
+                        </TrackPage>
+                    </>
+                ),
+            },
+            {
                 path: '/projects/:projectUuid/dashboards/:dashboardUuid/:mode?',
                 element: <DashboardPageWrapper />,
             },
@@ -392,17 +403,6 @@ const APP_ROUTES: RouteObject[] = [
                                 <NavBar />
                                 <TrackPage name={PageName.USER_ACTIVITY}>
                                     <UnusedContent />
-                                </TrackPage>
-                            </>
-                        ),
-                    },
-                    {
-                        path: '/projects/:projectUuid/catalog',
-                        element: (
-                            <>
-                                <NavBar />
-                                <TrackPage name={PageName.CATALOG}>
-                                    <Catalog />
                                 </TrackPage>
                             </>
                         ),

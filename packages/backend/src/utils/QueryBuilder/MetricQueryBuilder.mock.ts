@@ -48,7 +48,7 @@ export const warehouseClientMock: WarehouseClient = {
         rows: [],
     }),
     streamQuery(query, streamCallback) {
-        streamCallback({
+        void streamCallback({
             fields: {},
             rows: [],
         });
@@ -59,7 +59,7 @@ export const warehouseClientMock: WarehouseClient = {
         const columns = {
             test: { type: DimensionType.STRING },
         };
-        callback?.(rows, columns);
+        void callback?.(rows, columns);
         return {
             queryId: null,
             queryMetadata: null,
@@ -131,6 +131,11 @@ export const warehouseClientMock: WarehouseClient = {
         `EXTRACT(EPOCH FROM (${endTimestampSql} - ${startTimestampSql}))`,
     getMedianSql: (valueSql) =>
         `PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY ${valueSql})`,
+    buildArray: (elements) => `ARRAY[${elements.join(', ')}]`,
+    buildArrayAgg: (expression, orderBy) =>
+        orderBy
+            ? `ARRAY_AGG(${expression} ORDER BY ${orderBy})`
+            : `ARRAY_AGG(${expression})`,
 };
 
 export const bigqueryClientMock: WarehouseClient = {
@@ -158,7 +163,7 @@ export const bigqueryClientMock: WarehouseClient = {
         rows: [],
     }),
     streamQuery(query, streamCallback) {
-        streamCallback({
+        void streamCallback({
             fields: {},
             rows: [],
         });
@@ -213,6 +218,11 @@ export const bigqueryClientMock: WarehouseClient = {
         `TIMESTAMP_DIFF(${endTimestampSql}, ${startTimestampSql}, SECOND)`,
     getMedianSql: (valueSql) =>
         `APPROX_QUANTILES(${valueSql}, 100)[OFFSET(50)]`,
+    buildArray: (elements) => `ARRAY[${elements.join(', ')}]`,
+    buildArrayAgg: (expression, orderBy) =>
+        orderBy
+            ? `ARRAY_AGG(${expression} ORDER BY ${orderBy})`
+            : `ARRAY_AGG(${expression})`,
 };
 
 export const emptyTable = (name: string): CompiledTable => ({
@@ -1896,6 +1906,21 @@ export const EXPECTED_SQL_WITH_CROSS_JOIN = `WITH cte_keys_table2 AS (
 )
 SELECT *, table1_dim1 + table2_metric2 AS "calc3" FROM metrics ORDER BY "table2_metric2" DESC LIMIT 10`;
 
+export const EXPECTED_SQL_NO_DIMENSIONS_WITH_FILTER = `WITH cte_keys_table2 AS (
+    SELECT DISTINCT "table2".dim2 AS "pk_dim2"
+    FROM "db"."schema"."table1" AS "table1"
+    LEFT OUTER JOIN "db"."schema"."table2" AS "table2" ON ("table1".shared) = ("table2".shared)
+    WHERE (( ("table1".dim1) IN (2025) ))
+), cte_metrics_table2 AS (
+    SELECT SUM("table2".number_column) AS "table2_metric3"
+    FROM cte_keys_table2
+    LEFT JOIN "db"."schema"."table2" AS "table2" ON cte_keys_table2."pk_dim2" = "table2".dim2
+)
+SELECT cte_metrics_table2."table2_metric3" AS "table2_metric3"
+FROM cte_metrics_table2
+ORDER BY "table2_metric3" DESC
+LIMIT 500`;
+
 // Explore without primary keys
 export const EXPLORE_WITHOUT_PRIMARY_KEYS: Explore = {
     ...EXPLORE,
@@ -2078,3 +2103,202 @@ export const EXPECTED_SQL_WITH_CROSS_TABLE_METRICS = `WITH cte_keys_customers AS
     FROM cte_unaffected
     CROSS JOIN cte_metrics_customers
     LIMIT 100`;
+
+// --- Date zoom + filter test data ---
+
+const dateExploreBase: Explore = {
+    targetDatabase: SupportedDbtAdapter.POSTGRES,
+    name: 'orders',
+    label: 'orders',
+    baseTable: 'orders',
+    tags: [],
+    joinedTables: [],
+    tables: {
+        orders: {
+            name: 'orders',
+            label: 'orders',
+            database: 'database',
+            schema: 'schema',
+            sqlTable: '"db"."schema"."orders"',
+            primaryKey: ['order_id'],
+            dimensions: {
+                order_id: {
+                    type: DimensionType.NUMBER,
+                    name: 'order_id',
+                    label: 'order_id',
+                    table: 'orders',
+                    tableLabel: 'orders',
+                    fieldType: FieldType.DIMENSION,
+                    sql: '${TABLE}.order_id',
+                    compiledSql: '"orders".order_id',
+                    tablesReferences: ['orders'],
+                    hidden: false,
+                },
+                created_at: {
+                    type: DimensionType.DATE,
+                    name: 'created_at',
+                    label: 'created_at',
+                    table: 'orders',
+                    tableLabel: 'orders',
+                    fieldType: FieldType.DIMENSION,
+                    sql: '${TABLE}.created_at',
+                    compiledSql: '"orders".created_at',
+                    tablesReferences: ['orders'],
+                    hidden: false,
+                },
+            },
+            metrics: {
+                order_count: {
+                    type: MetricType.COUNT,
+                    fieldType: FieldType.METRIC,
+                    table: 'orders',
+                    tableLabel: 'orders',
+                    name: 'order_count',
+                    label: 'order_count',
+                    sql: '${TABLE}.order_id',
+                    compiledSql: 'COUNT("orders".order_id)',
+                    tablesReferences: ['orders'],
+                    hidden: false,
+                },
+            },
+            lineageGraph: {},
+        },
+    },
+};
+
+// Original explore (no date zoom)
+export const EXPLORE_WITH_DATE_DIMENSION: Explore = dateExploreBase;
+
+// Zoomed explore: created_at dimension has DATE_TRUNC'd compiledSql (simulating month granularity)
+export const EXPLORE_WITH_DATE_DIMENSION_ZOOMED: Explore = {
+    ...dateExploreBase,
+    tables: {
+        ...dateExploreBase.tables,
+        orders: {
+            ...dateExploreBase.tables.orders,
+            dimensions: {
+                ...dateExploreBase.tables.orders.dimensions,
+                created_at: {
+                    ...dateExploreBase.tables.orders.dimensions.created_at,
+                    compiledSql: 'DATE_TRUNC(\'month\', "orders".created_at)',
+                },
+            },
+        },
+    },
+};
+
+export const METRIC_QUERY_WITH_DATE_FILTER: CompiledMetricQuery = {
+    exploreName: 'orders',
+    dimensions: ['orders_created_at'],
+    metrics: ['orders_order_count'],
+    filters: {
+        dimensions: {
+            id: 'root',
+            and: [
+                {
+                    id: '1',
+                    target: {
+                        fieldId: 'orders_created_at',
+                    },
+                    operator: FilterOperator.IN_BETWEEN,
+                    values: ['2024-09-01', '2024-09-04'],
+                },
+            ],
+        },
+    },
+    sorts: [{ fieldId: 'orders_created_at', descending: false }],
+    limit: 10,
+    tableCalculations: [],
+    compiledTableCalculations: [],
+    compiledAdditionalMetrics: [],
+    compiledCustomDimensions: [],
+};
+
+// Filter with user attribute value (e.g., ${lightdash.user.email}) in filter values
+export const METRIC_QUERY_WITH_USER_ATTRIBUTE_FILTER_VALUE: CompiledMetricQuery =
+    {
+        exploreName: 'table1',
+        dimensions: ['table1_dim1'],
+        metrics: [],
+        filters: {
+            dimensions: {
+                id: 'root',
+                and: [
+                    {
+                        id: '1',
+                        target: {
+                            fieldId: 'table1_shared',
+                        },
+                        operator: FilterOperator.EQUALS,
+                        values: ['${lightdash.user.email}'],
+                    },
+                ],
+            },
+        },
+        sorts: [{ fieldId: 'table1_dim1', descending: true }],
+        limit: 10,
+        tableCalculations: [],
+        compiledTableCalculations: [],
+        compiledAdditionalMetrics: [],
+        compiledCustomDimensions: [],
+    };
+
+export const METRIC_QUERY_WITH_USER_ATTRIBUTE_FILTER_VALUE_SQL = `SELECT "table1".dim1 AS "table1_dim1"
+                                             FROM "db"."schema"."table1" AS "table1"
+
+                                             WHERE ((
+                                                 ("table1".shared) IN ('mock@lightdash.com')
+                                                 ))
+                                             GROUP BY 1
+                                             ORDER BY "table1_dim1" DESC LIMIT 10`;
+
+// Filter with custom user attribute value (e.g., ${lightdash.attribute.country}) in filter values
+export const METRIC_QUERY_WITH_CUSTOM_USER_ATTRIBUTE_FILTER_VALUE: CompiledMetricQuery =
+    {
+        exploreName: 'table1',
+        dimensions: ['table1_dim1'],
+        metrics: [],
+        filters: {
+            dimensions: {
+                id: 'root',
+                and: [
+                    {
+                        id: '1',
+                        target: {
+                            fieldId: 'table1_shared',
+                        },
+                        operator: FilterOperator.EQUALS,
+                        values: ['${lightdash.attribute.country}'],
+                    },
+                ],
+            },
+        },
+        sorts: [{ fieldId: 'table1_dim1', descending: true }],
+        limit: 10,
+        tableCalculations: [],
+        compiledTableCalculations: [],
+        compiledAdditionalMetrics: [],
+        compiledCustomDimensions: [],
+    };
+
+export const METRIC_QUERY_WITH_CUSTOM_USER_ATTRIBUTE_FILTER_VALUE_SQL = `SELECT "table1".dim1 AS "table1_dim1"
+                                             FROM "db"."schema"."table1" AS "table1"
+
+                                             WHERE ((
+                                                 ("table1".shared) IN ('EU')
+                                                 ))
+                                             GROUP BY 1
+                                             ORDER BY "table1_dim1" DESC LIMIT 10`;
+
+// Expected: SELECT uses DATE_TRUNC (zoomed), but WHERE uses raw column
+export const METRIC_QUERY_WITH_DATE_ZOOM_FILTER_SQL = `SELECT
+  DATE_TRUNC('month', "orders".created_at) AS "orders_created_at",
+  COUNT("orders".order_id) AS "orders_order_count"
+FROM "db"."schema"."orders" AS "orders"
+
+WHERE ((
+  (("orders".created_at) >= ('2024-09-01') AND ("orders".created_at) <= ('2024-09-04'))
+))
+GROUP BY 1
+ORDER BY "orders_created_at"
+LIMIT 10`;

@@ -14,6 +14,7 @@ import {
     DashboardVersionsTableName,
     DashboardsTableName,
 } from '../../database/entities/dashboards';
+import { SavedChartsTableName } from '../../database/entities/savedCharts';
 import { DbUser, UserTableName } from '../../database/entities/users';
 
 type CommentModelArguments = {
@@ -114,22 +115,25 @@ export class CommentModel {
                 '=',
                 `${DashboardTilesTableName}.dashboard_version_id`,
             )
-            .join(
-                DashboardsTableName,
-                `${DashboardsTableName}.dashboard_id`,
-                '=',
-                `${DashboardVersionsTableName}.dashboard_id`,
-            )
+            .join(DashboardsTableName, function nonDeletedDashboardJoin() {
+                this.on(
+                    `${DashboardsTableName}.dashboard_id`,
+                    '=',
+                    `${DashboardVersionsTableName}.dashboard_id`,
+                ).andOnNull(`${DashboardsTableName}.deleted_at`);
+            })
             .leftJoin(
                 'dashboard_tile_charts',
                 'dashboard_tile_charts.dashboard_tile_uuid',
                 'dashboard_tiles.dashboard_tile_uuid',
             )
-            .leftJoin(
-                'saved_queries',
-                'saved_queries.saved_query_id',
-                'dashboard_tile_charts.saved_chart_id',
-            )
+            .leftJoin(SavedChartsTableName, function nonDeletedChartJoin() {
+                this.on(
+                    `${SavedChartsTableName}.saved_query_id`,
+                    '=',
+                    'dashboard_tile_charts.saved_chart_id',
+                ).andOnNull(`${SavedChartsTableName}.deleted_at`);
+            })
             .where(`${DashboardsTableName}.dashboard_uuid`, dashboardUuid)
             .andWhere(
                 `${DashboardTilesTableName}.dashboard_tile_uuid`,
@@ -137,7 +141,7 @@ export class CommentModel {
             )
             .select(
                 `${DashboardTilesTableName}.dashboard_tile_uuid`,
-                `saved_queries.saved_query_uuid`,
+                `${SavedChartsTableName}.saved_query_uuid`,
             )
             .first();
 
@@ -199,6 +203,7 @@ export class CommentModel {
                 `${DashboardVersionsTableName}.dashboard_id`,
             )
             .where('dashboard_uuid', dashboardUuid)
+            .whereNull(`${DashboardsTableName}.deleted_at`)
             .orderBy(`${DashboardVersionsTableName}.created_at`, 'desc')
             .limit(1)
             .first();

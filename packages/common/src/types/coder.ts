@@ -30,6 +30,7 @@ export type ChartAsCode = Pick<
     | 'pivotConfig'
     | 'slug'
     | 'updatedAt' // Not modifiable by user, but useful to know if it has been updated
+    | 'parameters'
 > & {
     dashboardSlug: string | undefined;
     version: number;

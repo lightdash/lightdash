@@ -1,10 +1,10 @@
 import {
     ActionIcon,
+    getDefaultZIndex,
     MantineProvider,
     Menu,
     Text,
-    useMantineTheme,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import { IconCheck, IconDatabaseCog, IconPlus } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
@@ -30,7 +30,6 @@ const routesThatNeedWarehouseCredentials = [
 
 const UserCredentialsSwitcher = () => {
     const { user } = useApp();
-    const theme = useMantineTheme();
     const location = useLocation();
     const [showCreateModalOnPageLoad, setShowCreateModalOnPageLoad] =
         useState(false);
@@ -141,15 +140,11 @@ const UserCredentialsSwitcher = () => {
                 position="bottom-end"
                 arrowOffset={16}
                 offset={-2}
+                zIndex={getDefaultZIndex('max')}
+                portalProps={{ target: '#navbar-header' }}
             >
                 <Menu.Target>
-                    <ActionIcon
-                        size="sm"
-                        style={{
-                            position: 'relative',
-                            zIndex: 1,
-                        }}
-                    >
+                    <ActionIcon size="sm" pos="relative">
                         <MantineIcon
                             data-testid="tile-icon-more"
                             icon={IconDatabaseCog}
@@ -161,7 +156,7 @@ const UserCredentialsSwitcher = () => {
                     {(compatibleCredentials || []).map((item) => (
                         <Menu.Item
                             key={item.uuid}
-                            icon={<MantineIcon icon={IconDatabaseCog} />}
+                            leftSection={<MantineIcon icon={IconDatabaseCog} />}
                             rightSection={
                                 preferredCredentials?.uuid === item.uuid ? (
                                     <MantineIcon icon={IconCheck} />
@@ -179,7 +174,7 @@ const UserCredentialsSwitcher = () => {
                     ))}
                     <Menu.Divider />
                     <Menu.Item
-                        icon={<MantineIcon icon={IconPlus} />}
+                        leftSection={<MantineIcon icon={IconPlus} />}
                         onClick={() => {
                             setIsCreatingCredentials(true);
                         }}
@@ -189,10 +184,7 @@ const UserCredentialsSwitcher = () => {
                 </Menu.Dropdown>
             </Menu>
             {isCreatingCredentials && (
-                <MantineProvider
-                    inherit
-                    theme={{ colorScheme: theme.colorScheme }}
-                >
+                <MantineProvider forceColorScheme="dark">
                     <CreateCredentialsModal
                         opened={isCreatingCredentials}
                         title={

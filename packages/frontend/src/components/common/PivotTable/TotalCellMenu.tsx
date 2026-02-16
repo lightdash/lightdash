@@ -1,7 +1,6 @@
-import { Menu, type MenuProps } from '@mantine/core';
-import { type FC } from 'react';
-
+import { Menu, type MenuProps } from '@mantine-8/core';
 import { IconCopy } from '@tabler/icons-react';
+import { type FC } from 'react';
 import MantineIcon from '../MantineIcon';
 
 type TotalCellMenuProps = {
@@ -35,7 +34,7 @@ const TotalCellMenu: FC<React.PropsWithChildren<TotalCellMenuProps>> = ({
 
             <Menu.Dropdown>
                 <Menu.Item
-                    icon={
+                    leftSection={
                         <MantineIcon
                             icon={IconCopy}
                             size="md"

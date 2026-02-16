@@ -4,7 +4,7 @@ import {
     type OrganizationMemberProfile,
     type SearchFilters,
 } from '@lightdash/common';
-import { Button, Flex, Group, Menu, Select } from '@mantine/core';
+import { Button, Flex, Group, Menu, Select } from '@mantine-8/core';
 import { DatePicker } from '@mantine/dates';
 import { useDisclosure } from '@mantine/hooks';
 import {
@@ -76,9 +76,9 @@ function findUserName(
 function getFilterButtonProps(hasFilter: boolean) {
     return {
         variant: hasFilter ? 'outline' : 'default',
-        color: hasFilter ? 'blue.4' : undefined,
-        c: hasFilter ? 'blue.7' : undefined,
-    };
+        color: hasFilter ? 'ldGray.5' : undefined,
+        c: hasFilter ? 'ldGray.7' : undefined,
+    } as const;
 }
 
 const OmnibarFilters: FC<Props> = ({ filters, onSearchFilterChange }) => {
@@ -100,18 +100,16 @@ const OmnibarFilters: FC<Props> = ({ filters, onSearchFilterChange }) => {
             <Menu
                 position="bottom-start"
                 withArrow
-                withinPortal
                 shadow="md"
                 arrowOffset={11}
                 offset={2}
             >
                 <Menu.Target>
                     <Button
-                        compact
-                        radius="xl"
-                        size="xs"
-                        leftIcon={<MantineIcon icon={IconAdjustments} />}
-                        rightIcon={<MantineIcon icon={IconChevronDown} />}
+                        radius="lg"
+                        size="compact-xs"
+                        leftSection={<MantineIcon icon={IconAdjustments} />}
+                        rightSection={<MantineIcon icon={IconChevronDown} />}
                         {...getFilterButtonProps(!!filters?.type)}
                     >
                         {filters?.type
@@ -124,13 +122,13 @@ const OmnibarFilters: FC<Props> = ({ filters, onSearchFilterChange }) => {
                     {allSearchItemTypes.map((type) => (
                         <Menu.Item
                             key={type}
-                            icon={
+                            leftSection={
                                 <MantineIcon
                                     icon={getOmnibarItemIcon(type)}
                                     color={getOmnibarItemColor(type)}
                                 />
                             }
-                            bg={type === filters?.type ? 'blue.1' : undefined}
+                            bg={type === filters?.type ? 'ldGray.1' : undefined}
                             onClick={() => {
                                 onSearchFilterChange({
                                     ...filters,
@@ -149,7 +147,6 @@ const OmnibarFilters: FC<Props> = ({ filters, onSearchFilterChange }) => {
             <Menu
                 position="bottom-start"
                 withArrow
-                withinPortal
                 shadow="md"
                 arrowOffset={11}
                 offset={2}
@@ -159,11 +156,10 @@ const OmnibarFilters: FC<Props> = ({ filters, onSearchFilterChange }) => {
             >
                 <Menu.Target>
                     <Button
-                        compact
-                        radius="xl"
-                        size="xs"
-                        leftIcon={<MantineIcon icon={IconCalendar} />}
-                        rightIcon={<MantineIcon icon={IconChevronDown} />}
+                        radius="lg"
+                        size="compact-xs"
+                        leftSection={<MantineIcon icon={IconCalendar} />}
+                        rightSection={<MantineIcon icon={IconChevronDown} />}
                         {...getFilterButtonProps(
                             !!filters?.fromDate || !!filters?.toDate,
                         )}
@@ -200,11 +196,9 @@ const OmnibarFilters: FC<Props> = ({ filters, onSearchFilterChange }) => {
                             }}
                         />
                         <Button
-                            compact
                             variant="white"
-                            size="xs"
+                            size="compact-xs"
                             mt="sm"
-                            style={{ alignSelf: 'flex-end' }}
                             onClick={() => {
                                 onSearchFilterChange({
                                     ...filters,
@@ -221,7 +215,6 @@ const OmnibarFilters: FC<Props> = ({ filters, onSearchFilterChange }) => {
             <Menu
                 position="bottom-start"
                 withArrow
-                withinPortal
                 shadow="md"
                 arrowOffset={11}
                 offset={2}
@@ -231,11 +224,10 @@ const OmnibarFilters: FC<Props> = ({ filters, onSearchFilterChange }) => {
             >
                 <Menu.Target>
                     <Button
-                        compact
-                        radius="xl"
-                        size="xs"
-                        leftIcon={<MantineIcon icon={IconUser} />}
-                        rightIcon={<MantineIcon icon={IconChevronDown} />}
+                        radius="lg"
+                        size="compact-xs"
+                        leftSection={<MantineIcon icon={IconUser} />}
+                        rightSection={<MantineIcon icon={IconChevronDown} />}
                         {...getFilterButtonProps(!!filters?.createdByUuid)}
                     >
                         {filters?.createdByUuid
@@ -251,9 +243,8 @@ const OmnibarFilters: FC<Props> = ({ filters, onSearchFilterChange }) => {
                     <Select
                         placeholder="Select a user"
                         searchable
-                        withinPortal
                         value={filters?.createdByUuid}
-                        allowDeselect
+                        clearable
                         data={
                             organizationUsers?.map((user) => ({
                                 value: user.userUuid,
@@ -274,12 +265,11 @@ const OmnibarFilters: FC<Props> = ({ filters, onSearchFilterChange }) => {
 
             {canClearFilters && (
                 <Button
-                    compact
                     variant="subtle"
                     ml="auto"
                     radius="xl"
-                    size="xs"
-                    leftIcon={<MantineIcon icon={IconX} size="sm" />}
+                    size="compact-xs"
+                    leftSection={<MantineIcon icon={IconX} size="sm" />}
                     onClick={() => {
                         onSearchFilterChange({});
                     }}

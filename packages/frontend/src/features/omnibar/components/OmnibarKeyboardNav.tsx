@@ -1,5 +1,5 @@
 import { type SearchItemType } from '@lightdash/common';
-import { Box } from '@mantine/core';
+import { Box } from '@mantine-8/core';
 import { useCallback, type PropsWithChildren } from 'react';
 import { type FocusedItemIndex, type SearchItem } from '../types/searchItem';
 

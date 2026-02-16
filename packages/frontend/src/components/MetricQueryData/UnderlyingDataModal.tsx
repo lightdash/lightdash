@@ -19,13 +19,15 @@ import {
     type SortField,
 } from '@lightdash/common';
 import { Button, Divider, Group, Popover } from '@mantine-8/core';
-import { IconShare2, IconStack } from '@tabler/icons-react';
+import { IconShare2, IconStack, IconTelescope } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
+import { useNavigate } from 'react-router';
 import { v4 as uuidv4 } from 'uuid';
 import { useOrganization } from '../../hooks/organization/useOrganization';
 import { useExplore } from '../../hooks/useExplore';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
+import { useCreateShareMutation } from '../../hooks/useShare';
 import {
     getUnderlyingDataResults,
     useUnderlyingDataResults,
@@ -35,7 +37,6 @@ import { useAbilityContext } from '../../providers/Ability/useAbilityContext';
 import useApp from '../../providers/App/useApp';
 import { convertDateFilters } from '../../utils/dateFilter';
 import ErrorState from '../common/ErrorState';
-import LinkButton from '../common/LinkButton';
 import MantineIcon from '../common/MantineIcon';
 import MantineModal from '../common/MantineModal';
 import { type TableColumn } from '../common/Table/types';
@@ -261,12 +262,25 @@ const UnderlyingDataModalContent: FC = () => {
                 config: { layout: {}, eChartsConfig: {} },
             },
         };
-        const { pathname, search } = getExplorerUrlFromCreateSavedChartVersion(
+        return getExplorerUrlFromCreateSavedChartVersion(
             projectUuid,
             createSavedChartVersion,
+            true,
         );
-        return `${pathname}?${search}`;
     }, [resultsData, projectUuid]);
+
+    const navigate = useNavigate();
+    const { mutateAsync: createShareUrl, isLoading: isCreatingShareUrl } =
+        useCreateShareMutation();
+
+    const handleExploreFromHere = useCallback(async () => {
+        if (!exploreFromHereUrl) return;
+        const shareUrl = await createShareUrl({
+            path: exploreFromHereUrl.pathname,
+            params: `?${exploreFromHereUrl.search}`,
+        });
+        void navigate(`/share/${shareUrl.nanoid}`);
+    }, [createShareUrl, exploreFromHereUrl, navigate]);
 
     const getDownloadQueryUuid = useCallback(
         async (limit: number | null) => {
@@ -361,15 +375,17 @@ const UnderlyingDataModalContent: FC = () => {
                 })}
             >
                 <Divider orientation="vertical" />
-                <LinkButton
-                    href={exploreFromHereUrl || ''}
-                    forceRefresh
+                <Button
+                    leftSection={<MantineIcon icon={IconTelescope} />}
+                    onClick={handleExploreFromHere}
                     disabled={!exploreFromHereUrl}
+                    loading={isCreatingShareUrl}
                     variant="light"
                     radius="md"
+                    size="compact-sm"
                 >
                     Explore from here
-                </LinkButton>
+                </Button>
             </Can>
         </Group>
     );

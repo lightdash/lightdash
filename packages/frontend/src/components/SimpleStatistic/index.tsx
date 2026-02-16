@@ -285,7 +285,12 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
         >
             <Flex style={{ flexShrink: 1 }} justify="center" align="center">
                 {shouldHideContextMenu ? (
-                    <BigNumberText fz={valueFontSize} fw={600} isHeading>
+                    <BigNumberText
+                        fz={valueFontSize}
+                        fw={600}
+                        isHeading
+                        data-testid="big-number-value"
+                    >
                         {bigNumber}
                     </BigNumberText>
                 ) : (
@@ -298,6 +303,7 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
                             fz={valueFontSize}
                             fw={600}
                             isHeading
+                            data-testid="big-number-value"
                             style={{
                                 cursor: 'pointer',
                             }}

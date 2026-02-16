@@ -1,5 +1,5 @@
 import { subject } from '@casl/ability';
-import { Button } from '@mantine/core';
+import { Button } from '@mantine-8/core';
 import { IconTelescope } from '@tabler/icons-react';
 import { useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router';
@@ -58,7 +58,7 @@ const ExploreFromHereButton = () => {
     return (
         <Button
             size="xs"
-            leftIcon={<MantineIcon icon={IconTelescope} />}
+            leftSection={<MantineIcon icon={IconTelescope} />}
             onClick={() => handleCreateShareUrl()}
         >
             Explore from here

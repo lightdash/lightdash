@@ -86,6 +86,16 @@ models:
         meta:
           dimension:
             type: string
+      - name: full_name
+        description: Customer's full name
+        config:
+          meta:
+            dimension:
+              type: string
+              sql: "CONCAT(${first_name}, ' ', ${last_name})"
+              any_attributes:
+                is_demo: "true"
+                name: [demo, demo2]
       - name: age
         description: Customer's age
         config:

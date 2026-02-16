@@ -1,4 +1,4 @@
-import { TextInput } from '@mantine/core';
+import { TextInput } from '@mantine-8/core';
 import { type FC } from 'react';
 import { type SpaceModalBody } from '.';
 

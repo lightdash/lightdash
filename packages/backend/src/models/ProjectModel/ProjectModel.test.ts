@@ -1,13 +1,16 @@
 import {
     AnyType,
+    AthenaAuthenticationType,
     Change,
     CompiledDimension,
     CompiledMetric,
+    CreateAthenaCredentials,
     CreatePostgresCredentials,
     DimensionType,
     ExploreType,
     FieldType,
     MetricType,
+    WarehouseTypes,
 } from '@lightdash/common';
 import knex from 'knex';
 import { MockClient, RawQuery, Tracker, getTracker } from 'knex-mock-client';
@@ -203,6 +206,35 @@ describe('ProjectModel', () => {
             );
             expect(result.user).toEqual(null);
             expect(result.password).toEqual('new_password');
+        });
+
+        test('should NOT merge Athena access keys when authenticationType is iam_role', async () => {
+            const incompleteAthenaCredentials: CreateAthenaCredentials = {
+                type: WarehouseTypes.ATHENA,
+                region: 'us-east-1',
+                database: 'AwsDataCatalog',
+                schema: 'default',
+                s3StagingDir: 's3://test-results/',
+                authenticationType: AthenaAuthenticationType.IAM_ROLE,
+            };
+
+            const completeAthenaCredentials: CreateAthenaCredentials = {
+                ...incompleteAthenaCredentials,
+                authenticationType: AthenaAuthenticationType.ACCESS_KEY,
+                accessKeyId: 'AKIATEST',
+                secretAccessKey: 'SECRETTEST',
+            };
+
+            const result = ProjectModel.mergeMissingWarehouseSecrets(
+                incompleteAthenaCredentials,
+                completeAthenaCredentials,
+            );
+
+            expect(result.accessKeyId).toBeUndefined();
+            expect(result.secretAccessKey).toBeUndefined();
+            expect(result.authenticationType).toEqual(
+                AthenaAuthenticationType.IAM_ROLE,
+            );
         });
     });
 

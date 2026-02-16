@@ -1,0 +1,37 @@
+.draggableItem {
+    border-radius: var(--mantine-radius-md);
+    border: 1px dashed var(--mantine-color-ldGray-3);
+    cursor: grab;
+
+    &:hover {
+        background-color: var(--mantine-color-ldGray-0);
+    }
+
+    &:active {
+        cursor: grabbing;
+    }
+}
+
+.sidebar {
+    background-color: var(--mantine-color-ldGray-0);
+    border: 0;
+}
+
+.resizeHandle {
+    background-color: var(--mantine-color-ldGray-0);
+    width: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: col-resize;
+    transition: background-color 0.2s ease-in-out;
+    border-right: 1px solid var(--mantine-color-ldGray-2);
+
+    &:hover {
+        background-color: var(--mantine-color-ldGray-1);
+    }
+
+    &[data-resize-handle-state='drag'] {
+        background-color: var(--mantine-color-ldGray-2);
+    }
+}

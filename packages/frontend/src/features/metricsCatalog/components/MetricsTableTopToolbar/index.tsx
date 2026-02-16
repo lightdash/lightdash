@@ -86,7 +86,7 @@ type MetricsTableTopToolbarProps = GroupProps & {
     selectedOwners: string[];
     setSelectedOwners: (owners: string[]) => void;
     totalResults: number;
-    isValidMetricsNodeCount: boolean;
+    hasMetricsSelected: boolean;
     isValidMetricsEdgeCount: boolean;
     showCategoriesFilter?: boolean;
     isValidMetricsTree: boolean;
@@ -171,7 +171,7 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
         setSelectedOwners,
         showCategoriesFilter,
         isValidMetricsTree,
-        isValidMetricsNodeCount,
+        hasMetricsSelected,
         isValidMetricsEdgeCount,
         metricCatalogView,
         table,
@@ -630,9 +630,7 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                                 label: (
                                     <SegmentedControlHoverCard
                                         totalMetricsCount={totalResults}
-                                        isValidMetricsNodeCount={
-                                            isValidMetricsNodeCount
-                                        }
+                                        hasMetricsSelected={hasMetricsSelected}
                                         isValidMetricsEdgeCount={
                                             isValidMetricsEdgeCount
                                         }

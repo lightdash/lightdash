@@ -63,6 +63,7 @@ import { CatalogService } from '../../../services/CatalogService/CatalogService'
 import { CsvService } from '../../../services/CsvService/CsvService';
 import { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
+import { ShareService } from '../../../services/ShareService/ShareService';
 import { SpaceService } from '../../../services/SpaceService/SpaceService';
 import {
     doesExploreMatchRequiredAttributes,
@@ -83,6 +84,7 @@ import {
     FindContentFn,
     FindExploresFn,
     FindFieldFn,
+    GetExploreFn,
     RunAsyncQueryFn,
     SearchFieldValuesFn,
 } from '../ai/types/aiAgentDependencies';
@@ -117,6 +119,7 @@ type McpServiceArguments = {
     catalogService: CatalogService;
     projectModel: ProjectModel;
     projectService: ProjectService;
+    shareService: ShareService;
     userAttributesModel: UserAttributesModel;
     searchModel: SearchModel;
     spaceService: SpaceService;
@@ -157,6 +160,8 @@ export class McpService extends BaseService {
 
     private mcpContextModel: McpContextModel;
 
+    private shareService: ShareService;
+
     private featureFlagService: FeatureFlagService;
 
     private mcpServer: McpServer;
@@ -169,6 +174,7 @@ export class McpService extends BaseService {
         asyncQueryService,
         catalogService,
         projectService,
+        shareService,
         userAttributesModel,
         searchModel,
         spaceService,
@@ -182,6 +188,7 @@ export class McpService extends BaseService {
         this.asyncQueryService = asyncQueryService;
         this.catalogService = catalogService;
         this.projectService = projectService;
+        this.shareService = shareService;
         this.userAttributesModel = userAttributesModel;
         this.searchModel = searchModel;
         this.projectModel = projectModel;
@@ -453,13 +460,14 @@ export class McpService extends BaseService {
                     projectUuid,
                 );
 
-                const findFields: FindFieldFn =
+                const { findFields, getExplore } =
                     await this.getFindFieldsFunction(
                         argsWithProject,
                         extra as McpProtocolContext,
                     );
 
                 const findFieldsTool = getFindFields({
+                    getExplore,
                     findFields,
                     updateProgress: async () => {}, // No-op for MCP context
                     pageSize: 15,
@@ -821,12 +829,14 @@ export class McpService extends BaseService {
                             ),
                     };
 
+                    const populatedAdditionalMetrics = populateCustomMetricsSQL(
+                        queryTool.customMetrics,
+                        explore,
+                    );
+
                     const results = await runAsyncQuery(
                         query,
-                        populateCustomMetricsSQL(
-                            queryTool.customMetrics,
-                            explore,
-                        ),
+                        populatedAdditionalMetrics,
                     );
 
                     if (results.rows.length === 0) {
@@ -900,7 +910,7 @@ export class McpService extends BaseService {
                             sorts: queryTool.queryConfig.sorts,
                             limit: query.limit,
                             filters: queryTool.filters ?? {},
-                            additionalMetrics: query.additionalMetrics,
+                            additionalMetrics: populatedAdditionalMetrics,
                             tableCalculations: query.tableCalculations,
                         },
                         tableConfig: {
@@ -925,7 +935,15 @@ export class McpService extends BaseService {
                     const exploreParams = `?create_saved_chart_version=${encodeURIComponent(
                         JSON.stringify(exploreConfigState),
                     )}&isExploreFromHere=true`;
-                    const exploreUrl = `${this.lightdashConfig.siteUrl}${explorePath}${exploreParams}`;
+
+                    const { user: mcpUser } = (extra as McpProtocolContext)
+                        .authInfo!.extra;
+                    const shareUrl = await this.shareService.createShareUrl(
+                        mcpUser,
+                        explorePath,
+                        exploreParams,
+                    );
+                    const exploreUrl = `${this.lightdashConfig.siteUrl}/share/${shareUrl.nanoid}`;
 
                     return {
                         content: [
@@ -1122,12 +1140,14 @@ export class McpService extends BaseService {
         projectUuid: string,
         availableTags: string[] | null,
         userAttributeOverrides?: UserAttributeValueMap,
+        exploreNames?: string[],
     ) {
         return wrapSentryTransaction(
             'AiAgent.getAvailableExplores',
             {
                 projectUuid,
                 availableTags,
+                exploreNames,
             },
             async () => {
                 const { organizationUuid } = user;
@@ -1149,6 +1169,7 @@ export class McpService extends BaseService {
                     await this.projectModel.findExploresFromCache(
                         projectUuid,
                         'name',
+                        exploreNames,
                     ),
                 );
 
@@ -1161,6 +1182,7 @@ export class McpService extends BaseService {
                         doesExploreMatchRequiredAttributes(
                             explore.tables[explore.baseTable]
                                 .requiredAttributes,
+                            explore.tables[explore.baseTable].anyAttributes,
                             userAttributes,
                         ),
                     )
@@ -1182,15 +1204,13 @@ export class McpService extends BaseService {
         exploreName: string,
         userAttributeOverrides?: UserAttributeValueMap,
     ) {
-        const explores = await this.getAvailableExplores(
+        const [explore] = await this.getAvailableExplores(
             user,
             projectUuid,
             availableTags,
             userAttributeOverrides,
+            [exploreName],
         );
-
-        const explore = explores.find((e) => e.name === exploreName);
-
         if (!explore) {
             throw new NotFoundError('Explore not found');
         }
@@ -1304,7 +1324,7 @@ export class McpService extends BaseService {
     async getFindFieldsFunction(
         toolArgs: Omit<ToolFindFieldsArgs, 'type'> & { projectUuid: string },
         context: McpProtocolContext,
-    ): Promise<FindFieldFn> {
+    ): Promise<{ findFields: FindFieldFn; getExplore: GetExploreFn }> {
         const { user, account } = context.authInfo!.extra;
         const { organizationUuid } = user;
         const { projectUuid } = toolArgs;
@@ -1338,16 +1358,17 @@ export class McpService extends BaseService {
         const userAttributeOverrides =
             await this.getUserAttributeOverridesFromContext(context);
 
+        const getExplore: GetExploreFn = async ({ table }) =>
+            this.getExplore(
+                user,
+                projectUuid,
+                tagsFromContext,
+                table,
+                userAttributeOverrides,
+            );
+
         const findFields: FindFieldFn = (args) =>
             wrapSentryTransaction('McpService.findFields', args, async () => {
-                const explore = await this.getExplore(
-                    user,
-                    projectUuid,
-                    tagsFromContext,
-                    args.table,
-                    userAttributeOverrides,
-                );
-
                 const { data: catalogItems, pagination } =
                     await this.catalogService.searchCatalog({
                         projectUuid,
@@ -1362,7 +1383,7 @@ export class McpService extends BaseService {
                         },
                         userAttributes,
                         fullTextSearchOperator: 'OR',
-                        filteredExplores: [explore],
+                        filteredExplores: [args.explore],
                     });
 
                 const catalogFields = catalogItems.filter(
@@ -1372,7 +1393,7 @@ export class McpService extends BaseService {
                 return { fields: catalogFields, pagination };
             });
 
-        return findFields;
+        return { findFields, getExplore };
     }
 
     async getFindContentFunction(
@@ -1569,6 +1590,45 @@ export class McpService extends BaseService {
 
     public getServer(): McpServer {
         return this.mcpServer;
+    }
+
+    /**
+     * Creates a new McpServer instance with all handlers registered.
+     * Required for SDK 1.26.0+ stateful mode where each session needs its own server.
+     * See: https://github.com/advisories/GHSA-345p-7cg4-v4c7
+     */
+    public createServer(): McpServer {
+        const newServer = Sentry.wrapMcpServerWithSentry(
+            new McpServer({
+                name: 'Lightdash MCP Server',
+                version: VERSION,
+                websiteUrl: this.lightdashConfig.siteUrl,
+                icons: [
+                    {
+                        src: `${this.lightdashConfig.siteUrl}/logo-icon.svg`,
+                        mimeType: 'image/svg+xml',
+                    },
+                    {
+                        src: `${this.lightdashConfig.siteUrl}/favicon-32x32.png`,
+                        mimeType: 'image/png',
+                        sizes: ['32x32'],
+                    },
+                    {
+                        src: `${this.lightdashConfig.siteUrl}/apple-touch-icon.png`,
+                        mimeType: 'image/png',
+                        sizes: ['152x152'],
+                    },
+                ],
+            }),
+        );
+
+        // Temporarily swap the server to register handlers on the new instance
+        const originalServer = this.mcpServer;
+        this.mcpServer = newServer;
+        this.setupHandlers();
+        this.mcpServer = originalServer;
+
+        return newServer;
     }
 
     // eslint-disable-next-line class-methods-use-this

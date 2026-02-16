@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
-import { ActionIcon, Box, Menu } from '@mantine/core';
+import { Menu } from '@mantine-8/core';
+import { ActionIcon, Box } from '@mantine/core';
 import {
     IconEdit,
     IconFolderSymlink,
@@ -51,7 +52,7 @@ export const SpaceBrowserMenu: React.FC<React.PropsWithChildren<Props>> = ({
                 <Menu.Item
                     component="button"
                     role="menuitem"
-                    icon={<MantineIcon icon={IconEdit} />}
+                    leftSection={<MantineIcon icon={IconEdit} />}
                     onClick={onRename}
                 >
                     Rename
@@ -67,7 +68,7 @@ export const SpaceBrowserMenu: React.FC<React.PropsWithChildren<Props>> = ({
                     <Menu.Item
                         component="button"
                         role="menuitem"
-                        icon={
+                        leftSection={
                             isPinned ? (
                                 <MantineIcon icon={IconPinned} />
                             ) : (
@@ -85,7 +86,7 @@ export const SpaceBrowserMenu: React.FC<React.PropsWithChildren<Props>> = ({
                 <Menu.Item
                     component="button"
                     role="menuitem"
-                    icon={<IconFolderSymlink size={18} />}
+                    leftSection={<IconFolderSymlink size={18} />}
                     onClick={() => {
                         onTransferToSpace();
                     }}
@@ -99,7 +100,7 @@ export const SpaceBrowserMenu: React.FC<React.PropsWithChildren<Props>> = ({
                     component="button"
                     role="menuitem"
                     color="red"
-                    icon={<MantineIcon icon={IconTrash} />}
+                    leftSection={<MantineIcon icon={IconTrash} />}
                     onClick={onDelete}
                 >
                     Delete space

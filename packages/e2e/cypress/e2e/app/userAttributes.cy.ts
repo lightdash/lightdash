@@ -49,7 +49,7 @@ describe('User attributes sql_filter', () => {
         cy.findByText('demo@lightdash.com').click();
         cy.get('input[name="users.0.value"]').type('20');
         cy.findByText('Add').click();
-        cy.contains('Success');
+        cy.contains('Success', { timeout: 10000 });
     });
 
     it('Should return results with user attribute', () => {
@@ -69,7 +69,7 @@ describe('User attributes sql_filter', () => {
         cy.contains('customer_id').parents('tr').find('button').first().click();
         cy.get('input[name="users.0.value"]').clear().type('30');
         cy.findByText('Update').click();
-        cy.contains('Success');
+        cy.contains('Success', { timeout: 10000 });
     });
     it('Should return results with new user attribute', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables`);
@@ -79,7 +79,7 @@ describe('User attributes sql_filter', () => {
 
         // run query
         cy.get('button').contains('Run query').click();
-        cy.contains('Christina');
+        cy.contains('Christina', { timeout: 30000 });
     });
 });
 
@@ -140,7 +140,7 @@ describe('User attributes dimension required_attribute', () => {
         cy.findByText('demo@lightdash.com').click();
         cy.get('input[name="users.0.value"]').type('true');
         cy.findByText('Add').click();
-        cy.contains('Success');
+        cy.contains('Success', { timeout: 10000 });
     });
 
     it('Should see last_name attribute', () => {
@@ -151,7 +151,7 @@ describe('User attributes dimension required_attribute', () => {
 
         // run query
         cy.get('button').contains('Run query').click();
-        cy.contains('W.');
+        cy.contains('W.', { timeout: 30000 });
     });
 
     it('Edit user attribute', () => {
@@ -160,7 +160,7 @@ describe('User attributes dimension required_attribute', () => {
         cy.contains('is_admin').parents('tr').find('button').first().click();
         cy.get('input[name="users.0.value"]').clear().type('false');
         cy.findByText('Update').click();
-        cy.contains('Success');
+        cy.contains('Success', { timeout: 10000 });
     });
     it('Should not see last_name dimension', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables`);

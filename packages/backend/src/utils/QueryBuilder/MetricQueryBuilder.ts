@@ -22,6 +22,8 @@ import {
     getParsedReference,
     getPopComparisonConfigKey,
     hashPopComparisonConfigKeyToSuffix,
+    hasPivotFunctions,
+    hasRowFunctions,
     IntrinsicUserAttributes,
     isAndFilterGroup,
     isCompiledCustomSqlDimension,
@@ -36,6 +38,7 @@ import {
     lightdashVariablePattern,
     MetricFilterRule,
     parseAllReferences,
+    parseTableCalculationFunctions,
     PivotConfiguration,
     QueryWarning,
     renderFilterRuleSqlFromField,
@@ -43,6 +46,7 @@ import {
     snakeCaseName,
     SortField,
     SupportedDbtAdapter,
+    TableCalculationFunctionCompiler,
     TimeFrames,
     UserAttributeValueMap,
     type ParameterDefinitions,
@@ -98,6 +102,14 @@ export type BuildQueryProps = {
      * invalid filters. Useful for debugging/viewing SQL even with errors.
      */
     continueOnError?: boolean;
+    /**
+     * The original explore before date zoom modifications.
+     * When date zoom changes granularity, the explore's dimension compiledSql
+     * is modified with DATE_TRUNC. Filters should compare against the raw
+     * column, not the truncated expression. When set, filter compilation uses
+     * this explore for dimension field lookups instead of the zoomed explore.
+     */
+    originalExplore?: Explore;
 };
 
 /**
@@ -791,9 +803,32 @@ export class MetricQueryBuilder {
     ): string[] {
         const { warehouseSqlBuilder } = this.args;
         const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
+        const orderByClause = this.buildWindowOrderByClause();
+
         return simpleTableCalcs.map((tableCalculation) => {
             const alias = tableCalculation.name;
-            return `  ${tableCalculation.compiledSql} AS ${fieldQuoteChar}${alias}${fieldQuoteChar}`;
+
+            const functions = parseTableCalculationFunctions(
+                tableCalculation.compiledSql,
+            );
+
+            let tablCalcSql: string | null;
+            if (hasPivotFunctions(functions)) {
+                tablCalcSql = null;
+            } else if (hasRowFunctions(functions)) {
+                const compiler = new TableCalculationFunctionCompiler(
+                    warehouseSqlBuilder,
+                );
+                tablCalcSql = compiler.compileFunctions(
+                    tableCalculation.compiledSql,
+                    functions,
+                    orderByClause,
+                );
+            } else {
+                tablCalcSql = tableCalculation.compiledSql;
+            }
+
+            return `  ${tablCalcSql} AS ${fieldQuoteChar}${alias}${fieldQuoteChar}`;
         });
     }
 
@@ -919,8 +954,13 @@ export class MetricQueryBuilder {
                         this.args.parameters ?? {},
                         this.args.warehouseSqlBuilder,
                     );
-
-                    return replacedSql;
+                    // Replace user attribute references (e.g., ${lightdash.user.email})
+                    // Raw replacement is safe because the filter compiler handles quoting
+                    return replaceUserAttributesRaw(
+                        replacedSql,
+                        this.args.intrinsicUserAttributes,
+                        this.args.userAttributes ?? {},
+                    );
                 }
                 return value;
             }),
@@ -967,10 +1007,13 @@ export class MetricQueryBuilder {
             );
         }
 
+        // Use the original (pre-date-zoom) explore for filter dimension lookups
+        // so that WHERE clauses compare against the raw column, not DATE_TRUNC'd expressions
+        const filterExplore = this.args.originalExplore ?? explore;
         const field =
             fieldType === FieldType.DIMENSION
                 ? [
-                      ...getDimensions(explore),
+                      ...getDimensions(filterExplore),
                       ...compiledCustomDimensions.filter(
                           isCompiledCustomSqlDimension,
                       ),
@@ -1096,6 +1139,16 @@ export class MetricQueryBuilder {
             sqlOrderBy,
             requiresQueryInCTE,
         };
+    }
+
+    private buildWindowOrderByClause(): string | undefined {
+        const { compiledMetricQuery, warehouseSqlBuilder } = this.args;
+        const { sorts } = compiledMetricQuery;
+        const q = warehouseSqlBuilder.getFieldQuoteChar();
+        if (sorts.length === 0) return undefined;
+        return sorts
+            .map((s) => `${q}${s.fieldId}${q}${s.descending ? ' DESC' : ''}`)
+            .join(', ');
     }
 
     private getLimitSQL() {
@@ -1728,8 +1781,7 @@ export class MetricQueryBuilder {
             ];
             const hasUnaffectedCte: boolean =
                 unaffectedMetrics.length > 0 ||
-                Object.keys(dimensionSelects).length > 0 ||
-                !!dimensionFilters;
+                Object.keys(dimensionSelects).length > 0;
 
             if (hasUnaffectedCte) {
                 ctes.push(
@@ -2140,6 +2192,7 @@ export class MetricQueryBuilder {
     ) {
         const { warehouseSqlBuilder } = this.args;
         const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
+        const orderByClause = this.buildWindowOrderByClause();
 
         // Sort table calculations in dependency order
         const sortedTableCalcs = this.sortTableCalcsByDependencies(
@@ -2151,11 +2204,24 @@ export class MetricQueryBuilder {
         for (const tc of sortedTableCalcs) {
             const cteName = `tc_${tc.name}`;
 
+            let { compiledSql } = tc;
+            const functions = parseTableCalculationFunctions(compiledSql);
+            if (hasRowFunctions(functions)) {
+                const compiler = new TableCalculationFunctionCompiler(
+                    warehouseSqlBuilder,
+                );
+                compiledSql = compiler.compileFunctions(
+                    compiledSql,
+                    functions,
+                    orderByClause,
+                );
+            }
+
             const parts = [
                 'SELECT',
                 [
                     '  *',
-                    `  ${tc.compiledSql} AS ${fieldQuoteChar}${tc.name}${fieldQuoteChar}`,
+                    `  ${compiledSql} AS ${fieldQuoteChar}${tc.name}${fieldQuoteChar}`,
                 ].join(',\n'),
                 `FROM ${lastCteName}`,
             ];

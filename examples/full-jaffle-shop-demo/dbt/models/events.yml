@@ -237,7 +237,7 @@ models:
                 - event_id: ">5"
                 - event: "song_played"
             # Example of non-aggregate metric (type: number) with aggregation in SQL
-            # This pattern is common in Looker where type:number measures have
+            # This pattern is common where type:number measures have
             # aggregation functions in their SQL field
             unique_event_count:
               type: number
@@ -248,9 +248,15 @@ models:
               description: "Standard deviation of event IDs using non-aggregate type"
               sql: stddev(${event_id})
             # Example of non-aggregate metric (type: number) that references BOTH
-            # dimensions AND other metrics. This pattern is common in Looker where
+            # dimensions AND other metrics. This pattern is common where
             # type:number measures have SQL like "sum(${dim}) / ${metric}"
             avg_event_id_per_unique:
               type: number
               description: "Average event_id per unique event (combines dimension and metric references)"
               sql: sum(${event_id}) / NULLIF(${unique_event_count}, 0)
+            # Example of non-aggregate metric using ${TABLE} reference
+            # This pattern is common where measures use ${TABLE}.column syntax
+            count_song_played_events:
+              type: number
+              description: "Count of events where event is song_played using TABLE reference"
+              sql: count(case when ${TABLE}.event = 'song_played' then 1 end)

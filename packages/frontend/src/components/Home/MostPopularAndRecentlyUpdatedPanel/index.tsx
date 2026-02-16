@@ -94,7 +94,7 @@ export const MostPopularAndRecentlyUpdatedPanel: FC<Props> = ({
                           action: (
                               <MantineLinkButton
                                   color="ldGray.6"
-                                  compact
+                                  size="compact-sm"
                                   variant="subtle"
                                   target="_blank"
                                   href="https://docs.lightdash.com/get-started/exploring-data/intro"

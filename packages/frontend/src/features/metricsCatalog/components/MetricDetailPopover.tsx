@@ -1,8 +1,13 @@
-import { type MetricWithAssociatedTimeDimension } from '@lightdash/common';
+import {
+    friendlyName,
+    type MetricExplorerDateRange,
+    type MetricTotalComparisonType,
+    type MetricWithAssociatedTimeDimension,
+    type TimeFrames,
+} from '@lightdash/common';
 import {
     Badge,
     Box,
-    Code,
     Divider,
     Group,
     HoverCard,
@@ -11,27 +16,122 @@ import {
     Text,
     Tooltip,
 } from '@mantine-8/core';
+import { Prism } from '@mantine/prism';
 import { IconCode, IconTable } from '@tabler/icons-react';
 import { type FC, type ReactNode, useState } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useMetric } from '../hooks/useMetricsCatalog';
+import { useCompileMetricTotalQuery } from '../hooks/useRunMetricExplorerQuery';
 import classes from './MetricDetailPopover.module.css';
+
+export type CompiledQueryConfig = {
+    timeFrame: TimeFrames;
+    granularity: TimeFrames;
+    comparisonType: MetricTotalComparisonType;
+    dateRange: MetricExplorerDateRange;
+    rollingDays?: number;
+};
 
 type Props = {
     tableName: string;
     metricName: string;
     projectUuid: string;
     children: ReactNode;
+    compiledQueryConfig?: CompiledQueryConfig;
 };
 
-const MetricDetailContent: FC<{
+const CompiledQuerySection: FC<{
+    projectUuid: string;
+    exploreName: string;
+    metricName: string;
+    config: CompiledQueryConfig;
+    isOpen: boolean;
+}> = ({ projectUuid, exploreName, metricName, config, isOpen }) => {
+    const [showSql, setShowSql] = useState(false);
+
+    const { data, isLoading } = useCompileMetricTotalQuery({
+        projectUuid,
+        exploreName,
+        metricName,
+        timeFrame: config.timeFrame,
+        granularity: config.granularity,
+        comparisonType: config.comparisonType,
+        dateRange: config.dateRange,
+        rollingDays: config.rollingDays,
+        options: {
+            enabled: isOpen && showSql,
+        },
+    });
+
+    return (
+        <>
+            <Divider />
+            <Box>
+                <Group gap="xs" mb={4} justify="space-between">
+                    <Text size="xs" c="dimmed" fw={500}>
+                        How's total calculated?
+                    </Text>
+                    <Group
+                        gap={4}
+                        className={classes.compiledToggle}
+                        onClick={() => setShowSql((prev) => !prev)}
+                    >
+                        <MantineIcon
+                            icon={IconCode}
+                            size={12}
+                            color={showSql ? 'indigo.6' : 'gray.6'}
+                        />
+                        <Text
+                            size="xs"
+                            c={showSql ? 'indigo.6' : 'dimmed'}
+                            fw={500}
+                        >
+                            {showSql ? 'Hide SQL' : 'Show SQL'}
+                        </Text>
+                    </Group>
+                </Group>
+                {showSql &&
+                    (isLoading ? (
+                        <Group justify="center" py="md">
+                            <Loader size="sm" />
+                        </Group>
+                    ) : data ? (
+                        <Prism
+                            language="sql"
+                            className={classes.codeBlock}
+                            copyLabel="Copy SQL"
+                            copiedLabel="Copied!"
+                        >
+                            {data.query}
+                        </Prism>
+                    ) : (
+                        <Text size="xs" c="dimmed">
+                            Unable to load SQL
+                        </Text>
+                    ))}
+            </Box>
+        </>
+    );
+};
+
+type MetricDetailContentProps = {
     metric: MetricWithAssociatedTimeDimension;
-}> = ({ metric }) => {
+    projectUuid: string;
+    compiledQueryConfig?: CompiledQueryConfig;
+    isOpen: boolean;
+};
+
+const MetricDetailContent: FC<MetricDetailContentProps> = ({
+    metric,
+    projectUuid,
+    compiledQueryConfig,
+    isOpen,
+}) => {
     const [showCompiled, setShowCompiled] = useState(false);
     const sqlToShow = showCompiled ? metric.compiledSql : metric.sql;
 
     return (
-        <Stack gap="xs" w="300px">
+        <Stack gap="xs" w={compiledQueryConfig ? 400 : 300}>
             <Group gap="xs" wrap="nowrap" justify="space-between">
                 <Group gap="xs" wrap="nowrap">
                     <MantineIcon icon={IconTable} color="gray.6" size={14} />
@@ -49,7 +149,7 @@ const MetricDetailContent: FC<{
             <Box>
                 <Group gap="xs" mb={4} justify="space-between">
                     <Text size="xs" c="dimmed" fw={500}>
-                        SQL
+                        {compiledQueryConfig ? 'Metric SQL' : 'SQL'}
                     </Text>
                     <Tooltip label="Show compiled SQL" withinPortal>
                         <Group
@@ -72,10 +172,42 @@ const MetricDetailContent: FC<{
                         </Group>
                     </Tooltip>
                 </Group>
-                <Code block className={classes.codeBlock}>
+                <Prism language="sql" className={classes.codeBlock} noCopy>
                     {sqlToShow}
-                </Code>
+                </Prism>
             </Box>
+
+            {metric.timeDimension && (
+                <>
+                    <Divider />
+                    <Group justify="space-between" gap="xs">
+                        <Text size="xs" c="dimmed" fw={500} mb={4}>
+                            Time dimension
+                        </Text>
+                        <Tooltip
+                            label={`${metric.timeDimension.table}.${metric.timeDimension.field}`}
+                            withinPortal
+                        >
+                            <Text size="xs">
+                                {metric.timeDimension.table !== metric.table &&
+                                    `${friendlyName(metric.timeDimension.table)} `}
+                                {friendlyName(metric.timeDimension.field)} (
+                                {friendlyName(metric.timeDimension.interval)})
+                            </Text>
+                        </Tooltip>
+                    </Group>
+                </>
+            )}
+
+            {compiledQueryConfig && (
+                <CompiledQuerySection
+                    projectUuid={projectUuid}
+                    exploreName={metric.table}
+                    metricName={metric.name}
+                    config={compiledQueryConfig}
+                    isOpen={isOpen}
+                />
+            )}
         </Stack>
     );
 };
@@ -85,6 +217,7 @@ export const MetricDetailPopover: FC<Props> = ({
     metricName,
     projectUuid,
     children,
+    compiledQueryConfig,
 }) => {
     const [opened, setOpened] = useState(false);
 
@@ -116,7 +249,14 @@ export const MetricDetailPopover: FC<Props> = ({
                         <Loader size="sm" />
                     </Group>
                 )}
-                {metric && <MetricDetailContent metric={metric} />}
+                {metric && (
+                    <MetricDetailContent
+                        metric={metric}
+                        projectUuid={projectUuid}
+                        compiledQueryConfig={compiledQueryConfig}
+                        isOpen={opened}
+                    />
+                )}
             </HoverCard.Dropdown>
         </HoverCard>
     );

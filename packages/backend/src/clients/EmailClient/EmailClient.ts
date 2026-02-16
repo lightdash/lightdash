@@ -1,4 +1,6 @@
 import {
+    AdminNotificationPayload,
+    AdminNotificationType,
     CreateProjectMember,
     getErrorMessage,
     InviteLink,
@@ -12,7 +14,6 @@ import {
 } from '@lightdash/common';
 import { marked } from 'marked';
 import * as nodemailer from 'nodemailer';
-import hbs from 'nodemailer-express-handlebars';
 import Mail from 'nodemailer/lib/mailer';
 import SMTPConnection, {
     AuthenticationType,
@@ -49,15 +50,7 @@ type EmailClientArguments = {
 
 type EmailTemplate = {
     template: string;
-    context: Record<
-        string,
-        | string
-        | boolean
-        | number
-        | AttachmentUrl[]
-        | PartialFailure[]
-        | undefined
-    >;
+    context: Record<string, unknown>;
     attachments?: (Mail.Attachment | AttachmentUrl)[] | undefined;
 };
 
@@ -66,11 +59,13 @@ export default class EmailClient {
 
     transporter: nodemailer.Transporter | undefined;
 
+    private initPromise: Promise<void> | undefined;
+
     constructor({ lightdashConfig }: EmailClientArguments) {
         this.lightdashConfig = lightdashConfig;
 
         if (this.lightdashConfig.smtp) {
-            this.createTransporter();
+            this.initPromise = this.createTransporter();
         }
     }
 
@@ -99,7 +94,7 @@ export default class EmailClient {
         };
     }
 
-    private createTransporter(): void {
+    private async createTransporter(): Promise<void> {
         if (!this.lightdashConfig.smtp) return;
 
         Logger.debug(`Create email transporter`);
@@ -154,6 +149,8 @@ export default class EmailClient {
             }
         });
 
+        // Dynamic import for ESM-only package
+        const { default: hbs } = await import('nodemailer-express-handlebars');
         this.transporter.use(
             'compile',
             hbs({
@@ -171,6 +168,9 @@ export default class EmailClient {
     private async sendEmail(
         options: Mail.Options & EmailTemplate,
     ): Promise<void> {
+        if (this.initPromise) {
+            await this.initPromise;
+        }
         if (this.transporter) {
             const maxRetries = 3;
             const baseDelay = 1000; // 1 second
@@ -263,7 +263,8 @@ export default class EmailClient {
 
         if (this.lightdashConfig.smtp) {
             Logger.debug('Recreating email transporter');
-            this.createTransporter();
+            this.initPromise = this.createTransporter();
+            await this.initPromise;
         }
     }
 
@@ -550,6 +551,10 @@ export default class EmailClient {
                 host: this.lightdashConfig.siteUrl,
                 schedulerUrl,
                 expirationDays,
+                expirationDaysLabel:
+                    expirationDays !== undefined
+                        ? `${expirationDays} ${expirationDays === 1 ? 'day' : 'days'}`
+                        : undefined,
                 deliveryType,
                 includeLinks,
             },
@@ -609,6 +614,10 @@ export default class EmailClient {
                 host: this.lightdashConfig.siteUrl,
                 schedulerUrl,
                 expirationDays,
+                expirationDaysLabel:
+                    expirationDays !== undefined
+                        ? `${expirationDays} ${expirationDays === 1 ? 'day' : 'days'}`
+                        : undefined,
                 includeLinks,
                 hasAttachment: attachments && attachments.length > 0,
                 attachmentCount: attachments?.length || 0,
@@ -677,6 +686,10 @@ export default class EmailClient {
                 host: this.lightdashConfig.siteUrl,
                 schedulerUrl,
                 expirationDays,
+                expirationDaysLabel:
+                    expirationDays !== undefined
+                        ? `${expirationDays} ${expirationDays === 1 ? 'day' : 'days'}`
+                        : undefined,
                 includeLinks,
                 hasAttachments: emailAttachments && emailAttachments.length > 0,
                 attachmentCount: emailAttachments?.length || 0,
@@ -731,6 +744,89 @@ export default class EmailClient {
             },
             text: `${title}\n\n${message}`,
             attachments,
+        });
+    }
+
+    private static getAdminChangeNotificationText(
+        payload: AdminNotificationPayload,
+        isRemoval: boolean,
+    ): string {
+        const changedByName = payload.changedBy.isServiceAccount
+            ? `Service Account: ${payload.changedBy.serviceAccountDescription}`
+            : `${payload.changedBy.firstName} ${payload.changedBy.lastName}`;
+
+        if (payload.targetUser) {
+            const targetName = `${payload.targetUser.firstName} ${payload.targetUser.lastName}`;
+            const action = isRemoval ? 'removed as admin' : 'added as admin';
+            return `${targetName} was ${action} by ${changedByName}`;
+        }
+
+        if (payload.type === AdminNotificationType.CONNECTION_SETTINGS_CHANGE) {
+            return `Connection settings updated by ${changedByName}`;
+        }
+
+        return `Settings changed by ${changedByName}`;
+    }
+
+    public async sendAdminChangeNotificationEmail(
+        recipients: string[],
+        payload: AdminNotificationPayload,
+    ): Promise<void> {
+        const subjectMap: Record<AdminNotificationType, string> = {
+            [AdminNotificationType.ORG_ADMIN_ADDED]: 'Organization Admin Added',
+            [AdminNotificationType.ORG_ADMIN_REMOVED]:
+                'Organization Admin Removed',
+            [AdminNotificationType.PROJECT_ADMIN_ADDED]: 'Project Admin Added',
+            [AdminNotificationType.PROJECT_ADMIN_REMOVED]:
+                'Project Admin Removed',
+            [AdminNotificationType.CONNECTION_SETTINGS_CHANGE]:
+                'Connection Settings Changed',
+        };
+
+        const templateMap: Record<AdminNotificationType, string> = {
+            [AdminNotificationType.ORG_ADMIN_ADDED]: 'adminChangeNotification',
+            [AdminNotificationType.ORG_ADMIN_REMOVED]:
+                'adminChangeNotification',
+            [AdminNotificationType.PROJECT_ADMIN_ADDED]:
+                'adminChangeNotification',
+            [AdminNotificationType.PROJECT_ADMIN_REMOVED]:
+                'adminChangeNotification',
+            [AdminNotificationType.CONNECTION_SETTINGS_CHANGE]:
+                'connectionSettingsChange',
+        };
+
+        const projectContext = payload.projectName
+            ? `${payload.projectName} - ${payload.organizationName}`
+            : payload.organizationName;
+
+        const isRemoval =
+            payload.type === AdminNotificationType.ORG_ADMIN_REMOVED ||
+            payload.type === AdminNotificationType.PROJECT_ADMIN_REMOVED;
+        const isConnectionChange =
+            payload.type === AdminNotificationType.CONNECTION_SETTINGS_CHANGE;
+
+        return this.sendEmail({
+            bcc: recipients,
+            subject: `[Lightdash] ${
+                subjectMap[payload.type]
+            } - ${projectContext}`,
+            template: templateMap[payload.type],
+            context: {
+                type: payload.type,
+                organizationName: payload.organizationName,
+                projectName: payload.projectName,
+                changedBy: payload.changedBy,
+                targetUser: payload.targetUser,
+                timestamp: payload.timestamp.toISOString(),
+                settingsUrl: payload.settingsUrl,
+                host: this.lightdashConfig.siteUrl,
+                isRemoval,
+                isConnectionChange,
+            },
+            text: EmailClient.getAdminChangeNotificationText(
+                payload,
+                isRemoval,
+            ),
         });
     }
 }

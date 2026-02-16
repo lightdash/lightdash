@@ -3,8 +3,8 @@ import moment from 'moment';
 import { Readable, Writable } from 'stream';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { S3CacheClient } from '../../clients/Aws/S3CacheClient';
-import { S3Client } from '../../clients/Aws/S3Client';
 import EmailClient from '../../clients/EmailClient/EmailClient';
+import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
 import { lightdashConfig } from '../../config/lightdashConfig';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
@@ -31,8 +31,11 @@ import { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredent
 import { WarehouseAvailableTablesModel } from '../../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
+import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
+import { PersistentDownloadFileService } from '../PersistentDownloadFileService/PersistentDownloadFileService';
 import { PivotTableService } from '../PivotTableService/PivotTableService';
 import { ProjectService } from '../ProjectService/ProjectService';
+import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { CsvService } from './CsvService';
 import { itemMap, metricQuery } from './CsvService.mock';
 
@@ -64,7 +67,7 @@ describe('Csv service', () => {
             } as unknown as EmailModel,
             schedulerClient: {} as SchedulerClient,
             downloadFileModel: {} as DownloadFileModel,
-            s3Client: {} as S3Client,
+            fileStorageClient: {} as FileStorageClient,
             groupsModel: {} as GroupsModel,
             tagsModel: {} as TagsModel,
             catalogModel: {} as CatalogModel,
@@ -76,8 +79,10 @@ describe('Csv service', () => {
             organizationWarehouseCredentialsModel:
                 {} as OrganizationWarehouseCredentialsModel,
             projectCompileLogModel: {} as ProjectCompileLogModel,
+            adminNotificationService: {} as AdminNotificationService,
+            spacePermissionService: {} as SpacePermissionService,
         }),
-        s3Client: {} as S3Client,
+        fileStorageClient: {} as FileStorageClient,
         savedChartModel: {} as SavedChartModel,
         dashboardModel: {} as DashboardModel,
         downloadFileModel: {} as DownloadFileModel,
@@ -86,9 +91,11 @@ describe('Csv service', () => {
         savedSqlModel: {} as SavedSqlModel,
         pivotTableService: new PivotTableService({
             lightdashConfig,
-            s3Client: {} as S3Client,
+            fileStorageClient: {} as FileStorageClient,
             downloadFileModel: {} as DownloadFileModel,
+            persistentDownloadFileService: {} as PersistentDownloadFileService,
         }),
+        persistentDownloadFileService: {} as PersistentDownloadFileService,
     });
 
     it('Should convert rows to CSV with format', async () => {

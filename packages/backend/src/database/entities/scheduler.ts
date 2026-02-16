@@ -38,6 +38,8 @@ export type SchedulerDb = {
     notification_frequency: string | null;
     selected_tabs: string[] | null;
     include_links: boolean;
+    deleted_at: Date | null;
+    deleted_by_user_uuid: string | null;
 };
 
 export type ChartSchedulerDb = SchedulerDb & {
@@ -76,7 +78,7 @@ export type SchedulerTable = Knex.CompositeTableType<
     SchedulerDb,
     Omit<
         ChartSchedulerDb | DashboardSchedulerDB,
-        'scheduler_uuid' | 'created_at'
+        'scheduler_uuid' | 'created_at' | 'deleted_at' | 'deleted_by_user_uuid'
     >,
     | Pick<
           SchedulerDb,
@@ -98,6 +100,7 @@ export type SchedulerTable = Knex.CompositeTableType<
     | Pick<SchedulerDb, 'updated_at' | 'enabled'>
     | Pick<SchedulerDb, 'created_by' | 'updated_at'>
     | Pick<SchedulerDb, 'cron'>
+    | Pick<SchedulerDb, 'deleted_at' | 'deleted_by_user_uuid'>
 >;
 
 export type SchedulerSlackTargetTable = Knex.CompositeTableType<

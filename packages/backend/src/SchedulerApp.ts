@@ -63,7 +63,7 @@ const schedulerWorkerFactory = (context: {
         userService: context.serviceRepository.getUserService(),
         emailClient: context.clients.getEmailClient(),
         googleDriveClient: context.clients.getGoogleDriveClient(),
-        s3Client: context.clients.getS3Client(),
+        fileStorageClient: context.clients.getFileStorageClient(),
         schedulerClient: context.clients.getSchedulerClient(),
         catalogService: context.serviceRepository.getCatalogService(),
         encryptionUtil: context.utils.getEncryptionUtil(),

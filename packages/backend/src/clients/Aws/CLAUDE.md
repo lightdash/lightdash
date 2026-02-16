@@ -10,12 +10,12 @@ import { ClientRepository } from '../../clients/ClientRepository';
 
 // Get S3 clients from repository
 const clientRepository = new ClientRepository({ lightdashConfig });
-const s3Client = clientRepository.getS3Client(); // General exports bucket
+const fileStorageClient = clientRepository.getFileStorageClient(); // General exports bucket (FileStorageClient interface)
 const resultsStorage = clientRepository.getS3ResultsFileStorageClient(); // Query cache bucket
 
 // Upload user-facing files to general bucket
-const csvUrl = await s3Client.uploadCsv(csvBuffer, 'report.csv');
-const excelUrl = await s3Client.uploadExcel(fileStream, 'dashboard.xlsx');
+const csvUrl = await fileStorageClient.uploadCsv(csvBuffer, 'report.csv');
+const excelUrl = await fileStorageClient.uploadExcel(fileStream, 'dashboard.xlsx');
 
 // Store query results in JSONL format
 const { write, close } = resultsStorage.createUploadStream(
@@ -36,7 +36,7 @@ const { fileUrl, truncated } = await transformAndExportResults(
     },
     {
         resultsStorageClient: resultsStorage,
-        exportsStorageClient: s3Client,
+        exportsStorageClient: fileStorageClient,
     },
     {
         fileType: DownloadFileType.CSV,
@@ -51,8 +51,8 @@ const { fileUrl, truncated } = await transformAndExportResults(
 
 ```typescript
 // Upload a CSV export for user download
-const s3Client = clientRepository.getS3Client();
-const csvUrl = await s3Client.uploadCsv(csvContent, 'sales-report-2025.csv');
+const fileStorageClient = clientRepository.getFileStorageClient();
+const csvUrl = await fileStorageClient.uploadCsv(csvContent, 'sales-report-2025.csv');
 // Returns pre-signed URL valid for 3 days (default config)
 
 // Stream query results to cache bucket
@@ -90,7 +90,7 @@ graph TD
     F --> G[Read from Results Bucket]
     F --> H[Transform CSV/Excel]
     F --> I[Write to Exports Bucket]
-    I --> J[S3Client]
+    I --> J[FileStorageClient<br/>S3Client impl]
     J --> K[Pre-signed URL<br/>User Download]
 
     B -->|Screenshots/PDFs| L[Direct Upload]
@@ -104,7 +104,7 @@ graph TD
 - **Cross-Bucket Transforms**: Always use transformAndExportResults() utility to convert cached results to user downloads. Never write user-facing files to the results bucket
 - **Authentication**: Both clients support IAM role credentials (preferred) or access key/secret key via env vars
 - **Pre-signed URLs**: All uploads return pre-signed URLs with expiration times configured in lightdashConfig.s3.expirationTime
-- **Streaming Support**: S3ResultsFileStorageClient provides createUploadStream() and S3Client provides createResultsExportUploadStream() for memory-efficient uploading
+- **Streaming Support**: S3ResultsFileStorageClient provides createUploadStream() and S3Client provides createUploadStream() for memory-efficient uploading
 - **Content-Disposition**: File names in Content-Disposition headers are automatically set from filename parameter for proper browser downloads
 - **File Extensions**: S3ResultsFileStorageClient automatically adds .jsonl extension if not present in filename
 - **Base Class**: Both clients extend S3CacheClient which provides uploadResults(), getResults(), and getResultsMetadata() methods

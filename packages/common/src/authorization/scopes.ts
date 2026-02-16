@@ -186,6 +186,14 @@ const scopes: Scope[] = [
         getConditions: addDefaultUuidCondition,
     },
     {
+        name: 'manage:DeletedContent',
+        description:
+            'Manage soft-deleted content (restore, permanently delete)',
+        isEnterprise: false,
+        group: ScopeGroup.CONTENT,
+        getConditions: addDefaultUuidCondition,
+    },
+    {
         name: 'promote:SavedChart',
         description: 'Promote saved charts to any space',
         isEnterprise: false,

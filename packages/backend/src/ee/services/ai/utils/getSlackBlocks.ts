@@ -82,7 +82,7 @@ export function getReferencedArtifactsBlocks(
                         text: `📊 ${title}`,
                         emoji: true,
                     },
-                    action_id: 'view_artifact',
+                    action_id: `view_artifact_${artifact.artifactUuid}`,
                 };
             }),
         },

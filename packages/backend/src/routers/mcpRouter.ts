@@ -72,7 +72,7 @@ function extractUserAttributesFromHeader(
 
 /*
 MCP servers MUST use the HTTP header WWW-Authenticate when returning a 401 Unauthorized to indicate
-the location of the resource server metadata URL as described in RFC9728 Section 5.1 “WWW-Authenticate Response”.
+the location of the resource server metadata URL as described in RFC9728 Section 5.1 "WWW-Authenticate Response".
 https://www.rfc-editor.org/rfc/rfc9728#section-5.1
 */
 const returnHeaderIfUnauthenticated = (
@@ -113,8 +113,6 @@ mcpRouter.all(
                 throw new ForbiddenError('MCP is not enabled');
             }
 
-            const mcpServer = mcpService.getServer();
-
             if (req.method === 'GET') {
                 // Handle SSE transport for MCP
                 res.writeHead(200, {
@@ -141,7 +139,10 @@ mcpRouter.all(
             }
 
             if (req.method === 'POST') {
-                // Handle Streamable HTTP transport
+                // SDK 1.26.0 requires a new server+transport per request in stateless mode
+                // to prevent cross-client response data leaks (CVE-2026-25536)
+                // See: https://github.com/advisories/GHSA-345p-7cg4-v4c7
+                const mcpServer = mcpService.createServer();
                 const transport = new StreamableHTTPServerTransport({
                     enableJsonResponse: true,
                     sessionIdGenerator: undefined,

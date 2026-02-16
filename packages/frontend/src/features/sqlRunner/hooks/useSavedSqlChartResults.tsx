@@ -1,4 +1,5 @@
 import {
+    isApiError,
     isVizTableConfig,
     MAX_SAFE_INTEGER,
     type ApiError,
@@ -11,6 +12,7 @@ import {
     type SortField,
     type SqlChart,
 } from '@lightdash/common';
+import { captureException } from '@sentry/react';
 import { useQuery } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import getChartDataModel from '../../../components/DataViz/transformers/getChartDataModel';
@@ -86,60 +88,83 @@ export const useSavedSqlChartResults = (
     >(
         ['savedSqlChartResults', savedSqlUuid ?? slug, args], // keep uuid/slug in the key to facilitate cache invalidation
         async () => {
-            // Safe to assume these are defined because of the enabled flag
-            const chart = chartQuery.data!;
+            try {
+                // Safe to assume these are defined because of the enabled flag
+                const chart = chartQuery.data!;
 
-            let { originalColumns, ...pivotChartData } =
-                isDashboardArgs(args) && savedSqlUuid
-                    ? await getDashboardSqlChartPivotChartData({
-                          projectUuid: projectUuid!,
-                          dashboardUuid: args.dashboardUuid,
-                          tileUuid: args.tileUuid,
-                          dashboardFilters: args.dashboardFilters,
-                          dashboardSorts: args.dashboardSorts,
-                          savedSqlUuid,
-                          context: args.context as QueryExecutionContext,
-                          parameters,
-                      })
-                    : await getSqlChartPivotChartData({
-                          projectUuid: projectUuid!,
-                          savedSqlUuid: chart.savedSqlUuid,
-                          context: context as QueryExecutionContext,
-                          parameters,
-                      });
+                let { originalColumns, ...pivotChartData } =
+                    isDashboardArgs(args) && savedSqlUuid
+                        ? await getDashboardSqlChartPivotChartData({
+                              projectUuid: projectUuid!,
+                              dashboardUuid: args.dashboardUuid,
+                              tileUuid: args.tileUuid,
+                              dashboardFilters: args.dashboardFilters,
+                              dashboardSorts: args.dashboardSorts,
+                              savedSqlUuid,
+                              context: args.context as QueryExecutionContext,
+                              parameters,
+                          })
+                        : await getSqlChartPivotChartData({
+                              projectUuid: projectUuid!,
+                              savedSqlUuid: chart.savedSqlUuid,
+                              context: context as QueryExecutionContext,
+                              parameters,
+                          });
 
-            const vizConfig = isVizTableConfig(chart.config)
-                ? chart.config.columns
-                : chart.config.fieldConfig;
+                const vizConfig = isVizTableConfig(chart.config)
+                    ? chart.config.columns
+                    : chart.config.fieldConfig;
 
-            const resultsRunner = new SqlChartResultsRunner({
-                pivotChartData,
-                originalColumns,
-            });
+                const resultsRunner = new SqlChartResultsRunner({
+                    pivotChartData,
+                    originalColumns,
+                });
 
-            const vizDataModel = getChartDataModel(
-                resultsRunner,
-                vizConfig,
-                chart.config.type,
-            );
-            await vizDataModel.getPivotedChartData({
-                sql: chart.sql,
-                limit: chart.limit,
-                sortBy: [],
-                filters: [],
-            });
-            const chartUnderlyingData = vizDataModel.getPivotedTableData();
-            return {
-                queryUuid: pivotChartData.queryUuid,
-                chartSpec: vizDataModel.getSpec(
-                    chart.config.display,
-                    organization?.chartColors,
-                ),
-                fileUrl: vizDataModel.getDataDownloadUrl()!, // TODO: this is known if the results have been fetched - can we improve the types on vizdatamodel?
-                resultsRunner,
-                chartUnderlyingData,
-                originalColumns,
-            };
+                const vizDataModel = getChartDataModel(
+                    resultsRunner,
+                    vizConfig,
+                    chart.config.type,
+                );
+                await vizDataModel.getPivotedChartData({
+                    sql: chart.sql,
+                    limit: chart.limit,
+                    sortBy: [],
+                    filters: [],
+                });
+                const chartUnderlyingData = vizDataModel.getPivotedTableData();
+                return {
+                    queryUuid: pivotChartData.queryUuid,
+                    chartSpec: vizDataModel.getSpec(
+                        chart.config.display,
+                        organization?.chartColors,
+                    ),
+                    fileUrl: vizDataModel.getDataDownloadUrl()!, // TODO: this is known if the results have been fetched - can we improve the types on vizdatamodel?
+                    resultsRunner,
+                    chartUnderlyingData,
+                    originalColumns,
+                };
+            } catch (e) {
+                captureException(e, {
+                    tags: { errorType: 'chartResultsProcessing' },
+                    extra: { chartData: chartQuery.data },
+                });
+                // Re-throw API errors as-is; wrap client-side errors
+                // so the UI can display the message via .error.message
+                if (isApiError(e)) {
+                    throw e;
+                }
+                const message = e instanceof Error ? e.message : String(e);
+                const wrapped: ApiError = {
+                    status: 'error',
+                    error: {
+                        name: 'ChartResultsError',
+                        statusCode: 500,
+                        message,
+                        data: {},
+                    },
+                };
+                throw wrapped;
+            }
         },
         {
             enabled:

@@ -10,8 +10,9 @@ import {
     NumberSeparator,
     TableCalculationFieldContext,
 } from '@lightdash/common';
-import { generateObject, LanguageModel } from 'ai';
+import { generateObject } from 'ai';
 import { z } from 'zod';
+import { GeneratorModelOptions } from '../models/types';
 
 const CustomFormatSchema = z.object({
     type: z
@@ -31,11 +32,11 @@ const CustomFormatSchema = z.object({
         ),
     round: z
         .number()
-        .optional()
+        .nullable()
         .describe('Number of decimal places to round to'),
     separator: z
         .string()
-        .optional()
+        .nullable()
         .describe(
             `Number separator style (available separators: ${Object.values(
                 NumberSeparator,
@@ -43,7 +44,7 @@ const CustomFormatSchema = z.object({
         ),
     currency: z
         .string()
-        .optional()
+        .nullable()
         .describe(
             `Currency code (available currencies: ${currencies.join(
                 ', ',
@@ -51,17 +52,17 @@ const CustomFormatSchema = z.object({
         ),
     compact: z
         .string()
-        .optional()
+        .nullable()
         .describe(
             `Compact notation (available compacts: ${Object.values(
                 Compact,
             ).join(', ')})`,
         ),
-    prefix: z.string().optional().describe('Text to prepend to the value'),
-    suffix: z.string().optional().describe('Text to append to the value'),
+    prefix: z.string().nullable().describe('Text to prepend to the value'),
+    suffix: z.string().nullable().describe('Text to append to the value'),
     custom: z
         .string()
-        .optional()
+        .nullable()
         .describe(
             'Custom format string when type is custom, following customformats.com syntax (e.g., "#,##0.00" for numbers, "0.00%" for percentages)',
         ),
@@ -114,13 +115,13 @@ export function sanitizeCustomFormat(
         case CustomFormatType.CUSTOM:
             return {
                 type,
-                custom: format.custom,
+                custom: format.custom ?? undefined,
             };
 
         case CustomFormatType.PERCENT:
             return {
                 type,
-                round: format.round,
+                round: format.round ?? undefined,
                 separator: validSeparator,
             };
 
@@ -128,7 +129,7 @@ export function sanitizeCustomFormat(
             return {
                 type,
                 currency: validCurrency,
-                round: format.round,
+                round: format.round ?? undefined,
                 separator: validSeparator,
                 compact: validCompact,
             };
@@ -136,18 +137,18 @@ export function sanitizeCustomFormat(
         case CustomFormatType.NUMBER:
             return {
                 type,
-                round: format.round,
+                round: format.round ?? undefined,
                 separator: validSeparator,
                 compact: validCompact,
-                prefix: format.prefix,
-                suffix: format.suffix,
+                prefix: format.prefix ?? undefined,
+                suffix: format.suffix ?? undefined,
             };
 
         case CustomFormatType.BYTES_SI:
         case CustomFormatType.BYTES_IEC:
             return {
                 type,
-                round: format.round,
+                round: format.round ?? undefined,
                 separator: validSeparator,
                 compact: validCompact,
             };
@@ -174,7 +175,7 @@ const TableCalculationSchema = z.object({
         .describe(
             'The result type of the calculation: number for numeric calculations, string for text, date/timestamp for date operations, boolean for true/false',
         ),
-    format: CustomFormatSchema.optional().describe(
+    format: CustomFormatSchema.nullable().describe(
         'Display formatting options for the calculated value',
     ),
 });
@@ -254,13 +255,15 @@ function buildFieldReferenceGuide(
 }
 
 export async function generateTableCalculation(
-    model: LanguageModel,
+    modelOptions: GeneratorModelOptions,
     context: TableCalculationContext,
 ): Promise<GeneratedTableCalculation> {
     const fieldReferenceGuide = buildFieldReferenceGuide(context.fieldsContext);
 
     const result = await generateObject({
-        model,
+        model: modelOptions.model,
+        ...modelOptions.callOptions,
+        providerOptions: modelOptions.providerOptions,
         schema: TableCalculationSchema,
         messages: [
             {
@@ -401,7 +404,6 @@ export async function generateTableCalculation(
                     }`,
             },
         ],
-        temperature: 0.3,
     });
 
     return result.object;

@@ -1,14 +1,23 @@
 import {
     getAggregatedField,
+    getItemId,
+    getParsedReference,
+    hasPivotFunctions,
     isDimension,
+    isSqlTableCalculation,
+    isTableCalculation,
+    lightdashVariablePattern,
     normalizeIndexColumns,
     ParameterError,
+    parseTableCalculationFunctions,
     SortByDirection,
+    TableCalculationFunctionCompiler,
     TimeFrames,
     VizSortBy,
     WarehouseSqlBuilder,
     type ItemsMap,
     type PivotConfiguration,
+    type TableCalculation,
 } from '@lightdash/common';
 import {
     applyLimitToSqlQuery,
@@ -38,6 +47,8 @@ export class PivotQueryBuilder {
 
     private readonly itemsMap: ItemsMap;
 
+    private readonly pivotTableCalculations: Record<string, TableCalculation>;
+
     /**
      * Creates a new PivotQueryBuilder instance.
      * @param sql - The base SQL query to transform
@@ -58,6 +69,28 @@ export class PivotQueryBuilder {
         this.limit = limit;
         this.warehouseSqlBuilder = warehouseSqlBuilder;
         this.itemsMap = itemsMap ?? {};
+        this.pivotTableCalculations = this.identifyPivotTableCalculations();
+    }
+
+    /**
+     * Identifies table calculations that contain pivot functions.
+     * @returns Record of table calculations keyed by their ID that use pivot functions
+     */
+    private identifyPivotTableCalculations(): Record<string, TableCalculation> {
+        return Object.values(this.itemsMap).reduce<
+            Record<string, TableCalculation>
+        >((acc, item) => {
+            // Only include if there are pivot functions
+            if (
+                isTableCalculation(item) &&
+                isSqlTableCalculation(item) &&
+                hasPivotFunctions(parseTableCalculationFunctions(item.sql))
+            ) {
+                const tcId = getItemId(item);
+                acc[tcId] = item;
+            }
+            return acc;
+        }, {});
     }
 
     /**
@@ -853,6 +886,97 @@ export class PivotQueryBuilder {
     }
 
     /**
+     * Compiles pivot table calculations into SQL.
+     * @returns SQL for table calculations CTE or undefined if no pivot calculations
+     */
+    private getPivotTableCalculationsSQL(): string | undefined {
+        const pivotTableCalcs = Object.values(this.pivotTableCalculations);
+        if (pivotTableCalcs.length === 0) {
+            return undefined;
+        }
+
+        const q = this.warehouseSqlBuilder.getFieldQuoteChar();
+        const compiler = new TableCalculationFunctionCompiler(
+            this.warehouseSqlBuilder,
+        );
+
+        const pivotCalculations: string[] = [];
+
+        for (const tc of pivotTableCalcs) {
+            if (isSqlTableCalculation(tc)) {
+                // Parse functions from the table calculation SQL
+                const functions = parseTableCalculationFunctions(tc.sql);
+
+                // Use the compiler to replace all functions
+                let processedSql = compiler.compileFunctions(tc.sql, functions);
+
+                // Replace field references with their aliased names from pivot_query
+                processedSql =
+                    this.replaceFieldReferencesWithAliases(processedSql);
+
+                pivotCalculations.push(
+                    `${processedSql} AS ${q}${tc.name}_any${q}`, // todo: can we handle dynamic aggregation? hardcode prefix for now.
+                );
+            }
+        }
+
+        if (pivotCalculations.length === 0) {
+            return undefined;
+        }
+
+        // Select all columns from pivot_query and add the table calculations
+        return `SELECT *, ${pivotCalculations.join(', ')} FROM pivot_query`;
+    }
+
+    /**
+     * Replaces field references in table calculation SQL with their aliased names from pivot_query.
+     * For example, 'revenue' becomes 'revenue_sum' if the aggregation is SUM.
+     * @param sql - The table calculation SQL containing field references
+     * @returns SQL with field references replaced by their pivot_query aliases
+     */
+    private replaceFieldReferencesWithAliases(sql: string): string {
+        // Build a map of original field names to their aliased names
+        const fieldAliasMap: Record<string, string> = {};
+
+        // Add value columns with their aggregation suffix
+        if (this.pivotConfiguration.valuesColumns) {
+            for (const col of this.pivotConfiguration.valuesColumns) {
+                const aliasedName = PivotQueryBuilder.getValueColumnFieldName(
+                    col.reference,
+                    col.aggregation,
+                );
+                fieldAliasMap[col.reference] = aliasedName;
+            }
+        }
+
+        // Add index columns (they keep their original names)
+        if (this.pivotConfiguration.indexColumn) {
+            const indexColumns = normalizeIndexColumns(
+                this.pivotConfiguration.indexColumn,
+            );
+            for (const col of indexColumns) {
+                fieldAliasMap[col.reference] = col.reference;
+            }
+        }
+
+        // Add group by columns (they keep their original names)
+        if (this.pivotConfiguration.groupByColumns) {
+            for (const col of this.pivotConfiguration.groupByColumns) {
+                fieldAliasMap[col.reference] = col.reference;
+            }
+        }
+
+        return sql.replace(lightdashVariablePattern, (fullmatch, ref) => {
+            const { refTable, refName } = getParsedReference(
+                ref,
+                '', // todo: explore base table
+            );
+            const fieldId = getItemId({ table: refTable, name: refName });
+            return fieldAliasMap[fieldId] || fullmatch;
+        });
+    }
+
+    /**
      * Generates complete pivot SQL with all CTEs for grouped pivot.
      * @param userSql - Original user SQL query
      * @param groupByQuery - GROUP BY query SQL
@@ -860,6 +984,7 @@ export class PivotQueryBuilder {
      * @param valuesColumns - Value columns to aggregate
      * @param groupByColumns - Columns to pivot across
      * @param sortBy - Sort configuration
+     * @param columnLimit - Maximum number of columns to return
      * @returns Complete SQL with CTEs for pivoting with grouping
      */
     private getFullPivotSQL(
@@ -874,6 +999,11 @@ export class PivotQueryBuilder {
         const q = this.warehouseSqlBuilder.getFieldQuoteChar();
         const rowLimit = this.limit ?? DEFAULT_PIVOT_ROW_LIMIT;
 
+        // Exclude Pivot table calculations from valuesColumns - they are handled separately
+        const valuesColumnsWithoutPivotTableCalculations = valuesColumns.filter(
+            (col) => !this.pivotTableCalculations[col.reference],
+        );
+
         // Get all metric anchor CTEs in the correct order
         const {
             columnAnchorCTEs,
@@ -883,14 +1013,14 @@ export class PivotQueryBuilder {
             metricFirstValueQueries,
         } = this.getMetricAnchorCTEs(
             indexColumns,
-            valuesColumns,
+            valuesColumnsWithoutPivotTableCalculations,
             groupByColumns,
             sortBy,
         );
 
         const pivotQuery = this.getPivotQuerySQL(
             indexColumns,
-            valuesColumns,
+            valuesColumnsWithoutPivotTableCalculations,
             groupByColumns,
             sortBy,
             metricFirstValueQueries,
@@ -922,6 +1052,7 @@ export class PivotQueryBuilder {
         // 3. column_ranking, anchor_column (for metric-based row sorting - identifies first pivot column)
         // 4. row anchor CTEs (uses anchor_column to get metric value at first column only)
         // 5. pivot_query, filtered_rows, total_columns
+        // 6. pivot_table_calculations (if there are any pivot table calculations)
         const ctes = [
             `original_query AS (${userSql})`,
             `group_by_query AS (${groupByQuery})`,
@@ -930,11 +1061,24 @@ export class PivotQueryBuilder {
             ...(anchorColumnCTE ? [anchorColumnCTE] : []),
             ...rowAnchorCTEs,
             `pivot_query AS (${pivotQuery})`,
-            `filtered_rows AS (SELECT * FROM pivot_query WHERE ${q}row_index${q} <= ${rowLimit})`,
-            `total_columns AS (${totalColumnsQuery})`,
         ];
 
-        const finalSelect = `SELECT p.*, t.total_columns FROM pivot_query p CROSS JOIN total_columns t WHERE p.${q}row_index${q} <= ${rowLimit}${maxColumnsPerValueColumnSql} order by p.${q}row_index${q}, p.${q}column_index${q}`;
+        // Reference the appropriate table for filtered_rows and final select
+        let pivotTableRef = 'pivot_query';
+
+        // Add pivot table calculations CTE if there are any
+        const pivotTableCalcsSql = this.getPivotTableCalculationsSQL();
+        if (pivotTableCalcsSql) {
+            ctes.push(`pivot_table_calculations AS (${pivotTableCalcsSql})`);
+            pivotTableRef = 'pivot_table_calculations';
+        }
+
+        ctes.push(
+            `filtered_rows AS (SELECT * FROM ${pivotTableRef} WHERE ${q}row_index${q} <= ${rowLimit})`,
+            `total_columns AS (${totalColumnsQuery})`,
+        );
+
+        const finalSelect = `SELECT p.*, t.total_columns FROM ${pivotTableRef} p CROSS JOIN total_columns t WHERE p.${q}row_index${q} <= ${rowLimit}${maxColumnsPerValueColumnSql} order by p.${q}row_index${q}, p.${q}column_index${q}`;
 
         return PivotQueryBuilder.assembleSqlParts([
             PivotQueryBuilder.buildCtesSQL(ctes),
@@ -978,7 +1122,8 @@ export class PivotQueryBuilder {
 
     /**
      * Generates the final pivot SQL query.
-     * @param columnLimit - Maximum number of columns to generate for the pivot query
+     * @param opts - Optional configuration object
+     * @param opts.columnLimit - Maximum number of columns to generate for the pivot query
      * @returns Complete SQL query with CTEs for pivoting the data
      * @throws {ParameterError} If no index columns are provided
      */

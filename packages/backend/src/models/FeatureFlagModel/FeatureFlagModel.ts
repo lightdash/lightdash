@@ -39,13 +39,15 @@ export class FeatureFlagModel {
             [FeatureFlags.DashboardComments]:
                 this.getDashboardComments.bind(this),
             [FeatureFlags.EditYamlInUi]: this.getEditYamlInUiEnabled.bind(this),
-            [FeatureFlags.MetricsCatalogEchartsVisualization]:
-                this.getMetricsCatalogEchartsVisualizationEnabled.bind(this),
             [FeatureFlags.Maps]: this.getMapsEnabled.bind(this),
             [FeatureFlags.ShowExecutionTime]:
                 this.getShowExecutionTimeEnabled.bind(this),
             [FeatureFlags.NestedSpacesPermissions]:
                 this.getNestedSpacesPermissionsEnabled.bind(this),
+            [FeatureFlags.AdminChangeNotifications]:
+                this.getAdminChangeNotifications.bind(this),
+            [FeatureFlags.SavedMetricsTree]:
+                this.getSavedMetricsTreeEnabled.bind(this),
         };
     }
 
@@ -125,8 +127,9 @@ export class FeatureFlagModel {
                           throwOnTimeout: false,
                           timeoutMilliseconds: 500,
                       },
+                      true,
                   )
-                : false);
+                : true);
         return {
             id: featureFlagId,
             enabled,
@@ -192,32 +195,6 @@ export class FeatureFlagModel {
         };
     }
 
-    private async getMetricsCatalogEchartsVisualizationEnabled({
-        user,
-        featureFlagId,
-    }: FeatureFlagLogicArgs) {
-        const enabled =
-            this.lightdashConfig.metricsCatalog.echartsVisualizationEnabled ??
-            (user
-                ? await isFeatureFlagEnabled(
-                      FeatureFlags.MetricsCatalogEchartsVisualization,
-                      {
-                          userUuid: user.userUuid,
-                          organizationUuid: user.organizationUuid,
-                      },
-                      {
-                          throwOnTimeout: false,
-                          timeoutMilliseconds: 500,
-                      },
-                  )
-                : false);
-
-        return {
-            id: featureFlagId,
-            enabled,
-        };
-    }
-
     private async getShowExecutionTimeEnabled({
         user,
         featureFlagId,
@@ -250,6 +227,49 @@ export class FeatureFlagModel {
         return {
             id: featureFlagId,
             enabled: this.lightdashConfig.nestedSpacesPermissions.enabled,
+        };
+    }
+
+    private async getAdminChangeNotifications({
+        user,
+        featureFlagId,
+    }: FeatureFlagLogicArgs) {
+        const enabled =
+            this.lightdashConfig.adminChangeNotifications.enabled ||
+            (user
+                ? await isFeatureFlagEnabled(
+                      FeatureFlags.AdminChangeNotifications,
+                      {
+                          userUuid: user.userUuid,
+                          organizationUuid: user.organizationUuid,
+                      },
+                      {
+                          throwOnTimeout: false,
+                          timeoutMilliseconds: 500,
+                      },
+                  )
+                : false);
+        return {
+            id: featureFlagId,
+            enabled,
+        };
+    }
+
+    private async getSavedMetricsTreeEnabled({
+        user,
+        featureFlagId,
+    }: FeatureFlagLogicArgs) {
+        const enabled =
+            this.lightdashConfig.savedMetricsTree.enabled ??
+            (user
+                ? await isFeatureFlagEnabled(FeatureFlags.SavedMetricsTree, {
+                      userUuid: user.userUuid,
+                      organizationUuid: user.organizationUuid,
+                  })
+                : false);
+        return {
+            id: featureFlagId,
+            enabled,
         };
     }
 }

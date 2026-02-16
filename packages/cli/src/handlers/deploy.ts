@@ -29,6 +29,8 @@ import {
 import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
 import { DbtCompileOptions } from './dbt/compile';
 import { tryGetDbtVersion } from './dbt/getDbtVersion';
+import { CliProjectType, detectProjectType } from '../lightdash/projectType';
+import { logSelectedProject, selectProject } from './selectProject';
 
 type DeployHandlerOptions = DbtCompileOptions & {
     projectDir: string;
@@ -41,6 +43,7 @@ type DeployHandlerOptions = DbtCompileOptions & {
     startOfWeek?: number;
     warehouseCredentials?: boolean;
     organizationCredentials?: string;
+    assumeYes?: boolean;
 };
 
 type DeployArgs = DeployHandlerOptions & {
@@ -173,7 +176,7 @@ const createNewProject = async (
 
     // If interactive and no name provided, prompt for project name
     let projectName = defaultProjectName;
-    if (options.create === true && process.env.CI !== 'true') {
+    if (options.create === true && !GlobalState.isNonInteractive()) {
         const answers = await inquirer.prompt([
             {
                 type: 'input',
@@ -209,6 +212,7 @@ const createNewProject = async (
             name: projectName,
             type: ProjectType.DEFAULT,
             warehouseCredentials: options.warehouseCredentials,
+            assumeYes: options.assumeYes,
         });
 
         const project = results?.project;
@@ -249,11 +253,20 @@ export const deployHandler = async (originalOptions: DeployHandlerOptions) => {
     };
     GlobalState.setVerbose(options.verbose);
 
-    // No warehouse credentials assumes we skip dbt compile and warehouse catalog
-    if (options.warehouseCredentials === false) {
-        options.skipDbtCompile = true;
-        options.skipWarehouseCatalog = true;
-    }
+    // Detect project type and configure options accordingly
+    const projectTypeConfig = await detectProjectType({
+        projectDir: options.projectDir,
+        userOptions: {
+            warehouseCredentials: options.warehouseCredentials,
+            skipDbtCompile: options.skipDbtCompile,
+            skipWarehouseCatalog: options.skipWarehouseCatalog,
+        },
+    });
+
+    // Apply project type configuration to options
+    options.warehouseCredentials = projectTypeConfig.warehouseCredentials;
+    options.skipDbtCompile = projectTypeConfig.skipDbtCompile;
+    options.skipWarehouseCatalog = projectTypeConfig.skipWarehouseCatalog;
 
     // Resolve organization credentials early before doing any heavy work
     if (options.organizationCredentials) {
@@ -271,18 +284,20 @@ export const deployHandler = async (originalOptions: DeployHandlerOptions) => {
         }
     }
 
-    const dbtVersionResult = await tryGetDbtVersion();
+    // Only check dbt version for dbt projects (YAML-only projects don't need dbt)
+    // For YAML-only projects, we return success: false to indicate dbt wasn't checked,
+    // with null error since this is expected behavior, not an error condition.
+    // This allows downstream code to distinguish "dbt check skipped" from "dbt check failed".
+    const dbtVersionResult =
+        projectTypeConfig.type === CliProjectType.Dbt
+            ? await tryGetDbtVersion()
+            : { success: false as const, error: null };
     await checkLightdashVersion();
     const executionId = uuidv4();
     const explores = await compile(options);
 
     const config = await getConfig();
     let projectUuid: string;
-
-    // Log current project info if not creating a new one
-    if (options.create === undefined) {
-        GlobalState.logProjectInfo(config);
-    }
 
     if (options.create !== undefined) {
         const project = await createNewProject(executionId, options);
@@ -303,12 +318,21 @@ export const deployHandler = async (originalOptions: DeployHandlerOptions) => {
         projectUuid = project.projectUuid;
         await setProject(projectUuid, project.name);
     } else {
-        if (!(config.context?.project && config.context.serverUrl)) {
+        if (!config.context?.serverUrl) {
             throw new AuthorizationError(
                 `No active Lightdash project. Run 'lightdash login --help'`,
             );
         }
-        projectUuid = config.context.project;
+        const projectSelection = await selectProject(config);
+        if (!projectSelection) {
+            throw new AuthorizationError(
+                `No active Lightdash project. Run 'lightdash login --help'`,
+            );
+        }
+        projectUuid = projectSelection.projectUuid;
+
+        // Log current project info
+        logSelectedProject(projectSelection, config, 'Deploying to');
     }
 
     await deploy(explores, { ...options, projectUuid });

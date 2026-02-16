@@ -1,0 +1,14 @@
+.userRow {
+    border-radius: var(--mantine-radius-sm);
+    padding: 4px 8px;
+    margin: 0 -8px;
+    transition: background-color 150ms ease;
+}
+
+[data-mantine-color-scheme='light'] .userRow:hover {
+    background-color: var(--mantine-color-gray-0);
+}
+
+[data-mantine-color-scheme='dark'] .userRow:hover {
+    background-color: var(--mantine-color-dark-5);
+}

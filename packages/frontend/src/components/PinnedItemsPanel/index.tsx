@@ -1,5 +1,5 @@
 import { ResourceViewItemType, type PinnedItems } from '@lightdash/common';
-import { Card, Group, Text } from '@mantine/core';
+import { Card, Group, Text } from '@mantine-8/core';
 import { IconPin } from '@tabler/icons-react';
 import { type FC } from 'react';
 import usePinnedItemsContext from '../../providers/PinnedItems/usePinnedItemsContext';
@@ -39,34 +39,28 @@ const PinnedItemsPanel: FC<Props> = ({ pinnedItems, isEnabled }) => {
         />
     ) : ((userCanManage && pinnedItems.length <= 0) || !pinnedItems) &&
       isEnabled ? (
-        // FIXME: update width with Mantine widths
-        <Card
-            withBorder
-            sx={(theme) => ({
-                backgroundColor: theme.colors.ldGray[1],
-            })}
-        >
-            <Group position="apart">
-                <Group position="center" spacing="xxs" my="xs" ml="xs">
+        <Card withBorder variant="dotted">
+            <Group justify="space-between">
+                <Group justify="center" gap="xxs" my="xs" ml="xs">
                     <MantineIcon
                         icon={IconPin}
-                        size="lg"
+                        size={20}
                         color="ldGray.7"
                         fill="ldGray.1"
                     />
-                    <Text fw={600} color="ldGray.7">
-                        No Pinned items.
+                    <Text fw={600} c="ldGray.8" fz="sm">
+                        No pinned items.
                     </Text>
-                    <Text color="ldGray.7">
+                    <Text c="dimmed" fz="sm">
                         Pin items to the top of the homepage to guide users to
-                        relevant content!
+                        relevant content.
                     </Text>
                 </Group>
                 <MantineLinkButton
                     href="https://docs.lightdash.com/guides/pinning/"
                     target="_blank"
                     variant="subtle"
-                    compact
+                    size="compact-sm"
                     color="ldGray.6"
                 >
                     View docs

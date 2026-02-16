@@ -22,6 +22,15 @@ When creating/updating components:
 - [ ] Use inline-style component props for styling when available (and follow <=3 props rule)
 - [ ] Use CSS modules when component props aren't available or when more than 3 inline-style props are needed
 - [ ] Theme values ('md', 'lg', 'xl', or 'ldGray.1', 'ldGray.2', 'ldDark.1', 'ldDark.2', etc) instead of magic numbers
+- [ ] When using mantine colors in css modules, always use the theme awared variables: 
+  - `--mantine-color-${color}-text`: for text on filled background
+  - `--mantine-color-${color}-filled`: for filled background (strong color)
+  - `--mantine-color-${color}-filled-hover`: for filled background on hover
+  - `--mantine-color-${color}-light`: for light background 
+  - `--mantine-color-${color}-light-hover`: for light background on hover (light color)
+  - `--mantine-color-${color}-light-color`: for text on light background
+  - `--mantine-color-${color}-outline`: for outlines
+  - `--mantine-color-${color}-outline-hover`: for outlines on hover
 
 ## Quick Migration Guide
 
@@ -99,6 +108,7 @@ components: {
 ```
 
 Common inline-style props:
+
 - Layout: `mt`, `mb`, `ml`, `mr`, `m`, `p`, `pt`, `pb`, `pl`, `pr`
 - Sizing: `w`, `h`, `maw`, `mah`, `miw`, `mih`
 - Colors: `c` (color), `bg` (background)
@@ -153,12 +163,12 @@ When you need custom colors, use our custom scales for dark mode compatibility:
 
 ### Custom Color Scales
 
-| Token | Purpose |
-|-------|---------|
-| `ldGray.0-9` | Borders, subtle text, neutral UI elements |
+| Token        | Purpose                                            |
+| ------------ | -------------------------------------------------- |
+| `ldGray.0-9` | Borders, subtle text, neutral UI elements          |
 | `ldDark.0-9` | Buttons/badges with dark backgrounds in light mode |
-| `background` | Page/card backgrounds |
-| `foreground` | Primary text color |
+| `background` | Page/card backgrounds                              |
+| `foreground` | Primary text color                                 |
 
 ### Dark Mode in CSS Modules
 
@@ -180,7 +190,10 @@ Alternative: use CSS `light-dark()` function for single-line theme switching:
 
 ```css
 .clickableRow:hover {
-    background-color: light-dark(var(--mantine-color-ldGray-0), var(--mantine-color-ldDark-5));
+    background-color: light-dark(
+        var(--mantine-color-ldGray-0),
+        var(--mantine-color-ldDark-5)
+    );
 }
 ```
 
@@ -193,6 +206,10 @@ Alternative: use CSS `light-dark()` function for single-line theme switching:
 // ✅ Good - Theme tokens
 <Box p="md" mt="lg">
 ```
+
+## Beware of dependencies
+
+If a component is migrated to use Mantine 8 Menu.Item, ensure its parent also uses Mantine 8 Menu
 
 ## Remove Dead Styles
 

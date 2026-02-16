@@ -1,0 +1,80 @@
+.errorsTitle {
+    color: var(--mantine-color-red-9);
+
+    @mixin dark {
+        color: var(--mantine-color-red-4);
+    }
+}
+
+.toggleButton {
+    background-color: var(--mantine-color-red-1);
+    border: 1px solid var(--mantine-color-red-2);
+
+    @mixin dark {
+        background-color: color-mix(
+            in srgb,
+            var(--mantine-color-red-9) 40%,
+            black
+        );
+        border-color: var(--mantine-color-red-9);
+    }
+}
+
+.toggleButtonText {
+    font-size: var(--mantine-font-size-xs);
+    color: var(--mantine-color-red-9);
+
+    @mixin dark {
+        color: var(--mantine-color-red-1);
+    }
+}
+
+.collapseContainer {
+    max-height: 155px;
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.errorItem {
+    width: 100%;
+    border: 1px solid var(--mantine-color-red-2);
+    border-radius: var(--mantine-radius-md);
+    padding: var(--mantine-spacing-xs);
+    background-color: var(--mantine-color-red-0);
+
+    @mixin dark {
+        border-color: var(--mantine-color-red-9);
+        background-color: color-mix(
+            in srgb,
+            var(--mantine-color-red-9) 30%,
+            black
+        );
+    }
+}
+
+.errorItemTitle {
+    color: var(--mantine-color-red-9);
+
+    @mixin dark {
+        color: var(--mantine-color-red-2);
+    }
+}
+
+.markdownPreview {
+    background-color: transparent;
+    color: var(--mantine-color-red-9);
+    font-size: 12px;
+
+    @mixin dark {
+        color: var(--mantine-color-red-2);
+    }
+}
+
+.closeButton {
+    color: var(--mantine-color-red-9);
+
+    @mixin dark {
+        color: var(--mantine-color-red-4);
+    }
+}

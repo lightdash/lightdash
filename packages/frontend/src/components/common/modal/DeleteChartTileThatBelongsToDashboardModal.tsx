@@ -15,22 +15,25 @@ const DeleteChartTileThatBelongsToDashboardModal: FC<Props> = ({
     name,
     onConfirm,
     className,
-}) => (
-    <MantineModal
-        opened={opened}
-        onClose={onClose}
-        title="Delete chart"
-        variant="delete"
-        resourceType="chart"
-        resourceLabel={name}
-        modalRootProps={{ className }}
-        onConfirm={onConfirm}
-    >
-        <Callout variant="warning" title="This change cannot be undone.">
-            This chart was created from within the dashboard, so removing the
-            tile will also result in the permanent deletion of the chart.
-        </Callout>
-    </MantineModal>
-);
+}) => {
+    return (
+        <MantineModal
+            opened={opened}
+            onClose={onClose}
+            title="Delete chart"
+            variant="delete"
+            resourceType="chart"
+            resourceLabel={name}
+            modalRootProps={{ className }}
+            onConfirm={onConfirm}
+        >
+            <Callout variant="warning" title="This change cannot be undone.">
+                This chart was created from within the dashboard, so removing
+                the tile will also result in the permanent deletion of the
+                chart.
+            </Callout>
+        </MantineModal>
+    );
+};
 
 export default DeleteChartTileThatBelongsToDashboardModal;

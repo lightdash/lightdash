@@ -1,0 +1,25 @@
+.leftGroup {
+    flex-shrink: 0;
+}
+
+.rightGroup {
+    flex-shrink: 0;
+}
+
+.logoButton {
+    width: auto;
+    height: 34px;
+    background-color: transparent;
+
+    & svg {
+        height: 32px;
+        width: auto;
+    }
+    &:hover {
+        background-color: transparent;
+    }
+}
+
+.spacer {
+    flex-grow: 1;
+}

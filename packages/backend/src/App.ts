@@ -27,6 +27,7 @@ import knex, { Knex } from 'knex';
 import passport from 'passport';
 import refresh from 'passport-oauth2-refresh';
 import path from 'path';
+import qs from 'qs';
 import reDoc from 'redoc-express';
 import { URL } from 'url';
 import cors from 'cors';
@@ -128,7 +129,7 @@ const schedulerWorkerFactory = (context: {
         userService: context.serviceRepository.getUserService(),
         emailClient: context.clients.getEmailClient(),
         googleDriveClient: context.clients.getGoogleDriveClient(),
-        s3Client: context.clients.getS3Client(),
+        fileStorageClient: context.clients.getFileStorageClient(),
         schedulerClient: context.clients.getSchedulerClient(),
         msTeamsClient: context.clients.getMsTeamsClient(),
         catalogService: context.serviceRepository.getCatalogService(),
@@ -251,6 +252,12 @@ export default class App {
         };
 
         const expressApp = express();
+
+        // Increase query string array limit from default (20) to 100
+        // to support endpoints that accept large arrays (e.g. chart IDs)
+        expressApp.set('query parser', (str: string) =>
+            qs.parse(str, { arrayLimit: 100 }),
+        );
 
         // Slack must be initialized before our own middleware / routes, which cause the slack app to fail
         this.initSlack(expressApp).catch((e) => {

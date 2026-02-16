@@ -6,6 +6,9 @@ import {
     ChartSourceType,
     ContentActionMove,
     ContentType,
+    DeletedContentFilters,
+    DeletedContentItem,
+    DeletedContentWithDescendants,
     ForbiddenError,
     KnexPaginateArgs,
     KnexPaginatedData,
@@ -27,10 +30,8 @@ import { BaseService } from '../BaseService';
 import { DashboardService } from '../DashboardService/DashboardService';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
 import { SavedSqlService } from '../SavedSqlService/SavedSqlService';
-import {
-    hasViewAccessToSpace,
-    SpaceService,
-} from '../SpaceService/SpaceService';
+import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
+import { SpaceService } from '../SpaceService/SpaceService';
 
 type ContentServiceArguments = {
     analytics: LightdashAnalytics;
@@ -41,6 +42,7 @@ type ContentServiceArguments = {
     dashboardService: DashboardService;
     savedChartService: SavedChartService;
     savedSqlService: SavedSqlService;
+    spacePermissionService: SpacePermissionService;
 };
 
 export class ContentService extends BaseService {
@@ -60,6 +62,8 @@ export class ContentService extends BaseService {
 
     savedSqlService: SavedSqlService;
 
+    spacePermissionService: SpacePermissionService;
+
     constructor(args: ContentServiceArguments) {
         super();
         this.analytics = args.analytics;
@@ -72,6 +76,7 @@ export class ContentService extends BaseService {
         this.dashboardService = args.dashboardService;
         this.savedChartService = args.savedChartService;
         this.savedSqlService = args.savedSqlService;
+        this.spacePermissionService = args.spacePermissionService;
     }
 
     async find(
@@ -112,19 +117,14 @@ export class ContentService extends BaseService {
             projectUuids: allowedProjectUuids,
             spaceUuids: filters.spaceUuids,
         });
-        const spacesAccess = await this.spaceModel.getUserSpacesAccess(
-            user.userUuid,
-            spaces.map((p) => p.uuid),
-        );
-        const allowedSpaceUuids = spaces
-            .filter((space) =>
-                hasViewAccessToSpace(
-                    user,
-                    space,
-                    spacesAccess[space.uuid] ?? [],
-                ),
-            )
-            .map((space) => space.uuid);
+        const spaceUuids = spaces.map((p) => p.uuid);
+
+        const allowedSpaceUuids =
+            await this.spacePermissionService.getAccessibleSpaceUuids(
+                'view',
+                user,
+                spaceUuids,
+            );
 
         return this.contentModel.findSummaryContents(
             {
@@ -296,6 +296,168 @@ export class ContentService extends BaseService {
                     user,
                     moveToSpaceArgs,
                     moveToSpaceOptions,
+                );
+            default:
+                return assertUnreachable(item, 'Unknown content type');
+        }
+    }
+
+    /**
+     * Find deleted content in a project using the ContentModel UNION approach.
+     */
+    async findDeleted(
+        user: SessionUser,
+        filters: DeletedContentFilters,
+        paginateArgs?: KnexPaginateArgs,
+    ): Promise<KnexPaginatedData<DeletedContentWithDescendants[]>> {
+        const { organizationUuid } = user;
+        if (organizationUuid === undefined) {
+            throw new NotFoundError('Organization not found');
+        }
+
+        const [projectUuid] = filters.projectUuids;
+        if (!projectUuid) {
+            throw new NotFoundError('Project UUID is required');
+        }
+
+        // Check project access
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        // Non-admins can only see their own deleted content
+        const isAdmin = user.ability.can(
+            'manage',
+            subject('DeletedContent', { organizationUuid, projectUuid }),
+        );
+        const deletedByUserUuids = isAdmin
+            ? filters.deletedByUserUuids
+            : [user.userUuid];
+
+        const contentTypes = filters.contentTypes ?? [
+            ContentType.CHART,
+            ContentType.DASHBOARD,
+            ContentType.SPACE,
+        ];
+
+        return this.contentModel.findDeletedContents(
+            {
+                projectUuids: [projectUuid],
+                contentTypes,
+                search: filters.search,
+                deletedByUserUuids,
+            },
+            paginateArgs,
+        );
+    }
+
+    /**
+     * Restore deleted content
+     */
+    async restoreContent(
+        user: SessionUser,
+        projectUuid: string,
+        item: DeletedContentItem,
+    ): Promise<void> {
+        if (user.organizationUuid === undefined) {
+            throw new NotFoundError('Organization not found');
+        }
+
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        switch (item.contentType) {
+            case ContentType.CHART:
+                switch (item.source) {
+                    case ChartSourceType.DBT_EXPLORE:
+                        return this.savedChartService.restoreChart(
+                            user,
+                            item.uuid,
+                        );
+                    case ChartSourceType.SQL:
+                        return this.savedSqlService.restoreSqlChart(
+                            user,
+                            item.uuid,
+                        );
+                    default:
+                        return assertUnreachable(
+                            item.source,
+                            `Unknown chart source: ${item.source}`,
+                        );
+                }
+            case ContentType.DASHBOARD:
+                return this.dashboardService.restoreDashboard(user, item.uuid);
+            case ContentType.SPACE:
+                return this.spaceService.restoreSpace(user, item.uuid);
+            default:
+                return assertUnreachable(item, 'Unknown content type');
+        }
+    }
+
+    /**
+     * Permanently delete content
+     */
+    async permanentlyDeleteContent(
+        user: SessionUser,
+        projectUuid: string,
+        item: DeletedContentItem,
+    ): Promise<void> {
+        if (user.organizationUuid === undefined) {
+            throw new NotFoundError('Organization not found');
+        }
+
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        switch (item.contentType) {
+            case ContentType.CHART:
+                switch (item.source) {
+                    case ChartSourceType.DBT_EXPLORE:
+                        return this.savedChartService.permanentlyDeleteChart(
+                            user,
+                            item.uuid,
+                        );
+                    case ChartSourceType.SQL:
+                        return this.savedSqlService.permanentlyDeleteSqlChart(
+                            user,
+                            item.uuid,
+                        );
+                    default:
+                        return assertUnreachable(
+                            item.source,
+                            `Unknown chart source: ${item.source}`,
+                        );
+                }
+            case ContentType.DASHBOARD:
+                return this.dashboardService.permanentlyDeleteDashboard(
+                    user,
+                    item.uuid,
+                );
+            case ContentType.SPACE:
+                return this.spaceService.permanentlyDeleteSpace(
+                    user,
+                    item.uuid,
                 );
             default:
                 return assertUnreachable(item, 'Unknown content type');

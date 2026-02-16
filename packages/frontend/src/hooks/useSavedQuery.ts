@@ -17,8 +17,10 @@ import {
 } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router';
 import { lightdashApi } from '../api';
+import useApp from '../providers/App/useApp';
 import { convertDateFilters } from '../utils/dateFilter';
 import useToaster from './toaster/useToaster';
+import { invalidateContent } from './useContent';
 import useSearchParams from './useSearchParams';
 
 const createSavedQuery = async (
@@ -194,6 +196,10 @@ export const useChartVersionRollbackMutation = (
 
 export const useSavedQueryDeleteMutation = () => {
     const queryClient = useQueryClient();
+    const navigate = useNavigate();
+    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const { health } = useApp();
+    const isSoftDeleteEnabled = health.data?.softDelete.enabled ?? false;
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<null, ApiError, string>(
         async (data) => {
@@ -203,16 +209,22 @@ export const useSavedQueryDeleteMutation = () => {
         {
             mutationKey: ['saved_query_create'],
             onSuccess: async () => {
-                await queryClient.invalidateQueries(['spaces']);
-                await queryClient.invalidateQueries(['space']);
-                await queryClient.invalidateQueries(['pinned_items']);
-                await queryClient.invalidateQueries([
-                    'most-popular-and-recently-updated',
-                ]);
-                await queryClient.invalidateQueries(['content']);
+                await invalidateContent(queryClient, projectUuid!);
+                await queryClient.invalidateQueries(['deletedContent']);
 
                 showToastSuccess({
                     title: `Success! Chart was deleted.`,
+                    action:
+                        isSoftDeleteEnabled && projectUuid
+                            ? {
+                                  children: 'Go to recently deleted',
+                                  icon: IconArrowRight,
+                                  onClick: () =>
+                                      navigate(
+                                          `/generalSettings/projectManagement/${projectUuid}/recentlyDeleted`,
+                                      ),
+                              }
+                            : undefined,
                 });
             },
             onError: ({ error }) => {

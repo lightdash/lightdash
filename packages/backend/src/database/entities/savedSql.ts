@@ -21,6 +21,8 @@ export type DbSavedSql = {
     views_count: number;
     first_viewed_at: Date | null;
     last_viewed_at: Date | null;
+    deleted_at: Date | null;
+    deleted_by_user_uuid: string | null;
 };
 
 type InsertSqlBase = Pick<
@@ -54,6 +56,8 @@ type UpdateSql = Partial<
         | 'views_count'
         | 'first_viewed_at'
         | 'last_viewed_at'
+        | 'deleted_at'
+        | 'deleted_by_user_uuid'
     >
 >;
 

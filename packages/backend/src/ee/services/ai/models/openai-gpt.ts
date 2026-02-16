@@ -34,7 +34,6 @@ export const getOpenaiGptmodel = (
         },
         providerOptions: {
             [PROVIDER]: {
-                ...(preset.providerOptions || {}),
                 // Defaulting to Low as GPT-5 models without reasoning are not better than GPT-4.1
                 ...(reasoningEnabled && {
                     reasoningSummary: 'auto',
@@ -46,6 +45,7 @@ export const getOpenaiGptmodel = (
                         store: false,
                         include: ['reasoning.encrypted_content'],
                     }),
+                ...(preset.providerOptions || {}),
             },
         },
     };

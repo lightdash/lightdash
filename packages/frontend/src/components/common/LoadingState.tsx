@@ -1,4 +1,4 @@
-import { Loader, Stack, Title, type LoaderProps } from '@mantine/core';
+import { Loader, Stack, Title, type LoaderProps } from '@mantine-8/core';
 import React, { type FC } from 'react';
 
 export interface LoadingStateProps extends LoaderProps {
@@ -9,7 +9,7 @@ const LoadingState: FC<LoadingStateProps> = ({ title, ...rest }) => {
     return (
         <Stack my="xl" align="center">
             <Loader size="xl" color="gray" mt="xl" {...rest} />
-            <Title order={3} fw={500} color="ldGray.7">
+            <Title order={3} fw={500} c="ldGray.7">
                 {title}
             </Title>
         </Stack>

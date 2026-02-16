@@ -21,12 +21,38 @@ import {
     type DateFilterRule,
     type FilterRule,
 } from '../types/filter';
+import { type WarehouseTypes } from '../types/projects';
 import assertUnreachable from '../utils/assertUnreachable';
 import { convertToBooleanValue } from '../utils/booleanConverter';
 import { formatDate } from '../utils/formatting';
 import { getItemId } from '../utils/item';
 import { getMomentDateWithCustomStartOfWeek } from '../utils/time';
-import { type WeekDay } from '../utils/timeFrames';
+import { WeekDay } from '../utils/timeFrames';
+
+/**
+ * Returns the default week start day for a given warehouse adapter.
+ * This ensures JavaScript-side week boundary calculations match the warehouse.
+ *
+ * References:
+ * - PostgreSQL: https://www.postgresql.org/docs/current/functions-datetime.html (ISO 8601 weeks start on Monday)
+ * - Snowflake: https://docs.snowflake.com/en/sql-reference/functions-date-time (WEEK_START=0 defaults to Monday)
+ * - Redshift: https://docs.aws.amazon.com/redshift/latest/dg/r_DATE_TRUNC.html (truncates week to Monday)
+ * - Databricks: https://docs.databricks.com/aws/en/sql/language-manual/functions/date_trunc (WEEK truncates to Monday)
+ * - Trino: https://trino.io/docs/current/functions/datetime.html (ISO 8601 weeks start on Monday)
+ * - BigQuery: https://docs.cloud.google.com/bigquery/docs/reference/standard-sql/date_functions (WEEK is equivalent to WEEK(SUNDAY))
+ * - ClickHouse: https://clickhouse.com/docs/sql-reference/functions/date-time-functions (toStartOfWeek default mode=0 is Sunday)
+ */
+const getDefaultStartOfWeek = (
+    adapterType: SupportedDbtAdapter | WarehouseTypes,
+): WeekDay => {
+    switch (adapterType) {
+        case SupportedDbtAdapter.BIGQUERY:
+        case SupportedDbtAdapter.CLICKHOUSE:
+            return WeekDay.SUNDAY;
+        default:
+            return WeekDay.MONDAY;
+    }
+};
 
 // NOTE: This function requires a complete date as input.
 // It produces a timezoneless string which is implied to be in UTC.
@@ -34,6 +60,23 @@ import { type WeekDay } from '../utils/timeFrames';
 // Calling .utc() here makes it safe to drop the tz.
 const formatTimestampAsUTCWithNoTimezone = (date: Date): string =>
     moment(date).utc().format('YYYY-MM-DD HH:mm:ss');
+
+/**
+ * Cast a date/timestamp string to warehouse-specific SQL literal.
+ * Trino/Athena require explicit timestamp casting; others work with bare strings.
+ */
+export const castDateLiteral = (
+    dateString: string,
+    adapterType: SupportedDbtAdapter | WarehouseTypes,
+): string => {
+    switch (adapterType) {
+        case SupportedDbtAdapter.TRINO:
+        case SupportedDbtAdapter.ATHENA:
+            return `CAST('${dateString}' AS timestamp)`;
+        default:
+            return `'${dateString}'`;
+    }
+};
 
 const raiseInvalidFilterError = (
     type: string,
@@ -202,6 +245,11 @@ export const renderDateFilterSql = (
     dateFormatter: (date: Date) => string = formatDate,
     startOfWeek: WeekDay | null | undefined = undefined,
 ): string => {
+    // When startOfWeek is not explicitly configured, use the warehouse's default
+    // to ensure JS-side week boundaries match the warehouse's DATE_TRUNC behavior.
+    const effectiveStartOfWeek =
+        startOfWeek ?? getDefaultStartOfWeek(adapterType);
+
     const castValue = (value: string): string => {
         switch (adapterType) {
             case SupportedDbtAdapter.TRINO:
@@ -254,19 +302,19 @@ export const renderDateFilterSql = (
 
             if (completed) {
                 const completedDate = moment(
-                    getMomentDateWithCustomStartOfWeek(startOfWeek)
+                    getMomentDateWithCustomStartOfWeek(effectiveStartOfWeek)
                         .startOf(unitOfTime)
                         .format(unitOfTimeFormat[unitOfTime]),
                 ).toDate();
                 const untilDate = dateFormatter(
-                    getMomentDateWithCustomStartOfWeek(startOfWeek)
+                    getMomentDateWithCustomStartOfWeek(effectiveStartOfWeek)
                         .startOf(unitOfTime)
                         .toDate(),
                 );
                 return `${not}((${dimensionSql}) >= ${castValue(
                     dateFormatter(
                         getMomentDateWithCustomStartOfWeek(
-                            startOfWeek,
+                            effectiveStartOfWeek,
                             completedDate,
                         )
                             .subtract(filter.values?.[0], unitOfTime)
@@ -275,11 +323,13 @@ export const renderDateFilterSql = (
                 )} AND (${dimensionSql}) < ${castValue(untilDate)})`;
             }
             const untilDate = dateFormatter(
-                getMomentDateWithCustomStartOfWeek(startOfWeek).toDate(),
+                getMomentDateWithCustomStartOfWeek(
+                    effectiveStartOfWeek,
+                ).toDate(),
             );
             return `${not}((${dimensionSql}) >= ${castValue(
                 dateFormatter(
-                    getMomentDateWithCustomStartOfWeek(startOfWeek)
+                    getMomentDateWithCustomStartOfWeek(effectiveStartOfWeek)
                         .subtract(filter.values?.[0], unitOfTime)
                         .toDate(),
                 ),
@@ -292,12 +342,15 @@ export const renderDateFilterSql = (
 
             if (completed) {
                 const fromDate = moment(
-                    getMomentDateWithCustomStartOfWeek(startOfWeek)
+                    getMomentDateWithCustomStartOfWeek(effectiveStartOfWeek)
                         .add(1, unitOfTime)
                         .startOf(unitOfTime),
                 ).toDate();
                 const toDate = dateFormatter(
-                    getMomentDateWithCustomStartOfWeek(startOfWeek, fromDate)
+                    getMomentDateWithCustomStartOfWeek(
+                        effectiveStartOfWeek,
+                        fromDate,
+                    )
                         .add(filter.values?.[0], unitOfTime)
                         .toDate(),
                 );
@@ -306,10 +359,12 @@ export const renderDateFilterSql = (
                 )} AND (${dimensionSql}) < ${castValue(toDate)})`;
             }
             const fromDate = dateFormatter(
-                getMomentDateWithCustomStartOfWeek(startOfWeek).toDate(),
+                getMomentDateWithCustomStartOfWeek(
+                    effectiveStartOfWeek,
+                ).toDate(),
             );
             const toDate = dateFormatter(
-                getMomentDateWithCustomStartOfWeek(startOfWeek)
+                getMomentDateWithCustomStartOfWeek(effectiveStartOfWeek)
                     .add(filter.values?.[0], unitOfTime)
                     .toDate(),
             );
@@ -322,14 +377,14 @@ export const renderDateFilterSql = (
                 filter.settings?.unitOfTime || UnitOfTime.days;
 
             const fromDate = dateFormatter(
-                getMomentDateWithCustomStartOfWeek(startOfWeek)
+                getMomentDateWithCustomStartOfWeek(effectiveStartOfWeek)
                     .tz(timezone)
                     .startOf(unitOfTime)
                     .utc()
                     .toDate(),
             );
             const untilDate = dateFormatter(
-                getMomentDateWithCustomStartOfWeek(startOfWeek)
+                getMomentDateWithCustomStartOfWeek(effectiveStartOfWeek)
                     .tz(timezone)
                     .endOf(unitOfTime)
                     .utc()
@@ -346,14 +401,14 @@ export const renderDateFilterSql = (
                 filter.settings?.unitOfTime || UnitOfTime.days;
 
             const fromDate = dateFormatter(
-                getMomentDateWithCustomStartOfWeek(startOfWeek)
+                getMomentDateWithCustomStartOfWeek(effectiveStartOfWeek)
                     .tz(timezone)
                     .startOf(unitOfTime)
                     .utc()
                     .toDate(),
             );
             const untilDate = dateFormatter(
-                getMomentDateWithCustomStartOfWeek(startOfWeek)
+                getMomentDateWithCustomStartOfWeek(effectiveStartOfWeek)
                     .tz(timezone)
                     .endOf(unitOfTime)
                     .utc()

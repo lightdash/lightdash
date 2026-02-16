@@ -43,10 +43,11 @@ async function createPivotTableCharts(knex: Knex): Promise<ChartUuids> {
         database: knex,
     });
 
-    const { space_uuid: spaceUuid } = await spaceModel.getFirstAccessibleSpace(
+    const rootSpaces = await spaceModel.getRootSpaceUuidsForProject(
         SEED_PROJECT.project_uuid,
-        SEED_ORG_1_ADMIN.user_uuid,
     );
+    const spaceUuid = rootSpaces[0];
+    if (!spaceUuid) throw new Error('No space found for seeding');
 
     const updatedByUser = {
         userUuid: SEED_ORG_1_ADMIN.user_uuid,
@@ -729,10 +730,11 @@ async function createPivotTableDashboard(
         database: knex,
     });
 
-    const { space_uuid: spaceUuid } = await spaceModel.getFirstAccessibleSpace(
+    const rootSpaces = await spaceModel.getRootSpaceUuidsForProject(
         SEED_PROJECT.project_uuid,
-        SEED_ORG_1_ADMIN.user_uuid,
     );
+    const spaceUuid = rootSpaces[0];
+    if (!spaceUuid) throw new Error('No space found for seeding');
 
     // Create dashboard with conditional formatting demonstration
     const dashboard = await dashboardModel.create(

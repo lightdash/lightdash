@@ -81,6 +81,23 @@
                     },
                     "description": "Required user attributes for accessing this model"
                 },
+                "any_attributes": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "oneOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
+                            }
+                        ]
+                    },
+                    "description": "Any user attributes (OR logic) for accessing this model"
+                },
                 "group_details": {
                     "type": "object",
                     "additionalProperties": {
@@ -333,6 +350,23 @@
                     },
                     "description": "Required user attributes for accessing this dimension"
                 },
+                "any_attributes": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "oneOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
+                            }
+                        ]
+                    },
+                    "description": "Any user attributes (OR logic) for accessing this dimension"
+                },
                 "ai_hint": {
                     "oneOf": [
                         {
@@ -574,6 +608,23 @@
                         ]
                     },
                     "description": "Required user attributes for accessing this metric"
+                },
+                "any_attributes": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "oneOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
+                            }
+                        ]
+                    },
+                    "description": "Any user attributes (OR logic) for accessing this metric"
                 },
                 "ai_hint": {
                     "oneOf": [

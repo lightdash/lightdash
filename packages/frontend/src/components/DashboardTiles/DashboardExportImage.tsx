@@ -1,9 +1,8 @@
-import { Menu } from '@mantine/core';
+import { Menu } from '@mantine-8/core';
 import { IconPhoto } from '@tabler/icons-react';
 import { type FC } from 'react';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
-
 import MantineIcon from '../common/MantineIcon';
 
 export const DashboardExportImage: FC<{
@@ -14,7 +13,7 @@ export const DashboardExportImage: FC<{
 
     return (
         <Menu.Item
-            icon={<MantineIcon icon={IconPhoto} />}
+            leftSection={<MantineIcon icon={IconPhoto} />}
             onClick={() => {
                 if (isMinimal)
                     track({ name: EventName.EMBED_DOWNLOAD_IMAGE_CLICKED });

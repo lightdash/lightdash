@@ -59,6 +59,7 @@ async function getOrCreateSpaceByName(
         {
             name: spaceName,
             isPrivate: false,
+            inheritParentPermissions: true,
             parentSpaceUuid,
         },
         {

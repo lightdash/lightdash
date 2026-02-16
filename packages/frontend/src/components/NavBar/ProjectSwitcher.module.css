@@ -1,0 +1,45 @@
+.dropdown {
+    min-width: 250px;
+    overflow: visible;
+}
+
+.groupHeader {
+    width: 100%;
+    padding: var(--mantine-spacing-xs);
+
+    &:hover {
+        background-color: var(--mantine-color-ldDark-3);
+    }
+}
+
+.badge {
+    text-transform: none;
+}
+
+.targetButton {
+    max-width: 200px;
+
+    &:disabled {
+        color: var(--mantine-color-white);
+        background-color: var(--mantine-color-ldDark-6);
+        border-color: var(--mantine-color-ldDark-4);
+    }
+}
+
+.searchHeader {
+    padding: var(--mantine-spacing-sm);
+    border-bottom: 1px solid var(--mantine-color-dark-4);
+}
+
+.searchInput {
+    background-color: transparent;
+    border: 1px solid var(--mantine-color-dark-4);
+
+    &:focus {
+        border-color: var(--mantine-color-blue-6);
+    }
+}
+
+.stickyFooter {
+    border-top: 1px solid var(--mantine-color-dark-4);
+}

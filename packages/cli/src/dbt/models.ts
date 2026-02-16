@@ -276,7 +276,7 @@ export const findAndUpdateModelYaml = async ({
         const deletedColumnNames = existingColumnNames.filter(
             (c) => !generatedModel.columns.map((gc) => gc.name).includes(c),
         );
-        if (deletedColumnNames.length > 0 && process.env.CI !== 'true') {
+        if (deletedColumnNames.length > 0 && !GlobalState.isNonInteractive()) {
             let answers = { isConfirm: assumeYes };
 
             if (!assumeYes) {

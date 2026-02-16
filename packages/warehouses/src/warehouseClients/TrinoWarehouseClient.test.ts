@@ -52,7 +52,12 @@ describe('TrinoWarehouseClient', () => {
         queryResultMock.mockReturnValue({
             next: jest
                 .fn()
-                .mockResolvedValueOnce({ done: false, value: queryResponse })
+                // First chunk: has nextUri indicating more data available
+                .mockResolvedValueOnce({
+                    done: false,
+                    value: { ...queryResponse, nextUri: 'http://trino/next' },
+                })
+                // Second chunk: no nextUri, query complete
                 .mockResolvedValueOnce({ done: true, value: queryResponse }),
         });
         const results = await warehouse.runQuery('fake sql');

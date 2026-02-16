@@ -104,8 +104,8 @@ import {
     parseAnalyticsLimit,
 } from '../analytics/LightdashAnalytics';
 import * as Account from '../auth/account';
-import { S3Client } from '../clients/Aws/S3Client';
 import EmailClient from '../clients/EmailClient/EmailClient';
+import { type FileStorageClient } from '../clients/FileStorage/FileStorageClient';
 import { GoogleDriveClient } from '../clients/Google/GoogleDriveClient';
 import { MicrosoftTeamsClient } from '../clients/MicrosoftTeams/MicrosoftTeamsClient';
 import { SlackClient } from '../clients/Slack/SlackClient';
@@ -153,7 +153,7 @@ export type SchedulerTaskArguments = {
     validationService: ValidationService;
     emailClient: EmailClient;
     googleDriveClient: GoogleDriveClient;
-    s3Client: S3Client;
+    fileStorageClient: FileStorageClient;
     schedulerClient: SchedulerClient;
     slackClient: SlackClient;
     catalogService: CatalogService;
@@ -187,7 +187,7 @@ export default class SchedulerTask {
 
     protected readonly googleDriveClient: GoogleDriveClient;
 
-    protected readonly s3Client: S3Client;
+    protected readonly fileStorageClient: FileStorageClient;
 
     protected readonly schedulerClient: SchedulerClient;
 
@@ -217,7 +217,7 @@ export default class SchedulerTask {
         this.validationService = args.validationService;
         this.emailClient = args.emailClient;
         this.googleDriveClient = args.googleDriveClient;
-        this.s3Client = args.s3Client;
+        this.fileStorageClient = args.fileStorageClient;
         this.schedulerClient = args.schedulerClient;
         this.slackClient = args.slackClient;
         this.catalogService = args.catalogService;
@@ -298,6 +298,7 @@ export default class SchedulerTask {
     protected async getNotificationPageData(
         scheduler: CreateSchedulerAndTargets,
         jobId: string,
+        expirationSecondsOverride?: number,
     ): Promise<NotificationPayloadBase['page']> {
         const {
             createdBy: userUuid,
@@ -436,7 +437,9 @@ export default class SchedulerTask {
                     fileType: format,
                     values: csvOptions?.formatted ? 'formatted' : 'raw',
                     limit: parseAnalyticsLimit(csvOptions?.limit),
-                    storage: this.s3Client.isEnabled() ? 's3' : 'local',
+                    storage: this.fileStorageClient.isEnabled()
+                        ? 's3'
+                        : 'local',
                     context,
                 };
 
@@ -487,6 +490,7 @@ export default class SchedulerTask {
                                     ),
                                     pivotConfig: getPivotConfig(chart),
                                     columnOrder: chart.tableConfig.columnOrder,
+                                    expirationSecondsOverride,
                                 },
                             );
                         csvUrl = {
@@ -625,6 +629,7 @@ export default class SchedulerTask {
                                             pivotConfig: getPivotConfig(chart),
                                             columnOrder:
                                                 chart.tableConfig.columnOrder,
+                                            expirationSecondsOverride,
                                         },
                                     );
                                 return {
@@ -700,6 +705,7 @@ export default class SchedulerTask {
                                                         ? chart.config
                                                         : undefined,
                                                 ),
+                                            expirationSecondsOverride,
                                         },
                                     );
                                 return {
@@ -898,9 +904,17 @@ export default class SchedulerTask {
             });
 
             // Backwards compatibility for old scheduled deliveries
+            const slackExpiration =
+                this.lightdashConfig.persistentDownloadUrls
+                    .expirationSecondsSlack ??
+                this.lightdashConfig.persistentDownloadUrls.expirationSeconds;
             const notificationPageData =
                 notification.page ??
-                (await this.getNotificationPageData(scheduler, jobId));
+                (await this.getNotificationPageData(
+                    scheduler,
+                    jobId,
+                    slackExpiration,
+                ));
 
             const {
                 url,
@@ -920,6 +934,7 @@ export default class SchedulerTask {
                 );
 
             const showExpirationWarning = format !== SchedulerFormat.IMAGE;
+            const slackExpirationDays = Math.ceil(slackExpiration / 86400);
             const schedulerFooter = includeLinks
                 ? `<${url}?${setUuidParam(
                       'scheduler_uuid',
@@ -938,7 +953,7 @@ export default class SchedulerTask {
                     timezone || defaultSchedulerTimezone,
                 )} from Lightdash.\n${
                     showExpirationWarning
-                        ? this.s3Client.getExpirationWarning()?.slack || ''
+                        ? `For security reasons, delivered files expire after *${slackExpirationDays}* days.`
                         : ''
                 }`,
                 includeLinks,
@@ -961,9 +976,7 @@ export default class SchedulerTask {
                         : 'data alert';
 
                     const expiration = slackImageUrl.expiring
-                        ? `For security reasons, delivered files expire after ${
-                              this.s3Client.getExpirationWarning()?.days || 3
-                          } days.`
+                        ? `For security reasons, delivered files expire after ${slackExpirationDays} days.`
                         : '';
 
                     const blocks = getChartThresholdAlertBlocks({
@@ -991,9 +1004,7 @@ export default class SchedulerTask {
                     );
 
                 const expiration = slackImageUrl.expiring
-                    ? `For security reasons, delivered files expire after ${
-                          this.s3Client.getExpirationWarning()?.days || 3
-                      } days.`
+                    ? `For security reasons, delivered files expire after ${slackExpirationDays} days.`
                     : '';
                 const blocks = getChartAndDashboardBlocks({
                     ...getBlocksArgs,
@@ -1011,8 +1022,8 @@ export default class SchedulerTask {
                 if (pdfFile && message.ts) {
                     try {
                         // Add the pdf to the thread
-                        const pdfBuffer = this.s3Client.isEnabled()
-                            ? await this.s3Client.getS3FileStream(
+                        const pdfBuffer = this.fileStorageClient.isEnabled()
+                            ? await this.fileStorageClient.getFileStream(
                                   pdfFile.fileName,
                               )
                             : await fs.readFile(pdfFile.source);
@@ -1230,9 +1241,17 @@ export default class SchedulerTask {
             });
 
             // Backwards compatibility for old scheduled deliveries
+            const msTeamsExpiration =
+                this.lightdashConfig.persistentDownloadUrls
+                    .expirationSecondsMsTeams ??
+                this.lightdashConfig.persistentDownloadUrls.expirationSeconds;
             const notificationPageData =
                 notification.page ??
-                (await this.getNotificationPageData(scheduler, jobId));
+                (await this.getNotificationPageData(
+                    scheduler,
+                    jobId,
+                    msTeamsExpiration,
+                ));
 
             const {
                 url,
@@ -2068,9 +2087,17 @@ export default class SchedulerTask {
             });
 
             // Backwards compatibility for old scheduled deliveries
+            const emailExpiration =
+                this.lightdashConfig.persistentDownloadUrls
+                    .expirationSecondsEmail ??
+                this.lightdashConfig.persistentDownloadUrls.expirationSeconds;
             const notificationPageData =
                 notification.page ??
-                (await this.getNotificationPageData(scheduler, jobId));
+                (await this.getNotificationPageData(
+                    scheduler,
+                    jobId,
+                    emailExpiration,
+                ));
 
             const {
                 url,
@@ -2126,9 +2153,7 @@ export default class SchedulerTask {
                     details.description || '',
                     thresholdMessage,
                     new Date().toLocaleDateString('en-GB'),
-                    `For security reasons, delivered files expire after ${
-                        this.s3Client.getExpirationWarning()?.days || 3
-                    } days`,
+                    `For security reasons, delivered files expire after ${Math.ceil(emailExpiration / 86400)} days`,
                     imageUrl,
                     url,
                     schedulerUrl,
@@ -2157,7 +2182,7 @@ export default class SchedulerTask {
                     schedulerUrl,
                     includeLinks,
                     pdfFile?.source,
-                    this.s3Client.getExpirationWarning()?.days,
+                    Math.ceil(emailExpiration / 86400),
                 );
             } else if (savedChartUuid) {
                 if (csvUrl === undefined) {
@@ -2179,7 +2204,7 @@ export default class SchedulerTask {
                     url,
                     schedulerUrl,
                     includeLinks,
-                    this.s3Client.getExpirationWarning()?.days,
+                    Math.ceil(emailExpiration / 86400),
                     csvOptions?.asAttachment,
                     format,
                 );
@@ -2204,7 +2229,7 @@ export default class SchedulerTask {
                     url,
                     schedulerUrl,
                     includeLinks,
-                    this.s3Client.getExpirationWarning()?.days,
+                    Math.ceil(emailExpiration / 86400),
                     csvOptions?.asAttachment,
                     format,
                     failures,
@@ -3058,10 +3083,89 @@ export default class SchedulerTask {
                 }
             }
 
-            const page =
-                scheduler.format === SchedulerFormat.GSHEETS
-                    ? undefined
-                    : await this.getNotificationPageData(scheduler, jobId);
+            let page: NotificationPayloadBase['page'] | undefined;
+            let perChannelPages:
+                | {
+                      email?: NotificationPayloadBase['page'];
+                      slack?: NotificationPayloadBase['page'];
+                      msteams?: NotificationPayloadBase['page'];
+                  }
+                | undefined;
+
+            if (scheduler.format === SchedulerFormat.GSHEETS) {
+                page = undefined;
+            } else {
+                const {
+                    expirationSeconds,
+                    expirationSecondsEmail,
+                    expirationSecondsSlack,
+                    expirationSecondsMsTeams,
+                } = this.lightdashConfig.persistentDownloadUrls;
+
+                const emailExpiration =
+                    expirationSecondsEmail ?? expirationSeconds;
+                const slackExpiration =
+                    expirationSecondsSlack ?? expirationSeconds;
+                const msTeamsExpiration =
+                    expirationSecondsMsTeams ?? expirationSeconds;
+
+                const hasEmail = targets.some(
+                    (t) =>
+                        !isCreateSchedulerSlackTarget(t) &&
+                        !isCreateSchedulerMsTeamsTarget(t),
+                );
+                const hasSlack = targets.some(isCreateSchedulerSlackTarget);
+                const hasMsTeams = targets.some(isCreateSchedulerMsTeamsTarget);
+
+                const expirationToChannels = new Map<
+                    number,
+                    Set<'email' | 'slack' | 'msteams'>
+                >();
+                const addToMap = (
+                    expiration: number,
+                    channel: 'email' | 'slack' | 'msteams',
+                ) => {
+                    const existing = expirationToChannels.get(expiration);
+                    if (existing) {
+                        existing.add(channel);
+                    } else {
+                        expirationToChannels.set(
+                            expiration,
+                            new Set([channel]),
+                        );
+                    }
+                };
+                if (hasEmail) addToMap(emailExpiration, 'email');
+                if (hasSlack) addToMap(slackExpiration, 'slack');
+                if (hasMsTeams) addToMap(msTeamsExpiration, 'msteams');
+
+                const pageByChannel = await Array.from(
+                    expirationToChannels.entries(),
+                ).reduce(
+                    async (accPromise, [expiration, channels]) => {
+                        const acc = await accPromise;
+                        const channelPage = await this.getNotificationPageData(
+                            scheduler,
+                            jobId,
+                            expiration,
+                        );
+                        for (const channel of channels) {
+                            acc[channel] = channelPage;
+                        }
+                        return acc;
+                    },
+                    Promise.resolve(
+                        {} as Record<string, NotificationPayloadBase['page']>,
+                    ),
+                );
+
+                perChannelPages = pageByChannel;
+                page =
+                    pageByChannel.email ??
+                    pageByChannel.slack ??
+                    pageByChannel.msteams;
+            }
+
             const scheduledJobs =
                 await this.schedulerClient.generateJobsForSchedulerTargets(
                     scheduledTime,
@@ -3069,6 +3173,7 @@ export default class SchedulerTask {
                     page,
                     jobId,
                     traceProperties,
+                    perChannelPages,
                 );
 
             // Create scheduled jobs for targets
@@ -3264,6 +3369,11 @@ export default class SchedulerTask {
                 await this.catalogService.migrateMetricsTreeEdges(
                     payload.projectUuid,
                     payload.prevMetricTreeEdges,
+                );
+
+                await this.catalogService.migrateMetricsTreeNodes(
+                    payload.projectUuid,
+                    payload.prevMetricsTreeNodes,
                 );
 
                 await this.catalogService.setChartUsages(

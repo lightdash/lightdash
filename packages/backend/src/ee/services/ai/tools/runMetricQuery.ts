@@ -160,6 +160,6 @@ export const getRunMetricQuery = ({
                 };
             }
         },
-        toModelOutput: (output) => toModelOutput(output),
+        toModelOutput: ({ output }) => toModelOutput(output),
     });
 };

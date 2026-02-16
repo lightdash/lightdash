@@ -71,6 +71,12 @@ export const databricksPassportStrategy = !(
                       },
                   };
 
+                  if (!refreshToken) {
+                      throw new Error(
+                          'Databricks OAuth refresh token was not returned. Ensure offline_access scope is granted.',
+                      );
+                  }
+
                   // Create user warehouse credentials with the refresh token
                   // so they can use it to query Databricks SQL warehouses
                   Logger.info(

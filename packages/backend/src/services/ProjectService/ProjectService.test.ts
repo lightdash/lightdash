@@ -9,8 +9,8 @@ import {
 } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { S3CacheClient } from '../../clients/Aws/S3CacheClient';
-import { S3Client } from '../../clients/Aws/S3Client';
 import EmailClient from '../../clients/EmailClient/EmailClient';
+import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { type LightdashConfig } from '../../config/parseConfig';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
@@ -42,6 +42,8 @@ import {
     warehouseClientMock,
 } from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
 import { metricQueryWithLimit } from '../../utils/csvLimitUtils';
+import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
+import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { UserService } from '../UserService';
 import { ProjectService } from './ProjectService';
 import {
@@ -151,7 +153,7 @@ const getMockedProjectService = (lightdashConfig: LightdashConfig) =>
         } as unknown as EmailModel,
         schedulerClient: {} as SchedulerClient,
         downloadFileModel: {} as unknown as DownloadFileModel,
-        s3Client: {} as S3Client,
+        fileStorageClient: {} as FileStorageClient,
         groupsModel: {} as GroupsModel,
         tagsModel: {} as TagsModel,
         catalogModel: {} as CatalogModel,
@@ -165,6 +167,10 @@ const getMockedProjectService = (lightdashConfig: LightdashConfig) =>
         organizationWarehouseCredentialsModel:
             {} as unknown as OrganizationWarehouseCredentialsModel,
         projectCompileLogModel: {} as ProjectCompileLogModel,
+        adminNotificationService: {
+            notifyConnectionSettingsChange: jest.fn(async () => undefined),
+        } as unknown as AdminNotificationService,
+        spacePermissionService: {} as SpacePermissionService,
     });
 
 const account = buildAccount({

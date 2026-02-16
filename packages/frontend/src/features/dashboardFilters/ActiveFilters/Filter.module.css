@@ -30,3 +30,12 @@
         border-bottom-right-radius: 0px;
     }
 }
+
+.additionalValuesList {
+    @mixin light {
+        background-color: var(--mantine-color-ldDark-8);
+    }
+    @mixin dark {
+        background-color: var(--mantine-color-ldDark-1);
+    }
+}

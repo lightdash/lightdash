@@ -87,9 +87,11 @@ export const SaveToDashboard: FC<Props> = ({
     const { showToastSuccess } = useToaster();
     const navigate = useNavigate();
 
-    const { mutateAsync: createChart } = useCreateMutation();
+    const { mutateAsync: createChart } = useCreateMutation({
+        redirectOnSuccess: false,
+        showToastOnSuccess: false,
+    });
     const {
-        clearIsEditingDashboardChart,
         getUnsavedDashboardTiles,
         setUnsavedDashboardTiles,
         getDashboardActiveTabUuid,
@@ -135,8 +137,6 @@ export const SaveToDashboard: FC<Props> = ({
             setUnsavedDashboardTiles(
                 appendNewTilesToBottom(existingTiles || [], [newTile]),
             );
-
-            clearIsEditingDashboardChart();
             void navigate(
                 activeTabUuid
                     ? `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit/tabs/${activeTabUuid}`
@@ -152,7 +152,6 @@ export const SaveToDashboard: FC<Props> = ({
             createChart,
             setUnsavedDashboardTiles,
             unsavedDashboardTiles,
-            clearIsEditingDashboardChart,
             navigate,
             projectUuid,
             showToastSuccess,

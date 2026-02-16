@@ -3,7 +3,7 @@ import {
     Tooltip,
     type AnchorProps,
     type TooltipProps,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import { IconHelpCircle } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon, { type MantineIconProps } from './common/MantineIcon';
@@ -30,7 +30,7 @@ const DocumentationHelpButton: FC<Props> = ({
             role="button"
             target="_blank"
             rel="noreferrer"
-            color="dimmed"
+            c="dimmed"
             {...anchorProps}
         >
             <MantineIcon

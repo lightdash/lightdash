@@ -1,0 +1,8 @@
+.mobileView {
+    background: var(--mantine-color-ldGray-0);
+}
+
+.emoji {
+    font-size: 2.5rem;
+    display: block;
+}

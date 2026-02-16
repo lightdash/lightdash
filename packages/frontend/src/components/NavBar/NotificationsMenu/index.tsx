@@ -2,7 +2,7 @@ import {
     NotificationResourceType,
     ValidationErrorType,
 } from '@lightdash/common';
-import { Button, Indicator, Menu } from '@mantine/core';
+import { Button, getDefaultZIndex, Indicator, Menu } from '@mantine-8/core';
 import { IconBell } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useDashboardCommentsCheck } from '../../../features/comments';
@@ -17,6 +17,7 @@ import {
 } from '../../../hooks/validation/useValidation';
 import useApp from '../../../providers/App/useApp';
 import MantineIcon from '../../common/MantineIcon';
+import classes from './NotificationsMenu.module.css';
 import { ValidationErrorNotification } from './ValidationErrorNotification';
 
 export const NotificationsMenu: FC<{ projectUuid: string }> = ({
@@ -76,6 +77,8 @@ export const NotificationsMenu: FC<{ projectUuid: string }> = ({
             position="bottom-end"
             arrowOffset={16}
             offset={-2}
+            zIndex={getDefaultZIndex('max')}
+            portalProps={{ target: '#navbar-header' }}
         >
             <Menu.Target>
                 <Button
@@ -84,10 +87,7 @@ export const NotificationsMenu: FC<{ projectUuid: string }> = ({
                     size="xs"
                     // NOTE: Set validation notification as read (Local Storage)
                     onClick={setHasReadValidationNotification}
-                    sx={{
-                        // NOTE: Revert overflow so badge doesn't get cropped off
-                        '.mantine-Button-label': { overflow: 'revert' },
-                    }}
+                    classNames={{ label: classes.buttonLabel }}
                 >
                     <Indicator
                         size={12}

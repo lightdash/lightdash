@@ -1,6 +1,6 @@
 {
     "name": "@lightdash/cli",
-    "version": "0.2409.0",
+    "version": "0.2473.1",
     "license": "MIT",
     "repository": {
         "type": "git",
@@ -31,7 +31,7 @@
         "google-auth-library": "^8.5.1",
         "inquirer": "^8.2.4",
         "js-yaml": "^4.1.1",
-        "lodash": "^4.17.21",
+        "lodash": "^4.17.23",
         "node-fetch": "^2.7.0",
         "nunjucks": "^3.2.3",
         "openid-client": "^5.6.4",

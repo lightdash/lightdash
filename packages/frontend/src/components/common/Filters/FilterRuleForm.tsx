@@ -8,7 +8,8 @@ import {
     type FilterRule,
     type FilterableField,
 } from '@lightdash/common';
-import { ActionIcon, Box, Group, Menu, Select, Tooltip } from '@mantine/core';
+import { Menu } from '@mantine-8/core';
+import { ActionIcon, Box, Group, Select, Tooltip } from '@mantine/core';
 import { IconDots, IconX } from '@tabler/icons-react';
 import { memo, useCallback, useMemo, type FC } from 'react';
 import FieldSelect from '../FieldSelect';

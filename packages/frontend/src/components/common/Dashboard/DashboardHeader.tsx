@@ -25,6 +25,7 @@ import {
     IconDots,
     IconFolderPlus,
     IconFolderSymlink,
+    IconHistory,
     IconInfoCircle,
     IconMaximize,
     IconMinimize,
@@ -264,12 +265,11 @@ const DashboardHeader = ({
                 px: 'xl',
                 py: 0,
                 h: DASHBOARD_HEADER_HEIGHT,
-                bg: 'background',
-                sx: { zIndex: DASHBOARD_HEADER_ZINDEX },
+                style: { zIndex: DASHBOARD_HEADER_ZINDEX },
                 className,
             }}
         >
-            <Group gap="xs" flex={1}>
+            <Group gap="xs" flex={1} wrap="nowrap">
                 <Title order={6}>{dashboard.name}</Title>
 
                 <Popover
@@ -630,6 +630,21 @@ const DashboardHeader = ({
                                             </Menu.Item>
                                         </div>
                                     </Tooltip>
+                                )}
+
+                                {userCanManageDashboard && dashboardUuid && (
+                                    <Menu.Item
+                                        leftSection={
+                                            <MantineIcon icon={IconHistory} />
+                                        }
+                                        onClick={() =>
+                                            navigate(
+                                                `/projects/${projectUuid}/dashboards/${dashboardUuid}/history`,
+                                            )
+                                        }
+                                    >
+                                        Version history
+                                    </Menu.Item>
                                 )}
 
                                 {(userCanExportData ||

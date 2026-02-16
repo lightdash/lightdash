@@ -1,4 +1,9 @@
 import {
+    assertUnreachable,
+    ChartKind,
+    ChartSourceType,
+    ContentType,
+    DeletedContentWithDescendants,
     KnexPaginateArgs,
     KnexPaginatedData,
     SummaryContent,
@@ -107,5 +112,129 @@ export class ContentModel {
                 return matchingConfig.convertSummaryRow(result);
             }),
         };
+    }
+
+    async findDeletedContents(
+        filters: ContentFilters,
+        paginateArgs?: KnexPaginateArgs,
+    ): Promise<KnexPaginatedData<DeletedContentWithDescendants[]>> {
+        const deletedFilters: ContentFilters = {
+            ...filters,
+            deleted: true,
+            includeDescendantCounts: true,
+        };
+        const matchingConfigurations = this.contentConfigurations.filter(
+            (config) => config.shouldQueryBeIncluded(deletedFilters),
+        );
+
+        if (matchingConfigurations.length === 0) {
+            return { data: [] };
+        }
+
+        const query = this.database.select<SummaryContentRow[]>('*');
+
+        matchingConfigurations.forEach((config) => {
+            void query.unionAll(
+                config.getSummaryQuery(this.database, deletedFilters),
+            );
+        });
+
+        void query.orderBy('deleted_at', 'desc');
+
+        const { pagination, data } = await KnexPaginate.paginate(
+            query,
+            paginateArgs,
+        );
+
+        return {
+            pagination,
+            data: data.map((row): DeletedContentWithDescendants => {
+                const matchingConfig = matchingConfigurations.find((config) =>
+                    config.shouldRowBeConverted(row),
+                );
+                if (!matchingConfig) {
+                    throw new Error(
+                        `No matching configuration found for deleted content row with uuid ${row.uuid}`,
+                    );
+                }
+                return ContentModel.convertToDeletedSummary(row);
+            }),
+        };
+    }
+
+    private static convertToDeletedSummary(
+        row: SummaryContentRow,
+    ): DeletedContentWithDescendants {
+        const deletedBy = row.deleted_by_user_uuid
+            ? {
+                  userUuid: row.deleted_by_user_uuid,
+                  firstName: row.deleted_by_user_first_name ?? '',
+                  lastName: row.deleted_by_user_last_name ?? '',
+              }
+            : null;
+        const base = {
+            uuid: row.uuid,
+            name: row.name,
+            description: row.description,
+            deletedAt: row.deleted_at ?? new Date(),
+            deletedBy,
+            spaceUuid: row.space_uuid,
+            spaceName: row.space_name,
+            projectUuid: row.project_uuid,
+            organizationUuid: row.organization_uuid,
+        };
+
+        switch (row.content_type) {
+            case ContentType.CHART: {
+                const source = row.metadata.source as ChartSourceType;
+                const chartBase = {
+                    ...base,
+                    contentType: ContentType.CHART as const,
+                    chartKind: (row.metadata.chart_kind as ChartKind) ?? null,
+                };
+                switch (source) {
+                    case ChartSourceType.DBT_EXPLORE:
+                        return {
+                            ...chartBase,
+                            source,
+                            schedulerCount: Number(
+                                row.metadata.schedulerCount ?? 0,
+                            ),
+                        };
+                    case ChartSourceType.SQL:
+                        return {
+                            ...chartBase,
+                            source,
+                        };
+                    default:
+                        return assertUnreachable(
+                            source,
+                            `Unknown chart source: ${source}`,
+                        );
+                }
+            }
+            case ContentType.DASHBOARD:
+                return {
+                    ...base,
+                    contentType: ContentType.DASHBOARD,
+                    chartCount: Number(row.metadata.chartCount ?? 0),
+                    schedulerCount: Number(row.metadata.schedulerCount ?? 0),
+                };
+            case ContentType.SPACE:
+                return {
+                    ...base,
+                    contentType: ContentType.SPACE,
+                    nestedSpaceCount: Number(
+                        row.metadata.nestedSpaceCount ?? 0,
+                    ),
+                    dashboardCount: Number(row.metadata.dashboardCount ?? 0),
+                    chartCount: Number(row.metadata.chartCount ?? 0),
+                    schedulerCount: Number(row.metadata.schedulerCount ?? 0),
+                };
+            default:
+                throw new Error(
+                    `Unexpected content type in deleted results: ${row.content_type}`,
+                );
+        }
     }
 }

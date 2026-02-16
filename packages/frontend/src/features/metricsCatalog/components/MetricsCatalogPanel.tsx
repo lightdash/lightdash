@@ -26,8 +26,8 @@ import { useTimeAgo } from '../../../hooks/useTimeAgo';
 import useActiveJob from '../../../providers/ActiveJob/useActiveJob';
 import useApp from '../../../providers/App/useApp';
 import { LearnMoreContent } from '../../../svgs/metricsCatalog';
-import { useIndexCatalogJob } from '../../catalog/hooks/useIndexCatalogJob';
 import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
+import { useIndexCatalogJob } from '../hooks/useIndexCatalogJob';
 import {
     setAbility,
     setActiveMetric,

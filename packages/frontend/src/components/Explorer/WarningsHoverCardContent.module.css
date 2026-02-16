@@ -1,0 +1,11 @@
+.warningsList {
+    overflow: auto;
+}
+
+.warningBox {
+    border-radius: 4px;
+}
+
+.warningText {
+    word-break: break-word;
+}

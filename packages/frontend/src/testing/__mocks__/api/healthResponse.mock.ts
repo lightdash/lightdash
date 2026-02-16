@@ -50,6 +50,9 @@ export default function mockHealthResponse(
         dashboard: {
             maxTilesPerTab: 50,
             maxTabsPerDashboard: 20,
+            versionHistory: {
+                daysLimit: 3,
+            },
         },
         pivotTable: {
             maxColumnLimit: 100,
@@ -103,6 +106,8 @@ export default function mockHealthResponse(
         },
         isServiceAccountEnabled: false,
         isOrganizationWarehouseCredentialsEnabled: false,
+        isAthenaWarehouseIamRoleAuthEnabled: false,
+        isSaveCredentialsFormEnabled: false,
         isCustomRolesEnabled: false,
         embedding: {
             enabled: false,
@@ -118,6 +123,10 @@ export default function mockHealthResponse(
         },
         funnelBuilder: {
             enabled: false,
+        },
+        softDelete: {
+            enabled: false,
+            retentionDays: 30,
         },
         ...overrides,
     };

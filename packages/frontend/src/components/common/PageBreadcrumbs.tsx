@@ -6,9 +6,10 @@ import {
     type BreadcrumbsProps,
     type MantineSize,
     type TooltipProps,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import { type FC, type HTMLAttributes } from 'react';
 import { Link } from 'react-router';
+import classes from './PageBreadcrumbs.module.css';
 
 type BreadCrumbItem = {
     title: React.ReactNode;
@@ -19,8 +20,10 @@ type BreadCrumbItem = {
     tooltipProps?: Omit<TooltipProps, 'children'>;
 };
 
-export interface PageBreadcrumbsProps
-    extends Omit<BreadcrumbsProps, 'children'> {
+export interface PageBreadcrumbsProps extends Omit<
+    BreadcrumbsProps,
+    'children'
+> {
     size?: MantineSize;
     items: BreadCrumbItem[];
 }
@@ -33,36 +36,24 @@ const PageBreadcrumbs: FC<PageBreadcrumbsProps> = ({
     return (
         <Breadcrumbs
             {...rest}
-            styles={{
-                root: {
-                    display: 'block',
-                    flexWrap: 'wrap',
-                },
-                separator: {
-                    display: 'inline-block',
-                },
+            classNames={{
+                root: classes.breadcrumbs,
+                separator: classes.separator,
             }}
         >
             {items.map((item, index) => {
+                const isClickable = !!(item.onClick || item.to);
+                const anchorClassName = `${classes.anchor} ${
+                    isClickable ? classes.anchorClickable : classes.anchorStatic
+                }`;
+
                 const commonProps: AnchorProps &
                     HTMLAttributes<HTMLAnchorElement> = {
-                    size: size,
+                    size,
                     fw: item.active ? 600 : 500,
-                    color: item.active ? 'ldGray.9' : 'ldGray.6',
+                    c: item.active ? 'ldGray.9' : 'ldGray.6',
                     onClick: item.onClick,
-                    sx: {
-                        whiteSpace: 'normal',
-                        ...(item.onClick || item.to
-                            ? {
-                                  cursor: 'pointer',
-                              }
-                            : {
-                                  cursor: 'text',
-                                  '&:hover': {
-                                      textDecoration: 'none',
-                                  },
-                              }),
-                    },
+                    className: anchorClassName,
                 };
 
                 const anchor = item.to ? (

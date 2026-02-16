@@ -18,7 +18,11 @@ import {
     type GroupLimitConfig,
 } from '../types/savedCharts';
 import { type SqlRunnerQuery } from '../types/sqlRunner';
-import { applyCustomFormat, formatNumberValue } from '../utils/formatting';
+import {
+    applyCustomFormat,
+    formatDateWithPattern,
+    formatNumberValue,
+} from '../utils/formatting';
 import {
     getAxisLabelStyle,
     getAxisLineStyle,
@@ -946,6 +950,8 @@ export class CartesianChartDataModel {
                         return undefined;
                     },
                     xAxisReference,
+                    undefined,
+                    display?.xAxis?.dateFormat,
                 ),
             };
         } else if (xAxisType === VizIndexType.TIME && xAxisReference) {
@@ -959,7 +965,20 @@ export class CartesianChartDataModel {
                             seriesData: {
                                 value: Record<string, unknown>;
                             }[];
-                        }) => params.seriesData[0]?.value[xAxisReference],
+                        }) => {
+                            const rawValue =
+                                params.seriesData[0]?.value[xAxisReference];
+                            if (
+                                display?.xAxis?.dateFormat &&
+                                rawValue != null
+                            ) {
+                                return formatDateWithPattern(
+                                    rawValue as string | number,
+                                    display.xAxis.dateFormat,
+                                );
+                            }
+                            return rawValue;
+                        },
                     },
                 },
             };
@@ -992,6 +1011,7 @@ export class CartesianChartDataModel {
                     flipAxes: false,
                     xFieldId: xAxisReference,
                     originalValues,
+                    xAxisDateFormat: display?.xAxis?.dateFormat,
                 }),
                 extraCssText: `overflow-y: auto; max-height:280px; ${
                     getTooltipStyle().extraCssText
@@ -1018,7 +1038,19 @@ export class CartesianChartDataModel {
                 nameLocation: 'center',
                 nameGap: 30,
                 nameTextStyle: getAxisTitleStyle(),
-                axisLabel: getAxisLabelStyle(),
+                axisLabel: {
+                    ...getAxisLabelStyle(),
+                    ...(xAxisType === VizIndexType.TIME &&
+                    display?.xAxis?.dateFormat
+                        ? {
+                              formatter: (value: string | number) =>
+                                  formatDateWithPattern(
+                                      value,
+                                      display.xAxis!.dateFormat!,
+                                  ),
+                          }
+                        : {}),
+                },
                 axisLine: getAxisLineStyle(),
                 axisTick: getAxisTickStyle(),
                 axisPointer: getAxisPointerStyle(),
@@ -1107,6 +1139,7 @@ export type CartesianChartDisplay = {
     xAxis?: {
         label?: string;
         type?: VizIndexType;
+        dateFormat?: string;
     };
     yAxis?: {
         label?: string;

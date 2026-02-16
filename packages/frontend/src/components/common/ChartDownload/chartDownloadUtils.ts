@@ -6,7 +6,12 @@ export const CHART_TYPES_WITHOUT_IMAGE_EXPORT = [
     ChartType.CUSTOM,
     ChartType.BIG_NUMBER,
     ChartType.TABLE,
+    ChartType.MAP,
 ];
+
+export const CHART_TYPES_WITHOUT_DATA_EXPORT: ChartType[] = Object.values(
+    ChartType,
+).filter((type) => type !== ChartType.TABLE);
 
 export enum DownloadType {
     JPEG = 'JPEG',

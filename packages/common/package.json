@@ -1,6 +1,6 @@
 {
     "name": "@lightdash/common",
-    "version": "0.2409.0",
+    "version": "0.2473.1",
     "main": "dist/cjs/index.js",
     "module": "dist/esm/index.js",
     "types": "dist/types/index.d.ts",
@@ -20,7 +20,7 @@
         "@types/uuid": "^10.0.0"
     },
     "dependencies": {
-        "@casl/ability": "^5.4.3",
+        "@casl/ability": "^6.7.5",
         "@types/lodash": "^4.14.202",
         "ajv": "^8.3.0",
         "ajv-errors": "^3.0.0",
@@ -35,7 +35,7 @@
         "handlebars": "^4.7.8",
         "js-yaml": "^4.1.1",
         "liquidjs": "^10.0.0",
-        "lodash": "^4.17.21",
+        "lodash": "^4.17.23",
         "moment": "^2.29.4",
         "moment-timezone": "^0.5.45",
         "numfmt": "^3.2.1",

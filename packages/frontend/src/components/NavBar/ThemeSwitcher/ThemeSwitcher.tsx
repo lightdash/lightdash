@@ -1,4 +1,5 @@
-import { Button, clsx, useMantineColorScheme } from '@mantine/core';
+import { Button } from '@mantine-8/core';
+import { clsx, useMantineColorScheme } from '@mantine/core';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useAccount } from '../../../hooks/user/useAccount';
 import useTracking from '../../../providers/Tracking/useTracking';

@@ -1,4 +1,4 @@
-import { ActionIcon, Affix, Transition } from '@mantine/core';
+import { ActionIcon, Affix, Transition } from '@mantine-8/core';
 import { IconArrowUp } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from './MantineIcon';

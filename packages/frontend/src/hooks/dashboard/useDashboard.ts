@@ -7,6 +7,7 @@ import {
     type Dashboard,
     type DashboardAvailableFilters,
     type DashboardFilters,
+    type DashboardHistory,
     type DashboardTile,
     type DateGranularity,
     type SavedChartsInfoForDashboardAvailableFilters,
@@ -22,7 +23,9 @@ import {
 import { useNavigate, useParams } from 'react-router';
 import { lightdashApi } from '../../api';
 import { pollJobStatus } from '../../features/scheduler/hooks/useScheduler';
+import useApp from '../../providers/App/useApp';
 import useToaster from '../toaster/useToaster';
+import { invalidateContent } from '../useContent';
 import useQueryError from '../useQueryError';
 import useDashboardStorage from './useDashboardStorage';
 
@@ -366,6 +369,20 @@ export const useUpdateDashboard = (
                     'dashboards-containing-chart',
                 ]);
                 await queryClient.resetQueries(['saved_dashboard_query', id]);
+                // Remove stale chart results so navigating back doesn't
+                // show old cache timestamps after a save
+                queryClient.removeQueries({
+                    predicate: (query) => {
+                        const firstKey =
+                            typeof query.queryKey === 'string'
+                                ? query.queryKey
+                                : query.queryKey?.[0];
+                        return (
+                            firstKey === 'dashboard_chart_ready_query' ||
+                            firstKey === 'savedSqlChartResults'
+                        );
+                    },
+                });
                 await queryClient.invalidateQueries(['content']);
                 const onlyUpdatedName: boolean =
                     Object.keys(variables).length === 1 &&
@@ -559,22 +576,31 @@ export const useDuplicateDashboardMutation = (
 
 export const useDashboardDeleteMutation = () => {
     const queryClient = useQueryClient();
+    const navigate = useNavigate();
+    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const { health } = useApp();
+    const isSoftDeleteEnabled = health.data?.softDelete.enabled ?? false;
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<null, ApiError, string>(deleteDashboard, {
         onSuccess: async () => {
-            await queryClient.invalidateQueries(['dashboards']);
-            await queryClient.invalidateQueries(['space']);
-
+            await invalidateContent(queryClient, projectUuid!);
             await queryClient.invalidateQueries([
                 'dashboards-containing-chart',
             ]);
-            await queryClient.invalidateQueries(['pinned_items']);
-            await queryClient.invalidateQueries([
-                'most-popular-and-recently-updated',
-            ]);
-            await queryClient.invalidateQueries(['content']);
+            await queryClient.invalidateQueries(['deletedContent']);
             showToastSuccess({
                 title: `Deleted! Dashboard was deleted.`,
+                action:
+                    isSoftDeleteEnabled && projectUuid
+                        ? {
+                              children: 'Go to recently deleted',
+                              icon: IconArrowRight,
+                              onClick: () =>
+                                  navigate(
+                                      `/generalSettings/projectManagement/${projectUuid}/recentlyDeleted`,
+                                  ),
+                          }
+                        : undefined,
             });
         },
         onError: ({ error }) => {
@@ -584,6 +610,68 @@ export const useDashboardDeleteMutation = () => {
             });
         },
     });
+};
+
+const getDashboardHistory = async (
+    dashboardUuid: string,
+): Promise<DashboardHistory> =>
+    lightdashApi<DashboardHistory>({
+        url: `/dashboards/${dashboardUuid}/history`,
+        method: 'GET',
+        body: undefined,
+    });
+
+export const useDashboardHistory = (dashboardUuid: string | undefined) =>
+    useQuery<DashboardHistory, ApiError>({
+        queryKey: ['dashboard_history', dashboardUuid],
+        queryFn: () => getDashboardHistory(dashboardUuid!),
+        enabled: dashboardUuid !== undefined,
+        retry: false,
+    });
+
+const rollbackDashboard = async (
+    dashboardUuid: string,
+    versionUuid: string,
+): Promise<null> =>
+    lightdashApi<null>({
+        url: `/dashboards/${dashboardUuid}/rollback/${versionUuid}`,
+        method: 'POST',
+        body: undefined,
+    });
+
+export const useDashboardVersionRollbackMutation = (
+    dashboardUuid: string | undefined,
+) => {
+    const queryClient = useQueryClient();
+    const { showToastSuccess, showToastApiError } = useToaster();
+    return useMutation<null, ApiError, string>(
+        (versionUuid: string) =>
+            dashboardUuid && versionUuid
+                ? rollbackDashboard(dashboardUuid, versionUuid)
+                : Promise.reject(),
+        {
+            mutationKey: ['dashboard_version_rollback'],
+            onSuccess: async () => {
+                await queryClient.invalidateQueries([
+                    'saved_dashboard_query',
+                    dashboardUuid,
+                ]);
+                await queryClient.invalidateQueries([
+                    'dashboard_history',
+                    dashboardUuid,
+                ]);
+                showToastSuccess({
+                    title: `Success! Dashboard was reverted.`,
+                });
+            },
+            onError: ({ error }) => {
+                showToastApiError({
+                    title: `Failed to revert dashboard`,
+                    apiError: error,
+                });
+            },
+        },
+    );
 };
 
 export const appendNewTilesToBottom = <T extends Pick<DashboardTile, 'y'>>(

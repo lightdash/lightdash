@@ -1,6 +1,6 @@
 import { type CreateSavedChartVersion } from '@lightdash/common';
 import { IconChartBar } from '@tabler/icons-react';
-import { useCallback, useMemo, useState, type FC } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { useParams } from 'react-router';
 import useDashboardStorage from '../../../../hooks/dashboard/useDashboardStorage';
 import MantineModal, { type MantineModalProps } from '../../MantineModal';
@@ -8,8 +8,10 @@ import { SaveToDashboard } from './SaveToDashboard';
 import { SaveToSpaceOrDashboard } from './SaveToSpaceOrDashboard';
 import { type ChartMetadata } from './types';
 
-interface ChartCreateModalProps
-    extends Pick<MantineModalProps, 'opened' | 'onClose'> {
+interface ChartCreateModalProps extends Pick<
+    MantineModalProps,
+    'opened' | 'onClose'
+> {
     savedData: CreateSavedChartVersion;
     defaultSpaceUuid?: string;
     onConfirm: (savedData: CreateSavedChartVersion) => void;
@@ -33,7 +35,15 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
     const [spaceUuid] = useState(defaultSpaceUuid);
 
     const { getEditingDashboardInfo } = useDashboardStorage();
-    const editingDashboardInfo = getEditingDashboardInfo();
+    const [editingDashboardInfo, setEditingDashboardInfo] = useState(() =>
+        getEditingDashboardInfo(),
+    );
+
+    useEffect(() => {
+        if (opened) {
+            setEditingDashboardInfo(getEditingDashboardInfo());
+        }
+    }, [opened, getEditingDashboardInfo]);
 
     const saveMode = useMemo(() => {
         if (editingDashboardInfo.name && editingDashboardInfo.dashboardUuid) {

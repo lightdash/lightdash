@@ -34,11 +34,12 @@ import {
 import { IconRotate2, IconSql } from '@tabler/icons-react';
 import { produce } from 'immer';
 import { useCallback, useMemo, useState, type FC } from 'react';
-import FieldSelect from '../../../components/common/FieldSelect';
 import FieldIcon from '../../../components/common/Filters/FieldIcon';
 import FieldLabel from '../../../components/common/Filters/FieldLabel';
 import MantineIcon from '../../../components/common/MantineIcon';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
+import FilterCoverageSummary from './FilterCoverageSummary';
+import FilterFieldSelect from './FilterFieldSelect';
 import FilterSettings from './FilterSettings';
 import TileFilterConfiguration from './TileFilterConfiguration';
 import { DEFAULT_TAB, FilterActions, FilterTabs } from './constants';
@@ -52,6 +53,7 @@ import {
 interface Props {
     tiles: DashboardTile[];
     tabs: DashboardTab[];
+    activeTabUuid?: string;
     field?: FilterableDimension;
     fields?: FilterableDimension[];
     availableTileFilters: Record<string, FilterableDimension[]>;
@@ -81,6 +83,7 @@ const FilterConfiguration: FC<Props> = ({
     isTemporary = false,
     tiles,
     tabs,
+    activeTabUuid,
     field,
     fields,
     availableTileFilters,
@@ -378,29 +381,15 @@ const FilterConfiguration: FC<Props> = ({
                     <Stack spacing="sm">
                         {isCreatingNew ? (
                             !!fields && fields.length > 0 ? (
-                                <FieldSelect
-                                    data-testid="FilterConfiguration/FieldSelect"
-                                    size="xs"
-                                    focusOnRender={true}
-                                    label={
-                                        <Text>
-                                            Select a dimension to filter{' '}
-                                            <Text color="red" span>
-                                                *
-                                            </Text>{' '}
-                                        </Text>
-                                    }
-                                    withinPortal={popoverProps?.withinPortal}
-                                    onDropdownOpen={popoverProps?.onOpen}
-                                    onDropdownClose={popoverProps?.onClose}
-                                    hasGrouping
-                                    item={selectedField}
-                                    items={fields}
-                                    onChange={(newField) => {
-                                        if (!newField) return;
-
-                                        handleChangeField(newField);
-                                    }}
+                                <FilterFieldSelect
+                                    fields={fields}
+                                    availableTileFilters={availableTileFilters}
+                                    tiles={tiles}
+                                    tabs={tabs}
+                                    activeTabUuid={activeTabUuid}
+                                    selectedField={selectedField}
+                                    onChange={handleChangeField}
+                                    popoverProps={popoverProps}
                                 />
                             ) : (
                                 <Select
@@ -473,6 +462,21 @@ const FilterConfiguration: FC<Props> = ({
                                 popoverProps={popoverProps}
                             />
                         )}
+
+                        {isCreatingNew &&
+                            draftFilterRule &&
+                            tabs.length > 1 && (
+                                <FilterCoverageSummary
+                                    draftFilterRule={draftFilterRule}
+                                    tiles={tiles}
+                                    tabs={tabs}
+                                    activeTabUuid={activeTabUuid}
+                                    availableTileFilters={availableTileFilters}
+                                    onNavigateToTilesTab={() =>
+                                        setSelectedTabId(FilterTabs.TILES)
+                                    }
+                                />
+                            )}
                     </Stack>
                 </Tabs.Panel>
 

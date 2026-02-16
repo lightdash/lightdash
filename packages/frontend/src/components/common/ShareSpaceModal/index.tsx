@@ -99,6 +99,7 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
                                             href="https://docs.lightdash.com/references/roles"
                                             target="_blank"
                                             rel="noreferrer"
+                                            fz="sm"
                                         >
                                             docs
                                         </Anchor>

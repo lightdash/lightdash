@@ -9,6 +9,7 @@
         "name",
         "tableName",
         "metricQuery",
+        "tableConfig",
         "slug",
         "spaceSlug",
         "version",
@@ -61,7 +62,15 @@
             "type": "object",
             "description": "The query configuration defining what data to fetch",
             "additionalProperties": false,
-            "required": ["exploreName"],
+            "required": [
+                "exploreName",
+                "dimensions",
+                "metrics",
+                "filters",
+                "sorts",
+                "limit",
+                "tableCalculations"
+            ],
             "properties": {
                 "exploreName": {
                     "type": "string",
@@ -877,6 +886,7 @@
             "type": "object",
             "description": "Table view configuration",
             "additionalProperties": false,
+            "required": ["columnOrder"],
             "properties": {
                 "columnOrder": {
                     "type": "array",
@@ -899,6 +909,18 @@
                         "type": "string"
                     }
                 }
+            }
+        },
+        "parameters": {
+            "type": "object",
+            "description": "Parameter values for the chart query, keyed by parameter name (e.g., 'model.param_name')",
+            "additionalProperties": {
+                "anyOf": [
+                    { "type": "string" },
+                    { "type": "number" },
+                    { "type": "array", "items": { "type": "string" } },
+                    { "type": "array", "items": { "type": "number" } }
+                ]
             }
         }
     },
