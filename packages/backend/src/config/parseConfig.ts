@@ -1031,6 +1031,9 @@ export type LightdashConfig = {
     maps: {
         enabled: boolean | undefined;
     };
+    savedMetricsTree: {
+        enabled: boolean | undefined;
+    };
     nestedSpacesPermissions: {
         enabled: boolean;
     };
@@ -1877,6 +1880,12 @@ export const parseConfig = (): LightdashConfig => {
         maps: {
             enabled:
                 process.env.LIGHTDASH_MAPS_ENABLED === 'true'
+                    ? true
+                    : undefined,
+        },
+        savedMetricsTree: {
+            enabled:
+                process.env.SAVED_METRICS_TREE_ENABLED === 'true'
                     ? true
                     : undefined,
         },
