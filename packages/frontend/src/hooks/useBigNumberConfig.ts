@@ -33,14 +33,14 @@ export const calculateComparisonValue = (
     b: number,
     format: ComparisonFormatTypes | undefined,
 ) => {
-    const rawValue = a - b;
     switch (format) {
+        case ComparisonFormatTypes.VALUE:
+            return b;
         case ComparisonFormatTypes.PERCENTAGE:
-            return rawValue / Math.abs(b);
+            return (a - b) / Math.abs(b);
         case ComparisonFormatTypes.RAW:
-            return rawValue;
         default:
-            return rawValue;
+            return a - b;
     }
 };
 
@@ -53,15 +53,36 @@ const formatComparisonValue = (
     value: number | string,
     bigNumberComparisonStyle: CompactOrAlias | undefined,
     parameters?: ParametersValuesMap,
+    comparisonItem?: ItemsMap[string] | undefined,
 ) => {
+    if (value === UNDEFINED) {
+        value = NOT_APPLICABLE;
+    }
+
+    // VALUE format: show comparison field's value directly, no +/- prefix
+    if (format === ComparisonFormatTypes.VALUE) {
+        const valueItem = comparisonItem ?? item;
+        if (valueItem !== undefined && isTableCalculation(valueItem)) {
+            return formatItemValue(valueItem, value, false, parameters);
+        }
+        return bigNumberComparisonStyle
+            ? applyCustomFormat(
+                  value,
+                  getCustomFormatFromLegacy({
+                      format: isField(valueItem) ? valueItem.format : undefined,
+                      round: 2,
+                      compact: bigNumberComparisonStyle,
+                  }),
+              )
+            : formatItemValue(valueItem, value, false, parameters);
+    }
+
     const prefix =
         comparisonDiff === ComparisonDiffTypes.POSITIVE ||
         comparisonDiff === ComparisonDiffTypes.NONE
             ? '+'
             : '';
-    if (value === UNDEFINED) {
-        value = NOT_APPLICABLE;
-    }
+
     switch (format) {
         case ComparisonFormatTypes.PERCENTAGE:
             return `${prefix}${applyCustomFormat(value, {
@@ -234,6 +255,9 @@ const useBigNumberConfig = (
     const [comparisonLabel, setComparisonLabel] = useState<
         BigNumber['comparisonLabel']
     >(bigNumberConfigData?.comparisonLabel);
+    const [comparisonField, setComparisonField] = useState<
+        BigNumber['comparisonField']
+    >(bigNumberConfigData?.comparisonField);
 
     const [conditionalFormattings, setConditionalFormattings] = useState<
         ConditionalFormattingConfig[]
@@ -261,6 +285,7 @@ const useBigNumberConfig = (
         setConditionalFormattings(
             bigNumberConfigData?.conditionalFormattings ?? [],
         );
+        setComparisonField(bigNumberConfigData?.comparisonField);
     }, [bigNumberConfigData]);
 
     // big number value (first row)
@@ -270,11 +295,20 @@ const useBigNumberConfig = (
         return resultsData.rows?.[0]?.[selectedField]?.value.raw;
     }, [selectedField, resultsData]);
 
-    // value for comparison (second row)
+    // value for comparison: field-based (same row, different field) or row-based (different row, same field)
     const secondRowValueRaw = useMemo(() => {
-        if (!selectedField || !resultsData) return;
+        if (!resultsData) return;
+        if (comparisonField) {
+            return resultsData.rows?.[0]?.[comparisonField]?.value.raw;
+        }
+        if (!selectedField) return;
         return resultsData.rows?.[1]?.[selectedField]?.value.raw;
-    }, [selectedField, resultsData]);
+    }, [selectedField, comparisonField, resultsData]);
+
+    const comparisonItem = useMemo(() => {
+        if (!itemsMap || !comparisonField) return;
+        return itemsMap[comparisonField];
+    }, [itemsMap, comparisonField]);
 
     const bigNumber = useMemo(() => {
         if (!isNumber(item, firstRowValueRaw)) {
@@ -348,6 +382,13 @@ const useBigNumberConfig = (
     }, [item, secondRowValueRaw, firstRowValueRaw, comparisonFormat]);
 
     const comparisonDiff = useMemo(() => {
+        if (comparisonFormat === ComparisonFormatTypes.VALUE) {
+            return unformattedValue === UNDEFINED
+                ? ComparisonDiffTypes.UNDEFINED
+                : unformattedValue === NOT_APPLICABLE
+                  ? ComparisonDiffTypes.NAN
+                  : ComparisonDiffTypes.NONE;
+        }
         return unformattedValue === UNDEFINED
             ? ComparisonDiffTypes.UNDEFINED
             : unformattedValue === NOT_APPLICABLE
@@ -359,7 +400,7 @@ const useBigNumberConfig = (
                   : unformattedValue === 0
                     ? ComparisonDiffTypes.NONE
                     : ComparisonDiffTypes.NAN;
-    }, [unformattedValue]);
+    }, [unformattedValue, comparisonFormat]);
 
     const comparisonValue = useMemo(() => {
         return unformattedValue === NOT_APPLICABLE
@@ -371,6 +412,7 @@ const useBigNumberConfig = (
                   unformattedValue,
                   bigNumberComparisonStyle,
                   parameters,
+                  comparisonItem,
               );
     }, [
         comparisonFormat,
@@ -379,9 +421,21 @@ const useBigNumberConfig = (
         unformattedValue,
         bigNumberComparisonStyle,
         parameters,
+        comparisonItem,
     ]);
 
     const comparisonTooltip = useMemo(() => {
+        if (comparisonFormat === ComparisonFormatTypes.VALUE) {
+            if (comparisonDiff === ComparisonDiffTypes.UNDEFINED) {
+                return comparisonField
+                    ? `Comparison field has no value`
+                    : `There is no previous row to compare to`;
+            }
+            if (comparisonDiff === ComparisonDiffTypes.NAN) {
+                return `The comparison value is not a number`;
+            }
+            return `${comparisonValue}`;
+        }
         switch (comparisonDiff) {
             case ComparisonDiffTypes.POSITIVE:
             case ComparisonDiffTypes.NEGATIVE:
@@ -393,7 +447,7 @@ const useBigNumberConfig = (
             case ComparisonDiffTypes.UNDEFINED:
                 return `There is no previous row to compare to`;
         }
-    }, [comparisonValue, comparisonDiff]);
+    }, [comparisonValue, comparisonDiff, comparisonFormat, comparisonField]);
 
     const bigNumberTextColor = useMemo(() => {
         if (!conditionalFormattings.length || !item || !selectedField)
@@ -438,6 +492,7 @@ const useBigNumberConfig = (
             flipColors,
             comparisonLabel,
             conditionalFormattings,
+            comparisonField,
         };
     }, [
         bigNumberLabel,
@@ -450,6 +505,7 @@ const useBigNumberConfig = (
         flipColors,
         comparisonLabel,
         conditionalFormattings,
+        comparisonField,
     ]);
 
     return {
@@ -484,6 +540,8 @@ const useBigNumberConfig = (
         conditionalFormattings,
         onSetConditionalFormattings: setConditionalFormattings,
         bigNumberTextColor,
+        comparisonField,
+        setComparisonField,
     };
 };
 

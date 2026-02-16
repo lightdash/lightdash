@@ -1,4 +1,8 @@
-import { ComparisonFormatTypes, type CompactOrAlias } from '@lightdash/common';
+import {
+    ComparisonFormatTypes,
+    getItemId,
+    type CompactOrAlias,
+} from '@lightdash/common';
 import {
     Group,
     SegmentedControl,
@@ -10,11 +14,12 @@ import {
 import startCase from 'lodash/startCase';
 import { isBigNumberVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
+import FieldSelect from '../../common/FieldSelect';
 import { Config } from '../common/Config';
 import { StyleOptions } from './common';
 
 export const Comparison: React.FC = () => {
-    const { visualizationConfig } = useVisualizationContext();
+    const { visualizationConfig, itemsMap } = useVisualizationContext();
 
     if (!isBigNumberVisualizationConfig(visualizationConfig)) return null;
 
@@ -30,14 +35,25 @@ export const Comparison: React.FC = () => {
         setFlipColors,
         comparisonLabel,
         setComparisonLabel,
+        selectedField,
+        getField,
+        comparisonField,
+        setComparisonField,
     } = visualizationConfig.chartConfig;
+
+    const comparisonFieldItem = getField(comparisonField);
+
+    // Filter out selectedField from available comparison fields
+    const comparisonFieldItems = Object.values(itemsMap ?? {}).filter(
+        (item) => getItemId(item) !== selectedField,
+    );
 
     return (
         <Stack>
             <Config>
                 <Config.Section>
                     <Group spacing="xs" align="center">
-                        <Config.Heading>Compare to previous row</Config.Heading>
+                        <Config.Heading>Show comparison</Config.Heading>
                         <Switch
                             checked={showComparison}
                             onChange={() => {
@@ -64,31 +80,53 @@ export const Comparison: React.FC = () => {
                                                 ComparisonFormatTypes.PERCENTAGE,
                                             ),
                                         },
+                                        {
+                                            value: ComparisonFormatTypes.VALUE,
+                                            label: 'Value',
+                                        },
                                     ]}
                                     value={comparisonFormat}
                                     onChange={(e) => {
                                         setComparisonFormat(
-                                            e === 'raw'
-                                                ? ComparisonFormatTypes.RAW
-                                                : ComparisonFormatTypes.PERCENTAGE,
+                                            e as ComparisonFormatTypes,
                                         );
                                     }}
                                 />
                             </Group>
 
-                            <Switch
-                                label="Flip positive color"
-                                checked={flipColors}
-                                onChange={() => {
-                                    setFlipColors(!flipColors);
-                                }}
-                                labelPosition="left"
-                                styles={{
-                                    label: {
-                                        paddingLeft: 0,
-                                    },
-                                }}
-                            />
+                            {comparisonFormat ===
+                                ComparisonFormatTypes.VALUE && (
+                                <FieldSelect
+                                    label="Comparison field"
+                                    item={comparisonFieldItem}
+                                    items={comparisonFieldItems}
+                                    onChange={(newValue) => {
+                                        setComparisonField(
+                                            newValue
+                                                ? getItemId(newValue)
+                                                : undefined,
+                                        );
+                                    }}
+                                    hasGrouping
+                                />
+                            )}
+
+                            {comparisonFormat !==
+                                ComparisonFormatTypes.VALUE && (
+                                <Switch
+                                    label="Flip positive color"
+                                    checked={flipColors}
+                                    onChange={() => {
+                                        setFlipColors(!flipColors);
+                                    }}
+                                    labelPosition="left"
+                                    styles={{
+                                        label: {
+                                            paddingLeft: 0,
+                                        },
+                                    }}
+                                />
+                            )}
 
                             {showStyle &&
                                 comparisonFormat ===
