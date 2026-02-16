@@ -55,6 +55,10 @@ import {
     generateUniqueSpaceSlug,
 } from '../utils/SlugUtils';
 import type { GetDashboardDetailsQuery } from './DashboardModel/DashboardModel';
+import {
+    getRootSpaceAccessQuery,
+    getRootSpaceIsPrivateQuery,
+} from './SpacePermissionModel';
 
 type SpaceModelArguments = {
     database: Knex;
@@ -76,51 +80,6 @@ export class SpaceModel {
     constructor(args: SpaceModelArguments) {
         this.database = args.database;
         this.MOST_POPULAR_OR_RECENTLY_UPDATED_LIMIT = 10;
-    }
-
-    /**
-     * Nested spaces MVP - get is_private from root space
-     * Returns a raw SQL expression to determine if a space is private.
-     * For nested spaces, it checks the root space's privacy setting.
-     * @returns SQL string for determining privacy setting
-     */
-    static getRootSpaceIsPrivateQuery(): string {
-        return `
-            CASE
-                WHEN ${SpaceTableName}.parent_space_uuid IS NOT NULL THEN
-                    (SELECT ps.is_private
-                     FROM ${SpaceTableName} ps
-                     WHERE ps.path @> ${SpaceTableName}.path
-                     AND nlevel(ps.path) = 1
-                     AND ps.project_id = ${SpaceTableName}.project_id
-                     LIMIT 1)
-                ELSE
-                    ${SpaceTableName}.is_private
-            END
-        `;
-    }
-
-    /**
-     * Nested spaces MVP - get access list from root space
-     * Returns a raw SQL expression to get user access for a space.
-     * For nested spaces, it retrieves access from the root space.
-     * @returns SQL string for retrieving access information
-     */
-    static getRootSpaceAccessQuery(sharedWithTableName: string): string {
-        return `
-            CASE
-                WHEN ${SpaceTableName}.parent_space_uuid IS NOT NULL THEN
-                    (SELECT COALESCE(json_agg(sua.user_uuid) FILTER (WHERE sua.user_uuid IS NOT NULL), '[]')
-                     FROM ${SpaceUserAccessTableName} sua
-                     JOIN ${SpaceTableName} root_space ON sua.space_uuid = root_space.space_uuid
-                     WHERE root_space.path @> ${SpaceTableName}.path
-                     AND nlevel(root_space.path) = 1
-                     AND root_space.project_id = ${SpaceTableName}.project_id
-                     LIMIT 1)
-                ELSE
-                    COALESCE(json_agg(${sharedWithTableName}.user_uuid) FILTER (WHERE ${sharedWithTableName}.user_uuid IS NOT NULL), '[]')
-            END
-        `;
     }
 
     static async getSpaceIdAndName(db: Knex, spaceUuid: string | undefined) {
@@ -300,7 +259,7 @@ export class SpaceModel {
                 `${DashboardsTableName}.name as dashboard_name`,
                 `${SavedChartsTableName}.slug`,
                 this.database.raw(
-                    `${SpaceModel.getRootSpaceIsPrivateQuery()} AS is_private`,
+                    `${getRootSpaceIsPrivateQuery()} AS is_private`,
                 ),
             ])
             .orderBy(`${SavedChartsTableName}.last_version_updated_at`, 'desc')
@@ -423,12 +382,8 @@ export class SpaceModel {
                         projectUuid: `${ProjectTableName}.project_uuid`,
                         uuid: `${SpaceTableName}.space_uuid`,
                         name: trx.raw(`max(${SpaceTableName}.name)`),
-                        isPrivate: trx.raw(
-                            SpaceModel.getRootSpaceIsPrivateQuery(),
-                        ),
-                        access: trx.raw(
-                            SpaceModel.getRootSpaceAccessQuery('shared_with'),
-                        ),
+                        isPrivate: trx.raw(getRootSpaceIsPrivateQuery()),
+                        access: trx.raw(getRootSpaceAccessQuery('shared_with')),
                         pinnedListUuid: `${PinnedListTableName}.pinned_list_uuid`,
                         pinnedListOrder: `${PinnedSpaceTableName}.order`,
                         chartCount: trx
@@ -571,7 +526,7 @@ export class SpaceModel {
             >([
                 `${SpaceTableName}.*`,
                 this.database.raw(
-                    `${SpaceModel.getRootSpaceIsPrivateQuery()} AS is_private`,
+                    `${getRootSpaceIsPrivateQuery()} AS is_private`,
                 ),
                 `${ProjectTableName}.project_uuid`,
                 `${OrganizationTableName}.organization_uuid`,
