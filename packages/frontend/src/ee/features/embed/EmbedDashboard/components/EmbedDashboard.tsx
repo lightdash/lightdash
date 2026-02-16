@@ -320,13 +320,13 @@ const EmbedDashboard: FC<{
         <div
             // Used by EmbedDashboardExportPdf to temporarily set height:auto for multipage PDF printing
             id="embed-scroll-container"
-            style={
-                containerStyles ?? {
+            style={{
+                ...dashboardCSSVars,
+                ...(containerStyles ?? {
                     height: '100vh',
                     overflowY: 'auto',
-                    ...dashboardCSSVars,
-                }
-            }
+                }),
+            }}
         >
             <EmbedDashboardHeader
                 dashboard={dashboard}
