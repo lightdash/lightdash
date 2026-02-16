@@ -1284,6 +1284,7 @@ export class SpaceModel {
                 parent_space_uuid: spaceData.parentSpaceUuid ?? null,
                 path: spacePath,
                 inherit_parent_permissions: spaceData.inheritParentPermissions,
+                is_default_user_space: false,
             })
             .returning('*');
 

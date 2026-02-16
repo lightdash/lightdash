@@ -154,6 +154,7 @@ import {
     TableSelectionType,
     type Tag,
     UnexpectedServerError,
+    UpdateDefaultUserSpaces,
     UpdateMetadata,
     UpdateProject,
     UpdateProjectMember,
@@ -1998,9 +1999,9 @@ export class ProjectService extends BaseService {
         };
     }
 
-    /* 
+    /*
     Similar code to updateAndScheduleAsyncWork, but only for warehouse credentials
-    This will not trigger any job 
+    This will not trigger any job
     We could reuse this method in updateAndScheduleAsyncWork to avoid code duplication
     */
     async updateWarehouseCredentials(
@@ -5485,6 +5486,31 @@ export class ProjectService extends BaseService {
         }
 
         await this.projectModel.updateMetadata(projectUuid, data);
+    }
+
+    async updateDefaultUserSpaces(
+        user: SessionUser,
+        projectUuid: string,
+        data: UpdateDefaultUserSpaces,
+    ): Promise<void> {
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        await this.projectModel.updateDefaultUserSpaces(
+            projectUuid,
+            data.hasDefaultUserSpaces,
+        );
     }
 
     async deleteProjectAccess(
