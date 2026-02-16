@@ -7368,11 +7368,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                     ],
                                                     required: true,
@@ -7387,11 +7387,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                     ],
                                                     required: true,
@@ -7406,11 +7406,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                     ],
                                                     required: true,
@@ -7425,11 +7425,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                     ],
                                                     required: true,
@@ -7512,17 +7512,17 @@ const models: TsoaRoute.Models = {
                                                                                                             'string',
                                                                                                         required: true,
                                                                                                     },
+                                                                                                label: {
+                                                                                                    dataType:
+                                                                                                        'string',
+                                                                                                    required: true,
+                                                                                                },
                                                                                                 tableName:
                                                                                                     {
                                                                                                         dataType:
                                                                                                             'string',
                                                                                                         required: true,
                                                                                                     },
-                                                                                                label: {
-                                                                                                    dataType:
-                                                                                                        'string',
-                                                                                                    required: true,
-                                                                                                },
                                                                                                 name: {
                                                                                                     dataType:
                                                                                                         'string',
@@ -7551,7 +7551,7 @@ const models: TsoaRoute.Models = {
                                                                                             'nestedObjectLiteral',
                                                                                         nestedProperties:
                                                                                             {
-                                                                                                joinedTables:
+                                                                                                searchRank:
                                                                                                     {
                                                                                                         dataType:
                                                                                                             'union',
@@ -7559,11 +7559,7 @@ const models: TsoaRoute.Models = {
                                                                                                             [
                                                                                                                 {
                                                                                                                     dataType:
-                                                                                                                        'array',
-                                                                                                                    array: {
-                                                                                                                        dataType:
-                                                                                                                            'string',
-                                                                                                                    },
+                                                                                                                        'double',
                                                                                                                 },
                                                                                                                 {
                                                                                                                     dataType:
@@ -7578,7 +7574,7 @@ const models: TsoaRoute.Models = {
                                                                                                                 },
                                                                                                             ],
                                                                                                     },
-                                                                                                searchRank:
+                                                                                                joinedTables:
                                                                                                     {
                                                                                                         dataType:
                                                                                                             'union',
@@ -7586,7 +7582,11 @@ const models: TsoaRoute.Models = {
                                                                                                             [
                                                                                                                 {
                                                                                                                     dataType:
-                                                                                                                        'double',
+                                                                                                                        'array',
+                                                                                                                    array: {
+                                                                                                                        dataType:
+                                                                                                                            'string',
+                                                                                                                    },
                                                                                                                 },
                                                                                                                 {
                                                                                                                     dataType:
@@ -7638,11 +7638,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                     ],
                                                     required: true,
@@ -7770,17 +7770,17 @@ const models: TsoaRoute.Models = {
                                                                                                                 'string',
                                                                                                             required: true,
                                                                                                         },
+                                                                                                    label: {
+                                                                                                        dataType:
+                                                                                                            'string',
+                                                                                                        required: true,
+                                                                                                    },
                                                                                                     tableName:
                                                                                                         {
                                                                                                             dataType:
                                                                                                                 'string',
                                                                                                             required: true,
                                                                                                         },
-                                                                                                    label: {
-                                                                                                        dataType:
-                                                                                                            'string',
-                                                                                                        required: true,
-                                                                                                    },
                                                                                                     name: {
                                                                                                         dataType:
                                                                                                             'string',
@@ -7812,11 +7812,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                     ],
                                                     required: true,
@@ -7831,11 +7831,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                     ],
                                                     required: true,
@@ -7850,11 +7850,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                     ],
                                                     required: true,
@@ -7869,11 +7869,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                     ],
                                                     required: true,
@@ -7888,11 +7888,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                     ],
                                                     required: true,
@@ -7907,11 +7907,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                     ],
                                                     required: true,
@@ -7926,11 +7926,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                     ],
                                                     required: true,
@@ -24471,7 +24471,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    DeletedChartContentSummary: {
+    DeletedChartBase: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
@@ -24513,7 +24513,6 @@ const models: TsoaRoute.Models = {
                     ],
                     required: true,
                 },
-                source: { ref: 'ChartSourceType', required: true },
                 contentType: { ref: 'ContentType.CHART', required: true },
                 description: {
                     dataType: 'union',
@@ -24528,6 +24527,64 @@ const models: TsoaRoute.Models = {
             },
             validators: {},
         },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'ChartSourceType.DBT_EXPLORE': {
+        dataType: 'refEnum',
+        enums: ['dbt_explore'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'WithDescendantCounts_DeletedDbtChartContentSummary.scheduler_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'DeletedChartBase' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        source: {
+                            ref: 'ChartSourceType.DBT_EXPLORE',
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        schedulerCount: { dataType: 'double', required: true },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'ChartSourceType.SQL': {
+        dataType: 'refEnum',
+        enums: ['sql'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DeletedSqlChartContentSummary: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'DeletedChartBase' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        source: { ref: 'ChartSourceType.SQL', required: true },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'WithDescendantCounts_DeletedSqlChartContentSummary.never_': {
+        dataType: 'refAlias',
+        type: { ref: 'DeletedSqlChartContentSummary', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DeletedDashboardContentSummary: {
@@ -24576,6 +24633,24 @@ const models: TsoaRoute.Models = {
                 name: { dataType: 'string', required: true },
                 uuid: { dataType: 'string', required: true },
             },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'WithDescendantCounts_DeletedDashboardContentSummary.chart-or-scheduler_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'DeletedDashboardContentSummary' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        schedulerCount: { dataType: 'double', required: true },
+                        chartCount: { dataType: 'double', required: true },
+                    },
+                },
+            ],
             validators: {},
         },
     },
@@ -24630,20 +24705,59 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    DeletedContentSummary: {
+    'WithDescendantCounts_DeletedSpaceContentSummary.nestedSpace-or-dashboard-or-chart-or-scheduler_':
+        {
+            dataType: 'refAlias',
+            type: {
+                dataType: 'intersection',
+                subSchemas: [
+                    { ref: 'DeletedSpaceContentSummary' },
+                    {
+                        dataType: 'nestedObjectLiteral',
+                        nestedProperties: {
+                            nestedSpaceCount: {
+                                dataType: 'double',
+                                required: true,
+                            },
+                            schedulerCount: {
+                                dataType: 'double',
+                                required: true,
+                            },
+                            dashboardCount: {
+                                dataType: 'double',
+                                required: true,
+                            },
+                            chartCount: { dataType: 'double', required: true },
+                        },
+                    },
+                ],
+                validators: {},
+            },
+        },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DeletedContentWithDescendants: {
         dataType: 'refAlias',
         type: {
             dataType: 'union',
             subSchemas: [
-                { ref: 'DeletedChartContentSummary' },
-                { ref: 'DeletedDashboardContentSummary' },
-                { ref: 'DeletedSpaceContentSummary' },
+                {
+                    ref: 'WithDescendantCounts_DeletedDbtChartContentSummary.scheduler_',
+                },
+                {
+                    ref: 'WithDescendantCounts_DeletedSqlChartContentSummary.never_',
+                },
+                {
+                    ref: 'WithDescendantCounts_DeletedDashboardContentSummary.chart-or-scheduler_',
+                },
+                {
+                    ref: 'WithDescendantCounts_DeletedSpaceContentSummary.nestedSpace-or-dashboard-or-chart-or-scheduler_',
+                },
             ],
             validators: {},
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'KnexPaginatedData_DeletedContentSummary-Array_': {
+    'KnexPaginatedData_DeletedContentWithDescendants-Array_': {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
@@ -24671,7 +24785,7 @@ const models: TsoaRoute.Models = {
                     dataType: 'array',
                     array: {
                         dataType: 'refAlias',
-                        ref: 'DeletedContentSummary',
+                        ref: 'DeletedContentWithDescendants',
                     },
                     required: true,
                 },
@@ -24686,7 +24800,7 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 results: {
-                    ref: 'KnexPaginatedData_DeletedContentSummary-Array_',
+                    ref: 'KnexPaginatedData_DeletedContentWithDescendants-Array_',
                     required: true,
                 },
                 status: { dataType: 'enum', enums: ['ok'], required: true },
@@ -45873,6 +45987,71 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'updateMetricsTree',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsCatalogController_deleteMetricsTree: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        metricsTreeUuid: {
+            in: 'path',
+            name: 'metricsTreeUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
+    app.delete(
+        '/api/v1/projects/:projectUuid/dataCatalog/metrics/trees/:metricsTreeUuid',
+        ...fetchMiddlewares<RequestHandler>(CatalogController),
+        ...fetchMiddlewares<RequestHandler>(
+            CatalogController.prototype.deleteMetricsTree,
+        ),
+
+        async function CatalogController_deleteMetricsTree(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsCatalogController_deleteMetricsTree,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<CatalogController>(CatalogController);
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'deleteMetricsTree',
                     controller,
                     response,
                     next,

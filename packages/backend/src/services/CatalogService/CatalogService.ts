@@ -1789,4 +1789,33 @@ export class CatalogService<
 
         return result;
     }
+
+    async deleteMetricsTree(
+        user: SessionUser,
+        projectUuid: string,
+        metricsTreeUuid: string,
+    ): Promise<void> {
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('MetricsTree', { projectUuid, organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError(
+                `User ${user.userUuid} does not have permission to delete metrics tree ${metricsTreeUuid}`,
+            );
+        }
+
+        const lock = await this.catalogModel.getTreeLock(metricsTreeUuid);
+        if (lock) {
+            throw new ForbiddenError(
+                'Cannot delete a metrics tree while it is being edited',
+            );
+        }
+
+        await this.catalogModel.deleteMetricsTree(projectUuid, metricsTreeUuid);
+    }
 }
