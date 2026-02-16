@@ -41,5 +41,6 @@ export class FileController extends BaseController {
 
         this.setStatus(302);
         this.setHeader('Location', signedUrl);
+        this.setHeader('X-Robots-Tag', 'noindex, nofollow');
     }
 }
