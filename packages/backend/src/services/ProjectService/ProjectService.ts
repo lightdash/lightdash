@@ -147,6 +147,7 @@ import {
     SortField,
     SpaceQuery,
     SpaceSummary,
+    type SpaceSummaryBase,
     SqlRunnerPayload,
     SqlRunnerPivotQueryPayload,
     SummaryExplore,
@@ -5623,7 +5624,7 @@ export class ProjectService extends BaseService {
     }
 
     async getMostPopular(
-        allowedSpaces: Pick<SpaceSummary, 'uuid'>[],
+        allowedSpaces: Pick<SpaceSummaryBase, 'uuid'>[],
     ): Promise<(SpaceQuery | DashboardBasicDetails)[]> {
         const mostPopularCharts = await this.spaceModel.getSpaceQueries(
             allowedSpaces.map(({ uuid }) => uuid),
@@ -5652,7 +5653,7 @@ export class ProjectService extends BaseService {
     }
 
     async getRecentlyUpdated(
-        allowedSpaces: Pick<SpaceSummary, 'uuid'>[],
+        allowedSpaces: Pick<SpaceSummaryBase, 'uuid'>[],
     ): Promise<(SpaceQuery | DashboardBasicDetails)[]> {
         const recentlyUpdatedCharts = await this.spaceModel.getSpaceQueries(
             allowedSpaces.map(({ uuid }) => uuid),
@@ -5709,13 +5710,20 @@ export class ProjectService extends BaseService {
                 const ctx = spacesCtx[space.uuid];
                 return ctx && user.ability.can('view', subject('Space', ctx));
             })
-            .map((spaceSummary) => ({
-                ...spaceSummary,
-                userAccess:
-                    spacesCtx[spaceSummary.uuid]?.access.find(
+            .map((spaceSummary) => {
+                const ctx = spacesCtx[spaceSummary.uuid];
+                return {
+                    ...spaceSummary,
+                    access: ctx
+                        ? ctx.access
+                              .filter((a) => a.hasDirectAccess)
+                              .map((a) => a.userUuid)
+                        : [],
+                    userAccess: ctx?.access.find(
                         (a) => a.userUuid === user.userUuid,
-                    ) ?? undefined,
-            }));
+                    ),
+                };
+            });
     }
 
     async createPreview(
