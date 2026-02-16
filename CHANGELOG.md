@@ -1,3 +1,15 @@
+## [0.2471.1](https://github.com/lightdash/lightdash/compare/0.2471.0...0.2471.1) (2026-02-16)
+
+
+### Bug Fixes
+
+* improve PDF export formatting for embedded dashboards ([#20331](https://github.com/lightdash/lightdash/issues/20331)) ([95cc8e4](https://github.com/lightdash/lightdash/commit/95cc8e4b9e879446425459bba69b796160de67ea))
+
+
+### Performance Improvements
+
+* optimize agent explore lookup by filtering at database level ([#20288](https://github.com/lightdash/lightdash/issues/20288)) ([8333230](https://github.com/lightdash/lightdash/commit/83332306a12c7b54e869d9a372a5cbc25259c323))
+
 # [0.2471.0](https://github.com/lightdash/lightdash/compare/0.2470.0...0.2471.0) (2026-02-16)
 
 
