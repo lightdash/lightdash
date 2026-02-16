@@ -30,6 +30,7 @@ import SuboptimalState from '../../../../components/common/SuboptimalState/Subop
 import useApp from '../../../../providers/App/useApp';
 import { useAppDispatch, useAppSelector } from '../../../sqlRunner/store/hooks';
 import { useMetricsCatalog } from '../../hooks/useMetricsCatalog';
+import { useAllMetricsTreeEdges } from '../../hooks/useMetricsTree';
 import {
     useAcquireTreeLock,
     useCreateSavedMetricsTree,
@@ -53,8 +54,9 @@ import SavedTreeCanvasFlow from '../Canvas/SavedTreeCanvasFlow';
 import type { ExpandedNodeData } from '../Canvas/TreeComponents/nodes/ExpandedNode';
 import classes from './SavedTreeCanvas.module.css';
 
-// Stable reference to prevent Canvas memo/effect cascade on every parent re-render
+// Stable references to prevent Canvas memo/effect cascade on every parent re-render
 const EMPTY_EDGES: CatalogMetricsTreeEdge[] = [];
+const EMPTY_YAML_EDGES: CatalogMetricsTreeEdge[] = [];
 
 type SavedTreeCanvasProps = {
     mode: SavedTreeEditMode;
@@ -124,6 +126,18 @@ const SavedTreeCanvas: FC<SavedTreeCanvasProps> = ({ mode, treeUuid }) => {
         });
         return Array.from(metricsMap.values());
     }, [allMetrics, isEditingExisting, treeDetails]);
+
+    // Fetch all project edges (only in edit mode) and extract YAML-only edges
+    const { data: allEdgesData } = useAllMetricsTreeEdges(
+        isEditMode ? projectUuid : undefined,
+    );
+
+    const allProjectYamlEdges = useMemo(
+        () =>
+            allEdgesData?.edges.filter((e) => e.createdFrom === 'yaml') ??
+            EMPTY_YAML_EDGES,
+        [allEdgesData?.edges],
+    );
 
     const sidebarFilter = useCallback(
         (node: ExpandedNodeData) => {
@@ -388,6 +402,7 @@ const SavedTreeCanvas: FC<SavedTreeCanvasProps> = ({ mode, treeUuid }) => {
                         viewOnly={false}
                         onCanvasStateChange={handleCanvasStateChange}
                         sidebarFilter={sidebarFilter}
+                        allProjectYamlEdges={allProjectYamlEdges}
                     />
                 </Box>
                 <MantineModal
