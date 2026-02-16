@@ -1,3 +1,11 @@
+# [0.2469.0](https://github.com/lightdash/lightdash/compare/0.2468.0...0.2469.0) (2026-02-16)
+
+
+### Features
+
+* add delete functionality to saved metrics trees ([#20327](https://github.com/lightdash/lightdash/issues/20327)) ([fc337bc](https://github.com/lightdash/lightdash/commit/fc337bc58f341fd1a3c0fea622d5a35693ec6ea8))
+* add delete metrics tree endpoint ([#20326](https://github.com/lightdash/lightdash/issues/20326)) ([c395d48](https://github.com/lightdash/lightdash/commit/c395d48502fe2c5d7b5d61610e281f295b3e3a24))
+
 # [0.2468.0](https://github.com/lightdash/lightdash/compare/0.2467.0...0.2468.0) (2026-02-16)
 
 
