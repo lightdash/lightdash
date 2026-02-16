@@ -1,3 +1,10 @@
+## [0.2471.2](https://github.com/lightdash/lightdash/compare/0.2471.1...0.2471.2) (2026-02-16)
+
+
+### Performance Improvements
+
+* optimize canvas flow with stable refs and debounced state updates ([#20346](https://github.com/lightdash/lightdash/issues/20346)) ([77587aa](https://github.com/lightdash/lightdash/commit/77587aa992b61f9179bafa5fba9ff03c356e8424))
+
 ## [0.2471.1](https://github.com/lightdash/lightdash/compare/0.2471.0...0.2471.1) (2026-02-16)
 
 
