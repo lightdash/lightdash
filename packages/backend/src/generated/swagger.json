@@ -8251,8 +8251,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "error",
-                                                            "success"
+                                                            "success",
+                                                            "error"
                                                         ]
                                                     }
                                                 },
@@ -8279,10 +8279,10 @@
                                                                         "fieldType": {
                                                                             "type": "string"
                                                                         },
-                                                                        "tableName": {
+                                                                        "label": {
                                                                             "type": "string"
                                                                         },
-                                                                        "label": {
+                                                                        "tableName": {
                                                                             "type": "string"
                                                                         },
                                                                         "name": {
@@ -8291,8 +8291,8 @@
                                                                     },
                                                                     "required": [
                                                                         "fieldType",
-                                                                        "tableName",
                                                                         "label",
+                                                                        "tableName",
                                                                         "name"
                                                                     ],
                                                                     "type": "object"
@@ -8302,16 +8302,16 @@
                                                             "exploreSearchResults": {
                                                                 "items": {
                                                                     "properties": {
+                                                                        "searchRank": {
+                                                                            "type": "number",
+                                                                            "format": "double",
+                                                                            "nullable": true
+                                                                        },
                                                                         "joinedTables": {
                                                                             "items": {
                                                                                 "type": "string"
                                                                             },
                                                                             "type": "array",
-                                                                            "nullable": true
-                                                                        },
-                                                                        "searchRank": {
-                                                                            "type": "number",
-                                                                            "format": "double",
                                                                             "nullable": true
                                                                         },
                                                                         "label": {
@@ -8341,8 +8341,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "error",
-                                                            "success"
+                                                            "success",
+                                                            "error"
                                                         ]
                                                     }
                                                 },
@@ -8399,10 +8399,10 @@
                                                                                     "fieldType": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "tableName": {
+                                                                                    "label": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "label": {
+                                                                                    "tableName": {
                                                                                         "type": "string"
                                                                                     },
                                                                                     "name": {
@@ -8411,8 +8411,8 @@
                                                                                 },
                                                                                 "required": [
                                                                                     "fieldType",
-                                                                                    "tableName",
                                                                                     "label",
+                                                                                    "tableName",
                                                                                     "name"
                                                                                 ],
                                                                                 "type": "object"
@@ -8440,8 +8440,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "error",
-                                                            "success"
+                                                            "success",
+                                                            "error"
                                                         ]
                                                     }
                                                 },
@@ -25255,7 +25255,7 @@
                 "required": ["action", "content"],
                 "type": "object"
             },
-            "DeletedChartContentSummary": {
+            "DeletedChartBase": {
                 "properties": {
                     "organizationUuid": {
                         "type": "string"
@@ -25297,9 +25297,6 @@
                         ],
                         "nullable": true
                     },
-                    "source": {
-                        "$ref": "#/components/schemas/ChartSourceType"
-                    },
                     "contentType": {
                         "$ref": "#/components/schemas/ContentType.CHART"
                     },
@@ -25322,13 +25319,65 @@
                     "deletedBy",
                     "deletedAt",
                     "chartKind",
-                    "source",
                     "contentType",
                     "description",
                     "name",
                     "uuid"
                 ],
                 "type": "object"
+            },
+            "ChartSourceType.DBT_EXPLORE": {
+                "enum": ["dbt_explore"],
+                "type": "string"
+            },
+            "WithDescendantCounts_DeletedDbtChartContentSummary.scheduler_": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/DeletedChartBase"
+                    },
+                    {
+                        "properties": {
+                            "source": {
+                                "$ref": "#/components/schemas/ChartSourceType.DBT_EXPLORE"
+                            }
+                        },
+                        "required": ["source"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "schedulerCount": {
+                                "type": "number",
+                                "format": "double"
+                            }
+                        },
+                        "required": ["schedulerCount"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ChartSourceType.SQL": {
+                "enum": ["sql"],
+                "type": "string"
+            },
+            "DeletedSqlChartContentSummary": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/DeletedChartBase"
+                    },
+                    {
+                        "properties": {
+                            "source": {
+                                "$ref": "#/components/schemas/ChartSourceType.SQL"
+                            }
+                        },
+                        "required": ["source"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "WithDescendantCounts_DeletedSqlChartContentSummary.never_": {
+                "$ref": "#/components/schemas/DeletedSqlChartContentSummary"
             },
             "DeletedDashboardContentSummary": {
                 "properties": {
@@ -25392,6 +25441,27 @@
                 ],
                 "type": "object"
             },
+            "WithDescendantCounts_DeletedDashboardContentSummary.chart-or-scheduler_": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/DeletedDashboardContentSummary"
+                    },
+                    {
+                        "properties": {
+                            "schedulerCount": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "chartCount": {
+                                "type": "number",
+                                "format": "double"
+                            }
+                        },
+                        "required": ["schedulerCount", "chartCount"],
+                        "type": "object"
+                    }
+                ]
+            },
             "DeletedSpaceContentSummary": {
                 "properties": {
                     "organizationUuid": {
@@ -25454,20 +25524,57 @@
                 ],
                 "type": "object"
             },
-            "DeletedContentSummary": {
-                "anyOf": [
-                    {
-                        "$ref": "#/components/schemas/DeletedChartContentSummary"
-                    },
-                    {
-                        "$ref": "#/components/schemas/DeletedDashboardContentSummary"
-                    },
+            "WithDescendantCounts_DeletedSpaceContentSummary.nestedSpace-or-dashboard-or-chart-or-scheduler_": {
+                "allOf": [
                     {
                         "$ref": "#/components/schemas/DeletedSpaceContentSummary"
+                    },
+                    {
+                        "properties": {
+                            "nestedSpaceCount": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "schedulerCount": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "dashboardCount": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "chartCount": {
+                                "type": "number",
+                                "format": "double"
+                            }
+                        },
+                        "required": [
+                            "nestedSpaceCount",
+                            "schedulerCount",
+                            "dashboardCount",
+                            "chartCount"
+                        ],
+                        "type": "object"
                     }
                 ]
             },
-            "KnexPaginatedData_DeletedContentSummary-Array_": {
+            "DeletedContentWithDescendants": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/WithDescendantCounts_DeletedDbtChartContentSummary.scheduler_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/WithDescendantCounts_DeletedSqlChartContentSummary.never_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/WithDescendantCounts_DeletedDashboardContentSummary.chart-or-scheduler_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/WithDescendantCounts_DeletedSpaceContentSummary.nestedSpace-or-dashboard-or-chart-or-scheduler_"
+                    }
+                ]
+            },
+            "KnexPaginatedData_DeletedContentWithDescendants-Array_": {
                 "properties": {
                     "pagination": {
                         "allOf": [
@@ -25492,7 +25599,7 @@
                     },
                     "data": {
                         "items": {
-                            "$ref": "#/components/schemas/DeletedContentSummary"
+                            "$ref": "#/components/schemas/DeletedContentWithDescendants"
                         },
                         "type": "array"
                     }
@@ -25503,7 +25610,7 @@
             "ApiDeletedContentResponse": {
                 "properties": {
                     "results": {
-                        "$ref": "#/components/schemas/KnexPaginatedData_DeletedContentSummary-Array_"
+                        "$ref": "#/components/schemas/KnexPaginatedData_DeletedContentWithDescendants-Array_"
                     },
                     "status": {
                         "type": "string",
@@ -25592,7 +25699,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2461.0",
+        "version": "0.2468.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -39072,6 +39179,53 @@
                         }
                     }
                 }
+            },
+            "delete": {
+                "operationId": "deleteMetricsTree",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Delete a saved metrics tree and its associated nodes",
+                "summary": "Delete metrics tree",
+                "tags": ["Catalog"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "metricsTreeUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/projects/{projectUuid}/dataCatalog/metrics/trees/{metricsTreeUuid}/lock": {

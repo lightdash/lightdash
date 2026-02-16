@@ -231,6 +231,37 @@ export class CatalogController extends BaseController {
     }
 
     /**
+     * Delete a saved metrics tree and its associated nodes
+     * @summary Delete metrics tree
+     * @param projectUuid
+     * @param metricsTreeUuid
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Delete('/metrics/trees/{metricsTreeUuid}')
+    @OperationId('deleteMetricsTree')
+    async deleteMetricsTree(
+        @Path() projectUuid: string,
+        @Path() metricsTreeUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        this.setStatus(200);
+
+        await this.services
+            .getCatalogService()
+            .deleteMetricsTree(req.user!, projectUuid, metricsTreeUuid);
+
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    /**
      * Acquire an edit lock on a metrics tree
      * @summary Acquire tree lock
      * @param projectUuid

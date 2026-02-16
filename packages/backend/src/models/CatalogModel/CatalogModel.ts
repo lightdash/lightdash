@@ -2341,6 +2341,24 @@ export class CatalogModel {
         return this.getMetricsTreeByUuid(projectUuid, metricsTreeUuid);
     }
 
+    async deleteMetricsTree(
+        projectUuid: string,
+        metricsTreeUuid: string,
+    ): Promise<void> {
+        const deletedCount = await this.database(MetricsTreesTableName)
+            .where({
+                metrics_tree_uuid: metricsTreeUuid,
+                project_uuid: projectUuid,
+            })
+            .delete();
+
+        if (deletedCount === 0) {
+            throw new NotFoundError(
+                `Metrics tree ${metricsTreeUuid} not found in project ${projectUuid}`,
+            );
+        }
+    }
+
     async getDistinctOwners(projectUuid: string): Promise<
         {
             userUuid: string;
