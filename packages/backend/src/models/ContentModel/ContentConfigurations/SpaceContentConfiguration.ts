@@ -1,4 +1,4 @@
-import { ContentType, SpaceContent } from '@lightdash/common';
+import { ContentType, SpaceContentBase } from '@lightdash/common';
 import { Knex } from 'knex';
 import { DashboardsTableName } from '../../../database/entities/dashboards';
 import { OrganizationTableName } from '../../../database/entities/organizations';
@@ -7,15 +7,9 @@ import { ProjectTableName } from '../../../database/entities/projects';
 import { SavedChartsTableName } from '../../../database/entities/savedCharts';
 import { SavedSqlTableName } from '../../../database/entities/savedSql';
 import { SchedulerTableName } from '../../../database/entities/scheduler';
-import {
-    SpaceTableName,
-    SpaceUserAccessTableName,
-} from '../../../database/entities/spaces';
+import { SpaceTableName } from '../../../database/entities/spaces';
 import { UserTableName } from '../../../database/entities/users';
-import {
-    getRootSpaceAccessQuery,
-    getRootSpaceIsPrivateQuery,
-} from '../../SpacePermissionModel';
+import { getRootSpaceIsPrivateQuery } from '../../SpacePermissionModel';
 import {
     ContentConfiguration,
     ContentFilters,
@@ -30,7 +24,6 @@ type SpaceContentRow = SummaryContentRow<{
     schedulerCount: number;
     parentSpaceUuid: string | null;
     path: string;
-    access: string[];
     isPrivate: boolean;
     inheritParentPermissions: boolean;
     pinnedListOrder: number;
@@ -73,16 +66,6 @@ export const spaceContentConfiguration: ContentConfiguration<SpaceContentRow> =
                     `${UserTableName} as created_by_user`,
                     `created_by_user.user_id`,
                     `${SpaceTableName}.created_by_user_id`,
-                )
-                .leftJoin(
-                    `${SpaceUserAccessTableName}`,
-                    `${SpaceUserAccessTableName}.space_uuid`,
-                    `${SpaceTableName}.space_uuid`,
-                )
-                .leftJoin(
-                    `${UserTableName} as shared_with`,
-                    `${SpaceUserAccessTableName}.user_uuid`,
-                    'shared_with.user_uuid',
                 )
                 .leftJoin(
                     `${UserTableName} as deleted_by_user`,
@@ -158,7 +141,6 @@ export const spaceContentConfiguration: ContentConfiguration<SpaceContentRow> =
                         }),
                         'parentSpaceUuid', ${SpaceTableName}.parent_space_uuid,
                         'path', ${SpaceTableName}.path,
-                        'access', (${getRootSpaceAccessQuery('shared_with')}),
                         'isPrivate', (${getRootSpaceIsPrivateQuery()}),
                         'inheritParentPermissions', ${SpaceTableName}.inherit_parent_permissions,
                         'pinnedListOrder', ${PinnedSpaceTableName}.order
@@ -247,31 +229,10 @@ export const spaceContentConfiguration: ContentConfiguration<SpaceContentRow> =
                             );
                         }
                     }
-                })
-                .groupBy(
-                    `${SpaceTableName}.space_uuid`,
-                    `${SpaceTableName}.space_id`,
-                    `${SpaceTableName}.name`,
-                    `${SpaceTableName}.slug`,
-                    `${ProjectTableName}.project_uuid`,
-                    `${ProjectTableName}.name`,
-                    `${OrganizationTableName}.organization_uuid`,
-                    `${OrganizationTableName}.organization_name`,
-                    `${PinnedSpaceTableName}.pinned_list_uuid`,
-                    `created_by_user.user_uuid`,
-                    `created_by_user.first_name`,
-                    `created_by_user.last_name`,
-                    `${SpaceTableName}.parent_space_uuid`,
-                    `${SpaceTableName}.created_at`,
-                    `${PinnedSpaceTableName}.order`,
-                    `${SpaceTableName}.deleted_at`,
-                    `${SpaceTableName}.deleted_by_user_uuid`,
-                    'deleted_by_user.first_name',
-                    'deleted_by_user.last_name',
-                ),
+                }),
         shouldRowBeConverted: (value): value is SpaceContentRow =>
             value.content_type === ContentType.SPACE,
-        convertSummaryRow: (value): SpaceContent => {
+        convertSummaryRow: (value): SpaceContentBase => {
             if (!spaceContentConfiguration.shouldRowBeConverted(value)) {
                 throw new Error('Invalid content row');
             }
@@ -316,7 +277,6 @@ export const spaceContentConfiguration: ContentConfiguration<SpaceContentRow> =
                 isPrivate: value.metadata.isPrivate,
                 inheritParentPermissions:
                     value.metadata.inheritParentPermissions,
-                access: value.metadata.access,
                 dashboardCount: value.metadata.dashboardCount,
                 chartCount: value.metadata.chartCount,
             };

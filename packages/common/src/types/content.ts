@@ -74,11 +74,10 @@ export interface DashboardContent extends Content {
     contentType: ContentType.DASHBOARD;
 }
 
-export interface SpaceContent extends Content {
+export interface SpaceContentBase extends Content {
     contentType: ContentType.SPACE;
     isPrivate: boolean;
     inheritParentPermissions: boolean;
-    access: string[];
     dashboardCount: number;
     chartCount: number;
     pinnedList: {
@@ -89,8 +88,19 @@ export interface SpaceContent extends Content {
     path: string;
 }
 
+export interface SpaceContent extends SpaceContentBase {
+    access: string[];
+}
+
 // Group types
 
+// What the model returns (spaces without access data)
+export type SummaryContentBase =
+    | ChartContent
+    | DashboardContent
+    | SpaceContentBase;
+
+// What the API returns (spaces enriched with access data)
 export type SummaryContent = ChartContent | DashboardContent | SpaceContent; // Note: more types will be added.
 
 // API types

@@ -8269,6 +8269,19 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
+                                                            "success",
+                                                            "error"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": ["status"],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
                                                             "error",
                                                             "success"
                                                         ]
@@ -24998,12 +25011,6 @@
                     "inheritParentPermissions": {
                         "type": "boolean"
                     },
-                    "access": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
                     "dashboardCount": {
                         "type": "number",
                         "format": "double"
@@ -25018,6 +25025,12 @@
                     },
                     "path": {
                         "type": "string"
+                    },
+                    "access": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
                     }
                 },
                 "required": [
@@ -25038,11 +25051,11 @@
                     "firstViewedAt",
                     "isPrivate",
                     "inheritParentPermissions",
-                    "access",
                     "dashboardCount",
                     "chartCount",
                     "parentSpaceUuid",
-                    "path"
+                    "path",
+                    "access"
                 ],
                 "type": "object",
                 "additionalProperties": true
@@ -25640,7 +25653,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2471.2",
+        "version": "0.2475.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
