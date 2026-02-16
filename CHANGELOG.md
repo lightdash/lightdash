@@ -1,3 +1,13 @@
+# [0.2471.0](https://github.com/lightdash/lightdash/compare/0.2470.0...0.2471.0) (2026-02-16)
+
+
+### Features
+
+* add reactive YAML edge injection in metrics tree editor ([#20329](https://github.com/lightdash/lightdash/issues/20329)) ([a1c99f8](https://github.com/lightdash/lightdash/commit/a1c99f80d9bc4d0a2fd39f71bc23dbcdfd67dd7b))
+* add support for anyAttributes in search results ([#20320](https://github.com/lightdash/lightdash/issues/20320)) ([f4b35f0](https://github.com/lightdash/lightdash/commit/f4b35f0f1dbdb794f580567c480f812bae252f90))
+* add user attribute "any_attributes" access control ([#20306](https://github.com/lightdash/lightdash/issues/20306)) ([9162a2c](https://github.com/lightdash/lightdash/commit/9162a2c63cf5907be18351138bf9c580d3b45646))
+* support table-level any attributes for field access control ([#20323](https://github.com/lightdash/lightdash/issues/20323)) ([e1e110f](https://github.com/lightdash/lightdash/commit/e1e110ff448d7459391c2ba5967ee26768615440))
+
 # [0.2470.0](https://github.com/lightdash/lightdash/compare/0.2469.1...0.2470.0) (2026-02-16)
 
 
