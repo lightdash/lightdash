@@ -63,12 +63,12 @@ import AddTileButton from '../../DashboardTiles/AddTileButton';
 import MantineIcon from '../MantineIcon';
 import PageHeader from '../Page/PageHeader';
 import DashboardInfoOverlay from '../PageHeader/DashboardInfoOverlay';
+import { ShareLinkButton } from '../ShareLinkButton';
 import SpaceActionModal from '../SpaceActionModal';
 import { ActionType } from '../SpaceActionModal/types';
 import TransferItemsModal from '../TransferItemsModal/TransferItemsModal';
 import DashboardUpdateModal from '../modal/DashboardUpdateModal';
 import { DashboardRefreshButton } from './DashboardRefreshButton';
-import { ShareLinkButton } from './ShareLinkButton';
 import {
     DASHBOARD_HEADER_HEIGHT,
     DASHBOARD_HEADER_ZINDEX,
@@ -544,7 +544,10 @@ const DashboardHeader = ({
                         )}
 
                     {userCanExportData && !isFullscreen && (
-                        <ShareLinkButton url={`${window.location.href}`} />
+                        <ShareLinkButton
+                            url={`${window.location.href}`}
+                            label="Copy link to the dashboard"
+                        />
                     )}
 
                     {!isFullscreen && (

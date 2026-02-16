@@ -29,10 +29,11 @@ import {
     useState,
     type FC,
 } from 'react';
-import { useBlocker } from 'react-router';
+import { useBlocker, useNavigate } from 'react-router';
 import { BASE_API_URL } from '../../../../api';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import MantineModal from '../../../../components/common/MantineModal';
+import { ShareLinkButton } from '../../../../components/common/ShareLinkButton';
 import SuboptimalState from '../../../../components/common/SuboptimalState/SuboptimalState';
 import useApp from '../../../../providers/App/useApp';
 import { useAppDispatch, useAppSelector } from '../../../sqlRunner/store/hooks';
@@ -47,10 +48,7 @@ import {
     useTreeLockHeartbeat,
     useUpdateSavedMetricsTree,
 } from '../../hooks/useSavedMetricsTrees';
-import {
-    setActiveTreeUuid,
-    setSavedTreeEditMode,
-} from '../../store/metricsCatalogSlice';
+import { setSavedTreeEditMode } from '../../store/metricsCatalogSlice';
 import { SavedTreeEditMode } from '../../types';
 import {
     mapCanvasStateToCreatePayload,
@@ -73,6 +71,7 @@ type SavedTreeCanvasProps = {
 
 const SavedTreeCanvas: FC<SavedTreeCanvasProps> = ({ mode, treeUuid }) => {
     const dispatch = useAppDispatch();
+    const navigate = useNavigate();
     const { user } = useApp();
     const currentUserUuid = user?.data?.userUuid;
     const projectUuid = useAppSelector(
@@ -184,9 +183,9 @@ const SavedTreeCanvas: FC<SavedTreeCanvasProps> = ({ mode, treeUuid }) => {
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
     const exitToList = useCallback(() => {
-        dispatch(setActiveTreeUuid(null));
         dispatch(setSavedTreeEditMode(SavedTreeEditMode.VIEW));
-    }, [dispatch]);
+        void navigate(`/projects/${projectUuid}/metrics/canvas`);
+    }, [dispatch, navigate, projectUuid]);
 
     const handleLockLost = useCallback(() => {
         clearDraft();
@@ -336,8 +335,10 @@ const SavedTreeCanvas: FC<SavedTreeCanvasProps> = ({ mode, treeUuid }) => {
                 payload,
             });
 
-            dispatch(setActiveTreeUuid(result.metricsTreeUuid));
             dispatch(setSavedTreeEditMode(SavedTreeEditMode.VIEW));
+            void navigate(
+                `/projects/${projectUuid}/metrics/canvas/${result.slug}`,
+            );
         }
     };
 
@@ -503,10 +504,16 @@ const SavedTreeCanvas: FC<SavedTreeCanvasProps> = ({ mode, treeUuid }) => {
                         <Button
                             variant="default"
                             size="compact-sm"
+                            // match share link button size
+                            h="1.75rem"
                             onClick={handleBack}
                         >
                             Close
                         </Button>
+                        <ShareLinkButton
+                            url={`${window.location.origin}/projects/${projectUuid}/metrics/canvas/${treeDetails.slug}`}
+                            label="Copy link to tree"
+                        />
                         {canManageMetricsTree && (
                             <Menu
                                 position="bottom-end"

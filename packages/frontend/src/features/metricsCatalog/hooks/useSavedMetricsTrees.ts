@@ -46,10 +46,10 @@ export const useMetricsTrees = (
 
 const getMetricsTreeDetails = async (
     projectUuid: string,
-    metricsTreeUuid: string,
+    metricsTreeUuidOrSlug: string,
 ) => {
     return lightdashApi<ApiGetMetricsTreeResponse['results']>({
-        url: `/projects/${projectUuid}/dataCatalog/metrics/trees/${metricsTreeUuid}`,
+        url: `/projects/${projectUuid}/dataCatalog/metrics/trees/${metricsTreeUuidOrSlug}`,
         method: 'GET',
         body: undefined,
     });
@@ -57,15 +57,16 @@ const getMetricsTreeDetails = async (
 
 export const useMetricsTreeDetails = (
     projectUuid: string | undefined,
-    metricsTreeUuid: string | null,
+    metricsTreeUuidOrSlug: string | null,
     queryOptions?: Partial<
         UseQueryOptions<ApiGetMetricsTreeResponse['results'], ApiError>
     >,
 ) => {
     return useQuery<ApiGetMetricsTreeResponse['results'], ApiError>({
-        queryKey: ['metrics-tree-details', projectUuid, metricsTreeUuid],
-        queryFn: () => getMetricsTreeDetails(projectUuid!, metricsTreeUuid!),
-        enabled: !!projectUuid && !!metricsTreeUuid,
+        queryKey: ['metrics-tree-details', projectUuid, metricsTreeUuidOrSlug],
+        queryFn: () =>
+            getMetricsTreeDetails(projectUuid!, metricsTreeUuidOrSlug!),
+        enabled: !!projectUuid && !!metricsTreeUuidOrSlug,
         ...queryOptions,
     });
 };
