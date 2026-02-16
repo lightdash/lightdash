@@ -790,6 +790,7 @@ export class CatalogModel {
                 'type',
                 `${CachedExploreTableName}.explore`,
                 `required_attributes`,
+                `any_attributes`,
                 `chart_usage`,
                 `${CatalogTableName}.joined_tables`,
                 `${CatalogTableName}.table_name`,
@@ -870,45 +871,85 @@ export class CatalogModel {
             })
             // user attributes filtering
             .andWhere(function userAttributesFiltering() {
-                void this.whereJsonObject('required_attributes', {}).orWhereRaw(
+                void this.whereRaw(
                     `
-                        -- Main check: Ensure there are NO required attributes that fail to match user attributes
-                        -- If ANY required attribute is missing/mismatched, the whole check fails
-                        NOT EXISTS (
-                            -- Iterate through each key-value pair in required_attributes
-                            -- Example required_attributes: {"is_admin": "true", "department": ["sales", "marketing"]}
-                            SELECT 1
-                            FROM jsonb_each(required_attributes) AS ra(key, value)
-                            -- For each required attribute, check if it DOESN'T match user attributes
-                            -- The outer NOT EXISTS + WHERE NOT means ALL conditions must match
-                            WHERE NOT (
-                                CASE
-                                    -- Case 1: Required attribute is an array (e.g., "department": ["sales", "marketing"])
-                                    WHEN jsonb_typeof(value) = 'array' THEN
-                                        -- Check if ANY of the required values exist in user's attributes
-                                        EXISTS (
-                                            -- Get each value from the required array
-                                            SELECT 1
-                                            FROM jsonb_array_elements_text(value) AS req_value
-                                            -- Check if this required value exists in user's attributes array
-                                            WHERE req_value = ANY(
+                        (
+                            -- required_attributes (AND): all conditions must match when present
+                            -- Main check: Ensure there are NO required attributes that fail to match user attributes
+                            -- If ANY required attribute is missing/mismatched, the whole required check fails
+                            NOT EXISTS (
+                                -- Iterate through each key-value pair in required_attributes
+                                -- Example required_attributes: {"is_admin": "true", "department": ["sales", "marketing"]}
+                                SELECT 1
+                                FROM jsonb_each(
+                                    COALESCE(required_attributes, '{}'::jsonb)
+                                ) AS ra(key, value)
+                                -- For each required attribute, check if it DOESN'T match user attributes
+                                -- The outer NOT EXISTS + WHERE NOT means ALL conditions must match
+                                WHERE NOT (
+                                    CASE
+                                        -- Case 1: Required attribute is an array (e.g., "department": ["sales", "marketing"])
+                                        WHEN jsonb_typeof(value) = 'array' THEN
+                                            EXISTS (
+                                                -- Get each value from the required array
+                                                SELECT 1
+                                                FROM jsonb_array_elements_text(value) AS req_value
+                                                -- Check if this required value exists in user's attributes array
+                                                WHERE req_value = ANY(
+                                                    SELECT jsonb_array_elements_text(?::jsonb -> key)
+                                                )
+                                            )
+                                        -- Case 2: Required attribute is a single value (e.g., "is_admin": "true")
+                                        ELSE
+                                            -- Extract single value and check if it exists in user's attributes array
+                                            -- value #>> '{}' converts JSONB value to text
+                                            (value #>> '{}') = ANY(
                                                 SELECT jsonb_array_elements_text(?::jsonb -> key)
                                             )
-                                        )
-
-                                    -- Case 2: Required attribute is a single value (e.g., "is_admin": "true")
-                                    ELSE
-                                        -- Extract the single value and check if it exists in user's attributes array
-                                        -- value #>> '{}' converts JSONB value to text
-                                        -- Example: "true" = ANY(["true", "false"])
-                                        (value #>> '{}') = ANY(
-                                            SELECT jsonb_array_elements_text(?::jsonb -> key)
-                                        )
-                                END
+                                    END
+                                )
+                            )
+                        )
+                        AND
+                        (
+                            -- any_attributes (OR): at least one condition must match when present
+                            -- If any_attributes is empty/undefined, the any-check is a pass-through
+                            COALESCE(any_attributes, '{}'::jsonb) = '{}'::jsonb
+                            OR EXISTS (
+                                -- Iterate through each key-value pair in any_attributes
+                                -- Example any_attributes: {"is_support": "true", "team": ["finance", "support"]}
+                                -- EXISTS means we only need ONE matching condition
+                                SELECT 1
+                                FROM jsonb_each(
+                                    COALESCE(any_attributes, '{}'::jsonb)
+                                ) AS aa(key, value)
+                                WHERE (
+                                    CASE
+                                        -- Case 1: Any attribute is an array, match any item from that array
+                                        WHEN jsonb_typeof(value) = 'array' THEN
+                                            EXISTS (
+                                                -- Get each value from the any-array
+                                                SELECT 1
+                                                FROM jsonb_array_elements_text(value) AS any_value
+                                                -- Check if this candidate value exists in user's attributes array
+                                                WHERE any_value = ANY(
+                                                    SELECT jsonb_array_elements_text(?::jsonb -> key)
+                                                )
+                                            )
+                                        -- Case 2: Any attribute is a single value
+                                        ELSE
+                                            -- Extract single value and check if it exists in user's attributes array
+                                            (value #>> '{}') = ANY(
+                                                SELECT jsonb_array_elements_text(?::jsonb -> key)
+                                            )
+                                    END
+                                )
                             )
                         )
                     `,
                     [
+                        JSON.stringify(userAttributes),
+                        JSON.stringify(userAttributes),
                         JSON.stringify(userAttributes),
                         JSON.stringify(userAttributes),
                     ],

@@ -1,4 +1,9 @@
-import { SEED_PROJECT, type CatalogField, type Space } from '@lightdash/common';
+import {
+    SEED_ORG_1_ADMIN,
+    SEED_PROJECT,
+    type CatalogField,
+    type Space,
+} from '@lightdash/common';
 import { chartMock } from '../../support/mocks';
 import { createSpace, deleteSpace } from '../../support/spaceUtils';
 import { createChartAndUpdateDashboard, createDashboard } from './dashboard.cy';
@@ -212,6 +217,269 @@ describe('Lightdash catalog search', () => {
         ).then((resp) => {
             expect(resp.status).to.eq(200);
             expect(resp.body.results).to.have.length(0);
+        });
+    });
+    describe('user attributes', () => {
+        const projectUuid = SEED_PROJECT.project_uuid;
+        const requiredAttributeName = 'ua_required';
+        const requiredAttributeName2 = 'ua_required_2';
+        const anyAttributeName = 'ua_any';
+        const anyAttributeName2 = 'ua_any_2';
+        const caseFields = [
+            'ua_case_1_none',
+            'ua_case_2_any_only',
+            'ua_case_3_required_only',
+            'ua_case_4_required_and_any',
+            'ua_case_5_required_pass_any_fail',
+            'ua_case_6_any_pass_required_fail',
+            'ua_case_7_required_multi_and_array',
+            'ua_case_8_any_multi_and_array',
+            'ua_case_9_both_multi_and_array',
+        ];
+
+        const getOrCreateAttribute = (name: string) =>
+            cy.request('GET', `${apiUrl}/org/attributes`).then((response) => {
+                const existing = response.body.results.find(
+                    (attr: { name: string; uuid: string }) =>
+                        attr.name === name,
+                );
+                if (existing) return existing.uuid;
+
+                return cy
+                    .request('POST', `${apiUrl}/org/attributes`, {
+                        name,
+                        users: [],
+                        groups: [],
+                        attributeDefault: null,
+                    })
+                    .then((createResponse) => createResponse.body.results.uuid);
+            });
+
+        const setAttributeValue = (
+            attributeUuid: string,
+            name: string,
+            value: string | null,
+        ) =>
+            cy.request('PUT', `${apiUrl}/org/attributes/${attributeUuid}`, {
+                name,
+                users:
+                    value === null
+                        ? []
+                        : [
+                              {
+                                  userUuid: SEED_ORG_1_ADMIN.user_uuid,
+                                  value,
+                              },
+                          ],
+                groups: [],
+                attributeDefault: null,
+            });
+
+        const searchCaseFields = () =>
+            cy
+                .request(
+                    `${apiUrl}/projects/${projectUuid}/dataCatalog?type=field&search=ua_case_`,
+                )
+                .then((response) => {
+                    expect(response.status).to.eq(200);
+                    return response.body.results
+                        .filter(
+                            (item: {
+                                type: string;
+                                tableName?: string;
+                                name: string;
+                            }) =>
+                                item.type === 'field' &&
+                                item.tableName ===
+                                    'user_attribute_access_cases',
+                        )
+                        .map((item: { name: string }) => item.name);
+                });
+
+        let requiredAttributeUuid: string;
+        let requiredAttributeUuid2: string;
+        let anyAttributeUuid: string;
+        let anyAttributeUuid2: string;
+
+        before(() => {
+            cy.login();
+            getOrCreateAttribute(requiredAttributeName).then((uuid) => {
+                requiredAttributeUuid = uuid;
+            });
+            getOrCreateAttribute(requiredAttributeName2).then((uuid) => {
+                requiredAttributeUuid2 = uuid;
+            });
+            getOrCreateAttribute(anyAttributeName).then((uuid) => {
+                anyAttributeUuid = uuid;
+            });
+            getOrCreateAttribute(anyAttributeName2).then((uuid) => {
+                anyAttributeUuid2 = uuid;
+            });
+        });
+
+        beforeEach(() => {
+            cy.login();
+        });
+
+        after(() => {
+            cy.login();
+            setAttributeValue(
+                requiredAttributeUuid,
+                requiredAttributeName,
+                null,
+            );
+            setAttributeValue(
+                requiredAttributeUuid2,
+                requiredAttributeName2,
+                null,
+            );
+            setAttributeValue(anyAttributeUuid, anyAttributeName, null);
+            setAttributeValue(anyAttributeUuid2, anyAttributeName2, null);
+        });
+
+        describe('required attributes', () => {
+            it('should enforce required-only and multi-required cases', () => {
+                setAttributeValue(
+                    requiredAttributeUuid,
+                    requiredAttributeName,
+                    'yes',
+                );
+                setAttributeValue(
+                    requiredAttributeUuid2,
+                    requiredAttributeName2,
+                    'ok',
+                );
+                setAttributeValue(anyAttributeUuid, anyAttributeName, null);
+                setAttributeValue(anyAttributeUuid2, anyAttributeName2, null);
+
+                searchCaseFields().then((visibleFieldNames) => {
+                    expect(visibleFieldNames).to.include(caseFields[0]); // case 1
+                    expect(visibleFieldNames).to.include(caseFields[2]); // case 3
+                    expect(visibleFieldNames).to.include(caseFields[6]); // case 7
+                    expect(visibleFieldNames).to.not.include(caseFields[1]); // case 2
+                    expect(visibleFieldNames).to.not.include(caseFields[3]); // case 4
+                    expect(visibleFieldNames).to.not.include(caseFields[8]); // case 9
+                });
+            });
+            it('should hide multi-required fields when one required key is missing', () => {
+                setAttributeValue(
+                    requiredAttributeUuid,
+                    requiredAttributeName,
+                    'yes',
+                );
+                setAttributeValue(
+                    requiredAttributeUuid2,
+                    requiredAttributeName2,
+                    null,
+                );
+                setAttributeValue(anyAttributeUuid, anyAttributeName, 'a');
+                setAttributeValue(anyAttributeUuid2, anyAttributeName2, 'b');
+
+                searchCaseFields().then((visibleFieldNames) => {
+                    expect(visibleFieldNames).to.not.include(caseFields[6]); // case 7
+                    expect(visibleFieldNames).to.not.include(caseFields[8]); // case 9
+                });
+            });
+        });
+
+        describe('any attributes', () => {
+            it('should enforce any-only and multi-any cases', () => {
+                setAttributeValue(
+                    requiredAttributeUuid,
+                    requiredAttributeName,
+                    null,
+                );
+                setAttributeValue(
+                    requiredAttributeUuid2,
+                    requiredAttributeName2,
+                    null,
+                );
+                setAttributeValue(anyAttributeUuid, anyAttributeName, 'a');
+                setAttributeValue(anyAttributeUuid2, anyAttributeName2, null);
+
+                searchCaseFields().then((visibleFieldNames) => {
+                    expect(visibleFieldNames).to.include(caseFields[0]); // case 1
+                    expect(visibleFieldNames).to.include(caseFields[1]); // case 2
+                    expect(visibleFieldNames).to.include(caseFields[7]); // case 8
+                    expect(visibleFieldNames).to.not.include(caseFields[2]); // case 3
+                    expect(visibleFieldNames).to.not.include(caseFields[3]); // case 4
+                });
+            });
+            it('should allow any via secondary key and array value matching', () => {
+                setAttributeValue(
+                    requiredAttributeUuid,
+                    requiredAttributeName,
+                    null,
+                );
+                setAttributeValue(
+                    requiredAttributeUuid2,
+                    requiredAttributeName2,
+                    null,
+                );
+                setAttributeValue(anyAttributeUuid, anyAttributeName, 'zzz');
+                setAttributeValue(anyAttributeUuid2, anyAttributeName2, 'b');
+
+                searchCaseFields().then((visibleFieldNames) => {
+                    expect(visibleFieldNames).to.include(caseFields[7]); // case 8
+                    expect(visibleFieldNames).to.not.include(caseFields[1]); // case 2
+                });
+            });
+        });
+
+        describe('both required and any attributes', () => {
+            it('should enforce all mixed logic cases when both required and any are set', () => {
+                setAttributeValue(
+                    requiredAttributeUuid,
+                    requiredAttributeName,
+                    'yes',
+                );
+                setAttributeValue(
+                    requiredAttributeUuid2,
+                    requiredAttributeName2,
+                    'ok',
+                );
+                setAttributeValue(anyAttributeUuid, anyAttributeName, 'a');
+                setAttributeValue(anyAttributeUuid2, anyAttributeName2, null);
+
+                searchCaseFields().then((visibleFieldNames) => {
+                    expect(visibleFieldNames).to.include(caseFields[0]); // case 1
+                    expect(visibleFieldNames).to.include(caseFields[1]); // case 2
+                    expect(visibleFieldNames).to.include(caseFields[2]); // case 3
+                    expect(visibleFieldNames).to.include(caseFields[3]); // case 4
+                    expect(visibleFieldNames).to.not.include(caseFields[4]); // case 5
+                    expect(visibleFieldNames).to.not.include(caseFields[5]); // case 6
+                    expect(visibleFieldNames).to.include(caseFields[6]); // case 7
+                    expect(visibleFieldNames).to.include(caseFields[7]); // case 8
+                    expect(visibleFieldNames).to.include(caseFields[8]); // case 9
+                });
+            });
+
+            it('should only show no-attribute field when user has no user-attribute values', () => {
+                setAttributeValue(
+                    requiredAttributeUuid,
+                    requiredAttributeName,
+                    null,
+                );
+                setAttributeValue(
+                    requiredAttributeUuid2,
+                    requiredAttributeName2,
+                    null,
+                );
+                setAttributeValue(anyAttributeUuid, anyAttributeName, null);
+                setAttributeValue(anyAttributeUuid2, anyAttributeName2, null);
+
+                searchCaseFields().then((visibleFieldNames) => {
+                    expect(visibleFieldNames).to.include(caseFields[0]); // case 1
+                    expect(visibleFieldNames).to.not.include(caseFields[1]); // case 2
+                    expect(visibleFieldNames).to.not.include(caseFields[2]); // case 3
+                    expect(visibleFieldNames).to.not.include(caseFields[3]); // case 4
+                    expect(visibleFieldNames).to.not.include(caseFields[4]); // case 5
+                    expect(visibleFieldNames).to.not.include(caseFields[5]); // case 6
+                    expect(visibleFieldNames).to.not.include(caseFields[6]); // case 7
+                    expect(visibleFieldNames).to.not.include(caseFields[7]); // case 8
+                    expect(visibleFieldNames).to.not.include(caseFields[8]); // case 9
+                });
+            });
         });
     });
 });
