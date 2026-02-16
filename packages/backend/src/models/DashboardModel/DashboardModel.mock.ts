@@ -136,6 +136,7 @@ export const spaceEntry: SpaceTable['base'] = {
     parent_space_uuid: null,
     path: 'space-name',
     inherit_parent_permissions: true,
+    is_default_user_space: false,
 
     deleted_at: null,
     deleted_by_user_uuid: null,
