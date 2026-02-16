@@ -1,5 +1,7 @@
 import {
     assertUnreachable,
+    DatabricksAuthenticationType,
+    databricksOauthU2mUserCredentialsSchema,
     NotFoundError,
     SnowflakeAuthenticationType,
     snowflakeSsoUserCredentialsSchema,
@@ -207,6 +209,23 @@ export class UserWarehouseCredentialsModel {
                 if (!result.success) {
                     throw new SnowflakeTokenError(
                         `Please reauthenticate to access snowflake`,
+                    );
+                }
+            }
+
+            if (
+                credentialsWithSecrets.credentials.type ===
+                    WarehouseTypes.DATABRICKS &&
+                credentialsWithSecrets.credentials.authenticationType ===
+                    DatabricksAuthenticationType.OAUTH_U2M
+            ) {
+                const result =
+                    databricksOauthU2mUserCredentialsSchema.safeParse(
+                        credentialsWithSecrets.credentials,
+                    );
+                if (!result.success) {
+                    throw new UnexpectedServerError(
+                        `Please reauthenticate to access databricks`,
                     );
                 }
             }
