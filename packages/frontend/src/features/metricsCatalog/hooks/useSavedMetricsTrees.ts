@@ -145,7 +145,14 @@ export const useAcquireTreeLock = () => {
                 queryKey: ['metrics-trees', variables.projectUuid],
             });
         },
-        onError: ({ error }) => {
+        onError: ({ error }, variables) => {
+            void queryClient.invalidateQueries({
+                queryKey: [
+                    'metrics-tree-details',
+                    variables.projectUuid,
+                    variables.metricsTreeUuid,
+                ],
+            });
             showToastApiError({
                 title: 'Failed to acquire edit lock',
                 apiError: error,
@@ -248,6 +255,60 @@ export const useTreeLockHeartbeat = (
         }
         return undefined;
     }, [enabled, projectUuid, metricsTreeUuid, sendHeartbeat]);
+};
+
+// --- Delete tree hook ---
+
+const deleteSavedMetricsTree = async (
+    projectUuid: string,
+    metricsTreeUuid: string,
+) => {
+    return lightdashApi<undefined>({
+        url: `/projects/${projectUuid}/dataCatalog/metrics/trees/${metricsTreeUuid}`,
+        method: 'DELETE',
+        body: undefined,
+    });
+};
+
+export const useDeleteSavedMetricsTree = () => {
+    const queryClient = useQueryClient();
+    const { showToastSuccess, showToastApiError } = useToaster();
+
+    return useMutation<
+        undefined,
+        ApiError,
+        { projectUuid: string; metricsTreeUuid: string }
+    >({
+        mutationKey: ['delete-saved-metrics-tree'],
+        mutationFn: ({ projectUuid, metricsTreeUuid }) =>
+            deleteSavedMetricsTree(projectUuid, metricsTreeUuid),
+        onSuccess: (_, variables) => {
+            void queryClient.invalidateQueries({
+                queryKey: ['metrics-trees', variables.projectUuid],
+            });
+            void queryClient.removeQueries({
+                queryKey: [
+                    'metrics-tree-details',
+                    variables.projectUuid,
+                    variables.metricsTreeUuid,
+                ],
+            });
+            showToastSuccess({ title: 'Metrics tree deleted successfully' });
+        },
+        onError: ({ error }, variables) => {
+            void queryClient.invalidateQueries({
+                queryKey: [
+                    'metrics-tree-details',
+                    variables.projectUuid,
+                    variables.metricsTreeUuid,
+                ],
+            });
+            showToastApiError({
+                title: 'Failed to delete metrics tree',
+                apiError: error,
+            });
+        },
+    });
 };
 
 // --- Update tree hook ---
