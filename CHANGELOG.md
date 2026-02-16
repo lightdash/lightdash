@@ -1,3 +1,18 @@
+# [0.2470.0](https://github.com/lightdash/lightdash/compare/0.2469.1...0.2470.0) (2026-02-16)
+
+
+### Bug Fixes
+
+* validate Databricks OAuth refresh token and improve token refresh handling ([#20328](https://github.com/lightdash/lightdash/issues/20328)) ([a761ddf](https://github.com/lightdash/lightdash/commit/a761ddfd4b19fc35b2d2c8264892fb0ff035a4f1))
+
+
+### Features
+
+* add any_attributes for OR-based user attribute access control ([#19333](https://github.com/lightdash/lightdash/issues/19333)) ([3f8ba5c](https://github.com/lightdash/lightdash/commit/3f8ba5c96f44f6a9c1ff3cd08c5c112907073137))
+* add anyAttributes support for OR logic in user permissions ([#19670](https://github.com/lightdash/lightdash/issues/19670)) ([0a2bbb4](https://github.com/lightdash/lightdash/commit/0a2bbb4edaa1e4bf30b4dd938f9c8a1063ecb232))
+* add day of week index adjustment for custom week start ([#20330](https://github.com/lightdash/lightdash/issues/20330)) ([f43c824](https://github.com/lightdash/lightdash/commit/f43c8242da38cd5fc2c389bc2dcb4095ad4c92fc))
+* color by category on maps ([#20293](https://github.com/lightdash/lightdash/issues/20293)) ([5715e75](https://github.com/lightdash/lightdash/commit/5715e7577878f9d7983e8571a1e7db249906354f))
+
 ## [0.2469.1](https://github.com/lightdash/lightdash/compare/0.2469.0...0.2469.1) (2026-02-16)
 
 
