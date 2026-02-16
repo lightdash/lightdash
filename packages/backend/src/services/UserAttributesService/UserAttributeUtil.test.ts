@@ -19,9 +19,7 @@ import {
     doesExploreMatchRequiredAttributes,
     exploreHasFilteredAttribute,
     getFilteredExplore,
-    hasAnyUserAttributes,
     hasUserAttribute,
-    hasUserAttributes,
 } from './UserAttributeUtils';
 
 describe('doesExploreMatchUserAttributes', () => {
@@ -160,60 +158,75 @@ describe('hasUserAttribute', () => {
 });
 describe('hasUserAttributes', () => {
     test('should be true if there are no required attributes', () => {
-        expect(hasUserAttributes(undefined, { test: ['1'] })).toStrictEqual(
-            true,
-        );
-        expect(hasUserAttributes({}, { test: ['1'] })).toStrictEqual(true);
+        expect(
+            checkUserAttributesAccess(undefined, undefined, { test: ['1'] }),
+        ).toStrictEqual(true);
+        expect(
+            checkUserAttributesAccess({}, undefined, { test: ['1'] }),
+        ).toStrictEqual(true);
     });
     test('should be false if required attributes are not present', () => {
         expect(
-            hasUserAttributes({ another: '1' }, { test: ['1'] }),
+            checkUserAttributesAccess({ another: '1' }, undefined, {
+                test: ['1'],
+            }),
         ).toStrictEqual(false);
     });
     test('should be false if required attribute values does not match', () => {
-        expect(hasUserAttributes({ test: '2' }, { test: ['1'] })).toStrictEqual(
-            false,
-        );
-        expect(hasUserAttributes({ test: '1' }, { test: [] })).toStrictEqual(
-            false,
-        );
         expect(
-            hasUserAttributes(
-                { test: '2', another: '1' },
-                { test: ['1'], another: ['1'] },
-            ),
+            checkUserAttributesAccess({ test: '2' }, undefined, {
+                test: ['1'],
+            }),
+        ).toStrictEqual(false);
+        expect(
+            checkUserAttributesAccess({ test: '1' }, undefined, { test: [] }),
+        ).toStrictEqual(false);
+        expect(
+            checkUserAttributesAccess({ test: '2', another: '1' }, undefined, {
+                test: ['1'],
+                another: ['1'],
+            }),
         ).toStrictEqual(false);
     });
     test('should be true if required attribute value match', () => {
-        expect(hasUserAttributes({ test: '1' }, { test: ['1'] })).toStrictEqual(
-            true,
-        );
+        expect(
+            checkUserAttributesAccess({ test: '1' }, undefined, {
+                test: ['1'],
+            }),
+        ).toStrictEqual(true);
     });
 });
 
 describe('hasAnyUserAttributes', () => {
     test('should be true if anyAttributes object is empty', () => {
-        expect(hasAnyUserAttributes({}, { test: ['1'] })).toStrictEqual(true);
-        expect(hasAnyUserAttributes({}, {})).toStrictEqual(true);
+        expect(
+            checkUserAttributesAccess(undefined, {}, { test: ['1'] }),
+        ).toStrictEqual(true);
+        expect(checkUserAttributesAccess(undefined, {}, {})).toStrictEqual(
+            true,
+        );
     });
     test('should be true if user has ANY matching attribute (OR logic)', () => {
         // User has 'sales' which matches one of the allowed values
         expect(
-            hasAnyUserAttributes(
+            checkUserAttributesAccess(
+                undefined,
                 { department: ['sales', 'finance'] },
                 { department: ['sales'] },
             ),
         ).toStrictEqual(true);
         // User has 'finance' which matches one of the allowed values
         expect(
-            hasAnyUserAttributes(
+            checkUserAttributesAccess(
+                undefined,
                 { department: ['sales', 'finance'] },
                 { department: ['finance'] },
             ),
         ).toStrictEqual(true);
         // User has both, still passes
         expect(
-            hasAnyUserAttributes(
+            checkUserAttributesAccess(
+                undefined,
                 { department: ['sales', 'finance'] },
                 { department: ['sales', 'finance'] },
             ),
@@ -222,14 +235,16 @@ describe('hasAnyUserAttributes', () => {
     test('should be true if user matches ANY of multiple attribute conditions', () => {
         // User has department=sales but not role=admin - should pass OR logic
         expect(
-            hasAnyUserAttributes(
+            checkUserAttributesAccess(
+                undefined,
                 { department: 'sales', role: 'admin' },
                 { department: ['sales'] },
             ),
         ).toStrictEqual(true);
         // User has role=admin but not department=sales - should pass OR logic
         expect(
-            hasAnyUserAttributes(
+            checkUserAttributesAccess(
+                undefined,
                 { department: 'sales', role: 'admin' },
                 { role: ['admin'] },
             ),
@@ -237,16 +252,22 @@ describe('hasAnyUserAttributes', () => {
     });
     test('should be false if user has NONE of the required attributes', () => {
         expect(
-            hasAnyUserAttributes(
+            checkUserAttributesAccess(
+                undefined,
                 { department: ['sales', 'finance'] },
                 { department: ['hr'] },
             ),
         ).toStrictEqual(false);
         expect(
-            hasAnyUserAttributes({ department: 'sales' }, { role: ['admin'] }),
+            checkUserAttributesAccess(
+                undefined,
+                { department: 'sales' },
+                { role: ['admin'] },
+            ),
         ).toStrictEqual(false);
         expect(
-            hasAnyUserAttributes(
+            checkUserAttributesAccess(
+                undefined,
                 { department: 'sales', role: 'admin' },
                 { department: ['hr'], role: ['analyst'] },
             ),
@@ -254,10 +275,18 @@ describe('hasAnyUserAttributes', () => {
     });
     test('should work with single string value in anyAttributes', () => {
         expect(
-            hasAnyUserAttributes({ role: 'admin' }, { role: ['admin'] }),
+            checkUserAttributesAccess(
+                undefined,
+                { role: 'admin' },
+                { role: ['admin'] },
+            ),
         ).toStrictEqual(true);
         expect(
-            hasAnyUserAttributes({ role: 'admin' }, { role: ['analyst'] }),
+            checkUserAttributesAccess(
+                undefined,
+                { role: 'admin' },
+                { role: ['analyst'] },
+            ),
         ).toStrictEqual(false);
     });
 });

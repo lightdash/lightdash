@@ -118,7 +118,7 @@ export type AllChartsSearchResult = Pick<
 
 export type TableSearchResult = Pick<
     Table,
-    'name' | 'label' | 'description' | 'requiredAttributes'
+    'name' | 'label' | 'description' | 'requiredAttributes' | 'anyAttributes'
 > & {
     explore: string;
     exploreLabel: string;
@@ -145,6 +145,7 @@ export type FieldSearchResult = Pick<
     | 'tableLabel'
 > & {
     requiredAttributes?: Record<string, string | string[]>;
+    anyAttributes?: Record<string, string | string[]>;
     tablesRequiredAttributes?: Record<
         string,
         Record<string, string | string[]>

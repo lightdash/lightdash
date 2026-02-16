@@ -76,9 +76,9 @@ import { wrapSentryTransaction } from '../../utils';
 import { BaseService } from '../BaseService';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import {
+    checkUserAttributesAccess,
     doesExploreMatchRequiredAttributes,
     getFilteredExplore,
-    hasUserAttributes,
 } from '../UserAttributesService/UserAttributeUtils';
 
 export type CatalogArguments<T extends CatalogModel = CatalogModel> = {
@@ -782,7 +782,11 @@ export class CatalogService<
         const baseTable = explore.tables?.[explore.baseTable];
         const fields = parseFieldsFromCompiledTable(baseTable);
         const filteredFields = fields.filter((field) =>
-            hasUserAttributes(field.requiredAttributes, userAttributes),
+            checkUserAttributesAccess(
+                field.requiredAttributes,
+                field.anyAttributes,
+                userAttributes,
+            ),
         );
 
         const metadata: CatalogMetadata = {

@@ -20,7 +20,7 @@ import { SpaceModel } from '../../models/SpaceModel';
 import { UserAttributesModel } from '../../models/UserAttributesModel';
 import { BaseService } from '../BaseService';
 import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
-import { hasUserAttributes } from '../UserAttributesService/UserAttributeUtils';
+import { checkUserAttributesAccess } from '../UserAttributesService/UserAttributeUtils';
 
 type SearchServiceArguments = {
     analytics: LightdashAnalytics;
@@ -126,6 +126,7 @@ export class SearchService extends BaseService {
         const dimensionsHaveUserAttributes = results.fields.some(
             (field) =>
                 field.requiredAttributes !== undefined ||
+                field.anyAttributes !== undefined ||
                 Object.values(field.tablesRequiredAttributes || {}).some(
                     (tableHaveUserAttributes) =>
                         tableHaveUserAttributes !== undefined,
@@ -134,7 +135,8 @@ export class SearchService extends BaseService {
         const tablesHaveUserAttributes = results.tables.some(
             (table) =>
                 !isTableErrorSearchResult(table) &&
-                table.requiredAttributes !== undefined,
+                (table.requiredAttributes !== undefined ||
+                    table.anyAttributes !== undefined),
         );
         let filteredFields: FieldSearchResult[] = [];
         let filteredTables: (TableSearchResult | TableErrorSearchResult)[] = [];
@@ -149,15 +151,17 @@ export class SearchService extends BaseService {
                     );
                 filteredFields = results.fields.filter(
                     (field) =>
-                        hasUserAttributes(
+                        checkUserAttributesAccess(
                             field.requiredAttributes,
+                            field.anyAttributes,
                             userAttributes,
                         ) &&
                         Object.values(
                             field.tablesRequiredAttributes || {},
                         ).every((tableHaveUserAttributes) =>
-                            hasUserAttributes(
+                            checkUserAttributesAccess(
                                 tableHaveUserAttributes,
+                                undefined,
                                 userAttributes,
                             ),
                         ),
@@ -165,8 +169,9 @@ export class SearchService extends BaseService {
                 filteredTables = results.tables.filter(
                     (table) =>
                         isTableErrorSearchResult(table) ||
-                        hasUserAttributes(
+                        checkUserAttributesAccess(
                             table.requiredAttributes,
+                            table.anyAttributes,
                             userAttributes,
                         ),
                 );
