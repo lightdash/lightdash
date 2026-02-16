@@ -92,6 +92,7 @@ export const upstreamFullSpace: Space = {
     ...upstreamSpace,
     childSpaces: [],
     path: 'jaffle_shop',
+    isDefaultUserSpace: false,
     queries: [],
     dashboards: [],
     access: [

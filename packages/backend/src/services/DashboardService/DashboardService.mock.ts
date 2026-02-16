@@ -65,6 +65,7 @@ export const space: SpaceTable['base'] = {
 export const publicSpace: Space = {
     isPrivate: false,
     inheritParentPermissions: true,
+    isDefaultUserSpace: false,
     organizationUuid: 'organizationUuid',
     uuid: 'spaceUuid',
     slug: 'public-space',

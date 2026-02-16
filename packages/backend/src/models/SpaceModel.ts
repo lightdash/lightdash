@@ -280,6 +280,7 @@ export class SpaceModel {
             groupsAccess: [],
             slug: space.slug,
             inheritParentPermissions: space.inherit_parent_permissions,
+            isDefaultUserSpace: space.is_default_user_space,
         };
     }
 
@@ -382,6 +383,7 @@ export class SpaceModel {
                         parentSpaceUuid: `${SpaceTableName}.parent_space_uuid`,
                         path: `${SpaceTableName}.path`,
                         inheritParentPermissions: `${SpaceTableName}.inherit_parent_permissions`,
+                        isDefaultUserSpace: `${SpaceTableName}.is_default_user_space`,
                         deletedAt: `${SpaceTableName}.deleted_at`,
                         deletedByUserUuid: `${SpaceTableName}.deleted_by_user_uuid`,
                         deletedByFirstName: 'deleted_by_user.first_name',
@@ -525,6 +527,7 @@ export class SpaceModel {
             parentSpaceUuid: row.parent_space_uuid,
             path: row.path,
             inheritParentPermissions: row.inherit_parent_permissions,
+            isDefaultUserSpace: row.is_default_user_space,
         };
     }
 
@@ -1305,6 +1308,7 @@ export class SpaceModel {
             parentSpaceUuid: space.parent_space_uuid,
             path: space.path,
             inheritParentPermissions: space.inherit_parent_permissions,
+            isDefaultUserSpace: space.is_default_user_space,
         };
     }
 

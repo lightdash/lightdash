@@ -62,6 +62,7 @@ export type Space = {
     inheritParentPermissions: boolean;
     // ltree path serialized as string
     path: string;
+    isDefaultUserSpace: boolean;
     breadcrumbs?: {
         name: string;
         uuid: string;

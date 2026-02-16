@@ -35,6 +35,8 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
 
     const [isOpen, setIsOpen] = useState<boolean>(false);
     const isNestedSpace = !!space.parentSpaceUuid;
+    const isDefaultUserSpace = space.isDefaultUserSpace;
+    const canManagePermissions = !isNestedSpace || isDefaultUserSpace;
     const rootSpaceBreadcrumb = space.breadcrumbs?.[0] ?? null;
 
     useEffect(() => {
@@ -72,7 +74,7 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
                 opened={isOpen}
                 onClose={() => setIsOpen(false)}
                 actions={
-                    !isNestedSpace ? (
+                    canManagePermissions ? (
                         <Box bg="ldGray.0">
                             <Text color="ldGray.7" fz="xs">
                                 {selectedAccess.value ===
@@ -116,7 +118,7 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
             >
                 <>
                     <Stack>
-                        {isNestedSpace && (
+                        {isNestedSpace && !isDefaultUserSpace && (
                             <Alert
                                 color="blue"
                                 icon={<IconAlertCircle size="1rem" />}
@@ -146,7 +148,7 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
                         <ShareSpaceAddUser
                             space={space}
                             projectUuid={projectUuid}
-                            disabled={isNestedSpace}
+                            disabled={!canManagePermissions}
                         />
 
                         <ShareSpaceAccessType
@@ -154,14 +156,14 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
                             space={space}
                             selectedAccess={selectedAccess}
                             setSelectedAccess={setSelectedAccess}
-                            disabled={isNestedSpace}
+                            disabled={!canManagePermissions}
                         />
 
                         <ShareSpaceUserList
                             projectUuid={projectUuid}
                             space={space}
                             sessionUser={sessionUser.data}
-                            disabled={isNestedSpace}
+                            disabled={!canManagePermissions}
                         />
                     </Stack>
                 </>
