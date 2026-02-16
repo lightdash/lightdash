@@ -43,7 +43,7 @@ import fetch from 'node-fetch';
 import { PDFDocument } from 'pdf-lib';
 import playwright, { type ElementHandle } from 'playwright';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
-import { S3Client } from '../../clients/Aws/S3Client';
+import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
 import { SlackClient } from '../../clients/Slack/SlackClient';
 import {
     getUnfurlBlocks,
@@ -58,9 +58,9 @@ import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { ShareModel } from '../../models/ShareModel';
 import { SlackAuthenticationModel } from '../../models/SlackAuthenticationModel';
-import { SpaceModel } from '../../models/SpaceModel';
 import { getAuthenticationToken } from '../../routers/headlessBrowser';
 import { BaseService } from '../BaseService';
+import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 
 const RESPONSE_TIMEOUT_MS = 180000;
 const uuid = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
@@ -151,14 +151,14 @@ type UnfurlServiceArguments = {
     lightdashConfig: LightdashConfig;
     dashboardModel: DashboardModel;
     savedChartModel: SavedChartModel;
-    spaceModel: SpaceModel;
     shareModel: ShareModel;
-    s3Client: S3Client;
+    fileStorageClient: FileStorageClient;
     slackClient: SlackClient;
     projectModel: ProjectModel;
     downloadFileModel: DownloadFileModel;
     analytics: LightdashAnalytics;
     slackAuthenticationModel: SlackAuthenticationModel;
+    spacePermissionService: SpacePermissionService;
 };
 
 export class UnfurlService extends BaseService {
@@ -168,11 +168,9 @@ export class UnfurlService extends BaseService {
 
     savedChartModel: SavedChartModel;
 
-    spaceModel: SpaceModel;
-
     shareModel: ShareModel;
 
-    s3Client: S3Client;
+    fileStorageClient: FileStorageClient;
 
     slackClient: SlackClient;
 
@@ -184,31 +182,33 @@ export class UnfurlService extends BaseService {
 
     slackAuthenticationModel: SlackAuthenticationModel;
 
+    spacePermissionService: SpacePermissionService;
+
     constructor({
         lightdashConfig,
         dashboardModel,
         savedChartModel,
-        spaceModel,
         shareModel,
-        s3Client,
+        fileStorageClient,
         projectModel,
         downloadFileModel,
         slackClient,
         analytics,
         slackAuthenticationModel,
+        spacePermissionService,
     }: UnfurlServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
         this.dashboardModel = dashboardModel;
         this.savedChartModel = savedChartModel;
-        this.spaceModel = spaceModel;
         this.shareModel = shareModel;
-        this.s3Client = s3Client;
+        this.fileStorageClient = fileStorageClient;
         this.slackClient = slackClient;
         this.projectModel = projectModel;
         this.downloadFileModel = downloadFileModel;
         this.analytics = analytics;
         this.slackAuthenticationModel = slackAuthenticationModel;
+        this.spacePermissionService = spacePermissionService;
     }
 
     async getTitleAndDescription(
@@ -348,8 +348,8 @@ export class UnfurlService extends BaseService {
 
         let source: string;
         let fileName: string;
-        if (this.s3Client.isEnabled()) {
-            const uploadPdfReturn = await this.s3Client.uploadPdf(
+        if (this.fileStorageClient.isEnabled()) {
+            const uploadPdfReturn = await this.fileStorageClient.uploadPdf(
                 Buffer.from(pdfBytes),
                 id,
             );
@@ -427,8 +427,11 @@ export class UnfurlService extends BaseService {
                 pdfFile = await this.createImagePdf(imageId, buffer);
             }
 
-            if (this.s3Client.isEnabled()) {
-                imageUrl = await this.s3Client.uploadImage(buffer, imageId);
+            if (this.fileStorageClient.isEnabled()) {
+                imageUrl = await this.fileStorageClient.uploadImage(
+                    buffer,
+                    imageId,
+                );
             } else {
                 // We will share the image saved by puppetteer on our lightdash enpdoint
                 const filePath = `/tmp/${imageId}.png`;
@@ -461,11 +464,11 @@ export class UnfurlService extends BaseService {
     ): Promise<string> {
         const dashboard =
             await this.dashboardModel.getByIdOrSlug(dashboardUuid);
-        const { isPrivate } = await this.spaceModel.get(dashboard.spaceUuid);
-        const access = await this.spaceModel.getUserSpaceAccess(
-            user.userUuid,
-            dashboard.spaceUuid,
-        );
+        const { isPrivate, access } =
+            await this.spacePermissionService.getSpaceAccessContext(
+                user.userUuid,
+                dashboard.spaceUuid,
+            );
 
         validateSelectedTabs(selectedTabs, dashboard.tiles);
 

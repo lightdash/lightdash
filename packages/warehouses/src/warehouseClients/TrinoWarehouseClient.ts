@@ -325,28 +325,21 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
             // Using `await` in this loop ensures data chunks are fetched and processed sequentially.
             // This maintains order and data integrity.
             while (!queryResult.done) {
-                // Sometimes the query result state is 'FINISHED' but not done,
-                // and the number of rows is greater than 0,
-                // this is causing we are calling the streamCallback twice with the same rows
-                // duplicating the number of results
-                const numberRows = (queryResult.value.data ?? []).length;
-                if (
-                    queryResult.value.stats?.state === 'FINISHED' &&
-                    numberRows > 0
-                ) {
-                    console.warn(
-                        `Trino query result state was 'FINISHED' but not done, avoid duplicated ${numberRows} results`,
-                    );
+                // Per Trino protocol, absence of nextUri means the query is complete.
+                // Some setups (like Honeydew semantic layer) return done=false with no nextUri,
+                // which causes the trino-client library to return duplicate data on subsequent next() calls.
+                // See: https://trino.io/docs/current/develop/client-protocol.html
+                if (!queryResult.value.nextUri) {
                     // eslint-disable-next-line no-await-in-loop
                     queryResult = await query.next(); // Call .next() one more time to avoid warehouse timeouts
-                    // Don't break immediately - continue the loop to process any remaining data
-                    // The loop will exit naturally when queryResult.done becomes true
+                    // Don't write data here - it would be duplicate. Continue to let loop exit naturally.
                     // eslint-disable-next-line no-continue
                     continue;
                 }
 
                 // eslint-disable-next-line no-await-in-loop
                 queryResult = await query.next();
+
                 // stream next chunk of data
                 // eslint-disable-next-line no-await-in-loop
                 await streamCallback({

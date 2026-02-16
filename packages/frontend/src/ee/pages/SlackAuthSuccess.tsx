@@ -1,4 +1,4 @@
-import { Button } from '@mantine/core';
+import { Button } from '@mantine-8/core';
 import { IconBrandSlack } from '@tabler/icons-react';
 import { useMemo } from 'react';
 import { useSearchParams } from 'react-router';

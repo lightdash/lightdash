@@ -177,7 +177,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     savedChartModel: models.getSavedChartModel(),
                     dashboardModel: models.getDashboardModel(),
                     spaceModel: models.getSpaceModel(),
-                    s3Client: clients.getS3Client(),
+                    fileStorageClient: clients.getFileStorageClient(),
                     organizationModel: models.getOrganizationModel(),
                     unfurlService: repository.getUnfurlService(),
                     projectService: repository.getProjectService(),
@@ -190,7 +190,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         models.getOrganizationWarehouseCredentialsModel(),
                     userModel: models.getUserModel(),
                 }),
-            projectService: ({ models, context, clients, utils }) =>
+            projectService: ({ models, context, clients, utils, repository }) =>
                 new ProjectService({
                     lightdashConfig: context.lightdashConfig,
                     analytics: context.lightdashAnalytics,
@@ -212,7 +212,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     emailModel: models.getEmailModel(),
                     schedulerClient: clients.getSchedulerClient(),
                     downloadFileModel: models.getDownloadFileModel(),
-                    s3Client: clients.getS3Client(),
+                    fileStorageClient: clients.getFileStorageClient(),
                     groupsModel: models.getGroupsModel(),
                     tagsModel: models.getTagsModel(),
                     catalogModel: models.getCatalogModel(),
@@ -224,6 +224,10 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     organizationWarehouseCredentialsModel:
                         models.getOrganizationWarehouseCredentialsModel(),
                     projectCompileLogModel: models.getProjectCompileLogModel(),
+                    adminNotificationService:
+                        repository.getAdminNotificationService(),
+                    spacePermissionService:
+                        repository.getSpacePermissionService(),
                 }),
             instanceConfigurationService: ({
                 models,
@@ -276,7 +280,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     emailModel: models.getEmailModel(),
                     schedulerClient: clients.getSchedulerClient(),
                     downloadFileModel: models.getDownloadFileModel(),
-                    s3Client: clients.getS3Client(),
+                    fileStorageClient: clients.getFileStorageClient(),
                     groupsModel: models.getGroupsModel(),
                     tagsModel: models.getTagsModel(),
                     catalogModel: models.getCatalogModel(),
@@ -295,7 +299,13 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     pivotTableService: repository.getPivotTableService(),
                     prometheusMetrics,
                     permissionsService: repository.getPermissionsService(),
+                    persistentDownloadFileService:
+                        repository.getPersistentDownloadFileService(),
                     projectCompileLogModel: models.getProjectCompileLogModel(),
+                    adminNotificationService:
+                        repository.getAdminNotificationService(),
+                    spacePermissionService:
+                        repository.getSpacePermissionService(),
                 }),
             cacheService: ({ models, context, clients }) =>
                 new CommercialCacheService({
@@ -310,6 +320,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     asyncQueryService: repository.getAsyncQueryService(),
                     catalogService: repository.getCatalogService(),
                     projectService: repository.getProjectService(),
+                    shareService: repository.getShareService(),
                     userAttributesModel: models.getUserAttributesModel(),
                     searchModel: models.getSearchModel(),
                     spaceService: repository.getSpaceService(),
@@ -367,7 +378,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 userService: context.serviceRepository.getUserService(),
                 emailClient: context.clients.getEmailClient(),
                 googleDriveClient: context.clients.getGoogleDriveClient(),
-                s3Client: context.clients.getS3Client(),
+                fileStorageClient: context.clients.getFileStorageClient(),
                 schedulerClient: context.clients.getSchedulerClient(),
                 aiAgentService: context.serviceRepository.getAiAgentService(),
                 catalogService: context.serviceRepository.getCatalogService(),

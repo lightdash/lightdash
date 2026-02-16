@@ -28,6 +28,7 @@ import { OrganizationMemberProfileModel } from './OrganizationMemberProfileModel
 import { OrganizationModel } from './OrganizationModel';
 import { OrganizationWarehouseCredentialsModel } from './OrganizationWarehouseCredentialsModel';
 import { PasswordResetLinkModel } from './PasswordResetLinkModel';
+import { PersistentDownloadFileModel } from './PersistentDownloadFileModel';
 import { PinnedListModel } from './PinnedListModel';
 import { ProjectCompileLogModel } from './ProjectCompileLogModel';
 import { ProjectModel } from './ProjectModel/ProjectModel';
@@ -44,6 +45,7 @@ import { ShareModel } from './ShareModel';
 import { SlackAuthenticationModel } from './SlackAuthenticationModel';
 import { SlackChannelCacheModel } from './SlackChannelCacheModel';
 import { SpaceModel } from './SpaceModel';
+import { SpacePermissionModel } from './SpacePermissionModel';
 import { SpotlightTableConfigModel } from './SpotlightTableConfigModel';
 import { SshKeyPairModel } from './SshKeyPairModel';
 import { TagsModel } from './TagsModel';
@@ -63,6 +65,7 @@ export type ModelManifest = {
     dashboardModel: DashboardModel;
     downloadFileModel: DownloadFileModel;
     downloadAuditModel: DownloadAuditModel;
+    persistentDownloadFileModel: PersistentDownloadFileModel;
     emailModel: EmailModel;
     githubAppInstallationsModel: GithubAppInstallationsModel;
     gitlabAppInstallationsModel: GitlabAppInstallationsModel;
@@ -94,6 +97,7 @@ export type ModelManifest = {
     slackAuthenticationModel: SlackAuthenticationModel;
     slackChannelCacheModel: SlackChannelCacheModel;
     spaceModel: SpaceModel;
+    spacePermissionModel: SpacePermissionModel;
     sshKeyPairModel: SshKeyPairModel;
     userAttributesModel: UserAttributesModel;
     userModel: UserModel;
@@ -228,7 +232,11 @@ export class ModelRepository
     public getDashboardModel(): DashboardModel {
         return this.getModel(
             'dashboardModel',
-            () => new DashboardModel({ database: this.database }),
+            () =>
+                new DashboardModel({
+                    database: this.database,
+                    lightdashConfig: this.lightdashConfig,
+                }),
         );
     }
 
@@ -243,6 +251,16 @@ export class ModelRepository
         return this.getModel(
             'downloadAuditModel',
             () => new DownloadAuditModel({ database: this.database }),
+        );
+    }
+
+    public getPersistentDownloadFileModel(): PersistentDownloadFileModel {
+        return this.getModel(
+            'persistentDownloadFileModel',
+            () =>
+                new PersistentDownloadFileModel({
+                    database: this.database,
+                }),
         );
     }
 
@@ -493,6 +511,13 @@ export class ModelRepository
         return this.getModel(
             'spaceModel',
             () => new SpaceModel({ database: this.database }),
+        );
+    }
+
+    public getSpacePermissionModel(): SpacePermissionModel {
+        return this.getModel(
+            'spacePermissionModel',
+            () => new SpacePermissionModel(this.database),
         );
     }
 

@@ -191,6 +191,19 @@ export class SnowflakeSqlBuilder extends WarehouseBaseSqlBuilder {
         // Snowflake uses DATEDIFF function
         return `DATEDIFF('second', ${startTimestampSql}, ${endTimestampSql})`;
     }
+
+    buildArray(elements: string[]): string {
+        // Snowflake array construction syntax
+        return `ARRAY_CONSTRUCT(${elements.join(', ')})`;
+    }
+
+    buildArrayAgg(expression: string, orderBy?: string): string {
+        // Snowflake uses ARRAY_AGG function with WITHIN GROUP clause for ordering
+        if (orderBy) {
+            return `ARRAY_AGG(${expression}) WITHIN GROUP (ORDER BY ${orderBy})`;
+        }
+        return `ARRAY_AGG(${expression})`;
+    }
 }
 
 export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflakeCredentials> {
@@ -204,7 +217,6 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
 
     constructor(credentials: CreateSnowflakeCredentials) {
         super(credentials, new SnowflakeSqlBuilder(credentials.startOfWeek));
-
         if (typeof credentials.quotedIdentifiersIgnoreCase !== 'undefined') {
             this.quotedIdentifiersIgnoreCase =
                 credentials.quotedIdentifiersIgnoreCase;
@@ -1079,25 +1091,32 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
     ): string {
         let formattedMessage = customTemplate;
 
-        // Extract table information from the original error message
-        // Pattern matches: Object 'DATABASE.SCHEMA.TABLE' does not exist or not authorized
-        const tableMatch = originalMessage.match(
+        const objectMatch = originalMessage.match(
             /Object '([^']+)' does not exist or not authorized/i,
         );
 
-        if (tableMatch) {
-            const fullTableName = tableMatch[1];
-            const parts = fullTableName.split('.');
+        const schemaMatch = originalMessage.match(
+            /Schema '([^']+)' does not exist or not authorized/i,
+        );
+
+        if (objectMatch) {
+            const parts = objectMatch[1].split('.');
 
             if (parts.length >= 3) {
-                const snowflakeTable = parts[parts.length - 1]; // Last part is table name
-                const snowflakeSchema = parts[parts.length - 2]; // Second to last is schema
+                const snowflakeTable = parts[parts.length - 1];
+                const snowflakeSchema = parts[parts.length - 2];
 
-                // Replace variables in the custom message
                 formattedMessage = formattedMessage
                     .replace(/\{snowflakeTable\}/g, snowflakeTable)
                     .replace(/\{snowflakeSchema\}/g, snowflakeSchema);
             }
+        } else if (schemaMatch) {
+            const parts = schemaMatch[1].split('.');
+            const snowflakeSchema = parts[parts.length - 1];
+
+            formattedMessage = formattedMessage
+                .replace(/\{snowflakeTable\}/g, snowflakeSchema)
+                .replace(/\{snowflakeSchema\}/g, snowflakeSchema);
         }
 
         return formattedMessage;

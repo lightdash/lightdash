@@ -8,10 +8,7 @@
     box-shadow: unset;
 
     border: 1px solid
-        light-dark(
-            var(--mantine-color-ldGray-2),
-            lighten(var(--mantine-color-ldDark-2), 0.05)
-        ) !important;
+        light-dark(var(--mantine-color-ldGray-2), var(--mantine-color-ldDark-2)) !important;
 
     &[data-with-transparent-border='true'] {
         border: 1px solid transparent !important;

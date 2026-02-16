@@ -1,0 +1,41 @@
+.shimmer {
+    --shimmer-base: light-dark(
+        var(--mantine-color-ldGray-8),
+        var(--mantine-color-ldGray-5)
+    );
+    --shimmer-highlight: light-dark(
+        var(--mantine-color-ldGray-4),
+        var(--mantine-color-ldGray-8)
+    );
+
+    width: 56px;
+    height: 56px;
+    background: linear-gradient(
+        110deg,
+        var(--shimmer-base) 0%,
+        var(--shimmer-base) 20%,
+        var(--shimmer-highlight) 50%,
+        var(--shimmer-base) 80%,
+        var(--shimmer-base) 100%
+    );
+    background-size: 400% 100%;
+    animation: shimmer 3s linear infinite;
+    will-change: background-position;
+    -webkit-mask-image: url('../../svgs/grey-icon-logo.svg');
+    -webkit-mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-image: url('../../svgs/grey-icon-logo.svg');
+    mask-size: contain;
+    mask-repeat: no-repeat;
+    mask-position: center;
+}
+
+@keyframes shimmer {
+    from {
+        background-position: 100% 0;
+    }
+    to {
+        background-position: -100% 0;
+    }
+}

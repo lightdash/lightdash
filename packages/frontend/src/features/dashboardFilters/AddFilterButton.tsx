@@ -16,6 +16,7 @@ import FilterConfiguration from './FilterConfiguration';
 
 type Props = {
     isEditMode: boolean;
+    activeTabUuid: string | undefined;
     openPopoverId: string | undefined;
     onPopoverOpen: (popoverId: string) => void;
     onPopoverClose: () => void;
@@ -25,6 +26,7 @@ type Props = {
 
 const AddFilterButton: FC<Props> = ({
     isEditMode,
+    activeTabUuid,
     openPopoverId,
     onPopoverOpen,
     onPopoverClose,
@@ -164,6 +166,7 @@ const AddFilterButton: FC<Props> = ({
                         <FilterConfiguration
                             isCreatingNew={true}
                             isEditMode={isEditMode}
+                            activeTabUuid={activeTabUuid}
                             fields={allFilterableFields || []}
                             tiles={dashboardTiles}
                             tabs={dashboardTabs}

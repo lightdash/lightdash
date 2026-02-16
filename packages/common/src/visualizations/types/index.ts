@@ -176,11 +176,14 @@ export const isPivotChartLayout = (
         return false;
     }
 
-    if (!('y' in obj) && !('groupBy' in obj) && !('x' in obj)) {
-        return false;
+    // PivotChartLayout.y is always an array of { reference, aggregation }.
+    // A VizColumnsConfig could have a column named "y" but its value would be
+    // a VizColumnConfig object (with label, frozen, visible), never an array.
+    if ('y' in obj && Array.isArray(obj.y)) {
+        return true;
     }
 
-    return true;
+    return false;
 };
 
 export type VizCartesianChartOptions = {

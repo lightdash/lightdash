@@ -13,6 +13,7 @@ import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { ValidationModel } from '../../models/ValidationModel/ValidationModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
+import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { ValidationService } from './ValidationService';
 import {
     additionalExplore,
@@ -49,10 +50,6 @@ const validationModel = {
 const dashboardModel = {
     findDashboardsForValidation: jest.fn(async () => [dashboardForValidation]),
 };
-const featureFlagModel = {
-    get: jest.fn(async () => ({ id: 'test', enabled: false })),
-};
-
 describe('validation', () => {
     const validationService = new ValidationService({
         analytics: analyticsMock,
@@ -63,7 +60,8 @@ describe('validation', () => {
         lightdashConfig: config,
         spaceModel: {} as SpaceModel,
         schedulerClient: {} as SchedulerClient,
-        featureFlagModel: featureFlagModel as unknown as FeatureFlagModel,
+        spacePermissionService: {} as SpacePermissionService,
+        featureFlagModel: {} as FeatureFlagModel,
     });
 
     afterEach(() => {

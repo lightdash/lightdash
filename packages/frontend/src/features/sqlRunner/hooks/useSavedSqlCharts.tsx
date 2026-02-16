@@ -3,9 +3,11 @@ import {
     type ApiError,
     type ApiUpdateSqlChart,
     type CreateSqlChart,
+    type PromotionChanges,
     type SqlChart,
     type UpdateSqlChart,
 } from '@lightdash/common';
+import { IconArrowRight } from '@tabler/icons-react';
 import {
     useMutation,
     useQuery,
@@ -15,6 +17,8 @@ import {
 import { useNavigate } from 'react-router';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { invalidateContent } from '../../../hooks/useContent';
+import useApp from '../../../providers/App/useApp';
 
 export type GetSavedSqlChartParams = {
     projectUuid: string;
@@ -148,11 +152,34 @@ const deleteSavedSqlChart = async (projectUuid: string, savedSqlUuid: string) =>
         body: undefined,
     });
 
+const promoteSavedSqlChart = async (
+    projectUuid: string,
+    savedSqlUuid: string,
+) =>
+    lightdashApi<SqlChart>({
+        url: `/projects/${projectUuid}/sqlRunner/saved/${savedSqlUuid}/promote`,
+        method: 'POST',
+        body: undefined,
+    });
+
+const getPromoteSavedSqlChartDiff = async (
+    projectUuid: string,
+    savedSqlUuid: string,
+) =>
+    lightdashApi<PromotionChanges>({
+        url: `/projects/${projectUuid}/sqlRunner/saved/${savedSqlUuid}/promoteDiff`,
+        method: 'GET',
+        body: undefined,
+    });
+
 export const useDeleteSqlChartMutation = (
     projectUuid: string,
     savedSqlUuid: string,
 ) => {
     const queryClient = useQueryClient();
+    const navigate = useNavigate();
+    const { health } = useApp();
+    const isSoftDeleteEnabled = health.data?.softDelete.enabled ?? false;
     const { showToastSuccess, showToastApiError } = useToaster();
 
     return useMutation<{ savedSqlUuid: string }, ApiError>(
@@ -160,22 +187,77 @@ export const useDeleteSqlChartMutation = (
         {
             mutationKey: ['sqlRunner', 'deleteSqlChart', savedSqlUuid],
             onSuccess: async () => {
+                await invalidateContent(queryClient, projectUuid);
                 await queryClient.invalidateQueries(['sqlRunner']);
-                await queryClient.invalidateQueries(['spaces']);
-                await queryClient.invalidateQueries(['space']);
-                await queryClient.invalidateQueries(['pinned_items']);
-                await queryClient.invalidateQueries([
-                    'most-popular-and-recently-updated',
-                ]);
-                await queryClient.invalidateQueries(['content']);
+                await queryClient.invalidateQueries(['deletedContent']);
 
                 showToastSuccess({
                     title: `Success! SQL chart deleted`,
+                    action: isSoftDeleteEnabled
+                        ? {
+                              children: 'Go to recently deleted',
+                              icon: IconArrowRight,
+                              onClick: () =>
+                                  navigate(
+                                      `/generalSettings/projectManagement/${projectUuid}/recentlyDeleted`,
+                                  ),
+                          }
+                        : undefined,
                 });
             },
             onError: ({ error }) => {
                 showToastApiError({
                     title: `Failed to delete chart`,
+                    apiError: error,
+                });
+            },
+        },
+    );
+};
+
+export const usePromoteSqlChartMutation = (projectUuid: string) => {
+    const { showToastSuccess, showToastApiError } = useToaster();
+
+    return useMutation<SqlChart, ApiError, string>(
+        (savedSqlUuid) => promoteSavedSqlChart(projectUuid, savedSqlUuid),
+        {
+            mutationKey: ['sqlRunner', 'promoteSqlChart', projectUuid],
+            onSuccess: (data) => {
+                showToastSuccess({
+                    title: `Success! SQL chart promoted.`,
+                    action: {
+                        children: 'Open chart',
+                        icon: IconArrowRight,
+                        onClick: () => {
+                            window.open(
+                                `/projects/${data.project.projectUuid}/sql-runner/${data.slug}`,
+                                '_blank',
+                            );
+                        },
+                    },
+                });
+            },
+            onError: ({ error }) => {
+                showToastApiError({
+                    title: `Failed to promote SQL chart`,
+                    apiError: error,
+                });
+            },
+        },
+    );
+};
+
+export const usePromoteSqlChartDiffMutation = (projectUuid: string) => {
+    const { showToastApiError } = useToaster();
+
+    return useMutation<PromotionChanges, ApiError, string>(
+        (savedSqlUuid) =>
+            getPromoteSavedSqlChartDiff(projectUuid, savedSqlUuid),
+        {
+            mutationKey: ['sqlRunner', 'promoteSqlChartDiff', projectUuid],
+            onError: ({ error }) => {
+                showToastApiError({
+                    title: `Failed to get diff from SQL chart`,
                     apiError: error,
                 });
             },

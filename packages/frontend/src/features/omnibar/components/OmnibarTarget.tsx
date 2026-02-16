@@ -1,8 +1,10 @@
-import { Badge, em, getBreakpointValue, Group, Text } from '@mantine/core';
+import { Badge, Text } from '@mantine-8/core';
 import { useOs } from '@mantine/hooks';
 import { IconSearch } from '@tabler/icons-react';
 import { type CSSProperties, type FC, type MouseEvent } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { PolymorphicGroupButton } from '../../../components/common/PolymorphicGroupButton';
+import classes from './OmnibarTarget.module.css';
 
 type Props = {
     placeholder: string;
@@ -14,14 +16,14 @@ const OmnibarTarget: FC<Props> = ({ placeholder, style, onOpen }) => {
     const os = useOs();
 
     return (
-        <Group
+        <PolymorphicGroupButton
             px="sm"
-            spacing="sm"
+            gap="sm"
             role="search"
             h={30}
             onClick={onOpen}
             style={style}
-            noWrap
+            wrap="nowrap"
             w={{
                 xs: 150,
                 sm: 200,
@@ -29,55 +31,19 @@ const OmnibarTarget: FC<Props> = ({ placeholder, style, onOpen }) => {
                 lg: 300,
                 xl: 350,
             }}
-            sx={(theme) => ({
-                [`@media (min-width: ${em(
-                    getBreakpointValue(theme.breakpoints.lg),
-                )})`]: {
-                    position: 'absolute',
-                    left: '50%',
-                    transform: 'translateX(-50%)',
-                },
-                flexShrink: 0,
-                borderRadius: theme.radius.sm,
-                cursor: 'pointer',
-                transition: 'all 100ms ease',
-                backgroundColor: theme.colors.ldDark[4],
-                '&:hover': {
-                    backgroundColor: theme.colors.ldDark[5],
-                },
-                overflow: 'hidden',
-            })}
+            className={classes.container}
         >
-            <MantineIcon
-                icon={IconSearch}
-                color="ldDark.9"
-                style={{ flexShrink: 0 }}
-            />
+            <MantineIcon icon={IconSearch} className={classes.icon} />
 
-            <Text
-                style={{
-                    flexGrow: 1,
-                    position: 'relative',
-                    top: 1,
-                    userSelect: 'none',
-                }}
-                color="ldDark.9"
-                size="xs"
-                truncate
-            >
+            <Text c="ldDark.9" size="xs" truncate className={classes.text}>
                 {placeholder}
             </Text>
 
-            <Badge
-                fw={600}
-                color="ldDark.9"
-                radius="sm"
-                style={{ flexShrink: 0, userSelect: 'none' }}
-            >
+            <Badge fw={600} radius="sm" className={classes.badge}>
                 {os === 'macos' || os === 'ios' ? '⌘' : 'ctrl'}
                 +K
             </Badge>
-        </Group>
+        </PolymorphicGroupButton>
     );
 };
 

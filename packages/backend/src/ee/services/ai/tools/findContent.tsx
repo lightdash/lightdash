@@ -179,5 +179,5 @@ export const getFindContent = ({ findContent, siteUrl }: Dependencies) =>
                 };
             }
         },
-        toModelOutput: (output) => toModelOutput(output),
+        toModelOutput: ({ output }) => toModelOutput(output),
     });

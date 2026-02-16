@@ -4,7 +4,7 @@ import {
     type Explore,
     type MetricQuery,
 } from '@lightdash/common';
-import { Box } from '@mantine/core';
+import { Box } from '@mantine-8/core';
 import { RichTextEditor } from '@mantine/tiptap';
 import Mention from '@tiptap/extension-mention';
 import Placeholder from '@tiptap/extension-placeholder';

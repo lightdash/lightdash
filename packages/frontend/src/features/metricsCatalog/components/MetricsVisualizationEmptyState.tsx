@@ -1,38 +1,23 @@
-import { Center, Paper, Stack, Text } from '@mantine/core';
+import { Center, Paper, Stack, Text } from '@mantine-8/core';
 import { IconClockCancel } from '@tabler/icons-react';
 import { BackgroundSvg } from '../../../components/common/BackgroundSvg';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MetricsVisualizationEmptyStateImage from '../../../svgs/metricsCatalog/metrics-visualization-empty-state.svg?react';
+import classes from './MetricsVisualizationEmptyState.module.css';
 
 export const MetricsVisualizationEmptyState = () => {
     return (
-        <Paper
-            h="100%"
-            w="100%"
-            sx={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-            }}
-        >
+        <Paper h="100%" w="100%" className={classes.paper}>
             <BackgroundSvg
                 SvgComponent={MetricsVisualizationEmptyStateImage}
-                sx={{
-                    width: '100%',
-                    height: '100%',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                }}
+                className={classes.backgroundSvg}
             >
                 <Center>
-                    <Stack spacing="sm" align="center">
+                    <Stack gap="sm" align="center">
                         <Paper p="xs">
                             <MantineIcon icon={IconClockCancel} />
                         </Paper>
-                        <Stack spacing={0} align="center" maw={360}>
+                        <Stack gap={0} align="center" maw={360}>
                             <Text fw={600} fz="md" c="ldDark.7" ta="center">
                                 Data unavailable for selected range
                             </Text>

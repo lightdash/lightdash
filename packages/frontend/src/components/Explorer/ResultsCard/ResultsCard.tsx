@@ -1,7 +1,14 @@
 import { subject } from '@casl/ability';
-import { ActionIcon, Group, Popover } from '@mantine/core';
+import { ActionIcon, Group, Popover, SegmentedControl } from '@mantine/core';
 import { IconShare2 } from '@tabler/icons-react';
-import { memo, useCallback, useMemo, type FC } from 'react';
+import {
+    memo,
+    useCallback,
+    useEffect,
+    useMemo,
+    useState,
+    type FC,
+} from 'react';
 import {
     explorerActions,
     selectColumnOrder,
@@ -20,7 +27,7 @@ import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
 import { ExplorerSection } from '../../../providers/Explorer/types';
-import AddColumnButton from '../../AddColumnButton';
+import AddTableCalculationButton from '../../AddTableCalculationButton';
 import ExportSelector from '../../ExportSelector';
 import SortButton from '../../SortButton';
 import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
@@ -30,9 +37,16 @@ import {
 } from '../../common/CollapsableCard/constants';
 import MantineIcon from '../../common/MantineIcon';
 import { ExplorerResults } from './ExplorerResults';
+import { ResultsViewMode } from './types';
+import { useGroupedResultsAvailability } from './useGroupedResultsAvailability';
 
 const ResultsCard: FC = memo(() => {
     const projectUuid = useProjectUuid();
+
+    // View mode state for switching between results and grouped results
+    const [viewMode, setViewMode] = useState<ResultsViewMode>(
+        ResultsViewMode.RESULTS,
+    );
 
     const isEditMode = useExplorerSelector(selectIsEditMode);
     const resultsIsOpen = useExplorerSelector(selectIsResultsExpanded);
@@ -41,6 +55,19 @@ const ResultsCard: FC = memo(() => {
     const sorts = useExplorerSelector(selectSorts);
     const metricQuery = useExplorerSelector(selectMetricQuery);
     const columnOrder = useExplorerSelector(selectColumnOrder);
+
+    // Check if grouped view is available
+    const { isSqlPivotEnabled, isGroupedDisabled } =
+        useGroupedResultsAvailability();
+    const isGroupedView =
+        viewMode === ResultsViewMode.GROUPED && !isGroupedDisabled;
+
+    // Reset to results view when grouped becomes unavailable
+    useEffect(() => {
+        if (isGroupedDisabled && viewMode === ResultsViewMode.GROUPED) {
+            setViewMode(ResultsViewMode.RESULTS);
+        }
+    }, [isGroupedDisabled, viewMode]);
 
     const { queryResults, getDownloadQueryUuid } = useExplorerQuery();
 
@@ -93,26 +120,53 @@ const ResultsCard: FC = memo(() => {
             onToggle={toggleCard}
             disabled={!tableName}
             headerElement={
-                <Group noWrap spacing="xs">
-                    {tableName && sorts.length > 0 && (
-                        <SortButton isEditMode={isEditMode} sorts={sorts} />
-                    )}
-                </Group>
+                // Hide header controls when in grouped view
+                isGroupedView ? null : (
+                    <Group noWrap spacing="xs">
+                        {tableName && sorts.length > 0 && (
+                            <SortButton isEditMode={isEditMode} sorts={sorts} />
+                        )}
+                    </Group>
+                )
             }
             rightHeaderElement={
                 projectUuid &&
                 resultsIsOpen &&
                 tableName && (
-                    <>
-                        <Can
-                            I="manage"
-                            this={subject('Explore', {
-                                organizationUuid: user.data?.organizationUuid,
-                                projectUuid,
-                            })}
-                        >
-                            {isEditMode && <AddColumnButton />}
-                        </Can>
+                    <Group spacing="xs" noWrap>
+                        {isSqlPivotEnabled && !isGroupedDisabled && (
+                            <SegmentedControl
+                                size="xs"
+                                data={[
+                                    {
+                                        label: 'Results',
+                                        value: ResultsViewMode.RESULTS,
+                                    },
+                                    {
+                                        label: 'Chart results',
+                                        value: ResultsViewMode.GROUPED,
+                                    },
+                                ]}
+                                value={viewMode}
+                                onChange={(value) =>
+                                    setViewMode(value as ResultsViewMode)
+                                }
+                            />
+                        )}
+
+                        {/* Hide AddColumnButton when in grouped view */}
+                        {!isGroupedView && (
+                            <Can
+                                I="manage"
+                                this={subject('Explore', {
+                                    organizationUuid:
+                                        user.data?.organizationUuid,
+                                    projectUuid,
+                                })}
+                            >
+                                {isEditMode && <AddTableCalculationButton />}
+                            </Can>
+                        )}
 
                         <Can
                             I="manage"
@@ -153,11 +207,11 @@ const ResultsCard: FC = memo(() => {
                                 </Popover.Dropdown>
                             </Popover>
                         </Can>
-                    </>
+                    </Group>
                 )
             }
         >
-            <ExplorerResults />
+            <ExplorerResults viewMode={viewMode} />
         </CollapsableCard>
     );
 });

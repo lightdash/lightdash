@@ -7,7 +7,7 @@ import {
     Text,
     Title,
     Tooltip,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import {
     IconChevronDown,
     IconChevronLeft,
@@ -16,6 +16,7 @@ import {
 import { useNavigate } from 'react-router';
 import { useIsTruncated } from '../../hooks/useIsTruncated';
 import MantineIcon from '../common/MantineIcon';
+import styles from './MinimalDashboardTabs.module.css';
 
 const MinimalDashboardTabs = ({
     tabs,
@@ -30,10 +31,10 @@ const MinimalDashboardTabs = ({
     const activeTab = tabs.find((tab) => tab.uuid === activeTabId) ?? tabs[0];
 
     return (
-        <Group p="xs" bg="background" sx={{ gap: '10px' }} position="apart">
+        <Group p="xs" bg="background" gap={10} justify="space-between">
             <ActionIcon
                 size="md"
-                color="blue.6"
+                color="gray"
                 onClick={() => {
                     if (activeTab.prevUrl) {
                         void navigate(activeTab.prevUrl);
@@ -43,13 +44,8 @@ const MinimalDashboardTabs = ({
             >
                 <MantineIcon icon={IconChevronLeft} size="lg" />
             </ActionIcon>
-            <Group position="center" sx={{ flexGrow: 1 }}>
-                <Tooltip
-                    disabled={!isTruncated}
-                    label={activeTab.name}
-                    withinPortal
-                    variant="xs"
-                >
+            <Group justify="center" flex={1}>
+                <Tooltip disabled={!isTruncated} label={activeTab.name}>
                     <Menu shadow="md">
                         <Menu.Target>
                             <Button
@@ -57,28 +53,19 @@ const MinimalDashboardTabs = ({
                                 variant="subtle"
                                 color="ldGray.8"
                                 radius="md"
-                                rightIcon={
+                                rightSection={
                                     <MantineIcon icon={IconChevronDown} />
                                 }
                             >
-                                <Title
-                                    ref={ref}
-                                    order={6}
-                                    fw={500}
-                                    truncate
-                                    maw="50vw"
-                                >
-                                    {activeTab.name}
+                                <Title ref={ref} order={6} fw={500} maw="50vw">
+                                    <Text truncate="end">{activeTab.name}</Text>
                                 </Title>
                             </Button>
                         </Menu.Target>
                         <Menu.Dropdown
+                            className={styles.menuDropdown}
                             w={200}
                             mah={200}
-                            sx={(theme) => ({
-                                overflowY: 'auto',
-                                borderRadius: theme.radius.md,
-                            })}
                         >
                             {tabs.map((tab) => (
                                 <Menu.Item
@@ -93,7 +80,7 @@ const MinimalDashboardTabs = ({
                                                 ? 500
                                                 : 400
                                         }
-                                        truncate
+                                        truncate="end"
                                         maw="160px"
                                     >
                                         {tab.name}
@@ -106,7 +93,7 @@ const MinimalDashboardTabs = ({
             </Group>
             <ActionIcon
                 size="md"
-                color="blue.6"
+                color="gray"
                 onClick={() => {
                     if (activeTab.nextUrl) {
                         void navigate(activeTab.nextUrl);

@@ -1,5 +1,7 @@
 import { type FilterableItem } from '@lightdash/common';
 import {
+    ActionIcon,
+    Button,
     Group,
     Highlight,
     Loader,
@@ -7,11 +9,17 @@ import {
     ScrollArea,
     Stack,
     Text,
+    TextInput,
     Tooltip,
     type MultiSelectProps,
     type MultiSelectValueProps,
 } from '@mantine/core';
-import { IconAlertCircle, IconPlus } from '@tabler/icons-react';
+import { useDisclosure, useHover } from '@mantine/hooks';
+import {
+    IconAlertCircle,
+    IconListDetails,
+    IconPlus,
+} from '@tabler/icons-react';
 import uniq from 'lodash/uniq';
 import {
     useCallback,
@@ -28,7 +36,19 @@ import {
     useFieldValues,
 } from '../../../../hooks/useFieldValues';
 import MantineIcon from '../../MantineIcon';
+import { DefaultValue } from '../../TagInput/DefaultValue/DefaultValue';
 import useFiltersContext from '../useFiltersContext';
+import classes from './FilterStringAutoComplete.module.css';
+import {
+    computeDisplayValues,
+    computeHiddenCount,
+    isValueSelected,
+    mergeWithHiddenValues,
+    MORE_VALUES_TOKEN,
+    SUMMARY_MODE_THRESHOLD,
+    wasTokenRemoved,
+} from './FilterStringAutoComplete.utils';
+import { ManageFilterValuesModal } from './ManageFilterValuesModal';
 import MultiValuePastePopover from './MultiValuePastePopover';
 import { formatDisplayValue } from './utils';
 
@@ -67,6 +87,8 @@ const FilterStringAutoComplete: FC<Props> = ({
     placeholder,
     onDropdownOpen,
     onDropdownClose,
+    onFocus: onInputFocus,
+    onBlur: onInputBlur,
     singleValue,
     ...rest
 }) => {
@@ -84,6 +106,23 @@ const FilterStringAutoComplete: FC<Props> = ({
     const [tempPasteValues, setTempPasteValues] = useState<
         string | undefined
     >();
+    const { ref: wrapperRef, hovered: isWrapperHovered } = useHover();
+
+    const [
+        manageValuesOpened,
+        { open: openManageValuesInternal, close: closeManageValuesInternal },
+    ] = useDisclosure(false);
+
+    // Wrapper functions that also notify parent popover to prevent closing
+    const openManageValues = useCallback(() => {
+        openManageValuesInternal();
+        onDropdownOpen?.();
+    }, [openManageValuesInternal, onDropdownOpen]);
+
+    const closeManageValues = useCallback(() => {
+        closeManageValuesInternal();
+        onDropdownClose?.();
+    }, [closeManageValuesInternal, onDropdownClose]);
 
     const [forceRefresh, setForceRefresh] = useState<boolean>(false);
 
@@ -175,15 +214,7 @@ const FilterStringAutoComplete: FC<Props> = ({
         [],
     );
 
-    const handleKeyDown = useCallback(
-        (event: React.KeyboardEvent<HTMLInputElement>) => {
-            if (event.key === 'Enter' && search !== '') {
-                handleAdd(search);
-                handleResetSearch();
-            }
-        },
-        [handleAdd, handleResetSearch, search],
-    );
+    // CSV import lives inside the Manage Values modal.
 
     useEffect(() => {
         if (singleValue && values.length > 1) {
@@ -200,6 +231,50 @@ const FilterStringAutoComplete: FC<Props> = ({
             label: formatDisplayValue(value),
         }));
     }, [results, values]);
+
+    const isSummaryMode =
+        !singleValue && values.length > SUMMARY_MODE_THRESHOLD;
+    const hiddenCount = computeHiddenCount(values);
+
+    const displayValues = useMemo(
+        () => computeDisplayValues(values, singleValue),
+        [singleValue, values],
+    );
+
+    const handleKeyDown = useCallback(
+        (event: React.KeyboardEvent<HTMLInputElement>) => {
+            if (event.key === 'Enter' && search !== '') {
+                handleAdd(search);
+                handleResetSearch();
+            }
+        },
+        [handleAdd, handleResetSearch, search],
+    );
+
+    const ValueComponent = useCallback(
+        (props: MultiSelectValueProps & { value: string }) => {
+            if (props.value === MORE_VALUES_TOKEN) {
+                return (
+                    <DefaultValue
+                        {...props}
+                        label={`+${hiddenCount.toLocaleString()} more`}
+                        // Don't show the remove button on the "more" pill
+                        readOnly={true}
+                        // Clicking it should open Manage Values
+                        onMouseDown={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (!disabled) openManageValues();
+                        }}
+                        className={classes.moreValuesPill}
+                    />
+                );
+            }
+
+            return <DefaultValue {...props} />;
+        },
+        [disabled, hiddenCount, openManageValues],
+    );
 
     const searchedMaxResults = resultsSet.size >= MAX_AUTOCOMPLETE_RESULTS;
     // memo override component so list doesn't scroll to the top on each click
@@ -228,13 +303,7 @@ const FilterStringAutoComplete: FC<Props> = ({
                                 size="xs"
                                 px="sm"
                                 p="xxs"
-                                sx={(theme) => ({
-                                    cursor: 'pointer',
-                                    borderTop: `1px solid ${theme.colors.ldGray[2]}`,
-                                    '&:hover': {
-                                        backgroundColor: theme.colors.ldGray[1],
-                                    },
-                                })}
+                                className={classes.dropdownRefresh}
                                 onClick={() => setForceRefresh(true)}
                             >
                                 Results loaded at {refreshedAt.toLocaleString()}
@@ -253,126 +322,261 @@ const FilterStringAutoComplete: FC<Props> = ({
     );
 
     return (
-        <MultiValuePastePopover
-            opened={pastePopUpOpened}
-            onClose={() => {
-                setPastePopUpOpened(false);
-                setTempPasteValues(undefined);
-                handleResetSearch();
-            }}
-            onMultiValue={() => {
-                if (!tempPasteValues) {
-                    setPastePopUpOpened(false);
-                    return;
-                }
-                const clipboardDataArray = tempPasteValues
-                    .split(/\,|\n/)
-                    .map((s) => s.trim())
-                    .filter((s) => s.length > 0);
-                handleAddMultiple(clipboardDataArray);
-            }}
-            onSingleValue={() => {
-                if (!tempPasteValues) {
-                    setPastePopUpOpened(false);
-                    return;
-                }
-                handleAdd(tempPasteValues);
-            }}
-        >
-            <MultiSelect
-                ref={multiSelectRef}
-                size="xs"
-                w="100%"
-                placeholder={
-                    values.length > 0 || disabled ? undefined : placeholder
-                }
-                disabled={disabled}
-                creatable
-                valueComponent={singleValue ? SingleValueComponent : undefined}
-                /**
-                 * Opts out of Mantine's default condition and always allows adding, as long as not
-                 * an empty query.
-                 */
-                shouldCreate={(query) =>
-                    query.trim().length > 0 && !values.includes(query)
-                }
-                getCreateLabel={(query) => (
-                    <Group spacing="xxs">
-                        <MantineIcon icon={IconPlus} color="blue.6" size="sm" />
-                        <Text c="blue.6">Add "{query}"</Text>
-                    </Group>
-                )}
-                styles={(theme) => ({
-                    input: {
-                        maxHeight: '350px',
-                        overflowY: 'auto',
-                    },
-                    item: {
-                        // makes add new item button sticky to bottom
-                        '&:last-child:not([value])': {
-                            position: 'sticky',
-                            bottom: 4,
-                            zIndex: 10,
-                            backgroundColor:
-                                theme.colorScheme === 'dark'
-                                    ? theme.colors.dark[6]
-                                    : theme.white,
-                            boxShadow: `0 -1px 0 0 ${theme.colors.ldGray[2]}`,
-                            paddingTop: theme.spacing.xs,
-                            borderRadius: 0,
-                            marginTop: theme.spacing.xs,
-                        },
-                    },
-                })}
-                disableSelectedItemFiltering
-                searchable
-                clearSearchOnChange
-                {...rest}
-                searchValue={search}
-                onSearchChange={setSearch}
-                limit={MAX_AUTOCOMPLETE_RESULTS}
-                onPaste={handlePaste}
-                nothingFound={
-                    isInitialLoading ? 'Loading...' : 'No results found'
-                }
-                rightSection={
-                    isInitialLoading ? (
-                        <Loader size="xs" color="gray" />
-                    ) : isError ? (
-                        <Tooltip
-                            label={
-                                error?.error?.message || 'Filter not available'
-                            }
-                            withinPortal
-                        >
-                            <MantineIcon icon={IconAlertCircle} color="red" />
-                        </Tooltip>
-                    ) : null
-                }
-                dropdownComponent={DropdownComponentOverride}
-                itemComponent={({ label, ...others }) =>
-                    others.disabled ? (
-                        <Text color="dimmed" {...others}>
-                            {label}
-                        </Text>
-                    ) : (
-                        <Highlight highlight={search} {...others}>
-                            {label}
-                        </Highlight>
-                    )
-                }
-                data={data}
-                value={values}
-                onDropdownOpen={onDropdownOpen}
-                onDropdownClose={() => {
-                    handleResetSearch();
-                    onDropdownClose?.();
-                }}
+        <>
+            <ManageFilterValuesModal
+                opened={manageValuesOpened}
+                onClose={closeManageValues}
+                values={values}
                 onChange={handleChange}
-                onCreate={handleAdd}
-                onKeyDown={handleKeyDown}
+                title="Manage filter values"
             />
-        </MultiValuePastePopover>
+
+            <MultiValuePastePopover
+                opened={pastePopUpOpened}
+                onClose={() => {
+                    setPastePopUpOpened(false);
+                    setTempPasteValues(undefined);
+                    handleResetSearch();
+                }}
+                onMultiValue={() => {
+                    if (!tempPasteValues) {
+                        setPastePopUpOpened(false);
+                        return;
+                    }
+                    const clipboardDataArray = tempPasteValues
+                        .split(/\,|\n/)
+                        .map((s) => s.trim())
+                        .filter((s) => s.length > 0);
+                    handleAddMultiple(clipboardDataArray);
+                }}
+                onSingleValue={() => {
+                    if (!tempPasteValues) {
+                        setPastePopUpOpened(false);
+                        return;
+                    }
+                    handleAdd(tempPasteValues);
+                }}
+            >
+                {isSummaryMode ? (
+                    <TextInput
+                        size="xs"
+                        w="100%"
+                        readOnly
+                        value={`${values.length.toLocaleString()} values selected`}
+                        disabled={disabled}
+                        description={
+                            values.length > 0 ? (
+                                <Button
+                                    size="xs"
+                                    variant="subtle"
+                                    onClick={() => openManageValues()}
+                                    disabled={disabled}
+                                >
+                                    Manage values
+                                </Button>
+                            ) : undefined
+                        }
+                        rightSection={
+                            disabled ? null : (
+                                <Tooltip
+                                    withinPortal
+                                    label="Edit filter values"
+                                >
+                                    <ActionIcon
+                                        variant="subtle"
+                                        color="gray"
+                                        size="sm"
+                                        onClick={() => openManageValues()}
+                                    >
+                                        <MantineIcon icon={IconListDetails} />
+                                    </ActionIcon>
+                                </Tooltip>
+                            )
+                        }
+                        onClick={() => {
+                            if (!disabled) openManageValues();
+                        }}
+                    />
+                ) : (
+                    <MultiSelect
+                        ref={multiSelectRef}
+                        size="xs"
+                        w="100%"
+                        placeholder={
+                            values.length > 0 || disabled
+                                ? undefined
+                                : placeholder
+                        }
+                        wrapperProps={{ ref: wrapperRef }}
+                        disabled={disabled}
+                        creatable
+                        valueComponent={
+                            singleValue ? SingleValueComponent : ValueComponent
+                        }
+                        /**
+                         * Opts out of Mantine's default condition and always allows adding, as long as not
+                         * an empty query.
+                         */
+                        shouldCreate={(query: string) =>
+                            query.trim().length > 0 && !values.includes(query)
+                        }
+                        getCreateLabel={(query: string) => (
+                            <Group spacing="xxs">
+                                <MantineIcon
+                                    icon={IconPlus}
+                                    color="blue.6"
+                                    size="sm"
+                                />
+                                <Text c="blue.6">Add "{query}"</Text>
+                            </Group>
+                        )}
+                        classNames={{
+                            input: classes.multiSelectInput,
+                            rightSection: classes.rightSectionGroup,
+                        }}
+                        disableSelectedItemFiltering
+                        searchable
+                        clearSearchOnChange
+                        {...rest}
+                        searchValue={search}
+                        onSearchChange={setSearch}
+                        limit={MAX_AUTOCOMPLETE_RESULTS}
+                        onPaste={handlePaste}
+                        nothingFound={
+                            isInitialLoading ? 'Loading...' : 'No results found'
+                        }
+                        rightSectionWidth={30}
+                        rightSection={
+                            <Group
+                                spacing="xxs"
+                                noWrap
+                                sx={{
+                                    visibility: disabled ? 'hidden' : 'visible',
+                                }}
+                            >
+                                {isInitialLoading ? (
+                                    <Loader size="xs" color="gray" />
+                                ) : isError ? (
+                                    <Tooltip
+                                        label={
+                                            error?.error?.message ||
+                                            'Filter not available'
+                                        }
+                                        withinPortal
+                                    >
+                                        <MantineIcon
+                                            icon={IconAlertCircle}
+                                            color="red"
+                                        />
+                                    </Tooltip>
+                                ) : null}
+
+                                <Tooltip
+                                    withinPortal
+                                    label="Edit filter values"
+                                >
+                                    <ActionIcon
+                                        variant="subtle"
+                                        color="gray"
+                                        size="sm"
+                                        onClick={openManageValues}
+                                        sx={{
+                                            visibility: isWrapperHovered
+                                                ? 'visible'
+                                                : 'hidden',
+                                        }}
+                                    >
+                                        <MantineIcon icon={IconListDetails} />
+                                    </ActionIcon>
+                                </Tooltip>
+                            </Group>
+                        }
+                        dropdownComponent={DropdownComponentOverride}
+                        itemComponent={({
+                            label,
+                            value: itemValue,
+                            selected: _selected,
+                            className,
+                            ...others
+                        }) => {
+                            // Override selection state to check against full values array
+                            // This fixes the bug where hidden values (beyond display limit) appear
+                            // unselected in dropdown even though they're actually selected
+                            const isSelected = isValueSelected(
+                                itemValue,
+                                values,
+                            );
+                            const itemClassName = [
+                                className,
+                                isSelected
+                                    ? classes.multiSelectItemSelected
+                                    : undefined,
+                            ]
+                                .filter(Boolean)
+                                .join(' ');
+
+                            return others.disabled ? (
+                                <Text
+                                    color="dimmed"
+                                    className={itemClassName}
+                                    {...others}
+                                >
+                                    {label}
+                                </Text>
+                            ) : (
+                                <Highlight
+                                    highlight={search}
+                                    className={itemClassName}
+                                    {...others}
+                                >
+                                    {label}
+                                </Highlight>
+                            );
+                        }}
+                        data={
+                            hiddenCount > 0
+                                ? [
+                                      ...data,
+                                      {
+                                          value: MORE_VALUES_TOKEN,
+                                          label: `+${hiddenCount.toLocaleString()} more`,
+                                      },
+                                  ]
+                                : data
+                        }
+                        value={displayValues}
+                        onDropdownOpen={onDropdownOpen}
+                        onDropdownClose={() => {
+                            handleResetSearch();
+                            onDropdownClose?.();
+                        }}
+                        onChange={(updatedValues) => {
+                            // If token was removed (backspace on truncated list), open modal instead
+                            if (
+                                wasTokenRemoved(
+                                    displayValues,
+                                    updatedValues,
+                                    hiddenCount,
+                                )
+                            ) {
+                                openManageValues();
+                                return;
+                            }
+
+                            // Merge with hidden values to prevent data loss in truncated mode
+                            const finalValues = mergeWithHiddenValues(
+                                updatedValues,
+                                displayValues,
+                                values,
+                            );
+                            handleChange(finalValues);
+                        }}
+                        onCreate={handleAdd}
+                        onKeyDown={handleKeyDown}
+                    />
+                )}
+            </MultiValuePastePopover>
+        </>
     );
 };
 

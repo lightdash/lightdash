@@ -35,7 +35,7 @@ const EditChartMenuItem: FC<Props> = ({ tile, ...props }) => {
 
     return (
         <LinkMenuItem
-            icon={<MantineIcon icon={IconFilePencil} />}
+            leftSection={<MantineIcon icon={IconFilePencil} />}
             onClick={() => {
                 if (tile.properties.belongsToDashboard) {
                     storeDashboard(

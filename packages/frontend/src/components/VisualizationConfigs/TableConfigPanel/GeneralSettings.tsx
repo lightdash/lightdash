@@ -20,6 +20,7 @@ const GeneralSettings: FC = () => {
         pivotDimensions,
         visualizationConfig,
         setPivotDimensions,
+        columnOrder,
     } = useVisualizationContext();
     const [isDragging, setIsDragging] = useState<boolean>(false);
     const { showToastError } = useToaster();
@@ -43,15 +44,17 @@ const GeneralSettings: FC = () => {
             const rowsFields = [...dimensions].filter(
                 (itemId) => !pivotDimensions?.includes(itemId),
             );
-            const metricsFields = (chartConfig?.selectedItemIds ?? []).filter(
-                (id) => ![...columnFields, ...rowsFields].includes(id),
-            );
+            const metricsFields = (chartConfig?.selectedItemIds ?? [])
+                .filter((id) => ![...columnFields, ...rowsFields].includes(id))
+                .sort(
+                    (a, b) => columnOrder.indexOf(a) - columnOrder.indexOf(b),
+                );
             return {
                 columns: columnFields,
                 rows: rowsFields,
                 metrics: metricsFields,
             };
-        }, [pivotDimensions, dimensions, chartConfig]);
+        }, [pivotDimensions, dimensions, chartConfig, columnOrder]);
 
     const handleToggleMetricsAsRows = useCallback(() => {
         if (!chartConfig) return;

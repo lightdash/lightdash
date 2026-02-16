@@ -19,6 +19,7 @@ import {
     IconRefresh,
     IconReportAnalytics,
     IconTableOptions,
+    IconTrash,
     IconUserCircle,
     IconUserCode,
     IconUserPlus,
@@ -455,6 +456,12 @@ const Settings: FC = () => {
             ) &&
             !matchPath(
                 {
+                    path: '/generalSettings/projectManagement/:projectUuid/recentlyDeleted',
+                },
+                location.pathname,
+            ) &&
+            !matchPath(
+                {
                     path: '/generalSettings/customRoles',
                 },
                 location.pathname,
@@ -517,9 +524,11 @@ const Settings: FC = () => {
                                 </Title>
                                 <RouterNavLink
                                     exact
-                                    to="/generalSettings"
+                                    to="/generalSettings/profile"
                                     label="Profile"
-                                    icon={<MantineIcon icon={IconUserCircle} />}
+                                    leftSection={
+                                        <MantineIcon icon={IconUserCircle} />
+                                    }
                                 />
                                 {allowPasswordAuthentication && (
                                     <RouterNavLink
@@ -530,14 +539,16 @@ const Settings: FC = () => {
                                         }
                                         exact
                                         to="/generalSettings/password"
-                                        icon={<MantineIcon icon={IconLock} />}
+                                        leftSection={
+                                            <MantineIcon icon={IconLock} />
+                                        }
                                     />
                                 )}
                                 <RouterNavLink
                                     label="My warehouse connections"
                                     exact
                                     to="/generalSettings/myWarehouseConnections"
-                                    icon={
+                                    leftSection={
                                         <MantineIcon icon={IconDatabaseCog} />
                                     }
                                 />
@@ -557,7 +568,7 @@ const Settings: FC = () => {
                                         label="My scheduled deliveries"
                                         exact
                                         to="/generalSettings/userScheduledDeliveries"
-                                        icon={
+                                        leftSection={
                                             <MantineIcon
                                                 icon={IconCalendarStats}
                                             />
@@ -572,7 +583,9 @@ const Settings: FC = () => {
                                         label="Personal access tokens"
                                         exact
                                         to="/generalSettings/personalAccessTokens"
-                                        icon={<MantineIcon icon={IconKey} />}
+                                        leftSection={
+                                            <MantineIcon icon={IconKey} />
+                                        }
                                     />
                                 )}
                             </Box>
@@ -587,7 +600,7 @@ const Settings: FC = () => {
                                         label="General"
                                         to="/generalSettings/organization"
                                         exact
-                                        icon={
+                                        leftSection={
                                             <MantineIcon
                                                 icon={IconBuildingSkyscraper}
                                             />
@@ -600,7 +613,7 @@ const Settings: FC = () => {
                                             label="Custom roles"
                                             to="/generalSettings/customRoles"
                                             exact
-                                            icon={
+                                            leftSection={
                                                 <MantineIcon
                                                     icon={IconIdBadge2}
                                                 />
@@ -621,7 +634,7 @@ const Settings: FC = () => {
                                         }
                                         to="/generalSettings/userManagement"
                                         exact
-                                        icon={
+                                        leftSection={
                                             <MantineIcon icon={IconUserPlus} />
                                         }
                                     />
@@ -641,7 +654,7 @@ const Settings: FC = () => {
                                         }
                                         to="/generalSettings/userAttributes"
                                         exact
-                                        icon={
+                                        leftSection={
                                             <MantineIcon
                                                 icon={IconUserShield}
                                             />
@@ -654,7 +667,7 @@ const Settings: FC = () => {
                                         label="Appearance"
                                         exact
                                         to="/generalSettings/appearance"
-                                        icon={
+                                        leftSection={
                                             <MantineIcon icon={IconPalette} />
                                         }
                                     />
@@ -665,7 +678,9 @@ const Settings: FC = () => {
                                         label="Integrations"
                                         exact
                                         to="/generalSettings/integrations"
-                                        icon={<MantineIcon icon={IconPlug} />}
+                                        leftSection={
+                                            <MantineIcon icon={IconPlug} />
+                                        }
                                     />
                                 )}
 
@@ -684,7 +699,7 @@ const Settings: FC = () => {
                                             label="Warehouse credentials"
                                             exact
                                             to="/generalSettings/warehouseCredentials"
-                                            icon={
+                                            leftSection={
                                                 <MantineIcon
                                                     icon={IconDatabaseCog}
                                                 />
@@ -699,7 +714,7 @@ const Settings: FC = () => {
                                             label="All projects"
                                             to="/generalSettings/projectManagement"
                                             exact
-                                            icon={
+                                            leftSection={
                                                 <MantineIcon
                                                     icon={IconDatabase}
                                                 />
@@ -713,7 +728,7 @@ const Settings: FC = () => {
                                             label="SCIM Access Tokens"
                                             exact
                                             to="/generalSettings/scimAccessTokens"
-                                            icon={
+                                            leftSection={
                                                 <MantineIcon icon={IconKey} />
                                             }
                                         />
@@ -724,7 +739,7 @@ const Settings: FC = () => {
                                             label="Service Accounts"
                                             exact
                                             to="/generalSettings/serviceAccounts"
-                                            icon={
+                                            leftSection={
                                                 <MantineIcon
                                                     icon={IconUserCode}
                                                 />
@@ -743,7 +758,7 @@ const Settings: FC = () => {
                                             label="AI Agents"
                                             exact
                                             to="/ai-agents/admin"
-                                            icon={
+                                            leftSection={
                                                 <MantineIcon icon={IconBrain} />
                                             }
                                         />
@@ -770,7 +785,7 @@ const Settings: FC = () => {
                                         label="Connection settings"
                                         exact
                                         to={`/generalSettings/projectManagement/${project.projectUuid}/settings`}
-                                        icon={
+                                        leftSection={
                                             <MantineIcon
                                                 icon={IconDatabaseCog}
                                             />
@@ -781,7 +796,7 @@ const Settings: FC = () => {
                                         label="Tables configuration"
                                         exact
                                         to={`/generalSettings/projectManagement/${project.projectUuid}/tablesConfiguration`}
-                                        icon={
+                                        leftSection={
                                             <MantineIcon
                                                 icon={IconTableOptions}
                                             />
@@ -792,7 +807,7 @@ const Settings: FC = () => {
                                         label="Changesets"
                                         exact
                                         to={`/generalSettings/projectManagement/${project.projectUuid}/changesets`}
-                                        icon={
+                                        leftSection={
                                             <MantineIcon icon={IconHistory} />
                                         }
                                     />
@@ -801,7 +816,7 @@ const Settings: FC = () => {
                                         label="Compilation history"
                                         exact
                                         to={`/generalSettings/projectManagement/${project.projectUuid}/compilationHistory`}
-                                        icon={
+                                        leftSection={
                                             <MantineIcon icon={IconRefresh} />
                                         }
                                     />
@@ -810,7 +825,7 @@ const Settings: FC = () => {
                                         label="Parameters"
                                         exact
                                         to={`/generalSettings/projectManagement/${project.projectUuid}/parameters`}
-                                        icon={
+                                        leftSection={
                                             <MantineIcon icon={IconVariable} />
                                         }
                                     />
@@ -827,7 +842,7 @@ const Settings: FC = () => {
                                             label="Project access"
                                             exact
                                             to={`/generalSettings/projectManagement/${project.projectUuid}/projectAccess`}
-                                            icon={
+                                            leftSection={
                                                 <MantineIcon icon={IconUsers} />
                                             }
                                         />
@@ -850,7 +865,7 @@ const Settings: FC = () => {
                                                     name: EventName.USAGE_ANALYTICS_CLICKED,
                                                 });
                                             }}
-                                            icon={
+                                            leftSection={
                                                 <MantineIcon
                                                     icon={IconReportAnalytics}
                                                 />
@@ -862,7 +877,7 @@ const Settings: FC = () => {
                                         label="Syncs & Scheduled deliveries"
                                         exact
                                         to={`/generalSettings/projectManagement/${project.projectUuid}/scheduledDeliveries`}
-                                        icon={
+                                        leftSection={
                                             <MantineIcon
                                                 icon={IconCalendarStats}
                                             />
@@ -881,7 +896,7 @@ const Settings: FC = () => {
                                             label="Embed configuration"
                                             exact
                                             to={`/generalSettings/projectManagement/${project.projectUuid}/embed`}
-                                            icon={
+                                            leftSection={
                                                 <MantineIcon
                                                     icon={IconBrowser}
                                                 />
@@ -901,7 +916,7 @@ const Settings: FC = () => {
                                             label="Validator"
                                             exact
                                             to={`/generalSettings/projectManagement/${project.projectUuid}/validator`}
-                                            icon={
+                                            leftSection={
                                                 <MantineIcon
                                                     icon={IconChecklist}
                                                 />
@@ -921,13 +936,24 @@ const Settings: FC = () => {
                                             label="Data ops"
                                             exact
                                             to={`/generalSettings/projectManagement/${project.projectUuid}/dataOps`}
-                                            icon={
+                                            leftSection={
                                                 <MantineIcon
                                                     icon={IconDatabaseExport}
                                                 />
                                             }
                                         />
                                     ) : null}
+
+                                    {health?.softDelete?.enabled && (
+                                        <RouterNavLink
+                                            label="Recently deleted"
+                                            exact
+                                            to={`/generalSettings/projectManagement/${project.projectUuid}/recentlyDeleted`}
+                                            leftSection={
+                                                <MantineIcon icon={IconTrash} />
+                                            }
+                                        />
+                                    )}
                                 </Box>
                             ) : null}
                         </Stack>

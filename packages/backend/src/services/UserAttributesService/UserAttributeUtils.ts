@@ -95,7 +95,7 @@ export const hasUserAttribute = (
     !!userAttributes[attributeName] &&
     userAttributes[attributeName].includes(value);
 
-export const hasUserAttributes = (
+const hasUserAttributes = (
     requiredAttributes: Record<string, string | string[]> | undefined,
     userAttributes: UserAttributeValueMap,
 ): boolean => {
@@ -114,26 +114,85 @@ export const hasUserAttributes = (
     });
 };
 
+/**
+ * Check if user has ANY of the specified attributes (OR logic).
+ * @param anyAttributes - Attributes where at least one must match
+ * @param userAttributes - User's actual attributes
+ * @returns true if at least one attribute condition is satisfied
+ */
+const hasAnyUserAttributes = (
+    anyAttributes: Record<string, string | string[]>,
+    userAttributes: UserAttributeValueMap,
+): boolean => {
+    if (Object.keys(anyAttributes).length === 0) return true;
+
+    return Object.entries(anyAttributes).some((attribute) => {
+        const [attributeName, value] = attribute;
+        if (Array.isArray(value)) {
+            return value.some((v) =>
+                hasUserAttribute(userAttributes, attributeName, v),
+            );
+        }
+        return hasUserAttribute(userAttributes, attributeName, value);
+    });
+};
+
+/**
+ * Unified validation that handles both required (AND) and any (OR) attributes.
+ * @param requiredAttributes - All of these must match (AND logic)
+ * @param anyAttributes - At least one of these must match (OR logic)
+ * @param userAttributes - User's actual attributes
+ * @returns true if user has access (both checks pass when defined)
+ */
+export const checkUserAttributesAccess = (
+    requiredAttributes: Record<string, string | string[]> | undefined,
+    anyAttributes: Record<string, string | string[]> | undefined,
+    userAttributes: UserAttributeValueMap,
+): boolean => {
+    if (requiredAttributes === undefined && anyAttributes === undefined) {
+        return true;
+    }
+
+    const hasRequiredAccess =
+        requiredAttributes === undefined ||
+        hasUserAttributes(requiredAttributes, userAttributes);
+
+    const hasAnyAccess =
+        anyAttributes === undefined ||
+        hasAnyUserAttributes(anyAttributes, userAttributes);
+
+    return hasRequiredAccess && hasAnyAccess;
+};
+
 export const exploreHasFilteredAttribute = (explore: Explore) =>
     Object.values(explore.tables).some((table) => {
         if (!table) return false;
 
         return (
             table.requiredAttributes !== undefined ||
+            table.anyAttributes !== undefined ||
             Object.values(table.dimensions).some(
-                (dimension) => dimension?.requiredAttributes !== undefined,
+                (dimension) =>
+                    dimension?.requiredAttributes !== undefined ||
+                    dimension?.anyAttributes !== undefined,
             )
         );
     });
 
 export const doesExploreMatchRequiredAttributes = (
-    exploreAttributes:
+    exploreRequiredAttributes:
         | Explore['tables'][string]['requiredAttributes']
+        | undefined,
+    exploreAnyAttributes:
+        | Explore['tables'][string]['anyAttributes']
         | undefined,
     userAttributes: UserAttributeValueMap,
 ) =>
-    exploreAttributes === undefined ||
-    hasUserAttributes(exploreAttributes, userAttributes);
+    checkUserAttributesAccess(
+        exploreRequiredAttributes,
+        exploreAnyAttributes,
+        userAttributes,
+    );
 
 export const getFilteredExplore = (
     explore: Explore,
@@ -149,6 +208,7 @@ export const getFilteredExplore = (
     if (
         !doesExploreMatchRequiredAttributes(
             baseTable.requiredAttributes,
+            baseTable.anyAttributes,
             userAttributes,
         )
     ) {
@@ -160,7 +220,13 @@ export const getFilteredExplore = (
     const filteredTableNames: string[] = Object.values(explore.tables).reduce<
         string[]
     >((acc, table) => {
-        if (hasUserAttributes(table.requiredAttributes, userAttributes))
+        if (
+            checkUserAttributesAccess(
+                table.requiredAttributes,
+                table.anyAttributes,
+                userAttributes,
+            )
+        )
             return [...acc, table.name];
         return acc;
     }, []);
@@ -185,10 +251,12 @@ export const getFilteredExplore = (
                             ([metricName, metric]) => {
                                 if (!metric) return false;
 
-                                const canAccessMetric = hasUserAttributes(
-                                    metric.requiredAttributes,
-                                    userAttributes,
-                                );
+                                const canAccessMetric =
+                                    checkUserAttributesAccess(
+                                        metric.requiredAttributes,
+                                        metric.anyAttributes,
+                                        userAttributes,
+                                    );
                                 if (!canAccessMetric) return false;
                                 return (
                                     !metric.tablesReferences ||
@@ -215,10 +283,12 @@ export const getFilteredExplore = (
                                                 tableReference,
                                             ),
                                     );
-                                const canAccessDimension = hasUserAttributes(
-                                    dimension.requiredAttributes,
-                                    userAttributes,
-                                );
+                                const canAccessDimension =
+                                    checkUserAttributesAccess(
+                                        dimension.requiredAttributes,
+                                        dimension.anyAttributes,
+                                        userAttributes,
+                                    );
                                 return (
                                     canAccessAllTableReferences &&
                                     canAccessDimension

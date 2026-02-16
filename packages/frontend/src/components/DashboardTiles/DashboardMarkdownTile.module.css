@@ -1,0 +1,10 @@
+.markdownContainer {
+    flex: 1;
+    overflow: auto;
+
+    :global(.wmde-markdown) {
+        font-size: 14px;
+        background-color: transparent;
+        font-family: var(--mantine-font-family);
+    }
+}

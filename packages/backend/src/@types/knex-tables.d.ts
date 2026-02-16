@@ -145,6 +145,12 @@ import {
     CatalogTagsTableName,
     type MetricsTreeEdgesTable,
     MetricsTreeEdgesTableName,
+    type MetricsTreeLocksTable,
+    MetricsTreeLocksTableName,
+    type MetricsTreeNodesTable,
+    MetricsTreeNodesTableName,
+    type MetricsTreesTable,
+    MetricsTreesTableName,
 } from '../database/entities/catalog';
 import {
     DashboardTileCommentsTable,
@@ -193,6 +199,10 @@ import {
     OrganizationAllowedEmailDomainsTable,
     OrganizationAllowedEmailDomainsTableName,
 } from '../database/entities/organizationsAllowedEmailDomains';
+import {
+    PersistentDownloadFileTable,
+    PersistentDownloadFileTableName,
+} from '../database/entities/persistentDownloadFile';
 import {
     ProjectGroupAccessTable,
     ProjectGroupAccessTableName,
@@ -392,6 +402,7 @@ declare module 'knex/types/tables' {
         [SavedChartCustomDimensionsTableName]: SavedChartCustomDimensionsTable;
         [SavedChartCustomSqlDimensionsTableName]: SavedChartCustomSqlDimensionsTable;
         [DownloadFileTableName]: DownloadFileTable;
+        [PersistentDownloadFileTableName]: PersistentDownloadFileTable;
         [DownloadAuditTableName]: DownloadAuditTable;
         [GithubAppInstallationTableName]: GithubAppInstallationTable;
         [GitlabAppInstallationTableName]: GitlabAppInstallationTable;
@@ -422,6 +433,9 @@ declare module 'knex/types/tables' {
         [CatalogTagsTableName]: CatalogTagsTable;
         [ServiceAccountsTableName]: ServiceAccountTable;
         [MetricsTreeEdgesTableName]: MetricsTreeEdgesTable;
+        [MetricsTreeLocksTableName]: MetricsTreeLocksTable;
+        [MetricsTreesTableName]: MetricsTreesTable;
+        [MetricsTreeNodesTableName]: MetricsTreeNodesTable;
         [SpotlightTableConfigTableName]: SpotlightTableConfigTable;
         [OrganizationColorPaletteTableName]: OrganizationColorPaletteTable;
         [OrganizationWarehouseCredentialsTableName]: OrganizationWarehouseCredentialsTable;

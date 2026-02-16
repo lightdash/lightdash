@@ -20,8 +20,8 @@ import moment from 'moment';
 import os from 'os';
 import path from 'path';
 import { Readable, Writable } from 'stream';
-import { S3Client } from '../../clients/Aws/S3Client';
 import { transformAndExportResults } from '../../clients/Aws/transformAndExportResults';
+import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
 import { S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
@@ -201,7 +201,7 @@ export class ExcelService {
         fields: ItemsMap;
         metricQuery: MetricQuery;
         resultsStorageClient: S3ResultsFileStorageClient;
-        exportsStorageClient: S3Client;
+        exportsStorageClient: FileStorageClient;
         lightdashConfig: LightdashConfig;
         pivotDetails: ReadyQueryResultsPage['pivotDetails'];
         options: {
@@ -213,7 +213,7 @@ export class ExcelService {
             pivotConfig: PivotConfig;
             attachmentDownloadName?: string;
         };
-    }): Promise<{ fileUrl: string; truncated: boolean }> {
+    }): Promise<{ fileUrl: string; truncated: boolean; s3Key: string }> {
         const { onlyRaw, customLabels, pivotConfig, attachmentDownloadName } =
             options;
 
@@ -401,7 +401,7 @@ export class ExcelService {
         fields: ItemsMap,
         clients: {
             resultsStorageClient: S3ResultsFileStorageClient;
-            exportsStorageClient: S3Client;
+            exportsStorageClient: FileStorageClient;
         },
         options: {
             onlyRaw?: boolean;
@@ -411,7 +411,7 @@ export class ExcelService {
             hiddenFields?: string[];
             attachmentDownloadName?: string;
         } = {},
-    ): Promise<{ fileUrl: string; truncated: boolean }> {
+    ): Promise<{ fileUrl: string; truncated: boolean; s3Key: string }> {
         // Handle column ordering and filtering
         const {
             onlyRaw = false,
@@ -469,6 +469,7 @@ export class ExcelService {
             return {
                 fileUrl,
                 truncated,
+                s3Key: formattedFileName,
             };
         } catch (error) {
             Logger.error(

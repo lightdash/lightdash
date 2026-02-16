@@ -451,6 +451,24 @@ type RollbackChartVersionEvent = BaseTrack & {
     };
 };
 
+type DashboardHistoryEvent = BaseTrack & {
+    event: 'dashboard_history.view';
+    properties: {
+        projectId: string;
+        dashboardId: string;
+        versionCount: number;
+    };
+};
+
+type RollbackDashboardVersionEvent = BaseTrack & {
+    event: 'dashboard_version.rollback';
+    properties: {
+        projectId: string;
+        dashboardId: string;
+        versionId: string;
+    };
+};
+
 export type CreateSavedChartVersionEvent = BaseTrack & {
     event: 'saved_chart_version.created';
     properties: {
@@ -1507,6 +1525,8 @@ type TypedEvent =
     | ViewChartVersionEvent
     | RollbackChartVersionEvent
     | CreateSavedChartVersionEvent
+    | DashboardHistoryEvent
+    | RollbackDashboardVersionEvent
     | ProjectErrorEvent
     | ApiErrorEvent
     | ProjectEvent

@@ -839,6 +839,9 @@ export type LightdashConfig = {
     dashboard: {
         maxTilesPerTab: number;
         maxTabsPerDashboard: number;
+        versionHistory: {
+            daysLimit: number;
+        };
     };
     // This is the override color palette for the organization
     // TODO: allow override for dark theme
@@ -875,6 +878,16 @@ export type LightdashConfig = {
     groups: {
         enabled: boolean | undefined;
     };
+    adminChangeNotifications: {
+        enabled: boolean;
+    };
+    persistentDownloadUrls: {
+        enabled: boolean;
+        expirationSeconds: number;
+        expirationSecondsEmail: number | undefined;
+        expirationSecondsSlack: number | undefined;
+        expirationSecondsMsTeams: number | undefined;
+    };
     extendedUsageAnalytics: {
         enabled: boolean;
     };
@@ -907,6 +920,12 @@ export type LightdashConfig = {
         enabled: boolean;
     };
     organizationWarehouseCredentials: {
+        enabled: boolean;
+    };
+    athenaWarehouseIamRoleAuth: {
+        enabled: boolean;
+    };
+    saveCredentialsForm: {
         enabled: boolean;
     };
     github: {
@@ -1009,14 +1028,18 @@ export type LightdashConfig = {
     funnelBuilder: {
         enabled: boolean;
     };
-    metricsCatalog: {
-        echartsVisualizationEnabled: boolean | undefined;
-    };
     maps: {
+        enabled: boolean | undefined;
+    };
+    savedMetricsTree: {
         enabled: boolean | undefined;
     };
     nestedSpacesPermissions: {
         enabled: boolean;
+    };
+    softDelete: {
+        enabled: boolean;
+        retentionDays: number;
     };
 };
 
@@ -1569,7 +1592,7 @@ export const parseConfig = (): LightdashConfig => {
                     'LIGHTDASH_QUERY_MAX_PAGE_SIZE',
                 ) || 2500, // Defaults to default limit * 5
             useSqlPivotResults: process.env.USE_SQL_PIVOT_RESULTS
-                ? process.env.USE_SQL_PIVOT_RESULTS === 'true'
+                ? process.env.USE_SQL_PIVOT_RESULTS !== 'false'
                 : undefined,
             showExecutionTime: process.env.SHOW_EXECUTION_TIME
                 ? process.env.SHOW_EXECUTION_TIME === 'true'
@@ -1592,6 +1615,12 @@ export const parseConfig = (): LightdashConfig => {
                 getIntegerFromEnvironmentVariable(
                     'LIGHTDASH_DASHBOARD_MAX_TABS_PER_DASHBOARD',
                 ) || 20,
+            versionHistory: {
+                daysLimit:
+                    getIntegerFromEnvironmentVariable(
+                        'LIGHTDASH_DASHBOARD_VERSION_HISTORY_DAYS_LIMIT',
+                    ) || 3,
+            },
         },
         pivotTable: {
             maxColumnLimit:
@@ -1684,6 +1713,25 @@ export const parseConfig = (): LightdashConfig => {
                 ? process.env.GROUPS_ENABLED === 'true'
                 : undefined,
         },
+        adminChangeNotifications: {
+            enabled: process.env.ADMIN_CHANGE_NOTIFICATIONS_ENABLED === 'true',
+        },
+        persistentDownloadUrls: {
+            enabled: process.env.PERSISTENT_DOWNLOAD_URLS_ENABLED === 'true',
+            expirationSeconds:
+                getIntegerFromEnvironmentVariable(
+                    'PERSISTENT_DOWNLOAD_URL_EXPIRATION_SECONDS',
+                ) ?? 259200, // 3 days, matches S3_EXPIRATION_TIME default
+            expirationSecondsEmail: getIntegerFromEnvironmentVariable(
+                'PERSISTENT_DOWNLOAD_URL_EXPIRATION_SECONDS_EMAIL',
+            ),
+            expirationSecondsSlack: getIntegerFromEnvironmentVariable(
+                'PERSISTENT_DOWNLOAD_URL_EXPIRATION_SECONDS_SLACK',
+            ),
+            expirationSecondsMsTeams: getIntegerFromEnvironmentVariable(
+                'PERSISTENT_DOWNLOAD_URL_EXPIRATION_SECONDS_MSTEAMS',
+            ),
+        },
         extendedUsageAnalytics: {
             enabled: process.env.EXTENDED_USAGE_ANALYTICS === 'true',
         },
@@ -1766,6 +1814,12 @@ export const parseConfig = (): LightdashConfig => {
                 process.env.ORGANIZATION_WAREHOUSE_CREDENTIALS_ENABLED ===
                 'true',
         },
+        athenaWarehouseIamRoleAuth: {
+            enabled: process.env.ATHENA_WAREHOUSE_IAM_ROLE_AUTH === 'true',
+        },
+        saveCredentialsForm: {
+            enabled: process.env.SAVE_CREDENTIALS_FORM_ENABLED === 'true',
+        },
         github: {
             appName: process.env.GITHUB_APP_NAME || 'lightdash-app-dev',
             redirectDomain:
@@ -1823,23 +1877,27 @@ export const parseConfig = (): LightdashConfig => {
                 process.env.FUNNEL_BUILDER_ENABLED === 'true' ||
                 lightdashMode === LightdashMode.PR,
         },
-        metricsCatalog: {
-            echartsVisualizationEnabled:
-                process.env.METRICS_CATALOG_ECHARTS_VISUALIZATION_ENABLED !==
-                undefined
-                    ? process.env
-                          .METRICS_CATALOG_ECHARTS_VISUALIZATION_ENABLED ===
-                      'true'
-                    : undefined,
-        },
         maps: {
             enabled:
                 process.env.LIGHTDASH_MAPS_ENABLED === 'true'
                     ? true
                     : undefined,
         },
+        savedMetricsTree: {
+            enabled:
+                process.env.SAVED_METRICS_TREE_ENABLED === 'true'
+                    ? true
+                    : undefined,
+        },
         nestedSpacesPermissions: {
             enabled: process.env.NESTED_SPACES_PERMISSIONS_ENABLED === 'true',
+        },
+        softDelete: {
+            enabled: process.env.SOFT_DELETE_ENABLED === 'true',
+            retentionDays:
+                getIntegerFromEnvironmentVariable(
+                    'SOFT_DELETE_RETENTION_DAYS',
+                ) ?? 30,
         },
     };
 };

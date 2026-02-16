@@ -21,6 +21,17 @@ export type PromotedChart = SavedChartDAO & {
     oldUuid: string;
 };
 
+export type PromotedSqlChart = {
+    uuid: string;
+    oldUuid: string;
+    slug: string;
+    projectUuid: string;
+    name: string;
+    description: string | null;
+    spaceSlug: string;
+    spacePath: string;
+};
+
 export type PromotionChanges = {
     spaces: {
         action: PromotionAction;
@@ -33,6 +44,10 @@ export type PromotionChanges = {
     charts: {
         action: PromotionAction;
         data: PromotedChart;
+    }[];
+    sqlCharts?: {
+        action: PromotionAction;
+        data: PromotedSqlChart;
     }[];
 };
 

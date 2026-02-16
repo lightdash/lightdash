@@ -97,7 +97,7 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
                         <MantineLinkButton
                             href="https://docs.lightdash.com/"
                             target="_blank"
-                            leftIcon={
+                            leftSection={
                                 <MantineIcon
                                     icon={IconBook}
                                     size="lg"

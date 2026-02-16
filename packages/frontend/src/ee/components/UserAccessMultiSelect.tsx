@@ -37,8 +37,10 @@ interface UserData {
     roleLabel: string;
 }
 
-interface UserAccessMultiSelectProps
-    extends Omit<MultiSelectProps, 'data' | 'renderOption'> {
+interface UserAccessMultiSelectProps extends Omit<
+    MultiSelectProps,
+    'data' | 'renderOption'
+> {
     projectUuid: string;
     isGroupsEnabled?: boolean;
 }
@@ -216,8 +218,8 @@ export const UserAccessMultiSelect: FC<UserAccessMultiSelectProps> = ({
             }
             description={`Select specific users from this project who can access this agent. ${
                 isGroupsEnabled
-                    ? 'If no users are selected, access will be determined by group settings.'
-                    : ''
+                    ? 'If no users or groups are selected, all users will have access.'
+                    : 'If no users are selected, all users will have access.'
             }`}
             placeholder="Search users"
             data={selectData}

@@ -33,13 +33,13 @@ import {
     type SavedChart,
     type Series,
 } from '@lightdash/common';
+import { Menu } from '@mantine-8/core';
 import {
     ActionIcon,
     Badge,
     Box,
     Group,
     HoverCard,
-    Menu,
     Portal,
     Stack,
     Text,
@@ -94,6 +94,7 @@ import {
     type DashboardChartReadyQuery,
 } from '../../hooks/dashboard/useDashboardChartReadyQuery';
 import useDashboardFiltersForTile from '../../hooks/dashboard/useDashboardFiltersForTile';
+import { useEmbedDashboardChartDownload } from '../../hooks/dashboard/useEmbedDashboardChartDownload';
 import { uploadGsheet } from '../../hooks/gdrive/useGdrive';
 import { useOrganization } from '../../hooks/organization/useOrganization';
 import useToaster from '../../hooks/toaster/useToaster';
@@ -152,7 +153,7 @@ const ExportGoogleSheet: FC<ExportGoogleSheetProps> = ({
             metricQuery: savedChart.metricQuery,
             columnOrder: savedChart.tableConfig.columnOrder,
             showTableNames: isTableChartConfig(savedChart.chartConfig.config)
-                ? savedChart.chartConfig.config.showTableNames ?? false
+                ? (savedChart.chartConfig.config.showTableNames ?? false)
                 : true,
             customLabels: getCustomLabelsFromTableConfig(
                 savedChart.chartConfig.config,
@@ -480,11 +481,10 @@ const ValidDashboardChartTileMinimal: FC<{
     );
 };
 
-interface DashboardChartTileMainProps
-    extends Pick<
-        React.ComponentProps<typeof TileBase>,
-        'tile' | 'onEdit' | 'onDelete' | 'isEditMode'
-    > {
+interface DashboardChartTileMainProps extends Pick<
+    React.ComponentProps<typeof TileBase>,
+    'tile' | 'onEdit' | 'onDelete' | 'isEditMode'
+> {
     tile: IDashboardChartTile;
     dashboardChartReadyQuery: DashboardChartReadyQuery;
     resultsData: InfiniteQueryResults;
@@ -1243,7 +1243,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                             }
                                         >
                                             <Menu.Item
-                                                icon={
+                                                leftSection={
                                                     <MantineIcon
                                                         icon={IconTelescope}
                                                     />
@@ -1274,7 +1274,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                     {userCanExportData && (
                                         <>
                                             <Menu.Item
-                                                icon={
+                                                leftSection={
                                                     <MantineIcon
                                                         icon={IconTableExport}
                                                     />
@@ -1318,7 +1318,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                     {chart.dashboardUuid &&
                                         userCanManageChart && (
                                             <Menu.Item
-                                                icon={
+                                                leftSection={
                                                     <MantineIcon
                                                         icon={IconFolders}
                                                     />
@@ -1335,7 +1335,9 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                             </Tooltip>
                             {userCanManageChart && isEditMode && (
                                 <Menu.Item
-                                    icon={<MantineIcon icon={IconCopy} />}
+                                    leftSection={
+                                        <MantineIcon icon={IconCopy} />
+                                    }
                                     onClick={() =>
                                         duplicateChart({
                                             uuid: savedChartUuid,
@@ -1387,7 +1389,9 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                         <Menu.Dropdown>
                             {viewUnderlyingDataOptions?.value && (
                                 <Menu.Item
-                                    icon={<MantineIcon icon={IconCopy} />}
+                                    leftSection={
+                                        <MantineIcon icon={IconCopy} />
+                                    }
                                     onClick={handleCopyToClipboard}
                                 >
                                     Copy value
@@ -1471,7 +1475,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                 getDownloadQueryUuid={getDownloadQueryUuid}
                 showTableNames={
                     isTableChartConfig(chart.chartConfig.config)
-                        ? chart.chartConfig.config.showTableNames ?? false
+                        ? (chart.chartConfig.config.showTableNames ?? false)
                         : true
                 }
                 chartName={title || chart.name}
@@ -1624,14 +1628,10 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
         [],
     );
 
-    // For minimal tiles, we can reuse the existing queryUuid from dashboardChartReadyQuery
-    const getDownloadQueryUuid = useCallback(
-        async (_limit: number | null): Promise<string> => {
-            // The query has already been executed by dashboardChartReadyQuery
-            // We can simply return the queryUuid
-            return dashboardChartReadyQuery.executeQueryResponse.queryUuid;
-        },
-        [dashboardChartReadyQuery.executeQueryResponse.queryUuid],
+    const { getDownloadQueryUuid } = useEmbedDashboardChartDownload(
+        tileUuid,
+        projectUuid,
+        dashboardChartReadyQuery.executeQueryResponse.queryUuid,
     );
 
     const chartKind = useMemo(
@@ -1656,7 +1656,9 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
                         <>
                             {isEmbeddedExploreEnabled && (
                                 <Menu.Item
-                                    icon={<MantineIcon icon={IconTelescope} />}
+                                    leftSection={
+                                        <MantineIcon icon={IconTelescope} />
+                                    }
                                     onClick={handleExploreFromHere}
                                 >
                                     Explore from here
@@ -1664,7 +1666,7 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
                             )}
                             {canExportCsv && (
                                 <Menu.Item
-                                    icon={
+                                    leftSection={
                                         <MantineIcon icon={IconTableExport} />
                                     }
                                     onClick={() =>
@@ -1756,9 +1758,10 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
                     projectUuid={projectUuid!}
                     totalResults={resultsData.totalResults}
                     getDownloadQueryUuid={getDownloadQueryUuid}
+                    forceShowLimitSelection
                     showTableNames={
                         isTableChartConfig(chart.chartConfig.config)
-                            ? chart.chartConfig.config.showTableNames ?? false
+                            ? (chart.chartConfig.config.showTableNames ?? false)
                             : true
                     }
                     chartName={title || chart.name}

@@ -71,9 +71,10 @@ const addExecutionContent = winston.format(
 const printMessage = (
     info: winston.Logform.TransformableInfo & ExecutionContextInfo & SentryInfo,
 ): string => {
+    const traceId = info.sentryTraceId ? `[${info.sentryTraceId}]` : '';
     const jobId = info.job?.id ? `[Job:${info.job.id}]` : '';
     const serviceName = info.serviceName ? `[${info.serviceName}]` : '';
-    return `${info.timestamp} [Lightdash]${jobId}${serviceName} ${info.level}: ${info.message}`;
+    return `${info.timestamp} [Lightdash]${traceId}${jobId}${serviceName} ${info.level}: ${info.message}`;
 };
 
 const formatters = {

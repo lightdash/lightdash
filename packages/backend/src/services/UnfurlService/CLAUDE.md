@@ -116,9 +116,9 @@ When a user shares a Lightdash URL in Slack, Slack requests a preview image.
 
 **Image Storage:**
 
-1. **With S3 enabled** (`S3Service` configured):
-    - Image uploaded to S3: `s3Client.uploadImage(buffer, imageId)`
-    - Returns S3 URL for Slack to fetch
+1. **With S3 enabled** (`FileStorageClient` configured):
+    - Image uploaded to storage: `fileStorageClient.uploadImage(buffer, imageId)`
+    - Returns storage URL for Slack to fetch
 
 2. **Without S3** (local storage):
     - Image saved to `/tmp/${imageId}.png`

@@ -11,6 +11,7 @@ services:
             - MINIO_ROOT_USER=minioadmin
             - MINIO_ROOT_PASSWORD=minioadmin
             - MINIO_DEFAULT_BUCKETS=default
+            - MINIO_EXPIRATION_DAYS=${MINIO_EXPIRATION_DAYS:-1}
     lightdash:
         platform: linux/amd64
         image: lightdash/lightdash:latest
@@ -111,6 +112,7 @@ services:
             - TURBO_API=${TURBO_API}
             - SIGNUP_URL=${SIGNUP_URL}
             - HELP_MENU_URL=${HELP_MENU_URL}
+            - ATHENA_WAREHOUSE_IAM_ROLE_AUTH=${ATHENA_WAREHOUSE_IAM_ROLE_AUTH}
         volumes:
             - '${DBT_PROJECT_DIR}:/usr/app/dbt'
         ports:

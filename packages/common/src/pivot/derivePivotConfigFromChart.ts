@@ -7,6 +7,7 @@ import {
     DimensionType,
     isCustomDimension,
     isDimension,
+    isMetric,
     isTableCalculation,
     TableCalculationType,
     type ItemsMap,
@@ -25,6 +26,7 @@ import {
     getTableCalculationAxisType,
     SortByDirection,
     VizAggregationOptions,
+    VizIndexType,
 } from '../visualizations/types';
 import { normalizeIndexColumns } from './utils';
 
@@ -136,6 +138,16 @@ const getIndexColumn = (
                     type: getTableCalculationAxisType(
                         field.type ?? TableCalculationType.NUMBER,
                     ),
+                };
+            }
+
+            // Metrics can be used as x-axis in scatter charts, so we need to handle them as index columns
+            // Only include metrics if they are explicitly the x-axis field, otherwise they would
+            // incorrectly become index columns and break pivoted charts (e.g., stacked bar charts)
+            if (isMetric(field) && dim === xField) {
+                return {
+                    reference: dim,
+                    type: VizIndexType.CATEGORY,
                 };
             }
 

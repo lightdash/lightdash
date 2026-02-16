@@ -2,6 +2,7 @@ import {
     type ApiError,
     type ApiJobStartedResults,
     type CreateProject,
+    type CreateWarehouseCredentials,
     type MostPopularAndRecentlyUpdated,
     type Project,
     type UpdateProject,
@@ -107,6 +108,42 @@ export const useCreateMutation = () => {
             onError: ({ error }) => {
                 showToastApiError({
                     title: `Failed to create project`,
+                    apiError: error,
+                });
+            },
+        },
+    );
+};
+
+const updateWarehouseCredentials = async (
+    uuid: string,
+    warehouseCredentials: CreateWarehouseCredentials,
+) =>
+    lightdashApi<undefined>({
+        url: `/projects/${uuid}/warehouse-credentials`,
+        method: 'PUT',
+        body: JSON.stringify({
+            warehouseConnection: warehouseCredentials,
+        }),
+    });
+
+export const useUpdateWarehouseCredentialsMutation = (uuid: string) => {
+    const queryClient = useQueryClient();
+    const { showToastSuccess, showToastApiError } = useToaster();
+    return useMutation<undefined, ApiError, CreateWarehouseCredentials>(
+        (warehouseCredentials) =>
+            updateWarehouseCredentials(uuid, warehouseCredentials),
+        {
+            mutationKey: ['project_warehouse_credentials_update', uuid],
+            onSuccess: async () => {
+                showToastSuccess({
+                    title: 'Warehouse credentials updated',
+                });
+                await queryClient.invalidateQueries(['project', uuid]);
+            },
+            onError: ({ error }) => {
+                showToastApiError({
+                    title: 'Failed to update warehouse credentials',
                     apiError: error,
                 });
             },

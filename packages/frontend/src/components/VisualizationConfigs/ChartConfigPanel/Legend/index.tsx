@@ -186,10 +186,13 @@ export const Legend: FC<Props> = ({ items }) => {
                             <Group spacing="xs">
                                 <Config.Label>Scroll behavior</Config.Label>
                                 <SegmentedControl
-                                    value={dirtyEchartsConfig?.legend?.type}
+                                    value={
+                                        dirtyEchartsConfig?.legend?.type ??
+                                        'scroll'
+                                    }
                                     data={[
-                                        { label: 'Default', value: 'plain' },
                                         { label: 'Scroll', value: 'scroll' },
+                                        { label: 'Wrap', value: 'plain' },
                                     ]}
                                     onChange={(value) =>
                                         handleChange('type', value)

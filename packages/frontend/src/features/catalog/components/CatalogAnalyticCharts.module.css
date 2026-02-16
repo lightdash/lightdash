@@ -1,0 +1,5 @@
+.transparentHover {
+    &:hover {
+        background-color: transparent;
+    }
+}

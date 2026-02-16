@@ -1,4 +1,5 @@
 import {
+    AthenaAuthenticationType,
     BigqueryAuthenticationType,
     DatabricksAuthenticationType,
     WarehouseTypes,
@@ -145,6 +146,7 @@ export const ClickhouseDefaultValues: CreateClickhouseCredentials = {
 
 export const AthenaDefaultValues: CreateAthenaCredentials = {
     type: WarehouseTypes.ATHENA,
+    authenticationType: AthenaAuthenticationType.ACCESS_KEY,
     region: '',
     database: 'AwsDataCatalog',
     schema: '',

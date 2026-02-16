@@ -15,6 +15,7 @@ import {
     ForbiddenError,
     KnexPaginateArgs,
     KnexPaginatedData,
+    NotFoundError,
     ParameterError,
     PossibleAbilities,
     SchedulerAndTargets,
@@ -35,6 +36,7 @@ import {
     isValidTimezone,
     type ChartFieldUpdates,
     type DashboardBasicDetailsWithTileTypes,
+    type DashboardHistory,
     type DuplicateDashboardParams,
     type Explore,
     type ExploreError,
@@ -49,6 +51,7 @@ import {
     SchedulerDashboardUpsertEvent,
 } from '../../analytics/LightdashAnalytics';
 import { SlackClient } from '../../clients/Slack/SlackClient';
+import { LightdashConfig } from '../../config/parseConfig';
 import { getSchedulerTargetType } from '../../database/entities/scheduler';
 import { CaslAuditWrapper } from '../../logging/caslAuditWrapper';
 import { logAuditEvent } from '../../logging/winston';
@@ -65,9 +68,11 @@ import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { createTwoColumnTiles } from '../../utils/dashboardTileUtils';
 import { BaseService } from '../BaseService';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
+import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { hasDirectAccessToSpace } from '../SpaceService/SpaceService';
 
 type DashboardServiceArguments = {
+    lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
     dashboardModel: DashboardModel;
     spaceModel: SpaceModel;
@@ -80,12 +85,15 @@ type DashboardServiceArguments = {
     slackClient: SlackClient;
     projectModel: ProjectModel;
     catalogModel: CatalogModel;
+    spacePermissionService: SpacePermissionService;
 };
 
 export class DashboardService
     extends BaseService
     implements BulkActionable<Knex>
 {
+    private lightdashConfig: LightdashConfig;
+
     analytics: LightdashAnalytics;
 
     dashboardModel: DashboardModel;
@@ -110,7 +118,10 @@ export class DashboardService
 
     slackClient: SlackClient;
 
+    spacePermissionService: SpacePermissionService;
+
     constructor({
+        lightdashConfig,
         analytics,
         dashboardModel,
         spaceModel,
@@ -123,8 +134,10 @@ export class DashboardService
         slackClient,
         projectModel,
         catalogModel,
+        spacePermissionService,
     }: DashboardServiceArguments) {
         super();
+        this.lightdashConfig = lightdashConfig;
         this.analytics = analytics;
         this.dashboardModel = dashboardModel;
         this.spaceModel = spaceModel;
@@ -137,6 +150,7 @@ export class DashboardService
         this.catalogModel = catalogModel;
         this.schedulerClient = schedulerClient;
         this.slackClient = slackClient;
+        this.spacePermissionService = spacePermissionService;
     }
 
     static getCreateEventProperties(
@@ -179,7 +193,7 @@ export class DashboardService
 
         await Promise.all(
             orphanedCharts.map(async (chart) => {
-                const deletedChart = await this.savedChartModel.delete(
+                const deletedChart = await this.savedChartModel.permanentDelete(
                     chart.uuid,
                 );
                 this.analytics.track({
@@ -284,35 +298,22 @@ export class DashboardService
         const spaceUuids = [
             ...new Set(dashboards.map((dashboard) => dashboard.spaceUuid)),
         ];
-        const spaces = await Promise.all(
-            spaceUuids.map((spaceUuid) =>
-                this.spaceModel.getSpaceSummary(spaceUuid),
-            ),
-        );
-        const spacesAccess = await this.spaceModel.getUserSpacesAccess(
-            user.userUuid,
-            spaces.map((s) => s.uuid),
-        );
-        return dashboards.filter((dashboard) => {
-            const dashboardSpace = spaces.find(
-                (space) => space.uuid === dashboard.spaceUuid,
+        const spaceContexts =
+            await this.spacePermissionService.getSpacesAccessContext(
+                user.userUuid,
+                spaceUuids,
             );
+
+        return dashboards.filter((dashboard) => {
+            const spaceContext = spaceContexts[dashboard.spaceUuid];
+            if (!spaceContext) return false;
             const hasAbility = user.ability.can(
                 'view',
-                subject('Dashboard', {
-                    organizationUuid: dashboardSpace?.organizationUuid,
-                    projectUuid: dashboardSpace?.projectUuid,
-                    isPrivate: dashboardSpace?.isPrivate,
-                    access: spacesAccess[dashboard.spaceUuid] ?? [],
-                }),
+                subject('Dashboard', spaceContext),
             );
-            return (
-                dashboardSpace &&
-                (includePrivate
-                    ? hasAbility
-                    : hasAbility &&
-                      hasDirectAccessToSpace(user, dashboardSpace))
-            );
+            return includePrivate
+                ? hasAbility
+                : hasAbility && hasDirectAccessToSpace(user, spaceContext);
         });
     }
 
@@ -323,17 +324,15 @@ export class DashboardService
         const dashboardDao =
             await this.dashboardModel.getByIdOrSlug(dashboardUuidOrSlug);
 
-        const space = await this.spaceModel.getSpaceSummary(
-            dashboardDao.spaceUuid,
-        );
-        const spaceAccess = await this.spaceModel.getUserSpaceAccess(
-            user.userUuid,
-            dashboardDao.spaceUuid,
-        );
+        const { isPrivate, access } =
+            await this.spacePermissionService.getSpaceAccessContext(
+                user.userUuid,
+                dashboardDao.spaceUuid,
+            );
         const dashboard = {
             ...dashboardDao,
-            isPrivate: space.isPrivate,
-            access: spaceAccess,
+            isPrivate,
+            access,
         };
 
         // TODO: normally this would be pre-constructed (perhaps in the Service Repository or on the user object when we create the CASL type)
@@ -406,26 +405,19 @@ export class DashboardService
         projectUuid: string,
         dashboard: CreateDashboard,
     ): Promise<Dashboard> {
-        const getFirstSpace = async () => {
-            const space = await this.spaceModel.getFirstAccessibleSpace(
+        const resolvedSpaceUuid =
+            dashboard.spaceUuid ??
+            (await this.spacePermissionService.getFirstViewableSpaceUuid(
+                user,
                 projectUuid,
-                user.userUuid,
-            );
-            return {
-                organizationUuid: space.organization_uuid,
-                uuid: space.space_uuid,
-                isPrivate: space.is_private,
-                name: space.name,
-            };
-        };
-        const space = dashboard.spaceUuid
-            ? await this.spaceModel.get(dashboard.spaceUuid)
-            : await getFirstSpace();
+            ));
+        const space = await this.spaceModel.get(resolvedSpaceUuid);
 
-        const spaceAccess = await this.spaceModel.getUserSpaceAccess(
-            user.userUuid,
-            space.uuid,
-        );
+        const { isPrivate, access } =
+            await this.spacePermissionService.getSpaceAccessContext(
+                user.userUuid,
+                space.uuid,
+            );
 
         if (
             user.ability.cannot(
@@ -433,8 +425,8 @@ export class DashboardService
                 subject('Dashboard', {
                     organizationUuid: space.organizationUuid,
                     projectUuid,
-                    isPrivate: space.isPrivate,
-                    access: spaceAccess,
+                    isPrivate,
+                    access,
                 }),
             )
         ) {
@@ -464,8 +456,8 @@ export class DashboardService
 
         return {
             ...dashboardDao,
-            isPrivate: space.isPrivate,
-            access: spaceAccess,
+            isPrivate,
+            access,
         };
     }
 
@@ -477,17 +469,15 @@ export class DashboardService
     ): Promise<Dashboard> {
         const dashboardDao =
             await this.dashboardModel.getByIdOrSlug(dashboardUuid);
-        const space = await this.spaceModel.getSpaceSummary(
-            dashboardDao.spaceUuid,
-        );
-        const spaceAccess = await this.spaceModel.getUserSpaceAccess(
-            user.userUuid,
-            dashboardDao.spaceUuid,
-        );
+        const { isPrivate, access } =
+            await this.spacePermissionService.getSpaceAccessContext(
+                user.userUuid,
+                dashboardDao.spaceUuid,
+            );
         const dashboard = {
             ...dashboardDao,
-            isPrivate: space.isPrivate,
-            access: spaceAccess,
+            isPrivate,
+            access,
         };
 
         if (user.ability.cannot('create', subject('Dashboard', dashboard))) {
@@ -592,8 +582,8 @@ export class DashboardService
 
         return {
             ...updatedNewDashboard,
-            isPrivate: space.isPrivate,
-            access: spaceAccess,
+            isPrivate,
+            access,
         };
     }
 
@@ -605,17 +595,14 @@ export class DashboardService
         const existingDashboardDao =
             await this.dashboardModel.getByIdOrSlug(dashboardUuidOrSlug);
 
+        const currentSpace =
+            await this.spacePermissionService.getSpaceAccessContext(
+                user.userUuid,
+                existingDashboardDao.spaceUuid,
+            );
         const canUpdateDashboardInCurrentSpace = user.ability.can(
             'update',
-            subject('Dashboard', {
-                ...(await this.spaceModel.getSpaceSummary(
-                    existingDashboardDao.spaceUuid,
-                )),
-                access: await this.spaceModel.getUserSpaceAccess(
-                    user.userUuid,
-                    existingDashboardDao.spaceUuid,
-                ),
-            }),
+            subject('Dashboard', currentSpace),
         );
 
         if (!canUpdateDashboardInCurrentSpace) {
@@ -626,17 +613,14 @@ export class DashboardService
 
         if (isDashboardUnversionedFields(dashboard)) {
             if (dashboard.spaceUuid) {
+                const newSpace =
+                    await this.spacePermissionService.getSpaceAccessContext(
+                        user.userUuid,
+                        dashboard.spaceUuid,
+                    );
                 const canUpdateDashboardInNewSpace = user.ability.can(
                     'update',
-                    subject('Dashboard', {
-                        ...(await this.spaceModel.getSpaceSummary(
-                            dashboard.spaceUuid,
-                        )),
-                        access: await this.spaceModel.getUserSpaceAccess(
-                            user.userUuid,
-                            dashboard.spaceUuid,
-                        ),
-                    }),
+                    subject('Dashboard', newSpace),
                 );
                 if (!canUpdateDashboardInNewSpace) {
                     throw new ForbiddenError(
@@ -795,18 +779,16 @@ export class DashboardService
         const updatedNewDashboard = await this.dashboardModel.getByIdOrSlug(
             existingDashboardDao.uuid,
         );
-        const space = await this.spaceModel.getSpaceSummary(
-            updatedNewDashboard.spaceUuid,
-        );
-        const access = await this.spaceModel.getUserSpaceAccess(
-            user.userUuid,
-            updatedNewDashboard.spaceUuid,
-        );
+        const updatedSpace =
+            await this.spacePermissionService.getSpaceAccessContext(
+                user.userUuid,
+                updatedNewDashboard.spaceUuid,
+            );
 
         return {
             ...updatedNewDashboard,
-            isPrivate: space.isPrivate,
-            access,
+            isPrivate: updatedSpace.isPrivate,
+            access: updatedSpace.access,
         };
     }
 
@@ -816,17 +798,15 @@ export class DashboardService
     ): Promise<TogglePinnedItemInfo> {
         const existingDashboardDao =
             await this.dashboardModel.getByIdOrSlug(dashboardUuid);
-        const space = await this.spaceModel.getSpaceSummary(
-            existingDashboardDao.spaceUuid,
-        );
-        const spaceAccess = await this.spaceModel.getUserSpaceAccess(
-            user.userUuid,
-            existingDashboardDao.spaceUuid,
-        );
+        const { isPrivate, access } =
+            await this.spacePermissionService.getSpaceAccessContext(
+                user.userUuid,
+                existingDashboardDao.spaceUuid,
+            );
         const existingDashboard = {
             ...existingDashboardDao,
-            isPrivate: space.isPrivate,
-            access: spaceAccess,
+            isPrivate,
+            access,
         };
 
         const { projectUuid, organizationUuid, pinnedListUuid, spaceUuid } =
@@ -896,29 +876,23 @@ export class DashboardService
                 const dashboard = await this.dashboardModel.getByIdOrSlug(
                     dashboardToUpdate.uuid,
                 );
+                const currentSpaceContext =
+                    await this.spacePermissionService.getSpaceAccessContext(
+                        user.userUuid,
+                        dashboard.spaceUuid,
+                    );
                 const canUpdateDashboardInCurrentSpace = user.ability.can(
                     'update',
-                    subject('Dashboard', {
-                        ...(await this.spaceModel.getSpaceSummary(
-                            dashboard.spaceUuid,
-                        )),
-                        access: await this.spaceModel.getUserSpaceAccess(
-                            user.userUuid,
-                            dashboard.spaceUuid,
-                        ),
-                    }),
+                    subject('Dashboard', currentSpaceContext),
                 );
+                const newSpaceContext =
+                    await this.spacePermissionService.getSpaceAccessContext(
+                        user.userUuid,
+                        dashboardToUpdate.spaceUuid,
+                    );
                 const canUpdateDashboardInNewSpace = user.ability.can(
                     'update',
-                    subject('Dashboard', {
-                        ...(await this.spaceModel.getSpaceSummary(
-                            dashboardToUpdate.spaceUuid,
-                        )),
-                        access: await this.spaceModel.getUserSpaceAccess(
-                            user.userUuid,
-                            dashboardToUpdate.spaceUuid,
-                        ),
-                    }),
+                    subject('Dashboard', newSpaceContext),
                 );
                 return (
                     canUpdateDashboardInCurrentSpace &&
@@ -949,18 +923,15 @@ export class DashboardService
 
         const updatedDashboardsWithSpacesAccess = updatedDashboards.map(
             async (dashboard) => {
-                const dashboardSpace = await this.spaceModel.getSpaceSummary(
-                    dashboard.spaceUuid,
-                );
-                const dashboardSpaceAccess =
-                    await this.spaceModel.getUserSpaceAccess(
+                const dashboardSpaceContext =
+                    await this.spacePermissionService.getSpaceAccessContext(
                         user.userUuid,
                         dashboard.spaceUuid,
                     );
                 return {
                     ...dashboard,
-                    isPrivate: dashboardSpace.isPrivate,
-                    access: dashboardSpaceAccess,
+                    isPrivate: dashboardSpaceContext.isPrivate,
+                    access: dashboardSpaceContext.access,
                 };
             },
         );
@@ -973,19 +944,19 @@ export class DashboardService
             await this.dashboardModel.getByIdOrSlug(dashboardUuid);
         const { organizationUuid, projectUuid, spaceUuid, tiles } =
             dashboardToDelete;
-        const space = await this.spaceModel.getSpaceSummary(spaceUuid);
-        const spaceAccess = await this.spaceModel.getUserSpaceAccess(
-            user.userUuid,
-            spaceUuid,
-        );
+        const { isPrivate, access } =
+            await this.spacePermissionService.getSpaceAccessContext(
+                user.userUuid,
+                spaceUuid,
+            );
         if (
             user.ability.cannot(
                 'delete',
                 subject('Dashboard', {
                     organizationUuid,
                     projectUuid,
-                    isPrivate: space.isPrivate,
-                    access: spaceAccess,
+                    isPrivate,
+                    access,
                 }),
             )
         ) {
@@ -1043,8 +1014,24 @@ export class DashboardService
             }
         }
 
-        const deletedDashboard =
-            await this.dashboardModel.delete(dashboardUuid);
+        let deletedDashboard: DashboardDAO;
+        if (this.lightdashConfig.softDelete.enabled) {
+            deletedDashboard = await this.dashboardModel.softDelete(
+                dashboardUuid,
+                user.userUuid,
+            );
+
+            // Cascade: soft-delete associated schedulers
+            if (this.lightdashConfig.softDelete.enabled) {
+                await this.schedulerModel.softDeleteByDashboardUuid(
+                    dashboardUuid,
+                    user.userUuid,
+                );
+            }
+        } else {
+            deletedDashboard =
+                await this.dashboardModel.permanentDelete(dashboardUuid);
+        }
 
         this.analytics.track({
             event: 'dashboard.deleted',
@@ -1054,6 +1041,57 @@ export class DashboardService
                 projectId: deletedDashboard.projectUuid,
             },
         });
+    }
+
+    async restoreDashboard(
+        user: SessionUser,
+        dashboardUuid: string,
+    ): Promise<void> {
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuid,
+            { deleted: true },
+        );
+
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('DeletedContent', {
+                    organizationUuid: dashboard.organizationUuid,
+                    projectUuid: dashboard.projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        await this.dashboardModel.restore(dashboardUuid);
+
+        // Cascade: restore associated schedulers
+        await this.schedulerModel.restoreByDashboardUuid(dashboardUuid);
+    }
+
+    async permanentlyDeleteDashboard(
+        user: SessionUser,
+        dashboardUuid: string,
+    ): Promise<void> {
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuid,
+            { deleted: true },
+        );
+
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('DeletedContent', {
+                    organizationUuid: dashboard.organizationUuid,
+                    projectUuid: dashboard.projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        await this.dashboardModel.permanentDelete(dashboardUuid);
     }
 
     async getSchedulers(
@@ -1169,17 +1207,15 @@ export class DashboardService
     ): Promise<Dashboard> {
         const dashboardDao =
             await this.dashboardModel.getByIdOrSlug(dashboardUuid);
-        const space = await this.spaceModel.getSpaceSummary(
-            dashboardDao.spaceUuid,
-        );
-        const spaceAccess = await this.spaceModel.getUserSpaceAccess(
-            user.userUuid,
-            dashboardDao.spaceUuid,
-        );
+        const { isPrivate, access } =
+            await this.spacePermissionService.getSpaceAccessContext(
+                user.userUuid,
+                dashboardDao.spaceUuid,
+            );
         const dashboard = {
             ...dashboardDao,
-            isPrivate: space.isPrivate,
-            access: spaceAccess,
+            isPrivate,
+            access,
         };
         const { organizationUuid, projectUuid } = dashboard;
         if (
@@ -1201,8 +1237,8 @@ export class DashboardService
 
         return {
             ...dashboard,
-            isPrivate: space.isPrivate,
-            access: spaceAccess,
+            isPrivate,
+            access,
         };
     }
 
@@ -1220,21 +1256,19 @@ export class DashboardService
         const dashboard = await this.dashboardModel.getByIdOrSlug(
             resource.dashboardUuid,
         );
-        const space = await this.spaceModel.getSpaceSummary(
-            dashboard.spaceUuid,
-        );
-        const spaceAccess = await this.spaceModel.getUserSpaceAccess(
-            actor.user.userUuid,
-            dashboard.spaceUuid,
-        );
+        const { isPrivate, access } =
+            await this.spacePermissionService.getSpaceAccessContext(
+                actor.user.userUuid,
+                dashboard.spaceUuid,
+            );
 
         const isActorAllowedToPerformAction = actor.user.ability.can(
             action,
             subject('Dashboard', {
                 organizationUuid: actor.user.organizationUuid,
                 projectUuid: actor.projectUuid,
-                isPrivate: space.isPrivate,
-                access: spaceAccess,
+                isPrivate,
+                access,
             }),
         );
 
@@ -1245,13 +1279,11 @@ export class DashboardService
         }
 
         if (resource.spaceUuid && dashboard.spaceUuid !== resource.spaceUuid) {
-            const newSpace = await this.spaceModel.getSpaceSummary(
-                resource.spaceUuid,
-            );
-            const newSpaceAccess = await this.spaceModel.getUserSpaceAccess(
-                actor.user.userUuid,
-                resource.spaceUuid,
-            );
+            const newSpace =
+                await this.spacePermissionService.getSpaceAccessContext(
+                    actor.user.userUuid,
+                    resource.spaceUuid,
+                );
 
             const isActorAllowedToPerformActionInNewSpace =
                 actor.user.ability.can(
@@ -1260,7 +1292,7 @@ export class DashboardService
                         organizationUuid: newSpace.organizationUuid,
                         projectUuid: actor.projectUuid,
                         isPrivate: newSpace.isPrivate,
-                        access: newSpaceAccess,
+                        access: newSpace.access,
                     }),
                 );
 
@@ -1270,6 +1302,108 @@ export class DashboardService
                 );
             }
         }
+    }
+
+    async getHistory(
+        user: SessionUser,
+        dashboardUuid: string,
+    ): Promise<DashboardHistory> {
+        const dashboardDao =
+            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+        const { isPrivate, access } =
+            await this.spacePermissionService.getSpaceAccessContext(
+                user.userUuid,
+                dashboardDao.spaceUuid,
+            );
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('Dashboard', {
+                    ...dashboardDao,
+                    isPrivate,
+                    access,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                "You don't have access to view the version history of this dashboard",
+            );
+        }
+
+        const versions =
+            await this.dashboardModel.getLatestVersionSummaries(dashboardUuid);
+
+        this.analytics.track({
+            event: 'dashboard_history.view',
+            userId: user.userUuid,
+            properties: {
+                projectId: dashboardDao.projectUuid,
+                dashboardId: dashboardDao.uuid,
+                versionCount: versions.length,
+            },
+        });
+
+        return { history: versions };
+    }
+
+    async rollback(
+        user: SessionUser,
+        dashboardUuid: string,
+        versionUuid: string,
+    ): Promise<void> {
+        const dashboardDao =
+            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+        const { isPrivate, access } =
+            await this.spacePermissionService.getSpaceAccessContext(
+                user.userUuid,
+                dashboardDao.spaceUuid,
+            );
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('Dashboard', {
+                    ...dashboardDao,
+                    isPrivate,
+                    access,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                "You don't have access to rollback this dashboard",
+            );
+        }
+
+        const targetVersion = await this.dashboardModel.getVersionByUuid(
+            dashboardUuid,
+            versionUuid,
+        );
+
+        if (!targetVersion) {
+            throw new NotFoundError('Dashboard version not found');
+        }
+
+        await this.dashboardModel.addVersion(
+            dashboardUuid,
+            {
+                tiles: targetVersion.tiles,
+                filters: targetVersion.filters,
+                parameters: targetVersion.parameters,
+                tabs: targetVersion.tabs,
+                config: targetVersion.config,
+            },
+            user,
+            dashboardDao.projectUuid,
+        );
+
+        this.analytics.track({
+            event: 'dashboard_version.rollback',
+            userId: user.userUuid,
+            properties: {
+                projectId: dashboardDao.projectUuid,
+                dashboardId: dashboardDao.uuid,
+                versionId: versionUuid,
+            },
+        });
     }
 
     async moveToSpace(

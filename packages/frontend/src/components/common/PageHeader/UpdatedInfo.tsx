@@ -1,16 +1,17 @@
 import { type SessionUser } from '@lightdash/common';
-import { Text } from '@mantine/core';
+import { type MantineSize, Text } from '@mantine-8/core';
 import { type FC } from 'react';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
 
 const TimeAgo: FC<{
     updatedAt: Date;
+    fontSize?: MantineSize;
     partiallyBold?: boolean;
-}> = ({ updatedAt, partiallyBold = true }) => {
+}> = ({ updatedAt, fontSize = 'sm', partiallyBold = true }) => {
     const timeAgo = useTimeAgo(updatedAt || new Date());
 
     return (
-        <Text span fw={partiallyBold ? 600 : 'default'}>
+        <Text fz={fontSize} span fw={partiallyBold ? 600 : 'default'}>
             {timeAgo}
         </Text>
     );
@@ -28,6 +29,7 @@ export const UpdatedInfo: FC<{
                 <>
                     <TimeAgo
                         updatedAt={updatedAt}
+                        fontSize="xs"
                         partiallyBold={partiallyBold}
                     />{' '}
                 </>
@@ -35,7 +37,7 @@ export const UpdatedInfo: FC<{
             {user && user.firstName ? (
                 <>
                     by{' '}
-                    <Text span fw={partiallyBold ? 600 : 'default'}>
+                    <Text fz="xs" span fw={partiallyBold ? 600 : 'default'}>
                         {user.firstName} {user.lastName}
                     </Text>
                 </>

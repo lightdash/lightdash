@@ -6,6 +6,7 @@ import {
     ApiGithubDbtWriteBack,
     ApiGithubDbtWritePreview,
     ApiJobScheduledResponse,
+    ApiPromotionChangesResponse,
     ApiSqlChart,
     ApiSuccessEmpty,
     ApiUpdateSqlChart,
@@ -405,6 +406,68 @@ export class SqlRunnerController extends BaseController {
         return {
             status: 'ok',
             results: undefined,
+        };
+    }
+
+    /**
+     * Promote SQL chart to upstream project
+     * @summary Promote SQL chart
+     * @param uuid the uuid for the saved sql chart
+     * @param projectUuid the uuid for the project
+     * @param req express request
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('saved/{uuid}/promote')
+    @OperationId('promoteSqlChart')
+    async promoteSqlChart(
+        @Path() projectUuid: string,
+        @Path() uuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiSqlChart> {
+        this.setStatus(200);
+        const promotedSqlChart = await this.services
+            .getPromoteService()
+            .promoteSqlChart(req.user!, projectUuid, uuid);
+
+        return {
+            status: 'ok',
+            results: await this.services
+                .getSavedSqlService()
+                .getSqlChart(
+                    req.user!,
+                    promotedSqlChart.projectUuid,
+                    promotedSqlChart.savedSqlUuid,
+                ),
+        };
+    }
+
+    /**
+     * Get diff from SQL chart to promote
+     * @summary Get SQL chart promotion diff
+     * @param uuid the uuid for the saved sql chart
+     * @param projectUuid the uuid for the project
+     * @param req express request
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('saved/{uuid}/promoteDiff')
+    @OperationId('promoteSqlChartDiff')
+    async promoteSqlChartDiff(
+        @Path() projectUuid: string,
+        @Path() uuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiPromotionChangesResponse> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getPromoteService()
+                .getPromoteSqlChartDiff(req.user!, projectUuid, uuid),
         };
     }
 

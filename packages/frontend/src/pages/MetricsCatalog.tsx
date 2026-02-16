@@ -28,12 +28,7 @@ const MetricsCatalogContent: FC<MetricsCatalogProps> = ({
     }, [dispatch]);
 
     return (
-        <Page
-            withCenteredRoot
-            withCenteredContent
-            withXLargePaddedContent
-            withLargeContent
-        >
+        <Page withCenteredRoot withCenteredContent withXLargePaddedContent>
             <MetricsCatalogPanel metricCatalogView={metricCatalogView} />
         </Page>
     );

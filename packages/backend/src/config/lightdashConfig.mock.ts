@@ -98,7 +98,11 @@ export const lightdashConfigMock: LightdashConfig = {
         path: '/metrics',
     },
     chart: { versionHistory: { daysLimit: 0 } },
-    dashboard: { maxTilesPerTab: 50, maxTabsPerDashboard: 20 },
+    dashboard: {
+        maxTilesPerTab: 50,
+        maxTabsPerDashboard: 20,
+        versionHistory: { daysLimit: 0 },
+    },
     database: {
         connectionUri: undefined,
         maxConnections: undefined,
@@ -219,7 +223,7 @@ export const lightdashConfigMock: LightdashConfig = {
             providers: {
                 openai: {
                     apiKey: 'mock_api_key',
-                    modelName: 'gpt-4.1-2025-04-14',
+                    modelName: 'gpt-5.2-2025-12-11',
                     embeddingModelName: 'text-embedding-3-small',
                     zeroDataRetention: false,
                 },
@@ -278,6 +282,12 @@ export const lightdashConfigMock: LightdashConfig = {
     organizationWarehouseCredentials: {
         enabled: false,
     },
+    athenaWarehouseIamRoleAuth: {
+        enabled: false,
+    },
+    saveCredentialsForm: {
+        enabled: false,
+    },
     googleCloudPlatform: {
         projectId: 'test-project-id',
     },
@@ -302,13 +312,27 @@ export const lightdashConfigMock: LightdashConfig = {
     funnelBuilder: {
         enabled: false,
     },
-    metricsCatalog: {
-        echartsVisualizationEnabled: false,
-    },
     maps: {
         enabled: false,
     },
+    savedMetricsTree: {
+        enabled: undefined,
+    },
     nestedSpacesPermissions: {
         enabled: false,
+    },
+    adminChangeNotifications: {
+        enabled: false,
+    },
+    persistentDownloadUrls: {
+        enabled: false,
+        expirationSeconds: 259200,
+        expirationSecondsEmail: undefined,
+        expirationSecondsSlack: undefined,
+        expirationSecondsMsTeams: undefined,
+    },
+    softDelete: {
+        enabled: false,
+        retentionDays: 30,
     },
 };

@@ -68,5 +68,5 @@ export const getImproveContext = () =>
                 };
             }
         },
-        toModelOutput: (output) => toModelOutput(output),
+        toModelOutput: ({ output }) => toModelOutput(output),
     });

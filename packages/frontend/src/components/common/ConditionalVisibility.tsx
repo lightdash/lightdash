@@ -1,4 +1,4 @@
-import { Box } from '@mantine/core';
+import { Box } from '@mantine-8/core';
 import { type FC, type ReactNode } from 'react';
 
 type ConditionalVisibilityProps = {

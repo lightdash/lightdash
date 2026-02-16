@@ -12,6 +12,7 @@ const createDbCatalog = (
     description: null,
     field_type: undefined,
     required_attributes: null,
+    any_attributes: null,
     chart_usage: 0,
     catalog_search_uuid: 'catalog-1',
     icon: null,

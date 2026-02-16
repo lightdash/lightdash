@@ -1,5 +1,6 @@
 import { type ResultValue } from '@lightdash/common';
-import { Menu, Text } from '@mantine/core';
+import { Menu } from '@mantine-8/core';
+import { Text } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
 import { IconArrowBarToDown, IconCopy } from '@tabler/icons-react';
 import mapValues from 'lodash/mapValues';
@@ -120,7 +121,7 @@ const BigNumberContextMenu: FC<
             <Menu.Dropdown>
                 {value && (
                     <Menu.Item
-                        icon={<MantineIcon icon={IconCopy} />}
+                        leftSection={<MantineIcon icon={IconCopy} />}
                         onClick={handleCopyToClipboard}
                     >
                         Copy value
@@ -136,7 +137,7 @@ const BigNumberContextMenu: FC<
 
                 {!isMinimal && item && value && canDrillInto && (
                     <Menu.Item
-                        icon={<MantineIcon icon={IconArrowBarToDown} />}
+                        leftSection={<MantineIcon icon={IconArrowBarToDown} />}
                         onClick={handleOpenDrillIntoModal}
                     >
                         Drill into{' '}

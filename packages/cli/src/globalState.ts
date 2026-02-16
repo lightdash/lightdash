@@ -10,12 +10,22 @@ type PromptAnswer = {
 class GlobalState {
     private verbose: boolean = false;
 
+    private nonInteractive: boolean = false;
+
     private activeSpinner: ora.Ora | undefined;
 
     private savedPromptAnswers: PromptAnswer;
 
     constructor() {
         this.savedPromptAnswers = {};
+    }
+
+    setNonInteractive(value: boolean) {
+        this.nonInteractive = value;
+    }
+
+    isNonInteractive(): boolean {
+        return this.nonInteractive || process.env.CI === 'true';
     }
 
     getActiveSpinner() {

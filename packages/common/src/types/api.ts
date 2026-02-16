@@ -20,7 +20,11 @@ import {
     type UserAllowedOrganization,
 } from './user';
 import { type UserWarehouseCredentials } from './userWarehouseCredentials';
-import { type ValidationResponse } from './validation';
+import {
+    type ApiPaginatedValidateResponse,
+    type ApiSingleValidationResponse,
+    type ValidationResponse,
+} from './validation';
 
 import {
     type ApiUnusedContent,
@@ -47,7 +51,11 @@ import {
     type ApiCatalogAnalyticsResults,
     type ApiCatalogMetadataResults,
     type ApiGetMetricsTree,
+    type ApiGetMetricsTreeResponse,
+    type ApiGetMetricsTreesResponse,
     type ApiMetricsCatalog,
+    type ApiMetricsTreeLockResponse,
+    type ApiUpdateMetricsTreeResponse,
 } from './catalog';
 import { type ApiGetChangeResponse } from './changeset';
 import {
@@ -64,6 +72,7 @@ import {
     type Dashboard,
     type DashboardAvailableFilters,
     type DashboardBasicDetails,
+    type DashboardHistory,
 } from './dashboard';
 import { type DbtExposure } from './dbt';
 import { type EmailStatusExpiring } from './email';
@@ -316,6 +325,8 @@ export type HealthState = {
     hasMicrosoftTeams: boolean;
     isServiceAccountEnabled: boolean;
     isOrganizationWarehouseCredentialsEnabled: boolean;
+    isAthenaWarehouseIamRoleAuthEnabled: boolean;
+    isSaveCredentialsFormEnabled: boolean;
     latest: {
         version?: string;
     };
@@ -397,6 +408,9 @@ export type HealthState = {
     dashboard: {
         maxTilesPerTab: number;
         maxTabsPerDashboard: number;
+        versionHistory: {
+            daysLimit: number;
+        };
     };
     pivotTable: {
         maxColumnLimit: number;
@@ -436,6 +450,10 @@ export type HealthState = {
     };
     funnelBuilder: {
         enabled: boolean;
+    };
+    softDelete: {
+        enabled: boolean;
+        retentionDays: number;
     };
 };
 
@@ -750,8 +768,10 @@ type ApiResults =
     | ViewStatistics
     | SchedulerWithLogs
     | ValidationResponse[]
+    | ApiPaginatedValidateResponse['results']
     | ChartHistory
     | ChartVersion
+    | DashboardHistory
     | EmbedUrl
     | DecodedEmbed
     | Array<GitRepo>
@@ -797,6 +817,10 @@ type ApiResults =
     | ApiDashboardAsCodeListResponse['results']
     | ApiChartAsCodeUpsertResponse['results']
     | ApiGetMetricsTree['results']
+    | ApiGetMetricsTreeResponse['results']
+    | ApiGetMetricsTreesResponse['results']
+    | ApiMetricsTreeLockResponse['results']
+    | ApiUpdateMetricsTreeResponse['results']
     | ApiMetricsExplorerTotalResults['results']
     | ApiGetSpotlightTableConfig['results']
     | ApiCalculateSubtotalsResponse['results']
@@ -838,7 +862,8 @@ type ApiResults =
     | ApiAiOrganizationSettingsResponse['results']
     | ApiUpdateAiOrganizationSettingsResponse['results']
     | ApiProjectCompileLogsResponse['results']
-    | ApiProjectCompileLogResponse['results'];
+    | ApiProjectCompileLogResponse['results']
+    | ApiSingleValidationResponse['results'];
 // Note: EE API types removed from ApiResults to avoid circular imports
 // They can still be used with ApiResponse<T> by importing from '@lightdash/common'
 

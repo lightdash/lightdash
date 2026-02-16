@@ -1,4 +1,12 @@
-import { Box, Button, Center, Loader, Menu, ScrollArea } from '@mantine/core';
+import {
+    Box,
+    Button,
+    Center,
+    getDefaultZIndex,
+    Loader,
+    Menu,
+    ScrollArea,
+} from '@mantine-8/core';
 import {
     IconCategory,
     IconChartAreaLine,
@@ -36,11 +44,12 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
     return (
         <Menu
             withArrow
-            withinPortal
             shadow="lg"
             position="bottom-start"
             arrowOffset={16}
             offset={-2}
+            zIndex={getDefaultZIndex('max')}
+            portalProps={{ target: '#navbar-header' }}
             onChange={(opened) => {
                 if (opened && !hasBeenOpened) {
                     setHasBeenOpened(true);
@@ -52,8 +61,8 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                     variant="default"
                     size="xs"
                     fz="sm"
-                    leftIcon={
-                        <MantineIcon color="#adb5bd" icon={IconCategory} />
+                    leftSection={
+                        <MantineIcon color="ldGray.6" icon={IconCategory} />
                     }
                 >
                     Browse
@@ -64,7 +73,7 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                 <Menu.Item
                     component={Link}
                     to={`/projects/${projectUuid}/spaces`}
-                    icon={<MantineIcon icon={IconFolders} />}
+                    leftSection={<MantineIcon icon={IconFolders} />}
                 >
                     All Spaces
                 </Menu.Item>
@@ -72,7 +81,7 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                 <Menu.Item
                     component={Link}
                     to={`/projects/${projectUuid}/dashboards`}
-                    icon={<MantineIcon icon={IconLayoutDashboard} />}
+                    leftSection={<MantineIcon icon={IconLayoutDashboard} />}
                 >
                     All dashboards
                 </Menu.Item>
@@ -80,7 +89,7 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                 <Menu.Item
                     component={Link}
                     to={`/projects/${projectUuid}/saved`}
-                    icon={<MantineIcon icon={IconChartAreaLine} />}
+                    leftSection={<MantineIcon icon={IconChartAreaLine} />}
                 >
                     All saved charts
                 </Menu.Item>
@@ -116,7 +125,9 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                                     key={space.uuid}
                                     component={Link}
                                     to={`/projects/${projectUuid}/spaces/${space.uuid}`}
-                                    icon={<MantineIcon icon={IconFolder} />}
+                                    leftSection={
+                                        <MantineIcon icon={IconFolder} />
+                                    }
                                 >
                                     {space.name}
                                 </Menu.Item>

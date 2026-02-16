@@ -46,10 +46,9 @@ import {
     PasswordLoginTableName,
 } from '../database/entities/passwordLogins';
 import { DbPersonalAccessToken } from '../database/entities/personalAccessTokens';
-import {
-    RolesTableName,
-    ScopedRolesTableName,
-} from '../database/entities/roles';
+import { ProjectMembershipsTableName } from '../database/entities/projectMemberships';
+import { ProjectTableName } from '../database/entities/projects';
+import { ScopedRolesTableName } from '../database/entities/roles';
 import {
     DbUser,
     DbUserIn,
@@ -494,9 +493,9 @@ export class UserModel {
     > {
         const projectMemberships = await this.database('project_memberships')
             .leftJoin(
-                'projects',
+                ProjectTableName,
                 'project_memberships.project_id',
-                'projects.project_id',
+                `${ProjectTableName}.project_id`,
             )
             .leftJoin('users', 'project_memberships.user_id', 'users.user_id')
             .select('*')
@@ -1006,6 +1005,39 @@ export class UserModel {
             await Promise.all(projectMemberships);
         });
         return this.getUserDetailsByUuid(userUuid);
+    }
+
+    async addProjectMemberships(
+        userUuid: string,
+        projects: { [projectUuid: string]: ProjectMemberRole },
+    ): Promise<void> {
+        const [user] = await this.database(UserTableName)
+            .where('user_uuid', userUuid)
+            .select('user_id');
+        if (!user) {
+            throw new NotFoundError('Cannot find user');
+        }
+
+        const projectMemberships = Object.entries(projects).map(
+            async ([projectUuid, projectRole]) => {
+                const [project] = await this.database(ProjectTableName)
+                    .select('project_id')
+                    .where('project_uuid', projectUuid);
+
+                if (project) {
+                    await this.database(ProjectMembershipsTableName)
+                        .insert({
+                            project_id: project.project_id,
+                            role: projectRole,
+                            user_id: user.user_id,
+                        })
+                        .onConflict(['project_id', 'user_id'])
+                        .ignore();
+                }
+            },
+        );
+
+        await Promise.all(projectMemberships);
     }
 
     async getRefreshToken(

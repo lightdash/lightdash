@@ -12,7 +12,7 @@ import { ResourceViewItemModel } from '../../models/ResourceViewItemModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { BaseService } from '../BaseService';
-import { hasViewAccessToSpace } from '../SpaceService/SpaceService';
+import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 
 type PinningServiceArguments = {
     dashboardModel: DashboardModel;
@@ -24,6 +24,7 @@ type PinningServiceArguments = {
     pinnedListModel: PinnedListModel;
     resourceViewItemModel: ResourceViewItemModel;
     projectModel: ProjectModel;
+    spacePermissionService: SpacePermissionService;
 };
 
 export class PinningService extends BaseService {
@@ -39,6 +40,8 @@ export class PinningService extends BaseService {
 
     projectModel: ProjectModel;
 
+    spacePermissionService: SpacePermissionService;
+
     constructor({
         dashboardModel,
         savedChartModel,
@@ -46,6 +49,7 @@ export class PinningService extends BaseService {
         pinnedListModel,
         resourceViewItemModel,
         projectModel,
+        spacePermissionService,
     }: PinningServiceArguments) {
         super();
         this.dashboardModel = dashboardModel;
@@ -54,6 +58,7 @@ export class PinningService extends BaseService {
         this.pinnedListModel = pinnedListModel;
         this.resourceViewItemModel = resourceViewItemModel;
         this.projectModel = projectModel;
+        this.spacePermissionService = spacePermissionService;
     }
 
     async getPinnedItems(
@@ -67,23 +72,18 @@ export class PinningService extends BaseService {
         }
 
         const spaces = await this.spaceModel.find({ projectUuid });
-        const spacesAccess = await this.spaceModel.getUserSpacesAccess(
-            user.userUuid,
-            spaces.map((s) => s.uuid),
-        );
-        const allowedSpaceUuids = spaces
-            .filter((space, index) =>
-                hasViewAccessToSpace(
-                    user,
-                    space,
-                    spacesAccess[space.uuid] ?? [],
-                ),
-            )
-            .map((s) => s.uuid);
+        const spaceUuids = spaces.map((s) => s.uuid);
+        const allowedSpaceUuids =
+            await this.spacePermissionService.getAccessibleSpaceUuids(
+                'view',
+                user,
+                spaceUuids,
+            );
 
         if (allowedSpaceUuids.length === 0) {
             return [];
         }
+
         const allPinnedSpaces =
             await this.resourceViewItemModel.getAllSpacesByPinnedListUuid(
                 projectUuid,

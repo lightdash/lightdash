@@ -108,6 +108,7 @@ export const convertExploresToCatalog = (
                 description: baseTable?.description || null,
                 type: CatalogType.Table,
                 required_attributes: baseTable.requiredAttributes ?? {}, // ! Initializing as {} so it is not NULL in the database which means it can't be accessed
+                any_attributes: baseTable.anyAttributes ?? {},
                 chart_usage: null, // Tables don't have chart usage
                 table_name: explore.baseTable,
                 spotlight_show: getSpotlightShow(explore.spotlight),
@@ -197,6 +198,10 @@ export const convertExploresToCatalog = (
                             field.requiredAttributes ??
                             baseTable.requiredAttributes ??
                             {}, // ! Initializing as {} so it is not NULL in the database which means it can't be accessed
+                        any_attributes:
+                            field.anyAttributes ??
+                            baseTable.anyAttributes ??
+                            {},
                         chart_usage: 0, // Fields are initialized with 0 chart usage
                         table_name: explore.baseTable,
                         spotlight_show: getSpotlightShow(

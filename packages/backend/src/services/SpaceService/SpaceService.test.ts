@@ -4,52 +4,49 @@ import {
     ProjectMemberRole,
     SpaceMemberRole,
 } from '@lightdash/common';
-import knex from 'knex';
-import { getTracker, MockClient, Tracker } from 'knex-mock-client';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
+import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
+import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SpaceModel } from '../../models/SpaceModel';
+import { DashboardService } from '../DashboardService/DashboardService';
+import { SavedChartService } from '../SavedChartsService/SavedChartService';
+import { SpacePermissionService } from './SpacePermissionService';
 import { SpaceService } from './SpaceService';
 import {
-    createSpaceAccessResponse,
+    createSpaceAccessContext,
     createTestSpace,
     createTestUser,
 } from './SpaceService.mock';
 
 describe('SpaceService', () => {
-    const db = knex({ client: MockClient });
-    let tracker: Tracker;
     let service: SpaceService;
-
-    beforeAll(() => {
-        tracker = getTracker();
-    });
+    const mockGetSpaceAccessContext = jest.fn();
 
     beforeEach(() => {
+        mockGetSpaceAccessContext.mockReset();
+
         service = new SpaceService({
             analytics: analyticsMock,
+            lightdashConfig: lightdashConfigMock,
             projectModel: {} as ProjectModel,
-            spaceModel: new SpaceModel({ database: db }),
+            spaceModel: {} as SpaceModel,
             pinnedListModel: {} as PinnedListModel,
+            featureFlagModel: {} as FeatureFlagModel,
+            spacePermissionService: {
+                getSpaceAccessContext: mockGetSpaceAccessContext,
+            } as unknown as SpacePermissionService,
+            savedChartService: {} as SavedChartService,
+            dashboardService: {} as DashboardService,
         });
     });
 
     afterEach(() => {
-        tracker.reset();
         jest.clearAllMocks();
     });
 
     describe('_userCanActionSpace', () => {
-        beforeEach(() => {
-            jest.spyOn(
-                SpaceModel.prototype,
-                'getSpaceRootFromCacheOrDB',
-            ).mockImplementation(async (spaceUuid) => ({
-                spaceRoot: spaceUuid,
-                cacheHit: false,
-            }));
-        });
         describe('organization admins', () => {
             it.each([
                 {
@@ -73,13 +70,13 @@ describe('SpaceService', () => {
                 const testUser = createTestUser(user);
                 const testSpace = createTestSpace(space);
 
-                tracker.on.select('spaces').response([
-                    createSpaceAccessResponse({
+                mockGetSpaceAccessContext.mockResolvedValueOnce(
+                    createSpaceAccessContext({
                         ...user,
                         ...access,
-                        isPrivate: space.isPrivate,
+                        ...space,
                     }),
-                ]);
+                );
 
                 const result = await service._userCanActionSpace(
                     testUser,
@@ -115,13 +112,13 @@ describe('SpaceService', () => {
                 const testUser = createTestUser(user);
                 const testSpace = createTestSpace(space);
 
-                tracker.on.select('spaces').response([
-                    createSpaceAccessResponse({
+                mockGetSpaceAccessContext.mockResolvedValueOnce(
+                    createSpaceAccessContext({
                         ...user,
                         ...access,
-                        isPrivate: space.isPrivate,
+                        ...space,
                     }),
-                ]);
+                );
 
                 const result = await service._userCanActionSpace(
                     testUser,
@@ -248,13 +245,13 @@ describe('SpaceService', () => {
                     const testUser = createTestUser(user);
                     const testSpace = createTestSpace(space);
 
-                    tracker.on.select('spaces').response([
-                        createSpaceAccessResponse({
+                    mockGetSpaceAccessContext.mockResolvedValueOnce(
+                        createSpaceAccessContext({
                             ...user,
                             ...access,
-                            isPrivate: space.isPrivate,
+                            ...space,
                         }),
-                    ]);
+                    );
 
                     const result = await service._userCanActionSpace(
                         testUser,
@@ -424,13 +421,13 @@ describe('SpaceService', () => {
                     const testUser = createTestUser(user);
                     const testSpace = createTestSpace(space);
 
-                    tracker.on.select('spaces').response([
-                        createSpaceAccessResponse({
+                    mockGetSpaceAccessContext.mockResolvedValueOnce(
+                        createSpaceAccessContext({
                             ...user,
                             ...access,
-                            isPrivate: space.isPrivate,
+                            ...space,
                         }),
-                    ]);
+                    );
 
                     const result = await service._userCanActionSpace(
                         testUser,
@@ -447,7 +444,6 @@ describe('SpaceService', () => {
                             contentType as 'Space' | 'Dashboard' | 'Chart',
                             testSpace,
                             action as AbilityAction,
-                            true,
                         );
                         throw error;
                     }
@@ -583,19 +579,6 @@ describe('SpaceService', () => {
                     expectedResult: false,
                     contentType: 'Dashboard',
                 },
-
-                // Promoting
-                // This fails because editors have manage permission on dashboards, so they can do any action (including promote)
-                // The intended behaviour is that only developers can promote dashboards
-                // {
-                //     name: 'cannot promote dashboard in public space',
-                //     user: { projectRole: ProjectMemberRole.EDITOR },
-                //     space: { isPrivate: false },
-                //     access: {},
-                //     action: 'promote',
-                //     expectedResult: false,
-                //     contentType: 'Dashboard',
-                // },
             ])(
                 '$name',
                 async ({
@@ -608,13 +591,14 @@ describe('SpaceService', () => {
                 }) => {
                     const testUser = createTestUser(user);
                     const testSpace = createTestSpace(space);
-                    const response = createSpaceAccessResponse({
-                        ...user,
-                        ...access,
-                        isPrivate: space.isPrivate,
-                    });
 
-                    tracker.on.select('spaces').response([response]);
+                    mockGetSpaceAccessContext.mockResolvedValueOnce(
+                        createSpaceAccessContext({
+                            ...user,
+                            ...access,
+                            ...space,
+                        }),
+                    );
 
                     const result = await service._userCanActionSpace(
                         testUser,
@@ -630,7 +614,6 @@ describe('SpaceService', () => {
                             contentType as 'Space' | 'Dashboard' | 'Chart',
                             testSpace,
                             action as AbilityAction,
-                            true,
                         );
                         throw error;
                     }
@@ -662,13 +645,13 @@ describe('SpaceService', () => {
                     const testUser = createTestUser(user);
                     const testSpace = createTestSpace(space);
 
-                    const response = createSpaceAccessResponse({
-                        ...user,
-                        ...access,
-                        isPrivate: space.isPrivate,
-                    });
-
-                    tracker.on.select('spaces').response([response]);
+                    mockGetSpaceAccessContext.mockResolvedValueOnce(
+                        createSpaceAccessContext({
+                            ...user,
+                            ...access,
+                            ...space,
+                        }),
+                    );
 
                     const result = await service._userCanActionSpace(
                         testUser,
@@ -685,7 +668,6 @@ describe('SpaceService', () => {
                             contentType as 'Space' | 'Dashboard' | 'Chart',
                             testSpace,
                             action as AbilityAction,
-                            true,
                         );
                         throw error;
                     }
@@ -810,14 +792,14 @@ describe('SpaceService', () => {
                     const testUser = createTestUser(user);
                     const testSpace = createTestSpace(space);
 
-                    const response = createSpaceAccessResponse({
-                        ...user,
-                        ...access,
-                        isPrivate: space.isPrivate,
-                        projectGroupRoles: user.projectGroupRoles || [],
-                    });
-
-                    tracker.on.select('spaces').response([response]);
+                    mockGetSpaceAccessContext.mockResolvedValueOnce(
+                        createSpaceAccessContext({
+                            ...user,
+                            ...access,
+                            ...space,
+                            projectGroupRoles: user.projectGroupRoles || [],
+                        }),
+                    );
 
                     const result = await service._userCanActionSpace(
                         testUser,
@@ -834,7 +816,6 @@ describe('SpaceService', () => {
                             contentType as 'Space' | 'Dashboard' | 'Chart',
                             testSpace,
                             action as AbilityAction,
-                            true,
                         );
                         throw error;
                     }
@@ -870,5 +851,17 @@ describe('SpaceService', () => {
     //         action: 'manage',
     //         expectedResult: true,
     //         contentType: 'Space',
+    //     },
+    //     {
+    //         name: 'project group viewer role does not override space editor role',
+    //         user: {
+    //             projectRole: ProjectMemberRole.INTERACTIVE_VIEWER,
+    //             projectGroupRoles: [ProjectMemberRole.VIEWER]
+    //         },
+    //         space: { isPrivate: true },
+    //         access: { spaceRole: SpaceMemberRole.EDITOR },
+    //         action: 'update',
+    //         expectedResult: true,
+    //         contentType: 'Dashboard',
     //     },
 });

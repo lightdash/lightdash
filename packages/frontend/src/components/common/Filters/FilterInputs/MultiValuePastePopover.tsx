@@ -1,4 +1,4 @@
-import { Button, Flex, Popover, Text } from '@mantine/core';
+import { Button, Flex, Popover, Text } from '@mantine-8/core';
 import { useCallback, type FC, type PropsWithChildren } from 'react';
 
 type Props = {
@@ -35,13 +35,13 @@ const MultiValuePastePopUp: FC<PropsWithChildren<Props>> = ({
         >
             <Popover.Target>{children}</Popover.Target>
             <Popover.Dropdown>
-                <Text weight={500}>
+                <Text fw={500} fz="sm">
                     Multiple comma-separated values detected:
                 </Text>
-                <Text>
+                <Text fz="sm">
                     Would you like to add them as single or multiple values?
                 </Text>
-                <Flex mt="xl" align={'center'} gap={'sm'} justify={'flex-end'}>
+                <Flex mt="xl" align="center" gap="sm" justify="flex-end">
                     <Button
                         variant="light"
                         size="sm"

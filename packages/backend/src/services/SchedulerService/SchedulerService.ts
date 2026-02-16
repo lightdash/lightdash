@@ -60,15 +60,14 @@ import { CaslAuditWrapper } from '../../logging/caslAuditWrapper';
 import { logAuditEvent } from '../../logging/winston';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { JobModel } from '../../models/JobModel/JobModel';
-import { OrganizationMemberProfileModel } from '../../models/OrganizationMemberProfileModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
-import { SpaceModel } from '../../models/SpaceModel';
 import { UserModel } from '../../models/UserModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { getAdjustedCronByOffset } from '../../utils/cronUtils';
 import { BaseService } from '../BaseService';
+import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { UserService } from '../UserService';
 
 type SchedulerServiceArguments = {
@@ -78,13 +77,13 @@ type SchedulerServiceArguments = {
     dashboardModel: DashboardModel;
     savedChartModel: SavedChartModel;
     projectModel: ProjectModel;
-    spaceModel: SpaceModel;
     schedulerClient: SchedulerClient;
     slackClient: SlackClient;
     userModel: UserModel;
     googleDriveClient: GoogleDriveClient;
     userService: UserService;
     jobModel: JobModel;
+    spacePermissionService: SpacePermissionService;
 };
 
 export class SchedulerService extends BaseService {
@@ -98,8 +97,6 @@ export class SchedulerService extends BaseService {
 
     savedChartModel: SavedChartModel;
 
-    spaceModel: SpaceModel;
-
     schedulerClient: SchedulerClient;
 
     slackClient: SlackClient;
@@ -114,13 +111,14 @@ export class SchedulerService extends BaseService {
 
     jobModel: JobModel;
 
+    spacePermissionService: SpacePermissionService;
+
     constructor({
         lightdashConfig,
         analytics,
         schedulerModel,
         dashboardModel,
         savedChartModel,
-        spaceModel,
         schedulerClient,
         slackClient,
         projectModel,
@@ -128,6 +126,7 @@ export class SchedulerService extends BaseService {
         googleDriveClient,
         userService,
         jobModel,
+        spacePermissionService,
     }: SchedulerServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -135,7 +134,6 @@ export class SchedulerService extends BaseService {
         this.schedulerModel = schedulerModel;
         this.dashboardModel = dashboardModel;
         this.savedChartModel = savedChartModel;
-        this.spaceModel = spaceModel;
         this.schedulerClient = schedulerClient;
         this.slackClient = slackClient;
         this.projectModel = projectModel;
@@ -143,6 +141,7 @@ export class SchedulerService extends BaseService {
         this.googleDriveClient = googleDriveClient;
         this.userService = userService;
         this.jobModel = jobModel;
+        this.spacePermissionService = spacePermissionService;
     }
 
     private async getSchedulerResource(
@@ -168,6 +167,7 @@ export class SchedulerService extends BaseService {
     private async checkUserCanUpdateSchedulerResource(
         user: SessionUser,
         schedulerUuid: string,
+        sendNow: boolean = false,
     ): Promise<{
         scheduler: Scheduler;
         resource: ChartSummary | DashboardDAO;
@@ -178,8 +178,11 @@ export class SchedulerService extends BaseService {
         const resource = await this.getSchedulerResource(scheduler);
         const { organizationUuid, projectUuid } = resource;
 
+        // If sendNow is true, we need to check if the user has permissions to `create` instead of `manage`
+        // This allows editors to send schedulers they didn't create themselves
+        const action = sendNow ? 'create' : 'manage';
         const canManageDeliveries = user.ability.can(
-            'manage',
+            action,
             subject('ScheduledDeliveries', {
                 organizationUuid,
                 projectUuid,
@@ -192,7 +195,7 @@ export class SchedulerService extends BaseService {
         }
 
         const canManageGoogleSheets = user.ability.can(
-            'manage',
+            action,
             subject('GoogleSheets', {
                 organizationUuid,
                 projectUuid,
@@ -217,18 +220,18 @@ export class SchedulerService extends BaseService {
             const { organizationUuid, spaceUuid, projectUuid } =
                 await this.savedChartModel.getSummary(scheduler.savedChartUuid);
 
-            const [space] = await this.spaceModel.find({ spaceUuid });
-            const access = await this.spaceModel.getUserSpaceAccess(
-                user.userUuid,
-                spaceUuid,
-            );
+            const { isPrivate, access } =
+                await this.spacePermissionService.getSpaceAccessContext(
+                    user.userUuid,
+                    spaceUuid,
+                );
             if (
                 user.ability.cannot(
                     'view',
                     subject('SavedChart', {
                         organizationUuid,
                         projectUuid,
-                        isPrivate: space.isPrivate,
+                        isPrivate,
                         access,
                     }),
                 )
@@ -239,11 +242,11 @@ export class SchedulerService extends BaseService {
                 await this.dashboardModel.getByIdOrSlug(
                     scheduler.dashboardUuid,
                 );
-            const [space] = await this.spaceModel.find({ spaceUuid });
-            const spaceAccess = await this.spaceModel.getUserSpaceAccess(
-                user.userUuid,
-                spaceUuid,
-            );
+            const { isPrivate, access } =
+                await this.spacePermissionService.getSpaceAccessContext(
+                    user.userUuid,
+                    spaceUuid,
+                );
 
             if (
                 user.ability.cannot(
@@ -251,8 +254,8 @@ export class SchedulerService extends BaseService {
                     subject('Dashboard', {
                         organizationUuid,
                         projectUuid,
-                        isPrivate: space.isPrivate,
-                        access: spaceAccess,
+                        isPrivate,
+                        access,
                     }),
                 )
             )
@@ -756,6 +759,9 @@ export class SchedulerService extends BaseService {
             projectUuid,
             userUuid: user.userUuid,
         });
+
+        // Always hard-delete: UI scheduler deletion is permanent.
+        // Soft delete only happens via cascade from chart/dashboard soft-delete.
         await this.schedulerModel.deleteScheduler(schedulerUuid);
         await this.schedulerModel.deleteScheduledLogs(schedulerUuid);
 
@@ -939,7 +945,11 @@ export class SchedulerService extends BaseService {
         const {
             scheduler,
             resource: { organizationUuid, projectUuid },
-        } = await this.checkUserCanUpdateSchedulerResource(user, schedulerUuid);
+        } = await this.checkUserCanUpdateSchedulerResource(
+            user,
+            schedulerUuid,
+            true,
+        );
 
         return this.schedulerClient.addScheduledDeliveryJob(
             new Date(),

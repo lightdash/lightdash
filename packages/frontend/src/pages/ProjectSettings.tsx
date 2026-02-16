@@ -1,4 +1,4 @@
-import { Stack } from '@mantine/core';
+import { Stack } from '@mantine-8/core';
 import { useMemo, type FC } from 'react';
 import { Navigate, useParams, useRoutes, type RouteObject } from 'react-router';
 import CompilationHistory from '../components/CompilationHistory';
@@ -16,14 +16,19 @@ import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import SettingsEmbed from '../ee/features/embed/SettingsEmbed';
 import { ProjectChangesets } from '../features/changesets/components/ProjectChangesets';
+import RecentlyDeletedPage from '../features/recentlyDeleted/components/RecentlyDeletedPage';
 import { useProject } from '../hooks/useProject';
+import useApp from '../providers/App/useApp';
 
 const ProjectSettings: FC = () => {
     const { projectUuid } = useParams<{
         projectUuid: string;
     }>();
 
+    const { health } = useApp();
     const { isInitialLoading, data: project, error } = useProject(projectUuid);
+
+    const isSoftDeleteEnabled = health.data?.softDelete?.enabled ?? false;
 
     const routes = useMemo<RouteObject[]>(() => {
         if (!projectUuid) {
@@ -64,6 +69,16 @@ const ProjectSettings: FC = () => {
                 path: `/dataOps`,
                 element: <DataOps projectUuid={projectUuid} />,
             },
+            ...(isSoftDeleteEnabled
+                ? [
+                      {
+                          path: `/recentlyDeleted`,
+                          element: (
+                              <RecentlyDeletedPage projectUuid={projectUuid} />
+                          ),
+                      },
+                  ]
+                : []),
             {
                 path: `/parameters`,
                 element: <ProjectParameters projectUuid={projectUuid} />,
@@ -81,7 +96,7 @@ const ProjectSettings: FC = () => {
                 element: <SettingsEmbed projectUuid={projectUuid} />,
             },
         ];
-    }, [projectUuid]);
+    }, [projectUuid, isSoftDeleteEnabled]);
     const routesElements = useRoutes(routes);
 
     if (error) {
@@ -100,7 +115,7 @@ const ProjectSettings: FC = () => {
         <>
             <DocumentTitle title="Project Settings" />
 
-            <Stack spacing="xl">
+            <Stack gap="xl">
                 <PageBreadcrumbs
                     items={[
                         {

@@ -31,8 +31,9 @@ export const setProjectCommand = async (name?: string, uuid?: string) => {
         selectedProject = projects.find(
             (project) => project.name === name || project.projectUuid === uuid,
         );
-
-        // Select project interactively
+    } else if (GlobalState.isNonInteractive()) {
+        GlobalState.debug('> Non-interactive mode: selecting first project');
+        [selectedProject] = projects;
     } else {
         const answers = await inquirer.prompt([
             {

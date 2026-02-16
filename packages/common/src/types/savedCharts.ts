@@ -9,7 +9,7 @@ import { type MetricQuery, type MetricQueryRequest } from './metricQuery';
 import { type ParametersValuesMap } from './parameters';
 import type { SchedulerAndTargets } from './scheduler';
 // eslint-disable-next-line import/no-cycle
-import { type SpaceShare } from './space';
+import { type SpaceAccess } from './space';
 import { type LightdashUser, type UpdatedByUser } from './user';
 import { type ValidationSummary } from './validation';
 
@@ -190,6 +190,8 @@ export type MapChart = {
     showLegend?: boolean;
     // Color range (array of 2-5 colors for gradient)
     colorRange?: string[];
+    // Per-value color overrides for categorical (string) color fields
+    colorOverrides?: Record<string, string>;
     // Map extent settings (zoom and center are saved when user enables "save map extent")
     defaultZoom?: number;
     defaultCenterLat?: number;
@@ -359,6 +361,9 @@ export type Series = {
         show?: boolean;
         position?: 'left' | 'top' | 'right' | 'bottom' | 'inside';
         showOverlappingLabels?: boolean;
+        showValue?: boolean; // Show the metric value (default: true when labels are shown)
+        showLabel?: boolean; // Show the legend/pivot name (e.g., "United States") or metric name for non-pivoted
+        showSeriesName?: boolean; // Show the metric field name (e.g., "Revenue")
     };
     hidden?: boolean;
     areaStyle?: Record<string, unknown>;
@@ -589,8 +594,15 @@ export type SavedChart = {
     dashboardName: string | null;
     colorPalette: string[];
     isPrivate: boolean;
-    access: SpaceShare[];
+    access: SpaceAccess[];
     slug: string;
+    // Soft delete fields (only present when deleted: true option is used)
+    deletedAt?: Date;
+    deletedBy?: {
+        userUuid: string;
+        firstName: string;
+        lastName: string;
+    } | null;
 };
 
 type CreateChartBase = Pick<

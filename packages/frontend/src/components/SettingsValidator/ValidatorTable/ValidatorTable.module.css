@@ -1,0 +1,7 @@
+.pinnedRow {
+    border-left: 3px solid var(--mantine-color-yellow-5);
+}
+
+.pinnedRow td:first-child {
+    padding-left: calc(var(--mantine-spacing-md) - 3px);
+}

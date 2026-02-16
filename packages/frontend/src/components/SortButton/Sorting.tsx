@@ -5,8 +5,15 @@ import {
     type DropResult,
 } from '@hello-pangea/dnd';
 import { isField } from '@lightdash/common';
-import { ActionIcon, Button, Group, Select, Text } from '@mantine/core';
-import { IconGripVertical, IconPlus, IconX } from '@tabler/icons-react';
+import {
+    ActionIcon,
+    Button,
+    Group,
+    Select,
+    Text,
+    Tooltip,
+} from '@mantine-8/core';
+import { IconGripVertical, IconMinus, IconPlus } from '@tabler/icons-react';
 import { forwardRef, useCallback, useState } from 'react';
 import { type Props } from '.';
 import {
@@ -169,37 +176,42 @@ const Sorting = forwardRef<HTMLDivElement, Props>(({ sorts, isEditMode }) => {
                 <>
                     {!isAddingSort ? (
                         <Button
-                            variant="subtle"
-                            size="xs"
+                            variant="light"
+                            color="gray"
+                            size="compact-xs"
                             onClick={() => setIsAddingSort(true)}
-                            compact
-                            leftIcon={<MantineIcon icon={IconPlus} />}
+                            leftSection={<MantineIcon icon={IconPlus} />}
                         >
                             Add sort
                         </Button>
                     ) : (
                         <Group
-                            noWrap
-                            position="apart"
+                            wrap="nowrap"
+                            justify="space-between"
                             pl="xs"
                             pr="xxs"
                             py="two"
                         >
-                            <Group spacing="sm">
+                            <Group gap="sm">
                                 {isEditMode && sorts.length > 0 && (
                                     <MantineIcon
-                                        color="gray"
+                                        color="ldGray.5"
                                         opacity={0.9}
                                         icon={IconGripVertical}
+                                        style={{ cursor: 'grab' }}
                                     />
                                 )}
-                                <Text>then by</Text>
+                                <Text fz="xs">then by</Text>
                                 <Select
                                     placeholder="Add sort field"
                                     size="xs"
-                                    data={availableColumnsToAddToSort}
-                                    withinPortal
-                                    onChange={(value: string) => {
+                                    data={availableColumnsToAddToSort.map(
+                                        (c) => ({
+                                            value: c.value,
+                                            label: c.label || '',
+                                        }),
+                                    )}
+                                    onChange={(value: string | null) => {
                                         if (value) {
                                             addSortField(value);
                                             setIsAddingSort(false);
@@ -207,12 +219,16 @@ const Sorting = forwardRef<HTMLDivElement, Props>(({ sorts, isEditMode }) => {
                                     }}
                                 />
                             </Group>
-                            <ActionIcon
-                                size="sm"
-                                onClick={() => setIsAddingSort(false)}
-                            >
-                                <MantineIcon icon={IconX} />
-                            </ActionIcon>
+                            <Tooltip label="Cancel">
+                                <ActionIcon
+                                    size="xs"
+                                    variant="subtle"
+                                    color="ldGray.6"
+                                    onClick={() => setIsAddingSort(false)}
+                                >
+                                    <MantineIcon icon={IconMinus} />
+                                </ActionIcon>
+                            </Tooltip>
                         </Group>
                     )}
                 </>

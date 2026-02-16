@@ -1,0 +1,67 @@
+.sectionHeader {
+    display: flex;
+    align-items: center;
+    height: 100%;
+    padding: 0 var(--mantine-spacing-sm);
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    border-bottom: 1px solid var(--mantine-color-ldGray-2);
+
+    @mixin light {
+        background-color: var(--mantine-color-ldGray-0);
+        color: var(--mantine-color-ldGray-7);
+    }
+
+    @mixin dark {
+        background-color: var(--mantine-color-dark-6);
+        color: var(--mantine-color-ldGray-3);
+        border-bottom-color: var(--mantine-color-dark-4);
+    }
+}
+
+.sectionHeaderDimmed {
+    composes: sectionHeader;
+}
+
+.groupHeader {
+    display: flex;
+    align-items: center;
+    height: 100%;
+    padding: 0 var(--mantine-spacing-xs);
+    font-size: var(--mantine-font-size-xs);
+    font-weight: 600;
+
+    @mixin light {
+        color: var(--mantine-color-ldGray-7);
+    }
+
+    @mixin dark {
+        color: var(--mantine-color-ldGray-3);
+    }
+}
+
+.dimmedOption {
+    opacity: 0.6;
+}
+
+.option {
+    &:hover,
+    &[data-combobox-selected] {
+        @mixin light {
+            background-color: var(--mantine-color-ldGray-0);
+        }
+
+        @mixin dark {
+            background-color: var(--mantine-color-dark-7);
+        }
+
+        color: inherit;
+    }
+}
+
+.scrollContainer {
+    scrollbar-width: thin;
+    overflow: auto;
+}

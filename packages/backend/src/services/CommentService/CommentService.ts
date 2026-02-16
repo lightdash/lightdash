@@ -6,8 +6,6 @@ import {
     ForbiddenError,
     LightdashUser,
     SessionUser,
-    SpaceShare,
-    SpaceSummary,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
@@ -15,19 +13,18 @@ import { CommentModel } from '../../models/CommentModel/CommentModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { NotificationsModel } from '../../models/NotificationsModel/NotificationsModel';
-import { SpaceModel } from '../../models/SpaceModel';
 import { UserModel } from '../../models/UserModel';
 import { BaseService } from '../BaseService';
-import { hasViewAccessToSpace } from '../SpaceService/SpaceService';
+import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 
 type CommentServiceArguments = {
     analytics: LightdashAnalytics;
     dashboardModel: DashboardModel;
-    spaceModel: SpaceModel;
     commentModel: CommentModel;
     notificationsModel: NotificationsModel;
     userModel: UserModel;
     featureFlagModel: FeatureFlagModel;
+    spacePermissionService: SpacePermissionService;
 };
 
 export class CommentService extends BaseService {
@@ -35,8 +32,6 @@ export class CommentService extends BaseService {
 
     dashboardModel: DashboardModel;
 
-    spaceModel: SpaceModel;
-
     commentModel: CommentModel;
 
     notificationsModel: NotificationsModel;
@@ -45,36 +40,35 @@ export class CommentService extends BaseService {
 
     featureFlagModel: FeatureFlagModel;
 
+    spacePermissionService: SpacePermissionService;
+
     constructor({
         analytics,
         dashboardModel,
-        spaceModel,
         commentModel,
         notificationsModel,
         userModel,
         featureFlagModel,
+        spacePermissionService,
     }: CommentServiceArguments) {
         super();
         this.analytics = analytics;
         this.dashboardModel = dashboardModel;
-        this.spaceModel = spaceModel;
         this.commentModel = commentModel;
         this.notificationsModel = notificationsModel;
         this.userModel = userModel;
         this.featureFlagModel = featureFlagModel;
+        this.spacePermissionService = spacePermissionService;
     }
 
     async hasDashboardSpaceAccess(
         user: SessionUser,
         spaceUuid: string,
     ): Promise<boolean> {
-        let space: Omit<SpaceSummary, 'userAccess'>;
-        let spaceAccess: SpaceShare[];
-
         try {
-            space = await this.spaceModel.getSpaceSummary(spaceUuid);
-            spaceAccess = await this.spaceModel.getUserSpaceAccess(
-                user.userUuid,
+            return await this.spacePermissionService.can(
+                'view',
+                user,
                 spaceUuid,
             );
         } catch (e) {
@@ -82,8 +76,6 @@ export class CommentService extends BaseService {
             console.error(e);
             return false;
         }
-
-        return hasViewAccessToSpace(user, space, spaceAccess);
     }
 
     private async isFeatureEnabled(

@@ -1,0 +1,4 @@
+.buttonLabel {
+    /* Revert overflow so badge doesn't get cropped off */
+    overflow: revert;
+}

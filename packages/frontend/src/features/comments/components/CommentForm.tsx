@@ -1,5 +1,5 @@
 import { type Comment } from '@lightdash/common';
-import { Avatar, Button, Grid, Group, Skeleton, Stack } from '@mantine/core';
+import { Avatar, Button, Grid, Group, Skeleton, Stack } from '@mantine-8/core';
 import { useForm } from '@mantine/form';
 import { type Editor, type JSONContent } from '@tiptap/react';
 import { useMemo, useState, type FC } from 'react';
@@ -9,6 +9,7 @@ import useDashboardContext from '../../../providers/Dashboard/useDashboardContex
 import { type SuggestionsItem } from '../types';
 import { getNameInitials } from '../utils';
 import { LazyCommentWithMentions } from './CommentWithMentions/LazyCommentWithMentions';
+import styles from './CommentForm.module.css';
 
 type Props = {
     userName: string;
@@ -86,7 +87,7 @@ export const CommentForm: FC<Props> = ({
 
     return (
         <form onSubmit={handleSubmit}>
-            <Stack spacing="xs" mt="xs">
+            <Stack gap="xs" mt="xs">
                 <Grid columns={20}>
                     <Grid.Col span={2}>
                         <Avatar radius="xl" size="sm" color="ldGray.6">
@@ -102,16 +103,15 @@ export const CommentForm: FC<Props> = ({
                                 onUpdate={setEditor}
                             />
                         ) : (
-                            <Skeleton h={30} w={'100%'} />
+                            <Skeleton h={30} w="100%" />
                         )}
                     </Grid.Col>
                 </Grid>
-                <Group position="right" spacing="xs">
+                <Group justify="flex-end" gap="xs">
                     {onCancel && (
                         <Button
-                            compact
                             variant="default"
-                            size="xs"
+                            size="compact-xs"
                             onClick={onCancel}
                         >
                             Cancel
@@ -119,12 +119,9 @@ export const CommentForm: FC<Props> = ({
                     )}
 
                     <Button
-                        compact
+                        className={styles.submitButton}
                         loading={isSubmitting}
-                        size="xs"
-                        sx={{
-                            alignSelf: 'flex-end',
-                        }}
+                        size="compact-xs"
                         type="submit"
                     >
                         {mode === 'reply' ? 'Reply' : 'Add comment'}

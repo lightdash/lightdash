@@ -9,7 +9,7 @@ const EMBEDDING_DIMENSIONS = 1536;
 
 function getEmbeddingModelConfig(config: LightdashConfig):
     | {
-          model: EmbeddingModel<string>;
+          model: EmbeddingModel;
           provider: string;
           modelName: string;
       }
@@ -44,7 +44,7 @@ function getEmbeddingModelConfig(config: LightdashConfig):
         const azure = getAzureProvider(azureConfig);
 
         return {
-            model: azure.textEmbedding(azureConfig.embeddingDeploymentName),
+            model: azure.embedding(azureConfig.embeddingDeploymentName),
             provider: 'azure',
             modelName: azureConfig.embeddingDeploymentName,
         };

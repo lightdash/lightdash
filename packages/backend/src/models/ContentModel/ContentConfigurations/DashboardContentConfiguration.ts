@@ -7,6 +7,9 @@ import {
 import { OrganizationTableName } from '../../../database/entities/organizations';
 import { PinnedDashboardTableName } from '../../../database/entities/pinnedList';
 import { ProjectTableName } from '../../../database/entities/projects';
+import { SavedChartsTableName } from '../../../database/entities/savedCharts';
+import { SavedSqlTableName } from '../../../database/entities/savedSql';
+import { SchedulerTableName } from '../../../database/entities/scheduler';
 import { SpaceTableName } from '../../../database/entities/spaces';
 import { UserTableName } from '../../../database/entities/users';
 import {
@@ -27,6 +30,23 @@ export const dashboardContentConfiguration: ContentConfiguration<SummaryContentR
         ): Knex.QueryBuilder =>
             knex
                 .from(DashboardsTableName)
+                .where((deletedFilter) => {
+                    if (filters.deleted) {
+                        void deletedFilter.whereNotNull(
+                            `${DashboardsTableName}.deleted_at`,
+                        );
+                        if (filters.deletedByUserUuids) {
+                            void deletedFilter.whereIn(
+                                `${DashboardsTableName}.deleted_by_user_uuid`,
+                                filters.deletedByUserUuids,
+                            );
+                        }
+                    } else {
+                        void deletedFilter.whereNull(
+                            `${DashboardsTableName}.deleted_at`,
+                        );
+                    }
+                })
                 .innerJoin(
                     SpaceTableName,
                     `${SpaceTableName}.space_id`,
@@ -100,7 +120,40 @@ export const dashboardContentConfiguration: ContentConfiguration<SummaryContentR
                     knex.raw(
                         `${DashboardsTableName}.first_viewed_at::timestamp as first_viewed_at`,
                     ),
-                    knex.raw(`json_build_object() as metadata`),
+                    knex.raw(
+                        `${DashboardsTableName}.deleted_at::timestamp as deleted_at`,
+                    ),
+                    `${DashboardsTableName}.deleted_by_user_uuid as deleted_by_user_uuid`,
+                    knex.raw(
+                        `(SELECT first_name FROM users WHERE user_uuid = ${DashboardsTableName}.deleted_by_user_uuid) as deleted_by_user_first_name`,
+                    ),
+                    knex.raw(
+                        `(SELECT last_name FROM users WHERE user_uuid = ${DashboardsTableName}.deleted_by_user_uuid) as deleted_by_user_last_name`,
+                    ),
+                    knex.raw(
+                        `json_build_object(${
+                            filters.includeDescendantCounts
+                                ? `
+                                'chartCount', (
+                                    SELECT count(*) FROM (
+                                        SELECT sq.saved_query_id FROM ${SavedChartsTableName} sq
+                                            WHERE sq.dashboard_uuid = ${DashboardsTableName}.dashboard_uuid
+                                        UNION ALL
+                                        SELECT 1 FROM ${SavedSqlTableName} ss
+                                            WHERE ss.dashboard_uuid = ${DashboardsTableName}.dashboard_uuid
+                                    ) _
+                                ),
+                                'schedulerCount', (
+                                    SELECT count(*) FROM ${SchedulerTableName} sch
+                                    WHERE sch.dashboard_uuid = ${DashboardsTableName}.dashboard_uuid
+                                        OR sch.saved_chart_uuid IN (
+                                            SELECT sq.saved_query_uuid FROM ${SavedChartsTableName} sq
+                                            WHERE sq.dashboard_uuid = ${DashboardsTableName}.dashboard_uuid
+                                        )
+                                )`
+                                : ''
+                        }) as metadata`,
+                    ),
                 ])
                 .where((builder) => {
                     if (filters.projectUuids) {
@@ -120,7 +173,7 @@ export const dashboardContentConfiguration: ContentConfiguration<SummaryContentR
                         `last_version.dashboard_version_id`,
                         knex.raw(`(select dashboard_version_id
                                            from dashboard_versions
-                                           where dashboard_id = dashboards.dashboard_id
+                                           where dashboard_id = ${DashboardsTableName}.dashboard_id
                                            order by dashboard_versions.created_at desc
                                            limit 1)`),
                     );
@@ -128,7 +181,7 @@ export const dashboardContentConfiguration: ContentConfiguration<SummaryContentR
                         `first_version.dashboard_version_id`,
                         knex.raw(`(select dashboard_version_id
                                             from dashboard_versions
-                                            where dashboard_id = dashboards.dashboard_id
+                                            where dashboard_id = ${DashboardsTableName}.dashboard_id
                                             order by dashboard_versions.created_at asc
                                             limit 1)`),
                     );
@@ -138,6 +191,9 @@ export const dashboardContentConfiguration: ContentConfiguration<SummaryContentR
                             [`%${filters.search.toLowerCase()}%`],
                         );
                     }
+
+                    // Exclude dashboards in deleted spaces
+                    void builder.whereNull(`${SpaceTableName}.deleted_at`);
                 }),
         shouldRowBeConverted: (value): value is SummaryContentRow =>
             value.content_type === ContentType.DASHBOARD,

@@ -21,6 +21,7 @@ import {
 } from './MetricQueryBuilder';
 import {
     bigqueryClientMock,
+    EXPECTED_SQL_NO_DIMENSIONS_WITH_FILTER,
     EXPECTED_SQL_WITH_CROSS_JOIN,
     EXPECTED_SQL_WITH_CROSS_TABLE_METRICS,
     EXPECTED_SQL_WITH_CUSTOM_DIMENSION_AND_TABLE_CALCULATION,
@@ -35,6 +36,8 @@ import {
     EXPLORE_BIGQUERY,
     EXPLORE_JOIN_CHAIN,
     EXPLORE_WITH_CROSS_TABLE_METRICS,
+    EXPLORE_WITH_DATE_DIMENSION,
+    EXPLORE_WITH_DATE_DIMENSION_ZOOMED,
     EXPLORE_WITH_REQUIRED_FILTERS,
     EXPLORE_WITH_SQL_FILTER,
     EXPLORE_WITHOUT_JOIN_RELATIONSHIPS,
@@ -53,6 +56,10 @@ import {
     METRIC_QUERY_WITH_ADDITIONAL_METRIC_SQL,
     METRIC_QUERY_WITH_CUSTOM_DIMENSION,
     METRIC_QUERY_WITH_CUSTOM_SQL_DIMENSION,
+    METRIC_QUERY_WITH_CUSTOM_USER_ATTRIBUTE_FILTER_VALUE,
+    METRIC_QUERY_WITH_CUSTOM_USER_ATTRIBUTE_FILTER_VALUE_SQL,
+    METRIC_QUERY_WITH_DATE_FILTER,
+    METRIC_QUERY_WITH_DATE_ZOOM_FILTER_SQL,
     METRIC_QUERY_WITH_DAY_OF_WEEK_NAME_SORT,
     METRIC_QUERY_WITH_DAY_OF_WEEK_NAME_SORT_SQL,
     METRIC_QUERY_WITH_DISABLED_FILTER,
@@ -84,6 +91,8 @@ import {
     METRIC_QUERY_WITH_TABLE_CALCULATION_FILTER_SQL,
     METRIC_QUERY_WITH_TABLE_REFERENCE,
     METRIC_QUERY_WITH_TABLE_REFERENCE_SQL,
+    METRIC_QUERY_WITH_USER_ATTRIBUTE_FILTER_VALUE,
+    METRIC_QUERY_WITH_USER_ATTRIBUTE_FILTER_VALUE_SQL,
     QUERY_BUILDER_UTC_TIMEZONE,
     warehouseClientMock,
 } from './MetricQueryBuilder.mock';
@@ -426,6 +435,62 @@ describe('Query builder', () => {
                 }).query,
             ),
         ).toStrictEqual(replaceWhitespace(METRIC_QUERY_WITH_SQL_FILTER));
+    });
+
+    test('Should replace intrinsic user attributes in filter values', () => {
+        expect(
+            replaceWhitespace(
+                buildQuery({
+                    explore: EXPLORE,
+                    compiledMetricQuery:
+                        METRIC_QUERY_WITH_USER_ATTRIBUTE_FILTER_VALUE,
+                    warehouseSqlBuilder: warehouseClientMock,
+                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
+                }).query,
+            ),
+        ).toStrictEqual(
+            replaceWhitespace(
+                METRIC_QUERY_WITH_USER_ATTRIBUTE_FILTER_VALUE_SQL,
+            ),
+        );
+    });
+
+    test('Should replace custom user attributes in filter values', () => {
+        expect(
+            replaceWhitespace(
+                buildQuery({
+                    explore: EXPLORE,
+                    compiledMetricQuery:
+                        METRIC_QUERY_WITH_CUSTOM_USER_ATTRIBUTE_FILTER_VALUE,
+                    warehouseSqlBuilder: warehouseClientMock,
+                    userAttributes: {
+                        country: ['EU'],
+                    },
+                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
+                }).query,
+            ),
+        ).toStrictEqual(
+            replaceWhitespace(
+                METRIC_QUERY_WITH_CUSTOM_USER_ATTRIBUTE_FILTER_VALUE_SQL,
+            ),
+        );
+    });
+
+    test('Should throw error if user attribute in filter value is missing', () => {
+        expect(
+            () =>
+                buildQuery({
+                    explore: EXPLORE,
+                    compiledMetricQuery:
+                        METRIC_QUERY_WITH_CUSTOM_USER_ATTRIBUTE_FILTER_VALUE,
+                    warehouseSqlBuilder: warehouseClientMock,
+                    userAttributes: {},
+                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
+                }).query,
+        ).toThrow(ForbiddenError);
     });
 
     it('buildQuery with custom dimension bin number', () => {
@@ -1801,6 +1866,47 @@ LIMIT 10`;
             expect(result.query).toContain('("table2_metric3") IN (100)');
             expect(result.query).toContain('("calc1") IS NOT NULL');
         });
+
+        test('Should not create cte_unaffected with empty SELECT when only dimension filters exist', () => {
+            const noDimensionsSelected: string[] = [];
+            const onlyMetricFromJoinedTable = ['table2_metric3'];
+            const dimensionFilterWithoutDimensionInSelect = {
+                dimensions: {
+                    id: 'root',
+                    and: [
+                        {
+                            id: '1',
+                            target: {
+                                fieldId: 'table1_dim1',
+                            },
+                            operator: FilterOperator.EQUALS,
+                            values: [2025],
+                        },
+                    ],
+                },
+            };
+
+            const result = buildQuery({
+                explore: EXPLORE,
+                compiledMetricQuery: {
+                    ...METRIC_QUERY_TWO_TABLES,
+                    dimensions: noDimensionsSelected,
+                    metrics: onlyMetricFromJoinedTable,
+                    filters: dimensionFilterWithoutDimensionInSelect,
+                    sorts: [{ fieldId: 'table2_metric3', descending: true }],
+                    limit: 500,
+                    tableCalculations: [],
+                    compiledTableCalculations: [],
+                },
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+
+            expect(replaceWhitespace(result.query)).toBe(
+                replaceWhitespace(EXPECTED_SQL_NO_DIMENSIONS_WITH_FILTER),
+            );
+        });
     });
 
     describe('Table Calculations', () => {
@@ -2826,5 +2932,124 @@ describe('Query Structure Tests', () => {
         expect(metricsIndex).toBeLessThan(metricFiltersIndex);
         expect(metricFiltersIndex).toBeLessThan(tcAIndex);
         expect(tcAIndex).toBeLessThan(tcBIndex);
+    });
+
+    test('Should return NULL for table calculations with pivot functions', () => {
+        const metricQueryWithPivotTableCalcs = {
+            ...METRIC_QUERY,
+            tableCalculations: [
+                {
+                    name: 'pivot_calc_offset',
+                    displayName: 'Pivot Calculation with Offset',
+                    sql: 'revenue - pivot_offset(revenue, -1)',
+                },
+                {
+                    name: 'pivot_calc_column',
+                    displayName: 'Pivot Calculation with Column',
+                    sql: 'pivot_column()',
+                },
+                {
+                    name: 'normal_calc',
+                    displayName: 'Normal Calculation',
+                    sql: '${table1.metric1} * 2',
+                },
+                {
+                    name: 'row_calc',
+                    displayName: 'Row Calculation',
+                    sql: 'offset(${table1.metric1}, -1)',
+                },
+            ],
+            compiledTableCalculations: [
+                {
+                    name: 'pivot_calc_offset',
+                    displayName: 'Pivot Calculation with Offset',
+                    sql: 'revenue - pivot_offset(revenue, -1)',
+                    compiledSql: 'revenue - pivot_offset(revenue, -1)',
+                    dependsOn: [],
+                },
+                {
+                    name: 'pivot_calc_column',
+                    displayName: 'Pivot Calculation with Column',
+                    sql: 'pivot_column()',
+                    compiledSql: 'pivot_column()',
+                    dependsOn: [],
+                },
+                {
+                    name: 'normal_calc',
+                    displayName: 'Normal Calculation',
+                    sql: '${table1.metric1} * 2',
+                    compiledSql: '"table1_metric1" * 2',
+                    dependsOn: [],
+                },
+                {
+                    name: 'row_calc',
+                    displayName: 'Row Calculation',
+                    sql: 'offset(${table1.metric1}, -1)',
+                    compiledSql: 'offset("table1_metric1", -1)',
+                    dependsOn: [],
+                },
+            ],
+        };
+
+        const result = buildQuery({
+            explore: EXPLORE,
+            compiledMetricQuery: metricQueryWithPivotTableCalcs,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        // Should return NULL for table calculations with pivot functions (case-insensitive)
+        expect(result.query.toLowerCase()).toContain(
+            'null as "pivot_calc_offset"',
+        );
+        expect(result.query.toLowerCase()).toContain(
+            'null as "pivot_calc_column"',
+        );
+
+        // Should return normal SQL for table calculations without pivot functions
+        expect(result.query).toContain('"table1_metric1" * 2 AS "normal_calc"');
+        // Row functions should be compiled to SQL window functions
+        expect(result.query).toContain(
+            'LAG("table1_metric1", 1) OVER (ORDER BY "table1_metric1" DESC) AS "row_calc"',
+        );
+
+        // Verify that the pivot function SQL is not in the query
+        expect(result.query).not.toContain('pivot_offset(revenue, -1)');
+        expect(result.query).not.toContain('pivot_column()');
+    });
+});
+
+describe('Date zoom with filters', () => {
+    test('Should use raw column in WHERE clause when date zoom is active', () => {
+        expect(
+            replaceWhitespace(
+                buildQuery({
+                    explore: EXPLORE_WITH_DATE_DIMENSION_ZOOMED,
+                    compiledMetricQuery: METRIC_QUERY_WITH_DATE_FILTER,
+                    warehouseSqlBuilder: warehouseClientMock,
+                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
+                    originalExplore: EXPLORE_WITH_DATE_DIMENSION,
+                }).query,
+            ),
+        ).toStrictEqual(
+            replaceWhitespace(METRIC_QUERY_WITH_DATE_ZOOM_FILTER_SQL),
+        );
+    });
+
+    test('Should use DATE_TRUNC in WHERE clause without originalExplore (no date zoom)', () => {
+        // Without originalExplore, the zoomed explore is used for both SELECT and WHERE
+        // This verifies backwards compatibility: when no date zoom, filters use the explore as-is
+        const result = buildQuery({
+            explore: EXPLORE_WITH_DATE_DIMENSION,
+            compiledMetricQuery: METRIC_QUERY_WITH_DATE_FILTER,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+        // Without date zoom, both SELECT and WHERE use the raw column
+        expect(result.query).toContain('"orders".created_at');
+        expect(result.query).not.toContain('DATE_TRUNC');
     });
 });

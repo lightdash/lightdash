@@ -258,7 +258,6 @@ type UseMetricVisualizationProps = {
 /**
  * Hook that fetches metric data, executes the query, and builds visualization config
  *
- * This is the single source of truth for MetricExploreModalV2's data layer:
  * 1. Fetches metric field metadata
  * 2. Fetches explore schema (for ItemsMap)
  * 3. Builds and executes MetricQuery
@@ -469,10 +468,10 @@ export function useMetricVisualization({
 
     const hasData = Boolean(
         tableName &&
-            exploreQuery.data &&
-            metricQuery &&
-            createQuery.data?.fields &&
-            queryResults.rows.length > 0,
+        exploreQuery.data &&
+        metricQuery &&
+        createQuery.data?.fields &&
+        queryResults.rows.length > 0,
     );
 
     const error =

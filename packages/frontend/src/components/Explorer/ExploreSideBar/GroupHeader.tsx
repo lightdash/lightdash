@@ -1,5 +1,5 @@
-import { Group, NavLink } from '@mantine/core';
-import { IconChevronRight } from '@tabler/icons-react';
+import { Group, NavLink, Text } from '@mantine-8/core';
+import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';
 
@@ -18,19 +18,23 @@ const GroupHeader: FC<GroupHeaderProps> = ({ label, isExpanded, onToggle }) => {
             // mostly hardcoded, to match mantine's internal sizes
             disableRightSectionRotation
             rightSection={<></>}
-            icon={
+            leftSection={
                 <MantineIcon
-                    icon={IconChevronRight}
+                    icon={isExpanded ? IconChevronDown : IconChevronRight}
                     size={14}
                     style={{
                         margin: 1,
-                        transition: 'transform 200ms ease',
-                        transform: isExpanded ? 'rotate(90deg)' : undefined,
                     }}
                 />
             }
             // --end
-            label={<Group>{label}</Group>}
+            label={
+                <Group>
+                    <Text fz="sm" fw={500} c="ldGray.7">
+                        {label}
+                    </Text>
+                </Group>
+            }
         />
     );
 };

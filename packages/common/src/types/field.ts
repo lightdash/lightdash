@@ -67,14 +67,14 @@ export enum NumberSeparator {
 }
 type CompactConfig = {
     compact: Compact;
-    alias: Array<typeof CompactAlias[number]>;
+    alias: Array<(typeof CompactAlias)[number]>;
     orderOfMagnitude: number;
     convertFn: (value: number) => number;
     label: string;
     suffix: string;
 };
 
-export type CompactOrAlias = Compact | typeof CompactAlias[number];
+export type CompactOrAlias = Compact | (typeof CompactAlias)[number];
 
 export const CompactConfigMap: Record<Compact, CompactConfig> = {
     [Compact.THOUSANDS]: {
@@ -284,7 +284,7 @@ export interface CustomFormat {
     type: CustomFormatType;
     round?: number | undefined;
     separator?: NumberSeparator;
-    currency?: typeof currencies[number] | undefined;
+    currency?: (typeof currencies)[number] | undefined;
     compact?: CompactOrAlias | undefined;
     prefix?: string | undefined;
     suffix?: string | undefined;
@@ -560,6 +560,7 @@ export interface Dimension extends Field {
      */
     group?: string;
     requiredAttributes?: Record<string, string | string[]>;
+    anyAttributes?: Record<string, string | string[]>;
     timeInterval?: TimeFrames;
     timeIntervalBaseDimensionName?: string;
     isAdditionalDimension?: boolean;
@@ -594,6 +595,7 @@ type CompiledProperties = {
         string,
         Record<string, string | string[]>
     >;
+    tablesAnyAttributes?: Record<string, Record<string, string | string[]>>;
     /**
      * When partial compilation mode is enabled, fields that fail to compile
      * will have this property set instead of causing the entire explore to fail.
@@ -757,6 +759,7 @@ export interface Metric extends Field {
     formatOptions?: CustomFormat;
     dimensionReference?: string; // field id of the dimension this metric is based on
     requiredAttributes?: Record<string, string | string[]>; // Required attributes for the dimension this metric is based on
+    anyAttributes?: Record<string, string | string[]>; // Any of these attributes must match (OR logic)
     defaultTimeDimension?: DefaultTimeDimension; // Default time dimension for the metric when the user has not specified a time dimension
     spotlight?: {
         visibility: LightdashProjectConfig['spotlight']['default_visibility'];

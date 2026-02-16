@@ -1,5 +1,5 @@
 import { isDimension, isField, type ResultValue } from '@lightdash/common';
-import { Menu } from '@mantine/core';
+import { Menu } from '@mantine-8/core';
 import { useClipboard } from '@mantine/hooks';
 import { IconCopy } from '@tabler/icons-react';
 import mapValues from 'lodash/mapValues';
@@ -58,7 +58,9 @@ const MinimalCellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({
             {isField(item) && (item.urls || []).length > 0 && <Menu.Divider />}
 
             <Menu.Item
-                icon={<MantineIcon icon={IconCopy} size="md" fillOpacity={0} />}
+                leftSection={
+                    <MantineIcon icon={IconCopy} size="md" fillOpacity={0} />
+                }
                 onClick={handleCopyToClipboard}
             >
                 Copy value

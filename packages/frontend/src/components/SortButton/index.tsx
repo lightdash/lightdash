@@ -1,5 +1,5 @@
 import { isField, type SortField } from '@lightdash/common';
-import { Badge, Group, Popover, Text } from '@mantine/core';
+import { Badge, Group, Popover, Text } from '@mantine-8/core';
 import {
     IconArrowDown,
     IconArrowUp,
@@ -8,6 +8,7 @@ import {
 import { type FC } from 'react';
 import { useColumns } from '../../hooks/useColumns';
 import MantineIcon from '../common/MantineIcon';
+import classes from './SortButton.module.css';
 import Sorting from './Sorting';
 
 export type Props = {
@@ -31,32 +32,19 @@ const SortButton: FC<Props> = ({ sorts, isEditMode }) => {
     };
 
     return (
-        <Popover
-            position="top-start"
-            offset={-2}
-            withArrow
-            shadow="subtle"
-            radius="sm"
-            withinPortal
-            disabled={!isEditMode}
-        >
+        <Popover position="top-start" shadow="subtle" disabled={!isEditMode}>
             <Popover.Target>
                 <Badge
                     variant="light"
                     color="blue"
-                    sx={{
-                        textTransform: 'unset',
-                        cursor: isEditMode ? 'pointer' : 'default',
-                        '&:hover': isEditMode ? { opacity: 0.8 } : undefined,
-                        '&:active': isEditMode ? { opacity: 0.9 } : undefined,
-                    }}
+                    className={`${classes.badge} ${isEditMode ? classes.interactive : ''}`}
                     rightSection={
                         isEditMode ? (
                             <MantineIcon icon={IconChevronDown} size="sm" />
                         ) : null
                     }
                 >
-                    <Group spacing={2}>
+                    <Group gap={2}>
                         {sorts.length === 1 && (
                             <MantineIcon
                                 icon={
@@ -68,10 +56,12 @@ const SortButton: FC<Props> = ({ sorts, isEditMode }) => {
                                 size="sm"
                             />
                         )}
-                        <Text span fw={400}>
+                        <Text span fw={400} fz="xs">
                             Sorted by
                         </Text>
-                        <Text fw={600}>{getSortText()}</Text>
+                        <Text fw={600} fz="xs">
+                            {getSortText()}
+                        </Text>
                     </Group>
                 </Badge>
             </Popover.Target>

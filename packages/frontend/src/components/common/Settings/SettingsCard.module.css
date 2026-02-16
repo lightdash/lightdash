@@ -1,0 +1,7 @@
+.projectCreationCard {
+    display: flex;
+    flex-direction: column;
+    text-align: center;
+    padding: var(--mantine-spacing-lg);
+    margin-bottom: var(--mantine-spacing-lg);
+}

@@ -15,7 +15,7 @@ import {
     TooltipSortByOptions,
 } from '../../types/savedCharts';
 import { TimeFrames } from '../../types/timeFrames';
-import { formatItemValue } from '../../utils/formatting';
+import { formatDateWithPattern, formatItemValue } from '../../utils/formatting';
 import { sanitizeHtml } from '../../utils/sanitizeHtml';
 import {
     type EChartsSeries,
@@ -463,11 +463,29 @@ export function createStack100TooltipFormatter(
     getDimensionName: GetDimensionNameFn,
     xAxisField: string,
     itemsMap?: ItemsMap,
+    xAxisDateFormat?: string,
 ) {
     return (params: TooltipParams) => {
         if (!Array.isArray(params)) return '';
 
-        const header = getHeader(params, itemsMap, xAxisField);
+        let header: string;
+        if (xAxisDateFormat) {
+            // Format from the raw data value to avoid timezone double-parsing.
+            const firstParam = params[0];
+            const rawValue =
+                (firstParam?.value as Record<string, unknown> | undefined)?.[
+                    xAxisField
+                ] ?? firstParam?.axisValue;
+            header =
+                rawValue != null
+                    ? formatDateWithPattern(
+                          rawValue as string | number,
+                          xAxisDateFormat,
+                      )
+                    : getHeader(params, itemsMap, xAxisField);
+        } else {
+            header = getHeader(params, itemsMap, xAxisField);
+        }
 
         const rowsHtml = params
             .map((param) => {
@@ -592,11 +610,13 @@ export const buildSqlRunnerCartesianTooltipFormatter =
         flipAxes,
         xFieldId,
         originalValues,
+        xAxisDateFormat,
     }: {
         stackValue: string | boolean | undefined;
         flipAxes: boolean | undefined;
         xFieldId: string | undefined;
         originalValues?: Map<string, Map<string, number>> | undefined;
+        xAxisDateFormat?: string;
     }): TooltipComponentFormatterCallback<
         TooltipFormatterParams | TooltipFormatterParams[]
     > =>
@@ -622,10 +642,30 @@ export const buildSqlRunnerCartesianTooltipFormatter =
                 },
                 xFieldId,
                 undefined, // No itemsMap available in SQL Runner
+                xAxisDateFormat,
             )(params as TooltipParam[]);
         }
 
-        const header = getHeader(params, undefined, xFieldId);
+        let header: string;
+        if (xAxisDateFormat && xFieldId) {
+            // Format from the raw data value to avoid timezone double-parsing.
+            // getHeader() returns an already-formatted string (e.g. "May 2024")
+            // which, when re-parsed with moment().utc(), can shift months.
+            const firstParam = params[0];
+            const rawValue =
+                (firstParam?.value as Record<string, unknown> | undefined)?.[
+                    xFieldId
+                ] ?? firstParam?.axisValue;
+            header =
+                rawValue != null
+                    ? formatDateWithPattern(
+                          rawValue as string | number,
+                          xAxisDateFormat,
+                      )
+                    : getHeader(params, undefined, xFieldId);
+        } else {
+            header = getHeader(params, undefined, xFieldId);
+        }
 
         // Build tooltip rows
         const rowsHtml = params

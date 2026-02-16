@@ -101,4 +101,17 @@ export default abstract class WarehouseBaseSqlBuilder implements WarehouseSqlBui
         // Default: PostgreSQL/Redshift/Snowflake style
         return `PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY ${valueSql})`;
     }
+
+    buildArray(elements: string[]): string {
+        // Default: PostgreSQL/Redshift style array construction
+        return `ARRAY[${elements.join(', ')}]`;
+    }
+
+    buildArrayAgg(expression: string, orderBy?: string): string {
+        // Default: PostgreSQL/Redshift style array aggregation
+        if (orderBy) {
+            return `ARRAY_AGG(${expression} ORDER BY ${orderBy})`;
+        }
+        return `ARRAY_AGG(${expression})`;
+    }
 }

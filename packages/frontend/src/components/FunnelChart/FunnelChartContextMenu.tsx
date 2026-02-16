@@ -1,5 +1,6 @@
 import { type ResultRow, type ResultValue } from '@lightdash/common';
-import { Box, Menu, Portal, type MenuProps } from '@mantine/core';
+import { Menu, type MenuProps } from '@mantine-8/core';
+import { Box, Portal } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
 import { IconCopy } from '@tabler/icons-react';
 import { type FC } from 'react';
@@ -96,7 +97,7 @@ const FunnelChartContextMenu: FC<FunnelChartContextMenuProps> = ({
 
             <Menu.Dropdown>
                 <Menu.Item
-                    icon={<MantineIcon icon={IconCopy} />}
+                    leftSection={<MantineIcon icon={IconCopy} />}
                     onClick={handleCopy}
                 >
                     Copy value

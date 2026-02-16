@@ -1,5 +1,5 @@
 import { type Dimension, type Metric } from '@lightdash/common';
-import { Menu } from '@mantine/core';
+import { Menu } from '@mantine-8/core';
 import { type FC } from 'react';
 import {
     explorerActions,

@@ -15,6 +15,7 @@ import {
     assertEmbeddedAuth,
     assertIsAccountWithOrg,
     assertUnreachable,
+    AthenaAuthenticationType,
     BigqueryAuthenticationType,
     CacheMetadata,
     calculateCompilationReport,
@@ -83,6 +84,7 @@ import {
     getSubtotalKey,
     getTimezoneLabel,
     GroupByColumn,
+    hasConnectionChanges,
     hasIntersection,
     hasWarehouseCredentials,
     IntrinsicUserAttributes,
@@ -136,6 +138,7 @@ import {
     type RunQueryTags,
     SavedChartDAO,
     SavedChartsInfoForDashboardAvailableFilters,
+    sensitiveCredentialsFieldNames,
     SessionUser,
     snakeCaseName,
     SnowflakeAuthenticationType,
@@ -193,8 +196,8 @@ import {
     ProjectEvent,
 } from '../../analytics/LightdashAnalytics';
 import { S3CacheClient } from '../../clients/Aws/S3CacheClient';
-import { S3Client } from '../../clients/Aws/S3Client';
 import EmailClient from '../../clients/EmailClient/EmailClient';
+import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
 import { LightdashConfig } from '../../config/parseConfig';
 import type { DbTagUpdate } from '../../database/entities/tags';
 import { errorHandler } from '../../errors';
@@ -242,11 +245,9 @@ import { PivotQueryBuilder } from '../../utils/QueryBuilder/PivotQueryBuilder';
 import { applyLimitToSqlQuery } from '../../utils/QueryBuilder/utils';
 import { SubtotalsCalculator } from '../../utils/SubtotalsCalculator';
 import { metricQueryWithLimit as applyMetricQueryLimit } from '../../utils/csvLimitUtils';
+import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
 import { BaseService } from '../BaseService';
-import {
-    hasDirectAccessToSpace,
-    hasViewAccessToSpace,
-} from '../SpaceService/SpaceService';
+import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import {
     doesExploreMatchRequiredAttributes,
     exploreHasFilteredAttribute,
@@ -274,7 +275,7 @@ export type ProjectServiceArguments = {
     warehouseAvailableTablesModel: WarehouseAvailableTablesModel;
     schedulerClient: SchedulerClient;
     downloadFileModel: DownloadFileModel;
-    s3Client: S3Client;
+    fileStorageClient: FileStorageClient;
     groupsModel: GroupsModel;
     tagsModel: TagsModel;
     catalogModel: CatalogModel;
@@ -285,6 +286,8 @@ export type ProjectServiceArguments = {
     projectParametersModel: ProjectParametersModel;
     organizationWarehouseCredentialsModel: OrganizationWarehouseCredentialsModel;
     projectCompileLogModel: ProjectCompileLogModel;
+    adminNotificationService: AdminNotificationService;
+    spacePermissionService: SpacePermissionService;
 };
 
 export class ProjectService extends BaseService {
@@ -326,7 +329,7 @@ export class ProjectService extends BaseService {
 
     downloadFileModel: DownloadFileModel;
 
-    s3Client: S3Client;
+    fileStorageClient: FileStorageClient;
 
     groupsModel: GroupsModel;
 
@@ -348,6 +351,10 @@ export class ProjectService extends BaseService {
 
     organizationWarehouseCredentialsModel: OrganizationWarehouseCredentialsModel;
 
+    adminNotificationService: AdminNotificationService;
+
+    spacePermissionService: SpacePermissionService;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -367,7 +374,7 @@ export class ProjectService extends BaseService {
         emailModel,
         schedulerClient,
         downloadFileModel,
-        s3Client,
+        fileStorageClient,
         groupsModel,
         tagsModel,
         catalogModel,
@@ -378,6 +385,8 @@ export class ProjectService extends BaseService {
         projectParametersModel,
         projectCompileLogModel,
         organizationWarehouseCredentialsModel,
+        adminNotificationService,
+        spacePermissionService,
     }: ProjectServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -399,7 +408,7 @@ export class ProjectService extends BaseService {
         this.emailModel = emailModel;
         this.schedulerClient = schedulerClient;
         this.downloadFileModel = downloadFileModel;
-        this.s3Client = s3Client;
+        this.fileStorageClient = fileStorageClient;
         this.groupsModel = groupsModel;
         this.tagsModel = tagsModel;
         this.catalogModel = catalogModel;
@@ -411,6 +420,8 @@ export class ProjectService extends BaseService {
         this.projectCompileLogModel = projectCompileLogModel;
         this.organizationWarehouseCredentialsModel =
             organizationWarehouseCredentialsModel;
+        this.adminNotificationService = adminNotificationService;
+        this.spacePermissionService = spacePermissionService;
     }
 
     static getMetricQueryExecutionProperties({
@@ -810,7 +821,7 @@ export class ProjectService extends BaseService {
                     throw e;
                 }
                 this.logger.error(
-                    `Error refreshing databricks token: ${JSON.stringify(e)}`,
+                    `Error refreshing databricks token: ${getErrorMessage(e)}`,
                 );
                 throw new UnexpectedServerError(
                     'Error refreshing databricks token',
@@ -841,12 +852,16 @@ export class ProjectService extends BaseService {
                     this.lightdashConfig.auth.databricks.clientId ||
                     args.oauthClientId ||
                     DATABRICKS_DEFAULT_OAUTH_CLIENT_ID;
+                const clientSecret =
+                    this.lightdashConfig.auth.databricks.clientSecret ||
+                    args.oauthClientSecret;
 
                 const { accessToken, refreshToken: newRefreshToken } =
                     await refreshDatabricksOAuthToken(
                         args.serverHostName,
                         clientId,
                         refreshToken,
+                        clientSecret,
                     );
 
                 return {
@@ -860,7 +875,7 @@ export class ProjectService extends BaseService {
                     throw e;
                 }
                 this.logger.error(
-                    `Error refreshing databricks U2M OAuth token: ${JSON.stringify(
+                    `Error refreshing databricks U2M OAuth token: ${getErrorMessage(
                         e,
                     )}`,
                 );
@@ -1022,8 +1037,10 @@ export class ProjectService extends BaseService {
 
         if (
             args.warehouseConnection.type === WarehouseTypes.DATABRICKS &&
-            args.warehouseConnection.authenticationType ===
-                DatabricksAuthenticationType.OAUTH_M2M &&
+            (args.warehouseConnection.authenticationType ===
+                DatabricksAuthenticationType.OAUTH_M2M ||
+                args.warehouseConnection.authenticationType ===
+                    DatabricksAuthenticationType.OAUTH_U2M) &&
             !organizationWarehouseCredentialsUuid
         ) {
             const refreshToken = await this.userModel.getRefreshToken(
@@ -1110,10 +1127,12 @@ export class ProjectService extends BaseService {
         projectUuid,
         userId,
         isRegisteredUser,
+        isServiceAccount = false,
     }: {
         projectUuid: string;
         userId: string;
         isRegisteredUser: boolean;
+        isServiceAccount?: boolean;
     }) {
         // First, check if project uses organization-level credentials
         const project = await this.projectModel.get(projectUuid);
@@ -1136,6 +1155,13 @@ export class ProjectService extends BaseService {
             credentials = await this.refreshCredentials(
                 credentials, // This credentials are already loaded from organization
                 userId,
+            );
+        }
+
+        // Service accounts cannot use personal warehouse credentials
+        if (isServiceAccount && credentials.requireUserCredentials) {
+            throw new ForbiddenError(
+                'Service accounts cannot run queries when user credentials are required.',
             );
         }
 
@@ -1319,6 +1345,9 @@ export class ProjectService extends BaseService {
         const prevMetricTreeEdges =
             await this.catalogModel.getAllMetricsTreeEdges(projectUuid);
 
+        const prevMetricsTreeNodes =
+            await this.catalogModel.getAllMetricsTreeNodes(projectUuid);
+
         const { cachedExploreUuids } =
             await this.projectModel.saveExploresToCache(projectUuid, explores);
         const { organizationUuid } =
@@ -1354,6 +1383,7 @@ export class ProjectService extends BaseService {
             prevCatalogItemsWithTags,
             prevCatalogItemsWithIcons,
             prevMetricTreeEdges,
+            prevMetricsTreeNodes,
         });
     }
 
@@ -1831,6 +1861,22 @@ export class ProjectService extends BaseService {
                         );
                 }
                 break;
+            case WarehouseTypes.ATHENA:
+                const athenaAuthenticationType =
+                    project.warehouseConnection.authenticationType ??
+                    AthenaAuthenticationType.ACCESS_KEY;
+
+                if (
+                    athenaAuthenticationType ===
+                        AthenaAuthenticationType.ACCESS_KEY &&
+                    (!project.warehouseConnection.accessKeyId ||
+                        !project.warehouseConnection.secretAccessKey)
+                ) {
+                    throw new ParameterError(
+                        'Athena access key authentication requires accessKeyId and secretAccessKey',
+                    );
+                }
+                break;
             default:
                 break;
         }
@@ -1838,17 +1884,15 @@ export class ProjectService extends BaseService {
 
     async updateAndScheduleAsyncWork(
         projectUuid: string,
-        user: SessionUser,
+        account: Account,
         data: UpdateProject,
         method: RequestMethod,
     ): Promise<{ jobUuid: string }> {
-        if (!isUserWithOrg(user)) {
-            throw new ForbiddenError('User is not part of an organization');
-        }
+        assertIsAccountWithOrg(account);
         const savedProject =
             await this.projectModel.getWithSensitiveFields(projectUuid);
         if (
-            user.ability.cannot(
+            account.user.ability.cannot(
                 'update',
                 subject('Project', {
                     organizationUuid: savedProject.organizationUuid,
@@ -1864,7 +1908,7 @@ export class ProjectService extends BaseService {
             jobType: JobType.COMPILE_PROJECT,
             jobStatus: JobStatusType.STARTED,
             projectUuid: undefined,
-            userUuid: user.userUuid,
+            userUuid: account.user.id,
             steps: [
                 { stepType: JobStepType.TESTING_ADAPTOR },
                 ...(savedProject.dbtConnection.type === DbtProjectType.NONE
@@ -1874,7 +1918,7 @@ export class ProjectService extends BaseService {
         };
         const createProject = await this._resolveWarehouseClientCredentials(
             data,
-            user.userUuid,
+            account.user.id,
             savedProject.organizationUuid,
         );
         const updatedProject = ProjectModel.mergeMissingProjectConfigSecrets(
@@ -1885,17 +1929,48 @@ export class ProjectService extends BaseService {
         this.validateConfigSecrets(updatedProject);
 
         await this.projectModel.update(projectUuid, updatedProject);
+
+        if (
+            hasConnectionChanges(
+                {
+                    warehouseConnection: savedProject.warehouseConnection,
+                    dbtConnection: savedProject.dbtConnection,
+                },
+                {
+                    warehouseConnection: updatedProject.warehouseConnection,
+                    dbtConnection: updatedProject.dbtConnection,
+                },
+            )
+        ) {
+            this.adminNotificationService
+                .notifyConnectionSettingsChange({
+                    organizationUuid: savedProject.organizationUuid,
+                    projectUuid,
+                    projectName: savedProject.name,
+                    changedBy: account,
+                })
+                .catch((error) => {
+                    this.logger.error(
+                        'Failed to send connection settings change notification',
+                        {
+                            error,
+                            projectUuid,
+                        },
+                    );
+                });
+        }
+
         await this.jobModel.create(job);
 
         if (updatedProject.dbtConnection.type !== DbtProjectType.NONE) {
             await this.schedulerClient.testAndCompileProject({
-                organizationUuid: user.organizationUuid,
-                createdByUserUuid: user.userUuid,
+                organizationUuid: account.organization.organizationUuid,
+                createdByUserUuid: account.user.id,
                 projectUuid,
                 requestMethod: method,
                 jobUuid: job.jobUuid,
                 isPreview: savedProject.type === ProjectType.PREVIEW,
-                userUuid: user.userUuid,
+                userUuid: account.user.id,
             });
         } else {
             // Nothing to test and compile, just update the job status
@@ -1909,6 +1984,91 @@ export class ProjectService extends BaseService {
         return {
             jobUuid: job.jobUuid,
         };
+    }
+
+    /* 
+    Similar code to updateAndScheduleAsyncWork, but only for warehouse credentials
+    This will not trigger any job 
+    We could reuse this method in updateAndScheduleAsyncWork to avoid code duplication
+    */
+    async updateWarehouseCredentials(
+        projectUuid: string,
+        account: Account,
+        data: { warehouseConnection: CreateWarehouseCredentials },
+    ): Promise<void> {
+        assertIsAccountWithOrg(account);
+        const savedProject =
+            await this.projectModel.getWithSensitiveFields(projectUuid);
+        if (
+            account.user.ability.cannot(
+                'update',
+                subject('Project', {
+                    organizationUuid: savedProject.organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const updatedProjectData: UpdateProject = {
+            name: savedProject.name,
+            dbtConnection: savedProject.dbtConnection,
+            dbtVersion: savedProject.dbtVersion,
+            warehouseConnection: data.warehouseConnection,
+        };
+
+        const resolvedData = await this._resolveWarehouseClientCredentials(
+            updatedProjectData,
+            account.user.id,
+            savedProject.organizationUuid,
+        );
+
+        const updatedProject = ProjectModel.mergeMissingProjectConfigSecrets(
+            resolvedData,
+            savedProject,
+        );
+
+        // extra security measure, let's remove all sensitive credentials when authentication type is NONE on Snowflake
+        if (
+            updatedProject.warehouseConnection.type ===
+                WarehouseTypes.SNOWFLAKE &&
+            updatedProject.warehouseConnection.authenticationType ===
+                SnowflakeAuthenticationType.NONE
+        ) {
+            updatedProject.warehouseConnection =
+                OrganizationWarehouseCredentialsModel.stripSensitiveCredentials(
+                    updatedProject.warehouseConnection,
+                ) as CreateWarehouseCredentials;
+        }
+
+        this.validateConfigSecrets(updatedProject);
+
+        await this.projectModel.update(projectUuid, updatedProject);
+
+        if (
+            hasConnectionChanges(
+                { warehouseConnection: savedProject.warehouseConnection },
+                { warehouseConnection: updatedProject.warehouseConnection },
+            )
+        ) {
+            this.adminNotificationService
+                .notifyConnectionSettingsChange({
+                    organizationUuid: savedProject.organizationUuid,
+                    projectUuid,
+                    projectName: savedProject.name,
+                    changedBy: account,
+                })
+                .catch((error) => {
+                    this.logger.error(
+                        'Failed to send connection settings change notification',
+                        {
+                            error,
+                            projectUuid,
+                        },
+                    );
+                });
+        }
     }
 
     async testAndCompileProject(
@@ -2235,22 +2395,48 @@ export class ProjectService extends BaseService {
             project.warehouseConnection.authenticationType ===
                 DatabricksAuthenticationType.OAUTH_U2M
         ) {
-            // For U2M OAuth, check if token needs refresh
-            if (project.warehouseConnection.refreshToken) {
+            // For U2M OAuth, resolve refresh token from user credentials if not on project
+            let u2mRefreshToken =
+                project.warehouseConnection.refreshToken ?? undefined;
+
+            if (!u2mRefreshToken) {
+                const userCreds =
+                    await this.userWarehouseCredentialsModel.findForProjectWithSecrets(
+                        projectUuid,
+                        user.userUuid,
+                        WarehouseTypes.DATABRICKS,
+                    );
+                if (
+                    userCreds?.credentials.type === WarehouseTypes.DATABRICKS &&
+                    userCreds.credentials.authenticationType ===
+                        DatabricksAuthenticationType.OAUTH_U2M &&
+                    userCreds.credentials.refreshToken
+                ) {
+                    u2mRefreshToken = userCreds.credentials.refreshToken;
+                }
+            }
+
+            if (u2mRefreshToken) {
                 this.logger.debug(
                     `Refreshing databricks U2M OAuth token from refresh token on buildAdapter`,
                 );
+                const clientId =
+                    this.lightdashConfig.auth.databricks.clientId ||
+                    project.warehouseConnection.oauthClientId ||
+                    DATABRICKS_DEFAULT_OAUTH_CLIENT_ID;
+                const clientSecret =
+                    this.lightdashConfig.auth.databricks.clientSecret ||
+                    project.warehouseConnection.oauthClientSecret;
+
                 const { accessToken, refreshToken } =
                     await refreshDatabricksOAuthToken(
                         project.warehouseConnection.serverHostName,
-                        project.warehouseConnection.oauthClientId ||
-                            DATABRICKS_DEFAULT_OAUTH_CLIENT_ID,
-                        project.warehouseConnection.refreshToken,
+                        clientId,
+                        u2mRefreshToken,
+                        clientSecret,
                     );
                 project.warehouseConnection.token = accessToken;
-                // Update refresh token in case it was rotated
                 project.warehouseConnection.refreshToken = refreshToken;
-                // Note: Updated tokens will be persisted when project credentials are next saved
             }
         }
 
@@ -2391,6 +2577,7 @@ export class ProjectService extends BaseService {
             parameterDefinitions: availableParameterDefinitions,
             pivotConfiguration,
             continueOnError,
+            originalExplore: dateZoom ? explore : undefined,
         });
 
         return wrapSentryTransactionSync('QueryBuilder.buildQuery', {}, () =>
@@ -2588,8 +2775,11 @@ export class ProjectService extends BaseService {
         );
         const { organizationUuid, projectUuid } = savedChart;
 
-        const [space, explore] = await Promise.all([
-            this.spaceModel.getSpaceSummary(savedChart.spaceUuid),
+        const [spaceCtx, explore] = await Promise.all([
+            this.spacePermissionService.getSpaceAccessContext(
+                account.user.id,
+                savedChart.spaceUuid,
+            ),
             this.getExplore(
                 account,
                 projectUuid,
@@ -2598,20 +2788,10 @@ export class ProjectService extends BaseService {
             ),
         ]);
 
-        const access = await this.spaceModel.getUserSpaceAccess(
-            account.user.id,
-            space.uuid,
-        );
-
         if (
             account.user.ability.cannot(
                 'view',
-                subject('SavedChart', {
-                    organizationUuid,
-                    projectUuid,
-                    isPrivate: space.isPrivate,
-                    access,
-                }),
+                subject('SavedChart', spaceCtx),
             ) ||
             account.user.ability.cannot(
                 'view',
@@ -2683,8 +2863,11 @@ export class ProjectService extends BaseService {
         const savedChart = await this.savedChartModel.get(chartUuid);
         const { organizationUuid, projectUuid } = savedChart;
 
-        const [space, explore] = await Promise.all([
-            this.spaceModel.getSpaceSummary(savedChart.spaceUuid),
+        const [spaceCtx, explore] = await Promise.all([
+            this.spacePermissionService.getSpaceAccessContext(
+                account.user.id,
+                savedChart.spaceUuid,
+            ),
             this.getExplore(
                 account,
                 projectUuid,
@@ -2693,20 +2876,10 @@ export class ProjectService extends BaseService {
             ),
         ]);
 
-        const access = await this.spaceModel.getUserSpaceAccess(
-            account.user.id,
-            space.uuid,
-        );
-
         if (
             account.user.ability.cannot(
                 'view',
-                subject('SavedChart', {
-                    organizationUuid,
-                    projectUuid,
-                    isPrivate: space.isPrivate,
-                    access,
-                }),
+                subject('SavedChart', spaceCtx),
             ) ||
             account.user.ability.cannot(
                 'view',
@@ -2811,7 +2984,11 @@ export class ProjectService extends BaseService {
         }
 
         return {
-            chart: { ...savedChart, isPrivate: space.isPrivate, access },
+            chart: {
+                ...savedChart,
+                isPrivate: spaceCtx.isPrivate,
+                access: spaceCtx.access,
+            },
             explore,
             metricQuery: metricQueryWithDashboardOverrides,
             cacheMetadata,
@@ -3001,35 +3178,6 @@ export class ProjectService extends BaseService {
         );
     }
 
-    async runMetricExplorerQuery(
-        account: Account,
-        projectUuid: string,
-        exploreName: string,
-        metricQuery: MetricQuery,
-    ) {
-        const { result } = await measureTime(
-            () =>
-                this.runMetricQuery({
-                    account,
-                    metricQuery,
-                    projectUuid,
-                    exploreName,
-                    csvLimit: undefined,
-                    context: QueryExecutionContext.METRICS_EXPLORER,
-                    queryTags: {},
-                    chartUuid: undefined,
-                }),
-            'runMetricQuery',
-            this.logger,
-            {
-                exploreName,
-                metricQuery,
-            },
-        );
-
-        return result;
-    }
-
     async getResultsForChart(
         account: Account,
         chartUuid: string,
@@ -3131,7 +3279,7 @@ export class ProjectService extends BaseService {
                 ) {
                     const cacheEntryMetadata = await this.s3CacheClient
                         .getResultsMetadata(queryHash)
-                        .catch((e) => undefined); // ignore since error is tracked in s3Client
+                        .catch((e) => undefined); // ignore since error is tracked in fileStorageClient
 
                     if (
                         cacheEntryMetadata?.LastModified &&
@@ -3223,7 +3371,7 @@ export class ProjectService extends BaseService {
                     // fire and forget
                     this.s3CacheClient
                         .uploadResults(queryHash, buffer, queryTags)
-                        .catch((e) => undefined); // ignore since error is tracked in s3Client
+                        .catch((e) => undefined); // ignore since error is tracked in fileStorageClient
                 }
 
                 return {
@@ -3310,6 +3458,7 @@ export class ProjectService extends BaseService {
                             projectUuid,
                             userId: account.user.id,
                             isRegisteredUser: account.isRegisteredUser(),
+                            isServiceAccount: account.isServiceAccount(),
                         });
                     const { warehouseClient, sshTunnel } =
                         await this._getWarehouseClient(
@@ -3540,7 +3689,7 @@ export class ProjectService extends BaseService {
         const columns: VizColumn[] = [];
 
         const fileUrl = await this.downloadFileModel.streamFunction(
-            this.s3Client,
+            this.fileStorageClient,
         )(
             `${this.lightdashConfig.siteUrl}/api/v1/projects/${projectUuid}/sqlRunner/results`,
             async (writer) => {
@@ -3564,7 +3713,7 @@ export class ProjectService extends BaseService {
                     },
                 );
             },
-            this.s3Client,
+            this.fileStorageClient,
         );
 
         await sshTunnel.disconnect();
@@ -3647,7 +3796,7 @@ export class ProjectService extends BaseService {
         let columnCount: undefined | number;
 
         const fileUrl = await this.downloadFileModel.streamFunction(
-            this.s3Client,
+            this.fileStorageClient,
         )(
             `${this.lightdashConfig.siteUrl}/api/v1/projects/${projectUuid}/sqlRunner/results`,
             async (writer) => {
@@ -3741,7 +3890,7 @@ export class ProjectService extends BaseService {
                     writer(currentTransformedRow);
                 }
             },
-            this.s3Client,
+            this.fileStorageClient,
         );
 
         await sshTunnel.disconnect();
@@ -3787,7 +3936,7 @@ export class ProjectService extends BaseService {
             case DownloadFileType.JSONL:
                 return fs.createReadStream(downloadFile.path);
             case DownloadFileType.S3_JSONL:
-                return this.s3Client.getS3FileStream(downloadFile.path);
+                return this.fileStorageClient.getFileStream(downloadFile.path);
             default:
                 throw new ParameterError('File is not a valid JSONL file');
         }
@@ -4493,8 +4642,12 @@ export class ProjectService extends BaseService {
         const { userAttributes } = await this.getUserAttributes({ account });
 
         return exploreSummaries.reduce<SummaryExplore[]>((acc, summary) => {
-            const { baseTableRequiredAttributes, ...rest } = summary;
-            const summaryExplore: SummaryExplore = rest; // Just type assertion to remove the baseTableRequiredAttributes
+            const {
+                baseTableRequiredAttributes,
+                baseTableAnyAttributes,
+                ...rest
+            } = summary;
+            const summaryExplore: SummaryExplore = rest; // Just type assertion to remove the baseTableRequiredAttributes and baseTableAnyAttributes
 
             if (!includeErrors && 'errors' in summaryExplore) {
                 return acc;
@@ -4504,6 +4657,7 @@ export class ProjectService extends BaseService {
             if (
                 !doesExploreMatchRequiredAttributes(
                     baseTableRequiredAttributes,
+                    baseTableAnyAttributes,
                     userAttributes,
                 )
             ) {
@@ -4994,22 +5148,18 @@ export class ProjectService extends BaseService {
                         savedChartUuid,
                     ]);
 
-                const space = await this.spaceModel.getSpaceSummary(
-                    savedChart.spaceUuid,
-                );
-
-                const access = await this.spaceModel.getUserSpaceAccess(
-                    account.user.id,
-                    space.uuid,
-                );
+                const spaceCtx =
+                    await this.spacePermissionService.getSpaceAccessContext(
+                        account.user.id,
+                        savedChart.spaceUuid,
+                    );
 
                 if (
                     account.user.ability.cannot(
                         'view',
                         subject('SavedChart', {
                             ...savedChart,
-                            isPrivate: space.isPrivate,
-                            access,
+                            ...spaceCtx,
                         }),
                     )
                 ) {
@@ -5060,40 +5210,31 @@ export class ProjectService extends BaseService {
                     return [];
                 }
 
-                const [spaceAccessMap, exploresMap, userSpacesAccess] =
-                    await Promise.all([
-                        this.spaceModel.getSpacesForAccessCheck(
-                            uniqueSpaceUuids,
+                const [spacesCtx, exploresMap] = await Promise.all([
+                    this.spacePermissionService.getSpacesAccessContext(
+                        account.user.id,
+                        uniqueSpaceUuids,
+                    ),
+                    this.findExplores({
+                        account,
+                        projectUuid: savedCharts[0].projectUuid, // TODO: route should be updated to be project/dashboard specific. For now we pick it from first chart as they all should be from the same project
+                        exploreNames: savedCharts.map(
+                            (chart) => chart.tableName,
                         ),
-                        this.findExplores({
-                            account,
-                            projectUuid: savedCharts[0].projectUuid, // TODO: route should be updated to be project/dashboard specific. For now we pick it from first chart as they all should be from the same project
-                            exploreNames: savedCharts.map(
-                                (chart) => chart.tableName,
-                            ),
-                            organizationUuid:
-                                account.organization.organizationUuid,
-                        }),
-                        this.spaceModel.getUserSpacesAccess(
-                            account.user.id,
-                            uniqueSpaceUuids,
-                        ),
-                    ]);
+                        organizationUuid: account.organization.organizationUuid,
+                    }),
+                ]);
 
                 return savedCharts.map((savedChart) => {
-                    const spaceAccess = spaceAccessMap.get(
-                        savedChart.spaceUuid,
-                    );
+                    const spaceCtx = spacesCtx[savedChart.spaceUuid];
 
                     if (
+                        !spaceCtx ||
                         account.user.ability.cannot(
                             'view',
                             subject('SavedChart', {
                                 ...savedChart,
-                                isPrivate: spaceAccess?.isPrivate,
-                                access:
-                                    userSpacesAccess[savedChart.spaceUuid] ??
-                                    [],
+                                ...spaceCtx,
                             }),
                         )
                     ) {
@@ -5386,22 +5527,12 @@ export class ProjectService extends BaseService {
         }
 
         const spaces = await this.spaceModel.find({ projectUuid });
-        const spacesAccess = await this.spaceModel.getUserSpacesAccess(
-            user.userUuid,
-            spaces.map((s) => s.uuid),
-        );
-
-        const allowedSpaceUuids = spaces
-            .filter(
-                (space) =>
-                    space.projectUuid === projectUuid &&
-                    hasViewAccessToSpace(
-                        user,
-                        space,
-                        spacesAccess[space.uuid] ?? [],
-                    ),
-            )
-            .map(({ uuid }) => uuid);
+        const allowedSpaceUuids =
+            await this.spacePermissionService.getAccessibleSpaceUuids(
+                'view',
+                user,
+                spaces.map((s) => s.uuid),
+            );
 
         const savedQueries =
             await this.spaceModel.getSpaceQueries(allowedSpaceUuids);
@@ -5428,22 +5559,12 @@ export class ProjectService extends BaseService {
         }
 
         const spaces = await this.spaceModel.find({ projectUuid });
-        const spacesAccess = await this.spaceModel.getUserSpacesAccess(
-            user.userUuid,
-            spaces.map((s) => s.uuid),
-        );
-
-        const allowedSpaceUuids = spaces
-            .filter(
-                (space) =>
-                    space.projectUuid === projectUuid &&
-                    hasViewAccessToSpace(
-                        user,
-                        space,
-                        spacesAccess[space.uuid] ?? [],
-                    ),
-            )
-            .map((space) => space.uuid);
+        const allowedSpaceUuids =
+            await this.spacePermissionService.getAccessibleSpaceUuids(
+                'view',
+                user,
+                spaces.map((s) => s.uuid),
+            );
 
         return this.savedChartModel.find({
             projectUuid,
@@ -5470,19 +5591,16 @@ export class ProjectService extends BaseService {
         }
 
         const spaces = await this.spaceModel.find({ projectUuid });
-        const spacesAccess = await this.spaceModel.getUserSpacesAccess(
-            user.userUuid,
-            spaces.map((s) => s.uuid),
-        );
-        const allowedSpaces = spaces.filter(
-            (space) =>
-                (space.projectUuid === projectUuid &&
-                    hasDirectAccessToSpace(user, space)) ||
-                hasViewAccessToSpace(
-                    user,
-                    space,
-                    spacesAccess[space.uuid] ?? [],
-                ),
+        const allowedSpaceUuids =
+            await this.spacePermissionService.getAccessibleSpaceUuids(
+                'view',
+                user,
+                spaces.map((s) => s.uuid),
+            );
+
+        const allowedSpaceUuidsSet = new Set(allowedSpaceUuids);
+        const allowedSpaces = spaces.filter((space) =>
+            allowedSpaceUuidsSet.has(space.uuid),
         );
 
         const mostPopular = await this.getMostPopular(allowedSpaces);
@@ -5579,21 +5697,25 @@ export class ProjectService extends BaseService {
         }
 
         const spaces = await this.spaceModel.find({ projectUuid });
-        const spacesAccess = await this.spaceModel.getUserSpacesAccess(
-            user.userUuid,
-            spaces.map((s) => s.uuid),
-        );
+        const spaceUuids = spaces.map((s) => s.uuid);
+        const spacesCtx =
+            await this.spacePermissionService.getSpacesAccessContext(
+                user.userUuid,
+                spaceUuids,
+            );
 
-        const spacesWithUserAccess = spaces
-            .filter((space) =>
-                hasViewAccessToSpace(user, space, spacesAccess[space.uuid]),
-            )
+        return spaces
+            .filter((space) => {
+                const ctx = spacesCtx[space.uuid];
+                return ctx && user.ability.can('view', subject('Space', ctx));
+            })
             .map((spaceSummary) => ({
                 ...spaceSummary,
-                userAccess: spacesAccess[spaceSummary.uuid]?.[0] ?? [],
+                userAccess:
+                    spacesCtx[spaceSummary.uuid]?.access.find(
+                        (a) => a.userUuid === user.userUuid,
+                    ) ?? undefined,
             }));
-
-        return spacesWithUserAccess;
     }
 
     async createPreview(
@@ -5806,6 +5928,7 @@ export class ProjectService extends BaseService {
                 projectUuid,
                 userId: account.user.id,
                 isRegisteredUser: account.isRegisteredUser(),
+                isServiceAccount: account.isServiceAccount(),
             }),
             {
                 snowflakeVirtualWarehouse: explore.warehouse,
@@ -5865,6 +5988,7 @@ export class ProjectService extends BaseService {
             projectUuid,
             userId: account.user.id,
             isRegisteredUser: account.isRegisteredUser(),
+            isServiceAccount: account.isServiceAccount(),
         });
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
@@ -5974,23 +6098,16 @@ export class ProjectService extends BaseService {
               )
             : savedChart.metricQuery;
 
-        const space = await this.spaceModel.getSpaceSummary(
-            savedChart.spaceUuid,
-        );
-        const access = await this.spaceModel.getUserSpaceAccess(
-            account.user.id,
-            savedChart.spaceUuid,
-        );
+        const spaceCtx =
+            await this.spacePermissionService.getSpaceAccessContext(
+                account.user.id,
+                savedChart.spaceUuid,
+            );
 
         if (
             account.user.ability.cannot(
                 'view',
-                subject('SavedChart', {
-                    organizationUuid,
-                    projectUuid,
-                    isPrivate: space.isPrivate,
-                    access,
-                }),
+                subject('SavedChart', spaceCtx),
             ) ||
             account.user.ability.cannot(
                 'view',
@@ -6516,6 +6633,7 @@ export class ProjectService extends BaseService {
                 projectUuid,
                 userId: account.user.id,
                 isRegisteredUser: account.isRegisteredUser(),
+                isServiceAccount: account.isServiceAccount(),
             }),
         );
 

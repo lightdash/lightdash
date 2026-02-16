@@ -293,9 +293,13 @@ export class GithubAppService extends BaseService {
         const appOctokit = getOctokitRestForApp(installationId);
 
         try {
-            const { data } =
-                await appOctokit.apps.listReposAccessibleToInstallation();
-            return data.repositories.map((repo) => ({
+            // Use pagination to fetch all repositories (default is only 30 per page)
+            // The paginate helper automatically handles the repositories array from the response
+            const repositories = await appOctokit.paginate(
+                'GET /installation/repositories',
+                { per_page: 100 },
+            );
+            return repositories.map((repo) => ({
                 name: repo.name,
                 ownerLogin: repo.owner.login,
                 fullName: repo.full_name,

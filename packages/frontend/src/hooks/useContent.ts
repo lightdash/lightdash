@@ -19,6 +19,7 @@ import {
 } from '@tanstack/react-query';
 import { useNavigate } from 'react-router';
 import { lightdashApi } from '../api';
+import useApp from '../providers/App/useApp';
 import useToaster from './toaster/useToaster';
 
 export type ContentArgs = {
@@ -111,7 +112,7 @@ const postContentBulkAction = async ({
     });
 };
 
-const invalidateContent = async (
+export const invalidateContent = async (
     queryClient: QueryClient,
     projectUuid: string,
 ) => {
@@ -124,6 +125,7 @@ const invalidateContent = async (
         queryClient.invalidateQueries(['space', projectUuid]),
         queryClient.invalidateQueries(['space']),
         queryClient.invalidateQueries(['spaces']),
+        queryClient.invalidateQueries([projectUuid, 'search']),
     ]);
 };
 
@@ -138,6 +140,8 @@ export const useContentAction = (
     const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
     const navigate = useNavigate();
+    const { health } = useApp();
+    const isSoftDeleteEnabled = health.data?.softDelete.enabled ?? false;
 
     return useMutation<ApiSuccessEmpty, ApiError, ApiContentActionBody>({
         mutationFn: (body) => {
@@ -179,8 +183,19 @@ export const useContentAction = (
                     });
 
                 case 'delete':
+                    await queryClient.invalidateQueries(['deletedContent']);
                     return showToastSuccess({
                         title: `Successfully deleted ${item.contentType}.`,
+                        action: isSoftDeleteEnabled
+                            ? {
+                                  children: 'Go to recently deleted',
+                                  icon: IconArrowRight,
+                                  onClick: () =>
+                                      navigate(
+                                          `/generalSettings/projectManagement/${projectUuid}/recentlyDeleted`,
+                                      ),
+                              }
+                            : undefined,
                     });
 
                 default:
@@ -212,6 +227,8 @@ export const useContentBulkAction = (
     const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
     const navigate = useNavigate();
+    const { health } = useApp();
+    const isSoftDeleteEnabled = health.data?.softDelete.enabled ?? false;
 
     return useMutation<ApiSuccessEmpty, ApiError, ApiContentBulkActionBody>({
         mutationFn: (body) => {
@@ -253,10 +270,21 @@ export const useContentBulkAction = (
                     });
 
                 case 'delete':
+                    await queryClient.invalidateQueries(['deletedContent']);
                     return showToastSuccess({
                         title: `Successfully deleted ${content.length} ${
                             content.length === 1 ? 'item' : 'items'
                         }.`,
+                        action: isSoftDeleteEnabled
+                            ? {
+                                  children: 'Go to recently deleted',
+                                  icon: IconArrowRight,
+                                  onClick: () =>
+                                      navigate(
+                                          `/generalSettings/projectManagement/${projectUuid}/recentlyDeleted`,
+                                      ),
+                              }
+                            : undefined,
                     });
 
                 default:

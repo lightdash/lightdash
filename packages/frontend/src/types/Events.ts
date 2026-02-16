@@ -16,6 +16,7 @@ export enum PageName {
     SAVED_QUERIES = 'saved_charts',
     SAVED_QUERY_EXPLORER = 'saved_chart_explorer',
     CHART_HISTORY = 'chart_history',
+    DASHBOARD_HISTORY = 'dashboard_history',
     PROJECT_SETTINGS = 'project_settings',
     PROFILE_SETTINGS = 'profile_settings',
     GENERAL_SETTINGS = 'general_settings',

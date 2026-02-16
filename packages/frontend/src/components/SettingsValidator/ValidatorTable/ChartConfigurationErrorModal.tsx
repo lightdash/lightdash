@@ -1,5 +1,5 @@
 import { type ValidationErrorChartResponse } from '@lightdash/common';
-import { Anchor, Button, Stack, Text } from '@mantine/core';
+import { Anchor, Button, Stack, Text } from '@mantine-8/core';
 import { IconAlertTriangle } from '@tabler/icons-react';
 import { type FC } from 'react';
 import Callout from '../../common/Callout';
@@ -37,7 +37,7 @@ export const ChartConfigurationErrorModal: FC<Props> = ({
                 </Button>
             }
         >
-            <Stack spacing="md">
+            <Stack gap="md">
                 <Text fz="sm">
                     Chart:{' '}
                     <Anchor href={chartUrl} target="_blank">
@@ -67,7 +67,7 @@ export const ChartConfigurationErrorModal: FC<Props> = ({
                 <Text fz="sm" fw={500}>
                     To fix this issue, either:
                 </Text>
-                <Stack spacing="xs" ml="md">
+                <Stack gap="xs" ml="md">
                     <Text fz="sm">
                         1. Remove the unused dimension from the query
                     </Text>

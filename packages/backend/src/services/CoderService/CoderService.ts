@@ -44,7 +44,7 @@ import { SpaceModel } from '../../models/SpaceModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { BaseService } from '../BaseService';
 import { PromoteService } from '../PromoteService/PromoteService';
-import { hasViewAccessToSpace } from '../SpaceService/SpaceService';
+import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 
 type CoderServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -56,6 +56,7 @@ type CoderServiceArguments = {
     spaceModel: SpaceModel;
     schedulerClient: SchedulerClient;
     promoteService: PromoteService;
+    spacePermissionService: SpacePermissionService;
 };
 
 const isAnyChartTile = (
@@ -85,6 +86,8 @@ export class CoderService extends BaseService {
 
     promoteService: PromoteService;
 
+    spacePermissionService: SpacePermissionService;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -95,6 +98,7 @@ export class CoderService extends BaseService {
         spaceModel,
         schedulerClient,
         promoteService,
+        spacePermissionService,
     }: CoderServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -106,6 +110,7 @@ export class CoderService extends BaseService {
         this.spaceModel = spaceModel;
         this.schedulerClient = schedulerClient;
         this.promoteService = promoteService;
+        this.spacePermissionService = spacePermissionService;
     }
 
     private static transformChart(
@@ -138,6 +143,7 @@ export class CoderService extends BaseService {
             spaceSlug,
             version: currentVersion,
             downloadedAt: new Date(),
+            parameters: chart.parameters,
         };
     }
 
@@ -504,20 +510,18 @@ export class CoderService extends BaseService {
             // User is an admin, return all content
             return content;
         }
-        const spacesAccess = await this.spaceModel.getUserSpacesAccess(
-            user.userUuid,
-            spaces.map((s) => s.uuid),
-        );
 
-        return content.filter((c) => {
-            const space = spaces.find((s) => s.uuid === c.spaceUuid);
-            if (!space) return false;
-            return hasViewAccessToSpace(
+        const spaceUuids = spaces.map((s) => s.uuid);
+
+        const accessibleSpaceUuids =
+            await this.spacePermissionService.getAccessibleSpaceUuids(
+                'view',
                 user,
-                space,
-                spacesAccess[space.uuid] ?? [],
+                spaceUuids,
             );
-        });
+
+        const accessibleSet = new Set(accessibleSpaceUuids);
+        return content.filter((c) => accessibleSet.has(c.spaceUuid));
     }
 
     /*
@@ -1187,22 +1191,18 @@ export class CoderService extends BaseService {
         });
 
         if (existingSpace !== undefined) {
-            const spacesAccess = await this.spaceModel.getUserSpacesAccess(
-                user.userUuid,
-                [existingSpace.uuid],
-            );
             if (
-                hasViewAccessToSpace(
+                !(await this.spacePermissionService.can(
+                    'view',
                     user,
-                    existingSpace,
-                    spacesAccess[existingSpace.uuid] ?? [],
-                )
+                    existingSpace.uuid,
+                ))
             ) {
-                return { space: existingSpace, created: false };
+                throw new ForbiddenError(
+                    "You don't have access to a private space",
+                );
             }
-            throw new ForbiddenError(
-                "You don't have access to a private space",
-            );
+            return { space: existingSpace, created: false };
         }
         if (skipSpaceCreate) {
             throw new NotFoundError(
@@ -1228,7 +1228,11 @@ export class CoderService extends BaseService {
 
         let parentSpaceUuid = closestAncestorSpaceUuid;
         let parentPath = closestAncestorSpace?.path ?? '';
+        const isPrivate =
+            closestAncestorSpace?.isPrivate ?? publicSpaceCreate !== true;
+        const inheritParentPermissions = !isPrivate;
         const newSpaces: Space[] = [];
+
         for await (const currentPath of remainingPath) {
             if (!parentPath) {
                 parentPath = currentPath;
@@ -1238,9 +1242,8 @@ export class CoderService extends BaseService {
 
             const newSpace = await this.spaceModel.createSpace(
                 {
-                    isPrivate:
-                        closestAncestorSpace?.isPrivate ??
-                        publicSpaceCreate !== true,
+                    isPrivate,
+                    inheritParentPermissions,
                     name: friendlyName(currentPath),
                     parentSpaceUuid,
                 },
@@ -1253,27 +1256,33 @@ export class CoderService extends BaseService {
 
             if (newSpace.isPrivate) {
                 if (parentSpaceUuid) {
-                    const newSpaceWithAccess =
-                        await this.spaceModel.getFullSpace(parentSpaceUuid);
+                    const [ctx, groupsAccess] = await Promise.all([
+                        this.spacePermissionService.getAllSpaceAccessContext(
+                            parentSpaceUuid,
+                        ),
+                        this.spacePermissionService.getGroupAccess(
+                            parentSpaceUuid,
+                        ),
+                    ]);
 
-                    const userAccessPromises = newSpaceWithAccess.access
-                        .filter((access) => access.hasDirectAccess)
-                        .map((userAccess) =>
+                    const userAccessPromises = ctx.access
+                        .filter((a) => a.hasDirectAccess)
+                        .map((a) =>
                             this.spaceModel.addSpaceAccess(
                                 newSpace.uuid,
-                                userAccess.userUuid,
-                                userAccess.role,
+                                a.userUuid,
+                                a.role,
                             ),
                         );
 
-                    const groupAccessPromises =
-                        newSpaceWithAccess.groupsAccess.map((groupAccess) =>
+                    const groupAccessPromises = groupsAccess.map(
+                        (groupAccess) =>
                             this.spaceModel.addSpaceGroupAccess(
                                 newSpace.uuid,
                                 groupAccess.groupUuid,
                                 groupAccess.spaceRole,
                             ),
-                        );
+                    );
 
                     await Promise.all([
                         ...userAccessPromises,

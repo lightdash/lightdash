@@ -1,5 +1,6 @@
-import { generateObject, LanguageModel, ModelMessage } from 'ai';
+import { generateObject, ModelMessage } from 'ai';
 import { z } from 'zod';
+import { GeneratorModelOptions } from '../models/types';
 
 const TITLE_MAX_LENGTH_CHARS = 60;
 const TitleSchema = z.object({
@@ -16,11 +17,13 @@ const TitleSchema = z.object({
 export type GeneratedTitle = z.infer<typeof TitleSchema>;
 
 export async function generateThreadTitle(
-    model: LanguageModel,
+    modelOptions: GeneratorModelOptions,
     messages: ModelMessage[],
 ): Promise<string> {
     const result = await generateObject({
-        model,
+        model: modelOptions.model,
+        ...modelOptions.callOptions,
+        providerOptions: modelOptions.providerOptions,
         schema: TitleSchema,
         messages: [
             {
@@ -44,7 +47,6 @@ The title should be clear, specific, and helpful for someone browsing a list of 
             },
             ...messages,
         ],
-        temperature: 0.3,
     });
 
     return result.object.title;

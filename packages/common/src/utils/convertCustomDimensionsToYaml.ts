@@ -140,6 +140,14 @@ const warehouseClientMock: WarehouseClient = {
     getMedianSql(valueSql) {
         return `PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY ${valueSql})`;
     },
+    buildArray(elements) {
+        return `ARRAY[${elements.join(', ')}]`;
+    },
+    buildArrayAgg(expression, orderBy) {
+        return orderBy
+            ? `ARRAY_AGG(${expression} ORDER BY ${orderBy})`
+            : `ARRAY_AGG(${expression})`;
+    },
 };
 
 export const previewConvertCustomDimensionToDbt = (

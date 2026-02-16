@@ -1,0 +1,130 @@
+{{> _emailHead}}
+                                                                            <!-- Title -->
+                                                                            <tr>
+                                                                                <td>
+                                                                                    <table
+                                                                                        role="presentation"
+                                                                                        cellpadding="0"
+                                                                                        cellspacing="0"
+                                                                                        align="left"
+                                                                                    >
+                                                                                        <tr>
+                                                                                            <td
+                                                                                                style="
+                                                                                                    width: 600px;
+                                                                                                "
+                                                                                            >
+                                                                                                <h1
+                                                                                                    style="
+                                                                                                        font-family: BlinkMacSystemFont,
+                                                                                                            Segoe
+                                                                                                                UI,
+                                                                                                            Helvetica
+                                                                                                                Neue,
+                                                                                                            Arial,
+                                                                                                            sans-serif,
+                                                                                                            'Roboto';
+                                                                                                        line-height: 28px;
+                                                                                                        font-weight: 500;
+                                                                                                        font-style: normal;
+                                                                                                        font-size: 24px;
+                                                                                                        text-decoration: none;
+                                                                                                        text-transform: none;
+                                                                                                        direction: ltr;
+                                                                                                        color: #121212;
+                                                                                                        text-align: left;
+                                                                                                        margin-bottom: 20px;
+                                                                                                    "
+                                                                                                >
+                                                                                                    {{#if isRemoval}}Admin Removed{{else}}Admin Added{{/if}}
+                                                                                                </h1>
+                                                                                            </td>
+                                                                                        </tr>
+                                                                                    </table>
+                                                                                </td>
+                                                                            </tr>
+                                                                            <!-- Main content -->
+                                                                            <tr>
+                                                                                <td>
+                                                                                    <table
+                                                                                        role="presentation"
+                                                                                        cellpadding="0"
+                                                                                        cellspacing="0"
+                                                                                        align="left"
+                                                                                    >
+                                                                                        <tr>
+                                                                                            <td
+                                                                                                style="
+                                                                                                    width: 600px;
+                                                                                                "
+                                                                                            >
+                                                                                                <div
+                                                                                                    style="
+                                                                                                        font-family: BlinkMacSystemFont,
+                                                                                                            Segoe
+                                                                                                                UI,
+                                                                                                            Helvetica
+                                                                                                                Neue,
+                                                                                                            Arial,
+                                                                                                            sans-serif,
+                                                                                                            'Roboto';
+                                                                                                        line-height: 24px;
+                                                                                                        font-weight: 400;
+                                                                                                        font-style: normal;
+                                                                                                        font-size: 16px;
+                                                                                                        text-decoration: none;
+                                                                                                        text-transform: none;
+                                                                                                        direction: ltr;
+                                                                                                        color: #333333;
+                                                                                                        text-align: left;
+                                                                                                    "
+                                                                                                >
+                                                                                                    <p style="margin-bottom: 16px;">
+                                                                                                        {{#if isRemoval}}
+                                                                                                            <strong>{{targetUser.firstName}} {{targetUser.lastName}}</strong> ({{targetUser.email}}) has been removed as an admin.
+                                                                                                        {{else}}
+                                                                                                            <strong>{{targetUser.firstName}} {{targetUser.lastName}}</strong> ({{targetUser.email}}) has been added as an admin.
+                                                                                                        {{/if}}
+                                                                                                    </p>
+
+                                                                                                    <!-- Context info -->
+                                                                                                    <div style="background-color: #f0f0f0; border-radius: 4px; padding: 16px; margin: 16px 0;">
+                                                                                                        {{#if projectName}}
+                                                                                                            <p style="margin: 0 0 8px 0;"><strong>Project:</strong> {{projectName}}</p>
+                                                                                                        {{/if}}
+                                                                                                        <p style="margin: 0 0 8px 0;"><strong>Organization:</strong> {{organizationName}}</p>
+                                                                                                    </div>
+
+                                                                                                    <!-- Changed by info -->
+                                                                                                    <div style="margin: 16px 0;">
+                                                                                                        <p style="margin: 0 0 8px 0; color: #666; font-size: 14px;">
+                                                                                                            <strong>Changed by:</strong>
+                                                                                                            {{#if changedBy.isServiceAccount}}
+                                                                                                                Service Account{{#if changedBy.serviceAccountDescription}}: {{changedBy.serviceAccountDescription}}{{/if}}
+                                                                                                            {{else}}
+                                                                                                                {{changedBy.firstName}} {{changedBy.lastName}} ({{changedBy.email}})
+                                                                                                            {{/if}}
+                                                                                                        </p>
+                                                                                                        <p style="margin: 0; color: #666; font-size: 14px;">
+                                                                                                            <strong>Time:</strong> {{timestamp}} UTC
+                                                                                                        </p>
+                                                                                                    </div>
+
+                                                                                                    <!-- CTA Button -->
+                                                                                                    <div style="margin-top: 24px;">
+                                                                                                        <a href="{{settingsUrl}}" style="background-color: #7262FF; color: #ffffff; padding: 12px 24px; border-radius: 4px; text-decoration: none; display: inline-block; font-weight: 500;">
+                                                                                                            View Settings
+                                                                                                        </a>
+                                                                                                    </div>
+
+                                                                                                    <!-- Footer -->
+                                                                                                    <p style="margin-top: 24px; color: #999; font-size: 12px; border-top: 1px solid #ddd; padding-top: 16px;">
+                                                                                                        You received this email because you are an administrator. This is an automated notification that cannot be disabled.
+                                                                                                    </p>
+                                                                                                </div>
+                                                                                            </td>
+                                                                                        </tr>
+                                                                                    </table>
+                                                                                </td>
+                                                                            </tr>
+{{> _emailFoot}}

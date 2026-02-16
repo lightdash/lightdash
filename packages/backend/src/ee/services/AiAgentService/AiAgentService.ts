@@ -134,6 +134,7 @@ import {
     FindContentFn,
     FindExploresFn,
     FindFieldFn,
+    GetExploreFn,
     GetPromptFn,
     ListExploresFn,
     RunAsyncQueryFn,
@@ -411,12 +412,14 @@ export class AiAgentService {
         user: SessionUser,
         projectUuid: string,
         availableTags: string[] | null,
+        exploreNames?: string[],
     ) {
         return wrapSentryTransaction(
             'AiAgent.getAvailableExplores',
             {
                 projectUuid,
                 availableTags,
+                exploreNames,
             },
             async () => {
                 const { organizationUuid } = user;
@@ -433,6 +436,7 @@ export class AiAgentService {
                     await this.projectModel.findExploresFromCache(
                         projectUuid,
                         'name',
+                        exploreNames,
                     ),
                 );
 
@@ -445,6 +449,7 @@ export class AiAgentService {
                         doesExploreMatchRequiredAttributes(
                             explore.tables[explore.baseTable]
                                 .requiredAttributes,
+                            explore.tables[explore.baseTable].anyAttributes,
                             userAttributes,
                         ),
                     )
@@ -465,14 +470,12 @@ export class AiAgentService {
         availableTags: string[] | null,
         exploreName: string,
     ) {
-        const explores = await this.getAvailableExplores(
+        const [explore] = await this.getAvailableExplores(
             user,
             projectUuid,
             availableTags,
+            [exploreName],
         );
-
-        const explore = explores.find((e) => e.name === exploreName);
-
         if (!explore) {
             throw new NotFoundError('Explore not found');
         }
@@ -1359,14 +1362,14 @@ export class AiAgentService {
                 });
 
             // Use fast model for title generation (lightweight task)
-            const { model } = getModel(this.lightdashConfig.ai.copilot, {
+            const modelOptions = getModel(this.lightdashConfig.ai.copilot, {
                 enableReasoning: false,
                 useFastModel: true,
             });
 
             // Generate title using the dedicated title generator
             const title = await generateTitleFromMessages(
-                model,
+                modelOptions,
                 chatHistoryMessages,
             );
 
@@ -1987,12 +1990,12 @@ export class AiAgentService {
                 return;
             }
 
-            const { model } = getModel(this.lightdashConfig.ai.copilot, {
+            const modelOptions = getModel(this.lightdashConfig.ai.copilot, {
                 enableReasoning: false,
             });
 
             const question = await generateArtifactQuestion(
-                model,
+                modelOptions,
                 payload.title,
                 payload.description,
                 { artifactVersionUuid: payload.artifactVersionUuid },
@@ -2497,6 +2500,16 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                 );
             });
 
+        const getExplore: GetExploreFn = async ({ table }) => {
+            const agentSettings = await this.getAgentSettings(user, prompt);
+            return this.getExplore(
+                user,
+                projectUuid,
+                agentSettings.tags,
+                table,
+            );
+        };
+
         const findExplores: FindExploresFn = (args) =>
             wrapSentryTransaction('AiAgent.findExplores', args, async () => {
                 const agentSettings = await this.getAgentSettings(user, prompt);
@@ -2588,15 +2601,6 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                         },
                     );
 
-                const agentSettings = await this.getAgentSettings(user, prompt);
-
-                const explore = await this.getExplore(
-                    user,
-                    projectUuid,
-                    agentSettings.tags,
-                    args.table,
-                );
-
                 const { data: catalogItems, pagination } =
                     await this.catalogService.searchCatalog({
                         projectUuid,
@@ -2611,7 +2615,7 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                         },
                         userAttributes,
                         fullTextSearchOperator: 'OR',
-                        filteredExplores: [explore],
+                        filteredExplores: [args.explore],
                     });
 
                 // TODO: we should not filter here, search should be returning a proper type
@@ -2619,7 +2623,7 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                     (item) => item.type === CatalogType.Field,
                 );
 
-                return { fields: catalogFields, pagination, explore };
+                return { fields: catalogFields, pagination };
             });
 
         const updateProgress: UpdateProgressFn = (progress) =>
@@ -2858,6 +2862,7 @@ Use them as a reference, but do all the due dilligence and follow the instructio
 
         return {
             listExplores,
+            getExplore,
             findContent,
             findFields,
             findExplores,
@@ -2932,6 +2937,7 @@ Use them as a reference, but do all the due dilligence and follow the instructio
 
         const {
             listExplores,
+            getExplore,
             findContent,
             findFields,
             findExplores,
@@ -2984,6 +2990,7 @@ Use them as a reference, but do all the due dilligence and follow the instructio
 
         const dependencies: AiAgentDependencies = {
             listExplores,
+            getExplore,
             findContent,
             findFields,
             findExplores,

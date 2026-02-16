@@ -768,6 +768,11 @@ export class SchedulerClient {
         page: NotificationPayloadBase['page'] | undefined,
         parentJobId: string,
         traceProperties: TraceTaskBase,
+        perChannelPages?: {
+            email?: NotificationPayloadBase['page'];
+            slack?: NotificationPayloadBase['page'];
+            msteams?: NotificationPayloadBase['page'];
+        },
     ) {
         const schedulerUuid = getSchedulerUuid(scheduler);
 
@@ -799,21 +804,32 @@ export class SchedulerClient {
                     page,
                     parentJobId,
                     traceProperties,
+                    perChannelPages,
                 );
             }
 
             // Legacy behavior for "Send Now" - individual jobs per target
-            const promises = scheduler.targets.map((target) =>
-                this.addNotificationJob(
+            const promises = scheduler.targets.map((target) => {
+                let targetPage = page;
+                if (perChannelPages) {
+                    if (isCreateSchedulerSlackTarget(target)) {
+                        targetPage = perChannelPages.slack ?? page;
+                    } else if (isCreateSchedulerMsTeamsTarget(target)) {
+                        targetPage = perChannelPages.msteams ?? page;
+                    } else {
+                        targetPage = perChannelPages.email ?? page;
+                    }
+                }
+                return this.addNotificationJob(
                     scheduledTime,
                     parentJobId,
                     scheduler,
                     target,
                     getSchedulerTargetUuid(target),
-                    page,
+                    targetPage,
                     traceProperties,
-                ),
-            );
+                );
+            });
             Logger.info(
                 `Creating ${promises.length} notification jobs for scheduler ${schedulerUuid}`,
             );
@@ -833,6 +849,11 @@ export class SchedulerClient {
         page: NotificationPayloadBase['page'] | undefined,
         parentJobId: string,
         traceProperties: TraceTaskBase,
+        perChannelPages?: {
+            email?: NotificationPayloadBase['page'];
+            slack?: NotificationPayloadBase['page'];
+            msteams?: NotificationPayloadBase['page'];
+        },
     ) {
         if (!page) {
             throw new Error(
@@ -858,7 +879,7 @@ export class SchedulerClient {
                     parentJobId,
                     scheduler,
                     slackTargets,
-                    page,
+                    perChannelPages?.slack ?? page,
                     traceProperties,
                 ),
             );
@@ -871,7 +892,7 @@ export class SchedulerClient {
                     parentJobId,
                     scheduler,
                     emailTargets,
-                    page,
+                    perChannelPages?.email ?? page,
                     traceProperties,
                 ),
             );
@@ -884,7 +905,7 @@ export class SchedulerClient {
                     parentJobId,
                     scheduler,
                     msTeamsTargets,
-                    page,
+                    perChannelPages?.msteams ?? page,
                     traceProperties,
                 ),
             );

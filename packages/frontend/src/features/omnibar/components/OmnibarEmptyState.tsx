@@ -1,4 +1,4 @@
-import { Center, Text } from '@mantine/core';
+import { Center, Text } from '@mantine-8/core';
 import { type FC } from 'react';
 
 type Props = {
@@ -8,7 +8,7 @@ type Props = {
 const OmnibarEmptyState: FC<Props> = ({ message }) => {
     return (
         <Center py="xl">
-            <Text color="dimmed" size="lg" fw={500}>
+            <Text c="dimmed" size="lg" fw={500}>
                 {message}
             </Text>
         </Center>

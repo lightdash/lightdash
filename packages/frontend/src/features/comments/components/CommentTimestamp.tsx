@@ -1,5 +1,5 @@
 import { type Comment } from '@lightdash/common';
-import { Text, Tooltip } from '@mantine/core';
+import { Text, Tooltip } from '@mantine-8/core';
 import dayjs from 'dayjs';
 import { type FC } from 'react';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
@@ -19,7 +19,7 @@ export const CommentTimestamp: FC<Props> = ({ timestamp }) => {
             offset={-2}
             label={dayjs(timestamp).format('YYYY-MM-DD HH:mm:ss')}
         >
-            <Text fz="xs" color="ldGray.5">
+            <Text fz="xs" c="ldGray.5">
                 {timeAgo}
             </Text>
         </Tooltip>

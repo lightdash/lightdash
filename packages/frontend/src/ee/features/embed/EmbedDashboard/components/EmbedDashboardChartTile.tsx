@@ -1,5 +1,5 @@
 import { mergeExisting, QueryExecutionContext } from '@lightdash/common';
-import { Box } from '@mantine/core';
+import { Box } from '@mantine-8/core';
 import { produce } from 'immer';
 import { useMemo, type ComponentProps, type FC } from 'react';
 import type DashboardChartTile from '../../../../../components/DashboardTiles/DashboardChartTile';

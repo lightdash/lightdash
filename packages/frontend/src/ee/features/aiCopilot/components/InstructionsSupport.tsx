@@ -28,14 +28,7 @@ const InstructionsGuidelinesItem = ({
 }) => (
     <HoverCard>
         <HoverCard.Target>
-            <Paper
-                p="xs"
-                withBorder
-                style={{
-                    borderStyle: 'dashed',
-                    cursor: 'help',
-                }}
-            >
+            <Paper variant="dotted" p="xs" style={{ cursor: 'help' }}>
                 <Group align="center" gap="xs">
                     <MantineIcon icon={icon} size={20} color="gray" />
                     <Title order={6} c="ldGray.7" size="xs">

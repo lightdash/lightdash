@@ -1,4 +1,5 @@
 import { resolve } from 'path';
+import cssInjectedByJsPlugin from 'vite-plugin-css-injected-by-js';
 import dts from 'vite-plugin-dts';
 import svgrPlugin from 'vite-plugin-svgr';
 import { defineConfig } from 'vitest/config';
@@ -11,7 +12,7 @@ export default defineConfig({
     define: {
         __APP_VERSION__: JSON.stringify(process.env.npm_package_version),
     },
-    plugins: [svgrPlugin(), dts({ rollupTypes: true })],
+    plugins: [svgrPlugin(), dts({ rollupTypes: true }), cssInjectedByJsPlugin()],
     build: {
         outDir: 'sdk/dist',
         emptyOutDir: true,

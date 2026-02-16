@@ -251,7 +251,7 @@ export const MetricExploreComparison: FC<Props> = ({
                                                     c="ldGray.9"
                                                     fw={500}
                                                     target="_blank"
-                                                    href="https://docs.lightdash.com/guides/metrics-catalog/#configuring-default-time-settings-in-yml"
+                                                    href="https://docs.lightdash.com/guides/metrics-catalog/catalog#configuring-default-time-settings-in-yml"
                                                 >
                                                     Learn more
                                                 </Anchor>
