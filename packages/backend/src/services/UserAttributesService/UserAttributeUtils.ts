@@ -95,7 +95,7 @@ export const hasUserAttribute = (
     !!userAttributes[attributeName] &&
     userAttributes[attributeName].includes(value);
 
-export const hasUserAttributes = (
+const hasUserAttributes = (
     requiredAttributes: Record<string, string | string[]> | undefined,
     userAttributes: UserAttributeValueMap,
 ): boolean => {
@@ -120,7 +120,7 @@ export const hasUserAttributes = (
  * @param userAttributes - User's actual attributes
  * @returns true if at least one attribute condition is satisfied
  */
-export const hasAnyUserAttributes = (
+const hasAnyUserAttributes = (
     anyAttributes: Record<string, string | string[]>,
     userAttributes: UserAttributeValueMap,
 ): boolean => {

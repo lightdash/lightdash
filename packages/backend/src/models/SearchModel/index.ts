@@ -1185,6 +1185,7 @@ export class SearchModel {
                                 explore: explore.name,
                                 exploreLabel: explore.label,
                                 requiredAttributes: table.requiredAttributes,
+                                anyAttributes: table.anyAttributes,
                                 regexMatchCount: tableRegexMatchCount,
                             });
                         }
@@ -1213,6 +1214,9 @@ export class SearchModel {
                                         exploreLabel: explore.label,
                                         requiredAttributes: isDimension(field)
                                             ? field.requiredAttributes
+                                            : undefined,
+                                        anyAttributes: isDimension(field)
+                                            ? field.anyAttributes
                                             : undefined,
                                         tablesRequiredAttributes:
                                             field.tablesRequiredAttributes,
