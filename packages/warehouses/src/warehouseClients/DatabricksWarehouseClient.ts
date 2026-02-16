@@ -35,7 +35,7 @@ import WarehouseBaseSqlBuilder from './WarehouseBaseSqlBuilder';
 /**
  * Pre-registered Databricks public OAuth client ID for U2M authentication.
  * This is a built-in client that doesn't require registering a custom OAuth app.
- * This client id only works on he CLI redirect URIs. For the UI we require a custom OAuth app
+ * This client id only works on the CLI redirect URIs. For the UI we require a custom OAuth app
  * with a valid whitelisted redirect URI.
  * https://docs.databricks.com/en/dev-tools/auth/oauth-u2m.html
  */
