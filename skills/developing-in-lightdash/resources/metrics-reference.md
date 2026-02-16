@@ -139,6 +139,24 @@ metrics:
 - Comparison: `"> 100"`, `"< 50"`, `">= 10"`, `"<= 100"`
 - Multiple values: `["value1", "value2"]`
 - Null checks: `"null"`, `"!null"`
+- Date intervals: `"inThePast N days"`, `"inTheNext N months"` (supports: `days`, `weeks`, `months`, `years`)
+
+**Date filter examples:**
+
+```yaml
+metrics:
+  recent_orders:
+    type: count
+    filters:
+      - created_at: "inThePast 30 days"
+
+  upcoming_renewals:
+    type: count
+    filters:
+      - renewal_date: "inTheNext 7 days"
+```
+
+**Important:** `inTheCurrent` is NOT a valid operator in metric definition filters. It is only available in chart and dashboard filters. If you need current-period logic in a metric, use custom SQL with date truncation instead.
 
 ### Show Underlying Values
 
