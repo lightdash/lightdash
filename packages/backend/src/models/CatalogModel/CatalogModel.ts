@@ -429,6 +429,7 @@ export class CatalogModel {
                                             type: CatalogType.Field,
                                             field_type: FieldType.METRIC,
                                             required_attributes: {},
+                                            any_attributes: {},
                                             yaml_tags: [],
                                             ai_hints: null,
                                             chart_usage: 0,

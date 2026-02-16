@@ -22,6 +22,7 @@ describe('doesExploreMatchUserAttributes', () => {
                 EXPLORE_WITH_NO_REQUIRED_ATTRIBUTES.tables[
                     EXPLORE_WITH_NO_REQUIRED_ATTRIBUTES.baseTable
                 ].requiredAttributes,
+                undefined,
                 {},
             ),
         ).toStrictEqual(true);
@@ -30,6 +31,7 @@ describe('doesExploreMatchUserAttributes', () => {
                 EXPLORE_WITH_NO_REQUIRED_ATTRIBUTES.tables[
                     EXPLORE_WITH_NO_REQUIRED_ATTRIBUTES.baseTable
                 ].requiredAttributes,
+                undefined,
                 { test: ['1'] },
             ),
         ).toStrictEqual(true);
@@ -40,6 +42,7 @@ describe('doesExploreMatchUserAttributes', () => {
                 EXPLORE_WITH_TABLE_REQUIRED_ATTRIBUTES.tables[
                     EXPLORE_WITH_TABLE_REQUIRED_ATTRIBUTES.baseTable
                 ].requiredAttributes,
+                undefined,
                 { access_level: ['2'] },
             ),
         ).toStrictEqual(true);
@@ -50,6 +53,7 @@ describe('doesExploreMatchUserAttributes', () => {
                 EXPLORE_WITH_TABLE_REQUIRED_ATTRIBUTES.tables[
                     EXPLORE_WITH_TABLE_REQUIRED_ATTRIBUTES.baseTable
                 ].requiredAttributes,
+                undefined,
                 {},
             ),
         ).toStrictEqual(false);
@@ -58,6 +62,7 @@ describe('doesExploreMatchUserAttributes', () => {
                 EXPLORE_WITH_TABLE_REQUIRED_ATTRIBUTES.tables[
                     EXPLORE_WITH_TABLE_REQUIRED_ATTRIBUTES.baseTable
                 ].requiredAttributes,
+                undefined,
                 { access_level: ['1'] },
             ),
         ).toStrictEqual(false);

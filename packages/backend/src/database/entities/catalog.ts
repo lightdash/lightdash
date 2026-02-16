@@ -18,6 +18,7 @@ export type DbCatalog = {
     embedding_vector?: string;
     field_type?: string;
     required_attributes: Record<string, string | string[]> | null;
+    any_attributes: Record<string, string | string[]> | null;
     chart_usage: number | null;
     icon: CatalogItemIcon | null;
     table_name: string;
@@ -38,6 +39,7 @@ export type DbCatalogIn = Pick<
     | 'type'
     | 'field_type'
     | 'required_attributes'
+    | 'any_attributes'
     | 'chart_usage'
     | 'table_name'
     | 'spotlight_show'
@@ -83,6 +85,8 @@ export function getDbCatalogColumnFromCatalogProperty(
             return 'chart_usage';
         case 'requiredAttributes':
             return 'required_attributes';
+        case 'anyAttributes':
+            return 'any_attributes';
         case 'catalogSearchUuid':
             return 'catalog_search_uuid';
         case 'aiHints':

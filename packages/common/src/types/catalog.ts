@@ -79,7 +79,7 @@ export type CatalogField = Pick<
     Field,
     'name' | 'label' | 'fieldType' | 'tableLabel' | 'description'
 > &
-    Pick<Dimension, 'requiredAttributes'> & {
+    Pick<Dimension, 'requiredAttributes' | 'anyAttributes'> & {
         catalogSearchUuid: string;
         type: CatalogType.Field;
         basicType: 'string' | 'number' | 'date' | 'timestamp' | 'boolean';
@@ -99,7 +99,12 @@ export type CatalogField = Pick<
 
 export type CatalogTable = Pick<
     TableBase,
-    'name' | 'label' | 'groupLabel' | 'description' | 'requiredAttributes'
+    | 'name'
+    | 'label'
+    | 'groupLabel'
+    | 'description'
+    | 'requiredAttributes'
+    | 'anyAttributes'
 > & {
     catalogSearchUuid: string;
     errors?: InlineError[]; // For explore errors
