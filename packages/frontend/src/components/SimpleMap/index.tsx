@@ -428,6 +428,7 @@ const SimpleMap: FC<SimpleMapProps> = memo(
             resultsData,
             leafletMapRef,
             minimal,
+            colorPalette,
         } = useVisualizationContext();
         const mapConfig = useLeafletMapConfig({
             isInDashboard: props.isInDashboard,
@@ -663,6 +664,21 @@ const SimpleMap: FC<SimpleMapProps> = memo(
             );
         }, [mapConfig, scatterValueRange.min, scatterValueRange.max]);
 
+        // Categorical color map for string-valued color fields
+        const categoricalColorMap = useMemo(() => {
+            if (!mapConfig?.isCategoricalColor || !mapConfig.uniqueStringValues)
+                return null;
+            const map = new Map<string, string>();
+            mapConfig.uniqueStringValues.forEach((val, idx) => {
+                map.set(
+                    val,
+                    mapConfig.colorOverrides[val] ??
+                        colorPalette[idx % colorPalette.length],
+                );
+            });
+            return map;
+        }, [mapConfig, colorPalette]);
+
         const heatmapPoints = useMemo((): [number, number, number][] => {
             const { min, max } = scatterValueRange;
             return scatterData.map((point) => {
@@ -698,11 +714,16 @@ const SimpleMap: FC<SimpleMapProps> = memo(
         const regionDataMap = useMemo(() => {
             const dataMap = new Map<
                 string,
-                { value: number; rowData?: Record<string, any> }
+                {
+                    value: number;
+                    stringValue: string | null;
+                    rowData?: Record<string, any>;
+                }
             >();
             regionData.forEach((d) => {
                 dataMap.set(d.name.toLowerCase(), {
                     value: d.value,
+                    stringValue: d.stringValue,
                     rowData: d.rowData,
                 });
             });
@@ -762,8 +783,17 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                     .toLowerCase();
                 const regionEntry = regionDataMap.get(propertyValue);
 
-                if (regionEntry !== undefined && regionColorScale) {
-                    const fillColor = regionColorScale(regionEntry.value);
+                if (regionEntry !== undefined) {
+                    let fillColor: string;
+                    if (categoricalColorMap && regionEntry.stringValue) {
+                        fillColor =
+                            categoricalColorMap.get(regionEntry.stringValue) ??
+                            noDataColor;
+                    } else if (regionColorScale) {
+                        fillColor = regionColorScale(regionEntry.value);
+                    } else {
+                        fillColor = noDataColor;
+                    }
                     return {
                         fillColor,
                         weight: 1,
@@ -785,6 +815,7 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                 mapConfig,
                 regionDataMap,
                 regionColorScale,
+                categoricalColorMap,
                 noDataColor,
                 fillOpacityNoData,
                 fillOpacityWithData,
@@ -948,14 +979,19 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                             />
                         ) : (
                             sizeScale &&
-                            scatterColorScale &&
+                            (categoricalColorMap || scatterColorScale) &&
                             scatterData.map((point, idx) => {
                                 const radius = sizeScale(point.sizeValue);
-                                // Use interpolated color for numeric values, noDataColor for non-numeric
+                                // Use categorical color for string values, gradient for numeric, noDataColor for neither
                                 const color =
-                                    point.value !== null
-                                        ? scatterColorScale(point.value)
-                                        : mapConfig.noDataColor;
+                                    categoricalColorMap && point.stringValue
+                                        ? (categoricalColorMap.get(
+                                              point.stringValue,
+                                          ) ?? mapConfig.noDataColor)
+                                        : point.value !== null &&
+                                            scatterColorScale
+                                          ? scatterColorScale(point.value)
+                                          : mapConfig.noDataColor;
 
                                 return (
                                     <MapMarker
@@ -973,9 +1009,13 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                         )}
                     </MapContainer>
                     {mapConfig.showLegend &&
-                        (mapConfig.valueRange || mapConfig.sizeRange) && (
+                        (mapConfig.valueRange ||
+                            mapConfig.sizeRange ||
+                            (mapConfig.isCategoricalColor &&
+                                categoricalColorMap)) && (
                             <MapLegend
                                 color={
+                                    !mapConfig.isCategoricalColor &&
                                     mapConfig.valueRange
                                         ? {
                                               colors: mapConfig.colors.scale,
@@ -985,6 +1025,23 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                                               formattedMax:
                                                   mapConfig.valueRange
                                                       .formattedMax,
+                                              label:
+                                                  mapConfig.valueFieldLabel ??
+                                                  undefined,
+                                              opacity: fillOpacityWithData,
+                                          }
+                                        : undefined
+                                }
+                                categoricalColor={
+                                    mapConfig.isCategoricalColor &&
+                                    categoricalColorMap
+                                        ? {
+                                              entries: Array.from(
+                                                  categoricalColorMap.entries(),
+                                              ).map(([value, cColor]) => ({
+                                                  value,
+                                                  color: cColor,
+                                              })),
                                               label:
                                                   mapConfig.valueFieldLabel ??
                                                   undefined,
@@ -1084,17 +1141,48 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                                 />
                             )}
                     </MapContainer>
-                    {mapConfig.showLegend && mapConfig.valueRange && (
-                        <MapLegend
-                            color={{
-                                colors: mapConfig.colors.scale,
-                                formattedMin: mapConfig.valueRange.formattedMin,
-                                formattedMax: mapConfig.valueRange.formattedMax,
-                                label: mapConfig.valueFieldLabel ?? undefined,
-                                opacity: fillOpacityWithData,
-                            }}
-                        />
-                    )}
+                    {mapConfig.showLegend &&
+                        (mapConfig.valueRange ||
+                            (mapConfig.isCategoricalColor &&
+                                categoricalColorMap)) && (
+                            <MapLegend
+                                color={
+                                    !mapConfig.isCategoricalColor &&
+                                    mapConfig.valueRange
+                                        ? {
+                                              colors: mapConfig.colors.scale,
+                                              formattedMin:
+                                                  mapConfig.valueRange
+                                                      .formattedMin,
+                                              formattedMax:
+                                                  mapConfig.valueRange
+                                                      .formattedMax,
+                                              label:
+                                                  mapConfig.valueFieldLabel ??
+                                                  undefined,
+                                              opacity: fillOpacityWithData,
+                                          }
+                                        : undefined
+                                }
+                                categoricalColor={
+                                    mapConfig.isCategoricalColor &&
+                                    categoricalColorMap
+                                        ? {
+                                              entries: Array.from(
+                                                  categoricalColorMap.entries(),
+                                              ).map(([value, cColor]) => ({
+                                                  value,
+                                                  color: cColor,
+                                              })),
+                                              label:
+                                                  mapConfig.valueFieldLabel ??
+                                                  undefined,
+                                              opacity: fillOpacityWithData,
+                                          }
+                                        : undefined
+                                }
+                            />
+                        )}
                     {shouldShowMenu && (
                         <MapContextMenu
                             menuPosition={contextMenuProps?.position}

@@ -1,5 +1,6 @@
 import {
     getItemLabelWithoutTableName,
+    isNumericItem,
     MapChartLocation,
     MapChartType,
     MapTileBackground,
@@ -19,6 +20,7 @@ export type ScatterPoint = {
     lat: number;
     lon: number;
     value: number | null;
+    stringValue: string | null;
     displayValue: string | number;
     sizeValue: number;
     rowData: Record<string, any>;
@@ -27,6 +29,7 @@ export type ScatterPoint = {
 export type RegionData = {
     name: string;
     value: number;
+    stringValue: string | null;
     rowData: Record<string, any>;
 };
 
@@ -92,6 +95,10 @@ export type LeafletMapConfig = {
     locationFieldId: string | null;
     // Field configuration for tooltips
     tooltipFields: TooltipFieldInfo[];
+    // Categorical color support
+    isCategoricalColor: boolean;
+    uniqueStringValues: string[] | null;
+    colorOverrides: Record<string, string>;
 };
 
 const getGeoJsonUrl = (
@@ -216,6 +223,7 @@ const useLeafletMapConfig = ({
             noDataColor,
             dataLayerOpacity,
             showLegend,
+            colorOverrides: configColorOverrides,
             fieldConfig,
         } = chartConfig.validConfig || {};
 
@@ -302,6 +310,13 @@ const useLeafletMapConfig = ({
                             lat,
                             lon,
                             value,
+                            stringValue:
+                                !isNumeric &&
+                                rawValue !== null &&
+                                rawValue !== undefined &&
+                                rawValue !== ''
+                                    ? String(rawValue)
+                                    : null,
                             displayValue,
                             sizeValue: isNaN(sizeValue) ? 1 : sizeValue,
                             rowData: row as Record<string, any>,
@@ -318,15 +333,30 @@ const useLeafletMapConfig = ({
                         const locationName = String(
                             row[locationFieldId]?.value.raw || '',
                         );
-                        const value = valueFieldId
-                            ? Number(row[valueFieldId]?.value.raw)
+                        const rawRegionValue = valueFieldId
+                            ? row[valueFieldId]?.value.raw
                             : 1;
+                        const numericRegionValue = Number(rawRegionValue);
+                        const isRegionValueNumeric =
+                            rawRegionValue !== null &&
+                            rawRegionValue !== undefined &&
+                            rawRegionValue !== '' &&
+                            !isNaN(numericRegionValue);
 
                         if (!locationName) return null;
 
                         return {
                             name: locationName,
-                            value: isNaN(value) ? 0 : value,
+                            value: isRegionValueNumeric
+                                ? numericRegionValue
+                                : 0,
+                            stringValue:
+                                !isRegionValueNumeric &&
+                                rawRegionValue !== null &&
+                                rawRegionValue !== undefined &&
+                                rawRegionValue !== ''
+                                    ? String(rawRegionValue)
+                                    : null,
                             rowData: row as Record<string, any>,
                         };
                     })
@@ -454,6 +484,25 @@ const useLeafletMapConfig = ({
             }
         }
 
+        // Determine if color field is categorical (non-numeric)
+        const valueItem = valueFieldId ? itemsMap?.[valueFieldId] : undefined;
+        const isCategoricalColor = !!valueItem && !isNumericItem(valueItem);
+
+        // Compute all unique string values for categorical coloring
+        let uniqueStringValues: string[] | null = null;
+        if (isCategoricalColor) {
+            const seen = new Set<string>();
+            const data = scatterData ?? regionData ?? [];
+            for (const point of data) {
+                if (point.stringValue && !seen.has(point.stringValue)) {
+                    seen.add(point.stringValue);
+                }
+            }
+            uniqueStringValues = Array.from(seen).sort();
+        }
+
+        const colorOverrides = configColorOverrides ?? {};
+
         return {
             scatterData,
             regionData,
@@ -526,6 +575,9 @@ const useLeafletMapConfig = ({
             valueFieldLabel,
             locationFieldId: locationFieldId ?? null,
             tooltipFields,
+            isCategoricalColor,
+            uniqueStringValues,
+            colorOverrides,
         };
     }, [chartConfig, resultsData, theme, itemsMap]);
 };
