@@ -9,6 +9,7 @@ import {
     type SessionUser,
     type ToggleFavoriteResponse,
 } from '@lightdash/common';
+import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
@@ -18,6 +19,7 @@ import { BaseService } from '../BaseService';
 import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 
 type FavoritesServiceArguments = {
+    analytics: LightdashAnalytics;
     userFavoritesModel: UserFavoritesModel;
     projectModel: ProjectModel;
     spaceModel: SpaceModel;
@@ -27,6 +29,8 @@ type FavoritesServiceArguments = {
 };
 
 export class FavoritesService extends BaseService {
+    private readonly analytics: LightdashAnalytics;
+
     private readonly userFavoritesModel: UserFavoritesModel;
 
     private readonly projectModel: ProjectModel;
@@ -40,6 +44,7 @@ export class FavoritesService extends BaseService {
     private readonly dashboardModel: DashboardModel;
 
     constructor({
+        analytics,
         userFavoritesModel,
         projectModel,
         spaceModel,
@@ -48,6 +53,7 @@ export class FavoritesService extends BaseService {
         dashboardModel,
     }: FavoritesServiceArguments) {
         super();
+        this.analytics = analytics;
         this.userFavoritesModel = userFavoritesModel;
         this.projectModel = projectModel;
         this.spaceModel = spaceModel;
@@ -121,8 +127,21 @@ export class FavoritesService extends BaseService {
             );
         }
 
+        const isFavorite = !alreadyFavorited;
+
+        this.analytics.track({
+            event: 'favorite.toggled',
+            userId: user.userUuid,
+            properties: {
+                projectId: projectUuid,
+                organizationId: user.organizationUuid ?? '',
+                contentType,
+                isFavorite,
+            },
+        });
+
         return {
-            isFavorite: !alreadyFavorited,
+            isFavorite,
             contentType,
             contentUuid,
         };
@@ -190,24 +209,22 @@ export class FavoritesService extends BaseService {
                 user.userUuid,
                 favSpaceUuids,
             );
-        const favSpaces: ResourceViewSpaceItem[] = favSpaceBases.map(
-            (item) => {
-                const ctx = spacesCtx[item.data.uuid];
-                const directAccessUuids = ctx
-                    ? ctx.access
-                          .filter((a) => a.hasDirectAccess)
-                          .map((a) => a.userUuid)
-                    : [];
-                return {
-                    type: ResourceViewItemType.SPACE,
-                    data: {
-                        ...item.data,
-                        access: directAccessUuids,
-                        accessListLength: directAccessUuids.length,
-                    },
-                };
-            },
-        );
+        const favSpaces: ResourceViewSpaceItem[] = favSpaceBases.map((item) => {
+            const ctx = spacesCtx[item.data.uuid];
+            const directAccessUuids = ctx
+                ? ctx.access
+                      .filter((a) => a.hasDirectAccess)
+                      .map((a) => a.userUuid)
+                : [];
+            return {
+                type: ResourceViewItemType.SPACE,
+                data: {
+                    ...item.data,
+                    access: directAccessUuids,
+                    accessListLength: directAccessUuids.length,
+                },
+            };
+        });
 
         return [...favSpaces, ...dashboards, ...charts];
     }
