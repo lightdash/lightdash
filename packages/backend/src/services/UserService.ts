@@ -1601,17 +1601,20 @@ export class UserService extends BaseService {
 
         if (projects.length === 0) return;
 
-        const projectScopes = await this.userModel.getProjectScopesForUser(
-            sessionUser.userUuid,
-            projects.map((p) => p.projectUuid),
-        );
-
-        const SAVE_CONTENT_SCOPE = 'manage:SavedChart@space';
-
         await Promise.all(
             projects.map(async (project) => {
-                const scopes = projectScopes[project.projectUuid] ?? [];
-                if (!scopes.includes(SAVE_CONTENT_SCOPE)) return;
+                if (
+                    sessionUser.ability.cannot(
+                        'manage',
+                        subject('SavedChart', {
+                            projectUuid: project.projectUuid,
+                            organizationUuid: sessionUser.organizationUuid,
+                            isDefaultUserSpace: true,
+                            spaceCreatedBy: sessionUser.userUuid,
+                        }),
+                    )
+                )
+                    return;
 
                 await this.projectModel.ensureDefaultUserSpace(
                     project.projectId,

@@ -47,7 +47,13 @@ type ProjectScopeContext = BaseScopeContext & {
  */
 export type ScopeContext = OrganizationScopeContext | ProjectScopeContext;
 
-export type ScopeModifer = 'self' | 'public' | 'assigned' | 'space' | 'preview';
+export type ScopeModifer =
+    | 'self'
+    | 'public'
+    | 'assigned'
+    | 'space'
+    | 'preview'
+    | 'defaultUserSpace';
 type OptionalModifier = `${'' | `@${ScopeModifer}`}`;
 
 /**

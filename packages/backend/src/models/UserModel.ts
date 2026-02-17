@@ -5,7 +5,6 @@ import {
     CreateUserArgs,
     CreateUserWithRole,
     ForbiddenError,
-    getAllScopesForRole,
     getUserAbilityBuilder,
     InvalidUser,
     isOpenIdUser,
@@ -572,83 +571,6 @@ export class UserModel {
         });
 
         return scopesRecord;
-    }
-
-    async getProjectScopesForUser(
-        userUuid: string,
-        projectUuids: string[],
-    ): Promise<Record<string, string[]>> {
-        const [user] = await this.database(UserTableName)
-            .innerJoin(
-                OrganizationMembershipsTableName,
-                `${UserTableName}.user_id`,
-                `${OrganizationMembershipsTableName}.user_id`,
-            )
-            .where(`${UserTableName}.user_uuid`, userUuid)
-            .select(
-                `${UserTableName}.user_id`,
-                `${OrganizationMembershipsTableName}.organization_id`,
-                `${OrganizationMembershipsTableName}.role as org_role`,
-            );
-
-        if (!user) return {};
-
-        const [projectRoles, groupProjectRoles] = await Promise.all([
-            this.getUserProjectRoles(userUuid),
-            this.getUserGroupProjectRoles(
-                user.user_id,
-                user.organization_id,
-                userUuid,
-            ),
-        ]);
-
-        const allProfiles = [...projectRoles, ...groupProjectRoles];
-        const customRoleUuids = allProfiles
-            .map((r) => r.roleUuid)
-            .filter(Boolean) as string[];
-        const customScopes = await this.customRoleScopes(customRoleUuids);
-
-        // Build a map of projectUuid -> merged scopes
-        const projectScopeMap: Record<string, Set<string>> = {};
-
-        // Org-level role grants scopes to all projects in the org.
-        // OrganizationMemberRole.MEMBER has no project-level scopes equivalent.
-        const projectMemberRoleValues = new Set<string>(
-            Object.values(ProjectMemberRole),
-        );
-        const orgScopes = projectMemberRoleValues.has(user.org_role)
-            ? getAllScopesForRole(user.org_role as ProjectMemberRole)
-            : [];
-
-        // Seed requested projects with org-level scopes
-        for (const projectUuid of projectUuids) {
-            projectScopeMap[projectUuid] = new Set(orgScopes);
-        }
-
-        // Layer on project-level scopes from direct or group memberships
-        for (const profile of allProfiles) {
-            if (!projectScopeMap[profile.projectUuid]) {
-                projectScopeMap[profile.projectUuid] = new Set(orgScopes);
-            }
-
-            if (profile.roleUuid && this.lightdashConfig.customRoles?.enabled) {
-                const scopes = customScopes[profile.roleUuid];
-                if (scopes) {
-                    scopes.forEach((s) =>
-                        projectScopeMap[profile.projectUuid].add(s),
-                    );
-                }
-            } else {
-                const roleScopes = getAllScopesForRole(profile.role);
-                roleScopes.forEach((s) =>
-                    projectScopeMap[profile.projectUuid].add(s),
-                );
-            }
-        }
-
-        return Object.fromEntries(
-            Object.entries(projectScopeMap).map(([k, v]) => [k, Array.from(v)]),
-        );
     }
 
     private async generateUserAbilityBuilder(user: DbUserDetails): Promise<{

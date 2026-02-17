@@ -111,6 +111,11 @@ export const projectMemberAbilities: Record<
         });
         can('manage', 'SavedChart', {
             projectUuid: member.projectUuid,
+            isDefaultUserSpace: true,
+            spaceCreatedBy: member.userUuid,
+        });
+        can('manage', 'SavedChart', {
+            projectUuid: member.projectUuid,
             access: {
                 $elemMatch: {
                     userUuid: member.userUuid,

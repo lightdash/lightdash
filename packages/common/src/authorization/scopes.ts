@@ -95,6 +95,20 @@ const scopes: Scope[] = [
         ],
     },
     {
+        name: 'manage:SavedChart@defaultUserSpace',
+        description:
+            'Create, edit, and delete saved charts in the user default space',
+        isEnterprise: false,
+        group: ScopeGroup.CONTENT,
+        getConditions: (context) => [
+            {
+                ...addUuidCondition(context),
+                isDefaultUserSpace: true,
+                spaceCreatedBy: context.userUuid || false,
+            },
+        ],
+    },
+    {
         name: 'view:Space',
         description: 'View spaces',
         isEnterprise: false,

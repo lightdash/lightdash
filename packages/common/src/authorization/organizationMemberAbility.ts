@@ -137,6 +137,11 @@ const applyOrganizationMemberStaticAbilities: Record<
         });
         can('manage', 'SavedChart', {
             organizationUuid: member.organizationUuid,
+            isDefaultUserSpace: true,
+            spaceCreatedBy: member.userUuid,
+        });
+        can('manage', 'SavedChart', {
+            organizationUuid: member.organizationUuid,
             access: {
                 $elemMatch: {
                     userUuid: member.userUuid,
