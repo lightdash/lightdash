@@ -617,9 +617,13 @@ export class CartesianChartDataModel {
         const otherGroups = columnTotals.slice(maxGroups);
 
         // Create the "Other" column definition
+        // Use the same referenceField as the top groups so stacking works correctly
+        // (stack ID is based on referenceField: `stack-${referenceField}`)
         const otherColumnName = otherLabel;
+        const sharedReferenceField =
+            topGroups[0]?.column.referenceField || OTHER_GROUP_PIVOT_VALUE;
         const otherColumn: PivotChartData['valuesColumns'][number] = {
-            referenceField: OTHER_GROUP_PIVOT_VALUE,
+            referenceField: sharedReferenceField,
             pivotColumnName: otherColumnName,
             aggregation: topGroups[0]?.column.aggregation || VizAggregationOptions.SUM,
             pivotValues: [
