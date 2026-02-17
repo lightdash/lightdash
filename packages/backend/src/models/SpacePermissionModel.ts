@@ -9,9 +9,7 @@ import {
     SpaceAccessUserMetadata,
     type SpaceGroup,
 } from '@lightdash/common';
-import * as Sentry from '@sentry/node';
 import { Knex } from 'knex';
-import NodeCache from 'node-cache';
 import { EmailTableName } from '../database/entities/emails';
 import { GroupMembershipTableName } from '../database/entities/groupMemberships';
 import { GroupTableName } from '../database/entities/groups';
@@ -27,31 +25,6 @@ import {
 } from '../database/entities/spaces';
 import { UserTableName } from '../database/entities/users';
 import { wrapSentryTransaction } from '../utils';
-
-/**
- * ! This needs to be removed once nested spaces permissions are fully implemented
- * ! Used for SpaceContent and ResouceViewItem model
- * Nested spaces MVP - get access list from root space
- * Returns a raw SQL expression to get user access for a space.
- * For nested spaces, it retrieves access from the root space.
- * @returns SQL string for retrieving access information
- */
-export const getRootSpaceAccessQuery = (
-    sharedWithTableName: string,
-): string => `
-                CASE
-                    WHEN ${SpaceTableName}.parent_space_uuid IS NOT NULL THEN
-                        (SELECT COALESCE(json_agg(sua.user_uuid) FILTER (WHERE sua.user_uuid IS NOT NULL), '[]')
-                         FROM ${SpaceUserAccessTableName} sua
-                         JOIN ${SpaceTableName} root_space ON sua.space_uuid = root_space.space_uuid
-                         WHERE root_space.path @> ${SpaceTableName}.path
-                         AND nlevel(root_space.path) = 1
-                         AND root_space.project_id = ${SpaceTableName}.project_id
-                         LIMIT 1)
-                    ELSE
-                        COALESCE(json_agg(${sharedWithTableName}.user_uuid) FILTER (WHERE ${sharedWithTableName}.user_uuid IS NOT NULL), '[]')
-                END
-            `;
 
 /**
  * ! This needs to be removed once nested spaces permissions are fully implemented
