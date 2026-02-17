@@ -3,26 +3,19 @@ import {
     type ResourceViewChartItem,
     type ResourceViewDashboardItem,
     ResourceViewItemType,
-    type ResourceViewSpaceItem,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
 import { DashboardsTableName } from '../database/entities/dashboards';
 import { OrganizationTableName } from '../database/entities/organizations';
 import { ProjectTableName } from '../database/entities/projects';
 import { SavedChartsTableName } from '../database/entities/savedCharts';
-import {
-    SpaceTableName,
-    SpaceUserAccessTableName,
-} from '../database/entities/spaces';
+import { SpaceTableName } from '../database/entities/spaces';
 import {
     type CreateDbUserFavorite,
     UserFavoritesTableName,
 } from '../database/entities/userFavorites';
-import { UserTableName } from '../database/entities/users';
-import {
-    getRootSpaceAccessQuery,
-    getRootSpaceIsPrivateQuery,
-} from './SpacePermissionModel';
+import { type ResourceViewSpaceItemBase } from './ResourceViewItemModel';
+import { getRootSpaceIsPrivateQuery } from './SpacePermissionModel';
 
 type UserFavoritesModelArguments = {
     database: Knex;
@@ -250,7 +243,7 @@ export class UserFavoritesModel {
         projectUuid: string,
         spaceUuids: string[],
         allowedSpaceUuids: string[],
-    ): Promise<ResourceViewSpaceItem[]> {
+    ): Promise<ResourceViewSpaceItemBase[]> {
         if (spaceUuids.length === 0) {
             return [];
         }
@@ -309,16 +302,6 @@ export class UserFavoritesModel {
                 `${OrganizationTableName}.organization_id`,
             )
             .leftJoin(
-                SpaceUserAccessTableName,
-                `${SpaceTableName}.space_uuid`,
-                `${SpaceUserAccessTableName}.space_uuid`,
-            )
-            .leftJoin(
-                UserTableName,
-                `${SpaceUserAccessTableName}.user_uuid`,
-                `${UserTableName}.user_uuid`,
-            )
-            .leftJoin(
                 'space_counts as sc',
                 'sc.space_id',
                 `${SpaceTableName}.space_id`,
@@ -327,26 +310,10 @@ export class UserFavoritesModel {
                 organization_uuid: `${OrganizationTableName}.organization_uuid`,
                 project_uuid: `${ProjectTableName}.project_uuid`,
                 space_uuid: `${SpaceTableName}.space_uuid`,
-                name: this.database.raw(`max(${SpaceTableName}.name)`),
+                name: `${SpaceTableName}.name`,
                 is_private: this.database.raw(getRootSpaceIsPrivateQuery()),
-                access: this.database.raw(
-                    getRootSpaceAccessQuery(UserTableName),
-                ),
                 parent_space_uuid: `${SpaceTableName}.parent_space_uuid`,
                 path: `${SpaceTableName}.path`,
-                access_list_length: this.database.raw(`
-                    CASE
-                        WHEN ${SpaceTableName}.parent_space_uuid IS NOT NULL THEN
-                            (SELECT COUNT(DISTINCT sua2.user_uuid)
-                             FROM ${SpaceUserAccessTableName} sua2
-                             JOIN ${SpaceTableName} root_space ON sua2.space_uuid = root_space.space_uuid
-                             WHERE root_space.path @> ${SpaceTableName}.path
-                             AND nlevel(root_space.path) = 1
-                             LIMIT 1)
-                        ELSE
-                            COUNT(DISTINCT ${SpaceUserAccessTableName}.user_uuid)
-                    END
-                `),
                 dashboard_count: this.database.raw(
                     'COALESCE(sc.dashboard_count, 0)',
                 ),
@@ -354,20 +321,9 @@ export class UserFavoritesModel {
             })
             .whereIn(`${SpaceTableName}.space_uuid`, filteredUuids)
             .whereNull(`${SpaceTableName}.deleted_at`)
-            .where(`${ProjectTableName}.project_uuid`, projectUuid)
-            .groupBy(
-                `${OrganizationTableName}.organization_uuid`,
-                `${ProjectTableName}.project_uuid`,
-                `${SpaceTableName}.space_uuid`,
-                `${SpaceTableName}.parent_space_uuid`,
-                `${SpaceTableName}.path`,
-                `${SpaceTableName}.is_private`,
-                `${SpaceTableName}.space_id`,
-                'sc.dashboard_count',
-                'sc.chart_count',
-            );
+            .where(`${ProjectTableName}.project_uuid`, projectUuid);
 
-        return spaces.map<ResourceViewSpaceItem>((row) => ({
+        return spaces.map<ResourceViewSpaceItemBase>((row) => ({
             type: ResourceViewItemType.SPACE,
             data: {
                 organizationUuid: row.organization_uuid,
@@ -377,10 +333,8 @@ export class UserFavoritesModel {
                 uuid: row.space_uuid,
                 name: row.name,
                 isPrivate: row.is_private,
-                accessListLength: Number(row.access_list_length),
                 dashboardCount: Number(row.dashboard_count),
                 chartCount: Number(row.chart_count),
-                access: row.access,
                 parentSpaceUuid: row.parent_space_uuid,
                 path: row.path,
             },
