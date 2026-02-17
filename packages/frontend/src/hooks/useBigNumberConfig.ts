@@ -5,12 +5,14 @@ import {
     applyCustomFormat,
     formatItemValue,
     friendlyName,
+    getConditionalFormattingConfig,
     getCustomFormatFromLegacy,
     getItemId,
     getItemLabel,
     getItemLabelWithoutTableName,
     hasFormatOptions,
     hasValidFormatExpression,
+    isConditionalFormattingConfigWithSingleColor,
     isField,
     isMetric,
     isNumericItem,
@@ -18,6 +20,7 @@ import {
     valueIsNaN,
     type BigNumber,
     type CompactOrAlias,
+    type ConditionalFormattingConfig,
     type ItemsMap,
     type ParametersValuesMap,
     type TableCalculationMetadata,
@@ -232,6 +235,10 @@ const useBigNumberConfig = (
         BigNumber['comparisonLabel']
     >(bigNumberConfigData?.comparisonLabel);
 
+    const [conditionalFormattings, setConditionalFormattings] = useState<
+        ConditionalFormattingConfig[]
+    >(bigNumberConfigData?.conditionalFormattings ?? []);
+
     useEffect(() => {
         if (bigNumberConfigData?.selectedField !== undefined)
             setSelectedField(bigNumberConfigData.selectedField);
@@ -251,6 +258,9 @@ const useBigNumberConfig = (
         );
         setFlipColors(bigNumberConfigData?.flipColors ?? false);
         setComparisonLabel(bigNumberConfigData?.comparisonLabel);
+        setConditionalFormattings(
+            bigNumberConfigData?.conditionalFormattings ?? [],
+        );
     }, [bigNumberConfigData]);
 
     // big number value (first row)
@@ -385,6 +395,31 @@ const useBigNumberConfig = (
         }
     }, [comparisonValue, comparisonDiff]);
 
+    const bigNumberTextColor = useMemo(() => {
+        if (!conditionalFormattings.length || !item || !selectedField)
+            return undefined;
+
+        const rawValue = firstRowValueRaw;
+
+        const matchingConfig = getConditionalFormattingConfig({
+            field: item,
+            value: rawValue,
+            minMaxMap: {},
+            conditionalFormattings,
+        });
+
+        if (
+            !matchingConfig ||
+            !isConditionalFormattingConfigWithSingleColor(matchingConfig)
+        )
+            return undefined;
+
+        const lightColor = matchingConfig.color;
+        const darkColor = matchingConfig.darkColor ?? lightColor;
+
+        return `light-dark(${lightColor}, ${darkColor})`;
+    }, [conditionalFormattings, item, selectedField, firstRowValueRaw]);
+
     const showStyle =
         isNumber(item, firstRowValueRaw) &&
         item !== undefined &&
@@ -402,6 +437,7 @@ const useBigNumberConfig = (
             comparisonFormat,
             flipColors,
             comparisonLabel,
+            conditionalFormattings,
         };
     }, [
         bigNumberLabel,
@@ -413,6 +449,7 @@ const useBigNumberConfig = (
         comparisonFormat,
         flipColors,
         comparisonLabel,
+        conditionalFormattings,
     ]);
 
     return {
@@ -444,6 +481,9 @@ const useBigNumberConfig = (
         setComparisonLabel,
         showTableNamesInLabel,
         setShowTableNamesInLabel,
+        conditionalFormattings,
+        onSetConditionalFormattings: setConditionalFormattings,
+        bigNumberTextColor,
     };
 };
 

@@ -222,7 +222,6 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
 
                     {hasRemove && hovered && (
                         <Tooltip
-                            variant="xs"
                             label="Remove condition"
                             position="left"
                             withinPortal

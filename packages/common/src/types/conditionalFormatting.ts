@@ -37,6 +37,7 @@ export const isConditionalFormattingWithCompareTarget = (
 export type ConditionalFormattingConfigWithSingleColor = {
     target: FieldTarget | null;
     color: string;
+    darkColor?: string;
     rules: ConditionalFormattingWithFilterOperator[];
     applyTo?: ConditionalFormattingColorApplyTo;
 };
