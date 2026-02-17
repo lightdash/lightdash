@@ -1,13 +1,12 @@
 import { type FC } from 'react';
 import { useParams } from 'react-router';
 import { useUnmount } from 'react-use';
-import FavoritesPanel from '../components/FavoritesPanel';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import LandingPanel from '../components/Home/LandingPanel';
 import { MostPopularAndRecentlyUpdatedPanel } from '../components/Home/MostPopularAndRecentlyUpdatedPanel';
 import OnboardingPanel from '../components/Home/OnboardingPanel/index';
 import PageSpinner from '../components/PageSpinner';
-import PinnedItemsPanel from '../components/PinnedItemsPanel';
+import PinnedAndFavoritesSection from '../components/PinnedAndFavoritesSection';
 import ErrorState from '../components/common/ErrorState';
 import Page from '../components/common/Page/Page';
 import AiSearchBox from '../ee/components/Home/AiSearchBox';
@@ -100,9 +99,10 @@ const Home: FC = () => {
                             }
                             allowDelete={false}
                         >
-                            <PinnedItemsPanel
+                            <PinnedAndFavoritesSection
                                 pinnedItems={pinnedItems.data ?? []}
-                                isEnabled={Boolean(
+                                favoriteItems={favorites.data ?? []}
+                                pinnedIsEnabled={Boolean(
                                     mostPopularAndRecentlyUpdated
                                         ?.mostPopular.length ||
                                         mostPopularAndRecentlyUpdated
@@ -110,9 +110,6 @@ const Home: FC = () => {
                                 )}
                             />
                         </PinnedItemsProvider>
-                        <FavoritesPanel
-                            favoriteItems={favorites.data ?? []}
-                        />
                         <MostPopularAndRecentlyUpdatedPanel
                             data={mostPopularAndRecentlyUpdated}
                             projectUuid={project.data.projectUuid}

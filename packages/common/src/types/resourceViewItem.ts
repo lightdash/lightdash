@@ -14,6 +14,7 @@ export enum ResourceItemCategory {
     MOST_POPULAR = 'mostPopular',
     RECENTLY_UPDATED = 'recentlyUpdated',
     PINNED = 'pinned',
+    FAVORITES = 'favorites',
 }
 
 export type ResourceViewChartItem = {
