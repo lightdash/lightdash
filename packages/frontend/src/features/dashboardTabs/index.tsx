@@ -11,14 +11,7 @@ import { Button, Group, Tabs, Tooltip } from '@mantine-8/core';
 import { IconPlus } from '@tabler/icons-react';
 import { produce } from 'immer';
 import cloneDeep from 'lodash/cloneDeep';
-import {
-    useCallback,
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
-    type FC,
-} from 'react';
+import { useCallback, useMemo, useRef, useState, type FC } from 'react';
 import { Responsive, WidthProvider, type Layout } from 'react-grid-layout';
 import { useLocation, useNavigate } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
@@ -183,18 +176,13 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
 
     // Track which tabs have been visited so we can lazy-mount tab content.
     // Tabs are mounted on first visit and kept mounted for instant re-switching.
-    const [visitedTabs, setVisitedTabs] = useState<Set<string>>(
-        () => new Set(activeTab ? [activeTab.uuid] : []),
-    );
-
-    useEffect(() => {
-        if (activeTab) {
-            setVisitedTabs((prev) => {
-                if (prev.has(activeTab.uuid)) return prev;
-                return new Set(prev).add(activeTab.uuid);
-            });
-        }
-    }, [activeTab]);
+    // We use a ref to accumulate visited UUIDs without triggering extra renders,
+    // then read it synchronously during render.
+    const visitedTabsRef = useRef(new Set<string>());
+    if (activeTab) {
+        visitedTabsRef.current.add(activeTab.uuid);
+    }
+    const visitedTabs = visitedTabsRef.current;
 
     // Group tiles by their tab UUID for per-tab grid rendering.
     // Only used when tabs are enabled. Tiles with stale/missing tab
