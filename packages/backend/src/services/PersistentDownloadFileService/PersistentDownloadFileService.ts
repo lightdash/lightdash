@@ -73,13 +73,13 @@ export class PersistentDownloadFileService extends BaseService {
         return url;
     }
 
-    async getSignedUrl(
+    private async getValidatedFile(
         fileNanoid: string,
         requestContext?: {
             ip: string | undefined;
             userAgent: string | undefined;
         },
-    ): Promise<string> {
+    ) {
         const file = await this.persistentDownloadFileModel.get(fileNanoid);
 
         if (file.expires_at < new Date()) {
@@ -89,14 +89,49 @@ export class PersistentDownloadFileService extends BaseService {
             throw new NotFoundError('This download link has expired');
         }
 
-        const signedUrl = await this.fileStorageClient.getFileUrl(
+        this.logger.info(
+            `Serving persistent download: nanoid=${fileNanoid}, s3Key=${file.s3_key}, fileType=${file.file_type}, ip=${requestContext?.ip}, userAgent=${requestContext?.userAgent}`,
+        );
+
+        return file;
+    }
+
+    async getFileType(
+        fileNanoid: string,
+        requestContext?: {
+            ip: string | undefined;
+            userAgent: string | undefined;
+        },
+    ): Promise<string> {
+        const file = await this.getValidatedFile(fileNanoid, requestContext);
+        return file.file_type;
+    }
+
+    async getSignedUrl(
+        fileNanoid: string,
+        requestContext?: {
+            ip: string | undefined;
+            userAgent: string | undefined;
+        },
+    ): Promise<string> {
+        const file = await this.getValidatedFile(fileNanoid, requestContext);
+
+        return this.fileStorageClient.getFileUrl(
             file.s3_key,
             PERSISTENT_URL_S3_EXPIRY_SECONDS,
         );
+    }
 
-        this.logger.info(
-            `Serving persistent download: nanoid=${fileNanoid}, s3Key=${file.s3_key}, ip=${requestContext?.ip}, userAgent=${requestContext?.userAgent}`,
-        );
-        return signedUrl;
+    async getFileStream(
+        fileNanoid: string,
+        requestContext?: {
+            ip: string | undefined;
+            userAgent: string | undefined;
+        },
+    ): Promise<{ stream: import('stream').Readable; fileType: string }> {
+        const file = await this.getValidatedFile(fileNanoid, requestContext);
+
+        const stream = await this.fileStorageClient.getFileStream(file.s3_key);
+        return { stream, fileType: file.file_type };
     }
 }
