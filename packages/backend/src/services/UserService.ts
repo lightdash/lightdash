@@ -65,6 +65,7 @@ import { OrganizationAllowedEmailDomainsModel } from '../models/OrganizationAllo
 import { OrganizationMemberProfileModel } from '../models/OrganizationMemberProfileModel';
 import { OrganizationModel } from '../models/OrganizationModel';
 import { PasswordResetLinkModel } from '../models/PasswordResetLinkModel';
+import { ProjectModel } from '../models/ProjectModel/ProjectModel';
 import { SessionModel } from '../models/SessionModel';
 import { UserModel } from '../models/UserModel';
 import { UserWarehouseCredentialsModel } from '../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
@@ -90,6 +91,7 @@ type UserServiceArguments = {
     organizationAllowedEmailDomainsModel: OrganizationAllowedEmailDomainsModel;
     userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
     warehouseAvailableTablesModel: WarehouseAvailableTablesModel;
+    projectModel: ProjectModel;
 };
 
 export class UserService extends BaseService {
@@ -125,6 +127,8 @@ export class UserService extends BaseService {
 
     private readonly warehouseAvailableTablesModel: WarehouseAvailableTablesModel;
 
+    private readonly projectModel: ProjectModel;
+
     private readonly emailOneTimePasscodeExpirySeconds = 60 * 15;
 
     private readonly emailOneTimePasscodeMaxAttempts = 5;
@@ -146,6 +150,7 @@ export class UserService extends BaseService {
         organizationAllowedEmailDomainsModel,
         userWarehouseCredentialsModel,
         warehouseAvailableTablesModel,
+        projectModel,
     }: UserServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -165,6 +170,7 @@ export class UserService extends BaseService {
             organizationAllowedEmailDomainsModel;
         this.userWarehouseCredentialsModel = userWarehouseCredentialsModel;
         this.warehouseAvailableTablesModel = warehouseAvailableTablesModel;
+        this.projectModel = projectModel;
     }
 
     private identifyUser(
@@ -303,8 +309,7 @@ export class UserService extends BaseService {
                     const emailDomain = getEmailDomain(userEmail);
                     if (
                         allowedEmailDomains.emailDomains.some(
-                            (domain) =>
-                                domain.toLowerCase() === emailDomain,
+                            (domain) => domain.toLowerCase() === emailDomain,
                         ) &&
                         allowedEmailDomains.projects.length > 0
                     ) {
@@ -1567,8 +1572,59 @@ export class UserService extends BaseService {
                         passportUser.organization,
                     );
                 span.setAttribute('cacheHit', cacheHit);
+
+                if (!cacheHit) {
+                    void this.ensureDefaultUserSpaces(sessionUser).catch(
+                        (err) => {
+                            this.logger.error(
+                                'Failed to ensure default user spaces',
+                                err,
+                            );
+                        },
+                    );
+                }
+
                 return sessionUser;
             },
+        );
+    }
+
+    private async ensureDefaultUserSpaces(
+        sessionUser: SessionUser,
+    ): Promise<void> {
+        if (!sessionUser.organizationUuid) return;
+
+        const projects =
+            await this.projectModel.getProjectsWithDefaultUserSpaces(
+                sessionUser.organizationUuid,
+            );
+
+        if (projects.length === 0) return;
+
+        const projectScopes = await this.userModel.getProjectScopesForUser(
+            sessionUser.userUuid,
+            projects.map((p) => p.projectUuid),
+        );
+
+        const SAVE_CONTENT_SCOPE = 'manage:SavedChart@space';
+
+        await Promise.all(
+            projects.map(async (project) => {
+                const scopes = projectScopes[project.projectUuid] ?? [];
+                if (!scopes.includes(SAVE_CONTENT_SCOPE)) return;
+
+                await this.projectModel.ensureDefaultUserSpace(
+                    project.projectId,
+                    project.parentSpaceUuid,
+                    project.parentPath,
+                    {
+                        userId: sessionUser.userId,
+                        userUuid: sessionUser.userUuid,
+                        firstName: sessionUser.firstName,
+                        lastName: sessionUser.lastName,
+                    },
+                );
+            }),
         );
     }
 

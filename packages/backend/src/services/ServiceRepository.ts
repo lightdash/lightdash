@@ -851,6 +851,7 @@ export class ServiceRepository
                         this.models.getUserWarehouseCredentialsModel(),
                     warehouseAvailableTablesModel:
                         this.models.getWarehouseAvailableTablesModel(),
+                    projectModel: this.models.getProjectModel(),
                 }),
         );
     }
