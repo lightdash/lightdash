@@ -1,3 +1,10 @@
+## [0.2476.1](https://github.com/lightdash/lightdash/compare/0.2476.0...0.2476.1) (2026-02-17)
+
+
+### Bug Fixes
+
+* truthy empty environment array for dbtConnectionOverrides ([#20382](https://github.com/lightdash/lightdash/issues/20382)) ([480477e](https://github.com/lightdash/lightdash/commit/480477e018b35d14549d4959cf1bdcc7bfa55609))
+
 # [0.2476.0](https://github.com/lightdash/lightdash/compare/0.2475.0...0.2476.0) (2026-02-17)
 
 
