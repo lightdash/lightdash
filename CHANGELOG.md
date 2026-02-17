@@ -1,3 +1,10 @@
+## [0.2473.2](https://github.com/lightdash/lightdash/compare/0.2473.1...0.2473.2) (2026-02-17)
+
+
+### Bug Fixes
+
+* prioritize CLI-provided OAuth credentials for Databricks authentication ([#20351](https://github.com/lightdash/lightdash/issues/20351)) ([35edcd0](https://github.com/lightdash/lightdash/commit/35edcd0f4b2dddeba4f5b73098ea06f648111d88))
+
 ## [0.2473.1](https://github.com/lightdash/lightdash/compare/0.2473.0...0.2473.1) (2026-02-16)
 
 
