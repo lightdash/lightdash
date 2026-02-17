@@ -144,14 +144,26 @@ describe('generateChartAsCodeSchema', () => {
             ],
         });
 
-        const chartConfig = (schema.properties as { [key: string]: any })
-            .chartConfig;
-        expect(chartConfig.discriminator).toEqual({ propertyName: 'type' });
-        expect(chartConfig.oneOf).toHaveLength(1);
-        expect(chartConfig.oneOf[0].properties.type).toEqual({
+        const { chartConfig } = schema.properties as Record<string, unknown>;
+        const typedChartConfig = chartConfig as {
+            discriminator: { propertyName: string };
+            oneOf: Array<{
+                properties: {
+                    type: {
+                        const: string;
+                    };
+                };
+                required: string[];
+            }>;
+        };
+        expect(typedChartConfig.discriminator).toEqual({
+            propertyName: 'type',
+        });
+        expect(typedChartConfig.oneOf).toHaveLength(1);
+        expect(typedChartConfig.oneOf[0].properties.type).toEqual({
             const: 'big_number',
         });
-        expect(chartConfig.oneOf[0].required).toContain('type');
+        expect(typedChartConfig.oneOf[0].required).toContain('type');
     });
 
     test('buildChartAsCodeSchema falls back to plain chartConfig ref when discriminator is unsafe', () => {
@@ -188,9 +200,8 @@ describe('generateChartAsCodeSchema', () => {
 
         const schema = buildChartAsCodeSchema(swagger);
 
-        expect(
-            (schema.properties as { [key: string]: any }).chartConfig,
-        ).toEqual({
+        const { chartConfig } = schema.properties as Record<string, unknown>;
+        expect(chartConfig).toEqual({
             $ref: '#/$defs/ChartConfig',
         });
     });
