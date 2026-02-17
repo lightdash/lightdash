@@ -85,7 +85,6 @@ const BigNumberText: FC<
     return (
         <Text
             ref={ref}
-            c="foreground"
             ta="center"
             fw={500}
             {...textProps}
@@ -246,6 +245,7 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
 
     const {
         bigNumber,
+        bigNumberTextColor,
         showBigNumberLabel,
         bigNumberLabel,
         defaultLabel,
@@ -290,6 +290,8 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
                         fw={600}
                         isHeading
                         data-testid="big-number-value"
+                        style={{ '--big-number-color': bigNumberTextColor }}
+                        className={styles.bigNumberText}
                     >
                         {bigNumber}
                     </BigNumberText>
@@ -306,7 +308,9 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
                             data-testid="big-number-value"
                             style={{
                                 cursor: 'pointer',
+                                '--big-number-color': bigNumberTextColor,
                             }}
+                            className={styles.bigNumberText}
                         >
                             {bigNumber}
                         </BigNumberText>

@@ -65,6 +65,7 @@ export type BigNumber = {
     comparisonFormat?: ComparisonFormatTypes;
     flipColors?: boolean;
     comparisonLabel?: string;
+    conditionalFormattings?: ConditionalFormattingConfig[];
 };
 
 export const PieChartValueLabels = {
