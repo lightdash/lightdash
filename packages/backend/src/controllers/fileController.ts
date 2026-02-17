@@ -62,6 +62,7 @@ export class FileController extends BaseController {
             );
             const { res } = req;
             if (res) {
+                res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
                 stream.pipe(res);
                 await new Promise<void>((resolve) => {
                     stream.on('end', () => {
@@ -76,6 +77,7 @@ export class FileController extends BaseController {
         const signedUrl = await service.getSignedUrl(fileId, requestContext);
         this.setStatus(302);
         this.setHeader('Location', signedUrl);
+        this.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
         this.setHeader('X-Robots-Tag', 'noindex, nofollow');
     }
 }
