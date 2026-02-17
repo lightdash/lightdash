@@ -95,7 +95,7 @@ export class PersistentDownloadFileService extends BaseService {
         );
 
         this.logger.info(
-            `Serving persistent download: nanoid=${fileNanoid}, s3Key=${file.s3_key}, ip=${requestContext?.ip}, userAgent=${requestContext?.userAgent}`,
+            `Serving persistent download: nanoid=${fileNanoid}, ip=${requestContext?.ip}, userAgent=${requestContext?.userAgent}`,
         );
         return signedUrl;
     }

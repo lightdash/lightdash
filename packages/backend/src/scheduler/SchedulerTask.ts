@@ -128,6 +128,7 @@ import {
 import { DashboardService } from '../services/DashboardService/DashboardService';
 import { ExcelService } from '../services/ExcelService/ExcelService';
 import type { FeatureFlagService } from '../services/FeatureFlag/FeatureFlagService';
+import { PersistentDownloadFileService } from '../services/PersistentDownloadFileService/PersistentDownloadFileService';
 import { getDashboardParametersValuesMap } from '../services/ProjectService/parameters';
 import { ProjectService } from '../services/ProjectService/ProjectService';
 import { RenameService } from '../services/RenameService/RenameService';
@@ -162,6 +163,7 @@ export type SchedulerTaskArguments = {
     renameService: RenameService;
     asyncQueryService: AsyncQueryService;
     featureFlagService: FeatureFlagService;
+    persistentDownloadFileService: PersistentDownloadFileService;
 };
 
 export default class SchedulerTask {
@@ -205,6 +207,8 @@ export default class SchedulerTask {
 
     private readonly featureFlagService: FeatureFlagService;
 
+    protected readonly persistentDownloadFileService: PersistentDownloadFileService;
+
     constructor(args: SchedulerTaskArguments) {
         this.lightdashConfig = args.lightdashConfig;
         this.analytics = args.analytics;
@@ -226,6 +230,7 @@ export default class SchedulerTask {
         this.renameService = args.renameService;
         this.asyncQueryService = args.asyncQueryService;
         this.featureFlagService = args.featureFlagService;
+        this.persistentDownloadFileService = args.persistentDownloadFileService;
     }
 
     private static getCsvOptions(
@@ -393,6 +398,21 @@ export default class SchedulerTask {
                     }
                     pdfFile = unfurlImage.pdfFile;
                     imageUrl = unfurlImage.imageUrl;
+
+                    if (this.fileStorageClient.isEnabled() && imageUrl) {
+                        imageUrl =
+                            await this.persistentDownloadFileService.createPersistentUrl(
+                                {
+                                    s3Key: `${imageId}.png`,
+                                    fileType: DownloadFileType.IMAGE,
+                                    organizationUuid,
+                                    projectUuid,
+                                    createdByUserUuid: userUuid,
+                                    expirationSeconds:
+                                        expirationSecondsOverride,
+                                },
+                            );
+                    }
                 } catch (error) {
                     if (this.slackClient.isEnabled) {
                         await this.slackClient.postMessageToNotificationChannel(
