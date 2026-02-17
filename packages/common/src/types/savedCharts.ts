@@ -255,6 +255,7 @@ export type ColumnProperties = {
     frozen?: boolean;
     displayStyle?: 'text' | 'bar';
     color?: string;
+    width?: number;
 };
 
 export type TableChart = {
