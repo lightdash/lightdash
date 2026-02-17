@@ -1,3 +1,10 @@
+# [0.2476.0](https://github.com/lightdash/lightdash/compare/0.2475.0...0.2476.0) (2026-02-17)
+
+
+### Features
+
+* scheduled delivery images with persistent download URLs ([#20372](https://github.com/lightdash/lightdash/issues/20372)) ([339ef76](https://github.com/lightdash/lightdash/commit/339ef7623f849ab24078f3fc7117fe3fcf8b6281))
+
 # [0.2475.0](https://github.com/lightdash/lightdash/compare/0.2474.1...0.2475.0) (2026-02-17)
 
 
