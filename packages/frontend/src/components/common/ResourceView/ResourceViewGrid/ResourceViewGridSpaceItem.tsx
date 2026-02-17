@@ -21,8 +21,10 @@ import ResourceViewActionMenu, {
 import AttributeCount from '../ResourceAttributeCount';
 import { getResourceAccessLabel } from '../utils';
 
-interface ResourceViewGridSpaceItemProps
-    extends Pick<ResourceViewActionMenuCommonProps, 'onAction'> {
+interface ResourceViewGridSpaceItemProps extends Pick<
+    ResourceViewActionMenuCommonProps,
+    'onAction'
+> {
     item: ResourceViewSpaceItem;
     dragIcon: ReactNode;
     allowDelete?: boolean;
@@ -96,30 +98,33 @@ const ResourceViewGridSpaceItem: FC<ResourceViewGridSpaceItemProps> = ({
                         </Group>
                     </Stack>
                 </Tooltip>
-                <Box
-                    sx={{
-                        flexGrow: 0,
-                        flexShrink: 0,
-                        // FIXME: change logic to use position absolute
-                        // transition: 'opacity 0.2s',
-                        // opacity: hovered || opened ? 1 : 0,
-                        display: hovered || opened ? 'block' : 'none',
-                    }}
-                    component="div"
+                <Flex
+                    align="center"
+                    gap={4}
+                    sx={{ flexGrow: 0, flexShrink: 0 }}
                     onClick={(e: React.MouseEvent<HTMLDivElement>) => {
                         e.stopPropagation();
                         e.preventDefault();
                     }}
                 >
-                    <ResourceViewActionMenu
-                        item={item}
-                        allowDelete={allowDelete}
-                        isOpen={opened}
-                        onOpen={handlers.open}
-                        onClose={handlers.close}
-                        onAction={onAction}
-                    />
-                </Box>
+                    <Box
+                        sx={{
+                            // FIXME: change logic to use position absolute
+                            // transition: 'opacity 0.2s',
+                            // opacity: hovered || opened ? 1 : 0,
+                            display: hovered || opened ? 'block' : 'none',
+                        }}
+                    >
+                        <ResourceViewActionMenu
+                            item={item}
+                            allowDelete={allowDelete}
+                            isOpen={opened}
+                            onOpen={handlers.open}
+                            onClose={handlers.close}
+                            onAction={onAction}
+                        />
+                    </Box>
+                </Flex>
             </Group>
         </Paper>
     );
