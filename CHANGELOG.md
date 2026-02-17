@@ -1,3 +1,10 @@
+## [0.2474.1](https://github.com/lightdash/lightdash/compare/0.2474.0...0.2474.1) (2026-02-17)
+
+
+### Bug Fixes
+
+* lazy load dashboard tabs on first visit ([#20358](https://github.com/lightdash/lightdash/issues/20358)) ([832135c](https://github.com/lightdash/lightdash/commit/832135ce3b4adf20e486187b664b070573c0f1cc))
+
 # [0.2474.0](https://github.com/lightdash/lightdash/compare/0.2473.2...0.2474.0) (2026-02-17)
 
 
