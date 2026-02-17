@@ -1011,6 +1011,7 @@ export class ServiceRepository
             'favoritesService',
             () =>
                 new FavoritesService({
+                    analytics: this.context.lightdashAnalytics,
                     userFavoritesModel:
                         this.models.getUserFavoritesModel(),
                     projectModel: this.models.getProjectModel(),

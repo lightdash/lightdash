@@ -948,6 +948,17 @@ type PinnedListUpdated = BaseTrack & {
     };
 };
 
+type FavoriteToggled = BaseTrack & {
+    event: 'favorite.toggled';
+    userId: string;
+    properties: {
+        projectId: string;
+        organizationId: string;
+        contentType: string;
+        isFavorite: boolean;
+    };
+};
+
 export type SchedulerUpsertEvent = BaseTrack & {
     event: 'scheduler.created' | 'scheduler.updated';
     userId: string;
@@ -1566,6 +1577,7 @@ type TypedEvent =
     | SchedulerJobEvent
     | SchedulerNotificationJobEvent
     | PinnedListUpdated
+    | FavoriteToggled
     | DownloadCsv
     | SchedulerDashboardView
     | Validation
