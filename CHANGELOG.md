@@ -1,3 +1,16 @@
+# [0.2479.0](https://github.com/lightdash/lightdash/compare/0.2478.0...0.2479.0) (2026-02-17)
+
+
+### Bug Fixes
+
+* favoritesService space perms handling ([#20391](https://github.com/lightdash/lightdash/issues/20391)) ([1198e66](https://github.com/lightdash/lightdash/commit/1198e66a64f2618ef972792f2812998333329516))
+
+
+### Features
+
+* add favorites backend API ([#20377](https://github.com/lightdash/lightdash/issues/20377)) ([b11b4dd](https://github.com/lightdash/lightdash/commit/b11b4dd35d84c955f0bb5ec8d220ddc14483715b))
+* add favourites UI ([#20378](https://github.com/lightdash/lightdash/issues/20378)) ([31b5ac8](https://github.com/lightdash/lightdash/commit/31b5ac84d9a60c7d54837e0ab05e5757fa0f6a78))
+
 # [0.2478.0](https://github.com/lightdash/lightdash/compare/0.2477.0...0.2478.0) (2026-02-17)
 
 
