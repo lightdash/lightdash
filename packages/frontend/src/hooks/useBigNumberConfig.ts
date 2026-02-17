@@ -33,12 +33,13 @@ export const calculateComparisonValue = (
     b: number,
     format: ComparisonFormatTypes | undefined,
 ) => {
+    const rawValue = a - b;
     switch (format) {
         case ComparisonFormatTypes.PERCENTAGE:
-            return (a - b) / Math.abs(b);
+            return rawValue / Math.abs(b);
         case ComparisonFormatTypes.RAW:
         default:
-            return a - b;
+            return rawValue;
     }
 };
 
