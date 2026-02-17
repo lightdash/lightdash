@@ -4,6 +4,7 @@ import {
     WarehouseTypes,
 } from '@lightdash/common';
 
+const mockSend = jest.fn();
 const mockAthenaClient = jest.fn();
 jest.mock('@aws-sdk/client-athena', () => ({
     ...jest.requireActual('@aws-sdk/client-athena'),
@@ -123,12 +124,9 @@ describe('AthenaWarehouseClient', () => {
     });
 
     describe('getCatalog', () => {
-        const mockSend = jest.fn();
-
         beforeEach(() => {
-            mockAthenaClient.mockImplementation(() => ({
-                send: mockSend,
-            }));
+            mockSend.mockReset();
+            mockAthenaClient.mockImplementation(() => ({ send: mockSend }));
         });
 
         test('should use ListTableMetadataCommand to fetch catalog', async () => {
