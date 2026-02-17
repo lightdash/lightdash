@@ -23,10 +23,7 @@ import {
     WarehouseTypes,
 } from '@lightdash/common';
 import { WarehouseCatalog } from '../types';
-import {
-    DEFAULT_BATCH_SIZE,
-    processPromisesInBatches,
-} from '../utils/processPromisesInBatches';
+import { processPromisesInBatches } from '../utils/processPromisesInBatches';
 import { normalizeUnicode } from '../utils/sql';
 import WarehouseBaseClient from './WarehouseBaseClient';
 import WarehouseBaseSqlBuilder from './WarehouseBaseSqlBuilder';
@@ -402,6 +399,7 @@ export class AthenaWarehouseClient extends WarehouseBaseClient<CreateAthenaCrede
             table: string;
             columns: { name: string; type: string }[];
         }[] = [];
+
         let nextToken: string | undefined;
 
         try {

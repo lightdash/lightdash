@@ -1,12 +1,19 @@
-import { CreateAthenaCredentials, WarehouseTypes } from '@lightdash/common';
+import {
+    AthenaAuthenticationType,
+    CreateAthenaCredentials,
+    WarehouseTypes,
+} from '@lightdash/common';
 
 // Must import after mocks are set up
 import { AthenaWarehouseClient } from './AthenaWarehouseClient';
 
-const mockAthenaClient = jest.fn();
+const mockSend = jest.fn();
 jest.mock('@aws-sdk/client-athena', () => ({
     ...jest.requireActual('@aws-sdk/client-athena'),
-    AthenaClient: (...args: unknown[]) => mockAthenaClient(...args),
+    // eslint-disable-next-line object-shorthand, func-names
+    AthenaClient: function () {
+        return { send: mockSend };
+    },
 }));
 
 const baseCredentials: CreateAthenaCredentials = {
@@ -16,16 +23,13 @@ const baseCredentials: CreateAthenaCredentials = {
     schema: 'my_database',
     s3StagingDir: 's3://bucket/staging',
     workGroup: 'primary',
+    authenticationType: AthenaAuthenticationType.IAM_ROLE,
 };
 
 describe('AthenaWarehouseClient', () => {
     describe('getCatalog', () => {
-        const mockSend = jest.fn();
-
         beforeEach(() => {
-            mockAthenaClient.mockImplementation(() => ({
-                send: mockSend,
-            }));
+            mockSend.mockReset();
         });
 
         test('should use ListTableMetadataCommand to fetch catalog', async () => {
