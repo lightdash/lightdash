@@ -181,6 +181,49 @@ const withConstType = (
     };
 };
 
+export const convertOpenApiToDraft07 = (value: JsonValue): JsonValue => {
+    if (Array.isArray(value)) {
+        return value.map((item) => convertOpenApiToDraft07(item));
+    }
+
+    if (!value || typeof value !== 'object') {
+        return value;
+    }
+
+    const source = value as JsonObject;
+    const convertedEntries = Object.entries(source).map(([key, child]) => [
+        key,
+        convertOpenApiToDraft07(child),
+    ]);
+    const converted = Object.fromEntries(convertedEntries) as JsonObject;
+
+    if (typeof converted.$ref === 'string') {
+        converted.$ref = rewriteRef(converted.$ref);
+    }
+
+    const { nullable } = converted;
+    delete converted.nullable;
+
+    if (nullable !== true) {
+        return converted;
+    }
+
+    if (typeof converted.type === 'string') {
+        converted.type = [converted.type, 'null'];
+        return converted;
+    }
+
+    if (Array.isArray(converted.type)) {
+        const typeValues = converted.type.map((item) => String(item));
+        converted.type = unique([...typeValues, 'null']);
+        return converted;
+    }
+
+    return {
+        anyOf: [converted, { type: 'null' }],
+    };
+};
+
 const tryBuildDiscriminatedChartConfig = (
     components: Record<string, JsonObject>,
 ): JsonObject | null => {
@@ -189,11 +232,12 @@ const tryBuildDiscriminatedChartConfig = (
         return null;
     }
 
-    const members = Array.isArray(chartConfigSchema.anyOf)
-        ? chartConfigSchema.anyOf
-        : Array.isArray(chartConfigSchema.oneOf)
-          ? chartConfigSchema.oneOf
-          : [];
+    let members: JsonValue[] = [];
+    if (Array.isArray(chartConfigSchema.anyOf)) {
+        members = chartConfigSchema.anyOf;
+    } else if (Array.isArray(chartConfigSchema.oneOf)) {
+        members = chartConfigSchema.oneOf;
+    }
 
     if (members.length === 0) {
         return null;
@@ -234,49 +278,6 @@ const tryBuildDiscriminatedChartConfig = (
         discriminator: {
             propertyName: 'type',
         },
-    };
-};
-
-export const convertOpenApiToDraft07 = (value: JsonValue): JsonValue => {
-    if (Array.isArray(value)) {
-        return value.map((item) => convertOpenApiToDraft07(item));
-    }
-
-    if (!value || typeof value !== 'object') {
-        return value;
-    }
-
-    const source = value as JsonObject;
-    const convertedEntries = Object.entries(source).map(([key, child]) => [
-        key,
-        convertOpenApiToDraft07(child),
-    ]);
-    const converted = Object.fromEntries(convertedEntries) as JsonObject;
-
-    if (typeof converted.$ref === 'string') {
-        converted.$ref = rewriteRef(converted.$ref);
-    }
-
-    const nullable = converted.nullable;
-    delete converted.nullable;
-
-    if (nullable !== true) {
-        return converted;
-    }
-
-    if (typeof converted.type === 'string') {
-        converted.type = [converted.type, 'null'];
-        return converted;
-    }
-
-    if (Array.isArray(converted.type)) {
-        const typeValues = converted.type.map((item) => String(item));
-        converted.type = unique([...typeValues, 'null']);
-        return converted;
-    }
-
-    return {
-        anyOf: [converted, { type: 'null' }],
     };
 };
 
@@ -367,17 +368,20 @@ export const buildChartAsCodeSchema = (swagger: SwaggerDoc): JsonObject => {
 
     while (refsToVisit.length > 0) {
         const schemaName = refsToVisit.pop();
-        if (!schemaName || visited.has(schemaName)) continue;
-        visited.add(schemaName);
+        if (!schemaName || visited.has(schemaName)) {
+            // no-op
+        } else {
+            visited.add(schemaName);
 
-        const component = components[schemaName];
-        if (!component) {
-            throw new Error(`Missing referenced component schema: ${schemaName}`);
+            const component = components[schemaName];
+            if (!component) {
+                throw new Error(`Missing referenced component schema: ${schemaName}`);
+            }
+
+            collectComponentRefs(component).forEach((nestedRef) => {
+                if (!visited.has(nestedRef)) refsToVisit.push(nestedRef);
+            });
         }
-
-        collectComponentRefs(component).forEach((nestedRef) => {
-            if (!visited.has(nestedRef)) refsToVisit.push(nestedRef);
-        });
     }
 
     const defs = [...visited]
