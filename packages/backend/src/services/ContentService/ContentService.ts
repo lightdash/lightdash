@@ -14,6 +14,7 @@ import {
     KnexPaginatedData,
     NotFoundError,
     SessionUser,
+    SpaceContentBase,
     SummaryContent,
 } from '@lightdash/common';
 import { intersection } from 'lodash';
@@ -30,7 +31,10 @@ import { BaseService } from '../BaseService';
 import { DashboardService } from '../DashboardService/DashboardService';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
 import { SavedSqlService } from '../SavedSqlService/SavedSqlService';
-import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
+import type {
+    SpaceAccessContextForCasl,
+    SpacePermissionService,
+} from '../SpaceService/SpacePermissionService';
 import { SpaceService } from '../SpaceService/SpaceService';
 
 type ContentServiceArguments = {
@@ -126,7 +130,7 @@ export class ContentService extends BaseService {
                 spaceUuids,
             );
 
-        return this.contentModel.findSummaryContents(
+        const results = await this.contentModel.findSummaryContents(
             {
                 ...filters,
                 projectUuids: allowedProjectUuids,
@@ -139,6 +143,39 @@ export class ContentService extends BaseService {
             queryArgs,
             paginateArgs,
         );
+
+        // Enrich SpaceContentBase items with access data → SpaceContent
+        const spaceItems = results.data.filter(
+            (item): item is SpaceContentBase =>
+                item.contentType === ContentType.SPACE,
+        );
+
+        let spacesCtx: Record<string, SpaceAccessContextForCasl> = {};
+        if (spaceItems.length > 0) {
+            spacesCtx =
+                await this.spacePermissionService.getSpacesAccessContext(
+                    user.userUuid,
+                    spaceItems.map((s) => s.uuid),
+                );
+        }
+
+        return {
+            ...results,
+            data: results.data.map((item): SummaryContent => {
+                if (item.contentType !== ContentType.SPACE) {
+                    return item;
+                }
+                const ctx = spacesCtx[item.uuid];
+                return {
+                    ...item,
+                    access: ctx
+                        ? ctx.access
+                              .filter((a) => a.hasDirectAccess)
+                              .map((a) => a.userUuid)
+                        : [],
+                };
+            }),
+        };
     }
 
     async bulkMove(

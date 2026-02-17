@@ -2,7 +2,7 @@ import {
     ChartContent,
     ContentSortByColumns,
     ContentType,
-    SummaryContent,
+    SummaryContentBase,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 
@@ -75,5 +75,5 @@ export type ContentConfiguration<
     shouldQueryBeIncluded: (filters: ContentFilters) => boolean;
     getSummaryQuery: (knex: Knex, filters: ContentFilters) => Knex.QueryBuilder;
     shouldRowBeConverted: (value: SummaryContentRow) => value is T;
-    convertSummaryRow: (value: SummaryContentRow) => SummaryContent;
+    convertSummaryRow: (value: SummaryContentRow) => SummaryContentBase;
 };
