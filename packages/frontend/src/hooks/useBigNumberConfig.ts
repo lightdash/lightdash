@@ -53,16 +53,14 @@ const formatComparisonValue = (
     bigNumberComparisonStyle: CompactOrAlias | undefined,
     parameters?: ParametersValuesMap,
 ) => {
-    if (value === UNDEFINED) {
-        value = NOT_APPLICABLE;
-    }
-
     const prefix =
         comparisonDiff === ComparisonDiffTypes.POSITIVE ||
         comparisonDiff === ComparisonDiffTypes.NONE
             ? '+'
             : '';
-
+    if (value === UNDEFINED) {
+        value = NOT_APPLICABLE;
+    }
     switch (format) {
         case ComparisonFormatTypes.PERCENTAGE:
             return `${prefix}${applyCustomFormat(value, {
