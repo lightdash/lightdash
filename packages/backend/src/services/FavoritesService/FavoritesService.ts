@@ -4,6 +4,8 @@ import {
     ContentType,
     type FavoriteItems,
     ForbiddenError,
+    ResourceViewItemType,
+    type ResourceViewSpaceItem,
     type SessionUser,
     type ToggleFavoriteResponse,
 } from '@lightdash/common';
@@ -163,7 +165,7 @@ export class FavoritesService extends BaseService {
             .filter((r) => r.contentType === ContentType.SPACE)
             .map((r) => r.contentUuid);
 
-        const [charts, dashboards, favSpaces] = await Promise.all([
+        const [charts, dashboards, favSpaceBases] = await Promise.all([
             this.userFavoritesModel.getFavoriteCharts(
                 projectUuid,
                 chartUuids,
@@ -180,6 +182,32 @@ export class FavoritesService extends BaseService {
                 allowedSpaceUuids,
             ),
         ]);
+
+        // Enrich favorite spaces with access data from SpacePermissionService
+        const favSpaceUuids = favSpaceBases.map((s) => s.data.uuid);
+        const spacesCtx =
+            await this.spacePermissionService.getSpacesAccessContext(
+                user.userUuid,
+                favSpaceUuids,
+            );
+        const favSpaces: ResourceViewSpaceItem[] = favSpaceBases.map(
+            (item) => {
+                const ctx = spacesCtx[item.data.uuid];
+                const directAccessUuids = ctx
+                    ? ctx.access
+                          .filter((a) => a.hasDirectAccess)
+                          .map((a) => a.userUuid)
+                    : [];
+                return {
+                    type: ResourceViewItemType.SPACE,
+                    data: {
+                        ...item.data,
+                        access: directAccessUuids,
+                        accessListLength: directAccessUuids.length,
+                    },
+                };
+            },
+        );
 
         return [...favSpaces, ...dashboards, ...charts];
     }
