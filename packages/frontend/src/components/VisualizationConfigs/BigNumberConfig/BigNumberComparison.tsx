@@ -128,7 +128,7 @@ export const Comparison: React.FC = () => {
                                     data={[
                                         {
                                             value: ComparisonFormatTypes.RAW,
-                                            label: 'Number',
+                                            label: 'Raw value',
                                         },
                                         {
                                             value: ComparisonFormatTypes.PERCENTAGE,
