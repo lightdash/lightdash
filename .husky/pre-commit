@@ -15,5 +15,13 @@ if git diff --cached --name-only | grep -q "examples/full-jaffle-shop-demo/profi
   exit 1
 fi
 
+if git diff --cached --name-only | grep -q "^packages/backend/"; then
+  echo "Backend changes detected, regenerating OpenAPI and chart-as-code schema..."
+  pnpm generate-api
+  pnpm generate:chart-as-code-schema
+  git add packages/backend/src/generated
+  git add packages/common/src/schemas/json/chart-as-code-1.0.json
+fi
+
 npx lint-staged
 pnpm -F frontend unused-exports

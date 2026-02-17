@@ -134,6 +134,8 @@
         "load:env": "dotenv -c -e .env.development.local",
         "generate-api": "pnpm run common-build && pnpm -F backend generate-api && pnpm -F backend formatter --write ./src/generated",
         "generate-api-dev": "pnpm run common-build && pnpm -F backend generate-api-dev",
+        "generate:chart-as-code-schema": "pnpm -F common generate:chart-as-code-schema",
+        "check:chart-as-code-schema": "pnpm -F common check:chart-as-code-schema",
         "clean-node-modules": "./scripts/clean-node-modules.sh && pnpm install",
         "clean-build-cache": "./scripts/clean-build-cache.sh",
         "clean": "pnpm clean-build-cache && pnpm clean-node-modules",
