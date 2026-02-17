@@ -1,3 +1,15 @@
+# [0.2481.0](https://github.com/lightdash/lightdash/compare/0.2480.0...0.2481.0) (2026-02-17)
+
+
+### Bug Fixes
+
+* disable reorder on faves and add more entrypoints ([#20393](https://github.com/lightdash/lightdash/issues/20393)) ([8b757e4](https://github.com/lightdash/lightdash/commit/8b757e4d9d1abed7503308002ed22065cf3b8ce0))
+
+
+### Features
+
+* add analytics events to favoriting ([#20394](https://github.com/lightdash/lightdash/issues/20394)) ([20249f2](https://github.com/lightdash/lightdash/commit/20249f293fc30e6ea857de8a0ced3b4f13014e5c))
+
 # [0.2480.0](https://github.com/lightdash/lightdash/compare/0.2479.0...0.2480.0) (2026-02-17)
 
 
