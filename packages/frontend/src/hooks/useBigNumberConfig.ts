@@ -34,11 +34,9 @@ export const calculateComparisonValue = (
     format: ComparisonFormatTypes | undefined,
 ) => {
     switch (format) {
-        case ComparisonFormatTypes.VALUE:
-            return b;
         case ComparisonFormatTypes.PERCENTAGE:
             return (a - b) / Math.abs(b);
-        case ComparisonFormatTypes.RAW:
+        case ComparisonFormatTypes.NUMBER:
         default:
             return a - b;
     }
@@ -53,28 +51,9 @@ const formatComparisonValue = (
     value: number | string,
     bigNumberComparisonStyle: CompactOrAlias | undefined,
     parameters?: ParametersValuesMap,
-    comparisonItem?: ItemsMap[string] | undefined,
 ) => {
     if (value === UNDEFINED) {
         value = NOT_APPLICABLE;
-    }
-
-    // VALUE format: show comparison field's value directly, no +/- prefix
-    if (format === ComparisonFormatTypes.VALUE) {
-        const valueItem = comparisonItem ?? item;
-        if (valueItem !== undefined && isTableCalculation(valueItem)) {
-            return formatItemValue(valueItem, value, false, parameters);
-        }
-        return bigNumberComparisonStyle
-            ? applyCustomFormat(
-                  value,
-                  getCustomFormatFromLegacy({
-                      format: isField(valueItem) ? valueItem.format : undefined,
-                      round: 2,
-                      compact: bigNumberComparisonStyle,
-                  }),
-              )
-            : formatItemValue(valueItem, value, false, parameters);
     }
 
     const prefix =
@@ -89,7 +68,7 @@ const formatComparisonValue = (
                 round: 0,
                 type: CustomFormatType.PERCENT,
             })}`;
-        case ComparisonFormatTypes.RAW:
+        case ComparisonFormatTypes.NUMBER:
             if (item !== undefined && isTableCalculation(item)) {
                 return `${prefix}${formatItemValue(
                     item,
@@ -278,7 +257,7 @@ const useBigNumberConfig = (
 
         setShowComparison(bigNumberConfigData?.showComparison ?? false);
         setComparisonFormat(
-            bigNumberConfigData?.comparisonFormat ?? ComparisonFormatTypes.RAW,
+            bigNumberConfigData?.comparisonFormat ?? ComparisonFormatTypes.NUMBER,
         );
         setFlipColors(bigNumberConfigData?.flipColors ?? false);
         setComparisonLabel(bigNumberConfigData?.comparisonLabel);
@@ -304,11 +283,6 @@ const useBigNumberConfig = (
         if (!selectedField) return;
         return resultsData.rows?.[1]?.[selectedField]?.value.raw;
     }, [selectedField, comparisonField, resultsData]);
-
-    const comparisonItem = useMemo(() => {
-        if (!itemsMap || !comparisonField) return;
-        return itemsMap[comparisonField];
-    }, [itemsMap, comparisonField]);
 
     const bigNumber = useMemo(() => {
         if (!isNumber(item, firstRowValueRaw)) {
@@ -382,13 +356,6 @@ const useBigNumberConfig = (
     }, [item, secondRowValueRaw, firstRowValueRaw, comparisonFormat]);
 
     const comparisonDiff = useMemo(() => {
-        if (comparisonFormat === ComparisonFormatTypes.VALUE) {
-            return unformattedValue === UNDEFINED
-                ? ComparisonDiffTypes.UNDEFINED
-                : unformattedValue === NOT_APPLICABLE
-                  ? ComparisonDiffTypes.NAN
-                  : ComparisonDiffTypes.NONE;
-        }
         return unformattedValue === UNDEFINED
             ? ComparisonDiffTypes.UNDEFINED
             : unformattedValue === NOT_APPLICABLE
@@ -400,7 +367,7 @@ const useBigNumberConfig = (
                   : unformattedValue === 0
                     ? ComparisonDiffTypes.NONE
                     : ComparisonDiffTypes.NAN;
-    }, [unformattedValue, comparisonFormat]);
+    }, [unformattedValue]);
 
     const comparisonValue = useMemo(() => {
         return unformattedValue === NOT_APPLICABLE
@@ -412,7 +379,6 @@ const useBigNumberConfig = (
                   unformattedValue,
                   bigNumberComparisonStyle,
                   parameters,
-                  comparisonItem,
               );
     }, [
         comparisonFormat,
@@ -421,33 +387,28 @@ const useBigNumberConfig = (
         unformattedValue,
         bigNumberComparisonStyle,
         parameters,
-        comparisonItem,
     ]);
 
     const comparisonTooltip = useMemo(() => {
-        if (comparisonFormat === ComparisonFormatTypes.VALUE) {
-            if (comparisonDiff === ComparisonDiffTypes.UNDEFINED) {
-                return comparisonField
-                    ? `Comparison field has no value`
-                    : `There is no previous row to compare to`;
-            }
-            if (comparisonDiff === ComparisonDiffTypes.NAN) {
-                return `The comparison value is not a number`;
-            }
-            return `${comparisonValue}`;
-        }
+        const source = comparisonField
+            ? 'comparison field'
+            : 'previous row';
         switch (comparisonDiff) {
             case ComparisonDiffTypes.POSITIVE:
             case ComparisonDiffTypes.NEGATIVE:
-                return `${comparisonValue} compared to previous row`;
+                return `${comparisonValue} compared to ${source}`;
             case ComparisonDiffTypes.NONE:
-                return `No change compared to previous row`;
+                return `No change compared to ${source}`;
             case ComparisonDiffTypes.NAN:
-                return `The previous row's value is not a number`;
+                return comparisonField
+                    ? `The comparison field's value is not a number`
+                    : `The previous row's value is not a number`;
             case ComparisonDiffTypes.UNDEFINED:
-                return `There is no previous row to compare to`;
+                return comparisonField
+                    ? `Comparison field has no value`
+                    : `There is no previous row to compare to`;
         }
-    }, [comparisonValue, comparisonDiff, comparisonFormat, comparisonField]);
+    }, [comparisonValue, comparisonDiff, comparisonField]);
 
     const bigNumberTextColor = useMemo(() => {
         if (!conditionalFormattings.length || !item || !selectedField)
