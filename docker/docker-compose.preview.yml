@@ -74,6 +74,9 @@ services:
             MCP_ENABLED: true
             CUSTOM_ROLES_ENABLED: true
 
+            # Added to enable persistent download URLs feature
+            PERSISTENT_DOWNLOAD_URL_ENABLED: true
+
             # these were set in https://dashboard.render.com/env-group/evg-cfn4dlhmbjst4ho7s160 but can be public
             SCHEDULER_ENABLED: true
             ALLOW_MULTIPLE_ORGS: true
