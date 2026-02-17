@@ -1499,6 +1499,64 @@ export class ProjectService extends BaseService {
             ),
         });
 
+        // For preview projects: if the upstream requires user warehouse credentials
+        // and the request includes CLI-obtained tokens, create user warehouse
+        // credentials so the user doesn't have to re-authenticate in the UI
+        if (
+            createProject.type === ProjectType.PREVIEW &&
+            createProject.warehouseConnection?.requireUserCredentials
+        ) {
+            try {
+                const { warehouseConnection } = createProject;
+                const warehouseType = warehouseConnection.type;
+                switch (warehouseType) {
+                    case WarehouseTypes.DATABRICKS: {
+                        if (!warehouseConnection.refreshToken) break;
+                        const userWarehouseCredentialsUuid =
+                            await this.userWarehouseCredentialsModel.create(
+                                user.userUuid,
+                                {
+                                    name: `Databricks credentials for preview project "${createProject.name}"`,
+                                    credentials: {
+                                        type: WarehouseTypes.DATABRICKS,
+                                        authenticationType:
+                                            DatabricksAuthenticationType.OAUTH_U2M,
+                                        refreshToken:
+                                            warehouseConnection.refreshToken,
+                                    },
+                                },
+                            );
+                        await this.userWarehouseCredentialsModel.upsertUserCredentialsPreference(
+                            user.userUuid,
+                            projectUuid,
+                            userWarehouseCredentialsUuid,
+                        );
+                        this.logger.info(
+                            `Created user warehouse credentials for Databricks on project ${projectUuid}`,
+                        );
+                        break;
+                    }
+                    case WarehouseTypes.BIGQUERY:
+                    case WarehouseTypes.SNOWFLAKE:
+                    case WarehouseTypes.POSTGRES:
+                    case WarehouseTypes.REDSHIFT:
+                    case WarehouseTypes.TRINO:
+                    case WarehouseTypes.CLICKHOUSE:
+                    case WarehouseTypes.ATHENA:
+                        break;
+                    default:
+                        assertUnreachable(
+                            warehouseType,
+                            `Unknown warehouse type for user credentials`,
+                        );
+                }
+            } catch (e) {
+                this.logger.error(
+                    `Failed to create user warehouse credentials: ${e instanceof Error ? e.message : String(e)}`,
+                );
+            }
+        }
+
         let hasContentCopy = false;
         let contentCopyError: string | undefined;
 
@@ -1999,9 +2057,9 @@ export class ProjectService extends BaseService {
         };
     }
 
-    /* 
+    /*
     Similar code to updateAndScheduleAsyncWork, but only for warehouse credentials
-    This will not trigger any job 
+    This will not trigger any job
     We could reuse this method in updateAndScheduleAsyncWork to avoid code duplication
     */
     async updateWarehouseCredentials(
@@ -2319,6 +2377,14 @@ export class ProjectService extends BaseService {
         ) {
             throw new ForbiddenError(
                 `User does not have permission to delete project`,
+            );
+        }
+
+        // Clean up user warehouse credentials created for this preview project
+        // before deleting (cascade would only remove the preference rows)
+        if (project.type === ProjectType.PREVIEW) {
+            await this.userWarehouseCredentialsModel.deleteExclusivelyLinkedToProject(
+                projectUuid,
             );
         }
 

@@ -340,4 +340,27 @@ export class UserWarehouseCredentialsModel {
             .where('user_uuid', userUuid)
             .andWhere('warehouse_type', warehouseType);
     }
+
+    /**
+     * Delete user warehouse credentials exclusively linked to a project.
+     * Credentials shared with other projects are skipped.
+     */
+    async deleteExclusivelyLinkedToProject(projectUuid: string): Promise<void> {
+        await this.database(UserWarehouseCredentialsTableName)
+            .delete()
+            .whereIn(
+                'user_warehouse_credentials_uuid',
+                this.database(ProjectUserWarehouseCredentialPreferenceTableName)
+                    .select('user_warehouse_credentials_uuid')
+                    .where('project_uuid', projectUuid),
+            )
+            .whereNotExists(
+                this.database(ProjectUserWarehouseCredentialPreferenceTableName)
+                    .select('*')
+                    .whereRaw(
+                        `${ProjectUserWarehouseCredentialPreferenceTableName}.user_warehouse_credentials_uuid = ${UserWarehouseCredentialsTableName}.user_warehouse_credentials_uuid`,
+                    )
+                    .andWhereNot('project_uuid', projectUuid),
+            );
+    }
 }
