@@ -35,11 +35,9 @@ const ErrorMessageByType: FC<{
         ) {
             return (
                 <Text>
-                    <CustomMark>{validationError.fieldName}</CustomMark> is
-                    included in the query but not used in the chart
-                    configuration (x-axis, y-axis, or group by). This can cause
-                    incorrect rendering. We recommend removing unused dimensions
-                    from the query.
+                    <CustomMark>{validationError.fieldName}</CustomMark>
+                    {': '}
+                    {validationError.error}
                 </Text>
             );
         }
