@@ -257,6 +257,10 @@ import {
     UserAttributeTable,
 } from '../database/entities/userAttributes';
 import {
+    UserFavoritesTable,
+    UserFavoritesTableName,
+} from '../database/entities/userFavorites';
+import {
     ProjectUserWarehouseCredentialPreferenceTable,
     ProjectUserWarehouseCredentialPreferenceTableName,
     UserWarehouseCredentialsTable,
@@ -450,5 +454,6 @@ declare module 'knex/types/tables' {
         [AiEvalRunResultAssessmentTableName]: AiEvalRunResultAssessmentTable;
         [ChangesetsTableName]: ChangesetsTable;
         [ChangesTableName]: ChangesTable;
+        [UserFavoritesTableName]: UserFavoritesTable;
     }
 }
