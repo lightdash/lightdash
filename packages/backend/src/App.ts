@@ -137,6 +137,8 @@ const schedulerWorkerFactory = (context: {
         renameService: context.serviceRepository.getRenameService(),
         asyncQueryService: context.serviceRepository.getAsyncQueryService(),
         featureFlagService: context.serviceRepository.getFeatureFlagService(),
+        persistentDownloadFileService:
+            context.serviceRepository.getPersistentDownloadFileService(),
     });
 
 export type AppArguments = {
