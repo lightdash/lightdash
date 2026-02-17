@@ -1,3 +1,11 @@
+# [0.2480.0](https://github.com/lightdash/lightdash/compare/0.2479.0...0.2480.0) (2026-02-17)
+
+
+### Features
+
+* improve dnd experience ([#20390](https://github.com/lightdash/lightdash/issues/20390)) ([7ca848c](https://github.com/lightdash/lightdash/commit/7ca848cb6b6568a6841e7e449e243bd35130bfa9))
+* improve empty state experience ([#20389](https://github.com/lightdash/lightdash/issues/20389)) ([e715b14](https://github.com/lightdash/lightdash/commit/e715b14013c11883f5445cc88b38beddb27fafa4))
+
 # [0.2479.0](https://github.com/lightdash/lightdash/compare/0.2478.0...0.2479.0) (2026-02-17)
 
 
