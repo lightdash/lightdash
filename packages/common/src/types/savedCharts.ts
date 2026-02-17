@@ -43,7 +43,7 @@ export enum ChartType {
 }
 
 export enum ComparisonFormatTypes {
-    NUMBER = 'raw',
+    RAW = 'raw',
     PERCENTAGE = 'percentage',
 }
 

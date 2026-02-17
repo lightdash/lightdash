@@ -23,7 +23,24 @@ type CompareTarget = 'previous_row' | 'another_field';
 export const Comparison: React.FC = () => {
     const { visualizationConfig, itemsMap } = useVisualizationContext();
 
-    if (!isBigNumberVisualizationConfig(visualizationConfig)) return null;
+    const isBigNumber = isBigNumberVisualizationConfig(visualizationConfig);
+    const chartConfig = isBigNumber
+        ? visualizationConfig.chartConfig
+        : undefined;
+
+    const [compareTarget, setCompareTarget] = useState<CompareTarget>(
+        chartConfig?.comparisonField !== undefined
+            ? 'another_field'
+            : 'previous_row',
+    );
+
+    useEffect(() => {
+        if (chartConfig?.comparisonField !== undefined) {
+            setCompareTarget('another_field');
+        }
+    }, [chartConfig?.comparisonField]);
+
+    if (!isBigNumber || !chartConfig) return null;
 
     const {
         bigNumberComparisonStyle,
@@ -41,17 +58,7 @@ export const Comparison: React.FC = () => {
         getField,
         comparisonField,
         setComparisonField,
-    } = visualizationConfig.chartConfig;
-
-    const [compareTarget, setCompareTarget] = useState<CompareTarget>(
-        comparisonField !== undefined ? 'another_field' : 'previous_row',
-    );
-
-    useEffect(() => {
-        if (comparisonField !== undefined) {
-            setCompareTarget('another_field');
-        }
-    }, [comparisonField]);
+    } = chartConfig;
 
     const comparisonFieldItem = getField(comparisonField);
 
@@ -90,8 +97,7 @@ export const Comparison: React.FC = () => {
                                     ]}
                                     value={compareTarget}
                                     onChange={(value) => {
-                                        const target =
-                                            value as CompareTarget;
+                                        const target = value as CompareTarget;
                                         setCompareTarget(target);
                                         if (target === 'previous_row') {
                                             setComparisonField(undefined);
@@ -121,7 +127,7 @@ export const Comparison: React.FC = () => {
                                 <SegmentedControl
                                     data={[
                                         {
-                                            value: ComparisonFormatTypes.NUMBER,
+                                            value: ComparisonFormatTypes.RAW,
                                             label: 'Number',
                                         },
                                         {
@@ -133,7 +139,7 @@ export const Comparison: React.FC = () => {
                                         comparisonFormat ===
                                         ComparisonFormatTypes.PERCENTAGE
                                             ? ComparisonFormatTypes.PERCENTAGE
-                                            : ComparisonFormatTypes.NUMBER
+                                            : ComparisonFormatTypes.RAW
                                     }
                                     onChange={(e) => {
                                         setComparisonFormat(
@@ -159,13 +165,11 @@ export const Comparison: React.FC = () => {
 
                             {showStyle &&
                                 comparisonFormat ===
-                                    ComparisonFormatTypes.NUMBER && (
+                                    ComparisonFormatTypes.RAW && (
                                     <Select
                                         label="Style"
                                         data={StyleOptions}
-                                        value={
-                                            bigNumberComparisonStyle ?? ''
-                                        }
+                                        value={bigNumberComparisonStyle ?? ''}
                                         onChange={(newValue) => {
                                             if (!newValue) {
                                                 setBigNumberComparisonStyle(

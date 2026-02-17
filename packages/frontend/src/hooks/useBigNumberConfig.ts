@@ -36,7 +36,7 @@ export const calculateComparisonValue = (
     switch (format) {
         case ComparisonFormatTypes.PERCENTAGE:
             return (a - b) / Math.abs(b);
-        case ComparisonFormatTypes.NUMBER:
+        case ComparisonFormatTypes.RAW:
         default:
             return a - b;
     }
@@ -68,7 +68,7 @@ const formatComparisonValue = (
                 round: 0,
                 type: CustomFormatType.PERCENT,
             })}`;
-        case ComparisonFormatTypes.NUMBER:
+        case ComparisonFormatTypes.RAW:
             if (item !== undefined && isTableCalculation(item)) {
                 return `${prefix}${formatItemValue(
                     item,
@@ -257,7 +257,7 @@ const useBigNumberConfig = (
 
         setShowComparison(bigNumberConfigData?.showComparison ?? false);
         setComparisonFormat(
-            bigNumberConfigData?.comparisonFormat ?? ComparisonFormatTypes.NUMBER,
+            bigNumberConfigData?.comparisonFormat ?? ComparisonFormatTypes.RAW,
         );
         setFlipColors(bigNumberConfigData?.flipColors ?? false);
         setComparisonLabel(bigNumberConfigData?.comparisonLabel);
@@ -390,9 +390,7 @@ const useBigNumberConfig = (
     ]);
 
     const comparisonTooltip = useMemo(() => {
-        const source = comparisonField
-            ? 'comparison field'
-            : 'previous row';
+        const source = comparisonField ? 'comparison field' : 'previous row';
         switch (comparisonDiff) {
             case ComparisonDiffTypes.POSITIVE:
             case ComparisonDiffTypes.NEGATIVE:
