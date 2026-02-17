@@ -1,8 +1,9 @@
 import { type ContentType } from '@lightdash/common';
-import { ActionIcon, Tooltip } from '@mantine/core';
+import { ActionIcon, Tooltip } from '@mantine-8/core';
 import { IconStar, IconStarFilled } from '@tabler/icons-react';
 import { type FC } from 'react';
 import useFavoritesContext from '../../../providers/Favorites/useFavoritesContext';
+import MantineIcon from '../MantineIcon';
 
 interface FavoriteButtonProps {
     contentType: ContentType;
@@ -33,11 +34,11 @@ const FavoriteButton: FC<FavoriteButtonProps> = ({
                     toggleFavorite(contentType, contentUuid);
                 }}
             >
-                {isFav ? (
-                    <IconStarFilled size={14} color="orange" />
-                ) : (
-                    <IconStar size={14} color="gray" />
-                )}
+                <MantineIcon
+                    icon={isFav ? IconStarFilled : IconStar}
+                    size="sm"
+                    color={isFav ? 'orange' : 'ldGray.6'}
+                />
             </ActionIcon>
         </Tooltip>
     );

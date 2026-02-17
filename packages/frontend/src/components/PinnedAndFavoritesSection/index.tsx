@@ -6,6 +6,7 @@ import {
 } from '@lightdash/common';
 import { IconPin, IconStar } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
+import useApp from '../../providers/App/useApp';
 import usePinnedItemsContext from '../../providers/PinnedItems/usePinnedItemsContext';
 import MantineIcon from '../common/MantineIcon';
 import ResourceView from '../common/ResourceView';
@@ -29,7 +30,9 @@ const PinnedAndFavoritesSection: FC<Props> = ({
     favoriteItems,
     pinnedIsEnabled,
 }) => {
+    const { user } = useApp();
     const { userCanManage } = usePinnedItemsContext();
+    const isAdmin = user.data?.ability?.can('manage', 'Organization') ?? false;
 
     const hasPinned = pinnedItems.length > 0;
     const hasFavorites = favoriteItems.length > 0;
@@ -64,6 +67,12 @@ const PinnedAndFavoritesSection: FC<Props> = ({
                         filter: (item) =>
                             'category' in item &&
                             item.category === ResourceItemCategory.FAVORITES,
+                        emptyStateProps: {
+                            icon: <MantineIcon icon={IconStar} size={24} />,
+                            title: 'No favorites yet',
+                            description:
+                                'Star items to add them to your personal favorites.',
+                        },
                     },
                     {
                         id: 'pinned',
@@ -75,6 +84,13 @@ const PinnedAndFavoritesSection: FC<Props> = ({
                         filter: (item) =>
                             'category' in item &&
                             item.category === ResourceItemCategory.PINNED,
+                        emptyStateProps: {
+                            icon: <MantineIcon icon={IconPin} size={24} />,
+                            title: 'No pinned items',
+                            description: userCanManage
+                                ? 'Pin items to the top of the homepage to guide users to relevant content.'
+                                : 'Your data team has not pinned any items yet.',
+                        },
                     },
                 ]}
                 gridProps={{ groups: GRID_GROUPS }}
@@ -93,7 +109,7 @@ const PinnedAndFavoritesSection: FC<Props> = ({
     // - Non-admins see only favorites empty state
     return (
         <>
-            {userCanManage && pinnedIsEnabled && (
+            {isAdmin && pinnedIsEnabled && (
                 <PinnedItemsPanel
                     pinnedItems={pinnedItems}
                     isEnabled={pinnedIsEnabled}

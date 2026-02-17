@@ -1,4 +1,5 @@
 import { ResourceViewItemType, type FavoriteItems } from '@lightdash/common';
+import { Card, Group, Text } from '@mantine-8/core';
 import { IconStar } from '@tabler/icons-react';
 import { type FC } from 'react';
 import PinnedItemsContext from '../../providers/PinnedItems/context';
@@ -24,7 +25,26 @@ const FavoritesPanel: FC<Props> = ({
     favoriteItems,
     showEmptyState = false,
 }) => {
-    if (!showEmptyState && (!favoriteItems || favoriteItems.length === 0)) {
+    if (!favoriteItems || favoriteItems.length === 0) {
+        if (showEmptyState) {
+            return (
+                <Card withBorder variant="dotted">
+                    <Group justify="flex-start" gap="xxs" my="xs" ml="xs">
+                        <MantineIcon
+                            icon={IconStar}
+                            size={20}
+                            color="ldGray.7"
+                        />
+                        <Text fw={600} c="ldGray.8" fz="sm">
+                            No favorites yet.
+                        </Text>
+                        <Text c="dimmed" fz="sm">
+                            Star items to add them to your personal favorites.
+                        </Text>
+                    </Group>
+                </Card>
+            );
+        }
         return null;
     }
 
@@ -46,12 +66,6 @@ const FavoritesPanel: FC<Props> = ({
                     title: 'My favorites',
                     description:
                         'Your personally favorited spaces, dashboards, and charts.',
-                }}
-                emptyStateProps={{
-                    icon: <MantineIcon icon={IconStar} size={24} />,
-                    title: 'No favorites yet',
-                    description:
-                        'Star items to add them to your personal favorites.',
                 }}
             />
         </PinnedItemsContext.Provider>

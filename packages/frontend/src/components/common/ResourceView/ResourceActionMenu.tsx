@@ -5,8 +5,7 @@ import {
     ResourceViewItemType,
     type ResourceViewItem,
 } from '@lightdash/common';
-import { Menu } from '@mantine-8/core';
-import { ActionIcon, Box, Tooltip } from '@mantine/core';
+import { Menu , ActionIcon, Box, Tooltip } from '@mantine-8/core';
 import {
     IconCopy,
     IconDatabaseExport,
@@ -204,11 +203,8 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                             disabled={disabled}
                             aria-label="Menu"
                             data-testid={`ResourceViewActionMenu/${item.data.name}`}
-                            sx={(theme) => ({
-                                ':hover': {
-                                    backgroundColor: theme.colors.ldGray[1],
-                                },
-                            })}
+                            variant="subtle"
+                            color="ldGray.6"
                         >
                             <IconDots size={16} />
                         </ActionIcon>
