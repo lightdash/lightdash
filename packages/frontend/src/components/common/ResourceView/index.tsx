@@ -103,6 +103,13 @@ const ResourceView: FC<ResourceViewProps> = ({
             ? (itemsByTabs.get(activeTabId) ?? [])
             : allItems;
 
+    const activeTab =
+        hasTabs && activeTabId
+            ? tabs.find((t) => t.id === activeTabId)
+            : undefined;
+    const effectiveHasReorder =
+        activeTab?.hasReorder !== undefined ? activeTab.hasReorder : hasReorder;
+
     return (
         <>
             <Paper withBorder>
@@ -139,7 +146,7 @@ const ResourceView: FC<ResourceViewProps> = ({
                                                                 icon={
                                                                     IconInfoCircle
                                                                 }
-                                                                color="ldGray.9"
+                                                                color="ldGray.6"
                                                             />
                                                         </Tooltip>
                                                     ) : null
@@ -221,7 +228,7 @@ const ResourceView: FC<ResourceViewProps> = ({
                         items={items}
                         groups={gridProps.groups}
                         onAction={handleAction}
-                        hasReorder={hasReorder}
+                        hasReorder={effectiveHasReorder}
                     />
                 ) : (
                     assertUnreachable(view, 'Unknown resource view type')

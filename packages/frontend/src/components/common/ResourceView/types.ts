@@ -71,6 +71,7 @@ type TabType = {
     sort?: (a: ResourceViewItem, b: ResourceViewItem) => number;
     filter?: (item: ResourceViewItem, index: number) => boolean;
     emptyStateProps?: ResourceEmptyStateProps;
+    hasReorder?: boolean;
 };
 
 interface ResourceHeaderProps {

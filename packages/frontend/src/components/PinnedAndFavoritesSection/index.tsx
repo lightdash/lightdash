@@ -3,6 +3,7 @@ import {
     ResourceViewItemType,
     type FavoriteItems,
     type PinnedItems,
+    type ResourceViewItem,
 } from '@lightdash/common';
 import { IconPin, IconStar } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
@@ -18,6 +19,15 @@ const GRID_GROUPS = [
     [ResourceViewItemType.SPACE],
     [ResourceViewItemType.DASHBOARD, ResourceViewItemType.CHART],
 ];
+
+const TYPE_SORT_ORDER: Record<string, number> = {
+    [ResourceViewItemType.SPACE]: 0,
+    [ResourceViewItemType.DASHBOARD]: 1,
+    [ResourceViewItemType.CHART]: 2,
+};
+
+const sortByType = (a: ResourceViewItem, b: ResourceViewItem): number =>
+    (TYPE_SORT_ORDER[a.type] ?? 3) - (TYPE_SORT_ORDER[b.type] ?? 3);
 
 interface Props {
     pinnedItems: PinnedItems;
@@ -64,6 +74,8 @@ const PinnedAndFavoritesSection: FC<Props> = ({
                         icon: <MantineIcon icon={IconStar} size="sm" />,
                         infoTooltipText:
                             'Your personally favorited spaces, dashboards, and charts.',
+                        hasReorder: false,
+                        sort: sortByType,
                         filter: (item) =>
                             'category' in item &&
                             item.category === ResourceItemCategory.FAVORITES,
@@ -81,6 +93,7 @@ const PinnedAndFavoritesSection: FC<Props> = ({
                         infoTooltipText: userCanManage
                             ? 'Pin Spaces, Dashboards and Charts to the top of the homepage to guide your business users to the right content.'
                             : 'Your data team have pinned these items to help guide you towards the most relevant content!',
+                        hasReorder: userCanManage,
                         filter: (item) =>
                             'category' in item &&
                             item.category === ResourceItemCategory.PINNED,

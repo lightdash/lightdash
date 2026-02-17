@@ -1,4 +1,5 @@
 import { subject } from '@casl/ability';
+import { ContentType } from '@lightdash/common';
 import { Menu } from '@mantine-8/core';
 import { ActionIcon, Box } from '@mantine/core';
 import {
@@ -6,15 +7,19 @@ import {
     IconFolderSymlink,
     IconPin,
     IconPinned,
+    IconStar,
+    IconStarFilled,
     IconTrash,
 } from '@tabler/icons-react';
 import React from 'react';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import useApp from '../../../providers/App/useApp';
+import useFavoritesContext from '../../../providers/Favorites/useFavoritesContext';
 import MantineIcon from '../../common/MantineIcon';
 
 interface Props {
     isPinned: boolean;
+    spaceUuid: string;
     onRename: () => void;
     onDelete: () => void;
     onTogglePin: () => void;
@@ -23,6 +28,7 @@ interface Props {
 
 export const SpaceBrowserMenu: React.FC<React.PropsWithChildren<Props>> = ({
     isPinned,
+    spaceUuid,
     onRename,
     onDelete,
     onTogglePin,
@@ -32,6 +38,8 @@ export const SpaceBrowserMenu: React.FC<React.PropsWithChildren<Props>> = ({
     const { user } = useApp();
     const organizationUuid = user.data?.organizationUuid;
     const projectUuid = useProjectUuid();
+    const favoritesContext = useFavoritesContext();
+    const isFavorited = favoritesContext?.isFavorited(spaceUuid) ?? false;
 
     return (
         <Menu
@@ -49,6 +57,34 @@ export const SpaceBrowserMenu: React.FC<React.PropsWithChildren<Props>> = ({
                 </Box>
             </Menu.Target>
             <Menu.Dropdown>
+                {favoritesContext && (
+                    <>
+                        <Menu.Item
+                            component="button"
+                            role="menuitem"
+                            leftSection={
+                                isFavorited ? (
+                                    <MantineIcon icon={IconStarFilled} />
+                                ) : (
+                                    <MantineIcon icon={IconStar} />
+                                )
+                            }
+                            onClick={() =>
+                                favoritesContext.toggleFavorite(
+                                    ContentType.SPACE,
+                                    spaceUuid,
+                                )
+                            }
+                        >
+                            {isFavorited
+                                ? 'Remove from favorites'
+                                : 'Add to favorites'}
+                        </Menu.Item>
+
+                        <Menu.Divider />
+                    </>
+                )}
+
                 <Menu.Item
                     component="button"
                     role="menuitem"
