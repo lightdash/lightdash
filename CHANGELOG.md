@@ -1,3 +1,10 @@
+# [0.2477.0](https://github.com/lightdash/lightdash/compare/0.2476.1...0.2477.0) (2026-02-17)
+
+
+### Features
+
+* introduce big number conditional formatting ([#20383](https://github.com/lightdash/lightdash/issues/20383)) ([c30e31e](https://github.com/lightdash/lightdash/commit/c30e31e6f05a6644998d806b8dbc29627a5f8bf5)), closes [#20371](https://github.com/lightdash/lightdash/issues/20371)
+
 ## [0.2476.1](https://github.com/lightdash/lightdash/compare/0.2476.0...0.2476.1) (2026-02-17)
 
 
