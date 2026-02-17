@@ -324,6 +324,7 @@ export const projectWithSensitiveFields: Project = {
     },
     schedulerTimezone: 'UTC',
     createdByUserUuid: sessionAccount.user.id,
+    hasDefaultUserSpaces: false,
 };
 
 export const projectSummary: ProjectSummary = {

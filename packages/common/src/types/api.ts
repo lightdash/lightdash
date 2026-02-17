@@ -494,6 +494,7 @@ export type CreateProject = Omit<
     | 'organizationUuid'
     | 'schedulerTimezone'
     | 'createdByUserUuid'
+    | 'hasDefaultUserSpaces'
 > & {
     warehouseConnection: CreateWarehouseCredentials;
     copyWarehouseConnectionFromUpstreamProject?: boolean;
@@ -523,6 +524,7 @@ export type UpdateProject = Omit<
     | 'type'
     | 'schedulerTimezone'
     | 'createdByUserUuid'
+    | 'hasDefaultUserSpaces'
 > & {
     warehouseConnection: CreateWarehouseCredentials;
 };

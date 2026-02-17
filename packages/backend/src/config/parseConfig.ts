@@ -1037,6 +1037,9 @@ export type LightdashConfig = {
     nestedSpacesPermissions: {
         enabled: boolean;
     };
+    defaultUserSpaces: {
+        enabled: boolean;
+    };
     softDelete: {
         enabled: boolean;
         retentionDays: number;
@@ -1891,6 +1894,10 @@ export const parseConfig = (): LightdashConfig => {
         },
         nestedSpacesPermissions: {
             enabled: process.env.NESTED_SPACES_PERMISSIONS_ENABLED === 'true',
+        },
+        defaultUserSpaces: {
+            enabled:
+                process.env.LIGHTDASH_DEFAULT_USER_SPACES_ENABLED === 'true',
         },
         softDelete: {
             enabled: process.env.SOFT_DELETE_ENABLED === 'true',
