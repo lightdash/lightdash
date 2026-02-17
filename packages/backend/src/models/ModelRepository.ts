@@ -50,6 +50,7 @@ import { SpotlightTableConfigModel } from './SpotlightTableConfigModel';
 import { SshKeyPairModel } from './SshKeyPairModel';
 import { TagsModel } from './TagsModel';
 import { UserAttributesModel } from './UserAttributesModel';
+import { UserFavoritesModel } from './UserFavoritesModel';
 import { UserModel } from './UserModel';
 import { UserWarehouseCredentialsModel } from './UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { ValidationModel } from './ValidationModel/ValidationModel';
@@ -100,6 +101,7 @@ export type ModelManifest = {
     spacePermissionModel: SpacePermissionModel;
     sshKeyPairModel: SshKeyPairModel;
     userAttributesModel: UserAttributesModel;
+    userFavoritesModel: UserFavoritesModel;
     userModel: UserModel;
     userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
     warehouseAvailableTablesModel: WarehouseAvailableTablesModel;
@@ -536,6 +538,13 @@ export class ModelRepository
         return this.getModel(
             'userAttributesModel',
             () => new UserAttributesModel({ database: this.database }),
+        );
+    }
+
+    public getUserFavoritesModel(): UserFavoritesModel {
+        return this.getModel(
+            'userFavoritesModel',
+            () => new UserFavoritesModel({ database: this.database }),
         );
     }
 
