@@ -261,12 +261,6 @@ models:
           round: 1
           description: "Percentage of orders that completed"
 
-        # Year-over-year growth (requires window functions)
-        yoy_growth:
-          type: number
-          sql: |
-            (SUM(${TABLE}.amount) - LAG(SUM(${TABLE}.amount)) OVER (ORDER BY DATE_TRUNC('year', ${TABLE}.created_at)))
-            / NULLIF(LAG(SUM(${TABLE}.amount)) OVER (ORDER BY DATE_TRUNC('year', ${TABLE}.created_at)), 0) * 100
 ```
 
 ### Referencing Other Tables
@@ -436,6 +430,38 @@ models:
           round: 2
           description: "Percentage of impressions that resulted in clicks"
 ```
+
+## Metric Categories
+
+Lightdash metrics fall into three categories, each with different capabilities and constraints:
+
+1. **Aggregate metrics** (`sum`, `count`, `count_distinct`, `average`, `min`, `max`, `median`, `percentile`) — perform aggregations on raw data. Can only reference dimensions, not other metrics.
+2. **Non-aggregate metrics** (`number`, `string`, `date`, `boolean`) — perform calculations on already-aggregated results. Can only reference aggregate metrics, not dimensions directly.
+3. **Post calculation metrics** (`running_total`, `percent_of_previous`, `percent_of_total`) — computed after aggregate and non-aggregate metrics using window functions internally. They use implicit partitioning based on the query's grouping and sort order. They do not support custom `PARTITION BY`, `ORDER BY`, or frame clauses, and they do not support the `filters` property.
+
+## When to Use Table Calculations Instead of Metrics
+
+Post calculation metrics cover simple windowing needs (e.g., a basic running total or percent of total). However, **if a calculation requires custom window function configuration** — such as a specific `PARTITION BY`, `ORDER BY`, or `ROWS BETWEEN` clause — it cannot be defined as a YAML metric. Use a **table calculation** instead.
+
+Common examples that need table calculations:
+- **Month-to-date (MTD) running totals** — cumulative sums partitioned by month, ordered by day
+- **Year-over-year comparisons** — using `LAG` with custom ordering
+- **Rolling averages with custom windows** — e.g., 7-day rolling average partitioned by category
+- **Rank within groups** — `ROW_NUMBER` or `RANK` with custom partitions
+
+### Table Calculation Example: Month-to-Date Running Total
+
+In the Explore view, add a table calculation with SQL like:
+
+```sql
+SUM(${table.my_metric}) OVER (
+  PARTITION BY ${table.date_month}
+  ORDER BY ${table.date_day}
+  ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+)
+```
+
+Table calculations appear as green columns in your results table. See the [table calculations docs](https://docs.lightdash.com/guides/table-calculations) and [rolling window SQL template](https://docs.lightdash.com/guides/table-calculations/table-calculation-sql-templates/rolling-window) for more examples.
 
 ## Best Practices
 
