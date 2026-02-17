@@ -70,6 +70,7 @@ type TabType = {
     infoTooltipText?: string;
     sort?: (a: ResourceViewItem, b: ResourceViewItem) => number;
     filter?: (item: ResourceViewItem, index: number) => boolean;
+    emptyStateProps?: ResourceEmptyStateProps;
 };
 
 interface ResourceHeaderProps {

@@ -1,0 +1,33 @@
+.gridCard {
+    display: flex;
+    flex-direction: column;
+
+    &:hover {
+        background-color: color-mix(
+            in srgb,
+            var(--mantine-color-ldGray-0) 50%,
+            transparent
+        );
+    }
+}
+
+.gridCardTopSection {
+    flex-grow: 1;
+    border-bottom: 1px solid var(--mantine-color-ldGray-3);
+}
+
+.gridCardActionBox {
+    flex-grow: 0;
+    flex-shrink: 0;
+    transition: opacity 0.2s;
+}
+
+.gridCardActionBoxHidden {
+    composes: gridCardActionBox;
+    opacity: 0;
+}
+
+.gridCardActionBoxVisible {
+    composes: gridCardActionBox;
+    opacity: 1;
+}

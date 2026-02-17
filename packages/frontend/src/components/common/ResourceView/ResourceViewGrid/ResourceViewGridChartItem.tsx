@@ -1,14 +1,7 @@
 import { type ResourceViewChartItem } from '@lightdash/common';
-import {
-    Box,
-    Flex,
-    Group,
-    Paper,
-    Text,
-    Tooltip,
-    useMantineTheme,
-} from '@mantine/core';
+import { Box, Flex, Group, Paper, Text, Tooltip } from '@mantine-8/core';
 import { useDisclosure, useHover } from '@mantine/hooks';
+import classes from './ResourceViewGridItem.module.css';
 import { IconEye } from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
 import { ResourceIcon } from '../../ResourceIcon';
@@ -34,35 +27,22 @@ const ResourceViewGridChartItem: FC<ResourceViewGridChartItemProps> = ({
 }) => {
     const { hovered, ref } = useHover();
     const [opened, handlers] = useDisclosure(false);
-    const theme = useMantineTheme();
 
     return (
         <Paper
             ref={ref}
-            component={Flex}
             pos="relative"
-            direction="column"
             p={0}
             withBorder
-            bg={
-                hovered ? theme.fn.rgba(theme.colors.ldGray[0], 0.5) : undefined
-            }
+            className={classes.gridCard}
             h="100%"
         >
             <Group
                 p="md"
                 align="center"
-                spacing="md"
-                noWrap
-                sx={(t) => ({
-                    flexGrow: 1,
-                    borderBottomWidth: 1,
-                    borderBottomStyle: 'solid',
-                    borderBottomColor:
-                        t.colorScheme === 'dark'
-                            ? t.colors.ldGray[1]
-                            : t.colors.ldGray[3],
-                })}
+                gap="md"
+                wrap="nowrap"
+                className={classes.gridCardTopSection}
             >
                 {dragIcon}
                 <ResourceIcon item={item} />
@@ -88,22 +68,23 @@ const ResourceViewGridChartItem: FC<ResourceViewGridChartItemProps> = ({
                     label={getResourceViewsSinceWhenDescription(item)}
                 >
                     <Flex align="center" gap={4}>
-                        <IconEye color={theme.colors.ldGray[6]} size={14} />
+                        <IconEye
+                            color="var(--mantine-color-ldGray-6)"
+                            size={14}
+                        />
 
-                        <Text size={14} color="ldGray.6" fz="xs">
+                        <Text c="ldGray.6" fz="xs">
                             {item.data.views} views
                         </Text>
                     </Flex>
                 </Tooltip>
 
                 <Box
-                    sx={{
-                        flexGrow: 0,
-                        flexShrink: 0,
-                        transition: 'opacity 0.2s',
-                        opacity: hovered || opened ? 1 : 0,
-                    }}
-                    component="div"
+                    className={
+                        hovered || opened
+                            ? classes.gridCardActionBoxVisible
+                            : classes.gridCardActionBoxHidden
+                    }
                     onClick={(e: React.MouseEvent<HTMLDivElement>) => {
                         e.stopPropagation();
                         e.preventDefault();
