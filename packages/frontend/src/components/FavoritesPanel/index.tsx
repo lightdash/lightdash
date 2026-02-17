@@ -1,7 +1,9 @@
 import { ResourceViewItemType, type FavoriteItems } from '@lightdash/common';
+import { IconStar } from '@tabler/icons-react';
 import { type FC } from 'react';
 import PinnedItemsContext from '../../providers/PinnedItems/context';
 import { type PinnedItemsContextType } from '../../providers/PinnedItems/types';
+import MantineIcon from '../common/MantineIcon';
 import ResourceView from '../common/ResourceView';
 import { ResourceViewType } from '../common/ResourceView/types';
 
@@ -15,10 +17,14 @@ const noopPinnedContext: PinnedItemsContextType = {
 
 interface Props {
     favoriteItems: FavoriteItems;
+    showEmptyState?: boolean;
 }
 
-const FavoritesPanel: FC<Props> = ({ favoriteItems }) => {
-    if (!favoriteItems || favoriteItems.length === 0) {
+const FavoritesPanel: FC<Props> = ({
+    favoriteItems,
+    showEmptyState = false,
+}) => {
+    if (!showEmptyState && (!favoriteItems || favoriteItems.length === 0)) {
         return null;
     }
 
@@ -40,6 +46,12 @@ const FavoritesPanel: FC<Props> = ({ favoriteItems }) => {
                     title: 'My favorites',
                     description:
                         'Your personally favorited spaces, dashboards, and charts.',
+                }}
+                emptyStateProps={{
+                    icon: <MantineIcon icon={IconStar} size={24} />,
+                    title: 'No favorites yet',
+                    description:
+                        'Star items to add them to your personal favorites.',
                 }}
             />
         </PinnedItemsContext.Provider>
