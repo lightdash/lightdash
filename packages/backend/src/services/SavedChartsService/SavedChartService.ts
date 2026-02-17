@@ -26,7 +26,6 @@ import {
     SchedulerAndTargets,
     SchedulerFormat,
     SessionUser,
-    SpaceSummary,
     TogglePinnedItemInfo,
     UnexpectedGoogleSheetsError,
     UpdateMultipleSavedChart,
@@ -51,6 +50,7 @@ import {
     type Explore,
     type ExploreError,
     type SpaceAccess,
+    type SpaceSummaryBase,
 } from '@lightdash/common';
 import cronstrue from 'cronstrue';
 import { Knex } from 'knex';
@@ -805,7 +805,7 @@ export class SavedChartService
 
     private async checkPermissions(
         account: Account,
-        space: Omit<SpaceSummary, 'userAccess'>,
+        space: SpaceSummaryBase,
         savedChart: SavedChartDAO,
     ): Promise<SpaceAccess[]> {
         let access;

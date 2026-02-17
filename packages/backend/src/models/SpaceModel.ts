@@ -11,7 +11,7 @@ import {
     SpaceGroup,
     SpaceMemberRole,
     SpaceQuery,
-    SpaceSummary,
+    type SpaceSummaryBase,
     UpdateSpace,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
@@ -55,10 +55,7 @@ import {
     generateUniqueSpaceSlug,
 } from '../utils/SlugUtils';
 import type { GetDashboardDetailsQuery } from './DashboardModel/DashboardModel';
-import {
-    getRootSpaceAccessQuery,
-    getRootSpaceIsPrivateQuery,
-} from './SpacePermissionModel';
+import { getRootSpaceIsPrivateQuery } from './SpacePermissionModel';
 
 type SpaceModelArguments = {
     database: Knex;
@@ -295,7 +292,7 @@ export class SpaceModel {
             deleted?: boolean;
         },
         { trx = this.database }: { trx?: Knex } = { trx: this.database },
-    ): Promise<Omit<SpaceSummary, 'userAccess'>[]> {
+    ): Promise<SpaceSummaryBase[]> {
         return Sentry.startSpan(
             {
                 op: 'SpaceModel.find',
@@ -324,40 +321,16 @@ export class SpaceModel {
                         `${PinnedSpaceTableName}.pinned_list_uuid`,
                     )
                     .leftJoin(
-                        `${SpaceUserAccessTableName}`,
-                        `${SpaceUserAccessTableName}.space_uuid`,
-                        `${SpaceTableName}.space_uuid`,
-                    )
-                    .leftJoin(
-                        `${UserTableName} as shared_with`,
-                        `${SpaceUserAccessTableName}.user_uuid`,
-                        'shared_with.user_uuid',
-                    )
-                    .leftJoin(
                         `${UserTableName} as deleted_by_user`,
                         `${SpaceTableName}.deleted_by_user_uuid`,
                         'deleted_by_user.user_uuid',
-                    )
-                    .groupBy(
-                        `${PinnedListTableName}.pinned_list_uuid`,
-                        `${PinnedSpaceTableName}.order`,
-                        `${OrganizationTableName}.organization_uuid`,
-                        `${ProjectTableName}.project_uuid`,
-                        `${SpaceTableName}.space_uuid`,
-                        `${SpaceTableName}.space_id`,
-                        `${SpaceTableName}.inherit_parent_permissions`,
-                        `${SpaceTableName}.deleted_at`,
-                        `${SpaceTableName}.deleted_by_user_uuid`,
-                        'deleted_by_user.first_name',
-                        'deleted_by_user.last_name',
                     )
                     .select({
                         organizationUuid: `${OrganizationTableName}.organization_uuid`,
                         projectUuid: `${ProjectTableName}.project_uuid`,
                         uuid: `${SpaceTableName}.space_uuid`,
-                        name: trx.raw(`max(${SpaceTableName}.name)`),
+                        name: `${SpaceTableName}.name`,
                         isPrivate: trx.raw(getRootSpaceIsPrivateQuery()),
-                        access: trx.raw(getRootSpaceAccessQuery('shared_with')),
                         pinnedListUuid: `${PinnedListTableName}.pinned_list_uuid`,
                         pinnedListOrder: `${PinnedSpaceTableName}.order`,
                         chartCount: trx
@@ -1024,7 +997,7 @@ export class SpaceModel {
     async getSpaceSummary(
         spaceUuid: string,
         options?: { deleted?: boolean },
-    ): Promise<Omit<SpaceSummary, 'userAccess'>> {
+    ): Promise<SpaceSummaryBase> {
         return wrapSentryTransaction(
             'SpaceModel.getSpaceSummary',
             {},

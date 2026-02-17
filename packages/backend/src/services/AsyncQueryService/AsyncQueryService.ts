@@ -84,7 +84,7 @@ import {
     S3Error,
     SchedulerFormat,
     sleep,
-    type SpaceSummary,
+    type SpaceSummaryBase,
     SqlChart,
     UnexpectedServerError,
     WarehouseClient,
@@ -217,7 +217,7 @@ export class AsyncQueryService extends ProjectService {
         savedChart: {
             project: Pick<Project, 'projectUuid'>;
             organization: Pick<Organization, 'organizationUuid'>;
-            space: Pick<SpaceSummary, 'uuid'>;
+            space: Pick<SpaceSummaryBase, 'uuid'>;
         },
     ) {
         const ctx = await this.spacePermissionService.getSpaceAccessContext(
@@ -2346,7 +2346,7 @@ export class AsyncQueryService extends ProjectService {
         account: Account,
         projectUuid: string,
         savedChartUuid: string,
-        space: Omit<SpaceSummary, 'userAccess'>,
+        space: SpaceSummaryBase,
     ) {
         if (isJwtUser(account)) {
             await this.permissionsService.checkEmbedPermissions(

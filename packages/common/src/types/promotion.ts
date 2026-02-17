@@ -1,6 +1,6 @@
 import { type DashboardDAO } from './dashboard';
 import { type SavedChartDAO } from './savedCharts';
-import { type SpaceSummary } from './space';
+import { type SpaceSummaryBase } from './space';
 
 export enum PromotionAction {
     NO_CHANGES = 'no changes',
@@ -9,7 +9,7 @@ export enum PromotionAction {
     DELETE = 'delete',
 }
 
-export type PromotedSpace = Omit<SpaceSummary, 'userAccess'>;
+export type PromotedSpace = SpaceSummaryBase;
 
 export type PromotedDashboard = DashboardDAO & {
     spaceSlug: string;

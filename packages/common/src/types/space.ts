@@ -56,8 +56,7 @@ export type Space = {
     pinnedListUuid: string | null;
     pinnedListOrder: number | null;
     slug: string;
-    // Nested Spaces MVP - disables nested spaces' access changes
-    childSpaces: Omit<SpaceSummary, 'userAccess'>[];
+    childSpaces: SpaceSummaryBase[];
     parentSpaceUuid: string | null;
     inheritParentPermissions: boolean;
     // ltree path serialized as string
@@ -68,7 +67,9 @@ export type Space = {
     }[];
 };
 
-export type SpaceSummary = Pick<
+// Base space summary without access data — returned by SpaceModel.find().
+// Use SpaceSummary for API responses that include access info.
+export type SpaceSummaryBase = Pick<
     Space,
     | 'organizationUuid'
     | 'projectUuid'
@@ -82,8 +83,6 @@ export type SpaceSummary = Pick<
     | 'parentSpaceUuid'
     | 'path'
 > & {
-    userAccess: SpaceAccess | undefined;
-    access: string[];
     chartCount: number;
     dashboardCount: number;
     deletedAt?: Date;
@@ -92,6 +91,11 @@ export type SpaceSummary = Pick<
         firstName: string;
         lastName: string;
     };
+};
+
+export type SpaceSummary = SpaceSummaryBase & {
+    userAccess: SpaceAccess | undefined;
+    access: string[];
 };
 
 export type CreateSpace = {

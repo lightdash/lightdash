@@ -28,10 +28,10 @@ import {
     SessionUser,
     Space,
     SpaceMemberRole,
-    SpaceSummary,
     SqlChartAsCode,
     UpdatedByUser,
     type DashboardTileWithSlug,
+    type SpaceSummaryBase,
 } from '@lightdash/common';
 import { v4 as uuidv4 } from 'uuid';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
@@ -115,7 +115,7 @@ export class CoderService extends BaseService {
 
     private static transformChart(
         chart: SavedChartDAO,
-        spaceSummary: Pick<SpaceSummary, 'uuid' | 'path'>[],
+        spaceSummary: Pick<SpaceSummaryBase, 'uuid' | 'path'>[],
         dashboardSlugs: Record<string, string>,
     ): ChartAsCode {
         const contentSpace = spaceSummary.find(
@@ -295,7 +295,7 @@ export class CoderService extends BaseService {
 
     private static transformDashboard(
         dashboard: DashboardDAO,
-        spaceSummary: Pick<SpaceSummary, 'uuid' | 'path'>[],
+        spaceSummary: Pick<SpaceSummaryBase, 'uuid' | 'path'>[],
     ): DashboardAsCode {
         const contentSpace = spaceSummary.find(
             (space) => space.uuid === dashboard.spaceUuid,
@@ -496,7 +496,7 @@ export class CoderService extends BaseService {
         user: SessionUser,
         project: Project,
         content: T[],
-        spaces: Omit<SpaceSummary, 'userAccess'>[],
+        spaces: SpaceSummaryBase[],
     ): Promise<T[]> {
         if (
             user.ability.can(
@@ -1184,7 +1184,7 @@ export class CoderService extends BaseService {
         user: SessionUser,
         skipSpaceCreate?: boolean,
         publicSpaceCreate?: boolean,
-    ): Promise<{ space: Omit<SpaceSummary, 'userAccess'>; created: boolean }> {
+    ): Promise<{ space: SpaceSummaryBase; created: boolean }> {
         const [existingSpace] = await this.spaceModel.find({
             path: getLtreePathFromContentAsCodePath(spaceSlug),
             projectUuid,
@@ -1307,7 +1307,6 @@ export class CoderService extends BaseService {
                 ...newSpaces[newSpaces.length - 1],
                 chartCount: 0,
                 dashboardCount: 0,
-                access: [],
             },
             created: true,
         };
