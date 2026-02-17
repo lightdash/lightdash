@@ -40,7 +40,10 @@ const toObject = (value: JsonValue | undefined): JsonObject =>
 
 const unique = <T>(values: T[]): T[] => [...new Set(values)];
 
-const mergeObjectSchemas = (left: JsonObject, right: JsonObject): JsonObject => {
+const mergeObjectSchemas = (
+    left: JsonObject,
+    right: JsonObject,
+): JsonObject => {
     const merged: JsonObject = { ...left, ...right };
 
     const leftProperties = toObject(left.properties);
@@ -120,11 +123,16 @@ const collectComponentRefs = (
 
     const objectValue = value as JsonObject;
     const refValue = objectValue.$ref;
-    if (typeof refValue === 'string' && refValue.startsWith(SCHEMA_REF_PREFIX)) {
+    if (
+        typeof refValue === 'string' &&
+        refValue.startsWith(SCHEMA_REF_PREFIX)
+    ) {
         refs.add(refValue.slice(SCHEMA_REF_PREFIX.length));
     }
 
-    Object.values(objectValue).forEach((child) => collectComponentRefs(child, refs));
+    Object.values(objectValue).forEach((child) =>
+        collectComponentRefs(child, refs),
+    );
     return refs;
 };
 
@@ -146,7 +154,10 @@ const getConstStringValue = (
         return typeof value === 'string' ? value : undefined;
     }
 
-    if (typeof schema.$ref === 'string' && schema.$ref.startsWith(SCHEMA_REF_PREFIX)) {
+    if (
+        typeof schema.$ref === 'string' &&
+        schema.$ref.startsWith(SCHEMA_REF_PREFIX)
+    ) {
         const referenced = resolveComponentRef(schema.$ref, components);
         return getConstStringValue(referenced, components);
     }
@@ -255,7 +266,10 @@ const tryBuildDiscriminatedChartConfig = (
             ? resolveComponentRef(String(memberObject.$ref), components)
             : memberObject;
 
-        const flattenedMember = resolveTopLevelAllOf(resolvedMember, components);
+        const flattenedMember = resolveTopLevelAllOf(
+            resolvedMember,
+            components,
+        );
         const flattenedProperties = toObject(flattenedMember.properties);
         const typeSchema = toObject(flattenedProperties.type);
         const typeConst = getConstStringValue(typeSchema, components);
@@ -264,7 +278,9 @@ const tryBuildDiscriminatedChartConfig = (
             return null;
         }
 
-        const convertedMember = convertOpenApiToDraft07(flattenedMember) as JsonObject;
+        const convertedMember = convertOpenApiToDraft07(
+            flattenedMember,
+        ) as JsonObject;
         const typedMember = withConstType(convertedMember, typeConst);
         if (!typedMember) {
             return null;
@@ -375,7 +391,9 @@ export const buildChartAsCodeSchema = (swagger: SwaggerDoc): JsonObject => {
 
             const component = components[schemaName];
             if (!component) {
-                throw new Error(`Missing referenced component schema: ${schemaName}`);
+                throw new Error(
+                    `Missing referenced component schema: ${schemaName}`,
+                );
             }
 
             collectComponentRefs(component).forEach((nestedRef) => {
@@ -387,7 +405,9 @@ export const buildChartAsCodeSchema = (swagger: SwaggerDoc): JsonObject => {
     const defs = [...visited]
         .sort((left, right) => left.localeCompare(right))
         .reduce<Record<string, JsonObject>>((acc, schemaName) => {
-            acc[schemaName] = convertOpenApiToDraft07(components[schemaName]) as JsonObject;
+            acc[schemaName] = convertOpenApiToDraft07(
+                components[schemaName],
+            ) as JsonObject;
             return acc;
         }, {});
 
@@ -428,9 +448,10 @@ const run = (): void => {
     if (checkMode) {
         const currentContent = fs.readFileSync(outputPath, 'utf8');
         if (currentContent !== nextContent) {
-            throw new Error(
+            console.error(
                 'chart-as-code schema is out of date. Run `pnpm generate:chart-as-code-schema`.',
             );
+            process.exit(1);
         }
         return;
     }

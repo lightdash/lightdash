@@ -1,9 +1,12 @@
 import fs from 'node:fs';
-import path from 'node:path';
-import { buildChartAsCodeSchema } from './generateChartAsCodeSchema';
+import {
+    buildChartAsCodeSchema,
+    getOutputPath,
+    getSwaggerPath,
+} from './generateChartAsCodeSchema';
 
-const SWAGGER_PATH = path.resolve(__dirname, '../../../backend/src/generated/swagger.json');
-const SCHEMA_PATH = path.resolve(__dirname, './json/chart-as-code-1.0.json');
+const SWAGGER_PATH = getSwaggerPath();
+const SCHEMA_PATH = getOutputPath();
 
 describe('chart-as-code JSON schema', () => {
     it('is up to date with swagger.json (run `pnpm generate:chart-as-code-schema` to fix)', () => {
