@@ -64,11 +64,6 @@ export enum FeatureFlags {
     UnusedContentDashboard = 'unused-content-dashboard',
 
     /**
-     * Enable period-over-period comparisons option
-     */
-    PeriodOverPeriod = 'pop',
-
-    /**
      * Enable viewing and editing YAML source files in the Explore UI
      */
     EditYamlInUi = 'edit-yaml-in-ui',
