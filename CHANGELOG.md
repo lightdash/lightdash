@@ -1,3 +1,10 @@
+# [0.2478.0](https://github.com/lightdash/lightdash/compare/0.2477.0...0.2478.0) (2026-02-17)
+
+
+### Features
+
+* add user_favorites schema and types ([#20376](https://github.com/lightdash/lightdash/issues/20376)) ([4436d29](https://github.com/lightdash/lightdash/commit/4436d29416b34a638a72a19cb333b2c0668ce139))
+
 # [0.2477.0](https://github.com/lightdash/lightdash/compare/0.2476.1...0.2477.0) (2026-02-17)
 
 
