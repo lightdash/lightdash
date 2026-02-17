@@ -1,4 +1,5 @@
 import { type AnyType } from './any';
+import { type ApiFavoriteItems, type ApiToggleFavorite } from './favorites';
 import { type ApiTogglePinnedItem, type PinnedItems } from './pinning';
 import { type ProjectGroupAccess } from './projectGroupAccess';
 import { type MostPopularAndRecentlyUpdated } from './resourceViewItem';
@@ -863,7 +864,9 @@ type ApiResults =
     | ApiUpdateAiOrganizationSettingsResponse['results']
     | ApiProjectCompileLogsResponse['results']
     | ApiProjectCompileLogResponse['results']
-    | ApiSingleValidationResponse['results'];
+    | ApiSingleValidationResponse['results']
+    | ApiFavoriteItems['results']
+    | ApiToggleFavorite['results'];
 // Note: EE API types removed from ApiResults to avoid circular imports
 // They can still be used with ApiResponse<T> by importing from '@lightdash/common'
 
