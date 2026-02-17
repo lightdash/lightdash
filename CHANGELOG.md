@@ -1,3 +1,10 @@
+# [0.2474.0](https://github.com/lightdash/lightdash/compare/0.2473.2...0.2474.0) (2026-02-17)
+
+
+### Features
+
+* improve Microsoft Teams webhook handling and UI ([#20344](https://github.com/lightdash/lightdash/issues/20344)) ([f55e259](https://github.com/lightdash/lightdash/commit/f55e2590c75d7360b30af2357d47736fe3521718))
+
 ## [0.2473.2](https://github.com/lightdash/lightdash/compare/0.2473.1...0.2473.2) (2026-02-17)
 
 
