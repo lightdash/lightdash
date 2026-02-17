@@ -1,3 +1,16 @@
+# [0.2475.0](https://github.com/lightdash/lightdash/compare/0.2474.1...0.2475.0) (2026-02-17)
+
+
+### Bug Fixes
+
+* **skills:** add date filter operators and clarify inTheCurrent limitation in metrics reference ([#20354](https://github.com/lightdash/lightdash/issues/20354)) ([c85b03e](https://github.com/lightdash/lightdash/commit/c85b03e27d49dea72ec652e086fbe9307ae077bb))
+* wrong space access being checked when saving chart to dashboard ([#20370](https://github.com/lightdash/lightdash/issues/20370)) ([50f62f3](https://github.com/lightdash/lightdash/commit/50f62f3cef2b83d8a32188edd653d4d57e1cf7a6))
+
+
+### Features
+
+* implement required filters in model configuration ([#20367](https://github.com/lightdash/lightdash/issues/20367)) ([5d9d743](https://github.com/lightdash/lightdash/commit/5d9d743252d47df644e2f5491a8184c504dcdce0))
+
 ## [0.2474.1](https://github.com/lightdash/lightdash/compare/0.2474.0...0.2474.1) (2026-02-17)
 
 
