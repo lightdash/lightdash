@@ -483,6 +483,11 @@ export default class App {
 
         expressApp.use('/embed/*', helmet(helmetConfigForEmbeds));
 
+        expressApp.use('/api/v1/file/*', (_req, res, next) => {
+            res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+            next();
+        });
+
         expressApp.use((req, res, next) => {
             // Permissions-Policy header that is not yet supported by helmet. More details here: https://github.com/helmetjs/helmet/issues/234
             res.setHeader('Permissions-Policy', 'camera=(), microphone=()');
