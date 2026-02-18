@@ -94,7 +94,7 @@ export const Comparison: React.FC = () => {
                                         },
                                         {
                                             value: 'another_field' as CompareTarget,
-                                            label: 'Another field',
+                                            label: 'Same row',
                                         },
                                     ]}
                                     value={compareTarget}
