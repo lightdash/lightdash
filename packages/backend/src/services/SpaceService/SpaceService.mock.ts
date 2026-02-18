@@ -29,7 +29,9 @@ type TestAccessParams = {
     spaceRole?: SpaceMemberRole | null;
     groupSpaceRole?: SpaceMemberRole | null;
     groupSpaceRoles?: SpaceMemberRole[];
+    /** @deprecated Use inheritParentPermissions instead (inverted: isPrivate=true → inheritParentPermissions=false) */
     isPrivate?: boolean;
+    inheritParentPermissions?: boolean;
     spaceUuid?: string;
     userUuid?: string;
     organizationRole?: OrganizationMemberRole;
@@ -89,7 +91,8 @@ export const createSpaceAccessContext = ({
     userUuid = 'test-user-uuid',
     organizationUuid = 'test-org-uuid',
     projectUuid = 'test-project-uuid',
-    isPrivate = true,
+    isPrivate,
+    inheritParentPermissions = isPrivate !== undefined ? !isPrivate : false,
     organizationRole = OrganizationMemberRole.MEMBER,
     projectRole,
     spaceRole = null,
@@ -102,7 +105,7 @@ export const createSpaceAccessContext = ({
 }): {
     organizationUuid: string;
     projectUuid: string;
-    isPrivate: boolean;
+    inheritParentPermissions: boolean;
     access: SpaceAccess[];
 } => {
     // Compute effective space role (mirrors resolveSpaceAccess logic)
@@ -136,7 +139,7 @@ export const createSpaceAccessContext = ({
             );
             effectiveRole = getHighestSpaceRole(groupRoles);
         }
-    } else if (!isPrivate && projectRole) {
+    } else if (inheritParentPermissions && projectRole) {
         effectiveRole = convertProjectRoleToSpaceRole(projectRole);
     }
 
@@ -153,5 +156,5 @@ export const createSpaceAccessContext = ({
           ]
         : [];
 
-    return { organizationUuid, projectUuid, isPrivate, access };
+    return { organizationUuid, projectUuid, inheritParentPermissions, access };
 };

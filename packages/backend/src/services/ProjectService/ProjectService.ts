@@ -3006,7 +3006,7 @@ export class ProjectService extends BaseService {
         return {
             chart: {
                 ...savedChart,
-                isPrivate: spaceCtx.isPrivate,
+                isPrivate: !spaceCtx.inheritParentPermissions,
                 access: spaceCtx.access,
             },
             explore,

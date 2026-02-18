@@ -83,6 +83,7 @@ export const privateSpace: Space = {
     ...publicSpace,
     uuid: 'private-space-uuid',
     isPrivate: true,
+    inheritParentPermissions: false,
 };
 
 export const dashboard: Dashboard = {

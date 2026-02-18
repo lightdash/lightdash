@@ -17,7 +17,7 @@ import { BaseService } from '../BaseService';
 export type SpaceAccessContextForCasl = {
     organizationUuid: string;
     projectUuid: string;
-    isPrivate: boolean;
+    inheritParentPermissions: boolean;
     access: SpaceAccess[];
 };
 
@@ -241,7 +241,7 @@ export class SpacePermissionService extends BaseService {
             result[spaceUuid] = {
                 organizationUuid: space.organizationUuid,
                 projectUuid: space.projectUuid,
-                isPrivate,
+                inheritParentPermissions: inheritsFromOrgOrProject,
                 access,
             };
         }

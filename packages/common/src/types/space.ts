@@ -37,7 +37,7 @@ export type ProjectSpaceAccess = {
 
 export type SpaceAccessInput = {
     spaceUuid: string;
-    isPrivate: boolean;
+    inheritParentPermissions: boolean;
     directAccess: DirectSpaceAccess[];
     projectAccess: ProjectSpaceAccess[];
     organizationAccess: OrganizationSpaceAccess[];

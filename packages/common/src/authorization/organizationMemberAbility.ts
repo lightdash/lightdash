@@ -42,11 +42,11 @@ const applyOrganizationMemberStaticAbilities: Record<
         applyOrganizationMemberStaticAbilities.member(member, { can });
         can('view', 'Dashboard', {
             organizationUuid: member.organizationUuid,
-            isPrivate: false,
+            inheritParentPermissions: true,
         });
         can('view', 'SavedChart', {
             organizationUuid: member.organizationUuid,
-            isPrivate: false,
+            inheritParentPermissions: true,
         });
         can('view', 'Dashboard', {
             organizationUuid: member.organizationUuid,
@@ -62,7 +62,7 @@ const applyOrganizationMemberStaticAbilities: Record<
         });
         can('view', 'Space', {
             organizationUuid: member.organizationUuid,
-            isPrivate: false,
+            inheritParentPermissions: true,
         });
         can('view', 'Space', {
             organizationUuid: member.organizationUuid,
@@ -196,7 +196,7 @@ const applyOrganizationMemberStaticAbilities: Record<
         });
         can('manage', 'Space', {
             organizationUuid: member.organizationUuid,
-            isPrivate: false,
+            inheritParentPermissions: true,
         });
         can('create', 'Space', {
             organizationUuid: member.organizationUuid,

@@ -464,7 +464,7 @@ export class UnfurlService extends BaseService {
     ): Promise<string> {
         const dashboard =
             await this.dashboardModel.getByIdOrSlug(dashboardUuid);
-        const { isPrivate, access } =
+        const { inheritParentPermissions, access } =
             await this.spacePermissionService.getSpaceAccessContext(
                 user.userUuid,
                 dashboard.spaceUuid,
@@ -520,7 +520,7 @@ export class UnfurlService extends BaseService {
                 subject('Dashboard', {
                     organizationUuid,
                     projectUuid,
-                    isPrivate,
+                    inheritParentPermissions,
                     access,
                 }),
             )

@@ -95,7 +95,7 @@ const getUserDirectGroupAccess = (
 const getSpaceRole = (
     highestRole: ProjectMemberRole,
     userDirectAccess: DirectSpaceAccess[],
-    isPrivate: boolean,
+    inheritParentPermissions: boolean,
 ): SpaceMemberRole | undefined => {
     const userAccessEntries = userDirectAccess.filter(
         (a) => a.from === DirectSpaceAccessOrigin.USER_ACCESS,
@@ -120,7 +120,7 @@ const getSpaceRole = (
             getHighestSpaceRole(groupAccessEntries.map((e) => e.role))
         );
     }
-    if (!isPrivate) {
+    if (inheritParentPermissions) {
         return convertProjectRoleToSpaceRole(highestRole);
     }
 
@@ -131,8 +131,12 @@ const resolveUserSpaceAccess = (
     userUuid: string,
     input: SpaceAccessInput,
 ): SpaceAccess | undefined => {
-    const { isPrivate, directAccess, projectAccess, organizationAccess } =
-        input;
+    const {
+        inheritParentPermissions,
+        directAccess,
+        projectAccess,
+        organizationAccess,
+    } = input;
     const organizationRole = getUserOrganizationRole(
         organizationAccess,
         userUuid,
@@ -161,7 +165,7 @@ const resolveUserSpaceAccess = (
     const spaceRole = getSpaceRole(
         highestRole.role,
         userDirectAccess,
-        isPrivate,
+        inheritParentPermissions,
     );
     if (!spaceRole) return undefined;
 

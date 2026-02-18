@@ -160,7 +160,7 @@ export class SavedChartService
     ): Promise<ChartSummary> {
         const savedChart = await this.savedChartModel.getSummary(chartUuid);
         const { organizationUuid, projectUuid } = savedChart;
-        const { access, isPrivate } =
+        const { access, inheritParentPermissions } =
             await this.spacePermissionService.getSpaceAccessContext(
                 user.userUuid,
                 savedChart.spaceUuid,
@@ -171,7 +171,7 @@ export class SavedChartService
                 subject('SavedChart', {
                     organizationUuid,
                     projectUuid,
-                    isPrivate,
+                    inheritParentPermissions,
                     access,
                 }),
             )
@@ -429,7 +429,7 @@ export class SavedChartService
             },
         } = await this.savedChartModel.get(savedChartUuid);
 
-        const { isPrivate, access } =
+        const { inheritParentPermissions, access } =
             await this.spacePermissionService.getSpaceAccessContext(
                 user.userUuid,
                 spaceUuid,
@@ -441,7 +441,7 @@ export class SavedChartService
                 subject('SavedChart', {
                     organizationUuid,
                     projectUuid,
-                    isPrivate,
+                    inheritParentPermissions,
                     access,
                 }),
             )
@@ -508,7 +508,7 @@ export class SavedChartService
 
         return {
             ...savedChart,
-            isPrivate,
+            isPrivate: !inheritParentPermissions,
             access,
         };
     }
@@ -526,7 +526,7 @@ export class SavedChartService
             name,
         } = await this.savedChartModel.getSummary(savedChartUuid);
 
-        const { isPrivate, access } =
+        const { inheritParentPermissions, access } =
             await this.spacePermissionService.getSpaceAccessContext(
                 user.userUuid,
                 spaceUuid,
@@ -538,7 +538,7 @@ export class SavedChartService
                 subject('SavedChart', {
                     organizationUuid,
                     projectUuid,
-                    isPrivate,
+                    inheritParentPermissions,
                     access,
                 }),
             )
@@ -584,7 +584,7 @@ export class SavedChartService
         }
         return {
             ...savedChart,
-            isPrivate,
+            isPrivate: !inheritParentPermissions,
             access,
         };
     }
@@ -651,7 +651,7 @@ export class SavedChartService
         data: UpdateMultipleSavedChart[],
     ): Promise<SavedChart[]> {
         const spaceAccessPromises = data.map(async (chart) => {
-            const { isPrivate, access, organizationUuid } =
+            const { inheritParentPermissions, access, organizationUuid } =
                 await this.spacePermissionService.getSpaceAccessContext(
                     user.userUuid,
                     chart.spaceUuid,
@@ -661,7 +661,7 @@ export class SavedChartService
                 subject('SavedChart', {
                     organizationUuid,
                     projectUuid,
-                    isPrivate,
+                    inheritParentPermissions,
                     access,
                 }),
             );
@@ -675,14 +675,14 @@ export class SavedChartService
         const savedChartsDaos = await this.savedChartModel.updateMultiple(data);
         const savedCharts = await Promise.all(
             savedChartsDaos.map(async (savedChart) => {
-                const { isPrivate, access } =
+                const { inheritParentPermissions, access } =
                     await this.spacePermissionService.getSpaceAccessContext(
                         user.userUuid,
                         savedChart.spaceUuid,
                     );
                 return {
                     ...savedChart,
-                    isPrivate,
+                    isPrivate: !inheritParentPermissions,
                     access,
                 };
             }),
@@ -706,7 +706,7 @@ export class SavedChartService
             metricQuery: { metrics, dimensions },
             tableName,
         } = await this.savedChartModel.get(savedChartUuid);
-        const { isPrivate, access } =
+        const { inheritParentPermissions, access } =
             await this.spacePermissionService.getSpaceAccessContext(
                 user.userUuid,
                 spaceUuid,
@@ -718,7 +718,7 @@ export class SavedChartService
                 subject('SavedChart', {
                     organizationUuid,
                     projectUuid,
-                    isPrivate,
+                    inheritParentPermissions,
                     access,
                 }),
             )
@@ -781,7 +781,7 @@ export class SavedChartService
     ): Promise<ViewStatistics> {
         const savedChart =
             await this.savedChartModel.getSummary(savedChartUuid);
-        const { isPrivate, access } =
+        const { inheritParentPermissions, access } =
             await this.spacePermissionService.getSpaceAccessContext(
                 user.userUuid,
                 savedChart.spaceUuid,
@@ -791,7 +791,7 @@ export class SavedChartService
                 'view',
                 subject('SavedChart', {
                     ...savedChart,
-                    isPrivate,
+                    inheritParentPermissions,
                     access,
                 }),
             )
@@ -902,7 +902,7 @@ export class SavedChartService
                   projectUuid,
               )));
 
-        let isPrivate = false;
+        let inheritParentPermissions = true;
         let access: SpaceAccess[] = [];
         if (resolvedSpaceUuid) {
             const spaceAccessContext =
@@ -910,7 +910,8 @@ export class SavedChartService
                     user.userUuid,
                     resolvedSpaceUuid,
                 );
-            isPrivate = spaceAccessContext.isPrivate;
+            inheritParentPermissions =
+                spaceAccessContext.inheritParentPermissions;
             access = spaceAccessContext.access;
         } else if (savedChart.dashboardUuid) {
             const dashboard = await this.dashboardModel.getByIdOrSlug(
@@ -921,7 +922,8 @@ export class SavedChartService
                     user.userUuid,
                     dashboard.spaceUuid,
                 );
-            isPrivate = dashboardSpaceAccessContext.isPrivate;
+            inheritParentPermissions =
+                dashboardSpaceAccessContext.inheritParentPermissions;
             access = dashboardSpaceAccessContext.access;
         }
 
@@ -931,7 +933,7 @@ export class SavedChartService
                 subject('SavedChart', {
                     organizationUuid,
                     projectUuid,
-                    isPrivate,
+                    inheritParentPermissions,
                     access,
                 }),
             )
@@ -1010,7 +1012,11 @@ export class SavedChartService
             );
         }
 
-        return { ...newSavedChart, isPrivate, access };
+        return {
+            ...newSavedChart,
+            isPrivate: !inheritParentPermissions,
+            access,
+        };
     }
 
     async duplicate(
@@ -1020,7 +1026,7 @@ export class SavedChartService
         data: { chartName: string; chartDesc: string },
     ): Promise<SavedChart> {
         const chart = await this.savedChartModel.get(chartUuid);
-        const { isPrivate, access } =
+        const { inheritParentPermissions, access } =
             await this.spacePermissionService.getSpaceAccessContext(
                 user.userUuid,
                 chart.spaceUuid,
@@ -1030,7 +1036,7 @@ export class SavedChartService
                 'create',
                 subject('SavedChart', {
                     ...chart,
-                    isPrivate,
+                    inheritParentPermissions,
                     access,
                 }),
             )
@@ -1121,7 +1127,7 @@ export class SavedChartService
 
         return {
             ...newSavedChart,
-            isPrivate,
+            isPrivate: !inheritParentPermissions,
             access,
         };
     }
@@ -1269,7 +1275,7 @@ export class SavedChartService
         chartUuid: string,
     ): Promise<ChartHistory> {
         const chart = await this.savedChartModel.getSummary(chartUuid);
-        const { isPrivate, access } =
+        const { inheritParentPermissions, access } =
             await this.spacePermissionService.getSpaceAccessContext(
                 user.userUuid,
                 chart.spaceUuid,
@@ -1280,7 +1286,7 @@ export class SavedChartService
                 'view',
                 subject('SavedChart', {
                     ...chart,
-                    isPrivate,
+                    inheritParentPermissions,
                     access,
                 }),
             )
@@ -1311,7 +1317,7 @@ export class SavedChartService
         versionUuid: string,
     ): Promise<ChartVersion> {
         const chart = await this.savedChartModel.getSummary(chartUuid);
-        const { isPrivate, access } =
+        const { inheritParentPermissions, access } =
             await this.spacePermissionService.getSpaceAccessContext(
                 user.userUuid,
                 chart.spaceUuid,
@@ -1321,7 +1327,7 @@ export class SavedChartService
                 'view',
                 subject('SavedChart', {
                     ...chart,
-                    isPrivate,
+                    inheritParentPermissions,
                     access,
                 }),
             )
@@ -1350,7 +1356,7 @@ export class SavedChartService
             ...chartVersionSummary,
             chart: {
                 ...savedChart,
-                isPrivate,
+                isPrivate: !inheritParentPermissions,
                 access,
             },
         };
@@ -1459,7 +1465,7 @@ export class SavedChartService
 
         const {
             access: spaceAccess,
-            isPrivate,
+            inheritParentPermissions,
             organizationUuid,
         } = await this.spacePermissionService.getSpaceAccessContext(
             actor.user.userUuid,
@@ -1471,7 +1477,7 @@ export class SavedChartService
             subject('SavedChart', {
                 organizationUuid,
                 projectUuid: actor.projectUuid,
-                isPrivate,
+                inheritParentPermissions,
                 access: spaceAccess,
             }),
         );
@@ -1484,7 +1490,7 @@ export class SavedChartService
 
         if (resource.spaceUuid && spaceUuid !== resource.spaceUuid) {
             const {
-                isPrivate: newSpaceIsPrivate,
+                inheritParentPermissions: newSpaceInheritParentPermissions,
                 access: newSpaceAccess,
                 organizationUuid: newSpaceOrganizationUuid,
             } = await this.spacePermissionService.getSpaceAccessContext(
@@ -1497,7 +1503,7 @@ export class SavedChartService
                 subject('SavedChart', {
                     organizationUuid: newSpaceOrganizationUuid,
                     projectUuid: actor.projectUuid,
-                    isPrivate: newSpaceIsPrivate,
+                    inheritParentPermissions: newSpaceInheritParentPermissions,
                     access: newSpaceAccess,
                 }),
             );

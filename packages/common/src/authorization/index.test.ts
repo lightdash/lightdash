@@ -50,7 +50,7 @@ describe('Lightdash member permissions', () => {
             conditions = {
                 projectUuid: 'another-project',
                 organizationUuid: 'another-org',
-                isPrivate: false,
+                inheritParentPermissions: true,
             };
             expect(
                 ability.can('view', subject('SavedChart', { ...conditions })),
@@ -115,7 +115,7 @@ describe('Lightdash member permissions', () => {
             conditions = {
                 organizationUuid: adminOrgProfile.organizationUuid,
                 projectUuid: projectProfile.projectUuid,
-                isPrivate: false,
+                inheritParentPermissions: true,
             };
         });
 
@@ -135,7 +135,7 @@ describe('Lightdash member permissions', () => {
             conditions = {
                 organizationUuid: 'another-org',
                 projectUuid: 'another-project',
-                isPrivate: false,
+                inheritParentPermissions: true,
             };
             expect(
                 ability.can('view', subject('SavedChart', { ...conditions })),
@@ -166,7 +166,7 @@ describe('Lightdash member permissions', () => {
             conditions = {
                 organizationUuid: orgProfile.organizationUuid,
                 projectUuid: adminProjectProfile.projectUuid,
-                isPrivate: false,
+                inheritParentPermissions: true,
             };
         });
 
@@ -186,7 +186,7 @@ describe('Lightdash member permissions', () => {
             conditions = {
                 organizationUuid: 'another-org',
                 projectUuid: 'another-project',
-                isPrivate: false,
+                inheritParentPermissions: true,
             };
             expect(
                 ability.can('view', subject('SavedChart', { ...conditions })),
@@ -233,7 +233,7 @@ describe('Lightdash member permissions', () => {
             // Project specific
             const projectConditions = {
                 projectUuid: conditions.projectUuid,
-                isPrivate: false,
+                inheritParentPermissions: true,
             };
             expect(
                 ability.can(
@@ -265,14 +265,14 @@ describe('Lightdash member permissions', () => {
             conditions = {
                 organizationUuid: orgProfile.organizationUuid,
                 projectUuid: projectProfile.projectUuid,
-                isPrivate: false,
+                inheritParentPermissions: true,
             };
         });
 
         it('can view org and project', async () => {
             const conditionsProjectView = {
                 projectUuid: projectProfile.projectUuid,
-                isPrivate: false,
+                inheritParentPermissions: true,
             };
 
             expect(
@@ -296,7 +296,7 @@ describe('Lightdash member permissions', () => {
 
             const conditionsProjectAdmin = {
                 projectUuid: adminProjectProfile.projectUuid,
-                isPrivate: false,
+                inheritParentPermissions: true,
             };
             expect(
                 ability.can(
@@ -321,7 +321,7 @@ describe('Lightdash member permissions', () => {
         it('cannot view another project', async () => {
             const projectConditions = {
                 projectUuid: 'another-project',
-                isPrivate: false,
+                inheritParentPermissions: true,
             };
             expect(
                 ability.can(
@@ -346,7 +346,7 @@ describe('Lightdash member permissions', () => {
         it('can manage admin project but cannot manage view project', async () => {
             const conditionsProjectView = {
                 projectUuid: projectProfile.projectUuid,
-                isPrivate: false,
+                inheritParentPermissions: true,
             };
 
             expect(
@@ -370,7 +370,7 @@ describe('Lightdash member permissions', () => {
 
             const conditionsProjectAdmin = {
                 projectUuid: adminProjectProfile.projectUuid,
-                isPrivate: false,
+                inheritParentPermissions: true,
             };
             expect(
                 ability.can(

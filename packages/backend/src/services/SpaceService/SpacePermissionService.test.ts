@@ -105,7 +105,7 @@ describe('SpacePermissionService', () => {
 
             const result = await service.getAllSpaceAccessContext(spaceUuid);
 
-            expect(result.isPrivate).toBe(false);
+            expect(result.inheritParentPermissions).toBe(true);
             expect(result.projectUuid).toBe(projectUuid);
             // Project access was fetched for the root space
             expect(
@@ -162,7 +162,7 @@ describe('SpacePermissionService', () => {
 
             const result = await service.getAllSpaceAccessContext(spaceUuid);
 
-            expect(result.isPrivate).toBe(true);
+            expect(result.inheritParentPermissions).toBe(false);
             // Project/org access should NOT have been fetched
             expect(
                 mockPermissionModel.getProjectSpaceAccess,
@@ -308,7 +308,7 @@ describe('SpacePermissionService', () => {
 
             const result = await service.getAllSpaceAccessContext(spaceUuid);
 
-            expect(result.isPrivate).toBe(false);
+            expect(result.inheritParentPermissions).toBe(true);
             // Project access fetched for the root space (last in chain)
             expect(
                 mockPermissionModel.getProjectSpaceAccess,
@@ -361,7 +361,7 @@ describe('SpacePermissionService', () => {
 
             const result = await service.getAllSpaceAccessContext(spaceUuid);
 
-            expect(result.isPrivate).toBe(true);
+            expect(result.inheritParentPermissions).toBe(false);
             expect(
                 mockPermissionModel.getProjectSpaceAccess,
             ).not.toHaveBeenCalled();

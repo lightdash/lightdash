@@ -11,7 +11,9 @@ import { SpaceMemberRole } from '../types/space';
 /** Context can have either/or organizationUuid or projectUuid. Applies the one we have. */
 const addUuidCondition = (
     context: ScopeContext,
-    modifiers?: { isPrivate: false } | { userUuid: string | boolean },
+    modifiers?:
+        | { inheritParentPermissions: true }
+        | { userUuid: string | boolean },
 ) => {
     const projectOrOrg = context.organizationUuid
         ? { organizationUuid: context.organizationUuid }
@@ -44,7 +46,7 @@ const scopes: Scope[] = [
         isEnterprise: false,
         group: ScopeGroup.CONTENT,
         getConditions: (context) => [
-            addUuidCondition(context, { isPrivate: false }),
+            addUuidCondition(context, { inheritParentPermissions: true }),
             addAccessCondition(context),
         ],
     },
@@ -72,7 +74,7 @@ const scopes: Scope[] = [
         isEnterprise: false,
         group: ScopeGroup.CONTENT,
         getConditions: (context) => [
-            addUuidCondition(context, { isPrivate: false }),
+            addUuidCondition(context, { inheritParentPermissions: true }),
             addAccessCondition(context),
         ],
     },
@@ -100,7 +102,7 @@ const scopes: Scope[] = [
         isEnterprise: false,
         group: ScopeGroup.CONTENT,
         getConditions: (context) => [
-            addUuidCondition(context, { isPrivate: false }),
+            addUuidCondition(context, { inheritParentPermissions: true }),
             addAccessCondition(context),
         ],
     },
@@ -124,7 +126,7 @@ const scopes: Scope[] = [
         isEnterprise: false,
         group: ScopeGroup.CONTENT,
         getConditions: (context) => [
-            addUuidCondition(context, { isPrivate: false }),
+            addUuidCondition(context, { inheritParentPermissions: true }),
         ],
     },
     {

@@ -16,14 +16,14 @@ export const projectMemberAbilities: Record<
     viewer(member, { can }) {
         can('view', 'Dashboard', {
             projectUuid: member.projectUuid,
-            isPrivate: false,
+            inheritParentPermissions: true,
         });
         can('view', 'JobStatus', {
             createdByUserUuid: member.userUuid,
         });
         can('view', 'SavedChart', {
             projectUuid: member.projectUuid,
-            isPrivate: false,
+            inheritParentPermissions: true,
         });
         can('view', 'Dashboard', {
             projectUuid: member.projectUuid,
@@ -39,7 +39,7 @@ export const projectMemberAbilities: Record<
         });
         can('view', 'Space', {
             projectUuid: member.projectUuid,
-            isPrivate: false,
+            inheritParentPermissions: true,
         });
         can('view', 'Space', {
             projectUuid: member.projectUuid,
@@ -161,7 +161,7 @@ export const projectMemberAbilities: Record<
         });
         can('manage', 'Space', {
             projectUuid: member.projectUuid,
-            isPrivate: false,
+            inheritParentPermissions: true,
         });
         can('manage', 'Job');
         can('manage', 'PinnedItems', {

@@ -231,7 +231,7 @@ export class AsyncQueryService extends ProjectService {
                 subject('SavedChart', {
                     organizationUuid: savedChart.organization.organizationUuid,
                     projectUuid: savedChart.project.projectUuid,
-                    isPrivate: ctx.isPrivate,
+                    inheritParentPermissions: ctx.inheritParentPermissions,
                     access: ctx.access,
                 }),
             )
@@ -2175,7 +2175,7 @@ export class AsyncQueryService extends ProjectService {
         }
 
         let access;
-        let spaceIsPrivate;
+        let spaceInheritsParentPermissions;
         if (isJwtUser(account)) {
             if (!ProjectService.isChartEmbed(account)) {
                 throw new ForbiddenError();
@@ -2193,14 +2193,14 @@ export class AsyncQueryService extends ProjectService {
             access = [{ chartUuid: savedChart.uuid }];
             const space =
                 await this.spaceModel.getSpaceSummary(savedChartSpaceUuid);
-            spaceIsPrivate = space.isPrivate;
+            spaceInheritsParentPermissions = !space.isPrivate;
         } else {
             const ctx = await this.spacePermissionService.getSpaceAccessContext(
                 account.user.id,
                 savedChartSpaceUuid,
             );
             access = ctx.access;
-            spaceIsPrivate = ctx.isPrivate;
+            spaceInheritsParentPermissions = ctx.inheritParentPermissions;
         }
 
         if (
@@ -2209,7 +2209,7 @@ export class AsyncQueryService extends ProjectService {
                 subject('SavedChart', {
                     organizationUuid: savedChartOrganizationUuid,
                     projectUuid,
-                    isPrivate: spaceIsPrivate,
+                    inheritParentPermissions: spaceInheritsParentPermissions,
                     access,
                 }),
             ) ||
@@ -2365,7 +2365,7 @@ export class AsyncQueryService extends ProjectService {
                     subject('SavedChart', {
                         organizationUuid: space.organizationUuid,
                         projectUuid,
-                        isPrivate: ctx.isPrivate,
+                        inheritParentPermissions: ctx.inheritParentPermissions,
                         access: ctx.access,
                     }),
                 )

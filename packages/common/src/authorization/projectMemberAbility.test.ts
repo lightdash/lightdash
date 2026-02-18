@@ -40,7 +40,7 @@ describe('Project member permissions', () => {
                         'view',
                         subject('Dashboard', {
                             projectUuid,
-                            isPrivate: false,
+                            inheritParentPermissions: true,
                         }),
                     ),
                 ).toEqual(true);
@@ -49,7 +49,7 @@ describe('Project member permissions', () => {
                         'manage',
                         subject('Dashboard', {
                             projectUuid,
-                            isPrivate: false,
+                            inheritParentPermissions: true,
                         }),
                     ),
                 ).toEqual(true);
@@ -58,7 +58,7 @@ describe('Project member permissions', () => {
                         'view',
                         subject('Dashboard', {
                             projectUuid,
-                            isPrivate: true,
+                            inheritParentPermissions: false,
                             access: [],
                         }),
                     ),
@@ -68,7 +68,7 @@ describe('Project member permissions', () => {
                         'manage',
                         subject('Dashboard', {
                             projectUuid,
-                            isPrivate: true,
+                            inheritParentPermissions: false,
                             access: [],
                         }),
                     ),
@@ -78,7 +78,7 @@ describe('Project member permissions', () => {
                         'view',
                         subject('Dashboard', {
                             projectUuid,
-                            isPrivate: true,
+                            inheritParentPermissions: false,
                             access: [
                                 {
                                     userUuid: PROJECT_ADMIN.userUuid,
@@ -93,7 +93,7 @@ describe('Project member permissions', () => {
                         'manage',
                         subject('Dashboard', {
                             projectUuid,
-                            isPrivate: true,
+                            inheritParentPermissions: false,
                             access: [
                                 {
                                     userUuid: PROJECT_ADMIN.userUuid,
@@ -108,7 +108,7 @@ describe('Project member permissions', () => {
                         'view',
                         subject('Dashboard', {
                             projectUuid,
-                            isPrivate: true,
+                            inheritParentPermissions: false,
                             access: [
                                 {
                                     userUuid: PROJECT_ADMIN.userUuid,
@@ -123,7 +123,7 @@ describe('Project member permissions', () => {
                         'manage',
                         subject('Dashboard', {
                             projectUuid,
-                            isPrivate: true,
+                            inheritParentPermissions: false,
                             access: [
                                 {
                                     userUuid: PROJECT_ADMIN.userUuid,
@@ -140,7 +140,7 @@ describe('Project member permissions', () => {
                         'view',
                         subject('SavedChart', {
                             projectUuid,
-                            isPrivate: false,
+                            inheritParentPermissions: true,
                         }),
                     ),
                 ).toEqual(true);
@@ -149,7 +149,7 @@ describe('Project member permissions', () => {
                         'manage',
                         subject('SavedChart', {
                             projectUuid,
-                            isPrivate: false,
+                            inheritParentPermissions: true,
                         }),
                     ),
                 ).toEqual(true);
@@ -158,7 +158,7 @@ describe('Project member permissions', () => {
                         'view',
                         subject('SavedChart', {
                             projectUuid,
-                            isPrivate: true,
+                            inheritParentPermissions: false,
                             access: [],
                         }),
                     ),
@@ -168,7 +168,7 @@ describe('Project member permissions', () => {
                         'manage',
                         subject('SavedChart', {
                             projectUuid,
-                            isPrivate: true,
+                            inheritParentPermissions: false,
                             access: [],
                         }),
                     ),
@@ -178,7 +178,7 @@ describe('Project member permissions', () => {
                         'view',
                         subject('SavedChart', {
                             projectUuid,
-                            isPrivate: true,
+                            inheritParentPermissions: false,
                             access: [
                                 {
                                     userUuid: PROJECT_ADMIN.userUuid,
@@ -193,7 +193,7 @@ describe('Project member permissions', () => {
                         'manage',
                         subject('SavedChart', {
                             projectUuid,
-                            isPrivate: true,
+                            inheritParentPermissions: false,
                             access: [
                                 {
                                     userUuid: PROJECT_ADMIN.userUuid,
@@ -208,7 +208,7 @@ describe('Project member permissions', () => {
                         'view',
                         subject('SavedChart', {
                             projectUuid,
-                            isPrivate: true,
+                            inheritParentPermissions: false,
                             access: [
                                 {
                                     userUuid: PROJECT_ADMIN.userUuid,
@@ -223,7 +223,7 @@ describe('Project member permissions', () => {
                         'manage',
                         subject('SavedChart', {
                             projectUuid,
-                            isPrivate: true,
+                            inheritParentPermissions: false,
                             access: [
                                 {
                                     userUuid: PROJECT_ADMIN.userUuid,
@@ -240,7 +240,7 @@ describe('Project member permissions', () => {
                         'view',
                         subject('Space', {
                             projectUuid,
-                            isPrivate: false,
+                            inheritParentPermissions: true,
                         }),
                     ),
                 ).toEqual(true);
@@ -249,7 +249,7 @@ describe('Project member permissions', () => {
                         'manage',
                         subject('Space', {
                             projectUuid,
-                            isPrivate: false,
+                            inheritParentPermissions: true,
                         }),
                     ),
                 ).toEqual(true);
@@ -258,7 +258,7 @@ describe('Project member permissions', () => {
                         'view',
                         subject('Space', {
                             projectUuid,
-                            isPrivate: true,
+                            inheritParentPermissions: false,
                             access: [],
                         }),
                     ),
@@ -268,7 +268,7 @@ describe('Project member permissions', () => {
                         'manage',
                         subject('Space', {
                             projectUuid,
-                            isPrivate: true,
+                            inheritParentPermissions: false,
                             access: [],
                         }),
                     ),
@@ -278,7 +278,7 @@ describe('Project member permissions', () => {
                         'view',
                         subject('Space', {
                             projectUuid,
-                            isPrivate: true,
+                            inheritParentPermissions: false,
                             access: [
                                 {
                                     userUuid: PROJECT_ADMIN.userUuid,
@@ -293,7 +293,7 @@ describe('Project member permissions', () => {
                         'manage',
                         subject('Space', {
                             projectUuid,
-                            isPrivate: true,
+                            inheritParentPermissions: false,
                             access: [
                                 {
                                     userUuid: PROJECT_ADMIN.userUuid,
@@ -308,7 +308,7 @@ describe('Project member permissions', () => {
                         'view',
                         subject('Space', {
                             projectUuid,
-                            isPrivate: true,
+                            inheritParentPermissions: false,
                             access: [
                                 {
                                     userUuid: PROJECT_ADMIN.userUuid,
@@ -323,7 +323,7 @@ describe('Project member permissions', () => {
                         'manage',
                         subject('Space', {
                             projectUuid,
-                            isPrivate: true,
+                            inheritParentPermissions: false,
                             access: [
                                 {
                                     userUuid: PROJECT_ADMIN.userUuid,
@@ -350,7 +350,7 @@ describe('Project member permissions', () => {
                         'view',
                         subject('SavedChart', {
                             projectUuid: '5678',
-                            isPrivate: false,
+                            inheritParentPermissions: true,
                         }),
                     ),
                 ).toEqual(false);
@@ -359,7 +359,7 @@ describe('Project member permissions', () => {
                         'view',
                         subject('Dashboard', {
                             projectUuid: '5678',
-                            isPrivate: false,
+                            inheritParentPermissions: true,
                         }),
                     ),
                 ).toEqual(false);
@@ -368,7 +368,7 @@ describe('Project member permissions', () => {
                         'view',
                         subject('Space', {
                             projectUuid: '5678',
-                            isPrivate: false,
+                            inheritParentPermissions: true,
                         }),
                     ),
                 ).toEqual(false);
@@ -548,7 +548,7 @@ describe('Project member permissions', () => {
                         'view',
                         subject('Dashboard', {
                             projectUuid,
-                            isPrivate: false,
+                            inheritParentPermissions: true,
                         }),
                     ),
                 ).toEqual(true);
@@ -557,7 +557,7 @@ describe('Project member permissions', () => {
                         'manage',
                         subject('Dashboard', {
                             projectUuid,
-                            isPrivate: false,
+                            inheritParentPermissions: true,
                         }),
                     ),
                 ).toEqual(false);
@@ -566,7 +566,7 @@ describe('Project member permissions', () => {
                         'view',
                         subject('Dashboard', {
                             projectUuid,
-                            isPrivate: true,
+                            inheritParentPermissions: false,
                             access: [],
                         }),
                     ),
@@ -576,7 +576,7 @@ describe('Project member permissions', () => {
                         'manage',
                         subject('Dashboard', {
                             projectUuid,
-                            isPrivate: true,
+                            inheritParentPermissions: false,
                             access: [],
                         }),
                     ),
@@ -586,7 +586,7 @@ describe('Project member permissions', () => {
                         'view',
                         subject('Dashboard', {
                             projectUuid,
-                            isPrivate: true,
+                            inheritParentPermissions: false,
                             access: [
                                 {
                                     userUuid: PROJECT_EDITOR.userUuid,
@@ -601,7 +601,7 @@ describe('Project member permissions', () => {
                         'manage',
                         subject('Dashboard', {
                             projectUuid,
-                            isPrivate: true,
+                            inheritParentPermissions: false,
                             access: [
                                 {
                                     userUuid: PROJECT_EDITOR.userUuid,
@@ -616,7 +616,7 @@ describe('Project member permissions', () => {
                         'view',
                         subject('Dashboard', {
                             projectUuid,
-                            isPrivate: true,
+                            inheritParentPermissions: false,
                             access: [
                                 {
                                     userUuid: PROJECT_EDITOR.userUuid,
@@ -631,7 +631,7 @@ describe('Project member permissions', () => {
                         'manage',
                         subject('Dashboard', {
                             projectUuid,
-                            isPrivate: true,
+                            inheritParentPermissions: false,
                             access: [
                                 {
                                     userUuid: PROJECT_EDITOR.userUuid,
@@ -648,7 +648,7 @@ describe('Project member permissions', () => {
                         'view',
                         subject('SavedChart', {
                             projectUuid,
-                            isPrivate: false,
+                            inheritParentPermissions: true,
                         }),
                     ),
                 ).toEqual(true);
@@ -657,7 +657,7 @@ describe('Project member permissions', () => {
                         'manage',
                         subject('SavedChart', {
                             projectUuid,
-                            isPrivate: false,
+                            inheritParentPermissions: true,
                         }),
                     ),
                 ).toEqual(false);
@@ -666,7 +666,7 @@ describe('Project member permissions', () => {
                         'view',
                         subject('SavedChart', {
                             projectUuid,
-                            isPrivate: true,
+                            inheritParentPermissions: false,
                             access: [],
                         }),
                     ),
@@ -676,7 +676,7 @@ describe('Project member permissions', () => {
                         'manage',
                         subject('SavedChart', {
                             projectUuid,
-                            isPrivate: true,
+                            inheritParentPermissions: false,
                             access: [],
                         }),
                     ),
@@ -686,7 +686,7 @@ describe('Project member permissions', () => {
                         'view',
                         subject('SavedChart', {
                             projectUuid,
-                            isPrivate: true,
+                            inheritParentPermissions: false,
                             access: [
                                 {
                                     userUuid: PROJECT_EDITOR.userUuid,
@@ -701,7 +701,7 @@ describe('Project member permissions', () => {
                         'manage',
                         subject('SavedChart', {
                             projectUuid,
-                            isPrivate: true,
+                            inheritParentPermissions: false,
                             access: [
                                 {
                                     userUuid: PROJECT_EDITOR.userUuid,
@@ -716,7 +716,7 @@ describe('Project member permissions', () => {
                         'view',
                         subject('SavedChart', {
                             projectUuid,
-                            isPrivate: true,
+                            inheritParentPermissions: false,
                             access: [
                                 {
                                     userUuid: PROJECT_EDITOR.userUuid,
@@ -731,7 +731,7 @@ describe('Project member permissions', () => {
                         'manage',
                         subject('SavedChart', {
                             projectUuid,
-                            isPrivate: true,
+                            inheritParentPermissions: false,
                             access: [
                                 {
                                     userUuid: PROJECT_EDITOR.userUuid,
@@ -758,7 +758,7 @@ describe('Project member permissions', () => {
                         'view',
                         subject('Space', {
                             projectUuid,
-                            isPrivate: false,
+                            inheritParentPermissions: true,
                         }),
                     ),
                 ).toEqual(true);
@@ -767,7 +767,7 @@ describe('Project member permissions', () => {
                         'manage',
                         subject('Space', {
                             projectUuid,
-                            isPrivate: false,
+                            inheritParentPermissions: true,
                         }),
                     ),
                 ).toEqual(true);
@@ -776,7 +776,7 @@ describe('Project member permissions', () => {
                         'view',
                         subject('Space', {
                             projectUuid,
-                            isPrivate: true,
+                            inheritParentPermissions: false,
                             access: [],
                         }),
                     ),
@@ -786,7 +786,7 @@ describe('Project member permissions', () => {
                         'manage',
                         subject('Space', {
                             projectUuid,
-                            isPrivate: true,
+                            inheritParentPermissions: false,
                             access: [],
                         }),
                     ),
@@ -796,7 +796,7 @@ describe('Project member permissions', () => {
                         'view',
                         subject('Space', {
                             projectUuid,
-                            isPrivate: true,
+                            inheritParentPermissions: false,
                             access: [
                                 {
                                     userUuid: PROJECT_EDITOR.userUuid,
@@ -811,7 +811,7 @@ describe('Project member permissions', () => {
                         'manage',
                         subject('Space', {
                             projectUuid,
-                            isPrivate: true,
+                            inheritParentPermissions: false,
                             access: [
                                 {
                                     userUuid: PROJECT_EDITOR.userUuid,
@@ -826,7 +826,7 @@ describe('Project member permissions', () => {
                         'view',
                         subject('Space', {
                             projectUuid,
-                            isPrivate: true,
+                            inheritParentPermissions: false,
                             access: [
                                 {
                                     userUuid: PROJECT_EDITOR.userUuid,
@@ -841,7 +841,7 @@ describe('Project member permissions', () => {
                         'manage',
                         subject('Space', {
                             projectUuid,
-                            isPrivate: true,
+                            inheritParentPermissions: false,
                             access: [
                                 {
                                     userUuid: PROJECT_EDITOR.userUuid,
@@ -856,7 +856,7 @@ describe('Project member permissions', () => {
                         'manage',
                         subject('Space', {
                             projectUuid,
-                            isPrivate: true,
+                            inheritParentPermissions: false,
                             access: [
                                 {
                                     userUuid: PROJECT_EDITOR.userUuid,
@@ -1265,7 +1265,7 @@ describe('Project member permissions', () => {
                         'view',
                         subject('Dashboard', {
                             projectUuid,
-                            isPrivate: false,
+                            inheritParentPermissions: true,
                         }),
                     ),
                 ).toEqual(true);
@@ -1274,7 +1274,7 @@ describe('Project member permissions', () => {
                         'manage',
                         subject('Dashboard', {
                             projectUuid,
-                            isPrivate: false,
+                            inheritParentPermissions: true,
                         }),
                     ),
                 ).toEqual(false);
@@ -1283,7 +1283,7 @@ describe('Project member permissions', () => {
                         'view',
                         subject('Dashboard', {
                             projectUuid,
-                            isPrivate: true,
+                            inheritParentPermissions: false,
                             access: [],
                         }),
                     ),
@@ -1293,7 +1293,7 @@ describe('Project member permissions', () => {
                         'manage',
                         subject('Dashboard', {
                             projectUuid,
-                            isPrivate: true,
+                            inheritParentPermissions: false,
                             access: [],
                         }),
                     ),
@@ -1303,7 +1303,7 @@ describe('Project member permissions', () => {
                         'view',
                         subject('Dashboard', {
                             projectUuid,
-                            isPrivate: true,
+                            inheritParentPermissions: false,
                             access: [
                                 {
                                     userUuid: PROJECT_VIEWER.userUuid,
@@ -1318,7 +1318,7 @@ describe('Project member permissions', () => {
                         'manage',
                         subject('Dashboard', {
                             projectUuid,
-                            isPrivate: true,
+                            inheritParentPermissions: false,
                             access: [
                                 {
                                     userUuid: PROJECT_VIEWER.userUuid,
@@ -1333,7 +1333,7 @@ describe('Project member permissions', () => {
                         'view',
                         subject('Dashboard', {
                             projectUuid,
-                            isPrivate: true,
+                            inheritParentPermissions: false,
                             access: [
                                 {
                                     userUuid: PROJECT_VIEWER.userUuid,
@@ -1348,7 +1348,7 @@ describe('Project member permissions', () => {
                         'manage',
                         subject('Dashboard', {
                             projectUuid,
-                            isPrivate: true,
+                            inheritParentPermissions: false,
                             access: [
                                 {
                                     userUuid: PROJECT_VIEWER.userUuid,
@@ -1365,7 +1365,7 @@ describe('Project member permissions', () => {
                         'view',
                         subject('SavedChart', {
                             projectUuid,
-                            isPrivate: false,
+                            inheritParentPermissions: true,
                         }),
                     ),
                 ).toEqual(true);
@@ -1374,7 +1374,7 @@ describe('Project member permissions', () => {
                         'manage',
                         subject('SavedChart', {
                             projectUuid,
-                            isPrivate: false,
+                            inheritParentPermissions: true,
                         }),
                     ),
                 ).toEqual(false);
@@ -1383,7 +1383,7 @@ describe('Project member permissions', () => {
                         'view',
                         subject('SavedChart', {
                             projectUuid,
-                            isPrivate: true,
+                            inheritParentPermissions: false,
                             access: [],
                         }),
                     ),
@@ -1393,7 +1393,7 @@ describe('Project member permissions', () => {
                         'manage',
                         subject('SavedChart', {
                             projectUuid,
-                            isPrivate: true,
+                            inheritParentPermissions: false,
                             access: [],
                         }),
                     ),
@@ -1403,7 +1403,7 @@ describe('Project member permissions', () => {
                         'view',
                         subject('SavedChart', {
                             projectUuid,
-                            isPrivate: true,
+                            inheritParentPermissions: false,
                             access: [
                                 {
                                     userUuid: PROJECT_VIEWER.userUuid,
@@ -1418,7 +1418,7 @@ describe('Project member permissions', () => {
                         'manage',
                         subject('SavedChart', {
                             projectUuid,
-                            isPrivate: true,
+                            inheritParentPermissions: false,
                             access: [
                                 {
                                     userUuid: PROJECT_VIEWER.userUuid,
@@ -1433,7 +1433,7 @@ describe('Project member permissions', () => {
                         'view',
                         subject('SavedChart', {
                             projectUuid,
-                            isPrivate: true,
+                            inheritParentPermissions: false,
                             access: [
                                 {
                                     userUuid: PROJECT_VIEWER.userUuid,
@@ -1448,7 +1448,7 @@ describe('Project member permissions', () => {
                         'manage',
                         subject('SavedChart', {
                             projectUuid,
-                            isPrivate: true,
+                            inheritParentPermissions: false,
                             access: [
                                 {
                                     userUuid: PROJECT_VIEWER.userUuid,
@@ -1465,7 +1465,7 @@ describe('Project member permissions', () => {
                         'view',
                         subject('Space', {
                             projectUuid,
-                            isPrivate: false,
+                            inheritParentPermissions: true,
                         }),
                     ),
                 ).toEqual(true);
@@ -1474,7 +1474,7 @@ describe('Project member permissions', () => {
                         'manage',
                         subject('Space', {
                             projectUuid,
-                            isPrivate: false,
+                            inheritParentPermissions: true,
                         }),
                     ),
                 ).toEqual(false);
@@ -1483,7 +1483,7 @@ describe('Project member permissions', () => {
                         'view',
                         subject('Space', {
                             projectUuid,
-                            isPrivate: true,
+                            inheritParentPermissions: false,
                             access: [],
                         }),
                     ),
@@ -1493,7 +1493,7 @@ describe('Project member permissions', () => {
                         'manage',
                         subject('Space', {
                             projectUuid,
-                            isPrivate: true,
+                            inheritParentPermissions: false,
                             access: [],
                         }),
                     ),
@@ -1503,7 +1503,7 @@ describe('Project member permissions', () => {
                         'view',
                         subject('Space', {
                             projectUuid,
-                            isPrivate: true,
+                            inheritParentPermissions: false,
                             access: [
                                 {
                                     userUuid: PROJECT_VIEWER.userUuid,
@@ -1518,7 +1518,7 @@ describe('Project member permissions', () => {
                         'manage',
                         subject('Space', {
                             projectUuid,
-                            isPrivate: true,
+                            inheritParentPermissions: false,
                             access: [
                                 {
                                     userUuid: PROJECT_VIEWER.userUuid,
@@ -1533,7 +1533,7 @@ describe('Project member permissions', () => {
                         'view',
                         subject('Space', {
                             projectUuid,
-                            isPrivate: true,
+                            inheritParentPermissions: false,
                             access: [
                                 {
                                     userUuid: PROJECT_VIEWER.userUuid,
@@ -1548,7 +1548,7 @@ describe('Project member permissions', () => {
                         'manage',
                         subject('Space', {
                             projectUuid,
-                            isPrivate: true,
+                            inheritParentPermissions: false,
                             access: [
                                 {
                                     userUuid: PROJECT_VIEWER.userUuid,
@@ -1571,7 +1571,7 @@ describe('Project member permissions', () => {
                         'view',
                         subject('SavedChart', {
                             projectUuid: '5678',
-                            isPrivate: false,
+                            inheritParentPermissions: true,
                         }),
                     ),
                 ).toEqual(false);
@@ -1580,7 +1580,7 @@ describe('Project member permissions', () => {
                         'view',
                         subject('Dashboard', {
                             projectUuid: '5678',
-                            isPrivate: false,
+                            inheritParentPermissions: true,
                         }),
                     ),
                 ).toEqual(false);
@@ -1589,7 +1589,7 @@ describe('Project member permissions', () => {
                         'view',
                         subject('Space', {
                             projectUuid: '5678',
-                            isPrivate: false,
+                            inheritParentPermissions: true,
                         }),
                     ),
                 ).toEqual(false);
@@ -1793,20 +1793,26 @@ describe('Project member permissions', () => {
                         'view',
                         subject('SavedChart', {
                             projectUuid,
-                            isPrivate: false,
+                            inheritParentPermissions: true,
                         }),
                     ),
                 ).toEqual(true);
                 expect(
                     ability.can(
                         'view',
-                        subject('Dashboard', { projectUuid, isPrivate: false }),
+                        subject('Dashboard', {
+                            projectUuid,
+                            inheritParentPermissions: true,
+                        }),
                     ),
                 ).toEqual(true);
                 expect(
                     ability.can(
                         'view',
-                        subject('Space', { projectUuid, isPrivate: false }),
+                        subject('Space', {
+                            projectUuid,
+                            inheritParentPermissions: true,
+                        }),
                     ),
                 ).toEqual(true);
                 expect(
@@ -1823,19 +1829,28 @@ describe('Project member permissions', () => {
                 expect(
                     ability.can(
                         'view',
-                        subject('SavedChart', { projectUuid, isPrivate: true }),
+                        subject('SavedChart', {
+                            projectUuid,
+                            inheritParentPermissions: false,
+                        }),
                     ),
                 ).toEqual(false);
                 expect(
                     ability.can(
                         'view',
-                        subject('Dashboard', { projectUuid, isPrivate: true }),
+                        subject('Dashboard', {
+                            projectUuid,
+                            inheritParentPermissions: false,
+                        }),
                     ),
                 ).toEqual(false);
                 expect(
                     ability.can(
                         'view',
-                        subject('Space', { projectUuid, isPrivate: true }),
+                        subject('Space', {
+                            projectUuid,
+                            inheritParentPermissions: false,
+                        }),
                     ),
                 ).toEqual(false);
             });
@@ -1845,7 +1860,7 @@ describe('Project member permissions', () => {
                         'view',
                         subject('SavedChart', {
                             projectUuid: '5678',
-                            isPrivate: false,
+                            inheritParentPermissions: true,
                         }),
                     ),
                 ).toEqual(false);
@@ -1854,7 +1869,7 @@ describe('Project member permissions', () => {
                         'view',
                         subject('Dashboard', {
                             projectUuid: '5678',
-                            isPrivate: false,
+                            inheritParentPermissions: true,
                         }),
                     ),
                 ).toEqual(false);
@@ -1863,7 +1878,7 @@ describe('Project member permissions', () => {
                         'view',
                         subject('Space', {
                             projectUuid: '5678',
-                            isPrivate: false,
+                            inheritParentPermissions: true,
                         }),
                     ),
                 ).toEqual(false);
@@ -1880,38 +1895,53 @@ describe('Project member permissions', () => {
                         'manage',
                         subject('SavedChart', {
                             projectUuid,
-                            isPrivate: false,
+                            inheritParentPermissions: true,
                         }),
                     ),
                 ).toEqual(false);
                 expect(
                     ability.can(
                         'manage',
-                        subject('Dashboard', { projectUuid, isPrivate: false }),
+                        subject('Dashboard', {
+                            projectUuid,
+                            inheritParentPermissions: true,
+                        }),
                     ),
                 ).toEqual(false);
                 expect(
                     ability.can(
                         'manage',
-                        subject('Space', { projectUuid, isPrivate: false }),
+                        subject('Space', {
+                            projectUuid,
+                            inheritParentPermissions: true,
+                        }),
                     ),
                 ).toEqual(false);
                 expect(
                     ability.can(
                         'manage',
-                        subject('SavedChart', { projectUuid, isPrivate: true }),
+                        subject('SavedChart', {
+                            projectUuid,
+                            inheritParentPermissions: false,
+                        }),
                     ),
                 ).toEqual(false);
                 expect(
                     ability.can(
                         'manage',
-                        subject('Dashboard', { projectUuid, isPrivate: true }),
+                        subject('Dashboard', {
+                            projectUuid,
+                            inheritParentPermissions: false,
+                        }),
                     ),
                 ).toEqual(false);
                 expect(
                     ability.can(
                         'manage',
-                        subject('Space', { projectUuid, isPrivate: true }),
+                        subject('Space', {
+                            projectUuid,
+                            inheritParentPermissions: false,
+                        }),
                     ),
                 ).toEqual(false);
                 expect(

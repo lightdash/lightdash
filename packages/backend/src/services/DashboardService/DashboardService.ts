@@ -313,7 +313,11 @@ export class DashboardService
             );
             return includePrivate
                 ? hasAbility
-                : hasAbility && hasDirectAccessToSpace(user, spaceContext);
+                : hasAbility &&
+                      hasDirectAccessToSpace(user, {
+                          isPrivate: !spaceContext.inheritParentPermissions,
+                          access: spaceContext.access,
+                      });
         });
     }
 
@@ -324,15 +328,15 @@ export class DashboardService
         const dashboardDao =
             await this.dashboardModel.getByIdOrSlug(dashboardUuidOrSlug);
 
-        const { isPrivate, access } =
+        const spaceCtx =
             await this.spacePermissionService.getSpaceAccessContext(
                 user.userUuid,
                 dashboardDao.spaceUuid,
             );
         const dashboard = {
             ...dashboardDao,
-            isPrivate,
-            access,
+            isPrivate: !spaceCtx.inheritParentPermissions,
+            access: spaceCtx.access,
         };
 
         // TODO: normally this would be pre-constructed (perhaps in the Service Repository or on the user object when we create the CASL type)
@@ -340,7 +344,12 @@ export class DashboardService
             auditLogger: logAuditEvent,
         });
 
-        if (auditedAbility.cannot('view', subject('Dashboard', dashboard))) {
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('Dashboard', { ...dashboard, ...spaceCtx }),
+            )
+        ) {
             throw new ForbiddenError(
                 "You don't have access to the space this dashboard belongs to",
             );
@@ -413,7 +422,7 @@ export class DashboardService
             ));
         const space = await this.spaceModel.get(resolvedSpaceUuid);
 
-        const { isPrivate, access } =
+        const { inheritParentPermissions, access } =
             await this.spacePermissionService.getSpaceAccessContext(
                 user.userUuid,
                 space.uuid,
@@ -425,7 +434,7 @@ export class DashboardService
                 subject('Dashboard', {
                     organizationUuid: space.organizationUuid,
                     projectUuid,
-                    isPrivate,
+                    inheritParentPermissions,
                     access,
                 }),
             )
@@ -456,7 +465,7 @@ export class DashboardService
 
         return {
             ...dashboardDao,
-            isPrivate,
+            isPrivate: !inheritParentPermissions,
             access,
         };
     }
@@ -469,18 +478,18 @@ export class DashboardService
     ): Promise<Dashboard> {
         const dashboardDao =
             await this.dashboardModel.getByIdOrSlug(dashboardUuid);
-        const { isPrivate, access } =
+        const spaceCtx =
             await this.spacePermissionService.getSpaceAccessContext(
                 user.userUuid,
                 dashboardDao.spaceUuid,
             );
         const dashboard = {
             ...dashboardDao,
-            isPrivate,
-            access,
+            isPrivate: !spaceCtx.inheritParentPermissions,
+            access: spaceCtx.access,
         };
 
-        if (user.ability.cannot('create', subject('Dashboard', dashboard))) {
+        if (user.ability.cannot('create', subject('Dashboard', spaceCtx))) {
             throw new ForbiddenError(
                 "You don't have access to the space this dashboard belongs to",
             );
@@ -582,8 +591,8 @@ export class DashboardService
 
         return {
             ...updatedNewDashboard,
-            isPrivate,
-            access,
+            isPrivate: !spaceCtx.inheritParentPermissions,
+            access: spaceCtx.access,
         };
     }
 
@@ -787,7 +796,7 @@ export class DashboardService
 
         return {
             ...updatedNewDashboard,
-            isPrivate: updatedSpace.isPrivate,
+            isPrivate: !updatedSpace.inheritParentPermissions,
             access: updatedSpace.access,
         };
     }
@@ -798,15 +807,15 @@ export class DashboardService
     ): Promise<TogglePinnedItemInfo> {
         const existingDashboardDao =
             await this.dashboardModel.getByIdOrSlug(dashboardUuid);
-        const { isPrivate, access } =
+        const spaceCtx =
             await this.spacePermissionService.getSpaceAccessContext(
                 user.userUuid,
                 existingDashboardDao.spaceUuid,
             );
         const existingDashboard = {
             ...existingDashboardDao,
-            isPrivate,
-            access,
+            isPrivate: !spaceCtx.inheritParentPermissions,
+            access: spaceCtx.access,
         };
 
         const { projectUuid, organizationUuid, pinnedListUuid, spaceUuid } =
@@ -820,9 +829,7 @@ export class DashboardService
             throw new ForbiddenError();
         }
 
-        if (
-            user.ability.cannot('view', subject('Dashboard', existingDashboard))
-        ) {
+        if (user.ability.cannot('view', subject('Dashboard', spaceCtx))) {
             throw new ForbiddenError(
                 "You don't have access to the space this dashboard belongs to",
             );
@@ -930,7 +937,7 @@ export class DashboardService
                     );
                 return {
                     ...dashboard,
-                    isPrivate: dashboardSpaceContext.isPrivate,
+                    isPrivate: !dashboardSpaceContext.inheritParentPermissions,
                     access: dashboardSpaceContext.access,
                 };
             },
@@ -944,7 +951,7 @@ export class DashboardService
             await this.dashboardModel.getByIdOrSlug(dashboardUuid);
         const { organizationUuid, projectUuid, spaceUuid, tiles } =
             dashboardToDelete;
-        const { isPrivate, access } =
+        const { inheritParentPermissions, access } =
             await this.spacePermissionService.getSpaceAccessContext(
                 user.userUuid,
                 spaceUuid,
@@ -955,7 +962,7 @@ export class DashboardService
                 subject('Dashboard', {
                     organizationUuid,
                     projectUuid,
-                    isPrivate,
+                    inheritParentPermissions,
                     access,
                 }),
             )
@@ -1207,15 +1214,15 @@ export class DashboardService
     ): Promise<Dashboard> {
         const dashboardDao =
             await this.dashboardModel.getByIdOrSlug(dashboardUuid);
-        const { isPrivate, access } =
+        const spaceCtx =
             await this.spacePermissionService.getSpaceAccessContext(
                 user.userUuid,
                 dashboardDao.spaceUuid,
             );
         const dashboard = {
             ...dashboardDao,
-            isPrivate,
-            access,
+            isPrivate: !spaceCtx.inheritParentPermissions,
+            access: spaceCtx.access,
         };
         const { organizationUuid, projectUuid } = dashboard;
         if (
@@ -1229,7 +1236,7 @@ export class DashboardService
         ) {
             throw new ForbiddenError();
         }
-        if (user.ability.cannot('view', subject('Dashboard', dashboard))) {
+        if (user.ability.cannot('view', subject('Dashboard', spaceCtx))) {
             throw new ForbiddenError(
                 "You don't have access to the space this dashboard belongs to",
             );
@@ -1237,8 +1244,8 @@ export class DashboardService
 
         return {
             ...dashboard,
-            isPrivate,
-            access,
+            isPrivate: !spaceCtx.inheritParentPermissions,
+            access: spaceCtx.access,
         };
     }
 
@@ -1256,7 +1263,7 @@ export class DashboardService
         const dashboard = await this.dashboardModel.getByIdOrSlug(
             resource.dashboardUuid,
         );
-        const { isPrivate, access } =
+        const { inheritParentPermissions, access } =
             await this.spacePermissionService.getSpaceAccessContext(
                 actor.user.userUuid,
                 dashboard.spaceUuid,
@@ -1267,7 +1274,7 @@ export class DashboardService
             subject('Dashboard', {
                 organizationUuid: actor.user.organizationUuid,
                 projectUuid: actor.projectUuid,
-                isPrivate,
+                inheritParentPermissions,
                 access,
             }),
         );
@@ -1291,7 +1298,8 @@ export class DashboardService
                     subject('Dashboard', {
                         organizationUuid: newSpace.organizationUuid,
                         projectUuid: actor.projectUuid,
-                        isPrivate: newSpace.isPrivate,
+                        inheritParentPermissions:
+                            newSpace.inheritParentPermissions,
                         access: newSpace.access,
                     }),
                 );
@@ -1310,7 +1318,7 @@ export class DashboardService
     ): Promise<DashboardHistory> {
         const dashboardDao =
             await this.dashboardModel.getByIdOrSlug(dashboardUuid);
-        const { isPrivate, access } =
+        const { inheritParentPermissions, access } =
             await this.spacePermissionService.getSpaceAccessContext(
                 user.userUuid,
                 dashboardDao.spaceUuid,
@@ -1320,7 +1328,7 @@ export class DashboardService
                 'manage',
                 subject('Dashboard', {
                     ...dashboardDao,
-                    isPrivate,
+                    inheritParentPermissions,
                     access,
                 }),
             )
@@ -1353,7 +1361,7 @@ export class DashboardService
     ): Promise<void> {
         const dashboardDao =
             await this.dashboardModel.getByIdOrSlug(dashboardUuid);
-        const { isPrivate, access } =
+        const { inheritParentPermissions, access } =
             await this.spacePermissionService.getSpaceAccessContext(
                 user.userUuid,
                 dashboardDao.spaceUuid,
@@ -1363,7 +1371,7 @@ export class DashboardService
                 'manage',
                 subject('Dashboard', {
                     ...dashboardDao,
-                    isPrivate,
+                    inheritParentPermissions,
                     access,
                 }),
             )

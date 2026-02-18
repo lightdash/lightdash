@@ -99,7 +99,7 @@ describe('Embedded dashboard abilities', () => {
                     'view',
                     subject('SavedChart', {
                         projectUuid,
-                        isPrivate: true,
+                        inheritParentPermissions: false,
                     }),
                 ),
             ).toBe(false);
@@ -114,7 +114,7 @@ describe('Embedded dashboard abilities', () => {
                     'view',
                     subject('SavedChart', {
                         projectUuid: 'different-project-uuid',
-                        isPrivate: false,
+                        inheritParentPermissions: true,
                     }),
                 ),
             ).toBe(false);
