@@ -1,3 +1,10 @@
+# [0.2482.0](https://github.com/lightdash/lightdash/compare/0.2481.0...0.2482.0) (2026-02-18)
+
+
+### Features
+
+* add table calcs to chart config validator ([#20385](https://github.com/lightdash/lightdash/issues/20385)) ([dc3c993](https://github.com/lightdash/lightdash/commit/dc3c9939d28fcb5f8fb047a7b5acba6cc449eef7))
+
 # [0.2481.0](https://github.com/lightdash/lightdash/compare/0.2480.0...0.2481.0) (2026-02-17)
 
 
