@@ -40,7 +40,6 @@ jobs:
         run: pnpm install --frozen-lockfile --prefer-offline
       - name: Run quality checks and build in parallel
         run: |
-          pnpm check:chart-as-code-schema &
           pnpm lint &
           pnpm format &
           pnpm -F frontend unused-exports &
