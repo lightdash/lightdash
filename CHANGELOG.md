@@ -1,3 +1,10 @@
+# [0.2484.0](https://github.com/lightdash/lightdash/compare/0.2483.3...0.2484.0) (2026-02-18)
+
+
+### Features
+
+* show favourites in browse menu ([#20426](https://github.com/lightdash/lightdash/issues/20426)) ([31a56a4](https://github.com/lightdash/lightdash/commit/31a56a4dc188566cfa35f31ae7ee11aadf899f66))
+
 ## [0.2483.3](https://github.com/lightdash/lightdash/compare/0.2483.2...0.2483.3) (2026-02-18)
 
 
