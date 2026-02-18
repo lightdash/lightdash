@@ -266,6 +266,11 @@ const useBigNumberConfig = (
         setComparisonField(bigNumberConfigData?.comparisonField);
     }, [bigNumberConfigData]);
 
+    const comparisonItem = useMemo(() => {
+        if (!itemsMap || !comparisonField) return item;
+        return itemsMap[comparisonField] ?? item;
+    }, [itemsMap, comparisonField, item]);
+
     // big number value (first row)
     const firstRowValueRaw = useMemo(() => {
         if (!selectedField || !resultsData) return;
@@ -341,7 +346,7 @@ const useBigNumberConfig = (
         // For backwards compatibility with old table calculations without type
         const isCalculationTypeUndefined =
             item && isTableCalculation(item) && item.type === undefined;
-        return (isNumber(item, secondRowValueRaw) &&
+        return (isNumber(comparisonItem, secondRowValueRaw) &&
             isNumber(item, firstRowValueRaw)) ||
             isCalculationTypeUndefined
             ? calculateComparisonValue(
@@ -352,7 +357,13 @@ const useBigNumberConfig = (
             : secondRowValueRaw === undefined
               ? UNDEFINED
               : NOT_APPLICABLE;
-    }, [item, secondRowValueRaw, firstRowValueRaw, comparisonFormat]);
+    }, [
+        item,
+        comparisonItem,
+        secondRowValueRaw,
+        firstRowValueRaw,
+        comparisonFormat,
+    ]);
 
     const comparisonDiff = useMemo(() => {
         return unformattedValue === UNDEFINED
@@ -374,7 +385,7 @@ const useBigNumberConfig = (
             : formatComparisonValue(
                   comparisonFormat,
                   comparisonDiff,
-                  item,
+                  comparisonItem,
                   unformattedValue,
                   bigNumberComparisonStyle,
                   parameters,
@@ -382,7 +393,7 @@ const useBigNumberConfig = (
     }, [
         comparisonFormat,
         comparisonDiff,
-        item,
+        comparisonItem,
         unformattedValue,
         bigNumberComparisonStyle,
         parameters,
