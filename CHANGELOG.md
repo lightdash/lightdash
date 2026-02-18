@@ -1,3 +1,10 @@
+## [0.2483.2](https://github.com/lightdash/lightdash/compare/0.2483.1...0.2483.2) (2026-02-18)
+
+
+### Bug Fixes
+
+* remove MantineProvider wrapper from CreateCredentialsModal ([#20416](https://github.com/lightdash/lightdash/issues/20416)) ([19f628f](https://github.com/lightdash/lightdash/commit/19f628fcd15bf9b209d29305c9238a2e5c4c3ab1))
+
 ## [0.2483.1](https://github.com/lightdash/lightdash/compare/0.2483.0...0.2483.1) (2026-02-18)
 
 
