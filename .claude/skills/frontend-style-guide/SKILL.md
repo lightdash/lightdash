@@ -255,6 +255,48 @@ const MyComponent = () => {
 - Use `Callout` from `components/common/Callout`
 - Variants: `danger`, `warning`, `info`
 
+### Polymorphic Clickable Containers
+
+Use these when you need a layout container that is also clickable — avoids the native `<button>` background/border reset problem.
+
+- **`PolymorphicGroupButton`** from `components/common/PolymorphicGroupButton` — a `Group` (flex row) that is polymorphic and sets `cursor: pointer`. Use for horizontal groups of elements that act as a single button.
+- **`PolymorphicPaperButton`** from `components/common/PolymorphicPaperButton` — a `Paper` (card surface) that is polymorphic and sets `cursor: pointer`. Use for card-like clickable surfaces.
+
+Both accept all props of their base component (`GroupProps` / `PaperProps`) plus a `component` prop for the underlying element.
+
+```tsx
+// ✅ Clickable row without native button style bleed
+<PolymorphicGroupButton component="div" gap="sm" onClick={handleClick}>
+    <MantineIcon icon={IconFolder} />
+    <Text>Label</Text>
+</PolymorphicGroupButton>
+
+// ✅ Clickable card surface
+<PolymorphicPaperButton component="div" p="md" onClick={handleClick}>
+    Card content
+</PolymorphicPaperButton>
+
+// ❌ Avoid - native <button> brings unwanted background/border in menus and panels
+<UnstyledButton>
+    <Group>...</Group>
+</UnstyledButton>
+```
+
+### TruncatedText
+
+- Use `TruncatedText` from `components/common/TruncatedText` whenever text may overflow a constrained width
+- Pass `maxWidth` (number or string) to control the truncation boundary
+- Automatically shows a tooltip with the full text **only when the text is actually truncated** (no tooltip spam for short names)
+- Defaults to `fz="sm"`; override via standard `Text` props
+
+```tsx
+// ✅ Good - truncates long names, tooltip only appears when needed
+<TruncatedText maxWidth={200}>{item.name}</TruncatedText>
+
+// ✅ Accepts any Text prop
+<TruncatedText maxWidth="100%" fw={500}>{space.name}</TruncatedText>
+```
+
 ## Mantine Documentation
 
 List of all components and links to their documentation in LLM-friendly format: `https://mantine.dev/llms.txt`
