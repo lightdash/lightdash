@@ -41,15 +41,29 @@ Use this table to choose the right chart type based on your data pattern:
 All chart types share a common base structure:
 
 ```yaml
-version: "1.0"
+version: 1
 name: "Chart Name"
 slug: unique-chart-slug
 spaceSlug: target-space
-chartType: <type>  # One of the types listed above
-query:
-  # Query configuration (explore, dimensions, metrics, filters)
-config:
-  # Type-specific visualization configuration
+tableName: my_explore
+updatedAt: "2024-01-01T00:00:00.000Z"
+
+metricQuery:
+  dimensions:
+    - my_explore_category
+  metrics:
+    - my_explore_total_sales
+  filters: {}
+  sorts: []
+  limit: 500
+
+chartConfig:
+  type: <type>  # One of the types listed above
+  config:
+    # Type-specific visualization configuration
+
+tableConfig:
+  columnOrder: []
 ```
 
-See individual chart reference files for type-specific `config` options.
+See individual chart reference files for type-specific `chartConfig.config` options.

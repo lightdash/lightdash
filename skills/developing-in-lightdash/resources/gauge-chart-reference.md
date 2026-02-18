@@ -17,7 +17,7 @@ For full schema details, see [chart-as-code-1.0.json](schemas/chart-as-code-1.0.
 
 ## Key Configuration Properties
 
-The `gaugeChart` configuration object supports these key properties:
+The gauge `config` object supports these key properties:
 
 ### Core Value Settings
 
@@ -65,25 +65,24 @@ metricQuery:
 chartConfig:
   type: "gauge"
   config:
-    gaugeChart:
-      selectedField: "customer_metrics_csat_score"
-      min: 0
-      max: 10
-      showAxisLabels: true
-      customLabel: "CSAT Score"
-      sections:
-        # Red zone: 0-5 (poor)
-        - min: 0
-          max: 5
-          color: "#DC2626"
-        # Yellow zone: 5-7 (fair)
-        - min: 5
-          max: 7
-          color: "#FBBF24"
-        # Green zone: 7-10 (excellent)
-        - min: 7
-          max: 10
-          color: "#10B981"
+    selectedField: "customer_metrics_csat_score"
+    min: 0
+    max: 10
+    showAxisLabels: true
+    customLabel: "CSAT Score"
+    sections:
+      # Red zone: 0-5 (poor)
+      - min: 0
+        max: 5
+        color: "#DC2626"
+      # Yellow zone: 5-7 (fair)
+      - min: 5
+        max: 7
+        color: "#FBBF24"
+      # Green zone: 7-10 (excellent)
+      - min: 7
+        max: 10
+        color: "#10B981"
 ```
 
 ### Example 2: Dynamic Max with Percentage Display
@@ -110,23 +109,22 @@ metricQuery:
 chartConfig:
   type: "gauge"
   config:
-    gaugeChart:
-      selectedField: "project_metrics_tasks_completed"
-      min: 0
-      maxFieldId: "project_metrics_total_tasks"
-      showAxisLabels: true
-      showPercentage: true
-      customPercentageLabel: "% Complete"
-      sections:
-        - min: 0
-          max: 50
-          color: "#EF4444"
-        - min: 50
-          max: 75
-          color: "#F59E0B"
-        - min: 75
-          max: 100
-          color: "#22C55E"
+    selectedField: "project_metrics_tasks_completed"
+    min: 0
+    maxFieldId: "project_metrics_total_tasks"
+    showAxisLabels: true
+    showPercentage: true
+    customPercentageLabel: "% Complete"
+    sections:
+      - min: 0
+        max: 50
+        color: "#EF4444"
+      - min: 50
+        max: 75
+        color: "#F59E0B"
+      - min: 75
+        max: 100
+        color: "#22C55E"
 ```
 
 ## Common Patterns
@@ -134,7 +132,7 @@ chartConfig:
 ### KPI Dashboard Gauge
 
 ```yaml
-gaugeChart:
+config:
   selectedField: "kpi_current_value"
   maxFieldId: "kpi_target_value"
   showPercentage: true
@@ -154,7 +152,7 @@ gaugeChart:
 ### Simple Progress Indicator
 
 ```yaml
-gaugeChart:
+config:
   selectedField: "completed_count"
   maxFieldId: "total_count"
   showPercentage: true

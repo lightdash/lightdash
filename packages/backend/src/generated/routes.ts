@@ -3317,11 +3317,226 @@ const models: TsoaRoute.Models = {
         enums: ['raw', 'percentage'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'BaseFilterRule_FilterOperator.number-or-string_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                values: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'double' },
+                            { dataType: 'string' },
+                        ],
+                    },
+                },
+                operator: { ref: 'FilterOperator', required: true },
+                id: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'ConditionalFormattingWithValues_number-or-string_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'BaseFilterRule_FilterOperator.number-or-string_' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        values: {
+                            dataType: 'array',
+                            array: {
+                                dataType: 'union',
+                                subSchemas: [
+                                    { dataType: 'double' },
+                                    { dataType: 'string' },
+                                ],
+                            },
+                            required: true,
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'ConditionalFormattingWithCompareTarget_number-or-string_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'BaseFilterRule_FilterOperator.number-or-string_' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        values: {
+                            dataType: 'array',
+                            array: {
+                                dataType: 'union',
+                                subSchemas: [
+                                    { dataType: 'double' },
+                                    { dataType: 'string' },
+                                ],
+                            },
+                        },
+                        compareTarget: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { ref: 'FieldTarget' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ConditionalFormattingWithFilterOperator: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { ref: 'ConditionalFormattingWithValues_number-or-string_' },
+                {
+                    ref: 'ConditionalFormattingWithCompareTarget_number-or-string_',
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ConditionalFormattingColorApplyTo: {
+        dataType: 'refEnum',
+        enums: ['cell', 'text'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ConditionalFormattingConfigWithSingleColor: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                applyTo: { ref: 'ConditionalFormattingColorApplyTo' },
+                rules: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'ConditionalFormattingWithFilterOperator',
+                    },
+                    required: true,
+                },
+                darkColor: { dataType: 'string' },
+                color: { dataType: 'string', required: true },
+                target: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'FieldTarget' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ConditionalFormattingColorRange: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                end: { dataType: 'string', required: true },
+                start: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'ConditionalFormattingMinMax_number-or-auto_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                max: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'enum', enums: ['auto'] },
+                    ],
+                    required: true,
+                },
+                min: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'enum', enums: ['auto'] },
+                    ],
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ConditionalFormattingConfigWithColorRange: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                applyTo: { ref: 'ConditionalFormattingColorApplyTo' },
+                rule: {
+                    ref: 'ConditionalFormattingMinMax_number-or-auto_',
+                    required: true,
+                },
+                color: {
+                    ref: 'ConditionalFormattingColorRange',
+                    required: true,
+                },
+                target: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'FieldTarget' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ConditionalFormattingConfig: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { ref: 'ConditionalFormattingConfigWithSingleColor' },
+                { ref: 'ConditionalFormattingConfigWithColorRange' },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     BigNumber: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                conditionalFormattings: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'ConditionalFormattingConfig',
+                    },
+                },
                 comparisonLabel: { dataType: 'string' },
                 flipColors: { dataType: 'boolean' },
                 comparisonFormat: { ref: 'ComparisonFormatTypes' },
@@ -4118,213 +4333,6 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {},
             additionalProperties: { ref: 'ColumnProperties' },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'BaseFilterRule_FilterOperator.number-or-string_': {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                values: {
-                    dataType: 'array',
-                    array: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { dataType: 'double' },
-                            { dataType: 'string' },
-                        ],
-                    },
-                },
-                operator: { ref: 'FilterOperator', required: true },
-                id: { dataType: 'string', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'ConditionalFormattingWithValues_number-or-string_': {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'intersection',
-            subSchemas: [
-                { ref: 'BaseFilterRule_FilterOperator.number-or-string_' },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        values: {
-                            dataType: 'array',
-                            array: {
-                                dataType: 'union',
-                                subSchemas: [
-                                    { dataType: 'double' },
-                                    { dataType: 'string' },
-                                ],
-                            },
-                            required: true,
-                        },
-                    },
-                },
-            ],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'ConditionalFormattingWithCompareTarget_number-or-string_': {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'intersection',
-            subSchemas: [
-                { ref: 'BaseFilterRule_FilterOperator.number-or-string_' },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        values: {
-                            dataType: 'array',
-                            array: {
-                                dataType: 'union',
-                                subSchemas: [
-                                    { dataType: 'double' },
-                                    { dataType: 'string' },
-                                ],
-                            },
-                        },
-                        compareTarget: {
-                            dataType: 'union',
-                            subSchemas: [
-                                { ref: 'FieldTarget' },
-                                { dataType: 'enum', enums: [null] },
-                            ],
-                            required: true,
-                        },
-                    },
-                },
-            ],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ConditionalFormattingWithFilterOperator: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'union',
-            subSchemas: [
-                { ref: 'ConditionalFormattingWithValues_number-or-string_' },
-                {
-                    ref: 'ConditionalFormattingWithCompareTarget_number-or-string_',
-                },
-            ],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ConditionalFormattingColorApplyTo: {
-        dataType: 'refEnum',
-        enums: ['cell', 'text'],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ConditionalFormattingConfigWithSingleColor: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                applyTo: { ref: 'ConditionalFormattingColorApplyTo' },
-                rules: {
-                    dataType: 'array',
-                    array: {
-                        dataType: 'refAlias',
-                        ref: 'ConditionalFormattingWithFilterOperator',
-                    },
-                    required: true,
-                },
-                color: { dataType: 'string', required: true },
-                target: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { ref: 'FieldTarget' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ConditionalFormattingColorRange: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                end: { dataType: 'string', required: true },
-                start: { dataType: 'string', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'ConditionalFormattingMinMax_number-or-auto_': {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                max: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'double' },
-                        { dataType: 'enum', enums: ['auto'] },
-                    ],
-                    required: true,
-                },
-                min: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'double' },
-                        { dataType: 'enum', enums: ['auto'] },
-                    ],
-                    required: true,
-                },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ConditionalFormattingConfigWithColorRange: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                applyTo: { ref: 'ConditionalFormattingColorApplyTo' },
-                rule: {
-                    ref: 'ConditionalFormattingMinMax_number-or-auto_',
-                    required: true,
-                },
-                color: {
-                    ref: 'ConditionalFormattingColorRange',
-                    required: true,
-                },
-                target: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { ref: 'FieldTarget' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ConditionalFormattingConfig: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'union',
-            subSchemas: [
-                { ref: 'ConditionalFormattingConfigWithSingleColor' },
-                { ref: 'ConditionalFormattingConfigWithColorRange' },
-            ],
             validators: {},
         },
     },
@@ -7378,11 +7386,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                     ],
                                                     required: true,
@@ -7860,11 +7868,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                     ],
                                                     required: true,
@@ -7879,11 +7887,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                     ],
                                                     required: true,
@@ -7898,11 +7906,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                     ],
                                                     required: true,
@@ -7917,11 +7925,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                     ],
                                                     required: true,
@@ -7936,11 +7944,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                     ],
                                                     required: true,
@@ -17581,7 +17589,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__':
+    'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__':
         {
             dataType: 'refAlias',
             type: {
@@ -17591,7 +17599,7 @@ const models: TsoaRoute.Models = {
             },
         },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__':
+    'PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__':
         {
             dataType: 'refAlias',
             type: {
@@ -17601,7 +17609,7 @@ const models: TsoaRoute.Models = {
                         dataType: 'union',
                         subSchemas: [
                             {
-                                ref: 'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__',
+                                ref: 'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__',
                             },
                             { dataType: 'undefined' },
                         ],
@@ -17614,7 +17622,7 @@ const models: TsoaRoute.Models = {
     'PartialDeep_ChartAsCodeLanguageMap._recurseIntoArrays-true__': {
         dataType: 'refAlias',
         type: {
-            ref: 'PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__',
+            ref: 'PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__',
             validators: {},
         },
     },
@@ -18906,7 +18914,7 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ResourceItemCategory: {
         dataType: 'refEnum',
-        enums: ['mostPopular', 'recentlyUpdated', 'pinned'],
+        enums: ['mostPopular', 'recentlyUpdated', 'pinned', 'favorites'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ResourceViewDashboardItem: {
