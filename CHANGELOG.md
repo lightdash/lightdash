@@ -1,3 +1,10 @@
+# [0.2485.0](https://github.com/lightdash/lightdash/compare/0.2484.0...0.2485.0) (2026-02-18)
+
+
+### Features
+
+* add field-based comparison mode to big number charts ([#20353](https://github.com/lightdash/lightdash/issues/20353)) ([59898f0](https://github.com/lightdash/lightdash/commit/59898f069a63362f35e2f7a1da01e14924398416))
+
 # [0.2484.0](https://github.com/lightdash/lightdash/compare/0.2483.3...0.2484.0) (2026-02-18)
 
 
