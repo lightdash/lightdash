@@ -26,7 +26,10 @@ import {
     loadDbtTarget,
     warehouseCredentialsFromDbtTarget,
 } from '../../dbt/profile';
-import { performDatabricksOAuthFlow } from '../../dbt/targets/Databricks/oauth';
+import {
+    DATABRICKS_DEFAULT_OAUTH_CLIENT_ID,
+    performDatabricksOAuthFlow,
+} from '../../dbt/targets/Databricks/oauth';
 import GlobalState from '../../globalState';
 import * as styles from '../../styles';
 import { lightdashApi } from './apiClient';
@@ -338,68 +341,7 @@ export default async function getWarehouseClient(
         GlobalState.debug(`> Using target ${target.type}`);
         credentials = await warehouseCredentialsFromDbtTarget(target);
 
-        // Exchange Databricks OAuth M2M credentials for access token if needed
-        if (
-            credentials.type === WarehouseTypes.DATABRICKS &&
-            credentials.authenticationType ===
-                DatabricksAuthenticationType.OAUTH_M2M &&
-            credentials.oauthClientId &&
-            credentials.oauthClientSecret &&
-            !credentials.token
-        ) {
-            GlobalState.debug(
-                `> Exchanging Databricks OAuth credentials for access token`,
-            );
-            try {
-                const { accessToken } =
-                    await exchangeDatabricksOAuthCredentials(
-                        credentials.serverHostName,
-                        credentials.oauthClientId,
-                        credentials.oauthClientSecret,
-                    );
-                credentials.token = accessToken;
-            } catch (e) {
-                GlobalState.debug(
-                    `> Failed to exchange Databricks OAuth credentials for access token: ${getErrorMessage(
-                        e,
-                    )}`,
-                );
-                console.warn(
-                    styles.error(
-                        `\nFailed to authenticate with Databricks using M2M OAuth (client_id and client_secret). ` +
-                            `Perhaps you meant to use U2M OAuth instead? Set DATABRICKS_OAUTH=u2m environment variable to force U2M authentication.`,
-                    ),
-                );
-                process.exit(1);
-            }
-        }
-
-        // Handle Databricks OAuth U2M authentication
-        if (
-            credentials.type === WarehouseTypes.DATABRICKS &&
-            credentials.authenticationType ===
-                DatabricksAuthenticationType.OAUTH_U2M &&
-            !credentials.token
-        ) {
-            // No tokens - perform OAuth flow (tokens kept in memory only)
-            console.error(
-                `\nDatabricks OAuth authentication required for ${credentials.serverHostName}`,
-            );
-            const clientId = credentials.oauthClientId || 'dbt-databricks'; // Use the same default dbt client for databricks
-            const tokens = await performDatabricksOAuthFlow(
-                credentials.serverHostName,
-                clientId,
-                credentials.oauthClientSecret,
-            );
-
-            // Store tokens in memory only
-            credentials.token = tokens.accessToken;
-            credentials.refreshToken = tokens.refreshToken;
-
-            console.error(`\n✓ Successfully authenticated with Databricks\n`);
-        }
-
-        // Check if we should use cached client (e.g., for auth methods requiring user interaction)
+        // Check cache before any OAuth flows to avoid repeated authentication prompts
         const cacheKey = getWarehouseClientCacheKey(credentials);
 
         if (warehouseClientCache.has(cacheKey)) {
@@ -408,6 +350,63 @@ export default async function getWarehouseClient(
             );
             warehouseClient = warehouseClientCache.get(cacheKey)!;
         } else {
+            // Exchange Databricks OAuth M2M credentials for access token if needed
+            if (
+                credentials.type === WarehouseTypes.DATABRICKS &&
+                credentials.authenticationType ===
+                    DatabricksAuthenticationType.OAUTH_M2M &&
+                credentials.oauthClientId &&
+                credentials.oauthClientSecret &&
+                !credentials.token
+            ) {
+                GlobalState.debug(
+                    `> Exchanging Databricks OAuth credentials for access token`,
+                );
+                try {
+                    const { accessToken } =
+                        await exchangeDatabricksOAuthCredentials(
+                            credentials.serverHostName,
+                            credentials.oauthClientId,
+                            credentials.oauthClientSecret,
+                        );
+                    credentials.token = accessToken;
+                } catch (e) {
+                    GlobalState.debug(
+                        `> Failed to exchange Databricks OAuth credentials for access token: ${getErrorMessage(
+                            e,
+                        )}`,
+                    );
+                    console.warn(
+                        styles.error(
+                            `\nFailed to authenticate with Databricks using M2M OAuth (client_id and client_secret). ` +
+                                `Perhaps you meant to use U2M OAuth instead? Set DATABRICKS_OAUTH=u2m environment variable to force U2M authentication.`,
+                        ),
+                    );
+                    process.exit(1);
+                }
+            }
+
+            // Handle Databricks OAuth U2M authentication
+            if (
+                credentials.type === WarehouseTypes.DATABRICKS &&
+                credentials.authenticationType ===
+                    DatabricksAuthenticationType.OAUTH_U2M &&
+                !credentials.token
+            ) {
+                const clientId =
+                    credentials.oauthClientId ||
+                    DATABRICKS_DEFAULT_OAUTH_CLIENT_ID;
+                const tokens = await performDatabricksOAuthFlow(
+                    credentials.serverHostName,
+                    clientId,
+                    credentials.oauthClientSecret,
+                );
+
+                // Store tokens in memory only
+                credentials.token = tokens.accessToken;
+                credentials.refreshToken = tokens.refreshToken;
+            }
+
             GlobalState.debug(
                 `> Creating new warehouse client to cache (${credentials.type})`,
             );

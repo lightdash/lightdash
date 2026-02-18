@@ -2,9 +2,17 @@ import { AuthorizationError } from '@lightdash/common';
 import * as http from 'http';
 import fetch from 'node-fetch';
 import { generators } from 'openid-client';
+import ora from 'ora';
 import { URL } from 'url';
 import GlobalState from '../../../globalState';
 import { openBrowser } from '../../../handlers/login/oauth';
+import * as styles from '../../../styles';
+
+/**
+ * Default OAuth client ID for Databricks U2M authentication.
+ * This matches the client ID used by dbt-databricks.
+ */
+export const DATABRICKS_DEFAULT_OAUTH_CLIENT_ID = 'dbt-databricks';
 
 /**
  * Databricks OAuth tokens result
@@ -141,18 +149,36 @@ export const performDatabricksOAuthFlow = async (
         authUrl.searchParams.set('code_challenge_method', 'S256');
         authUrl.searchParams.set('state', state);
 
-        console.error(`\n🔐 Databricks Authentication`);
-        console.error(`Opening browser for authentication...`);
-        console.error(
-            `If the browser doesn't open automatically, please visit:`,
+        // Pause any active spinner while authenticating
+        const parentSpinner = GlobalState.getActiveSpinner();
+        const wasSpinning = parentSpinner?.isSpinning;
+        parentSpinner?.stop();
+
+        const divider = styles.secondary(
+            '─'.repeat(process.stdout.columns || 80),
         );
-        console.error(`${authUrl.href}\n`);
+        console.error(`\n${divider}`);
+        console.error(`${styles.title('🔐  Databricks Authentication')}`);
 
         // Try to open the browser
         await openBrowser(authUrl.href);
 
+        // Show spinner with fallback URL — both disappear on success
+        // Use ora directly to avoid overwriting the global active spinner
+        const authSpinner = ora(
+            `  Waiting for authentication in browser...\n` +
+                `   If it doesn't open, visit: ${styles.secondary(authUrl.href)}`,
+        ).start();
+
         // Wait for the authorization code
-        const { code } = await authPromise;
+        let code: string;
+        try {
+            ({ code } = await authPromise);
+            authSpinner.stop();
+        } catch (e) {
+            authSpinner.fail(`  Databricks authentication failed`);
+            throw e;
+        }
 
         GlobalState.debug(
             `> Got authorization code ${code.substring(0, 10)}...`,
@@ -214,6 +240,16 @@ export const performDatabricksOAuthFlow = async (
 
         // Calculate expiration timestamp (current time + expires_in)
         const expiresAt = Math.floor(Date.now() / 1000) + expiresIn;
+
+        console.error(
+            `${styles.success('✔')}   Successfully authenticated with Databricks`,
+        );
+        console.error(`${divider}\n`);
+
+        // Restart the parent spinner if it was active
+        if (wasSpinning) {
+            parentSpinner?.start();
+        }
 
         return {
             accessToken,
