@@ -1,3 +1,18 @@
+# [0.2483.0](https://github.com/lightdash/lightdash/compare/0.2482.2...0.2483.0) (2026-02-18)
+
+
+### Bug Fixes
+
+* recover missing descriptions and fix AJV strict mode in chart-as-code schema ([#20406](https://github.com/lightdash/lightdash/issues/20406)) ([4757038](https://github.com/lightdash/lightdash/commit/4757038f81292a91cb06ddd69729966c52456328))
+* remove chart-as-code schema drift check from CI ([#20408](https://github.com/lightdash/lightdash/issues/20408)) ([1bde8ad](https://github.com/lightdash/lightdash/commit/1bde8add4b60b689e097c15765c13d0cd00bd699))
+* upgrade snowflake-sdk from 2.3.3 to 2.3.4 ([#20396](https://github.com/lightdash/lightdash/issues/20396)) ([5b4a3b9](https://github.com/lightdash/lightdash/commit/5b4a3b9f97d5ecf8d4f70f521c506fecfb1c4d4d))
+
+
+### Features
+
+* add project-specific user warehouse credentials ([#20403](https://github.com/lightdash/lightdash/issues/20403)) ([3eeb64e](https://github.com/lightdash/lightdash/commit/3eeb64ebd40c710abbb39df0fa891ea5cbfd647f))
+* auto-create user warehouse credentials from CLI tokens and clean up on project deletion ([#20384](https://github.com/lightdash/lightdash/issues/20384)) ([75fabb2](https://github.com/lightdash/lightdash/commit/75fabb206f4d21617059dce7a421e1856a2c7fc5))
+
 ## [0.2482.2](https://github.com/lightdash/lightdash/compare/0.2482.1...0.2482.2) (2026-02-18)
 
 
