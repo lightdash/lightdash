@@ -17,6 +17,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import getChartDataModel from '../../../components/DataViz/transformers/getChartDataModel';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
+import { defaultRetryConfig } from '../../../hooks/useQueryRetry';
 import {
     getDashboardSqlChartPivotChartData,
     getSqlChartPivotChartData,
@@ -78,6 +79,7 @@ export const useSavedSqlChartResults = (
             }),
         {
             enabled: (!!savedSqlUuid || !!slug) && !!projectUuid,
+            ...defaultRetryConfig,
         },
     );
 
@@ -171,6 +173,7 @@ export const useSavedSqlChartResults = (
                 !!chartQuery.data &&
                 !!projectUuid &&
                 (!!savedSqlUuid || !!slug),
+            ...defaultRetryConfig,
         },
     );
 

@@ -27,6 +27,7 @@ import useApp from '../../providers/App/useApp';
 import useToaster from '../toaster/useToaster';
 import { invalidateContent } from '../useContent';
 import useQueryError from '../useQueryError';
+import { defaultRetryConfig } from '../useQueryRetry';
 import useDashboardStorage from './useDashboardStorage';
 
 const getDashboard = async (id: string) =>
@@ -125,6 +126,7 @@ export const useDashboardsAvailableFilters = (
                 : postDashboardsAvailableFilters(savedChartUuidsAndTileUuids),
         {
             enabled: savedChartUuidsAndTileUuids.length > 0,
+            ...defaultRetryConfig,
         },
     );
 
@@ -137,7 +139,7 @@ export const useDashboardQuery = (
         queryKey: ['saved_dashboard_query', id],
         queryFn: () => getDashboard(id || ''),
         enabled: !!id,
-        retry: false,
+        ...defaultRetryConfig,
         onError: (result) => setErrorResponse(result),
         ...useQueryOptions,
     });
