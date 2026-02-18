@@ -76,6 +76,7 @@ export type BigNumber = {
     comparisonLabel?: string;
     /** Conditional formatting rules */
     conditionalFormattings?: ConditionalFormattingConfig[];
+    comparisonField?: string;
 };
 
 export const PieChartValueLabels = {
