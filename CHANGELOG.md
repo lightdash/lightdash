@@ -1,3 +1,10 @@
+## [0.2482.1](https://github.com/lightdash/lightdash/compare/0.2482.0...0.2482.1) (2026-02-18)
+
+
+### Bug Fixes
+
+* allow operator changes for required filters while preventing removal ([#20401](https://github.com/lightdash/lightdash/issues/20401)) ([ad2969a](https://github.com/lightdash/lightdash/commit/ad2969a33fdac895bb4812fdc567bbd55b52ef20))
+
 # [0.2482.0](https://github.com/lightdash/lightdash/compare/0.2481.0...0.2482.0) (2026-02-18)
 
 
