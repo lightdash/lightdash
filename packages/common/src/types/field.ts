@@ -411,6 +411,7 @@ export type TableCalculationTemplate =
               fieldId: string;
               order: 'asc' | 'desc' | null;
           }[];
+          partitionBy?: string[];
       }
     | {
           /** Type of template calculation */
@@ -422,6 +423,7 @@ export type TableCalculationTemplate =
               fieldId: string;
               order: 'asc' | 'desc' | null;
           }[];
+          partitionBy?: string[];
       }
     | {
           /** Type of template calculation */
