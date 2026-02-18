@@ -138,6 +138,8 @@ const Register: FC = () => {
                     <Anchor
                         href="https://www.lightdash.com/privacy-policy"
                         target="_blank"
+                        fz="sm"
+                        fw={500}
                     >
                         Privacy Policy
                     </Anchor>{' '}
@@ -145,6 +147,8 @@ const Register: FC = () => {
                     <Anchor
                         href="https://www.lightdash.com/terms-of-service"
                         target="_blank"
+                        fz="sm"
+                        fw={500}
                     >
                         Terms of Service.
                     </Anchor>
