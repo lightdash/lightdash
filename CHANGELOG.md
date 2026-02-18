@@ -1,3 +1,10 @@
+## [0.2483.1](https://github.com/lightdash/lightdash/compare/0.2483.0...0.2483.1) (2026-02-18)
+
+
+### Bug Fixes
+
+* disable chalk colors in CLI tests for consistent local/CI behavior ([#20412](https://github.com/lightdash/lightdash/issues/20412)) ([1454357](https://github.com/lightdash/lightdash/commit/1454357d4ed020bfd011e90404426bc68e6bda36))
+
 # [0.2483.0](https://github.com/lightdash/lightdash/compare/0.2482.2...0.2483.0) (2026-02-18)
 
 
