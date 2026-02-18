@@ -11,7 +11,7 @@ import {
     Switch,
     TextInput,
 } from '@mantine/core';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { isBigNumberVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import FieldSelect from '../../common/FieldSelect';
@@ -27,6 +27,8 @@ export const Comparison: React.FC = () => {
     const chartConfig = isBigNumber
         ? visualizationConfig.chartConfig
         : undefined;
+
+    const rememberedField = useRef(chartConfig?.comparisonField);
 
     const [compareTarget, setCompareTarget] = useState<CompareTarget>(
         chartConfig?.comparisonField !== undefined
@@ -100,7 +102,13 @@ export const Comparison: React.FC = () => {
                                         const target = value as CompareTarget;
                                         setCompareTarget(target);
                                         if (target === 'previous_row') {
+                                            rememberedField.current =
+                                                comparisonField;
                                             setComparisonField(undefined);
+                                        } else {
+                                            setComparisonField(
+                                                rememberedField.current,
+                                            );
                                         }
                                     }}
                                 />
@@ -112,11 +120,11 @@ export const Comparison: React.FC = () => {
                                     item={comparisonFieldItem}
                                     items={comparisonFieldItems}
                                     onChange={(newValue) => {
-                                        setComparisonField(
-                                            newValue
-                                                ? getItemId(newValue)
-                                                : undefined,
-                                        );
+                                        const fieldId = newValue
+                                            ? getItemId(newValue)
+                                            : undefined;
+                                        rememberedField.current = fieldId;
+                                        setComparisonField(fieldId);
                                     }}
                                     hasGrouping
                                 />
