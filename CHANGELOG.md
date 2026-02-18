@@ -1,3 +1,10 @@
+## [0.2482.2](https://github.com/lightdash/lightdash/compare/0.2482.1...0.2482.2) (2026-02-18)
+
+
+### Bug Fixes
+
+* filters layout in embedded dashboards ([#20399](https://github.com/lightdash/lightdash/issues/20399)) ([89a0161](https://github.com/lightdash/lightdash/commit/89a0161d7b2b9a079c15290569c0fa8861363242)), closes [#20387](https://github.com/lightdash/lightdash/issues/20387)
+
 ## [0.2482.1](https://github.com/lightdash/lightdash/compare/0.2482.0...0.2482.1) (2026-02-18)
 
 
