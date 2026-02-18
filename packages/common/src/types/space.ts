@@ -118,6 +118,19 @@ export type SpaceAccessUserMetadata = {
     email: string;
 };
 
+export type SpaceInheritanceChainItem = {
+    spaceUuid: string;
+    spaceName: string;
+    inheritParentPermissions: boolean;
+};
+
+export type SpaceInheritanceChain = {
+    /** Spaces from leaf to the first inherit=false ancestor (or root). */
+    chain: SpaceInheritanceChainItem[];
+    /** True if the chain reaches a root space that inherits from the project/org. */
+    inheritsFromOrgOrProject: boolean;
+};
+
 // Access data for checking Space access permissions with CASL where only the role/access data matters.
 export type SpaceAccess = {
     userUuid: string;

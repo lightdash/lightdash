@@ -8,6 +8,7 @@ import {
     ProjectSpaceAccessOrigin,
     SpaceAccessUserMetadata,
     type SpaceGroup,
+    type SpaceInheritanceChain,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { EmailTableName } from '../database/entities/emails';
@@ -412,5 +413,72 @@ export class SpacePermissionModel {
             )
             .where('space_uuid', spaceUuid);
         return access;
+    }
+
+    /**
+     * Gets the inheritance chain for a space, walking up from the space
+     * to the first ancestor with inherit_parent_permissions=false (or root).
+     *
+     * The chain is ordered leaf-to-root.
+     *
+     * @param spaceUuid - The UUID of the space to get the chain for
+     * @returns The inheritance chain and whether it reaches the project/org level
+     */
+    async getInheritanceChain(
+        spaceUuid: string,
+    ): Promise<SpaceInheritanceChain> {
+        return wrapSentryTransaction(
+            'SpacePermissionModel.getInheritanceChain',
+            { spaceUuid },
+            async () => {
+                const space = await this.database(SpaceTableName)
+                    .select('path', 'project_id')
+                    .where('space_uuid', spaceUuid)
+                    .first();
+
+                if (!space) {
+                    throw new NotFoundError(
+                        `Space with uuid ${spaceUuid} does not exist`,
+                    );
+                }
+
+                const ancestors = await this.database(SpaceTableName)
+                    .select(
+                        'space_uuid',
+                        'name',
+                        'inherit_parent_permissions',
+                        'parent_space_uuid',
+                    )
+                    .whereRaw(`?::ltree <@ ${SpaceTableName}.path`, [
+                        space.path,
+                    ])
+                    .andWhere('project_id', space.project_id)
+                    .orderByRaw(`nlevel(${SpaceTableName}.path) DESC`);
+
+                const chain: SpaceInheritanceChain['chain'] = [];
+                let lastAncestor: (typeof ancestors)[number] | undefined;
+
+                for (const ancestor of ancestors) {
+                    chain.push({
+                        spaceUuid: ancestor.space_uuid,
+                        spaceName: ancestor.name,
+                        inheritParentPermissions:
+                            ancestor.inherit_parent_permissions,
+                    });
+                    lastAncestor = ancestor;
+
+                    if (!ancestor.inherit_parent_permissions) {
+                        break;
+                    }
+                }
+
+                const inheritsFromOrgOrProject =
+                    lastAncestor !== undefined &&
+                    lastAncestor.parent_space_uuid === null &&
+                    lastAncestor.inherit_parent_permissions === true;
+
+                return { chain, inheritsFromOrgOrProject };
+            },
+        );
     }
 }
