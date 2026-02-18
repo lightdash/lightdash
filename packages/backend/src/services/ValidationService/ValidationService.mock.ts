@@ -111,7 +111,7 @@ export const chartForValidation: Awaited<
     chartConfig: {
         layout: {
             xField: 'table_dimension',
-            yField: ['table_metric'],
+            yField: ['table_metric', 'table_calculation'],
         },
         eChartsConfig: {},
     },
@@ -130,7 +130,11 @@ export const chartForValidationWithJoinedField: Awaited<
     chartConfig: {
         layout: {
             xField: 'table_dimension',
-            yField: ['table_metric', 'another_table_metric'],
+            yField: [
+                'table_metric',
+                'another_table_metric',
+                'table_calculation',
+            ],
         },
         eChartsConfig: {},
     },
@@ -165,7 +169,7 @@ export const chartForValidationWithCustomMetricFilters: Awaited<
     chartConfig: {
         layout: {
             xField: 'table_dimension',
-            yField: ['table_metric'],
+            yField: ['table_metric', 'table_calculation'],
         },
         eChartsConfig: {},
     },
