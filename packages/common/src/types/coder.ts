@@ -32,10 +32,14 @@ export type ChartAsCode = Pick<
     | 'updatedAt' // Not modifiable by user, but useful to know if it has been updated
     | 'parameters'
 > & {
+    /** Slug of the dashboard this chart belongs to (if any) */
     dashboardSlug: string | undefined;
+    /** Schema version for this chart configuration */
     version: number;
-    spaceSlug: string; // Charts within dashboards will be pointing to spaceSlug of the dashboard by design
-    downloadedAt?: Date; // Not modifiable by user, but useful to know if it has been updated
+    /** Slug of the space containing this chart */
+    spaceSlug: string;
+    /** Timestamp when this chart was downloaded from Lightdash */
+    downloadedAt?: Date;
 };
 
 // SQL Charts are stored separately from regular saved charts

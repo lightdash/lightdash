@@ -1917,25 +1917,32 @@
                         "items": {
                             "$ref": "#/components/schemas/AnyType"
                         },
-                        "type": "array"
+                        "type": "array",
+                        "description": "Values to filter by"
                     },
                     "operator": {
-                        "$ref": "#/components/schemas/FilterOperator"
+                        "$ref": "#/components/schemas/FilterOperator",
+                        "description": "Filter operator"
                     },
                     "id": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Unique identifier for the filter"
                     },
                     "target": {
-                        "$ref": "#/components/schemas/DashboardFieldTarget"
+                        "$ref": "#/components/schemas/DashboardFieldTarget",
+                        "description": "Target field for the filter"
                     },
                     "settings": {
-                        "$ref": "#/components/schemas/AnyType"
+                        "$ref": "#/components/schemas/AnyType",
+                        "description": "Additional settings for date/time filters"
                     },
                     "disabled": {
-                        "type": "boolean"
+                        "type": "boolean",
+                        "description": "Whether this filter is disabled"
                     },
                     "required": {
-                        "type": "boolean"
+                        "type": "boolean",
+                        "description": "Whether this filter is required"
                     }
                 },
                 "required": ["operator", "id", "target"],
@@ -2535,32 +2542,41 @@
             "CustomFormat": {
                 "properties": {
                     "type": {
-                        "$ref": "#/components/schemas/CustomFormatType"
+                        "$ref": "#/components/schemas/CustomFormatType",
+                        "description": "Format type"
                     },
                     "round": {
                         "type": "number",
-                        "format": "double"
+                        "format": "double",
+                        "description": "Number of decimal places"
                     },
                     "separator": {
-                        "$ref": "#/components/schemas/NumberSeparator"
+                        "$ref": "#/components/schemas/NumberSeparator",
+                        "description": "Number separator style"
                     },
                     "currency": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Currency code (e.g., USD, GBP, EUR)"
                     },
                     "compact": {
-                        "$ref": "#/components/schemas/CompactOrAlias"
+                        "$ref": "#/components/schemas/CompactOrAlias",
+                        "description": "Compact format for large numbers (K, M, B, T) or byte units"
                     },
                     "prefix": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Prefix to prepend to formatted values"
                     },
                     "suffix": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Suffix to append to formatted values"
                     },
                     "timeInterval": {
-                        "$ref": "#/components/schemas/TimeFrames"
+                        "$ref": "#/components/schemas/TimeFrames",
+                        "description": "Time interval for date formatting"
                     },
                     "custom": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Custom format string"
                     }
                 },
                 "required": ["type"],
@@ -2890,7 +2906,8 @@
             "FieldTarget": {
                 "properties": {
                     "fieldId": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Field ID to filter on"
                     }
                 },
                 "required": ["fieldId"],
@@ -2902,25 +2919,32 @@
                         "items": {
                             "$ref": "#/components/schemas/AnyType"
                         },
-                        "type": "array"
+                        "type": "array",
+                        "description": "Values to filter by"
                     },
                     "operator": {
-                        "$ref": "#/components/schemas/FilterOperator"
+                        "$ref": "#/components/schemas/FilterOperator",
+                        "description": "Filter operator"
                     },
                     "id": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Unique identifier for the filter"
                     },
                     "target": {
-                        "$ref": "#/components/schemas/FieldTarget"
+                        "$ref": "#/components/schemas/FieldTarget",
+                        "description": "Target field for the filter"
                     },
                     "settings": {
-                        "$ref": "#/components/schemas/AnyType"
+                        "$ref": "#/components/schemas/AnyType",
+                        "description": "Additional settings for date/time filters"
                     },
                     "disabled": {
-                        "type": "boolean"
+                        "type": "boolean",
+                        "description": "Whether this filter is disabled"
                     },
                     "required": {
-                        "type": "boolean"
+                        "type": "boolean",
+                        "description": "Whether this filter is required"
                     }
                 },
                 "required": ["operator", "id", "target"],
@@ -2943,10 +2967,12 @@
                         "items": {
                             "$ref": "#/components/schemas/FilterGroupItem"
                         },
-                        "type": "array"
+                        "type": "array",
+                        "description": "Array of filters or nested groups combined with OR logic"
                     },
                     "id": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Unique identifier for the filter group"
                     }
                 },
                 "required": ["or", "id"],
@@ -2958,10 +2984,12 @@
                         "items": {
                             "$ref": "#/components/schemas/FilterGroupItem"
                         },
-                        "type": "array"
+                        "type": "array",
+                        "description": "Array of filters or nested groups combined with AND logic"
                     },
                     "id": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Unique identifier for the filter group"
                     }
                 },
                 "required": ["and", "id"],
@@ -2970,13 +2998,16 @@
             "Filters": {
                 "properties": {
                     "tableCalculations": {
-                        "$ref": "#/components/schemas/FilterGroup"
+                        "$ref": "#/components/schemas/FilterGroup",
+                        "description": "Table calculation filter group"
                     },
                     "metrics": {
-                        "$ref": "#/components/schemas/FilterGroup"
+                        "$ref": "#/components/schemas/FilterGroup",
+                        "description": "Metric filter group"
                     },
                     "dimensions": {
-                        "$ref": "#/components/schemas/FilterGroup"
+                        "$ref": "#/components/schemas/FilterGroup",
+                        "description": "Dimension filter group"
                     }
                 },
                 "type": "object"
@@ -2984,13 +3015,16 @@
             "SortField": {
                 "properties": {
                     "nullsFirst": {
-                        "type": "boolean"
+                        "type": "boolean",
+                        "description": "Sort null values first"
                     },
                     "descending": {
-                        "type": "boolean"
+                        "type": "boolean",
+                        "description": "Sort in descending order"
                     },
                     "fieldId": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Field ID to sort by"
                     }
                 },
                 "required": ["descending", "fieldId"],
@@ -3056,10 +3090,12 @@
                 "properties": {
                     "offset": {
                         "type": "number",
-                        "format": "double"
+                        "format": "double",
+                        "description": "Offset for PRECEDING/FOLLOWING"
                     },
                     "type": {
-                        "$ref": "#/components/schemas/FrameBoundaryType"
+                        "$ref": "#/components/schemas/FrameBoundaryType",
+                        "description": "Boundary type"
                     }
                 },
                 "required": ["type"],
@@ -3068,13 +3104,16 @@
             "FrameClause": {
                 "properties": {
                     "end": {
-                        "$ref": "#/components/schemas/FrameBoundary"
+                        "$ref": "#/components/schemas/FrameBoundary",
+                        "description": "End boundary of the frame"
                     },
                     "start": {
-                        "$ref": "#/components/schemas/FrameBoundary"
+                        "$ref": "#/components/schemas/FrameBoundary",
+                        "description": "Start boundary of the frame"
                     },
                     "frameType": {
-                        "$ref": "#/components/schemas/FrameType"
+                        "$ref": "#/components/schemas/FrameType",
+                        "description": "Type of frame (ROWS or RANGE)"
                     }
                 },
                 "required": ["end", "frameType"],
@@ -3099,13 +3138,16 @@
                                     "required": ["order", "fieldId"],
                                     "type": "object"
                                 },
-                                "type": "array"
+                                "type": "array",
+                                "description": "Fields to order by for window functions"
                             },
                             "fieldId": {
-                                "type": "string"
+                                "type": "string",
+                                "description": "Field ID to apply the template to"
                             },
                             "type": {
-                                "$ref": "#/components/schemas/TableCalculationTemplateType.PERCENT_CHANGE_FROM_PREVIOUS"
+                                "$ref": "#/components/schemas/TableCalculationTemplateType.PERCENT_CHANGE_FROM_PREVIOUS",
+                                "description": "Type of template calculation"
                             }
                         },
                         "required": ["orderBy", "fieldId", "type"],
@@ -3128,13 +3170,16 @@
                                     "required": ["order", "fieldId"],
                                     "type": "object"
                                 },
-                                "type": "array"
+                                "type": "array",
+                                "description": "Fields to order by for window functions"
                             },
                             "fieldId": {
-                                "type": "string"
+                                "type": "string",
+                                "description": "Field ID to apply the template to"
                             },
                             "type": {
-                                "$ref": "#/components/schemas/TableCalculationTemplateType.PERCENT_OF_PREVIOUS_VALUE"
+                                "$ref": "#/components/schemas/TableCalculationTemplateType.PERCENT_OF_PREVIOUS_VALUE",
+                                "description": "Type of template calculation"
                             }
                         },
                         "required": ["orderBy", "fieldId", "type"],
@@ -3146,13 +3191,16 @@
                                 "items": {
                                     "type": "string"
                                 },
-                                "type": "array"
+                                "type": "array",
+                                "description": "Fields to partition by"
                             },
                             "fieldId": {
-                                "type": "string"
+                                "type": "string",
+                                "description": "Field ID to apply the template to"
                             },
                             "type": {
-                                "$ref": "#/components/schemas/TableCalculationTemplateType.PERCENT_OF_COLUMN_TOTAL"
+                                "$ref": "#/components/schemas/TableCalculationTemplateType.PERCENT_OF_COLUMN_TOTAL",
+                                "description": "Type of template calculation"
                             }
                         },
                         "required": ["fieldId", "type"],
@@ -3161,10 +3209,12 @@
                     {
                         "properties": {
                             "fieldId": {
-                                "type": "string"
+                                "type": "string",
+                                "description": "Field ID to apply the template to"
                             },
                             "type": {
-                                "$ref": "#/components/schemas/TableCalculationTemplateType.RANK_IN_COLUMN"
+                                "$ref": "#/components/schemas/TableCalculationTemplateType.RANK_IN_COLUMN",
+                                "description": "Type of template calculation"
                             }
                         },
                         "required": ["fieldId", "type"],
@@ -3173,10 +3223,12 @@
                     {
                         "properties": {
                             "fieldId": {
-                                "type": "string"
+                                "type": "string",
+                                "description": "Field ID to apply the template to"
                             },
                             "type": {
-                                "$ref": "#/components/schemas/TableCalculationTemplateType.RUNNING_TOTAL"
+                                "$ref": "#/components/schemas/TableCalculationTemplateType.RUNNING_TOTAL",
+                                "description": "Type of template calculation"
                             }
                         },
                         "required": ["fieldId", "type"],
@@ -3185,13 +3237,15 @@
                     {
                         "properties": {
                             "frame": {
-                                "$ref": "#/components/schemas/FrameClause"
+                                "$ref": "#/components/schemas/FrameClause",
+                                "description": "Frame clause for window functions"
                             },
                             "partitionBy": {
                                 "items": {
                                     "type": "string"
                                 },
-                                "type": "array"
+                                "type": "array",
+                                "description": "Fields to partition by for window functions"
                             },
                             "orderBy": {
                                 "items": {
@@ -3208,17 +3262,21 @@
                                     "required": ["order", "fieldId"],
                                     "type": "object"
                                 },
-                                "type": "array"
+                                "type": "array",
+                                "description": "Fields to order by for window functions"
                             },
                             "fieldId": {
                                 "type": "string",
-                                "nullable": true
+                                "nullable": true,
+                                "description": "Field ID to apply the template to"
                             },
                             "windowFunction": {
-                                "$ref": "#/components/schemas/WindowFunctionType"
+                                "$ref": "#/components/schemas/WindowFunctionType",
+                                "description": "Window function type"
                             },
                             "type": {
-                                "$ref": "#/components/schemas/TableCalculationTemplateType.WINDOW_FUNCTION"
+                                "$ref": "#/components/schemas/TableCalculationTemplateType.WINDOW_FUNCTION",
+                                "description": "Type of template calculation"
                             }
                         },
                         "required": [
@@ -3237,20 +3295,25 @@
                     {
                         "properties": {
                             "type": {
-                                "$ref": "#/components/schemas/TableCalculationType"
+                                "$ref": "#/components/schemas/TableCalculationType",
+                                "description": "Data type of the calculation result"
                             },
                             "format": {
-                                "$ref": "#/components/schemas/CustomFormat"
+                                "$ref": "#/components/schemas/CustomFormat",
+                                "description": "Formatting options for the calculation"
                             },
                             "displayName": {
-                                "type": "string"
+                                "type": "string",
+                                "description": "Display name shown in the UI"
                             },
                             "name": {
-                                "type": "string"
+                                "type": "string",
+                                "description": "Internal name of the table calculation"
                             },
                             "index": {
                                 "type": "number",
-                                "format": "double"
+                                "format": "double",
+                                "description": "Display order index"
                             }
                         },
                         "required": ["displayName", "name"],
@@ -3261,7 +3324,8 @@
                             {
                                 "properties": {
                                     "sql": {
-                                        "type": "string"
+                                        "type": "string",
+                                        "description": "SQL expression for the calculation (can reference fields with ${table.field})"
                                     }
                                 },
                                 "required": ["sql"],
@@ -3270,7 +3334,8 @@
                             {
                                 "properties": {
                                     "template": {
-                                        "$ref": "#/components/schemas/TableCalculationTemplate"
+                                        "$ref": "#/components/schemas/TableCalculationTemplate",
+                                        "description": "Template-based calculation (alternative to sql)"
                                     }
                                 },
                                 "required": ["template"],
@@ -3302,18 +3367,22 @@
                 "type": "string"
             },
             "MetricFilterRule": {
+                "description": "Filter rule for metrics, targeting fields by reference",
                 "properties": {
                     "values": {
                         "items": {
                             "$ref": "#/components/schemas/AnyType"
                         },
-                        "type": "array"
+                        "type": "array",
+                        "description": "Values to filter by"
                     },
                     "operator": {
-                        "$ref": "#/components/schemas/FilterOperator"
+                        "$ref": "#/components/schemas/FilterOperator",
+                        "description": "Filter operator"
                     },
                     "id": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Unique identifier for the filter"
                     },
                     "target": {
                         "properties": {
@@ -3322,16 +3391,20 @@
                             }
                         },
                         "required": ["fieldRef"],
-                        "type": "object"
+                        "type": "object",
+                        "description": "Target field for the filter"
                     },
                     "settings": {
-                        "$ref": "#/components/schemas/AnyType"
+                        "$ref": "#/components/schemas/AnyType",
+                        "description": "Additional settings for date/time filters"
                     },
                     "disabled": {
-                        "type": "boolean"
+                        "type": "boolean",
+                        "description": "Whether this filter is disabled"
                     },
                     "required": {
-                        "type": "boolean"
+                        "type": "boolean",
+                        "description": "Whether this filter is required"
                     }
                 },
                 "required": ["operator", "id", "target"],
@@ -3341,26 +3414,33 @@
             "AdditionalMetric": {
                 "properties": {
                     "label": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Display label for the metric"
                     },
                     "type": {
-                        "$ref": "#/components/schemas/MetricType"
+                        "$ref": "#/components/schemas/MetricType",
+                        "description": "Aggregation type"
                     },
                     "description": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Description of what the metric measures"
                     },
                     "sql": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "SQL expression (e.g., ${TABLE}.column_name)"
                     },
                     "hidden": {
-                        "type": "boolean"
+                        "type": "boolean",
+                        "description": "Whether the metric is hidden from users"
                     },
                     "round": {
                         "type": "number",
-                        "format": "double"
+                        "format": "double",
+                        "description": "Number of decimal places"
                     },
                     "compact": {
-                        "$ref": "#/components/schemas/CompactOrAlias"
+                        "$ref": "#/components/schemas/CompactOrAlias",
+                        "description": "Compact format for large numbers"
                     },
                     "format": {
                         "anyOf": [
@@ -3370,37 +3450,46 @@
                             {
                                 "type": "string"
                             }
-                        ]
+                        ],
+                        "description": "Format string (legacy format specification)"
                     },
                     "table": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Table name the metric belongs to"
                     },
                     "name": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Internal name of the metric"
                     },
                     "index": {
                         "type": "number",
-                        "format": "double"
+                        "format": "double",
+                        "description": "Display order index"
                     },
                     "filters": {
                         "items": {
                             "$ref": "#/components/schemas/MetricFilterRule"
                         },
-                        "type": "array"
+                        "type": "array",
+                        "description": "Filters to apply to this metric"
                     },
                     "baseDimensionName": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Name of the base dimension/column this metric aggregates"
                     },
                     "uuid": {
                         "type": "string",
-                        "nullable": true
+                        "nullable": true,
+                        "description": "Unique identifier for the metric"
                     },
                     "percentile": {
                         "type": "number",
-                        "format": "double"
+                        "format": "double",
+                        "description": "Percentile value for percentile metrics"
                     },
                     "formatOptions": {
-                        "$ref": "#/components/schemas/CustomFormat"
+                        "$ref": "#/components/schemas/CustomFormat",
+                        "description": "Formatting configuration"
                     },
                     "generationType": {
                         "type": "string",
@@ -3442,11 +3531,13 @@
                 "properties": {
                     "to": {
                         "type": "number",
-                        "format": "double"
+                        "format": "double",
+                        "description": "End value for this bin range (undefined for the last range)"
                     },
                     "from": {
                         "type": "number",
-                        "format": "double"
+                        "format": "double",
+                        "description": "Start value for this bin range (undefined for the first range)"
                     }
                 },
                 "type": "object"
@@ -3458,36 +3549,45 @@
             "CustomBinDimension": {
                 "properties": {
                     "id": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Unique identifier for the custom dimension"
                     },
                     "name": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Display name for the custom dimension"
                     },
                     "table": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Table this custom dimension belongs to"
                     },
                     "type": {
-                        "$ref": "#/components/schemas/CustomDimensionType.BIN"
+                        "$ref": "#/components/schemas/CustomDimensionType.BIN",
+                        "description": "Type of custom dimension (bin or sql)"
                     },
                     "dimensionId": {
-                        "$ref": "#/components/schemas/FieldId"
+                        "$ref": "#/components/schemas/FieldId",
+                        "description": "Field ID of the parent dimension to bin"
                     },
                     "binType": {
-                        "$ref": "#/components/schemas/BinType"
+                        "$ref": "#/components/schemas/BinType",
+                        "description": "Binning strategy to use"
                     },
                     "binNumber": {
                         "type": "number",
-                        "format": "double"
+                        "format": "double",
+                        "description": "Number of bins (for fixed_number bin type)"
                     },
                     "binWidth": {
                         "type": "number",
-                        "format": "double"
+                        "format": "double",
+                        "description": "Width of each bin (for fixed_width bin type)"
                     },
                     "customRange": {
                         "items": {
                             "$ref": "#/components/schemas/BinRange"
                         },
-                        "type": "array"
+                        "type": "array",
+                        "description": "Custom bin ranges (for custom_range bin type)"
                     }
                 },
                 "required": [
@@ -3508,22 +3608,28 @@
             "CustomSqlDimension": {
                 "properties": {
                     "id": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Unique identifier for the custom dimension"
                     },
                     "name": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Display name for the custom dimension"
                     },
                     "table": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Table this custom dimension belongs to"
                     },
                     "type": {
-                        "$ref": "#/components/schemas/CustomDimensionType.SQL"
+                        "$ref": "#/components/schemas/CustomDimensionType.SQL",
+                        "description": "Type of custom dimension (bin or sql)"
                     },
                     "sql": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "SQL expression for the custom dimension"
                     },
                     "dimensionType": {
-                        "$ref": "#/components/schemas/DimensionType"
+                        "$ref": "#/components/schemas/DimensionType",
+                        "description": "Data type of the dimension result"
                     }
                 },
                 "required": [
@@ -3607,59 +3713,71 @@
                         "type": "object"
                     },
                     "timezone": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Timezone for date/time values (e.g., 'America/Los_Angeles', 'UTC')"
                     },
                     "dimensionOverrides": {
-                        "$ref": "#/components/schemas/DimensionOverrides"
+                        "$ref": "#/components/schemas/DimensionOverrides",
+                        "description": "Override formatting options for existing dimensions"
                     },
                     "metricOverrides": {
-                        "$ref": "#/components/schemas/MetricOverrides"
+                        "$ref": "#/components/schemas/MetricOverrides",
+                        "description": "Override formatting options for existing metrics"
                     },
                     "customDimensions": {
                         "items": {
                             "$ref": "#/components/schemas/CustomDimension"
                         },
-                        "type": "array"
+                        "type": "array",
+                        "description": "Custom dimensions defined inline"
                     },
                     "additionalMetrics": {
                         "items": {
                             "$ref": "#/components/schemas/AdditionalMetric"
                         },
-                        "type": "array"
+                        "type": "array",
+                        "description": "Custom metrics defined inline (ad-hoc metrics not in the dbt model)"
                     },
                     "tableCalculations": {
                         "items": {
                             "$ref": "#/components/schemas/TableCalculation"
                         },
-                        "type": "array"
+                        "type": "array",
+                        "description": "Custom calculations to perform on query results"
                     },
                     "limit": {
                         "type": "number",
-                        "format": "double"
+                        "format": "double",
+                        "description": "Maximum number of rows to return"
                     },
                     "sorts": {
                         "items": {
                             "$ref": "#/components/schemas/SortField"
                         },
-                        "type": "array"
+                        "type": "array",
+                        "description": "Sort configuration for query results"
                     },
                     "filters": {
-                        "$ref": "#/components/schemas/Filters"
+                        "$ref": "#/components/schemas/Filters",
+                        "description": "Filter rules to apply to the query"
                     },
                     "metrics": {
                         "items": {
                             "$ref": "#/components/schemas/FieldId"
                         },
-                        "type": "array"
+                        "type": "array",
+                        "description": "List of metric field IDs to include"
                     },
                     "dimensions": {
                         "items": {
                             "$ref": "#/components/schemas/FieldId"
                         },
-                        "type": "array"
+                        "type": "array",
+                        "description": "List of dimension field IDs to include"
                     },
                     "exploreName": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "The name of the explore to query"
                     }
                 },
                 "required": [
@@ -3695,13 +3813,16 @@
                                 }
                             ]
                         },
-                        "type": "array"
+                        "type": "array",
+                        "description": "Values to filter by"
                     },
                     "operator": {
-                        "$ref": "#/components/schemas/FilterOperator"
+                        "$ref": "#/components/schemas/FilterOperator",
+                        "description": "Filter operator"
                     },
                     "id": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Unique identifier for the filter rule"
                     }
                 },
                 "required": ["operator", "id"],
@@ -3726,7 +3847,8 @@
                                         }
                                     ]
                                 },
-                                "type": "array"
+                                "type": "array",
+                                "description": "Values to compare against"
                             }
                         },
                         "required": ["values"],
@@ -3753,7 +3875,8 @@
                                         }
                                     ]
                                 },
-                                "type": "array"
+                                "type": "array",
+                                "description": "Values to compare against"
                             },
                             "compareTarget": {
                                 "allOf": [
@@ -3761,7 +3884,8 @@
                                         "$ref": "#/components/schemas/FieldTarget"
                                     }
                                 ],
-                                "nullable": true
+                                "nullable": true,
+                                "description": "Target field to compare against"
                             }
                         },
                         "required": ["compareTarget"],
@@ -3786,19 +3910,23 @@
             "ConditionalFormattingConfigWithSingleColor": {
                 "properties": {
                     "applyTo": {
-                        "$ref": "#/components/schemas/ConditionalFormattingColorApplyTo"
+                        "$ref": "#/components/schemas/ConditionalFormattingColorApplyTo",
+                        "description": "Apply formatting to cell background or text"
                     },
                     "rules": {
                         "items": {
                             "$ref": "#/components/schemas/ConditionalFormattingWithFilterOperator"
                         },
-                        "type": "array"
+                        "type": "array",
+                        "description": "Rules for single-color conditional formatting"
                     },
                     "darkColor": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Color for dark mode"
                     },
                     "color": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Color for single-color conditional formatting"
                     },
                     "target": {
                         "allOf": [
@@ -3806,7 +3934,8 @@
                                 "$ref": "#/components/schemas/FieldTarget"
                             }
                         ],
-                        "nullable": true
+                        "nullable": true,
+                        "description": "Target field for the formatting rule"
                     }
                 },
                 "required": ["rules", "color", "target"],
@@ -3815,10 +3944,12 @@
             "ConditionalFormattingColorRange": {
                 "properties": {
                     "end": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "End color for gradient"
                     },
                     "start": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Start color for gradient"
                     }
                 },
                 "required": ["end", "start"],
@@ -3836,7 +3967,8 @@
                                 "type": "string",
                                 "enum": ["auto"]
                             }
-                        ]
+                        ],
+                        "description": "Maximum value (number or 'auto')"
                     },
                     "min": {
                         "anyOf": [
@@ -3848,7 +3980,8 @@
                                 "type": "string",
                                 "enum": ["auto"]
                             }
-                        ]
+                        ],
+                        "description": "Minimum value (number or 'auto')"
                     }
                 },
                 "required": ["max", "min"],
@@ -3857,13 +3990,16 @@
             "ConditionalFormattingConfigWithColorRange": {
                 "properties": {
                     "applyTo": {
-                        "$ref": "#/components/schemas/ConditionalFormattingColorApplyTo"
+                        "$ref": "#/components/schemas/ConditionalFormattingColorApplyTo",
+                        "description": "Apply formatting to cell background or text"
                     },
                     "rule": {
-                        "$ref": "#/components/schemas/ConditionalFormattingMinMax_number-or-auto_"
+                        "$ref": "#/components/schemas/ConditionalFormattingMinMax_number-or-auto_",
+                        "description": "Rule for color range formatting (min/max values)"
                     },
                     "color": {
-                        "$ref": "#/components/schemas/ConditionalFormattingColorRange"
+                        "$ref": "#/components/schemas/ConditionalFormattingColorRange",
+                        "description": "Color range for gradient conditional formatting"
                     },
                     "target": {
                         "allOf": [
@@ -3871,7 +4007,8 @@
                                 "$ref": "#/components/schemas/FieldTarget"
                             }
                         ],
-                        "nullable": true
+                        "nullable": true,
+                        "description": "Target field for the formatting rule"
                     }
                 },
                 "required": ["rule", "color", "target"],
@@ -3893,34 +4030,44 @@
                         "items": {
                             "$ref": "#/components/schemas/ConditionalFormattingConfig"
                         },
-                        "type": "array"
+                        "type": "array",
+                        "description": "Conditional formatting rules"
                     },
                     "comparisonLabel": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Custom label for the comparison value"
                     },
                     "flipColors": {
-                        "type": "boolean"
+                        "type": "boolean",
+                        "description": "Flip positive/negative colors (red for increase, green for decrease)"
                     },
                     "comparisonFormat": {
-                        "$ref": "#/components/schemas/ComparisonFormatTypes"
+                        "$ref": "#/components/schemas/ComparisonFormatTypes",
+                        "description": "Format for comparison value"
                     },
                     "showComparison": {
-                        "type": "boolean"
+                        "type": "boolean",
+                        "description": "Show comparison with previous value"
                     },
                     "showTableNamesInLabel": {
-                        "type": "boolean"
+                        "type": "boolean",
+                        "description": "Include table name in the label"
                     },
                     "showBigNumberLabel": {
-                        "type": "boolean"
+                        "type": "boolean",
+                        "description": "Show the label above the number"
                     },
                     "selectedField": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Field ID to display as the big number"
                     },
                     "style": {
-                        "$ref": "#/components/schemas/CompactOrAlias"
+                        "$ref": "#/components/schemas/CompactOrAlias",
+                        "description": "Number formatting style (compact notation)"
                     },
                     "label": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Custom label for the big number"
                     }
                 },
                 "type": "object"
@@ -3944,34 +4091,43 @@
             "Partial_CompleteCartesianChartLayout_": {
                 "properties": {
                     "xField": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Field ID to use for the X axis"
                     },
                     "yField": {
                         "items": {
                             "type": "string"
                         },
-                        "type": "array"
+                        "type": "array",
+                        "description": "Field IDs to use for the Y axis"
                     },
                     "flipAxes": {
-                        "type": "boolean"
+                        "type": "boolean",
+                        "description": "Swap X and Y axes (creates horizontal bar charts)"
                     },
                     "showGridX": {
-                        "type": "boolean"
+                        "type": "boolean",
+                        "description": "Show vertical grid lines"
                     },
                     "showGridY": {
-                        "type": "boolean"
+                        "type": "boolean",
+                        "description": "Show horizontal grid lines"
                     },
                     "showXAxis": {
-                        "type": "boolean"
+                        "type": "boolean",
+                        "description": "Show the X axis"
                     },
                     "showYAxis": {
-                        "type": "boolean"
+                        "type": "boolean",
+                        "description": "Show the Y axis"
                     },
                     "showLeftYAxis": {
-                        "type": "boolean"
+                        "type": "boolean",
+                        "description": "Controls left/primary Y-axis visibility"
                     },
                     "showRightYAxis": {
-                        "type": "boolean"
+                        "type": "boolean",
+                        "description": "Controls right/secondary Y-axis visibility"
                     },
                     "stack": {
                         "anyOf": [
@@ -3981,10 +4137,12 @@
                             {
                                 "type": "boolean"
                             }
-                        ]
+                        ],
+                        "description": "Stack series together (true for default stacking, or string for stack group name)"
                     },
                     "connectNulls": {
-                        "type": "boolean"
+                        "type": "boolean",
+                        "description": "Connect null data points with a line"
                     }
                 },
                 "type": "object",
@@ -4006,40 +4164,51 @@
                             "pin",
                             "arrow",
                             "none"
-                        ]
+                        ],
+                        "description": "Legend icon shape"
                     },
                     "align": {
                         "type": "string",
-                        "enum": ["auto", "left", "right"]
+                        "enum": ["auto", "left", "right"],
+                        "description": "Legend alignment"
                     },
                     "height": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Legend height"
                     },
                     "width": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Legend width"
                     },
                     "left": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Left position"
                     },
                     "bottom": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Bottom position"
                     },
                     "right": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Right position"
                     },
                     "top": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Top position"
                     },
                     "orient": {
                         "type": "string",
-                        "enum": ["horizontal", "vertical"]
+                        "enum": ["horizontal", "vertical"],
+                        "description": "Legend orientation"
                     },
                     "type": {
                         "type": "string",
-                        "enum": ["plain", "scroll"]
+                        "enum": ["plain", "scroll"],
+                        "description": "Legend type (plain or scrollable)"
                     },
                     "show": {
-                        "type": "boolean"
+                        "type": "boolean",
+                        "description": "Show the legend"
                     }
                 },
                 "type": "object"
@@ -4047,34 +4216,44 @@
             "EchartsGrid": {
                 "properties": {
                     "height": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Grid height"
                     },
                     "width": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Grid width"
                     },
                     "left": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Left padding"
                     },
                     "bottom": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Bottom padding"
                     },
                     "right": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Right padding"
                     },
                     "top": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Top padding"
                     },
                     "containLabel": {
-                        "type": "boolean"
+                        "type": "boolean",
+                        "description": "Whether the grid area contains axis labels"
                     }
                 },
                 "type": "object"
             },
             "PivotValue": {
                 "properties": {
-                    "value": {},
+                    "value": {
+                        "description": "Pivot value"
+                    },
                     "field": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Pivot field ID"
                     }
                 },
                 "required": ["value", "field"],
@@ -4086,10 +4265,12 @@
                         "items": {
                             "$ref": "#/components/schemas/PivotValue"
                         },
-                        "type": "array"
+                        "type": "array",
+                        "description": "Pivot values for this reference (for pivoted data)"
                     },
                     "field": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Field ID being referenced"
                     }
                 },
                 "required": ["field"],
@@ -4110,46 +4291,58 @@
                     "dynamicValue": {
                         "type": "string",
                         "enum": ["average"],
-                        "nullable": false
+                        "nullable": false,
+                        "description": "Dynamic value type"
                     },
                     "label": {
                         "properties": {
                             "position": {
                                 "type": "string",
-                                "enum": ["start", "middle", "end"]
+                                "enum": ["start", "middle", "end"],
+                                "description": "Label position"
                             },
                             "formatter": {
-                                "type": "string"
+                                "type": "string",
+                                "description": "Label formatter"
                             }
                         },
-                        "type": "object"
+                        "type": "object",
+                        "description": "Label configuration for this data point"
                     },
                     "lineStyle": {
                         "properties": {
                             "color": {
-                                "type": "string"
+                                "type": "string",
+                                "description": "Line color"
                             }
                         },
                         "required": ["color"],
-                        "type": "object"
+                        "type": "object",
+                        "description": "Line style for this data point"
                     },
                     "uuid": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Unique identifier for this mark line"
                     },
                     "type": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Point type (e.g., 'average')"
                     },
                     "value": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Value to display"
                     },
                     "name": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Name of the reference line"
                     },
                     "xAxis": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "X axis value for vertical line"
                     },
                     "yAxis": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Y axis value for horizontal line"
                     }
                 },
                 "required": ["uuid"],
@@ -4160,35 +4353,43 @@
                     "label": {
                         "properties": {
                             "formatter": {
-                                "type": "string"
+                                "type": "string",
+                                "description": "Label formatter"
                             }
                         },
-                        "type": "object"
+                        "type": "object",
+                        "description": "Label configuration"
                     },
                     "lineStyle": {
                         "properties": {
                             "type": {
-                                "type": "string"
+                                "type": "string",
+                                "description": "Line type"
                             },
                             "width": {
                                 "type": "number",
-                                "format": "double"
+                                "format": "double",
+                                "description": "Line width"
                             },
                             "color": {
-                                "type": "string"
+                                "type": "string",
+                                "description": "Line color"
                             }
                         },
                         "required": ["type", "width", "color"],
-                        "type": "object"
+                        "type": "object",
+                        "description": "Line style configuration"
                     },
                     "symbol": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Symbol at line endpoints"
                     },
                     "data": {
                         "items": {
                             "$ref": "#/components/schemas/MarkLineData"
                         },
-                        "type": "array"
+                        "type": "array",
+                        "description": "Reference line data points"
                     }
                 },
                 "required": ["data"],
@@ -4197,36 +4398,46 @@
             "Series": {
                 "properties": {
                     "isFilteredOut": {
-                        "type": "boolean"
+                        "type": "boolean",
+                        "description": "Whether this series is currently filtered out"
                     },
                     "markLine": {
-                        "$ref": "#/components/schemas/MarkLine"
+                        "$ref": "#/components/schemas/MarkLine",
+                        "description": "Reference line configuration"
                     },
                     "smooth": {
-                        "type": "boolean"
+                        "type": "boolean",
+                        "description": "Use smooth curves for line/area charts"
                     },
                     "showSymbol": {
-                        "type": "boolean"
+                        "type": "boolean",
+                        "description": "Show symbols/markers on data points"
                     },
                     "areaStyle": {
-                        "$ref": "#/components/schemas/Record_string.unknown_"
+                        "$ref": "#/components/schemas/Record_string.unknown_",
+                        "description": "Area fill style (presence indicates area chart)"
                     },
                     "hidden": {
-                        "type": "boolean"
+                        "type": "boolean",
+                        "description": "Hide this series from the chart"
                     },
                     "label": {
                         "properties": {
                             "showSeriesName": {
-                                "type": "boolean"
+                                "type": "boolean",
+                                "description": "Show the metric field name"
                             },
                             "showLabel": {
-                                "type": "boolean"
+                                "type": "boolean",
+                                "description": "Show the legend/pivot name"
                             },
                             "showValue": {
-                                "type": "boolean"
+                                "type": "boolean",
+                                "description": "Show the metric value"
                             },
                             "showOverlappingLabels": {
-                                "type": "boolean"
+                                "type": "boolean",
+                                "description": "Show labels even when they overlap"
                             },
                             "position": {
                                 "type": "string",
@@ -4236,55 +4447,70 @@
                                     "right",
                                     "bottom",
                                     "inside"
-                                ]
+                                ],
+                                "description": "Position of data labels"
                             },
                             "show": {
-                                "type": "boolean"
+                                "type": "boolean",
+                                "description": "Show data labels on points"
                             }
                         },
-                        "type": "object"
+                        "type": "object",
+                        "description": "Data label configuration"
                     },
                     "yAxisIndex": {
                         "type": "number",
-                        "format": "double"
+                        "format": "double",
+                        "description": "Index of Y axis to use (for dual Y axis charts)"
                     },
                     "color": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Color for the series (hex code)"
                     },
                     "name": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Display name for the series"
                     },
                     "stackLabel": {
                         "properties": {
                             "show": {
-                                "type": "boolean"
+                                "type": "boolean",
+                                "description": "Show stack total labels"
                             }
                         },
-                        "type": "object"
+                        "type": "object",
+                        "description": "Stack total label configuration"
                     },
                     "stack": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Stack group name (series with same stack name are stacked)"
                     },
                     "type": {
-                        "$ref": "#/components/schemas/CartesianSeriesType"
+                        "$ref": "#/components/schemas/CartesianSeriesType",
+                        "description": "Series visualization type"
                     },
                     "encode": {
                         "properties": {
                             "y": {
-                                "type": "string"
+                                "type": "string",
+                                "description": "Hash of yRef (computed)"
                             },
                             "x": {
-                                "type": "string"
+                                "type": "string",
+                                "description": "Hash of xRef (computed)"
                             },
                             "yRef": {
-                                "$ref": "#/components/schemas/PivotReference"
+                                "$ref": "#/components/schemas/PivotReference",
+                                "description": "Y axis field reference"
                             },
                             "xRef": {
-                                "$ref": "#/components/schemas/PivotReference"
+                                "$ref": "#/components/schemas/PivotReference",
+                                "description": "X axis field reference"
                             }
                         },
                         "required": ["yRef", "xRef"],
-                        "type": "object"
+                        "type": "object",
+                        "description": "Field references for this series"
                     }
                 },
                 "required": ["type", "encode"],
@@ -4294,25 +4520,32 @@
                 "properties": {
                     "rotate": {
                         "type": "number",
-                        "format": "double"
+                        "format": "double",
+                        "description": "Rotation angle for axis labels"
                     },
                     "inverse": {
-                        "type": "boolean"
+                        "type": "boolean",
+                        "description": "Reverse the axis direction"
                     },
                     "maxOffset": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Offset from maximum value"
                     },
                     "minOffset": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Offset from minimum value"
                     },
                     "max": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Maximum value (or 'dataMax' for auto)"
                     },
                     "min": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Minimum value (or 'dataMin' for auto)"
                     },
                     "name": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Axis title"
                     }
                 },
                 "type": "object"
@@ -4329,10 +4562,12 @@
                     {
                         "properties": {
                             "enableDataZoom": {
-                                "type": "boolean"
+                                "type": "boolean",
+                                "description": "Enable data zoom slider for this axis"
                             },
                             "sortType": {
-                                "$ref": "#/components/schemas/XAxisSortType"
+                                "$ref": "#/components/schemas/XAxisSortType",
+                                "description": "How to sort the X axis"
                             }
                         },
                         "type": "object"
@@ -4351,45 +4586,55 @@
             "Partial_CompleteEChartsConfig_": {
                 "properties": {
                     "legend": {
-                        "$ref": "#/components/schemas/EchartsLegend"
+                        "$ref": "#/components/schemas/EchartsLegend",
+                        "description": "Legend configuration"
                     },
                     "grid": {
-                        "$ref": "#/components/schemas/EchartsGrid"
+                        "$ref": "#/components/schemas/EchartsGrid",
+                        "description": "Grid (chart area) configuration"
                     },
                     "series": {
                         "items": {
                             "$ref": "#/components/schemas/Series"
                         },
-                        "type": "array"
+                        "type": "array",
+                        "description": "Chart series configuration"
                     },
                     "xAxis": {
                         "items": {
                             "$ref": "#/components/schemas/XAxis"
                         },
-                        "type": "array"
+                        "type": "array",
+                        "description": "X axis configuration"
                     },
                     "yAxis": {
                         "items": {
                             "$ref": "#/components/schemas/Axis"
                         },
-                        "type": "array"
+                        "type": "array",
+                        "description": "Y axis configuration"
                     },
                     "tooltip": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Tooltip formatter template"
                     },
                     "tooltipSort": {
-                        "$ref": "#/components/schemas/TooltipSortBy"
+                        "$ref": "#/components/schemas/TooltipSortBy",
+                        "description": "How to sort tooltip items"
                     },
                     "showAxisTicks": {
-                        "type": "boolean"
+                        "type": "boolean",
+                        "description": "Show tick marks on axes"
                     },
                     "axisLabelFontSize": {
                         "type": "number",
-                        "format": "double"
+                        "format": "double",
+                        "description": "Font size for axis labels"
                     },
                     "axisTitleFontSize": {
                         "type": "number",
-                        "format": "double"
+                        "format": "double",
+                        "description": "Font size for axis titles"
                     }
                 },
                 "type": "object",
@@ -4401,7 +4646,8 @@
             "SeriesMetadata": {
                 "properties": {
                     "color": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Color for the series"
                     }
                 },
                 "required": ["color"],
@@ -4418,13 +4664,16 @@
             "CartesianChart": {
                 "properties": {
                     "metadata": {
-                        "$ref": "#/components/schemas/Record_string.SeriesMetadata_"
+                        "$ref": "#/components/schemas/Record_string.SeriesMetadata_",
+                        "description": "Metadata for series (colors, etc.)"
                     },
                     "eChartsConfig": {
-                        "$ref": "#/components/schemas/EChartsConfig"
+                        "$ref": "#/components/schemas/EChartsConfig",
+                        "description": "ECharts-specific configuration"
                     },
                     "layout": {
-                        "$ref": "#/components/schemas/CartesianChartLayout"
+                        "$ref": "#/components/schemas/CartesianChartLayout",
+                        "description": "Layout configuration for the chart axes and orientation"
                     }
                 },
                 "required": ["eChartsConfig", "layout"],
@@ -4449,7 +4698,8 @@
             "CustomVis": {
                 "properties": {
                     "spec": {
-                        "$ref": "#/components/schemas/Record_string.unknown_"
+                        "$ref": "#/components/schemas/Record_string.unknown_",
+                        "description": "Custom visualization specification (Vega-Lite or other)"
                     }
                 },
                 "type": "object"
@@ -4507,53 +4757,67 @@
             "PieChart": {
                 "properties": {
                     "metadata": {
-                        "$ref": "#/components/schemas/Record_string.SeriesMetadata_"
+                        "$ref": "#/components/schemas/Record_string.SeriesMetadata_",
+                        "description": "Metadata for series (colors, etc.)"
                     },
                     "legendMaxItemLength": {
                         "type": "number",
-                        "format": "double"
+                        "format": "double",
+                        "description": "Maximum character length for legend items"
                     },
                     "legendPosition": {
-                        "$ref": "#/components/schemas/PieChartLegendPosition"
+                        "$ref": "#/components/schemas/PieChartLegendPosition",
+                        "description": "Legend position/orientation"
                     },
                     "showLegend": {
-                        "type": "boolean"
+                        "type": "boolean",
+                        "description": "Show the chart legend"
                     },
                     "groupSortOverrides": {
                         "items": {
                             "type": "string"
                         },
-                        "type": "array"
+                        "type": "array",
+                        "description": "Custom sort order for groups/slices"
                     },
                     "groupValueOptionOverrides": {
-                        "$ref": "#/components/schemas/Record_string.Partial_PieChartValueOptions__"
+                        "$ref": "#/components/schemas/Record_string.Partial_PieChartValueOptions__",
+                        "description": "Per-slice value display options"
                     },
                     "groupColorOverrides": {
-                        "$ref": "#/components/schemas/Record_string.string_"
+                        "$ref": "#/components/schemas/Record_string.string_",
+                        "description": "Custom colors for each group/slice"
                     },
                     "groupLabelOverrides": {
-                        "$ref": "#/components/schemas/Record_string.string_"
+                        "$ref": "#/components/schemas/Record_string.string_",
+                        "description": "Custom labels for each group/slice"
                     },
                     "showPercentage": {
-                        "type": "boolean"
+                        "type": "boolean",
+                        "description": "Show percentage on slices"
                     },
                     "showValue": {
-                        "type": "boolean"
+                        "type": "boolean",
+                        "description": "Show the actual value on slices"
                     },
                     "valueLabel": {
-                        "$ref": "#/components/schemas/PieChartValueLabel"
+                        "$ref": "#/components/schemas/PieChartValueLabel",
+                        "description": "Position of value labels on slices"
                     },
                     "isDonut": {
-                        "type": "boolean"
+                        "type": "boolean",
+                        "description": "Display as donut chart with hole in center"
                     },
                     "metricId": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Field ID of the metric to display"
                     },
                     "groupFieldIds": {
                         "items": {
                             "type": "string"
                         },
-                        "type": "array"
+                        "type": "array",
+                        "description": "Field IDs used for grouping/slicing the pie"
                     }
                 },
                 "type": "object"
@@ -4589,39 +4853,50 @@
             "FunnelChart": {
                 "properties": {
                     "legendPosition": {
-                        "$ref": "#/components/schemas/FunnelChartLegendPosition"
+                        "$ref": "#/components/schemas/FunnelChartLegendPosition",
+                        "description": "Legend orientation"
                     },
                     "showLegend": {
-                        "type": "boolean"
+                        "type": "boolean",
+                        "description": "Show the chart legend"
                     },
                     "labels": {
                         "properties": {
                             "showPercentage": {
-                                "type": "boolean"
+                                "type": "boolean",
+                                "description": "Show percentage"
                             },
                             "showValue": {
-                                "type": "boolean"
+                                "type": "boolean",
+                                "description": "Show the actual value"
                             },
                             "position": {
-                                "$ref": "#/components/schemas/FunnelChartLabelPosition"
+                                "$ref": "#/components/schemas/FunnelChartLabelPosition",
+                                "description": "Position of labels"
                             }
                         },
-                        "type": "object"
+                        "type": "object",
+                        "description": "Label display configuration"
                     },
                     "colorOverrides": {
-                        "$ref": "#/components/schemas/Record_string.string_"
+                        "$ref": "#/components/schemas/Record_string.string_",
+                        "description": "Custom colors for funnel stages"
                     },
                     "labelOverrides": {
-                        "$ref": "#/components/schemas/Record_string.string_"
+                        "$ref": "#/components/schemas/Record_string.string_",
+                        "description": "Custom labels for funnel stages"
                     },
                     "metadata": {
-                        "$ref": "#/components/schemas/Record_string.SeriesMetadata_"
+                        "$ref": "#/components/schemas/Record_string.SeriesMetadata_",
+                        "description": "Metadata for series (colors, etc.)"
                     },
                     "fieldId": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Field ID to display in funnel"
                     },
                     "dataInput": {
-                        "$ref": "#/components/schemas/FunnelChartDataInput"
+                        "$ref": "#/components/schemas/FunnelChartDataInput",
+                        "description": "How data is structured (row-based or column-based)"
                     }
                 },
                 "type": "object"
@@ -4645,20 +4920,25 @@
             "ColumnProperties": {
                 "properties": {
                     "color": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Color for bar display style (hex code)"
                     },
                     "displayStyle": {
                         "type": "string",
-                        "enum": ["text", "bar"]
+                        "enum": ["text", "bar"],
+                        "description": "How to display the cell value"
                     },
                     "frozen": {
-                        "type": "boolean"
+                        "type": "boolean",
+                        "description": "Freeze the column (stick to left side)"
                     },
                     "name": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Custom display name for the column"
                     },
                     "visible": {
-                        "type": "boolean"
+                        "type": "boolean",
+                        "description": "Whether the column is visible"
                     }
                 },
                 "type": "object"
@@ -4674,34 +4954,43 @@
             "TableChart": {
                 "properties": {
                     "metricsAsRows": {
-                        "type": "boolean"
+                        "type": "boolean",
+                        "description": "Display metrics as rows instead of columns"
                     },
                     "conditionalFormattings": {
                         "items": {
                             "$ref": "#/components/schemas/ConditionalFormattingConfig"
                         },
-                        "type": "array"
+                        "type": "array",
+                        "description": "Conditional formatting rules"
                     },
                     "columns": {
-                        "$ref": "#/components/schemas/Record_string.ColumnProperties_"
+                        "$ref": "#/components/schemas/Record_string.ColumnProperties_",
+                        "description": "Column-specific configuration"
                     },
                     "showSubtotals": {
-                        "type": "boolean"
+                        "type": "boolean",
+                        "description": "Show subtotal rows"
                     },
                     "showResultsTotal": {
-                        "type": "boolean"
+                        "type": "boolean",
+                        "description": "Show total results count"
                     },
                     "hideRowNumbers": {
-                        "type": "boolean"
+                        "type": "boolean",
+                        "description": "Hide row number column"
                     },
                     "showTableNames": {
-                        "type": "boolean"
+                        "type": "boolean",
+                        "description": "Show table names in column headers"
                     },
                     "showRowCalculation": {
-                        "type": "boolean"
+                        "type": "boolean",
+                        "description": "Show row totals/calculations"
                     },
                     "showColumnCalculation": {
-                        "type": "boolean"
+                        "type": "boolean",
+                        "description": "Show column totals/calculations"
                     }
                 },
                 "type": "object"
@@ -4726,40 +5015,50 @@
                 "properties": {
                     "endColorThreshold": {
                         "type": "number",
-                        "format": "double"
+                        "format": "double",
+                        "description": "Value threshold for end color"
                     },
                     "startColorThreshold": {
                         "type": "number",
-                        "format": "double"
+                        "format": "double",
+                        "description": "Value threshold for start color"
                     },
                     "useDynamicColors": {
-                        "type": "boolean"
+                        "type": "boolean",
+                        "description": "Use dynamic color scaling based on values"
                     },
                     "endColor": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "End color for color gradient (hex code)"
                     },
                     "startColor": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Start color for color gradient (hex code)"
                     },
                     "colorMetricId": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Field ID for node color value"
                     },
                     "sizeMetricId": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Field ID for node size"
                     },
                     "groupFieldIds": {
                         "items": {
                             "type": "string"
                         },
-                        "type": "array"
+                        "type": "array",
+                        "description": "Field IDs for hierarchical grouping"
                     },
                     "leafDepth": {
                         "type": "number",
-                        "format": "double"
+                        "format": "double",
+                        "description": "Depth of leaf nodes to display"
                     },
                     "visibleMin": {
                         "type": "number",
-                        "format": "double"
+                        "format": "double",
+                        "description": "Minimum size for visible nodes"
                     }
                 },
                 "type": "object"
@@ -4783,21 +5082,26 @@
             "GaugeSection": {
                 "properties": {
                     "color": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Color for this section (hex code)"
                     },
                     "maxFieldId": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Field ID to use as max value"
                     },
                     "minFieldId": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Field ID to use as min value"
                     },
                     "max": {
                         "type": "number",
-                        "format": "double"
+                        "format": "double",
+                        "description": "End value for this section"
                     },
                     "min": {
                         "type": "number",
-                        "format": "double"
+                        "format": "double",
+                        "description": "Start value for this section"
                     }
                 },
                 "required": ["color", "max", "min"],
@@ -4806,36 +5110,45 @@
             "GaugeChart": {
                 "properties": {
                     "customPercentageLabel": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Custom label for the percentage display"
                     },
                     "showPercentage": {
-                        "type": "boolean"
+                        "type": "boolean",
+                        "description": "Show value as percentage"
                     },
                     "customLabel": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Custom label for the gauge value"
                     },
                     "sections": {
                         "items": {
                             "$ref": "#/components/schemas/GaugeSection"
                         },
-                        "type": "array"
+                        "type": "array",
+                        "description": "Color sections/ranges for the gauge"
                     },
                     "showAxisLabels": {
-                        "type": "boolean"
+                        "type": "boolean",
+                        "description": "Show min/max labels on the gauge"
                     },
                     "maxFieldId": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Field ID to use as the max value"
                     },
                     "max": {
                         "type": "number",
-                        "format": "double"
+                        "format": "double",
+                        "description": "Maximum value for the gauge"
                     },
                     "min": {
                         "type": "number",
-                        "format": "double"
+                        "format": "double",
+                        "description": "Minimum value for the gauge"
                     },
                     "selectedField": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Field ID for the gauge value"
                     }
                 },
                 "type": "object"
@@ -4871,10 +5184,12 @@
             "MapFieldConfig": {
                 "properties": {
                     "label": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Custom label for the field"
                     },
                     "visible": {
-                        "type": "boolean"
+                        "type": "boolean",
+                        "description": "Whether to show this field in tooltips"
                     }
                 },
                 "type": "object"
@@ -4890,99 +5205,126 @@
             "MapChart": {
                 "properties": {
                     "saveMapExtent": {
-                        "type": "boolean"
+                        "type": "boolean",
+                        "description": "Save the current map zoom/position"
                     },
                     "fieldConfig": {
-                        "$ref": "#/components/schemas/Record_string.MapFieldConfig_"
+                        "$ref": "#/components/schemas/Record_string.MapFieldConfig_",
+                        "description": "Field-specific configuration for tooltips"
                     },
                     "noDataColor": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Color for regions with no data (hex code)"
                     },
                     "backgroundColor": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Background color for the map (hex code)"
                     },
                     "tileBackground": {
-                        "$ref": "#/components/schemas/MapTileBackground"
+                        "$ref": "#/components/schemas/MapTileBackground",
+                        "description": "Map tile background style"
                     },
                     "dataLayerOpacity": {
                         "type": "number",
-                        "format": "double"
+                        "format": "double",
+                        "description": "Data layer opacity (0.1 to 1)"
                     },
                     "heatmapConfig": {
                         "properties": {
                             "opacity": {
                                 "type": "number",
-                                "format": "double"
+                                "format": "double",
+                                "description": "Opacity of the heatmap layer"
                             },
                             "blur": {
                                 "type": "number",
-                                "format": "double"
+                                "format": "double",
+                                "description": "Blur amount for heat points"
                             },
                             "radius": {
                                 "type": "number",
-                                "format": "double"
+                                "format": "double",
+                                "description": "Radius of heat points"
                             }
                         },
-                        "type": "object"
+                        "type": "object",
+                        "description": "Configuration for heatmap visualization"
                     },
                     "sizeFieldId": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Field ID for bubble size (scatter maps)"
                     },
                     "maxBubbleSize": {
                         "type": "number",
-                        "format": "double"
+                        "format": "double",
+                        "description": "Maximum bubble size for scatter maps"
                     },
                     "minBubbleSize": {
                         "type": "number",
-                        "format": "double"
+                        "format": "double",
+                        "description": "Minimum bubble size for scatter maps"
                     },
                     "defaultCenterLon": {
                         "type": "number",
-                        "format": "double"
+                        "format": "double",
+                        "description": "Default center longitude"
                     },
                     "defaultCenterLat": {
                         "type": "number",
-                        "format": "double"
+                        "format": "double",
+                        "description": "Default center latitude"
                     },
                     "defaultZoom": {
                         "type": "number",
-                        "format": "double"
+                        "format": "double",
+                        "description": "Default zoom level"
                     },
                     "colorOverrides": {
-                        "$ref": "#/components/schemas/Record_string.string_"
+                        "$ref": "#/components/schemas/Record_string.string_",
+                        "description": "Per-value color overrides for categorical color fields"
                     },
                     "colorRange": {
                         "items": {
                             "type": "string"
                         },
-                        "type": "array"
+                        "type": "array",
+                        "description": "Array of colors for the value gradient"
                     },
                     "showLegend": {
-                        "type": "boolean"
+                        "type": "boolean",
+                        "description": "Show the map legend"
                     },
                     "valueFieldId": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Field ID for the value to display"
                     },
                     "geoJsonPropertyKey": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Property key in GeoJSON to match against data"
                     },
                     "locationFieldId": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Field ID for location/region names (area maps)"
                     },
                     "longitudeFieldId": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Field ID for longitude values"
                     },
                     "latitudeFieldId": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Field ID for latitude values"
                     },
                     "locationType": {
-                        "$ref": "#/components/schemas/MapChartType"
+                        "$ref": "#/components/schemas/MapChartType",
+                        "description": "How to display location data"
                     },
                     "customGeoJsonUrl": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "URL to custom GeoJSON file"
                     },
                     "mapType": {
-                        "$ref": "#/components/schemas/MapChartLocation"
+                        "$ref": "#/components/schemas/MapChartLocation",
+                        "description": "Type of map to display"
                     }
                 },
                 "type": "object"
@@ -5064,7 +5406,8 @@
                         "format": "date-time"
                     },
                     "slug": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Unique identifier slug for this chart"
                     },
                     "access": {
                         "items": {
@@ -5112,10 +5455,12 @@
                     },
                     "updatedAt": {
                         "type": "string",
-                        "format": "date-time"
+                        "format": "date-time",
+                        "description": "Timestamp when the chart was last updated"
                     },
                     "parameters": {
-                        "$ref": "#/components/schemas/ParametersValuesMap"
+                        "$ref": "#/components/schemas/ParametersValuesMap",
+                        "description": "Parameter values for the chart query"
                     },
                     "tableConfig": {
                         "properties": {
@@ -5123,14 +5468,17 @@
                                 "items": {
                                     "type": "string"
                                 },
-                                "type": "array"
+                                "type": "array",
+                                "description": "Order of columns in table view"
                             }
                         },
                         "required": ["columnOrder"],
-                        "type": "object"
+                        "type": "object",
+                        "description": "Table view configuration"
                     },
                     "chartConfig": {
-                        "$ref": "#/components/schemas/ChartConfig"
+                        "$ref": "#/components/schemas/ChartConfig",
+                        "description": "Visualization configuration for the chart"
                     },
                     "pivotConfig": {
                         "properties": {
@@ -5138,23 +5486,29 @@
                                 "items": {
                                     "type": "string"
                                 },
-                                "type": "array"
+                                "type": "array",
+                                "description": "Fields to use as pivot columns"
                             }
                         },
                         "required": ["columns"],
-                        "type": "object"
+                        "type": "object",
+                        "description": "Pivot table configuration"
                     },
                     "metricQuery": {
-                        "$ref": "#/components/schemas/MetricQuery"
+                        "$ref": "#/components/schemas/MetricQuery",
+                        "description": "The query configuration defining what data to fetch"
                     },
                     "tableName": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "The explore/table name this chart queries from"
                     },
                     "description": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Optional description of what this chart displays"
                     },
                     "name": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Display name of the chart"
                     },
                     "projectUuid": {
                         "type": "string"
@@ -5274,25 +5628,32 @@
                         "items": {
                             "$ref": "#/components/schemas/AnyType"
                         },
-                        "type": "array"
+                        "type": "array",
+                        "description": "Values to filter by"
                     },
                     "operator": {
-                        "$ref": "#/components/schemas/FilterOperator"
+                        "$ref": "#/components/schemas/FilterOperator",
+                        "description": "Filter operator"
                     },
                     "id": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Unique identifier for the filter"
                     },
                     "target": {
-                        "$ref": "#/components/schemas/JoinModelRequiredFilterTarget"
+                        "$ref": "#/components/schemas/JoinModelRequiredFilterTarget",
+                        "description": "Target field for the filter"
                     },
                     "settings": {
-                        "$ref": "#/components/schemas/AnyType"
+                        "$ref": "#/components/schemas/AnyType",
+                        "description": "Additional settings for date/time filters"
                     },
                     "disabled": {
-                        "type": "boolean"
+                        "type": "boolean",
+                        "description": "Whether this filter is disabled"
                     },
                     "required": {
-                        "type": "boolean"
+                        "type": "boolean",
+                        "description": "Whether this filter is required"
                     }
                 },
                 "required": ["operator", "id", "target"],
@@ -8268,19 +8629,6 @@
                                                         "type": "string",
                                                         "enum": ["error"],
                                                         "nullable": false
-                                                    }
-                                                },
-                                                "required": ["status"],
-                                                "type": "object"
-                                            },
-                                            {
-                                                "properties": {
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": [
-                                                            "success",
-                                                            "error"
-                                                        ]
                                                     }
                                                 },
                                                 "required": ["status"],
@@ -14398,10 +14746,12 @@
             "Pick_SavedChart.Exclude_keyofSavedChart.isPrivate-or-access__": {
                 "properties": {
                     "description": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Optional description of what this chart displays"
                     },
                     "name": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Display name of the chart"
                     },
                     "projectUuid": {
                         "type": "string"
@@ -14413,14 +14763,17 @@
                         "type": "string"
                     },
                     "parameters": {
-                        "$ref": "#/components/schemas/ParametersValuesMap"
+                        "$ref": "#/components/schemas/ParametersValuesMap",
+                        "description": "Parameter values for the chart query"
                     },
                     "updatedAt": {
                         "type": "string",
-                        "format": "date-time"
+                        "format": "date-time",
+                        "description": "Timestamp when the chart was last updated"
                     },
                     "chartConfig": {
-                        "$ref": "#/components/schemas/ChartConfig"
+                        "$ref": "#/components/schemas/ChartConfig",
+                        "description": "Visualization configuration for the chart"
                     },
                     "spaceUuid": {
                         "type": "string"
@@ -14435,7 +14788,8 @@
                         "nullable": true
                     },
                     "slug": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Unique identifier slug for this chart"
                     },
                     "updatedByUser": {
                         "$ref": "#/components/schemas/UpdatedByUser"
@@ -14464,10 +14818,12 @@
                         "nullable": true
                     },
                     "tableName": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "The explore/table name this chart queries from"
                     },
                     "metricQuery": {
-                        "$ref": "#/components/schemas/MetricQuery"
+                        "$ref": "#/components/schemas/MetricQuery",
+                        "description": "The query configuration defining what data to fetch"
                     },
                     "pivotConfig": {
                         "properties": {
@@ -14479,7 +14835,8 @@
                             }
                         },
                         "required": ["columns"],
-                        "type": "object"
+                        "type": "object",
+                        "description": "Pivot table configuration"
                     },
                     "tableConfig": {
                         "properties": {
@@ -14491,7 +14848,8 @@
                             }
                         },
                         "required": ["columnOrder"],
-                        "type": "object"
+                        "type": "object",
+                        "description": "Table view configuration"
                     },
                     "dashboardUuid": {
                         "type": "string",
@@ -14850,10 +15208,12 @@
             "Pick_SavedChart.uuid-or-name-or-description-or-spaceName-or-spaceUuid-or-projectUuid-or-organizationUuid-or-pinnedListUuid-or-dashboardUuid-or-dashboardName-or-slug_": {
                 "properties": {
                     "description": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Optional description of what this chart displays"
                     },
                     "name": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Display name of the chart"
                     },
                     "projectUuid": {
                         "type": "string"
@@ -14872,7 +15232,8 @@
                         "nullable": true
                     },
                     "slug": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Unique identifier slug for this chart"
                     },
                     "spaceName": {
                         "type": "string"
@@ -14944,7 +15305,8 @@
                 "properties": {
                     "updatedAt": {
                         "type": "string",
-                        "format": "date-time"
+                        "format": "date-time",
+                        "description": "Timestamp when the chart was last updated"
                     },
                     "pinnedListOrder": {
                         "type": "number",
@@ -18079,22 +18441,28 @@
             "Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-pivotConfig-or-chartConfig-or-tableConfig-or-parameters_": {
                 "properties": {
                     "description": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Optional description of what this chart displays"
                     },
                     "name": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Display name of the chart"
                     },
                     "parameters": {
-                        "$ref": "#/components/schemas/ParametersValuesMap"
+                        "$ref": "#/components/schemas/ParametersValuesMap",
+                        "description": "Parameter values for the chart query"
                     },
                     "chartConfig": {
-                        "$ref": "#/components/schemas/ChartConfig"
+                        "$ref": "#/components/schemas/ChartConfig",
+                        "description": "Visualization configuration for the chart"
                     },
                     "tableName": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "The explore/table name this chart queries from"
                     },
                     "metricQuery": {
-                        "$ref": "#/components/schemas/MetricQuery"
+                        "$ref": "#/components/schemas/MetricQuery",
+                        "description": "The query configuration defining what data to fetch"
                     },
                     "pivotConfig": {
                         "properties": {
@@ -18106,7 +18474,8 @@
                             }
                         },
                         "required": ["columns"],
-                        "type": "object"
+                        "type": "object",
+                        "description": "Pivot table configuration"
                     },
                     "tableConfig": {
                         "properties": {
@@ -18118,7 +18487,8 @@
                             }
                         },
                         "required": ["columnOrder"],
-                        "type": "object"
+                        "type": "object",
+                        "description": "Table view configuration"
                     }
                 },
                 "required": [
@@ -18376,29 +18746,37 @@
             "Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-tableConfig-or-pivotConfig-or-slug-or-updatedAt-or-parameters_": {
                 "properties": {
                     "description": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Optional description of what this chart displays"
                     },
                     "name": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Display name of the chart"
                     },
                     "parameters": {
-                        "$ref": "#/components/schemas/ParametersValuesMap"
+                        "$ref": "#/components/schemas/ParametersValuesMap",
+                        "description": "Parameter values for the chart query"
                     },
                     "updatedAt": {
                         "type": "string",
-                        "format": "date-time"
+                        "format": "date-time",
+                        "description": "Timestamp when the chart was last updated"
                     },
                     "chartConfig": {
-                        "$ref": "#/components/schemas/ChartConfig"
+                        "$ref": "#/components/schemas/ChartConfig",
+                        "description": "Visualization configuration for the chart"
                     },
                     "slug": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Unique identifier slug for this chart"
                     },
                     "tableName": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "The explore/table name this chart queries from"
                     },
                     "metricQuery": {
-                        "$ref": "#/components/schemas/MetricQuery"
+                        "$ref": "#/components/schemas/MetricQuery",
+                        "description": "The query configuration defining what data to fetch"
                     },
                     "pivotConfig": {
                         "properties": {
@@ -18410,7 +18788,8 @@
                             }
                         },
                         "required": ["columns"],
-                        "type": "object"
+                        "type": "object",
+                        "description": "Pivot table configuration"
                     },
                     "tableConfig": {
                         "properties": {
@@ -18422,7 +18801,8 @@
                             }
                         },
                         "required": ["columnOrder"],
-                        "type": "object"
+                        "type": "object",
+                        "description": "Table view configuration"
                     }
                 },
                 "required": [
@@ -18446,17 +18826,21 @@
                         "properties": {
                             "downloadedAt": {
                                 "type": "string",
-                                "format": "date-time"
+                                "format": "date-time",
+                                "description": "Timestamp when this chart was downloaded from Lightdash"
                             },
                             "spaceSlug": {
-                                "type": "string"
+                                "type": "string",
+                                "description": "Slug of the space containing this chart"
                             },
                             "version": {
                                 "type": "number",
-                                "format": "double"
+                                "format": "double",
+                                "description": "Schema version for this chart configuration"
                             },
                             "dashboardSlug": {
-                                "type": "string"
+                                "type": "string",
+                                "description": "Slug of the dashboard this chart belongs to (if any)"
                             }
                         },
                         "required": ["spaceSlug", "version"],
@@ -18676,23 +19060,31 @@
                 "properties": {
                     "values": {
                         "items": {},
-                        "type": "array"
+                        "type": "array",
+                        "description": "Values to filter by"
                     },
                     "operator": {
-                        "$ref": "#/components/schemas/FilterOperator"
+                        "$ref": "#/components/schemas/FilterOperator",
+                        "description": "Filter operator"
                     },
                     "id": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Unique identifier for the filter"
                     },
                     "target": {
-                        "$ref": "#/components/schemas/DashboardFieldTarget"
+                        "$ref": "#/components/schemas/DashboardFieldTarget",
+                        "description": "Target field for the filter"
                     },
-                    "settings": {},
+                    "settings": {
+                        "description": "Additional settings for date/time filters"
+                    },
                     "disabled": {
-                        "type": "boolean"
+                        "type": "boolean",
+                        "description": "Whether this filter is disabled"
                     },
                     "required": {
-                        "type": "boolean"
+                        "type": "boolean",
+                        "description": "Whether this filter is required"
                     }
                 },
                 "required": ["operator", "id", "target"],
@@ -18749,21 +19141,28 @@
                         "type": "string"
                     },
                     "target": {
-                        "$ref": "#/components/schemas/DashboardFieldTarget"
+                        "$ref": "#/components/schemas/DashboardFieldTarget",
+                        "description": "Target field for the filter"
                     },
-                    "settings": {},
+                    "settings": {
+                        "description": "Additional settings for date/time filters"
+                    },
                     "disabled": {
-                        "type": "boolean"
+                        "type": "boolean",
+                        "description": "Whether this filter is disabled"
                     },
                     "required": {
-                        "type": "boolean"
+                        "type": "boolean",
+                        "description": "Whether this filter is required"
                     },
                     "operator": {
-                        "$ref": "#/components/schemas/FilterOperator"
+                        "$ref": "#/components/schemas/FilterOperator",
+                        "description": "Filter operator"
                     },
                     "values": {
                         "items": {},
-                        "type": "array"
+                        "type": "array",
+                        "description": "Values to filter by"
                     },
                     "tileTargets": {
                         "$ref": "#/components/schemas/Record_string.DashboardTileTarget_"
@@ -18917,27 +19316,34 @@
             "Pick_ChartAsCode.Exclude_keyofChartAsCode.chartConfig-or-description__": {
                 "properties": {
                     "name": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Display name of the chart"
                     },
                     "parameters": {
-                        "$ref": "#/components/schemas/ParametersValuesMap"
+                        "$ref": "#/components/schemas/ParametersValuesMap",
+                        "description": "Parameter values for the chart query"
                     },
                     "updatedAt": {
                         "type": "string",
-                        "format": "date-time"
+                        "format": "date-time",
+                        "description": "Timestamp when the chart was last updated"
                     },
                     "version": {
                         "type": "number",
-                        "format": "double"
+                        "format": "double",
+                        "description": "Schema version for this chart configuration"
                     },
                     "slug": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Unique identifier slug for this chart"
                     },
                     "tableName": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "The explore/table name this chart queries from"
                     },
                     "metricQuery": {
-                        "$ref": "#/components/schemas/MetricQuery"
+                        "$ref": "#/components/schemas/MetricQuery",
+                        "description": "The query configuration defining what data to fetch"
                     },
                     "pivotConfig": {
                         "properties": {
@@ -18949,7 +19355,8 @@
                             }
                         },
                         "required": ["columns"],
-                        "type": "object"
+                        "type": "object",
+                        "description": "Pivot table configuration"
                     },
                     "tableConfig": {
                         "properties": {
@@ -18961,17 +19368,21 @@
                             }
                         },
                         "required": ["columnOrder"],
-                        "type": "object"
+                        "type": "object",
+                        "description": "Table view configuration"
                     },
                     "dashboardSlug": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Slug of the dashboard this chart belongs to (if any)"
                     },
                     "spaceSlug": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Slug of the space containing this chart"
                     },
                     "downloadedAt": {
                         "type": "string",
-                        "format": "date-time"
+                        "format": "date-time",
+                        "description": "Timestamp when this chart was downloaded from Lightdash"
                     }
                 },
                 "required": [
@@ -19680,7 +20091,12 @@
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "ResourceItemCategory": {
-                "enum": ["mostPopular", "recentlyUpdated", "pinned"],
+                "enum": [
+                    "mostPopular",
+                    "recentlyUpdated",
+                    "pinned",
+                    "favorites"
+                ],
                 "type": "string"
             },
             "ResourceViewDashboardItem": {
@@ -19705,17 +20121,20 @@
             "Pick_SpaceQuery.uuid-or-name-or-chartType-or-chartKind-or-firstViewedAt-or-views-or-pinnedListUuid-or-pinnedListOrder-or-spaceUuid-or-description-or-updatedAt-or-updatedByUser-or-validationErrors-or-slug_": {
                 "properties": {
                     "description": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Optional description of what this chart displays"
                     },
                     "name": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Display name of the chart"
                     },
                     "uuid": {
                         "type": "string"
                     },
                     "updatedAt": {
                         "type": "string",
-                        "format": "date-time"
+                        "format": "date-time",
+                        "description": "Timestamp when the chart was last updated"
                     },
                     "spaceUuid": {
                         "type": "string"
@@ -19730,7 +20149,8 @@
                         "nullable": true
                     },
                     "slug": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Unique identifier slug for this chart"
                     },
                     "updatedByUser": {
                         "$ref": "#/components/schemas/UpdatedByUser"
@@ -23061,10 +23481,12 @@
             "Pick_ChartSummary.uuid-or-name-or-description-or-spaceUuid-or-spaceName-or-dashboardName-or-dashboardUuid-or-chartKind_": {
                 "properties": {
                     "description": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Optional description of what this chart displays"
                     },
                     "name": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Display name of the chart"
                     },
                     "uuid": {
                         "type": "string"
@@ -25733,7 +26155,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2479.0",
+        "version": "0.2480.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
