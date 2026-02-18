@@ -9,7 +9,6 @@ import {
     generateSlug,
     SEED_ORG_1_ADMIN,
     SEED_PROJECT,
-    SpaceQuery,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { v4 as uuidv4 } from 'uuid';
@@ -42,12 +41,25 @@ async function createDashboardWithAllTileTypes(knex: Knex): Promise<void> {
         database: knex,
     });
 
-    const { queries, uuid: spaceUuid } = await spaceModel.getSpaceWithQueries(
+    const chartModel = new SavedChartModel({
+        database: knex,
+        lightdashConfig,
+    });
+
+    const rootSpaces = await spaceModel.getRootSpaceUuidsForProject(
         SEED_PROJECT.project_uuid,
     );
+    const spaceUuid = rootSpaces[0];
+    if (!spaceUuid) throw new Error('No space found for seeding');
 
-    const getChartByName = (name: string): SpaceQuery => {
-        const chart = queries.find(({ name: queryName }) => queryName === name);
+    const savedCharts = await chartModel.find({
+        projectUuid: SEED_PROJECT.project_uuid,
+    });
+
+    const getChartByName = (name: string) => {
+        const chart = savedCharts.find(
+            ({ name: queryName }) => queryName === name,
+        );
         if (!chart) {
             throw new Error(`Could not find seeded chart with name ${name}`);
         }
