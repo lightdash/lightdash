@@ -474,6 +474,30 @@ export class ProjectController extends BaseController {
     }
 
     /**
+     * Get user warehouse credentials available for a project
+     * @summary List project user warehouse credentials
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('{projectUuid}/user-warehouse-credentials')
+    @OperationId('getProjectUserWarehouseCredentials')
+    async getProjectUserWarehouseCredentials(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<{
+        status: 'ok';
+        results: UserWarehouseCredentials[];
+    }> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getProjectService()
+                .getProjectUserWarehouseCredentials(req.user!, projectUuid),
+        };
+    }
+
+    /**
      * Update the user's warehouse credentials preference for a project
      * @summary Update user warehouse credentials preference
      */

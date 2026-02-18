@@ -11,7 +11,14 @@ import {
     type CreateRedshiftCredentials,
     type CreateSnowflakeCredentials,
     type CreateTrinoCredentials,
+    type ProjectType,
 } from './projects';
+
+export type UserWarehouseCredentialsProject = {
+    projectUuid: string;
+    name: string;
+    type: ProjectType;
+};
 
 export type UserWarehouseCredentials = {
     uuid: string;
@@ -31,6 +38,7 @@ export type UserWarehouseCredentials = {
         | Pick<CreateBigqueryCredentials, 'type'>
         | Pick<CreateDatabricksCredentials, 'type'>
         | Pick<CreateAthenaCredentials, 'type'>;
+    project: UserWarehouseCredentialsProject | null;
 };
 
 export type UserWarehouseCredentialsWithSecrets = Pick<
