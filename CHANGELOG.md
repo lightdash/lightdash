@@ -1,3 +1,10 @@
+## [0.2483.3](https://github.com/lightdash/lightdash/compare/0.2483.2...0.2483.3) (2026-02-18)
+
+
+### Bug Fixes
+
+* setup S3 for agent eval queries ([#20413](https://github.com/lightdash/lightdash/issues/20413)) ([dbd5d54](https://github.com/lightdash/lightdash/commit/dbd5d547b264a11eca854c626d202049af25ac12))
+
 ## [0.2483.2](https://github.com/lightdash/lightdash/compare/0.2483.1...0.2483.2) (2026-02-18)
 
 
