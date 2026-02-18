@@ -144,7 +144,7 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                 {hasFavorites ? (
                     <>
                         <Menu.Divider />
-                        <Menu.Label>Favourites</Menu.Label>
+                        <Menu.Label>Favorites</Menu.Label>
                         <ScrollArea
                             variant="primary"
                             className="only-vertical"
