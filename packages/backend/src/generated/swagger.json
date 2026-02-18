@@ -4076,10 +4076,12 @@
             "BigNumberConfig": {
                 "properties": {
                     "config": {
-                        "$ref": "#/components/schemas/BigNumber"
+                        "$ref": "#/components/schemas/BigNumber",
+                        "description": "Chart-type-specific configuration"
                     },
                     "type": {
-                        "$ref": "#/components/schemas/ChartType.BIG_NUMBER"
+                        "$ref": "#/components/schemas/ChartType.BIG_NUMBER",
+                        "description": "Type of chart visualization"
                     }
                 },
                 "required": ["type"],
@@ -4683,10 +4685,12 @@
             "CartesianChartConfig": {
                 "properties": {
                     "config": {
-                        "$ref": "#/components/schemas/CartesianChart"
+                        "$ref": "#/components/schemas/CartesianChart",
+                        "description": "Chart-type-specific configuration"
                     },
                     "type": {
-                        "$ref": "#/components/schemas/ChartType.CARTESIAN"
+                        "$ref": "#/components/schemas/ChartType.CARTESIAN",
+                        "description": "Type of chart visualization"
                     }
                 },
                 "required": ["type"],
@@ -4708,10 +4712,12 @@
             "CustomVisConfig": {
                 "properties": {
                     "config": {
-                        "$ref": "#/components/schemas/CustomVis"
+                        "$ref": "#/components/schemas/CustomVis",
+                        "description": "Chart-type-specific configuration"
                     },
                     "type": {
-                        "$ref": "#/components/schemas/ChartType.CUSTOM"
+                        "$ref": "#/components/schemas/ChartType.CUSTOM",
+                        "description": "Type of chart visualization"
                     }
                 },
                 "required": ["type"],
@@ -4826,10 +4832,12 @@
             "PieChartConfig": {
                 "properties": {
                     "config": {
-                        "$ref": "#/components/schemas/PieChart"
+                        "$ref": "#/components/schemas/PieChart",
+                        "description": "Chart-type-specific configuration"
                     },
                     "type": {
-                        "$ref": "#/components/schemas/ChartType.PIE"
+                        "$ref": "#/components/schemas/ChartType.PIE",
+                        "description": "Type of chart visualization"
                     }
                 },
                 "required": ["type"],
@@ -4905,10 +4913,12 @@
             "FunnelChartConfig": {
                 "properties": {
                     "config": {
-                        "$ref": "#/components/schemas/FunnelChart"
+                        "$ref": "#/components/schemas/FunnelChart",
+                        "description": "Chart-type-specific configuration"
                     },
                     "type": {
-                        "$ref": "#/components/schemas/ChartType.FUNNEL"
+                        "$ref": "#/components/schemas/ChartType.FUNNEL",
+                        "description": "Type of chart visualization"
                     }
                 },
                 "required": ["type"],
@@ -4999,10 +5009,12 @@
             "TableChartConfig": {
                 "properties": {
                     "config": {
-                        "$ref": "#/components/schemas/TableChart"
+                        "$ref": "#/components/schemas/TableChart",
+                        "description": "Chart-type-specific configuration"
                     },
                     "type": {
-                        "$ref": "#/components/schemas/ChartType.TABLE"
+                        "$ref": "#/components/schemas/ChartType.TABLE",
+                        "description": "Type of chart visualization"
                     }
                 },
                 "required": ["type"],
@@ -5067,10 +5079,12 @@
             "TreemapChartConfig": {
                 "properties": {
                     "config": {
-                        "$ref": "#/components/schemas/TreemapChart"
+                        "$ref": "#/components/schemas/TreemapChart",
+                        "description": "Chart-type-specific configuration"
                     },
                     "type": {
-                        "$ref": "#/components/schemas/ChartType.TREEMAP"
+                        "$ref": "#/components/schemas/ChartType.TREEMAP",
+                        "description": "Type of chart visualization"
                     }
                 },
                 "required": ["type"],
@@ -5157,10 +5171,12 @@
             "GaugeChartConfig": {
                 "properties": {
                     "config": {
-                        "$ref": "#/components/schemas/GaugeChart"
+                        "$ref": "#/components/schemas/GaugeChart",
+                        "description": "Chart-type-specific configuration"
                     },
                     "type": {
-                        "$ref": "#/components/schemas/ChartType.GAUGE"
+                        "$ref": "#/components/schemas/ChartType.GAUGE",
+                        "description": "Type of chart visualization"
                     }
                 },
                 "required": ["type"],
@@ -5333,10 +5349,12 @@
             "MapChartConfig": {
                 "properties": {
                     "config": {
-                        "$ref": "#/components/schemas/MapChart"
+                        "$ref": "#/components/schemas/MapChart",
+                        "description": "Chart-type-specific configuration"
                     },
                     "type": {
-                        "$ref": "#/components/schemas/ChartType.MAP"
+                        "$ref": "#/components/schemas/ChartType.MAP",
+                        "description": "Type of chart visualization"
                     }
                 },
                 "required": ["type"],
@@ -8630,6 +8648,19 @@
                                                         "type": "string",
                                                         "enum": ["error"],
                                                         "nullable": false
+                                                    }
+                                                },
+                                                "required": ["status"],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "success",
+                                                            "error"
+                                                        ]
                                                     }
                                                 },
                                                 "required": ["status"],

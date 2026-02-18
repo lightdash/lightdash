@@ -180,11 +180,15 @@ const withConstType = (
         ? (variantObject.required as JsonValue[]).map((value) => String(value))
         : [];
 
+    const existingType = toObject(properties.type);
     return {
         ...variantObject,
         properties: {
             ...properties,
             type: {
+                ...(existingType.description
+                    ? { description: existingType.description }
+                    : {}),
                 const: typeConst,
             },
         },
@@ -290,6 +294,7 @@ const tryBuildDiscriminatedChartConfig = (
     }
 
     return {
+        type: 'object',
         oneOf: transformedMembers,
         discriminator: {
             propertyName: 'type',
@@ -326,7 +331,11 @@ const overlayCompatibilityRules = (schema: JsonObject): JsonObject => {
     }
 
     if (rootProperties.dashboardSlug) {
+        const existing = toObject(rootProperties.dashboardSlug);
         rootProperties.dashboardSlug = {
+            ...(existing.description
+                ? { description: existing.description }
+                : {}),
             oneOf: [
                 {
                     type: 'string',
@@ -360,7 +369,63 @@ const maybeOverlayDiscriminatedChartConfig = (
         return root;
     }
 
-    rootProperties.chartConfig = discriminated;
+    const existingChartConfig = toObject(rootProperties.chartConfig);
+    rootProperties.chartConfig = {
+        ...(existingChartConfig.description
+            ? { description: existingChartConfig.description }
+            : {}),
+        ...discriminated,
+    };
+    root.properties = rootProperties;
+    return root;
+};
+
+const recoverNestedDescriptions = (
+    schema: JsonObject,
+    components: Record<string, JsonObject>,
+): JsonObject => {
+    const savedChart = components.SavedChart;
+    if (!savedChart) {
+        return schema;
+    }
+
+    const sourceProperties = toObject(savedChart.properties);
+    const root = { ...schema };
+    const rootProperties = toObject(root.properties);
+
+    for (const [propName, propValue] of Object.entries(rootProperties)) {
+        const rootProp = toObject(propValue);
+        const sourceProp = toObject(sourceProperties[propName]);
+
+        if (rootProp.properties && sourceProp.properties) {
+            const rootSubProperties = toObject(rootProp.properties);
+            const sourceSubProperties = toObject(sourceProp.properties);
+            let changed = false;
+
+            for (const [subName, subValue] of Object.entries(
+                rootSubProperties,
+            )) {
+                const rootSub = toObject(subValue);
+                const sourceSub = toObject(sourceSubProperties[subName]);
+
+                if (!rootSub.description && sourceSub.description) {
+                    rootSubProperties[subName] = {
+                        ...rootSub,
+                        description: sourceSub.description,
+                    };
+                    changed = true;
+                }
+            }
+
+            if (changed) {
+                rootProperties[propName] = {
+                    ...rootProp,
+                    properties: rootSubProperties,
+                };
+            }
+        }
+    }
+
     root.properties = rootProperties;
     return root;
 };
@@ -411,7 +476,13 @@ export const buildChartAsCodeSchema = (swagger: SwaggerDoc): JsonObject => {
             return acc;
         }, {});
 
-    const convertedRoot = convertOpenApiToDraft07(rootSchema) as JsonObject;
+    const rootWithDescriptions = recoverNestedDescriptions(
+        rootSchema,
+        components,
+    );
+    const convertedRoot = convertOpenApiToDraft07(
+        rootWithDescriptions,
+    ) as JsonObject;
     const rootWithCompatibility = overlayCompatibilityRules(convertedRoot);
     const rootWithChartConfig = maybeOverlayDiscriminatedChartConfig(
         rootWithCompatibility,

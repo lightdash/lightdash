@@ -675,47 +675,65 @@ export type CartesianChart = {
 };
 
 export type BigNumberConfig = {
+    /** Type of chart visualization */
     type: ChartType.BIG_NUMBER;
+    /** Chart-type-specific configuration */
     config?: BigNumber;
 };
 
 export type CartesianChartConfig = {
+    /** Type of chart visualization */
     type: ChartType.CARTESIAN;
+    /** Chart-type-specific configuration */
     config?: CartesianChart;
 };
 
 export type CustomVisConfig = {
+    /** Type of chart visualization */
     type: ChartType.CUSTOM;
+    /** Chart-type-specific configuration */
     config?: CustomVis;
 };
 
 export type PieChartConfig = {
+    /** Type of chart visualization */
     type: ChartType.PIE;
+    /** Chart-type-specific configuration */
     config?: PieChart;
 };
 
 export type FunnelChartConfig = {
+    /** Type of chart visualization */
     type: ChartType.FUNNEL;
+    /** Chart-type-specific configuration */
     config?: FunnelChart;
 };
 
 export type TableChartConfig = {
+    /** Type of chart visualization */
     type: ChartType.TABLE;
+    /** Chart-type-specific configuration */
     config?: TableChart;
 };
 
 export type TreemapChartConfig = {
+    /** Type of chart visualization */
     type: ChartType.TREEMAP;
+    /** Chart-type-specific configuration */
     config?: TreemapChart;
 };
 
 export type GaugeChartConfig = {
+    /** Type of chart visualization */
     type: ChartType.GAUGE;
+    /** Chart-type-specific configuration */
     config?: GaugeChart;
 };
 
 export type MapChartConfig = {
+    /** Type of chart visualization */
     type: ChartType.MAP;
+    /** Chart-type-specific configuration */
     config?: MapChart;
 };
 
