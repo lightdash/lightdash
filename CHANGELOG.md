@@ -1,3 +1,10 @@
+## [0.2485.1](https://github.com/lightdash/lightdash/compare/0.2485.0...0.2485.1) (2026-02-18)
+
+
+### Bug Fixes
+
+* change "Favourites" to "Favorites" in Browse menu ([#20434](https://github.com/lightdash/lightdash/issues/20434)) ([5cbc213](https://github.com/lightdash/lightdash/commit/5cbc21382e216d2158fff25400c88f70ad74aac7))
+
 # [0.2485.0](https://github.com/lightdash/lightdash/compare/0.2484.0...0.2485.0) (2026-02-18)
 
 
