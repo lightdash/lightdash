@@ -903,9 +903,13 @@ const PivotTable: FC<PivotTableProps> = ({
                                         : undefined;
                                 })();
 
+                                const isLeafPlaceholder =
+                                    cell.getIsPlaceholder() &&
+                                    !row.getCanExpand();
                                 const suppressContextMenu =
                                     (value === undefined ||
-                                        cell.getIsPlaceholder()) &&
+                                        (cell.getIsPlaceholder() &&
+                                            !isLeafPlaceholder)) &&
                                     !cell.getIsAggregated() &&
                                     !cell.getIsGrouped();
                                 const allowInteractions = suppressContextMenu
@@ -1017,7 +1021,14 @@ const PivotTable: FC<PivotTableProps> = ({
                                                     cell.column.columnDef.cell,
                                                 cell.getContext(),
                                             )
-                                        ) : cell.getIsPlaceholder() ? null : (
+                                        ) : cell.getIsPlaceholder() ? (
+                                            isLeafPlaceholder ? (
+                                                flexRender(
+                                                    cell.column.columnDef.cell,
+                                                    cell.getContext(),
+                                                )
+                                            ) : null
+                                        ) : (
                                             flexRender(
                                                 cell.column.columnDef.cell,
                                                 cell.getContext(),

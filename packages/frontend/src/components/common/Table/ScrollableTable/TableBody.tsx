@@ -163,8 +163,11 @@ const TableRow: FC<TableRowProps> = ({
                           );
                 }
 
+                const isLeafPlaceholder =
+                    cell.getIsPlaceholder() && !row.getCanExpand();
                 const suppressContextMenu =
-                    cell.getIsPlaceholder() || cell.getIsAggregated();
+                    (cell.getIsPlaceholder() && !isLeafPlaceholder) ||
+                    cell.getIsAggregated();
 
                 return (
                     <BodyCell
@@ -237,7 +240,14 @@ const TableRow: FC<TableRowProps> = ({
                                     cell.column.columnDef.cell,
                                 cell.getContext(),
                             )
-                        ) : cell.getIsPlaceholder() ? null : (
+                        ) : cell.getIsPlaceholder() ? (
+                            isLeafPlaceholder ? (
+                                flexRender(
+                                    cell.column.columnDef.cell,
+                                    cell.getContext(),
+                                )
+                            ) : null
+                        ) : (
                             flexRender(
                                 cell.column.columnDef.cell,
                                 cell.getContext(),
