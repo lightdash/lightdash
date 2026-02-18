@@ -4,7 +4,7 @@ import {
     type Dashboard,
     type InteractivityOptions,
 } from '@lightdash/common';
-import { Flex } from '@mantine/core';
+import { Group } from '@mantine-8/core';
 import { type FC } from 'react';
 import { DateZoom } from '../../../../../features/dateZoom';
 import EmbedDashboardExportPdf from './EmbedDashboardExportPdf';
@@ -38,16 +38,15 @@ const EmbedDashboardHeader: FC<Props> = ({ dashboard, projectUuid }) => {
         isFilterInteractivityEnabled(dashboard.dashboardFiltersInteractivity) &&
         !dashboard.dashboardFiltersInteractivity.hidden;
     return (
-        <Flex
-            justify="flex-end"
+        <Group
+            justify="flex-start"
             align="center"
+            wrap="wrap"
             pos="relative"
             m="sm"
             mb="0"
             gap="sm"
-            style={{ flexGrow: 1 }}
         >
-            {shouldShowFilters && <EmbedDashboardFilters />}
             {isParameterInteractivityEnabled(
                 dashboard.parameterInteractivity,
             ) && <EmbedDashboardParameters />}
@@ -60,7 +59,8 @@ const EmbedDashboardHeader: FC<Props> = ({ dashboard, projectUuid }) => {
                     inHeader={true}
                 />
             )}
-        </Flex>
+            {shouldShowFilters && <EmbedDashboardFilters />}
+        </Group>
     );
 };
 
