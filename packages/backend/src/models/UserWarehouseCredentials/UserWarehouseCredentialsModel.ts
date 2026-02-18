@@ -181,6 +181,98 @@ export class UserWarehouseCredentialsModel {
         return this.convertToUserWarehouseCredentials(result);
     }
 
+    private static normalizeDatabricksHost(serverHostName?: string): string {
+        if (!serverHostName) {
+            return '';
+        }
+        const trimmed = serverHostName.trim();
+        if (!trimmed) {
+            return '';
+        }
+        try {
+            const parsed = new URL(
+                trimmed.startsWith('http://') || trimmed.startsWith('https://')
+                    ? trimmed
+                    : `https://${trimmed}`,
+            );
+            return parsed.host.toLowerCase();
+        } catch {
+            return trimmed.toLowerCase();
+        }
+    }
+
+    async findDatabricksOauthU2mForHostWithSecrets(
+        userUuid: string,
+        serverHostName: string,
+        options?: {
+            projectUuid?: string;
+            includeProjectScoped?: boolean;
+        },
+    ): Promise<UserWarehouseCredentialsWithSecrets | undefined> {
+        const targetHost =
+            UserWarehouseCredentialsModel.normalizeDatabricksHost(
+                serverHostName,
+            );
+        if (!targetHost) {
+            return undefined;
+        }
+
+        const query = this.baseSelectWithProject()
+            .where(`${UserWarehouseCredentialsTableName}.user_uuid`, userUuid)
+            .andWhere(
+                `${UserWarehouseCredentialsTableName}.warehouse_type`,
+                WarehouseTypes.DATABRICKS,
+            );
+
+        if (options?.projectUuid) {
+            void query.andWhere(function assignedOrUnassigned(this) {
+                void this.where(
+                    `${UserWarehouseCredentialsTableName}.project_uuid`,
+                    options.projectUuid,
+                ).orWhereNull(
+                    `${UserWarehouseCredentialsTableName}.project_uuid`,
+                );
+            });
+            void query.orderByRaw(
+                `CASE WHEN ${UserWarehouseCredentialsTableName}.project_uuid = ? THEN 0 ELSE 1 END ASC`,
+                [options.projectUuid],
+            );
+        } else if (options?.includeProjectScoped === false) {
+            void query.whereNull(
+                `${UserWarehouseCredentialsTableName}.project_uuid`,
+            );
+        }
+
+        const rows = await query.orderBy(
+            `${UserWarehouseCredentialsTableName}.created_at`,
+            'desc',
+        );
+
+        for (const row of rows) {
+            const credentials =
+                this.convertToUserWarehouseCredentialsWithSecrets(row);
+            if (
+                credentials.credentials.type !== WarehouseTypes.DATABRICKS ||
+                credentials.credentials.authenticationType !==
+                    DatabricksAuthenticationType.OAUTH_U2M ||
+                !credentials.credentials.refreshToken
+            ) {
+                // eslint-disable-next-line no-continue
+                continue;
+            }
+
+            const credentialHost =
+                UserWarehouseCredentialsModel.normalizeDatabricksHost(
+                    credentials.credentials.serverHostName,
+                );
+            if (credentialHost === targetHost) {
+                return credentials;
+            }
+        }
+
+        return undefined;
+    }
+
     private async _findProjectCredentials(
         projectUuid: string,
         userUuid: string,

@@ -303,8 +303,7 @@ export class UserService extends BaseService {
                     const emailDomain = getEmailDomain(userEmail);
                     if (
                         allowedEmailDomains.emailDomains.some(
-                            (domain) =>
-                                domain.toLowerCase() === emailDomain,
+                            (domain) => domain.toLowerCase() === emailDomain,
                         ) &&
                         allowedEmailDomains.projects.length > 0
                     ) {
@@ -1775,6 +1774,18 @@ export class UserService extends BaseService {
         );
     }
 
+    async hasDatabricksOAuthCredentialForHost(
+        user: SessionUser,
+        serverHostName: string,
+    ): Promise<boolean> {
+        const credential =
+            await this.userWarehouseCredentialsModel.findDatabricksOauthU2mForHostWithSecrets(
+                user.userUuid,
+                serverHostName,
+            );
+        return credential !== undefined;
+    }
+
     async createBigqueryWarehouseCredentials(
         user: SessionUser,
         refreshToken: string,
@@ -1821,34 +1832,105 @@ export class UserService extends BaseService {
     async createDatabricksWarehouseCredentials(
         user: SessionUser,
         refreshToken: string,
+        options?: {
+            projectUuid?: string;
+            projectName?: string;
+            serverHostName?: string;
+            credentialsName?: string;
+        },
     ) {
-        // Remove old Databricks credentials to prevent duplicates on re-authentication
-        await this.userWarehouseCredentialsModel.deleteAllByUserAndWarehouseType(
-            user.userUuid,
-            WarehouseTypes.DATABRICKS,
-        );
-
-        // Only store authentication fields - connection details (database, serverHostName, httpPath)
-        // come from the project configuration and shouldn't be stored in user credentials
+        const credentialsNameFromOptions = options?.credentialsName?.trim();
+        const projectName = options?.projectName?.trim();
+        const serverHostName = options?.serverHostName?.trim();
+        let credentialsName = credentialsNameFromOptions || 'Default';
+        if (credentialsNameFromOptions) {
+            credentialsName = credentialsNameFromOptions;
+        } else if (projectName) {
+            credentialsName = `Databricks (${projectName})`;
+        } else if (serverHostName) {
+            credentialsName = `Databricks (${serverHostName})`;
+        }
         const databricksCredentials: UpsertUserWarehouseCredentials = {
-            name: 'Default',
+            name: credentialsName,
             credentials: {
                 type: WarehouseTypes.DATABRICKS,
                 authenticationType: DatabricksAuthenticationType.OAUTH_U2M,
                 refreshToken,
+                serverHostName,
             },
         };
-        await this.createWarehouseCredentials(user, databricksCredentials);
+
+        if (options?.projectUuid) {
+            if (serverHostName) {
+                const matchingCredential =
+                    await this.userWarehouseCredentialsModel.findDatabricksOauthU2mForHostWithSecrets(
+                        user.userUuid,
+                        serverHostName,
+                        {
+                            projectUuid: options.projectUuid,
+                        },
+                    );
+                if (matchingCredential) {
+                    return this.updateWarehouseCredentials(
+                        user,
+                        matchingCredential.uuid,
+                        databricksCredentials,
+                    );
+                }
+            }
+
+            const existingCredentials =
+                await this.userWarehouseCredentialsModel.findForProject(
+                    options.projectUuid,
+                    user.userUuid,
+                    WarehouseTypes.DATABRICKS,
+                );
+            if (existingCredentials) {
+                return this.updateWarehouseCredentials(
+                    user,
+                    existingCredentials.uuid,
+                    databricksCredentials,
+                );
+            }
+
+            return this.createWarehouseCredentials(
+                user,
+                databricksCredentials,
+                options.projectUuid,
+            );
+        }
+
+        if (serverHostName) {
+            const existingCredentials =
+                await this.userWarehouseCredentialsModel.findDatabricksOauthU2mForHostWithSecrets(
+                    user.userUuid,
+                    serverHostName,
+                    {
+                        includeProjectScoped: false,
+                    },
+                );
+            if (existingCredentials) {
+                return this.updateWarehouseCredentials(
+                    user,
+                    existingCredentials.uuid,
+                    databricksCredentials,
+                );
+            }
+        }
+
+        return this.createWarehouseCredentials(user, databricksCredentials);
     }
 
     async createWarehouseCredentials(
         user: SessionUser,
         data: UpsertUserWarehouseCredentials,
+        projectUuid?: string,
     ) {
         const userWarehouseCredentialsUuid =
             await this.userWarehouseCredentialsModel.create(
                 user.userUuid,
                 data,
+                projectUuid,
             );
         this.analytics.track({
             userId: user.userUuid,

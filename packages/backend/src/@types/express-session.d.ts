@@ -8,6 +8,12 @@ declare module 'express-session' {
             codeVerifier?: string | undefined;
             state?: string | undefined;
             isPopup?: boolean | undefined;
+            databricks?: {
+                projectUuid?: string | undefined;
+                projectName?: string | undefined;
+                serverHostName?: string | undefined;
+                credentialsName?: string | undefined;
+            };
         };
         slack: {
             teamId?: string | undefined;

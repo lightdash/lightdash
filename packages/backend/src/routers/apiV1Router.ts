@@ -6,10 +6,16 @@ import {
     getLoginHint,
     getOidcRedirectURL,
     initiateOktaOpenIdLogin,
+    isAuthenticated,
     storeOIDCRedirect,
     storeSlackContext,
 } from '../controllers/authentication';
-import { databricksPassportStrategy } from '../controllers/authentication/strategies/databricksStrategy';
+import {
+    createDatabricksStrategy,
+    databricksPassportStrategy,
+    getDatabricksOidcEndpointsFromHost,
+    getDatabricksStrategyName,
+} from '../controllers/authentication/strategies/databricksStrategy';
 import { AiAgentService } from '../ee/services/AiAgentService/AiAgentService';
 import Logger from '../logging/logger';
 import { UserModel } from '../models/UserModel';
@@ -26,6 +32,119 @@ import { savedChartRouter } from './savedChartRouter';
 import { userRouter } from './userRouter';
 
 export const apiV1Router: Router = express.Router();
+
+const getDatabricksSessionOrQuery = (
+    req: express.Request,
+    key: 'projectUuid' | 'projectName' | 'serverHostName' | 'credentialsName',
+) =>
+    req.session.oauth?.databricks?.[key] ||
+    (typeof req.query[key] === 'string' ? req.query[key] : undefined);
+
+const resolveDynamicDatabricksOauthConfig = async (req: express.Request) => {
+    const projectUuid = getDatabricksSessionOrQuery(req, 'projectUuid');
+    let projectName = getDatabricksSessionOrQuery(req, 'projectName');
+    let serverHostName = getDatabricksSessionOrQuery(req, 'serverHostName');
+    const credentialsName = getDatabricksSessionOrQuery(req, 'credentialsName');
+    let projectClientId: string | undefined;
+    let projectClientSecret: string | undefined;
+
+    if (projectUuid) {
+        if (!req.account) {
+            throw new AuthorizationError('User session not found');
+        }
+        const databricksConfig = await req.services
+            .getProjectService()
+            .getDatabricksOAuthConfigForProject(projectUuid, req.account);
+        projectName = databricksConfig.projectName;
+        serverHostName = databricksConfig.serverHostName;
+        projectClientId = databricksConfig.oauthClientId;
+        projectClientSecret = databricksConfig.oauthClientSecret;
+    }
+
+    if (!serverHostName) {
+        return undefined;
+    }
+
+    const clientId =
+        projectClientId || lightdashConfig.auth.databricks.clientId;
+    if (!clientId) {
+        throw new AuthorizationError(
+            'Databricks OAuth client is not configured',
+        );
+    }
+
+    const clientSecret = projectClientId
+        ? projectClientSecret
+        : lightdashConfig.auth.databricks.clientSecret;
+    const oidc = getDatabricksOidcEndpointsFromHost(serverHostName);
+    return {
+        projectUuid,
+        projectName: projectName?.trim() || undefined,
+        serverHostName: oidc.host,
+        credentialsName: credentialsName?.trim() || undefined,
+        clientId,
+        clientSecret,
+        authorizationURL: oidc.authorizationURL,
+        tokenURL: oidc.tokenURL,
+        issuer: oidc.authorizationURL,
+        strategyName: getDatabricksStrategyName({
+            host: oidc.host,
+            clientId,
+        }),
+    };
+};
+
+const authenticateDatabricks = (
+    getAuthenticateOptions?: (
+        req: express.Request,
+    ) => passport.AuthenticateOptions,
+) =>
+    async function databricksAuthHandler(
+        req: express.Request,
+        res: express.Response,
+        next: express.NextFunction,
+    ) {
+        try {
+            const options = getAuthenticateOptions?.(req);
+            const dynamicConfig =
+                await resolveDynamicDatabricksOauthConfig(req);
+
+            let strategyName: string;
+            if (dynamicConfig) {
+                strategyName = dynamicConfig.strategyName;
+                passport.use(
+                    strategyName,
+                    createDatabricksStrategy(dynamicConfig),
+                );
+                req.session.oauth = req.session.oauth || {};
+                req.session.oauth.databricks = {
+                    projectUuid: dynamicConfig.projectUuid,
+                    projectName: dynamicConfig.projectName,
+                    serverHostName: dynamicConfig.serverHostName,
+                    credentialsName: dynamicConfig.credentialsName,
+                };
+            } else {
+                req.session.oauth = req.session.oauth || {};
+                req.session.oauth.databricks = undefined;
+                if (!databricksPassportStrategy) {
+                    res.status(404).json({
+                        status: 'error',
+                        message: 'Databricks OAuth is not configured',
+                    });
+                    return;
+                }
+                strategyName = 'databricks';
+            }
+
+            if (options) {
+                passport.authenticate(strategyName, options)(req, res, next);
+            } else {
+                passport.authenticate(strategyName)(req, res, next);
+            }
+        } catch (error) {
+            next(error);
+        }
+    };
 
 apiV1Router.get('/livez', async (req, res, next) => {
     res.json({
@@ -277,35 +396,21 @@ apiV1Router.get(
     },
 );
 
-// Databricks OAuth routes - only register if strategy is configured
-// (requires DATABRICKS_OAUTH_CLIENT_ID, DATABRICKS_OAUTH_AUTHORIZATION_ENDPOINT, DATABRICKS_OAUTH_TOKEN_ENDPOINT)
-if (databricksPassportStrategy) {
-    apiV1Router.get(
-        lightdashConfig.auth.databricks.loginPath,
-        storeOIDCRedirect,
-        passport.authenticate('databricks'),
-    );
+apiV1Router.get(
+    lightdashConfig.auth.databricks.loginPath,
+    isAuthenticated,
+    storeOIDCRedirect,
+    authenticateDatabricks(),
+);
 
-    apiV1Router.get(
-        lightdashConfig.auth.databricks.callbackPath,
-        (req, res, next) => {
-            passport.authenticate('databricks', {
-                failureRedirect: getOidcRedirectURL(false)(req),
-                successRedirect: getOidcRedirectURL(true)(req),
-            })(req, res, next);
-        },
-    );
-} else {
-    apiV1Router.get(
-        lightdashConfig.auth.databricks.loginPath,
-        (req, res, next) => {
-            res.status(404).json({
-                status: 'error',
-                message: 'Databricks OAuth is not configured',
-            });
-        },
-    );
-}
+apiV1Router.get(
+    lightdashConfig.auth.databricks.callbackPath,
+    isAuthenticated,
+    authenticateDatabricks((req) => ({
+        failureRedirect: getOidcRedirectURL(false)(req),
+        successRedirect: getOidcRedirectURL(true)(req),
+    })),
+);
 
 apiV1Router.get('/logout', (req, res, next) => {
     req.logout((err) => {
