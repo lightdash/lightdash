@@ -213,7 +213,13 @@ export const validateHandler = async (options: ValidateHandlerOptions) => {
 
         const validationOutput = validation.map((v) => ({
             name: styles.error(v.name),
-            error: styles.warning(v.error),
+            error: styles.warning(
+                isChartValidationError(v) &&
+                    v.errorType === ValidationErrorType.ChartConfiguration &&
+                    v.fieldName
+                    ? `Chart configuration warning: '${v.fieldName}' - ${v.error}`
+                    : v.error,
+            ),
             'last updated by':
                 isChartValidationError(v) || isDashboardValidationError(v)
                     ? styles.secondary(v.lastUpdatedBy)

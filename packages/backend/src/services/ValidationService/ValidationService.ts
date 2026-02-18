@@ -484,7 +484,7 @@ export class ValidationService extends BaseService {
                     const unusedDimensionErrors: CreateChartValidation[] =
                         unusedDimensions.map((dimension) => ({
                             ...commonValidation,
-                            error: `dimension is not used in the chart configuration (x-axis, y-axis, or group by). This can cause incorrect rendering.`,
+                            error: `dimension is not used in the chart configuration (x-axis, y-axis, or group by). This can cause incorrect rendering. We recommend removing unused fields.`,
                             errorType: ValidationErrorType.ChartConfiguration,
                             fieldName: dimension,
                         }));
@@ -500,7 +500,7 @@ export class ValidationService extends BaseService {
                     const unusedTableCalculationErrors: CreateChartValidation[] =
                         unusedTableCalculations.map((tc) => ({
                             ...commonValidation,
-                            error: `table calculation is not used in the chart configuration (x-axis or y-axis). This can cause incorrect rendering.`,
+                            error: `table calculation is not used in the chart configuration (x-axis or y-axis). This can cause incorrect rendering. We recommend removing unused fields.`,
                             errorType: ValidationErrorType.ChartConfiguration,
                             fieldName: tc,
                         }));
