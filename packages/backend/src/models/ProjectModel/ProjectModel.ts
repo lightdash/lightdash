@@ -1685,8 +1685,8 @@ export class ProjectModel {
                 .insert({
                     project_id: projectId,
                     name: spaceName,
-                    is_private: false,
-                    inherit_parent_permissions: true,
+                    is_private: true,
+                    inherit_parent_permissions: false,
                     slug,
                     parent_space_uuid: parentSpaceUuid,
                     path,
