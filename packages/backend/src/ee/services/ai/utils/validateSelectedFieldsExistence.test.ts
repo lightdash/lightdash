@@ -127,6 +127,7 @@ describe('validateSelectedFieldsExistence', () => {
                     displayName: 'Percent Change',
                     fieldId: 'users_total_users',
                     orderBy: [],
+                    partitionBy: null,
                 },
             ];
 

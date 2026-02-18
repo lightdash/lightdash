@@ -4,6 +4,8 @@ import {
     baseTableCalcSchema,
     orderBySchema,
     orderBySchemaDescription,
+    partitionBySchema,
+    partitionBySchemaDescription,
 } from './tableCalcBaseSchemas';
 
 export const tableCalcPercentChangeFromPreviousSchema =
@@ -16,6 +18,10 @@ export const tableCalcPercentChangeFromPreviousSchema =
             .array(orderBySchema)
             .min(1)
             .describe(orderBySchemaDescription),
+        partitionBy: z
+            .array(partitionBySchema)
+            .nullable()
+            .describe(partitionBySchemaDescription),
     });
 
 export type TableCalcPercentChangeFromPreviousSchema = z.infer<

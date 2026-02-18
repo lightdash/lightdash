@@ -271,6 +271,7 @@ describe('validateAxisFields', () => {
                     displayName: 'Percent Change',
                     fieldId: 'orders_total_revenue',
                     orderBy: [],
+                    partitionBy: null,
                 },
             ];
 

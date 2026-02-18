@@ -86,6 +86,7 @@ function convertTableCalcSchemaToTableCalc(
                     type: TableCalculationTemplateType.PERCENT_CHANGE_FROM_PREVIOUS,
                     fieldId: tableCalc.fieldId,
                     orderBy: tableCalc.orderBy ?? [],
+                    partitionBy: tableCalc.partitionBy ?? [],
                 },
                 format: {
                     type: CustomFormatType.PERCENT,
@@ -99,6 +100,7 @@ function convertTableCalcSchemaToTableCalc(
                     type: TableCalculationTemplateType.PERCENT_OF_PREVIOUS_VALUE,
                     fieldId: tableCalc.fieldId,
                     orderBy: tableCalc.orderBy ?? [],
+                    partitionBy: tableCalc.partitionBy ?? [],
                 },
                 format: {
                     type: CustomFormatType.PERCENT,
