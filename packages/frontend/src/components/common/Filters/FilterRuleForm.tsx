@@ -87,7 +87,7 @@ const FilterRuleForm: FC<Props> = memo(
         );
         const isRequired = filterRule.required;
         const isRequiredLabel = isRequired
-            ? 'This is a required filter defined in the model configuration and cannot be modified.'
+            ? 'This is a required filter defined in the model configuration and cannot be removed.'
             : '';
 
         if (!activeField) {
@@ -134,7 +134,7 @@ const FilterRuleForm: FC<Props> = memo(
                     withinPortal={popoverProps?.withinPortal}
                     onDropdownOpen={popoverProps?.onOpen}
                     onDropdownClose={popoverProps?.onClose}
-                    disabled={!isEditMode || isRequired}
+                    disabled={!isEditMode}
                     value={filterRule.operator}
                     data={filterOperatorOptions}
                     onChange={(value) => {
@@ -157,7 +157,7 @@ const FilterRuleForm: FC<Props> = memo(
                     field={activeField}
                     rule={filterRule}
                     onChange={onChange}
-                    disabled={!isEditMode || isRequired}
+                    disabled={!isEditMode}
                     popoverProps={popoverProps}
                 />
 
