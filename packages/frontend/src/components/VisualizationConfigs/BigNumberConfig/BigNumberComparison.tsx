@@ -37,9 +37,11 @@ export const Comparison: React.FC = () => {
     );
 
     useEffect(() => {
-        if (chartConfig?.comparisonField !== undefined) {
-            setCompareTarget('another_field');
-        }
+        setCompareTarget(
+            chartConfig?.comparisonField !== undefined
+                ? 'another_field'
+                : 'previous_row',
+        );
     }, [chartConfig?.comparisonField]);
 
     if (!isBigNumber || !chartConfig) return null;
