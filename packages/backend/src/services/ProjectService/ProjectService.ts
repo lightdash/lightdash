@@ -1068,6 +1068,7 @@ export class ProjectService extends BaseService {
                 { ...args.warehouseConnection, refreshToken },
                 userUuid,
             );
+
             return {
                 ...args,
                 warehouseConnection: {
@@ -1516,7 +1517,7 @@ export class ProjectService extends BaseService {
                             await this.userWarehouseCredentialsModel.create(
                                 user.userUuid,
                                 {
-                                    name: `Databricks credentials for preview project "${createProject.name}"`,
+                                    name: `Databricks credentials for "${createProject.name}"`,
                                     credentials: {
                                         type: WarehouseTypes.DATABRICKS,
                                         authenticationType:
@@ -1525,6 +1526,7 @@ export class ProjectService extends BaseService {
                                             warehouseConnection.refreshToken,
                                     },
                                 },
+                                projectUuid,
                             );
                         await this.userWarehouseCredentialsModel.upsertUserCredentialsPreference(
                             user.userUuid,
@@ -2377,14 +2379,6 @@ export class ProjectService extends BaseService {
         ) {
             throw new ForbiddenError(
                 `User does not have permission to delete project`,
-            );
-        }
-
-        // Clean up user warehouse credentials created for this preview project
-        // before deleting (cascade would only remove the preference rows)
-        if (project.type === ProjectType.PREVIEW) {
-            await this.userWarehouseCredentialsModel.deleteExclusivelyLinkedToProject(
-                projectUuid,
             );
         }
 
@@ -6566,6 +6560,20 @@ export class ProjectService extends BaseService {
             project.projectUuid,
             user.userUuid,
             credentials.type,
+        );
+    }
+
+    async getProjectUserWarehouseCredentials(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<UserWarehouseCredentials[]> {
+        const project = await this.projectModel.getSummary(projectUuid);
+        if (user.ability.cannot('view', subject('Project', project))) {
+            throw new ForbiddenError();
+        }
+        return this.userWarehouseCredentialsModel.getAllByUserUuidForProject(
+            user.userUuid,
+            projectUuid,
         );
     }
 

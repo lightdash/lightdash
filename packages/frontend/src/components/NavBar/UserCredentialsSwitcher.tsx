@@ -15,7 +15,7 @@ import {
     useProjectUserWarehouseCredentialsPreference,
     useProjectUserWarehouseCredentialsPreferenceMutation,
 } from '../../hooks/userWarehouseCredentials/useProjectUserWarehouseCredentialsPreference';
-import { useUserWarehouseCredentials } from '../../hooks/userWarehouseCredentials/useUserWarehouseCredentials';
+import { useProjectUserWarehouseCredentials } from '../../hooks/userWarehouseCredentials/useUserWarehouseCredentials';
 import useApp from '../../providers/App/useApp';
 import { getWarehouseLabel } from '../ProjectConnection/ProjectConnectFlow/utils';
 import { CreateCredentialsModal } from '../UserSettings/MyWarehouseConnectionsPanel/CreateCredentialsModal';
@@ -38,16 +38,16 @@ const UserCredentialsSwitcher = () => {
         location,
     );
     const [isCreatingCredentials, setIsCreatingCredentials] = useState(false);
-    const {
-        isInitialLoading: isLoadingCredentials,
-        data: userWarehouseCredentials,
-    } = useUserWarehouseCredentials();
     const queryClient = useQueryClient();
 
     const { isLoading: isLoadingActiveProjectUuid, activeProjectUuid } =
         useActiveProjectUuid();
     const { data: activeProject, isInitialLoading: isLoadingActiveProject } =
         useProject(activeProjectUuid);
+    const {
+        isInitialLoading: isLoadingCredentials,
+        data: userWarehouseCredentials,
+    } = useProjectUserWarehouseCredentials(activeProjectUuid);
     const { data: preferredCredentials } =
         useProjectUserWarehouseCredentialsPreference(activeProjectUuid);
     const { mutate } = useProjectUserWarehouseCredentialsPreferenceMutation({

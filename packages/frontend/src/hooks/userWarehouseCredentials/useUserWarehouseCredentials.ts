@@ -30,6 +30,25 @@ export const useUserWarehouseCredentials = (
     });
 };
 
+const getProjectUserWarehouseCredentials = async (projectUuid: string) =>
+    lightdashApi<UserWarehouseCredentials[]>({
+        url: `/projects/${projectUuid}/user-warehouse-credentials`,
+        method: 'GET',
+        body: undefined,
+    });
+
+export const useProjectUserWarehouseCredentials = (
+    projectUuid: string | undefined,
+    useQueryOptions?: UseQueryOptions<UserWarehouseCredentials[], ApiError>,
+) => {
+    return useQuery<UserWarehouseCredentials[], ApiError>({
+        queryKey: ['project_user_warehouse_credentials', projectUuid],
+        queryFn: () => getProjectUserWarehouseCredentials(projectUuid!),
+        enabled: !!projectUuid,
+        ...useQueryOptions,
+    });
+};
+
 const createUserWarehouseCredentials = async (
     data: UpsertUserWarehouseCredentials,
 ) =>
@@ -56,6 +75,9 @@ export const useUserWarehouseCredentialsCreateMutation = (
         mutationKey: ['create_user_warehouse_credentials'],
         onSuccess: async (data, payload) => {
             await queryClient.invalidateQueries(['user_warehouse_credentials']);
+            await queryClient.invalidateQueries([
+                'project_user_warehouse_credentials',
+            ]);
 
             showToastSuccess({
                 title: `Success! Warehouse connection was created.`,
@@ -92,6 +114,9 @@ export const useUserWarehouseCredentialsUpdateMutation = (uuid: string) => {
                 await queryClient.invalidateQueries([
                     'user_warehouse_credentials',
                 ]);
+                await queryClient.invalidateQueries([
+                    'project_user_warehouse_credentials',
+                ]);
 
                 showToastSuccess({
                     title: `Success! Warehouse connection was updated.`,
@@ -124,6 +149,9 @@ export const useUserWarehouseCredentialsDeleteMutation = (uuid: string) => {
             onSuccess: async (_) => {
                 await queryClient.invalidateQueries([
                     'user_warehouse_credentials',
+                ]);
+                await queryClient.invalidateQueries([
+                    'project_user_warehouse_credentials',
                 ]);
 
                 showToastSuccess({

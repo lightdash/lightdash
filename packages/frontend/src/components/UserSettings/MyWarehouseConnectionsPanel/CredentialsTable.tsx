@@ -1,5 +1,13 @@
-import { type UserWarehouseCredentials } from '@lightdash/common';
-import { ActionIcon, Menu, Paper, Table, Text } from '@mantine-8/core';
+import { ProjectType, type UserWarehouseCredentials } from '@lightdash/common';
+import {
+    ActionIcon,
+    Badge,
+    Group,
+    Menu,
+    Paper,
+    Table,
+    Text,
+} from '@mantine-8/core';
 import { IconDots, IconEdit, IconTrash } from '@tabler/icons-react';
 import { type Dispatch, type FC, type SetStateAction } from 'react';
 import { useTableStyles } from '../../../hooks/styles/useTableStyles';
@@ -34,6 +42,22 @@ const CredentialsItem: FC<
             <Text fw={500}>{credentials.name}</Text>
         </Table.Td>
         <Table.Td>{getWarehouseLabel(credentials.credentials.type)}</Table.Td>
+        <Table.Td>
+            {credentials.project ? (
+                <Group gap="xs" wrap="nowrap">
+                    <Text size="sm">{credentials.project.name}</Text>
+                    {credentials.project.type === ProjectType.PREVIEW && (
+                        <Badge size="xs" variant="light" color="orange">
+                            Preview
+                        </Badge>
+                    )}
+                </Group>
+            ) : (
+                <Text size="sm" c="dimmed">
+                    All projects
+                </Text>
+            )}
+        </Table.Td>
         <Table.Td w="1%">
             <Menu withinPortal position="bottom-end">
                 <Menu.Target>
@@ -85,6 +109,7 @@ export const CredentialsTable: FC<CredentialsTableProps> = ({
                     <Table.Tr>
                         <Table.Th>Name</Table.Th>
                         <Table.Th>Warehouse</Table.Th>
+                        <Table.Th>Project</Table.Th>
                         <Table.Th></Table.Th>
                     </Table.Tr>
                 </Table.Thead>
