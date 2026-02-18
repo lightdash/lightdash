@@ -29,6 +29,13 @@ export interface IntegrationTestContext {
     cleanup: () => Promise<void>;
 }
 
+// Match BigInt serialization behavior from App.ts
+// @ts-ignore
+// eslint-disable-next-line no-extend-native, func-names
+BigInt.prototype.toJSON = function () {
+    return this.toString();
+};
+
 let globalTestContext: IntegrationTestContext | null = null;
 
 export const setupIntegrationTest =
