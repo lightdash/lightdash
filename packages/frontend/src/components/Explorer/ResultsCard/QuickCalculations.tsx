@@ -24,6 +24,7 @@ import { generateTableCalculationTemplate } from './tableCalculationTemplateGene
 
 type Props = {
     item: Metric;
+    onCalculationCreated?: (tableCalculation: TableCalculation) => void;
 };
 
 // Use shared template labels from utilities
@@ -90,7 +91,10 @@ const isCalculationAvailable = (
     }
 };
 
-const QuickCalculationMenuOptions: FC<Props> = ({ item }) => {
+const QuickCalculationMenuOptions: FC<Props> = ({
+    item,
+    onCalculationCreated,
+}) => {
     const dispatch = useExplorerDispatch();
     const { track } = useTracking();
 
@@ -130,12 +134,15 @@ const QuickCalculationMenuOptions: FC<Props> = ({ item }) => {
             orderWithoutTableCalculations,
         );
 
-        handleAddTableCalculation({
+        const tableCalculation: TableCalculation = {
             name: uniqueName,
             displayName: name,
             template,
             format: getFormatForQuickCalculation(templateType),
-        });
+        };
+
+        handleAddTableCalculation(tableCalculation);
+        onCalculationCreated?.(tableCalculation);
     };
 
     return (
