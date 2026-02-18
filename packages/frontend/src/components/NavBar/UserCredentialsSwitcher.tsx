@@ -1,10 +1,4 @@
-import {
-    ActionIcon,
-    getDefaultZIndex,
-    MantineProvider,
-    Menu,
-    Text,
-} from '@mantine-8/core';
+import { ActionIcon, getDefaultZIndex, Menu, Text } from '@mantine-8/core';
 import { IconCheck, IconDatabaseCog, IconPlus } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
@@ -184,42 +178,40 @@ const UserCredentialsSwitcher = () => {
                 </Menu.Dropdown>
             </Menu>
             {isCreatingCredentials && (
-                <MantineProvider forceColorScheme="dark">
-                    <CreateCredentialsModal
-                        opened={isCreatingCredentials}
-                        title={
-                            showCreateModalOnPageLoad
-                                ? `Login to ${getWarehouseLabel(
-                                      activeProject.warehouseConnection?.type,
-                                  )}`
-                                : undefined
-                        }
-                        description={
-                            showCreateModalOnPageLoad ? (
-                                <Text>
-                                    The admin of your organization "
-                                    {user.data?.organizationName}" requires that
-                                    you login to{' '}
-                                    {getWarehouseLabel(
-                                        activeProject.warehouseConnection?.type,
-                                    )}{' '}
-                                    to continue.
-                                </Text>
-                            ) : undefined
-                        }
-                        nameValue={
-                            showCreateModalOnPageLoad ? 'Default' : undefined
-                        }
-                        warehouseType={activeProject.warehouseConnection?.type}
-                        onSuccess={(data) => {
-                            mutate({
-                                projectUuid: activeProjectUuid,
-                                userWarehouseCredentialsUuid: data.uuid,
-                            });
-                        }}
-                        onClose={() => setIsCreatingCredentials(false)}
-                    />
-                </MantineProvider>
+                <CreateCredentialsModal
+                    opened={isCreatingCredentials}
+                    title={
+                        showCreateModalOnPageLoad
+                            ? `Login to ${getWarehouseLabel(
+                                  activeProject.warehouseConnection?.type,
+                              )}`
+                            : undefined
+                    }
+                    description={
+                        showCreateModalOnPageLoad ? (
+                            <Text>
+                                The admin of your organization "
+                                {user.data?.organizationName}" requires that you
+                                login to{' '}
+                                {getWarehouseLabel(
+                                    activeProject.warehouseConnection?.type,
+                                )}{' '}
+                                to continue.
+                            </Text>
+                        ) : undefined
+                    }
+                    nameValue={
+                        showCreateModalOnPageLoad ? 'Default' : undefined
+                    }
+                    warehouseType={activeProject.warehouseConnection?.type}
+                    onSuccess={(data) => {
+                        mutate({
+                            projectUuid: activeProjectUuid,
+                            userWarehouseCredentialsUuid: data.uuid,
+                        });
+                    }}
+                    onClose={() => setIsCreatingCredentials(false)}
+                />
             )}
         </>
     );
