@@ -4,16 +4,27 @@ import { type NestableItem } from './types';
 export const convertNestableListToTree = (
     items: NestableItem[],
 ): TreeNodeData[] => {
+    const itemPaths = new Set(items.map((item) => item.path));
+
+    // Find the nearest ancestor path that exists in the items list.
+    // Returns '' (root) if no ancestor is present.
+    const findEffectiveParent = (path: string): string => {
+        const parts = path.split('.');
+        for (let i = parts.length - 2; i >= 0; i--) {
+            const ancestorPath = parts.slice(0, i + 1).join('.');
+            if (itemPaths.has(ancestorPath)) {
+                return ancestorPath;
+            }
+        }
+        return '';
+    };
+
     const buildTree = (
         nodes: NestableItem[],
         parentPath = '',
     ): TreeNodeData[] => {
         return nodes
-            .filter((item) => {
-                const pathParts = item.path.split('.');
-                const itemParentPath = pathParts.slice(0, -1).join('.');
-                return itemParentPath === parentPath;
-            })
+            .filter((item) => findEffectiveParent(item.path) === parentPath)
             .map((item) => {
                 const children = buildTree(nodes, item.path);
                 return {
