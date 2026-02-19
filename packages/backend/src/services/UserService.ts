@@ -1612,6 +1612,13 @@ export class UserService extends BaseService {
                             isDefaultUserSpace: true,
                             spaceCreatedBy: sessionUser.userUuid,
                         }),
+                    ) ||
+                    sessionUser.ability.cannot(
+                        'manage',
+                        subject('Explore', {
+                            projectUuid: project.projectUuid,
+                            organizationUuid: sessionUser.organizationUuid,
+                        }),
                     )
                 )
                     return;
