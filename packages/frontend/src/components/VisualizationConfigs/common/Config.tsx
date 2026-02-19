@@ -5,7 +5,7 @@ import {
     Text,
     type GroupProps,
     type TextProps,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import { type Icon as TablerIconType } from '@tabler/icons-react';
 import { type FC, type PropsWithChildren } from 'react';
 import MantineIcon from '../../common/MantineIcon';
@@ -26,7 +26,7 @@ interface ConfigComponent extends FC<PropsWithChildren> {
 export const Config: ConfigComponent = ({ children }) => <Box>{children}</Box>;
 
 const Section: FC<PropsWithChildren> = ({ children }) => (
-    <Stack spacing="xs">{children}</Stack>
+    <Stack gap="xs">{children}</Stack>
 );
 
 const Heading: FC<PropsWithChildren> = ({ children }) => (
@@ -43,20 +43,20 @@ const Subheading: FC<PropsWithChildren> = ({ children }) => (
 
 const Label: FC<LabelProps> = ({ children, icon, ...props }) =>
     icon ? (
-        <MantineGroup spacing={4} noWrap>
+        <MantineGroup gap={4} wrap="nowrap">
             <MantineIcon icon={icon} size={14} color="ldGray.6" />
-            <Text fw={500} size="xs" color="ldGray.6" {...props}>
+            <Text fw={500} fz="xs" c="ldGray.6" {...props}>
                 {children}
             </Text>
         </MantineGroup>
     ) : (
-        <Text fw={500} size="xs" color="ldGray.6" {...props}>
+        <Text fw={500} fz="xs" c="ldGray.6" {...props}>
             {children}
         </Text>
     );
 
 const Group: FC<PropsWithChildren & GroupProps> = ({ children, ...props }) => (
-    <MantineGroup position="apart" {...props}>
+    <MantineGroup justify="space-between" {...props}>
         {children}
     </MantineGroup>
 );

@@ -10,8 +10,9 @@ import {
     Stack,
     Switch,
     TextInput,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import { useEffect, useRef, useState } from 'react';
+import classes from './BigNumberComparison.module.css';
 import { isBigNumberVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import FieldSelect from '../../common/FieldSelect';
@@ -74,7 +75,7 @@ export const Comparison: React.FC = () => {
         <Stack>
             <Config>
                 <Config.Section>
-                    <Group spacing="xs" align="center">
+                    <Group gap="xs" align="center">
                         <Config.Heading>Show comparison</Config.Heading>
                         <Switch
                             checked={showComparison}
@@ -86,7 +87,7 @@ export const Comparison: React.FC = () => {
 
                     {showComparison ? (
                         <>
-                            <Group spacing="xs">
+                            <Group gap="xs">
                                 <Config.Label>Compare to</Config.Label>
                                 <SegmentedControl
                                     data={[
@@ -132,7 +133,7 @@ export const Comparison: React.FC = () => {
                                 />
                             )}
 
-                            <Group spacing="xs">
+                            <Group gap="xs">
                                 <Config.Label>Format</Config.Label>
                                 <SegmentedControl
                                     data={[
@@ -166,11 +167,7 @@ export const Comparison: React.FC = () => {
                                     setFlipColors(!flipColors);
                                 }}
                                 labelPosition="left"
-                                styles={{
-                                    label: {
-                                        paddingLeft: 0,
-                                    },
-                                }}
+                                classNames={{ label: classes.switchLabel }}
                             />
 
                             {showStyle &&
