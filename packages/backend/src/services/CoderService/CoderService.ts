@@ -923,6 +923,7 @@ export class CoderService extends BaseService {
         chartAsCode: ChartAsCode,
         skipSpaceCreate?: boolean,
         publicSpaceCreate?: boolean,
+        force?: boolean,
     ) {
         const project = await this.projectModel.get(projectUuid);
 
@@ -1092,6 +1093,16 @@ export class CoderService extends BaseService {
                 updatedChart,
                 upstreamChart,
             );
+        if (force) {
+            promotionChanges = {
+                ...promotionChanges,
+                charts: promotionChanges.charts.map((c) =>
+                    c.action === PromotionAction.NO_CHANGES
+                        ? { ...c, action: PromotionAction.UPDATE }
+                        : c,
+                ),
+            };
+        }
         promotionChanges = await this.promoteService.upsertCharts(
             user,
             promotionChanges,
@@ -1111,6 +1122,7 @@ export class CoderService extends BaseService {
         sqlChartAsCode: SqlChartAsCode,
         skipSpaceCreate?: boolean,
         publicSpaceCreate?: boolean,
+        force?: boolean,
     ): Promise<PromotionChanges> {
         const project = await this.projectModel.get(projectUuid);
 
@@ -1379,6 +1391,7 @@ export class CoderService extends BaseService {
         dashboardAsCode: DashboardAsCode,
         skipSpaceCreate?: boolean,
         publicSpaceCreate?: boolean,
+        force?: boolean,
     ): Promise<PromotionChanges> {
         const project = await this.projectModel.get(projectUuid);
 
@@ -1520,6 +1533,17 @@ export class CoderService extends BaseService {
 
         // TODO: Right now dashboards on promote service always update dashboards
         // See isDashboardUpdated for more details
+
+        if (force) {
+            promotionChanges = {
+                ...promotionChanges,
+                charts: promotionChanges.charts.map((c) =>
+                    c.action === PromotionAction.NO_CHANGES
+                        ? { ...c, action: PromotionAction.UPDATE }
+                        : c,
+                ),
+            };
+        }
 
         promotionChanges = await this.promoteService.getOrCreateDashboard(
             user,
