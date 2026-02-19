@@ -451,6 +451,10 @@
                 "visible": {
                     "description": "Whether the column is visible",
                     "type": "boolean"
+                },
+                "width": {
+                    "format": "double",
+                    "type": "number"
                 }
             },
             "type": "object"
@@ -2159,57 +2163,6 @@
             ],
             "type": "object"
         },
-        "Pick_Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-pivotConfig-or-slug-or-parameters_.Exclude_keyofPick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-pivotConfig-or-slug-or-parameters_.metricQuery__": {
-            "description": "From T, pick a set of properties whose keys are in the union K",
-            "properties": {
-                "chartConfig": {
-                    "$ref": "#/$defs/ChartConfig",
-                    "description": "Visualization configuration for the chart"
-                },
-                "description": {
-                    "description": "Optional description of what this chart displays",
-                    "type": "string"
-                },
-                "name": {
-                    "description": "Display name of the chart",
-                    "type": "string"
-                },
-                "parameters": {
-                    "$ref": "#/$defs/ParametersValuesMap",
-                    "description": "Parameter values for the chart query"
-                },
-                "pivotConfig": {
-                    "description": "Pivot table configuration",
-                    "properties": {
-                        "columns": {
-                            "items": {
-                                "type": "string"
-                            },
-                            "type": "array"
-                        }
-                    },
-                    "required": [
-                        "columns"
-                    ],
-                    "type": "object"
-                },
-                "slug": {
-                    "description": "Unique identifier slug for this chart",
-                    "type": "string"
-                },
-                "tableName": {
-                    "description": "The explore/table name this chart queries from",
-                    "type": "string"
-                }
-            },
-            "required": [
-                "name",
-                "chartConfig",
-                "slug",
-                "tableName"
-            ],
-            "type": "object"
-        },
         "PieChart": {
             "properties": {
                 "groupColorOverrides": {
@@ -3103,11 +3056,163 @@
         }
     },
     "$id": "https://schemas.lightdash.com/lightdash/chart-as-code.json",
-    "$ref": "#/$defs/Pick_Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-pivotConfig-or-slug-or-parameters_.Exclude_keyofPick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-pivotConfig-or-slug-or-parameters_.metricQuery__",
     "$schema": "http://json-schema.org/draft-07/schema#",
     "additionalProperties": false,
-    "description": "Construct a type with the properties of T except for those in type K.",
+    "description": "From T, pick a set of properties whose keys are in the union K",
     "properties": {
+        "chartConfig": {
+            "description": "Visualization configuration for the chart",
+            "discriminator": {
+                "propertyName": "type"
+            },
+            "oneOf": [
+                {
+                    "properties": {
+                        "config": {
+                            "$ref": "#/$defs/BigNumber",
+                            "description": "Chart-type-specific configuration"
+                        },
+                        "type": {
+                            "const": "big_number",
+                            "description": "Type of chart visualization"
+                        }
+                    },
+                    "required": [
+                        "type"
+                    ],
+                    "type": "object"
+                },
+                {
+                    "properties": {
+                        "config": {
+                            "$ref": "#/$defs/CartesianChart",
+                            "description": "Chart-type-specific configuration"
+                        },
+                        "type": {
+                            "const": "cartesian",
+                            "description": "Type of chart visualization"
+                        }
+                    },
+                    "required": [
+                        "type"
+                    ],
+                    "type": "object"
+                },
+                {
+                    "properties": {
+                        "config": {
+                            "$ref": "#/$defs/CustomVis",
+                            "description": "Chart-type-specific configuration"
+                        },
+                        "type": {
+                            "const": "custom",
+                            "description": "Type of chart visualization"
+                        }
+                    },
+                    "required": [
+                        "type"
+                    ],
+                    "type": "object"
+                },
+                {
+                    "properties": {
+                        "config": {
+                            "$ref": "#/$defs/PieChart",
+                            "description": "Chart-type-specific configuration"
+                        },
+                        "type": {
+                            "const": "pie",
+                            "description": "Type of chart visualization"
+                        }
+                    },
+                    "required": [
+                        "type"
+                    ],
+                    "type": "object"
+                },
+                {
+                    "properties": {
+                        "config": {
+                            "$ref": "#/$defs/FunnelChart",
+                            "description": "Chart-type-specific configuration"
+                        },
+                        "type": {
+                            "const": "funnel",
+                            "description": "Type of chart visualization"
+                        }
+                    },
+                    "required": [
+                        "type"
+                    ],
+                    "type": "object"
+                },
+                {
+                    "properties": {
+                        "config": {
+                            "$ref": "#/$defs/TableChart",
+                            "description": "Chart-type-specific configuration"
+                        },
+                        "type": {
+                            "const": "table",
+                            "description": "Type of chart visualization"
+                        }
+                    },
+                    "required": [
+                        "type"
+                    ],
+                    "type": "object"
+                },
+                {
+                    "properties": {
+                        "config": {
+                            "$ref": "#/$defs/TreemapChart",
+                            "description": "Chart-type-specific configuration"
+                        },
+                        "type": {
+                            "const": "treemap",
+                            "description": "Type of chart visualization"
+                        }
+                    },
+                    "required": [
+                        "type"
+                    ],
+                    "type": "object"
+                },
+                {
+                    "properties": {
+                        "config": {
+                            "$ref": "#/$defs/GaugeChart",
+                            "description": "Chart-type-specific configuration"
+                        },
+                        "type": {
+                            "const": "gauge",
+                            "description": "Type of chart visualization"
+                        }
+                    },
+                    "required": [
+                        "type"
+                    ],
+                    "type": "object"
+                },
+                {
+                    "properties": {
+                        "config": {
+                            "$ref": "#/$defs/MapChart",
+                            "description": "Chart-type-specific configuration"
+                        },
+                        "type": {
+                            "const": "map",
+                            "description": "Type of chart visualization"
+                        }
+                    },
+                    "required": [
+                        "type"
+                    ],
+                    "type": "object"
+                }
+            ],
+            "type": "object"
+        },
         "dashboardSlug": {
             "description": "Slug of the dashboard this chart belongs to (if any)",
             "oneOf": [
@@ -3119,6 +3224,10 @@
                     "type": "null"
                 }
             ]
+        },
+        "description": {
+            "description": "Optional description of what this chart displays",
+            "type": "string"
         },
         "downloadedAt": {
             "description": "Timestamp when this chart was downloaded from Lightdash",
@@ -3143,6 +3252,34 @@
                 }
             ]
         },
+        "name": {
+            "description": "Display name of the chart",
+            "type": "string"
+        },
+        "parameters": {
+            "$ref": "#/$defs/ParametersValuesMap",
+            "description": "Parameter values for the chart query"
+        },
+        "pivotConfig": {
+            "description": "Pivot table configuration",
+            "properties": {
+                "columns": {
+                    "description": "Fields to use as pivot columns",
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": "array"
+                }
+            },
+            "required": [
+                "columns"
+            ],
+            "type": "object"
+        },
+        "slug": {
+            "description": "Unique identifier slug for this chart",
+            "type": "string"
+        },
         "spaceSlug": {
             "description": "Slug of the space containing this chart",
             "type": "string"
@@ -3163,6 +3300,10 @@
             ],
             "type": "object"
         },
+        "tableName": {
+            "description": "The explore/table name this chart queries from",
+            "type": "string"
+        },
         "updatedAt": {
             "description": "Not modifiable by user, but useful to know if it has been updated. Defaults to now if omitted.",
             "format": "date-time",
@@ -3176,6 +3317,10 @@
         }
     },
     "required": [
+        "name",
+        "chartConfig",
+        "slug",
+        "tableName",
         "spaceSlug",
         "version",
         "metricQuery"

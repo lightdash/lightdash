@@ -74,7 +74,11 @@ const mergeObjectSchemas = (
 const resolveComponentRef = (
     ref: string,
     components: Record<string, JsonObject>,
+    depth = 0,
 ): JsonObject => {
+    if (depth > 10) {
+        throw new Error(`Max $ref resolution depth exceeded at: ${ref}`);
+    }
     if (!ref.startsWith(SCHEMA_REF_PREFIX)) {
         throw new Error(`Unsupported $ref format: ${ref}`);
     }
@@ -83,6 +87,11 @@ const resolveComponentRef = (
     const schema = components[schemaName];
     if (!schema) {
         throw new Error(`Missing schema component: ${schemaName}`);
+    }
+
+    // Follow transitive $refs (e.g. Omit<X> → $ref → Pick<X> → properties)
+    if (typeof schema.$ref === 'string') {
+        return resolveComponentRef(schema.$ref, components, depth + 1);
     }
 
     return schema;

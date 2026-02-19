@@ -254,8 +254,10 @@ export class CoderService extends BaseService {
      */
     static getFiltersWithTileSlugs(
         dashboard: DashboardDAO,
-    ): DashboardAsCode['filters'] {
-        const dimensionFiltersWithoutUuids: DashboardAsCode['filters']['dimensions'] =
+    ): Required<NonNullable<DashboardAsCode['filters']>> {
+        const dimensionFiltersWithoutUuids: NonNullable<
+            DashboardAsCode['filters']
+        >['dimensions'] =
             dashboard.filters.dimensions.map((filter) => {
                 const tileTargets = Object.entries(
                     filter.tileTargets ?? {},
@@ -294,7 +296,7 @@ export class CoderService extends BaseService {
         tilesWithUuids: DashboardTileWithSlug[],
     ): DashboardDAO['filters'] {
         const dimensionFiltersWithUuids: DashboardDAO['filters']['dimensions'] =
-            dashboardAsCode.filters.dimensions.map((filter) => {
+            (dashboardAsCode.filters?.dimensions ?? []).map((filter) => {
                 const tileTargets = Object.entries(
                     filter.tileTargets ?? {},
                 ).reduce<Record<string, DashboardTileTarget>>(
@@ -326,7 +328,9 @@ export class CoderService extends BaseService {
                 };
             });
         return {
-            ...dashboardAsCode.filters,
+            metrics: dashboardAsCode.filters?.metrics ?? [],
+            tableCalculations:
+                dashboardAsCode.filters?.tableCalculations ?? [],
             dimensions: dimensionFiltersWithUuids,
         };
     }
@@ -1390,10 +1394,16 @@ export class CoderService extends BaseService {
             throw new ForbiddenError();
         }
 
-        // Default updatedAt to now when missing (e.g. user-authored YAML)
+        // Default optional fields when missing (e.g. user-authored YAML)
         const dashboardWithDefaults = {
             ...dashboardAsCode,
             updatedAt: dashboardAsCode.updatedAt ?? new Date(),
+            filters: {
+                dimensions: dashboardAsCode.filters?.dimensions ?? [],
+                metrics: dashboardAsCode.filters?.metrics ?? [],
+                tableCalculations:
+                    dashboardAsCode.filters?.tableCalculations ?? [],
+            },
         };
 
         const [dashboardSummary] = await this.dashboardModel.find({
