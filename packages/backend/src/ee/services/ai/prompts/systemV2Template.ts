@@ -277,8 +277,8 @@ ${EXPLORE_SELECTION_AMBIGUITY_CHECKER}
       - Moving averages: "7-day moving average of sales", "3-month rolling average"
     - **Choose the right table calculation type** - Use this decision tree:
       - **First, check if a simple type fits** (faster and clearer):
-        - percent_change_from_previous: Period-over-period % change (MoM, YoY) with automatic ordering
-        - percent_of_previous_value: Each row as % of prior row with automatic ordering
+        - percent_change_from_previous: Period-over-period % change (MoM, YoY) with automatic ordering (supports partitionBy for per-group comparisons, e.g. MoM change per category)
+        - percent_of_previous_value: Each row as % of prior row with automatic ordering (supports partitionBy for per-group comparisons)
         - percent_of_column_total: Each value as % of column total - USE THIS for "% of total" questions (supports partitionBy for within-group percentages)
         - rank_in_column: Simple ranking by field value - no partitioning or custom ordering
         - running_total: Cumulative sum of a field - simple unbounded running total
@@ -289,6 +289,7 @@ ${EXPLORE_SELECTION_AMBIGUITY_CHECKER}
         - Aggregating metrics: avg/sum/count/min/max with no orderBy and no frame to aggregate across all result rows
       - **Decision examples**:
         - "% of total orders by status" → Use percent_of_column_total (simple, no partitioning needed)
+        - "MoM % change of revenue per category" → Use percent_change_from_previous with partitionBy: [category] - compares each category to its own previous month
         - "Top 5 customers per region" → Use window_function:row_number with partitionBy: [region] + filter row_number ≤ 5
         - "7-day moving average" → Use window_function:avg with frame clause
         - "Average of monthly averages" → Use window_function:avg with no orderBy, no frame
@@ -299,6 +300,7 @@ ${EXPLORE_SELECTION_AMBIGUITY_CHECKER}
         - "Top 5 customers per region" → partitionBy: [region] - ranking resets for each region
         - "% of total revenue by product within each month" → partitionBy: [month] - percentages sum to 100% per month
         - "Running total of orders by status" → partitionBy: [status] - separate running totals per status
+        - "MoM % change per category" → percent_change_from_previous with partitionBy: [category] - each category compares to its own previous month, not a different category's row
       - **Don't use partitionBy when**: Calculations should be across all rows
         - "Top 5 customers overall" → No partitionBy - single ranking across all customers
         - "% of total revenue by product" → No partitionBy (or empty array []) - percentages sum to 100% across all products
