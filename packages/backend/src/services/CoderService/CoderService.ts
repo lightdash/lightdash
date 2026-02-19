@@ -18,9 +18,7 @@ import {
     friendlyName,
     getContentAsCodePathFromLtreePath,
     getLtreePathFromContentAsCodePath,
-    getLtreePathFromSlug,
     NotFoundError,
-    ParameterError,
     Project,
     PromotionAction,
     PromotionChanges,
@@ -31,6 +29,13 @@ import {
     SqlChartAsCode,
     UpdatedByUser,
     type DashboardTileWithSlug,
+    type FilterGroup,
+    type FilterGroupInput,
+    type FilterGroupItem,
+    type FilterGroupItemInput,
+    type FiltersInput,
+    type FilterRule,
+    type Filters,
     type SpaceSummaryBase,
 } from '@lightdash/common';
 import { v4 as uuidv4 } from 'uuid';
@@ -58,6 +63,39 @@ type CoderServiceArguments = {
     promoteService: PromoteService;
     spacePermissionService: SpacePermissionService;
 };
+
+const normalizeFilterGroupItem = (
+    item: FilterGroupItemInput,
+): FilterGroupItem => {
+    if ('or' in item) {
+        return {
+            ...item,
+            id: item.id ?? uuidv4(),
+            or: item.or.map(normalizeFilterGroupItem),
+        };
+    }
+    if ('and' in item) {
+        return {
+            ...item,
+            id: item.id ?? uuidv4(),
+            and: item.and.map(normalizeFilterGroupItem),
+        };
+    }
+    return { ...(item as FilterRule), id: item.id ?? uuidv4() };
+};
+
+const normalizeFilterGroup = (
+    group: FilterGroupInput | undefined,
+): FilterGroup | undefined => {
+    if (!group) return undefined;
+    return normalizeFilterGroupItem(group) as FilterGroup;
+};
+
+const normalizeFilterIds = (filters: FiltersInput): Filters => ({
+    dimensions: normalizeFilterGroup(filters.dimensions),
+    metrics: normalizeFilterGroup(filters.metrics),
+    tableCalculations: normalizeFilterGroup(filters.tableCalculations),
+});
 
 const isAnyChartTile = (
     tile: DashboardTileAsCode | DashboardTile,
@@ -901,6 +939,10 @@ export class CoderService extends BaseService {
             ...chartAsCode,
             updatedAt: chartAsCode.updatedAt ?? new Date(),
             tableConfig: chartAsCode.tableConfig ?? { columnOrder: [] },
+            metricQuery: {
+                ...chartAsCode.metricQuery,
+                filters: normalizeFilterIds(chartAsCode.metricQuery.filters),
+            },
         };
 
         const [chart] = await this.savedChartModel.find({
@@ -950,9 +992,7 @@ export class CoderService extends BaseService {
                     const newDashboard = await this.dashboardModel.create(
                         space.uuid,
                         {
-                            name: friendlyName(
-                                chartWithDefaults.dashboardSlug,
-                            ),
+                            name: friendlyName(chartWithDefaults.dashboardSlug),
                             tiles: [],
                             slug: chartWithDefaults.dashboardSlug,
                             forceSlug: true,
