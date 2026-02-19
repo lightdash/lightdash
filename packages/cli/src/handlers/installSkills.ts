@@ -286,6 +286,13 @@ export const installSkillsHandler = async (
             },
         });
     } catch (err) {
+        await LightdashAnalytics.track({
+            event: 'command.executed',
+            properties: {
+                command: 'install-skills',
+                durationMs: Date.now() - startTime,
+            },
+        });
         const errorMessage = err instanceof Error ? err.message : String(err);
         spinner.fail(`Failed to fetch skills: ${errorMessage}`);
         throw err;
