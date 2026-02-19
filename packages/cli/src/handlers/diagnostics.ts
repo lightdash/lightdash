@@ -1,5 +1,6 @@
 import { getErrorMessage } from '@lightdash/common';
 import execa from 'execa';
+import { LightdashAnalytics } from '../analytics/analytics';
 import { getConfig } from '../config';
 import {
     CLI_VERSION,
@@ -89,6 +90,7 @@ const runDbtDebug = async (
 };
 
 export const diagnosticsHandler = async (options: DiagnosticsOptions) => {
+    const startTime = Date.now();
     GlobalState.setVerbose(true); // Always verbose for diagnostics
 
     console.log(styles.title('⚡️ Lightdash CLI Diagnostics'));
@@ -176,4 +178,12 @@ export const diagnosticsHandler = async (options: DiagnosticsOptions) => {
         });
         console.log(debugOutput);
     }
+
+    await LightdashAnalytics.track({
+        event: 'command.executed',
+        properties: {
+            command: 'diagnostics',
+            durationMs: Date.now() - startTime,
+        },
+    });
 };

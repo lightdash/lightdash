@@ -1,6 +1,7 @@
 import {
     ApiJobScheduledResponse,
     AuthorizationError,
+    getErrorMessage,
     RenameChange,
     RenameType,
     SchedulerJobStatus,
@@ -8,6 +9,8 @@ import {
 import fs from 'fs';
 import inquirer from 'inquirer';
 import path from 'path';
+import { v4 as uuidv4 } from 'uuid';
+import { categorizeError, LightdashAnalytics } from '../analytics/analytics';
 import * as styles from '../styles';
 
 import { getConfig } from '../config';
@@ -73,6 +76,9 @@ const listResources = (
 export const renameHandler = async (options: RenameHandlerOptions) => {
     GlobalState.setVerbose(options.verbose);
     await checkLightdashVersion();
+
+    const executionId = uuidv4();
+    const startTime = Date.now();
 
     const config = await getConfig();
     if (!config.context?.apiKey || !config.context.serverUrl) {
@@ -182,6 +188,19 @@ export const renameHandler = async (options: RenameHandlerOptions) => {
                 options.list,
             );
         }
+        await LightdashAnalytics.track({
+            event: 'rename.completed',
+            properties: {
+                executionId,
+                projectId: projectUuid,
+                renameType: options.type,
+                isDryRun: options.dryRun,
+                chartsUpdated: results.charts.length,
+                dashboardsUpdated: results.dashboards.length,
+                durationMs: Date.now() - startTime,
+            },
+        });
+
         const hasResults =
             results.charts.length > 0 ||
             results.dashboards.length > 0 ||
@@ -225,7 +244,15 @@ export const renameHandler = async (options: RenameHandlerOptions) => {
             console.info(validation);
         }
     } catch (e: unknown) {
-        // We lose the error type on the waitUntilFinished method
+        await LightdashAnalytics.track({
+            event: 'rename.error',
+            properties: {
+                executionId,
+                error: getErrorMessage(e),
+                errorCategory: categorizeError(e),
+            },
+        });
+
         const errorString = `${e}`;
         if (errorString.includes(`Rename failed`)) {
             console.error(errorString);

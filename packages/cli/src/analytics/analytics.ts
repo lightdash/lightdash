@@ -1,9 +1,29 @@
-import { LightdashUser } from '@lightdash/common';
+import { LightdashError, LightdashUser } from '@lightdash/common';
 import fetch from 'node-fetch';
 import { Config, getConfig } from '../config';
+import { getInstallMethod } from '../env';
+import GlobalState from '../globalState';
 import { lightdashApi } from '../handlers/dbt/apiClient';
 
 const { version: VERSION } = require('../../package.json');
+
+type CIInfo = {
+    isCI: boolean;
+    ciProvider: string | null;
+};
+
+const detectCI = (): CIInfo => {
+    if (process.env.GITHUB_ACTIONS)
+        return { isCI: true, ciProvider: 'github_actions' };
+    if (process.env.GITLAB_CI) return { isCI: true, ciProvider: 'gitlab' };
+    if (process.env.CIRCLECI) return { isCI: true, ciProvider: 'circleci' };
+    if (process.env.JENKINS_URL) return { isCI: true, ciProvider: 'jenkins' };
+    if (process.env.BITBUCKET_PIPELINE_UUID)
+        return { isCI: true, ciProvider: 'bitbucket' };
+    if (process.env.TF_BUILD) return { isCI: true, ciProvider: 'azure_devops' };
+    if (process.env.CI) return { isCI: true, ciProvider: 'unknown' };
+    return { isCI: false, ciProvider: null };
+};
 
 const identifyUser = async (): Promise<Config['user']> => {
     const config = await getConfig();
@@ -52,7 +72,7 @@ type CliGenerateExposuresCompleted = BaseTrack & {
     properties: {
         executionId: string;
         countExposures: number;
-        durationMs?: number;
+        durationMs: number;
     };
 };
 type CliGenerateExposuresError = BaseTrack & {
@@ -76,7 +96,7 @@ type CliGenerateCompleted = BaseTrack & {
         executionId: string;
         numModelsSelected: number | undefined;
         trigger: string; // generate or dbt
-        durationMs?: number;
+        durationMs: number;
     };
 };
 type CliGenerateError = BaseTrack & {
@@ -123,7 +143,7 @@ type CliPreviewCompleted = BaseTrack & {
     properties: {
         executionId: string;
         projectId: string;
-        durationMs?: number;
+        durationMs: number;
     };
 };
 type CliPreviewStopped = BaseTrack & {
@@ -131,7 +151,7 @@ type CliPreviewStopped = BaseTrack & {
     properties: {
         executionId: string;
         projectId: string;
-        durationMs?: number;
+        durationMs: number;
     };
 };
 type CliPreviewError = BaseTrack & {
@@ -155,7 +175,7 @@ type CliRefreshCompleted = BaseTrack & {
     properties: {
         executionId: string;
         projectId: string;
-        durationMs?: number;
+        durationMs: number;
     };
 };
 type CliRefreshError = BaseTrack & {
@@ -185,7 +205,7 @@ type CliCompileCompleted = BaseTrack & {
         errors: number;
         dbtMetrics: number;
         dbtVersion?: string;
-        durationMs?: number;
+        durationMs: number;
     };
 };
 type CliCompileError = BaseTrack & {
@@ -201,7 +221,7 @@ type CliDeployTriggered = BaseTrack & {
     event: 'deploy.triggered';
     properties: {
         projectId: string;
-        durationMs?: number;
+        durationMs: number;
         payloadSizeBytes?: number;
     };
 };
@@ -220,7 +240,7 @@ type CliCreateCompleted = BaseTrack & {
         executionId: string;
         projectId: string;
         projectName: string;
-        durationMs?: number;
+        durationMs: number;
     };
 };
 type CliCreateError = BaseTrack & {
@@ -304,6 +324,109 @@ type CliLightdashConfigLoaded = BaseTrack & {
     };
 };
 
+type CliValidateStarted = BaseTrack & {
+    event: 'validate.started';
+    properties: {
+        executionId: string;
+        projectId: string;
+        isPreview: boolean;
+        validationTargets: string[];
+    };
+};
+type CliValidateCompleted = BaseTrack & {
+    event: 'validate.completed';
+    properties: {
+        executionId: string;
+        projectId: string;
+        isPreview: boolean;
+        validationTargets: string[];
+        durationMs: number;
+        totalErrors: number;
+        tableErrors: number;
+        chartErrors: number;
+        dashboardErrors: number;
+    };
+};
+type CliValidateError = BaseTrack & {
+    event: 'validate.error';
+    properties: {
+        executionId: string;
+        error: string;
+        errorCategory: string;
+    };
+};
+
+type CliSqlStarted = BaseTrack & {
+    event: 'sql.started';
+    properties: {
+        executionId: string;
+        projectId: string;
+    };
+};
+type CliSqlCompleted = BaseTrack & {
+    event: 'sql.completed';
+    properties: {
+        executionId: string;
+        projectId: string;
+        rowCount: number;
+        columnCount: number;
+        durationMs: number;
+    };
+};
+type CliSqlError = BaseTrack & {
+    event: 'sql.error';
+    properties: {
+        executionId: string;
+        error: string;
+        errorCategory: string;
+    };
+};
+
+type CliLintCompleted = BaseTrack & {
+    event: 'lint.completed';
+    properties: {
+        executionId: string;
+        filesScanned: number;
+        lightdashFilesFound: number;
+        validFiles: number;
+        invalidFiles: number;
+        chartFiles: number;
+        dashboardFiles: number;
+        modelFiles: number;
+        outputFormat: string;
+        durationMs: number;
+    };
+};
+
+type CliRenameCompleted = BaseTrack & {
+    event: 'rename.completed';
+    properties: {
+        executionId: string;
+        projectId: string;
+        renameType: string;
+        isDryRun: boolean;
+        chartsUpdated: number;
+        dashboardsUpdated: number;
+        durationMs: number;
+    };
+};
+type CliRenameError = BaseTrack & {
+    event: 'rename.error';
+    properties: {
+        executionId: string;
+        error: string;
+        errorCategory: string;
+    };
+};
+
+type CliCommandExecuted = BaseTrack & {
+    event: 'command.executed';
+    properties: {
+        command: string;
+        durationMs: number;
+    };
+};
+
 type Track =
     | CliGenerateStarted
     | CliGenerateCompleted
@@ -332,18 +455,66 @@ type Track =
     | CliGenerateExposuresError
     | CliLogin
     | CliContentAsCode
-    | CliLightdashConfigLoaded;
+    | CliLightdashConfigLoaded
+    | CliValidateStarted
+    | CliValidateCompleted
+    | CliValidateError
+    | CliSqlStarted
+    | CliSqlCompleted
+    | CliSqlError
+    | CliLintCompleted
+    | CliRenameCompleted
+    | CliRenameError
+    | CliCommandExecuted;
+
+const ERROR_NAME_TO_CATEGORY: Record<string, string> = {
+    ForbiddenError: 'forbidden',
+    AuthorizationError: 'authorization',
+    ParameterError: 'parameter',
+    NotFoundError: 'not_found',
+    CompileError: 'compile',
+    DbtError: 'dbt',
+    WarehouseConnectionError: 'warehouse_connection',
+    WarehouseQueryError: 'warehouse_query',
+};
+
+export const categorizeError = (error: unknown): string => {
+    if (error instanceof LightdashError) {
+        return ERROR_NAME_TO_CATEGORY[error.name] ?? 'lightdash';
+    }
+    if (error instanceof Error) {
+        const msg = error.message;
+        if (
+            msg.includes('ECONNREFUSED') ||
+            msg.includes('ENOTFOUND') ||
+            msg.includes('ETIMEDOUT')
+        ) {
+            return 'network';
+        }
+    }
+    return 'unknown';
+};
 
 export class LightdashAnalytics {
+    private static getWriteKey(): string {
+        return process.env.NODE_ENV === 'development'
+            ? 'MXZpa2VHYWR0QjBZMG9SREZOTDJQcmRoa2JwOg=='
+            : 'MXZxa1NsV01WdFlPbDcwcmszUVNFMHYxZnFZOg==';
+    }
+
     static async track(payload: Track): Promise<void> {
         try {
             const user = await identifyUser();
+            const ci = detectCI();
             const lightdashContext = {
                 app: {
                     namespace: 'lightdash',
                     name: 'lightdash_cli',
                     version: VERSION,
+                    installMethod: getInstallMethod(),
+                    sessionId: GlobalState.getSessionId(),
                 },
+                ci,
             };
 
             const body = {
@@ -354,14 +525,35 @@ export class LightdashAnalytics {
                 context: { ...lightdashContext },
             };
 
-            const encodedWriteKey =
-                process.env.NODE_ENV === 'development'
-                    ? 'MXZpa2VHYWR0QjBZMG9SREZOTDJQcmRoa2JwOg=='
-                    : 'MXZxa1NsV01WdFlPbDcwcmszUVNFMHYxZnFZOg==';
             await fetch('https://analytics.lightdash.com/v1/track', {
                 method: 'POST',
                 headers: {
-                    Authorization: `Basic ${encodedWriteKey}`,
+                    Authorization: `Basic ${LightdashAnalytics.getWriteKey()}`,
+                },
+                body: JSON.stringify(body),
+            });
+        } catch (e) {
+            // do nothing
+        }
+    }
+
+    static async identify(traits: Record<string, unknown>): Promise<void> {
+        try {
+            const user = await identifyUser();
+            const body = {
+                anonymousId: user?.anonymousUuid,
+                userId: user?.userUuid,
+                traits: {
+                    cli_version: VERSION,
+                    install_method: getInstallMethod(),
+                    ...traits,
+                },
+            };
+
+            await fetch('https://analytics.lightdash.com/v1/identify', {
+                method: 'POST',
+                headers: {
+                    Authorization: `Basic ${LightdashAnalytics.getWriteKey()}`,
                 },
                 body: JSON.stringify(body),
             });

@@ -1,6 +1,7 @@
 import { OrganizationProject } from '@lightdash/common';
 import inquirer from 'inquirer';
 import { URL } from 'url';
+import { LightdashAnalytics } from '../analytics/analytics';
 import { getConfig, setProject } from '../config';
 import GlobalState from '../globalState';
 import { lightdashApi } from './dbt/apiClient';
@@ -90,6 +91,14 @@ export const setFirstProject = async () => {
 };
 
 export const setProjectHandler = async (options: SetProjectOptions) => {
+    const startTime = Date.now();
     GlobalState.setVerbose(options.verbose);
-    return setProjectCommand(options.name, options.uuid);
+    await setProjectCommand(options.name, options.uuid);
+    await LightdashAnalytics.track({
+        event: 'command.executed',
+        properties: {
+            command: 'set-project',
+            durationMs: Date.now() - startTime,
+        },
+    });
 };
