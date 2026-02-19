@@ -39,13 +39,7 @@ export const IconBox: FC<IconBoxProps> = ({
     bg = 'ldGray.0',
     ...mantineIconProps
 }) => (
-    <Paper
-        w={32}
-        h={32}
-        radius="md"
-        bg={bg}
-        className={classes.iconBox}
-    >
+    <Paper w={32} h={32} radius="md" bg={bg} className={classes.iconBox}>
         <MantineIcon
             icon={icon}
             color={color}
@@ -65,8 +59,10 @@ export const ChartIcon: FC<{
     <IconBox
         icon={getChartIcon(chartKind)}
         color={color ?? 'blue.6'}
-        transform={
-            chartKind === ChartKind.HORIZONTAL_BAR ? 'rotate(90)' : undefined
+        style={
+            chartKind === ChartKind.HORIZONTAL_BAR
+                ? { rotate: '90deg' }
+                : undefined
         }
     />
 );

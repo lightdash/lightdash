@@ -75,6 +75,7 @@ const MantineIcon = forwardRef<SVGSVGElement, MantineIconProps>(
             color,
             fill,
             display = 'block',
+            style,
             ...rest
         },
         ref,
@@ -99,6 +100,7 @@ const MantineIcon = forwardRef<SVGSVGElement, MantineIconProps>(
                     ...(typeof stroke === 'number' && {
                         strokeWidth: stroke,
                     }),
+                    ...style,
                 }}
             />
         );
