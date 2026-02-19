@@ -7,8 +7,10 @@ import type { ErrorObject } from 'ajv';
 import chalk from 'chalk';
 import * as fs from 'fs';
 import * as path from 'path';
+import { v4 as uuidv4 } from 'uuid';
 import * as YAML from 'yaml';
 import { ajv } from '../ajv';
+import { LightdashAnalytics } from '../analytics/analytics';
 import { createSarifReport } from './lint/ajvToSarif';
 import { formatSarifForCli, getSarifSummary } from './lint/sarifFormatter';
 
@@ -247,6 +249,8 @@ function validateFile(filePath: string): FileValidationResult {
 }
 
 export async function lintHandler(options: LintOptions): Promise<void> {
+    const executionId = uuidv4();
+    const startTime = Date.now();
     const searchPath = path.resolve(options.path || process.cwd());
     const outputFormat = options.format || 'cli';
 
@@ -270,6 +274,21 @@ export async function lintHandler(options: LintOptions): Promise<void> {
                 chalk.yellow('No YAML/JSON files found in the specified path.'),
             );
         }
+        await LightdashAnalytics.track({
+            event: 'lint.completed',
+            properties: {
+                executionId,
+                filesScanned: 0,
+                lightdashFilesFound: 0,
+                validFiles: 0,
+                invalidFiles: 0,
+                chartFiles: 0,
+                dashboardFiles: 0,
+                modelFiles: 0,
+                outputFormat,
+                durationMs: Date.now() - startTime,
+            },
+        });
         return;
     }
 
@@ -296,12 +315,30 @@ export async function lintHandler(options: LintOptions): Promise<void> {
                 ),
             );
         }
+        await LightdashAnalytics.track({
+            event: 'lint.completed',
+            properties: {
+                executionId,
+                filesScanned: codeFiles.length,
+                lightdashFilesFound: 0,
+                validFiles: 0,
+                invalidFiles: 0,
+                chartFiles: 0,
+                dashboardFiles: 0,
+                modelFiles: 0,
+                outputFormat,
+                durationMs: Date.now() - startTime,
+            },
+        });
         return;
     }
 
     // Convert to SARIF format
     const invalidResults = results.filter((r) => !r.valid);
     const validCount = results.length - invalidResults.length;
+    const chartFiles = results.filter((r) => r.type === 'chart').length;
+    const dashboardFiles = results.filter((r) => r.type === 'dashboard').length;
+    const modelFiles = results.filter((r) => r.type === 'model').length;
 
     // Build SARIF report from invalid results
     const sarifResults = invalidResults
@@ -327,21 +364,37 @@ export async function lintHandler(options: LintOptions): Promise<void> {
             console.log(
                 chalk.green('\n✓ All Lightdash Code files are valid!\n'),
             );
-            return;
+        } else {
+            // Show summary
+            console.log(
+                chalk.bold(
+                    `\nValidated ${results.length} Lightdash Code files:`,
+                ),
+            );
+            console.log(chalk.green(`  ✓ ${validCount} valid`));
+            console.log(chalk.red(`  ✗ ${summary.totalFiles} invalid`));
+
+            // Show formatted errors (starts with newline, so we don't need extra spacing)
+            console.log(formatSarifForCli(sarifLog, searchPath));
         }
-
-        // Show summary
-        console.log(
-            chalk.bold(`\nValidated ${results.length} Lightdash Code files:`),
-        );
-        console.log(chalk.green(`  ✓ ${validCount} valid`));
-        console.log(chalk.red(`  ✗ ${summary.totalFiles} invalid`));
-
-        // Show formatted errors (starts with newline, so we don't need extra spacing)
-        console.log(formatSarifForCli(sarifLog, searchPath));
     }
 
-    // Exit with error if there were validation failures
+    await LightdashAnalytics.track({
+        event: 'lint.completed',
+        properties: {
+            executionId,
+            filesScanned: codeFiles.length,
+            lightdashFilesFound: results.length,
+            validFiles: validCount,
+            invalidFiles: invalidResults.length,
+            chartFiles,
+            dashboardFiles,
+            modelFiles,
+            outputFormat,
+            durationMs: Date.now() - startTime,
+        },
+    });
+
     if (invalidResults.length > 0) {
         process.exit(2);
     }

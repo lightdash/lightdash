@@ -295,6 +295,7 @@ export const login = async (
             method: loginMethod,
         },
     });
+    await LightdashAnalytics.identify({ organizationId: organizationUuid });
     await setContext({
         serverUrl: url,
         apiKey: token,

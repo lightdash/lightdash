@@ -5,6 +5,7 @@ import {
     Explore,
     ExploreError,
     formatDate,
+    getErrorMessage,
     isChartValidationError,
     isDashboardValidationError,
     isTableValidationError,
@@ -15,6 +16,8 @@ import {
     ValidationTarget,
 } from '@lightdash/common';
 import columnify from 'columnify';
+import { v4 as uuidv4 } from 'uuid';
+import { categorizeError, LightdashAnalytics } from '../analytics/analytics';
 import { getConfig } from '../config';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
@@ -87,12 +90,28 @@ export const validateHandler = async (options: ValidateHandlerOptions) => {
     GlobalState.setVerbose(options.verbose);
     await checkLightdashVersion();
 
+    const executionId = uuidv4();
+    const startTime = Date.now();
+
     const config = await getConfig();
 
     // Log current project info
     GlobalState.logProjectInfo(config);
 
-    const explores = await compile(options);
+    let explores: (Explore | ExploreError)[];
+    try {
+        explores = await compile(options);
+    } catch (e) {
+        await LightdashAnalytics.track({
+            event: 'validate.error',
+            properties: {
+                executionId,
+                error: getErrorMessage(e),
+                errorCategory: categorizeError(e),
+            },
+        });
+        throw e;
+    }
     GlobalState.debug(`> Compiled ${explores.length} explores`);
 
     const selectedProject = options.preview
@@ -112,7 +131,9 @@ export const validateHandler = async (options: ValidateHandlerOptions) => {
         );
     }
 
-    if (projectUuid === config.context?.previewProject) {
+    const isPreview = projectUuid === config.context?.previewProject;
+
+    if (isPreview) {
         console.error(
             `Validating preview project ${styles.bold(
                 config.context?.previewName,
@@ -128,134 +149,182 @@ export const validateHandler = async (options: ValidateHandlerOptions) => {
         console.error(`Validating project ${projectUuid}\n`);
     }
 
-    const timeStart = new Date();
     const validationTargets = options.only ? options.only : [];
-    const validationJob = await requestValidation(
-        projectUuid,
-        explores,
-        validationTargets,
-    );
 
-    const { jobId } = validationJob;
+    await LightdashAnalytics.track({
+        event: 'validate.started',
+        properties: {
+            executionId,
+            projectId: projectUuid,
+            isPreview,
+            validationTargets,
+        },
+    });
 
-    const spinner = GlobalState.startSpinner(
-        `  Waiting for validation to finish`,
-    );
-
-    await waitUntilFinished(jobId);
-
-    const allValidation = await getValidation(projectUuid, jobId);
-
-    // Filter out chart configuration warnings unless explicitly requested
-    const validation = options.showChartConfigurationWarnings
-        ? allValidation
-        : allValidation.filter(
-              (v) =>
-                  !isChartValidationError(v) ||
-                  v.errorType !== ValidationErrorType.ChartConfiguration,
-          );
-
-    const hiddenWarningsCount = allValidation.length - validation.length;
-
-    if (validation.length === 0) {
-        const timeInSeconds = new Date().getTime() - timeStart.getTime();
-        const hiddenMessage =
-            hiddenWarningsCount > 0
-                ? ` (${hiddenWarningsCount} chart configuration warning${
-                      hiddenWarningsCount > 1 ? 's' : ''
-                  } hidden, use --show-chart-configuration-warnings to show)`
-                : '';
-        spinner?.succeed(
-            `  Validation finished without errors in ${Math.trunc(
-                timeInSeconds / 1000,
-            )}s${hiddenMessage}`,
-        );
-    } else {
-        const timeInSeconds = new Date().getTime() - timeStart.getTime();
-        spinner?.fail(
-            `  Validation finished in ${Math.trunc(
-                timeInSeconds / 1000,
-            )}s with ${validation.length} errors`,
+    let allValidation;
+    try {
+        const validationJob = await requestValidation(
+            projectUuid,
+            explores,
+            validationTargets,
         );
 
+        const { jobId } = validationJob;
+
+        const spinner = GlobalState.startSpinner(
+            `  Waiting for validation to finish`,
+        );
+
+        await waitUntilFinished(jobId);
+
+        allValidation = await getValidation(projectUuid, jobId);
+
+        // Filter out chart configuration warnings unless explicitly requested
+        const validation = options.showChartConfigurationWarnings
+            ? allValidation
+            : allValidation.filter(
+                  (v) =>
+                      !isChartValidationError(v) ||
+                      v.errorType !== ValidationErrorType.ChartConfiguration,
+              );
+
+        const hiddenWarningsCount = allValidation.length - validation.length;
         const tableErrors = validation.filter(isTableValidationError);
         const chartErrors = validation.filter(isChartValidationError);
         const dashboardErrors = validation.filter(isDashboardValidationError);
-        const validationTargetsSet = new Set(validationTargets);
-        const hasValidationTargets = validationTargetsSet.size > 0;
 
-        console.error('\n');
-
-        if (
-            !hasValidationTargets ||
-            validationTargetsSet.has(ValidationTarget.TABLES)
-        ) {
-            console.error(`- Tables: ${styleTotalErrors(tableErrors.length)}`);
-        }
-
-        if (
-            !hasValidationTargets ||
-            validationTargetsSet.has(ValidationTarget.CHARTS)
-        ) {
-            console.error(`- Charts: ${styleTotalErrors(chartErrors.length)}`);
-        }
-
-        if (
-            !hasValidationTargets ||
-            validationTargetsSet.has(ValidationTarget.DASHBOARDS)
-        ) {
-            console.error(
-                `- Dashboards: ${styleTotalErrors(dashboardErrors.length)}`,
-            );
-        }
-
-        console.error('\n');
-
-        const validationOutput = validation.map((v) => ({
-            name: styles.error(v.name),
-            error: styles.warning(
-                isChartValidationError(v) &&
-                    v.errorType === ValidationErrorType.ChartConfiguration &&
-                    v.fieldName
-                    ? `Chart configuration warning: '${v.fieldName}' - ${v.error}`
-                    : v.error,
-            ),
-            'last updated by':
-                isChartValidationError(v) || isDashboardValidationError(v)
-                    ? styles.secondary(v.lastUpdatedBy)
-                    : '',
-            'last updated at':
-                isChartValidationError(v) || isDashboardValidationError(v)
-                    ? styles.secondary(formatDate(v.lastUpdatedAt))
-                    : '',
-        }));
-
-        const columns = columnify(validationOutput, {
-            columns: ['name', 'last updated by', 'last updated at', 'error'],
-            config: {
-                'last updated at': {
-                    align: 'center',
-                },
+        await LightdashAnalytics.track({
+            event: 'validate.completed',
+            properties: {
+                executionId,
+                projectId: projectUuid,
+                isPreview,
+                validationTargets,
+                durationMs: Date.now() - startTime,
+                totalErrors: validation.length,
+                tableErrors: tableErrors.length,
+                chartErrors: chartErrors.length,
+                dashboardErrors: dashboardErrors.length,
             },
         });
-        console.error(columns);
 
-        console.error(
-            `\n--> To see these errors in Lightdash, run ${styles.bold(
-                `lightdash preview`,
-            )}`,
-        );
+        if (validation.length === 0) {
+            const timeInSeconds = Date.now() - startTime;
+            const hiddenMessage =
+                hiddenWarningsCount > 0
+                    ? ` (${hiddenWarningsCount} chart configuration warning${
+                          hiddenWarningsCount > 1 ? 's' : ''
+                      } hidden, use --show-chart-configuration-warnings to show)`
+                    : '';
+            spinner?.succeed(
+                `  Validation finished without errors in ${Math.trunc(
+                    timeInSeconds / 1000,
+                )}s${hiddenMessage}`,
+            );
+        } else {
+            const timeInSeconds = Date.now() - startTime;
+            spinner?.fail(
+                `  Validation finished in ${Math.trunc(
+                    timeInSeconds / 1000,
+                )}s with ${validation.length} errors`,
+            );
 
-        if (hiddenWarningsCount > 0) {
+            const validationTargetsSet = new Set(validationTargets);
+            const hasValidationTargets = validationTargetsSet.size > 0;
+
+            console.error('\n');
+
+            if (
+                !hasValidationTargets ||
+                validationTargetsSet.has(ValidationTarget.TABLES)
+            ) {
+                console.error(
+                    `- Tables: ${styleTotalErrors(tableErrors.length)}`,
+                );
+            }
+
+            if (
+                !hasValidationTargets ||
+                validationTargetsSet.has(ValidationTarget.CHARTS)
+            ) {
+                console.error(
+                    `- Charts: ${styleTotalErrors(chartErrors.length)}`,
+                );
+            }
+
+            if (
+                !hasValidationTargets ||
+                validationTargetsSet.has(ValidationTarget.DASHBOARDS)
+            ) {
+                console.error(
+                    `- Dashboards: ${styleTotalErrors(dashboardErrors.length)}`,
+                );
+            }
+
+            console.error('\n');
+
+            const validationOutput = validation.map((v) => ({
+                name: styles.error(v.name),
+                error: styles.warning(
+                    isChartValidationError(v) &&
+                        v.errorType ===
+                            ValidationErrorType.ChartConfiguration &&
+                        v.fieldName
+                        ? `Chart configuration warning: '${v.fieldName}' - ${v.error}`
+                        : v.error,
+                ),
+                'last updated by':
+                    isChartValidationError(v) || isDashboardValidationError(v)
+                        ? styles.secondary(v.lastUpdatedBy)
+                        : '',
+                'last updated at':
+                    isChartValidationError(v) || isDashboardValidationError(v)
+                        ? styles.secondary(formatDate(v.lastUpdatedAt))
+                        : '',
+            }));
+
+            const columns = columnify(validationOutput, {
+                columns: [
+                    'name',
+                    'last updated by',
+                    'last updated at',
+                    'error',
+                ],
+                config: {
+                    'last updated at': {
+                        align: 'center',
+                    },
+                },
+            });
+            console.error(columns);
+
             console.error(
-                `\n${styles.secondary(
-                    `Note: ${hiddenWarningsCount} chart configuration warning${
-                        hiddenWarningsCount > 1 ? 's' : ''
-                    } hidden. Use --show-chart-configuration-warnings to show.`,
+                `\n--> To see these errors in Lightdash, run ${styles.bold(
+                    `lightdash preview`,
                 )}`,
             );
-        }
 
-        process.exit(1);
+            if (hiddenWarningsCount > 0) {
+                console.error(
+                    `\n${styles.secondary(
+                        `Note: ${hiddenWarningsCount} chart configuration warning${
+                            hiddenWarningsCount > 1 ? 's' : ''
+                        } hidden. Use --show-chart-configuration-warnings to show.`,
+                    )}`,
+                );
+            }
+
+            process.exit(1);
+        }
+    } catch (e) {
+        await LightdashAnalytics.track({
+            event: 'validate.error',
+            properties: {
+                executionId,
+                error: getErrorMessage(e),
+                errorCategory: categorizeError(e),
+            },
+        });
+        throw e;
     }
 };
