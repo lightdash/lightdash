@@ -41,7 +41,21 @@ type Props = {
 };
 
 export const Series: FC<Props> = ({ items }) => {
-    const { visualizationConfig, getSeriesColor } = useVisualizationContext();
+    const {
+        visualizationConfig,
+        getSeriesColor,
+        pivotDimensions,
+        resultsData,
+    } = useVisualizationContext();
+
+    const sortedByPivot = useMemo(
+        () =>
+            !!pivotDimensions?.length &&
+            !!resultsData?.metricQuery?.sorts?.some((sort) =>
+                pivotDimensions.includes(sort.fieldId),
+            ),
+        [pivotDimensions, resultsData?.metricQuery?.sorts],
+    );
 
     const isCartesianChart =
         isCartesianVisualizationConfig(visualizationConfig);
@@ -170,6 +184,7 @@ export const Series: FC<Props> = ({ items }) => {
                                         key={getSeriesId(seriesEntry)}
                                         draggableId={getSeriesId(seriesEntry)}
                                         index={i}
+                                        isDragDisabled={sortedByPivot}
                                     >
                                         {(
                                             {
@@ -204,6 +219,9 @@ export const Series: FC<Props> = ({ items }) => {
                                                             dragHandleProps={
                                                                 dragHandleProps
                                                             }
+                                                            isDragDisabled={
+                                                                sortedByPivot
+                                                            }
                                                             updateSeries={
                                                                 updateSeries
                                                             }
@@ -234,6 +252,9 @@ export const Series: FC<Props> = ({ items }) => {
                                                             }
                                                             dragHandleProps={
                                                                 dragHandleProps
+                                                            }
+                                                            isDragDisabled={
+                                                                sortedByPivot
                                                             }
                                                         />
                                                     )}

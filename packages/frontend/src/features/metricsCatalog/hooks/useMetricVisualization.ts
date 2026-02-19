@@ -430,14 +430,23 @@ export function useMetricVisualization({
             itemsMap: createQuery.data?.fields ?? {},
         });
 
+        const pivotKeys = segmentDimensionId ? [segmentDimensionId] : undefined;
+        const sortedByPivot =
+            !!pivotKeys?.length &&
+            !!executedMetricQuery?.sorts?.some((sort) =>
+                pivotKeys.includes(sort.fieldId),
+            );
+
         return mergeExistingAndExpectedSeries({
             expectedSeriesMap,
             existingSeries: chartConfig.config.eChartsConfig.series ?? [],
+            sortedByPivot,
         });
     }, [
         chartConfig,
         queryResults,
         executedMetricQuery?.dimensions,
+        executedMetricQuery?.sorts,
         segmentDimensionId,
         createQuery.data?.fields,
     ]);
