@@ -1,3 +1,15 @@
+# [0.2487.0](https://github.com/lightdash/lightdash/compare/0.2486.0...0.2487.0) (2026-02-19)
+
+
+### Bug Fixes
+
+* maintain pivot series order based on query sort ([#20435](https://github.com/lightdash/lightdash/issues/20435)) ([517310f](https://github.com/lightdash/lightdash/commit/517310f0637defdc7f61a311cf28561663eeb807))
+
+
+### Features
+
+* add migrations for user default spaces ([#20334](https://github.com/lightdash/lightdash/issues/20334)) ([aa4c4d4](https://github.com/lightdash/lightdash/commit/aa4c4d4632834656c0f8715cea62a6e3ddd0a365))
+
 # [0.2486.0](https://github.com/lightdash/lightdash/compare/0.2485.2...0.2486.0) (2026-02-19)
 
 
