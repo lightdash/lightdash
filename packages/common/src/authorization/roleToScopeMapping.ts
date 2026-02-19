@@ -45,7 +45,6 @@ const BASE_ROLE_SCOPES = {
         // Space-level content management (requires space admin/editor role)
         'manage:Dashboard@space', // Via space access
         'manage:SavedChart@space', // Via space access
-        'manage:SavedChart@defaultUserSpace', // Via default user space
         'manage:Space@assigned', // Via space access (admin role)
 
         // Enterprise scopes

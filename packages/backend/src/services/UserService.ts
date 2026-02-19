@@ -41,6 +41,7 @@ import {
     RegisterOrActivateUser,
     SessionUser,
     SnowflakeAuthenticationType,
+    SpaceMemberRole,
     UpdateUserArgs,
     UpsertUserWarehouseCredentials,
     UserAllowedOrganization,
@@ -1609,8 +1610,14 @@ export class UserService extends BaseService {
                         subject('SavedChart', {
                             projectUuid: project.projectUuid,
                             organizationUuid: sessionUser.organizationUuid,
-                            isDefaultUserSpace: true,
-                            spaceCreatedBy: sessionUser.userUuid,
+                            access: [
+                                {
+                                    userUuid: sessionUser.userUuid,
+                                    // We already know that we'll assign ADMIN permissions
+                                    // for the user in their default space
+                                    role: SpaceMemberRole.ADMIN,
+                                },
+                            ],
                         }),
                     ) ||
                     sessionUser.ability.cannot(

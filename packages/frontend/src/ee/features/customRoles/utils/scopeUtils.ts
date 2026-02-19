@@ -18,9 +18,7 @@ export type GroupedScopes = {
 };
 
 export const getScopesByGroup = (isEnterprise = false): GroupedScopes[] => {
-    const allScopes = getScopes({ isEnterprise }).filter(
-        (scope) => !scope.isInternal,
-    );
+    const allScopes = getScopes({ isEnterprise });
 
     const grouped = allScopes.reduce(
         (acc, scope) => {

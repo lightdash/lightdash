@@ -47,13 +47,7 @@ type ProjectScopeContext = BaseScopeContext & {
  */
 export type ScopeContext = OrganizationScopeContext | ProjectScopeContext;
 
-export type ScopeModifer =
-    | 'self'
-    | 'public'
-    | 'assigned'
-    | 'space'
-    | 'preview'
-    | 'defaultUserSpace';
+export type ScopeModifer = 'self' | 'public' | 'assigned' | 'space' | 'preview';
 type OptionalModifier = `${'' | `@${ScopeModifer}`}`;
 
 /**
@@ -79,10 +73,6 @@ export type Scope = {
      * Whether this is a commercial/enterprise feature requiring an enterprise license
      */
     isEnterprise: boolean;
-    /**
-     * Whether this scope is for internal use only and should not be shown in the custom roles UI
-     */
-    isInternal?: boolean;
     /**
      * The grouping from the ScopeGroup enum
      */
