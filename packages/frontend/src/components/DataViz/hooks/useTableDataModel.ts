@@ -55,7 +55,7 @@ export const useTableDataModel = ({
             // we found the fix here -> https://github.com/TanStack/table/issues/1671
             // do not remove the line below
             accessorFn: TableDataModel.getColumnsAccessorFn(column),
-            header: config?.columns[column].label || column,
+            header: config?.columns?.[column]?.label || column,
             cell: getValueCell,
         }));
     }, [columns, config?.columns]);
