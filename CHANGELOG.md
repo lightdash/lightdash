@@ -1,3 +1,10 @@
+# [0.2497.0](https://github.com/lightdash/lightdash/compare/0.2496.0...0.2497.0) (2026-02-19)
+
+
+### Features
+
+* make dashboard filter arrays optional in DashboardAsCode ([#20457](https://github.com/lightdash/lightdash/issues/20457)) ([9273eb9](https://github.com/lightdash/lightdash/commit/9273eb9f4e6bd551a14dfd15b3c6f53e4fd84a7e))
+
 # [0.2496.0](https://github.com/lightdash/lightdash/compare/0.2495.0...0.2496.0) (2026-02-19)
 
 
