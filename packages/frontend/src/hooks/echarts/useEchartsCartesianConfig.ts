@@ -110,6 +110,8 @@ type GroupLimitResult = {
     aggregatedKeys: string[];
     /** The key used for the "Other" group (equals otherLabel when aggregation occurred) */
     otherKey: string | null;
+    /** Actual pivot values from the groups combined into "Other" (for view-underlying-data) */
+    otherGroupPivotValues: Array<{ field: string; value: unknown }>;
 };
 
 /**
@@ -122,7 +124,7 @@ const applyGroupLimit = (
     groupLimit: GroupLimitConfig,
 ): GroupLimitResult => {
     if (!groupLimit.enabled || rows.length === 0) {
-        return { rows, rowKeyMap, aggregatedKeys: [], otherKey: null };
+        return { rows, rowKeyMap, aggregatedKeys: [], otherKey: null, otherGroupPivotValues: [] };
     }
 
     const { maxGroups, otherLabel } = groupLimit;
@@ -141,7 +143,7 @@ const applyGroupLimit = (
 
     // If we have fewer pivot groups than the limit, no aggregation needed
     if (pivotKeys.length <= maxGroups) {
-        return { rows, rowKeyMap, aggregatedKeys: [], otherKey: null };
+        return { rows, rowKeyMap, aggregatedKeys: [], otherKey: null, otherGroupPivotValues: [] };
     }
 
     // Calculate total value for each pivot key across all rows
@@ -175,7 +177,7 @@ const applyGroupLimit = (
     const otherGroupKeys = pivotTotals.slice(maxGroups).map((g) => g.key);
 
     if (otherGroupKeys.length === 0) {
-        return { rows, rowKeyMap, aggregatedKeys: [], otherKey: null };
+        return { rows, rowKeyMap, aggregatedKeys: [], otherKey: null, otherGroupPivotValues: [] };
     }
 
     // Create new rowKeyMap with only top groups + "Other"
@@ -249,11 +251,25 @@ const applyGroupLimit = (
         return newRow;
     });
 
+    // Collect actual pivot values from the aggregated groups for view-underlying-data
+    const otherGroupPivotValues = otherGroupKeys.flatMap((key) => {
+        const ref = rowKeyMap[key];
+        if (
+            typeof ref === 'object' &&
+            'pivotValues' in ref &&
+            ref.pivotValues
+        ) {
+            return ref.pivotValues;
+        }
+        return [];
+    });
+
     return {
         rows: newRows,
         rowKeyMap: newRowKeyMap,
         aggregatedKeys: otherGroupKeys,
-        otherKey: otherLabel, // Keep returning the label for display purposes
+        otherKey: otherLabel,
+        otherGroupPivotValues,
     };
 };
 
@@ -2494,17 +2510,22 @@ const useEchartsCartesianConfig = (
     }, [resultsData, pivotDimensions, pivotedKeys, nonPivotedKeys]);
 
     // Apply group limit to aggregate excess groups into "Other"
-    const { rows, rowKeyMap, aggregatedKeys, otherKey } = useMemo(() => {
-        const groupLimit = validCartesianConfig?.layout?.groupLimit;
-        if (!groupLimit || !groupLimit.enabled) {
-            return {
-                rows: rawRows,
-                rowKeyMap: rawRowKeyMap,
-                aggregatedKeys: [] as string[],
-                otherKey: null as string | null,
-            };
-        }
-        return applyGroupLimit(rawRows, rawRowKeyMap, groupLimit);
+    const { rows, rowKeyMap, aggregatedKeys, otherKey, otherGroupPivotValues } =
+        useMemo(() => {
+            const groupLimit = validCartesianConfig?.layout?.groupLimit;
+            if (!groupLimit || !groupLimit.enabled) {
+                return {
+                    rows: rawRows,
+                    rowKeyMap: rawRowKeyMap,
+                    aggregatedKeys: [] as string[],
+                    otherKey: null as string | null,
+                    otherGroupPivotValues: [] as Array<{
+                        field: string;
+                        value: unknown;
+                    }>,
+                };
+            }
+            return applyGroupLimit(rawRows, rawRowKeyMap, groupLimit);
     }, [rawRows, rawRowKeyMap, validCartesianConfig?.layout?.groupLimit]);
 
     // Create a modified cartesian config that handles group limiting
@@ -2614,24 +2635,51 @@ const useEchartsCartesianConfig = (
             return [];
         }
 
+        let generatedSeries: EChartsSeries[];
+
         // Use new series generation for pre-pivoted data
         if (resultsData?.pivotDetails && rowKeyMap) {
-            return getEchartsSeriesFromPivotedData(
+            generatedSeries = getEchartsSeriesFromPivotedData(
                 itemsMap,
                 effectiveCartesianConfig,
                 rowKeyMap,
                 pivotValuesColumnsMap,
                 parameters,
             );
+        } else {
+            // Legacy implementation
+            generatedSeries = getEchartsSeries(
+                itemsMap,
+                effectiveCartesianConfig,
+                pivotDimensions,
+                parameters,
+            );
         }
 
-        // Legacy implementation
-        return getEchartsSeries(
-            itemsMap,
-            effectiveCartesianConfig,
-            pivotDimensions,
-            parameters,
-        );
+        // Override pivotReference on "Other" series with actual group values
+        // so view-underlying-data shows only the groups combined into "Other"
+        if (otherGroupPivotValues.length > 0) {
+            generatedSeries = generatedSeries.map((s) => {
+                if (
+                    s.pivotReference?.pivotValues?.some(
+                        (pv) =>
+                            pv.field === OTHER_GROUP_PIVOT_VALUE ||
+                            pv.value === OTHER_GROUP_PIVOT_VALUE,
+                    )
+                ) {
+                    return {
+                        ...s,
+                        pivotReference: {
+                            ...s.pivotReference,
+                            pivotValues: otherGroupPivotValues,
+                        },
+                    };
+                }
+                return s;
+            });
+        }
+
+        return generatedSeries;
     }, [
         effectiveCartesianConfig,
         resultsData,
@@ -2640,6 +2688,7 @@ const useEchartsCartesianConfig = (
         rowKeyMap,
         pivotValuesColumnsMap,
         parameters,
+        otherGroupPivotValues,
     ]);
 
     const resultsAndMinsAndMaxes = useMemo(

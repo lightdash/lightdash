@@ -622,17 +622,27 @@ export class CartesianChartDataModel {
         const otherColumnName = otherLabel;
         const sharedReferenceField =
             topGroups[0]?.column.referenceField || OTHER_GROUP_PIVOT_VALUE;
+
+        // Collect pivot values from aggregated groups for view-underlying-data
+        // This allows filtering by the actual group values when clicking "Other"
+        const otherPivotValues = otherGroups.flatMap(
+            ({ column }) => column.pivotValues,
+        );
+
         const otherColumn: PivotChartData['valuesColumns'][number] = {
             referenceField: sharedReferenceField,
             pivotColumnName: otherColumnName,
             aggregation: topGroups[0]?.column.aggregation || VizAggregationOptions.SUM,
-            pivotValues: [
-                {
-                    referenceField: OTHER_GROUP_PIVOT_VALUE,
-                    value: OTHER_GROUP_PIVOT_VALUE,
-                    formatted: otherLabel,
-                },
-            ],
+            pivotValues:
+                otherPivotValues.length > 0
+                    ? otherPivotValues
+                    : [
+                          {
+                              referenceField: OTHER_GROUP_PIVOT_VALUE,
+                              value: OTHER_GROUP_PIVOT_VALUE,
+                              formatted: otherLabel,
+                          },
+                      ],
         };
 
         // Aggregate "Other" values in the results
