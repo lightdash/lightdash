@@ -268,14 +268,20 @@ export async function lintHandler(options: LintOptions): Promise<void> {
     // Find all YAML/JSON files
     const codeFiles = findLightdashCodeFiles(searchPath);
     const results: FileValidationResult[] = [];
+    let shouldExitWithError = false;
 
-    if (codeFiles.length === 0) {
-        if (outputFormat === 'cli') {
-            console.log(
-                chalk.yellow('No YAML/JSON files found in the specified path.'),
-            );
+    try {
+        if (codeFiles.length === 0) {
+            if (outputFormat === 'cli') {
+                console.log(
+                    chalk.yellow(
+                        'No YAML/JSON files found in the specified path.',
+                    ),
+                );
+            }
+            return;
         }
-    } else {
+
         if (options.verbose && outputFormat === 'cli') {
             console.log(
                 chalk.dim(`Found ${codeFiles.length} YAML/JSON files\n`),
@@ -300,74 +306,78 @@ export async function lintHandler(options: LintOptions): Promise<void> {
                     ),
                 );
             }
-        } else {
-            // Convert to SARIF format
-            const invalidResults = results.filter((r) => !r.valid);
-            const validCount = results.length - invalidResults.length;
-
-            // Build SARIF report from invalid results
-            const sarifResults = invalidResults
-                .filter((r) => r.errors && r.fileContent && r.type)
-                .map((r) => ({
-                    filePath: r.filePath,
-                    errors: r.errors!,
-                    fileContent: r.fileContent!,
-                    locationMap: r.locationMap,
-                    schemaType: r.type as 'chart' | 'dashboard',
-                }));
-
-            const sarifLog = createSarifReport(sarifResults);
-
-            // Output based on format
-            if (outputFormat === 'json') {
-                console.log(JSON.stringify(sarifLog, null, 2));
-            } else {
-                // CLI format
-                const summary = getSarifSummary(sarifLog);
-
-                if (!summary.hasErrors) {
-                    console.log(
-                        chalk.green(
-                            '\n✓ All Lightdash Code files are valid!\n',
-                        ),
-                    );
-                } else {
-                    // Show summary
-                    console.log(
-                        chalk.bold(
-                            `\nValidated ${results.length} Lightdash Code files:`,
-                        ),
-                    );
-                    console.log(chalk.green(`  ✓ ${validCount} valid`));
-                    console.log(chalk.red(`  ✗ ${summary.totalFiles} invalid`));
-
-                    // Show formatted errors (starts with newline, so we don't need extra spacing)
-                    console.log(formatSarifForCli(sarifLog, searchPath));
-                }
-            }
+            return;
         }
+
+        // Convert to SARIF format
+        const invalidResults = results.filter((r) => !r.valid);
+        const validCount = results.length - invalidResults.length;
+
+        // Build SARIF report from invalid results
+        const sarifResults = invalidResults
+            .filter((r) => r.errors && r.fileContent && r.type)
+            .map((r) => ({
+                filePath: r.filePath,
+                errors: r.errors!,
+                fileContent: r.fileContent!,
+                locationMap: r.locationMap,
+                schemaType: r.type as 'chart' | 'dashboard',
+            }));
+
+        const sarifLog = createSarifReport(sarifResults);
+
+        // Output based on format
+        if (outputFormat === 'json') {
+            console.log(JSON.stringify(sarifLog, null, 2));
+        } else {
+            // CLI format
+            const summary = getSarifSummary(sarifLog);
+
+            if (!summary.hasErrors) {
+                console.log(
+                    chalk.green('\n✓ All Lightdash Code files are valid!\n'),
+                );
+                return;
+            }
+
+            // Show summary
+            console.log(
+                chalk.bold(
+                    `\nValidated ${results.length} Lightdash Code files:`,
+                ),
+            );
+            console.log(chalk.green(`  ✓ ${validCount} valid`));
+            console.log(chalk.red(`  ✗ ${summary.totalFiles} invalid`));
+
+            // Show formatted errors (starts with newline, so we don't need extra spacing)
+            console.log(formatSarifForCli(sarifLog, searchPath));
+        }
+
+        if (invalidResults.length > 0) {
+            shouldExitWithError = true;
+        }
+    } finally {
+        const invalidCount = results.filter((r) => !r.valid).length;
+
+        await LightdashAnalytics.track({
+            event: 'lint.completed',
+            properties: {
+                executionId,
+                filesScanned: codeFiles.length,
+                lightdashFilesFound: results.length,
+                validFiles: results.length - invalidCount,
+                invalidFiles: invalidCount,
+                chartFiles: results.filter((r) => r.type === 'chart').length,
+                dashboardFiles: results.filter((r) => r.type === 'dashboard')
+                    .length,
+                modelFiles: results.filter((r) => r.type === 'model').length,
+                outputFormat,
+                durationMs: Date.now() - startTime,
+            },
+        });
     }
 
-    const invalidCount = results.filter((r) => !r.valid).length;
-
-    await LightdashAnalytics.track({
-        event: 'lint.completed',
-        properties: {
-            executionId,
-            filesScanned: codeFiles.length,
-            lightdashFilesFound: results.length,
-            validFiles: results.length - invalidCount,
-            invalidFiles: invalidCount,
-            chartFiles: results.filter((r) => r.type === 'chart').length,
-            dashboardFiles: results.filter((r) => r.type === 'dashboard')
-                .length,
-            modelFiles: results.filter((r) => r.type === 'model').length,
-            outputFormat,
-            durationMs: Date.now() - startTime,
-        },
-    });
-
-    if (invalidCount > 0) {
+    if (shouldExitWithError) {
         process.exit(2);
     }
 }
