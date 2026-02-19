@@ -921,6 +921,7 @@ export class CoderService extends BaseService {
         chartAsCode: ChartAsCode,
         skipSpaceCreate?: boolean,
         publicSpaceCreate?: boolean,
+        force?: boolean,
     ) {
         const project = await this.projectModel.get(projectUuid);
 
@@ -1090,6 +1091,15 @@ export class CoderService extends BaseService {
                 updatedChart,
                 upstreamChart,
             );
+
+        // When force is true, override NO_CHANGES to UPDATE so the chart is always written
+        if (force && promotionChanges.charts[0]?.action === PromotionAction.NO_CHANGES) {
+            promotionChanges.charts[0] = {
+                ...promotionChanges.charts[0],
+                action: PromotionAction.UPDATE,
+            };
+        }
+
         promotionChanges = await this.promoteService.upsertCharts(
             user,
             promotionChanges,
@@ -1109,6 +1119,7 @@ export class CoderService extends BaseService {
         sqlChartAsCode: SqlChartAsCode,
         skipSpaceCreate?: boolean,
         publicSpaceCreate?: boolean,
+        _force?: boolean,
     ): Promise<PromotionChanges> {
         const project = await this.projectModel.get(projectUuid);
 
@@ -1377,6 +1388,7 @@ export class CoderService extends BaseService {
         dashboardAsCode: DashboardAsCode,
         skipSpaceCreate?: boolean,
         publicSpaceCreate?: boolean,
+        _force?: boolean,
     ): Promise<PromotionChanges> {
         const project = await this.projectModel.get(projectUuid);
 

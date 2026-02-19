@@ -787,6 +787,7 @@ const upsertResources = async <T extends ChartAsCode | DashboardAsCode>(
                 url: endpoint,
                 body: JSON.stringify({
                     ...item,
+                    force,
                     skipSpaceCreate,
                     publicSpaceCreate,
                 }),
