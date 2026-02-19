@@ -1,3 +1,15 @@
+# [0.2492.0](https://github.com/lightdash/lightdash/compare/0.2491.0...0.2492.0) (2026-02-19)
+
+
+### Bug Fixes
+
+* show nested spaces in create modal when parent space is not accessible ([#20404](https://github.com/lightdash/lightdash/issues/20404)) ([b9748c4](https://github.com/lightdash/lightdash/commit/b9748c490b65ac22256bbbc6f7f8924fbc3fe1e2))
+
+
+### Features
+
+* add `Default user spaces` to project settings ([#20363](https://github.com/lightdash/lightdash/issues/20363)) ([9b4a5b7](https://github.com/lightdash/lightdash/commit/9b4a5b7acfa7fc7c916d56e0ed11e03b590a17bb))
+
 # [0.2491.0](https://github.com/lightdash/lightdash/compare/0.2490.1...0.2491.0) (2026-02-19)
 
 
