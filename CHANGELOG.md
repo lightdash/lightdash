@@ -1,3 +1,10 @@
+# [0.2486.0](https://github.com/lightdash/lightdash/compare/0.2485.2...0.2486.0) (2026-02-19)
+
+
+### Features
+
+* add warning when all content is skipped during upload ([#20441](https://github.com/lightdash/lightdash/issues/20441)) ([74e19d5](https://github.com/lightdash/lightdash/commit/74e19d5baa5210418ae5ab8815bb30f7372a2c3d))
+
 ## [0.2485.2](https://github.com/lightdash/lightdash/compare/0.2485.1...0.2485.2) (2026-02-19)
 
 
