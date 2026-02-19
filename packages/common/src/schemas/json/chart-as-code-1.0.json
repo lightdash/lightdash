@@ -2970,7 +2970,6 @@
     },
     "required": [
         "name",
-        "updatedAt",
         "chartConfig",
         "slug",
         "tableName",

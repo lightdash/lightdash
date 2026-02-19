@@ -895,6 +895,13 @@ export class CoderService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
+
+        // Default updatedAt to now when missing (e.g. user-authored YAML)
+        const chartWithDefaults = {
+            ...chartAsCode,
+            updatedAt: chartAsCode.updatedAt ?? new Date(),
+        };
+
         const [chart] = await this.savedChartModel.find({
             slug,
             projectUuid,
@@ -908,14 +915,14 @@ export class CoderService extends BaseService {
             const { space, created: spaceCreated } =
                 await this.getOrCreateSpace(
                     projectUuid,
-                    chartAsCode.spaceSlug,
+                    chartWithDefaults.spaceSlug,
                     user,
                     skipSpaceCreate,
                     publicSpaceCreate,
                 );
 
             console.info(
-                `Creating chart "${chartAsCode.name}" on project ${projectUuid}`,
+                `Creating chart "${chartWithDefaults.name}" on project ${projectUuid}`,
             );
 
             let createChart: CreateSavedChart & {
@@ -924,10 +931,10 @@ export class CoderService extends BaseService {
                 forceSlug: boolean;
             };
 
-            if (chartAsCode.dashboardSlug) {
+            if (chartWithDefaults.dashboardSlug) {
                 const [dashboard] = await this.dashboardModel.find({
                     projectUuid,
-                    slug: chartAsCode.dashboardSlug,
+                    slug: chartWithDefaults.dashboardSlug,
                 });
 
                 let dashboardUuid: string = dashboard?.uuid;
@@ -937,14 +944,16 @@ export class CoderService extends BaseService {
                     // which we can update later
                     console.debug(
                         'Creating placeholder dashboard for chart within dashboard',
-                        chartAsCode.slug,
+                        chartWithDefaults.slug,
                     );
                     const newDashboard = await this.dashboardModel.create(
                         space.uuid,
                         {
-                            name: friendlyName(chartAsCode.dashboardSlug),
+                            name: friendlyName(
+                                chartWithDefaults.dashboardSlug,
+                            ),
                             tiles: [],
-                            slug: chartAsCode.dashboardSlug,
+                            slug: chartWithDefaults.dashboardSlug,
                             forceSlug: true,
                             tabs: [],
                         },
@@ -955,7 +964,7 @@ export class CoderService extends BaseService {
                     dashboardUuid = newDashboard.uuid;
                 }
                 createChart = {
-                    ...chartAsCode,
+                    ...chartWithDefaults,
                     spaceUuid: null,
                     dashboardUuid,
                     updatedByUser: user,
@@ -963,7 +972,7 @@ export class CoderService extends BaseService {
                 };
             } else {
                 createChart = {
-                    ...chartAsCode,
+                    ...chartWithDefaults,
                     spaceUuid: space.uuid,
                     dashboardUuid: null,
                     updatedByUser: user,
@@ -978,7 +987,7 @@ export class CoderService extends BaseService {
             );
 
             console.info(
-                `Finished creating chart "${chartAsCode.name}" on project ${projectUuid}`,
+                `Finished creating chart "${chartWithDefaults.name}" on project ${projectUuid}`,
             );
             const promotionChanges: PromotionChanges = {
                 charts: [
@@ -986,9 +995,9 @@ export class CoderService extends BaseService {
                         action: PromotionAction.CREATE,
                         data: {
                             ...newChart,
-                            spaceSlug: chartAsCode.spaceSlug,
+                            spaceSlug: chartWithDefaults.spaceSlug,
                             spacePath: getContentAsCodePathFromLtreePath(
-                                chartAsCode.spaceSlug,
+                                chartWithDefaults.spaceSlug,
                             ),
                             oldUuid: newChart.uuid,
                         },
@@ -1002,14 +1011,14 @@ export class CoderService extends BaseService {
             return promotionChanges;
         }
         console.info(
-            `Updating chart "${chartAsCode.name}" on project ${projectUuid}`,
+            `Updating chart "${chartWithDefaults.name}" on project ${projectUuid}`,
         );
         // Although, promotionService already upsertSpaces
         // We want to create a new space based on the slug, not the uuid
         // Then there is no need to do promoteService.upsertSpaces
         const { space } = await this.getOrCreateSpace(
             projectUuid,
-            chartAsCode.spaceSlug,
+            chartWithDefaults.spaceSlug,
             user,
             skipSpaceCreate,
         );
@@ -1025,7 +1034,7 @@ export class CoderService extends BaseService {
             ...promotedChart,
             chart: {
                 ...promotedChart.chart,
-                ...chartAsCode,
+                ...chartWithDefaults,
                 projectUuid,
                 organizationUuid: project.organizationUuid,
             },
@@ -1044,7 +1053,7 @@ export class CoderService extends BaseService {
         );
 
         console.info(
-            `Finished updating chart "${chartAsCode.name}" on project ${projectUuid}: ${promotionChanges.charts[0].action}`,
+            `Finished updating chart "${chartWithDefaults.name}" on project ${projectUuid}: ${promotionChanges.charts[0].action}`,
         );
 
         return promotionChanges;
@@ -1071,6 +1080,12 @@ export class CoderService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
+
+        // Default updatedAt to now when missing (e.g. user-authored YAML)
+        const sqlChartWithDefaults = {
+            ...sqlChartAsCode,
+            updatedAt: sqlChartAsCode.updatedAt ?? new Date(),
+        };
 
         const sqlChartRows = await this.savedSqlModel.find({
             slugs: [slug],
@@ -1333,17 +1348,24 @@ export class CoderService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
+
+        // Default updatedAt to now when missing (e.g. user-authored YAML)
+        const dashboardWithDefaults = {
+            ...dashboardAsCode,
+            updatedAt: dashboardAsCode.updatedAt ?? new Date(),
+        };
+
         const [dashboardSummary] = await this.dashboardModel.find({
             slug,
             projectUuid,
         });
         const tilesWithUuids = await this.convertTileWithSlugsToUuids(
             projectUuid,
-            dashboardAsCode.tiles,
+            dashboardWithDefaults.tiles,
         );
 
         const dashboardFilters = CoderService.getFiltersWithTileUuids(
-            dashboardAsCode,
+            dashboardWithDefaults,
             tilesWithUuids,
         );
         // If chart does not exist, we can't use promoteService,
@@ -1352,7 +1374,7 @@ export class CoderService extends BaseService {
             const { space, created: spaceCreated } =
                 await this.getOrCreateSpace(
                     projectUuid,
-                    dashboardAsCode.spaceSlug,
+                    dashboardWithDefaults.spaceSlug,
                     user,
                     skipSpaceCreate,
                     publicSpaceCreate,
@@ -1361,7 +1383,7 @@ export class CoderService extends BaseService {
             const newDashboard = await this.dashboardModel.create(
                 space.uuid,
                 {
-                    ...dashboardAsCode,
+                    ...dashboardWithDefaults,
                     tiles: tilesWithUuids,
                     forceSlug: true,
                     filters: dashboardFilters,
@@ -1376,9 +1398,9 @@ export class CoderService extends BaseService {
                         action: PromotionAction.CREATE,
                         data: {
                             ...newDashboard,
-                            spaceSlug: dashboardAsCode.spaceSlug,
+                            spaceSlug: dashboardWithDefaults.spaceSlug,
                             spacePath: getContentAsCodePathFromLtreePath(
-                                dashboardAsCode.spaceSlug,
+                                dashboardWithDefaults.spaceSlug,
                             ),
                         },
                     },
@@ -1400,7 +1422,7 @@ export class CoderService extends BaseService {
         );
 
         const dashboardWithUuids = {
-            ...dashboardAsCode,
+            ...dashboardWithDefaults,
             tiles: tilesWithUuids,
         };
         const { promotedDashboard, upstreamDashboard } =
@@ -1426,7 +1448,7 @@ export class CoderService extends BaseService {
         // We want to create a new space based on the slug, not the uuid
         const { space } = await this.getOrCreateSpace(
             projectUuid,
-            dashboardAsCode.spaceSlug,
+            dashboardWithDefaults.spaceSlug,
             user,
             skipSpaceCreate,
         );
