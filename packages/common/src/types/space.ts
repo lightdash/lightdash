@@ -43,6 +43,19 @@ export type SpaceAccessInput = {
     organizationAccess: OrganizationSpaceAccess[];
 };
 
+export type ChainSpaceDirectAccess = {
+    spaceUuid: string;
+    directAccess: DirectSpaceAccess[];
+};
+
+export type SpaceAccessWithInheritanceInput = {
+    spaceUuid: string;
+    isPrivate: boolean;
+    chainDirectAccess: ChainSpaceDirectAccess[];
+    projectAccess: ProjectSpaceAccess[];
+    organizationAccess: OrganizationSpaceAccess[];
+};
+
 export type Space = {
     organizationUuid: string;
     uuid: string;

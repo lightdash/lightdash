@@ -770,6 +770,7 @@ export class ServiceRepository
             'spacePermissionService',
             () =>
                 new SpacePermissionService(
+                    this.models.getFeatureFlagModel(),
                     this.models.getSpaceModel(),
                     this.models.getSpacePermissionModel(),
                 ),
@@ -1013,8 +1014,7 @@ export class ServiceRepository
             () =>
                 new FavoritesService({
                     analytics: this.context.lightdashAnalytics,
-                    userFavoritesModel:
-                        this.models.getUserFavoritesModel(),
+                    userFavoritesModel: this.models.getUserFavoritesModel(),
                     projectModel: this.models.getProjectModel(),
                     spaceModel: this.models.getSpaceModel(),
                     spacePermissionService: this.getSpacePermissionService(),
