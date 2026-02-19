@@ -1632,7 +1632,7 @@ export class ProjectModel {
                 organizationUuid,
             )
             .where(`${ProjectTableName}.has_default_user_spaces`, true)
-            .where(`${SpaceTableName}.name`, 'Default User Spaces')
+            .where(`${SpaceTableName}.name`, DEFAULT_USER_SPACES_PARENT_NAME)
             .whereNull(`${SpaceTableName}.parent_space_uuid`)
             .whereNull(`${SpaceTableName}.deleted_at`)
             .select(
