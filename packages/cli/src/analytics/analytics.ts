@@ -107,6 +107,7 @@ type CliDbtError = BaseTrack & {
     properties: {
         command: string;
         error: string;
+        durationMs: number;
     };
 };
 

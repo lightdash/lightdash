@@ -72,6 +72,7 @@ export const dbtRunHandler = async (
             properties: {
                 command: `${commands}`,
                 error: `${msg}`,
+                durationMs: Date.now() - dbtStartTime,
             },
         });
         throw new ParseError(`Failed to run dbt:\n  ${msg}`);
