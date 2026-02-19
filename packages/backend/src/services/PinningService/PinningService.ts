@@ -100,19 +100,13 @@ export class PinningService extends BaseService {
         const pinnedSpaceUuids = allowedPinnedSpaceBases.map(
             (s) => s.data.uuid,
         );
-        const spacesCtx =
-            await this.spacePermissionService.getSpacesAccessContext(
-                user.userUuid,
+        const directAccessMap =
+            await this.spacePermissionService.getDirectAccessUserUuids(
                 pinnedSpaceUuids,
             );
         const allowedPinnedSpaces: ResourceViewSpaceItem[] =
             allowedPinnedSpaceBases.map((item) => {
-                const ctx = spacesCtx[item.data.uuid];
-                const directAccessUuids = ctx
-                    ? ctx.access
-                          .filter((a) => a.hasDirectAccess)
-                          .map((a) => a.userUuid)
-                    : [];
+                const directAccessUuids = directAccessMap[item.data.uuid] ?? [];
                 return {
                     type: ResourceViewItemType.SPACE,
                     data: {

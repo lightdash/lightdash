@@ -31,10 +31,7 @@ import { BaseService } from '../BaseService';
 import { DashboardService } from '../DashboardService/DashboardService';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
 import { SavedSqlService } from '../SavedSqlService/SavedSqlService';
-import type {
-    SpaceAccessContextForCasl,
-    SpacePermissionService,
-} from '../SpaceService/SpacePermissionService';
+import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { SpaceService } from '../SpaceService/SpaceService';
 
 type ContentServiceArguments = {
@@ -150,11 +147,10 @@ export class ContentService extends BaseService {
                 item.contentType === ContentType.SPACE,
         );
 
-        let spacesCtx: Record<string, SpaceAccessContextForCasl> = {};
+        let directAccessMap: Record<string, string[]> = {};
         if (spaceItems.length > 0) {
-            spacesCtx =
-                await this.spacePermissionService.getSpacesAccessContext(
-                    user.userUuid,
+            directAccessMap =
+                await this.spacePermissionService.getDirectAccessUserUuids(
                     spaceItems.map((s) => s.uuid),
                 );
         }
@@ -165,14 +161,9 @@ export class ContentService extends BaseService {
                 if (item.contentType !== ContentType.SPACE) {
                     return item;
                 }
-                const ctx = spacesCtx[item.uuid];
                 return {
                     ...item,
-                    access: ctx
-                        ? ctx.access
-                              .filter((a) => a.hasDirectAccess)
-                              .map((a) => a.userUuid)
-                        : [],
+                    access: directAccessMap[item.uuid] ?? [],
                 };
             }),
         };
