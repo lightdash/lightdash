@@ -1,3 +1,15 @@
+# [0.2494.0](https://github.com/lightdash/lightdash/compare/0.2493.0...0.2494.0) (2026-02-19)
+
+
+### Bug Fixes
+
+* horizontal bar chart icon ([#20462](https://github.com/lightdash/lightdash/issues/20462)) ([a04aa11](https://github.com/lightdash/lightdash/commit/a04aa11131fa001d1eccd331e9c16bc9b577d793))
+
+
+### Features
+
+* make `updatedAt` optional in content-as-code types ([#20455](https://github.com/lightdash/lightdash/issues/20455)) ([8ea14ba](https://github.com/lightdash/lightdash/commit/8ea14ba488c376f31a3211dbdb45c90b066929c1))
+
 # [0.2493.0](https://github.com/lightdash/lightdash/compare/0.2492.1...0.2493.0) (2026-02-19)
 
 
