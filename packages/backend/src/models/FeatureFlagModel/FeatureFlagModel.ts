@@ -48,6 +48,8 @@ export class FeatureFlagModel {
                 this.getAdminChangeNotifications.bind(this),
             [FeatureFlags.SavedMetricsTree]:
                 this.getSavedMetricsTreeEnabled.bind(this),
+            [FeatureFlags.DefaultUserSpaces]:
+                this.getDefaultUserSpacesEnabled.bind(this),
         };
     }
 
@@ -270,6 +272,15 @@ export class FeatureFlagModel {
         return {
             id: featureFlagId,
             enabled,
+        };
+    }
+
+    private async getDefaultUserSpacesEnabled({
+        featureFlagId,
+    }: FeatureFlagLogicArgs) {
+        return {
+            id: featureFlagId,
+            enabled: this.lightdashConfig.defaultUserSpaces.enabled,
         };
     }
 }

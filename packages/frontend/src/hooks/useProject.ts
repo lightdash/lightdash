@@ -5,6 +5,7 @@ import {
     type CreateWarehouseCredentials,
     type MostPopularAndRecentlyUpdated,
     type Project,
+    type UpdateDefaultUserSpaces,
     type UpdateProject,
     type UpdateSchedulerSettings,
 } from '@lightdash/common';
@@ -176,6 +177,39 @@ export const useProjectUpdateSchedulerSettings = (uuid: string) => {
             onSuccess: async () => {
                 await queryClient.invalidateQueries(['project', uuid]);
                 await queryClient.invalidateQueries(['schedulerLogs']);
+            },
+        },
+    );
+};
+
+const updateDefaultUserSpaces = async (
+    uuid: string,
+    data: UpdateDefaultUserSpaces,
+) =>
+    lightdashApi<undefined>({
+        url: `/projects/${uuid}/hasDefaultUserSpaces`,
+        method: 'PATCH',
+        body: JSON.stringify(data),
+    });
+
+export const useUpdateDefaultUserSpaces = (uuid: string) => {
+    const queryClient = useQueryClient();
+    const { showToastSuccess, showToastApiError } = useToaster();
+    return useMutation<undefined, ApiError, UpdateDefaultUserSpaces>(
+        (data) => updateDefaultUserSpaces(uuid, data),
+        {
+            mutationKey: ['project_default_user_spaces_update', uuid],
+            onSuccess: async () => {
+                await queryClient.invalidateQueries(['project', uuid]);
+                showToastSuccess({
+                    title: 'Default user spaces updated',
+                });
+            },
+            onError: ({ error }) => {
+                showToastApiError({
+                    title: 'Failed to update default user spaces',
+                    apiError: error,
+                });
             },
         },
     );

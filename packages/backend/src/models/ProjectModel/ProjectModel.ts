@@ -634,6 +634,7 @@ export class ProjectModel {
                   scheduler_timezone: string;
                   created_by_user_uuid: string | null;
                   organization_warehouse_credentials_uuid: string | null;
+                  has_default_user_spaces: boolean;
               }
             | {
                   name: string;
@@ -648,6 +649,7 @@ export class ProjectModel {
                   scheduler_timezone: string;
                   created_by_user_uuid: string | null;
                   organization_warehouse_credentials_uuid: string | null;
+                  has_default_user_spaces: boolean;
               }
         )[];
         return wrapSentryTransaction(
@@ -705,6 +707,9 @@ export class ProjectModel {
                         this.database
                             .ref('organization_warehouse_credentials_uuid')
                             .withSchema(ProjectTableName),
+                        this.database
+                            .ref('has_default_user_spaces')
+                            .withSchema(ProjectTableName),
                     ])
                     .select<QueryResult>()
                     .where('projects.project_uuid', projectUuid);
@@ -744,6 +749,7 @@ export class ProjectModel {
                     organizationWarehouseCredentialsUuid:
                         project.organization_warehouse_credentials_uuid ??
                         undefined,
+                    hasDefaultUserSpaces: project.has_default_user_spaces,
                 };
 
                 // If project uses organization warehouse credentials, load them
@@ -943,6 +949,7 @@ export class ProjectModel {
             createdByUserUuid: project.createdByUserUuid ?? null,
             organizationWarehouseCredentialsUuid:
                 project.organizationWarehouseCredentialsUuid,
+            hasDefaultUserSpaces: project.hasDefaultUserSpaces,
         };
     }
 

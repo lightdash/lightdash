@@ -557,6 +557,7 @@ export type Project = {
     schedulerTimezone: string;
     createdByUserUuid: string | null;
     organizationWarehouseCredentialsUuid?: string;
+    hasDefaultUserSpaces: boolean;
 };
 
 export type ProjectSummary = Pick<

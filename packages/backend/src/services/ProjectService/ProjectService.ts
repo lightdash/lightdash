@@ -5554,6 +5554,12 @@ export class ProjectService extends BaseService {
         projectUuid: string,
         data: UpdateDefaultUserSpaces,
     ): Promise<void> {
+        if (!this.lightdashConfig.defaultUserSpaces.enabled) {
+            throw new ForbiddenError(
+                'Default user spaces feature is not enabled',
+            );
+        }
+
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
         if (
