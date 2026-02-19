@@ -1,3 +1,10 @@
+# [0.2488.0](https://github.com/lightdash/lightdash/compare/0.2487.0...0.2488.0) (2026-02-19)
+
+
+### Features
+
+* treat default user spaces as root ([#20380](https://github.com/lightdash/lightdash/issues/20380)) ([fcd2825](https://github.com/lightdash/lightdash/commit/fcd2825e1bb94114a2be9ed8477eaed631810e40))
+
 # [0.2487.0](https://github.com/lightdash/lightdash/compare/0.2486.0...0.2487.0) (2026-02-19)
 
 
