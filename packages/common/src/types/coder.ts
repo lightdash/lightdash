@@ -5,7 +5,6 @@ import type {
     DashboardAsCodeLanguageMap,
     DashboardChartTileProperties,
     DashboardFilterRule,
-    DashboardFilters,
     DashboardHeadingTileProperties,
     DashboardLoomTileProperties,
     DashboardMarkdownTileProperties,
@@ -152,8 +151,10 @@ export type DashboardAsCode = Pick<
     version: number;
     spaceSlug: string;
     downloadedAt?: Date;
-    filters: Omit<DashboardFilters, 'dimensions'> & {
-        dimensions: Omit<DashboardFilterRule, 'id'>[];
+    filters?: {
+        dimensions?: Omit<DashboardFilterRule, 'id'>[];
+        metrics?: DashboardFilterRule[];
+        tableCalculations?: DashboardFilterRule[];
     };
 };
 
