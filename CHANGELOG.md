@@ -1,3 +1,10 @@
+## [0.2490.1](https://github.com/lightdash/lightdash/compare/0.2490.0...0.2490.1) (2026-02-19)
+
+
+### Bug Fixes
+
+* return the full direct user access list instead of list filtered to the user ([#20440](https://github.com/lightdash/lightdash/issues/20440)) ([1c0e551](https://github.com/lightdash/lightdash/commit/1c0e551279db5c0c08bec8cce0d04673e9f41f7d))
+
 # [0.2490.0](https://github.com/lightdash/lightdash/compare/0.2489.0...0.2490.0) (2026-02-19)
 
 
