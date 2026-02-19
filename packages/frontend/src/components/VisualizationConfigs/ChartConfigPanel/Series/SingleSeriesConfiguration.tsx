@@ -43,6 +43,7 @@ type Props = {
     isOpen?: boolean;
     toggleIsOpen?: () => void;
     dragHandleProps?: DraggableProvidedDragHandleProps | null;
+    isDragDisabled?: boolean;
 } & Pick<
     ReturnType<typeof useCartesianChartConfig>,
     'updateSingleSeries' | 'getSingleSeries'
@@ -60,6 +61,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
     isOpen,
     toggleIsOpen,
     dragHandleProps,
+    isDragDisabled,
 }) => {
     const { visualizationConfig, colorPalette, getSeriesColor } =
         useVisualizationContext();
@@ -88,6 +90,8 @@ const SingleSeriesConfiguration: FC<Props> = ({
                         <GrabIcon
                             dragHandleProps={dragHandleProps}
                             hovered={hovered}
+                            disabled={isDragDisabled}
+                            disabledTooltip="Series order is automatically determined by the sort applied to the grouped dimension"
                         />
                     )}
                     {isGrouped && (
@@ -309,7 +313,9 @@ const SingleSeriesConfiguration: FC<Props> = ({
                                     </Popover>
                                 ) : undefined
                             }
-                            rightSectionProps={{ style: { pointerEvents: 'all' } }}
+                            rightSectionProps={{
+                                style: { pointerEvents: 'all' },
+                            }}
                             onChange={(value) => {
                                 updateSingleSeries({
                                     ...series,

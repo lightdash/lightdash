@@ -1045,9 +1045,17 @@ const useCartesianChartConfig = ({
                     defaultLabel,
                     itemsMap,
                 });
+                // Check if any sort field matches a pivot dimension
+                const sortedByPivot =
+                    !!pivotKeys?.length &&
+                    !!resultsData?.metricQuery?.sorts?.some((sort) =>
+                        pivotKeys.includes(sort.fieldId),
+                    );
+
                 const newSeries = mergeExistingAndExpectedSeries({
                     expectedSeriesMap,
                     existingSeries: prev?.series || [],
+                    sortedByPivot,
                 });
 
                 const seriesWithReferenceLines = applyReferenceLines(

@@ -124,11 +124,13 @@ export const getExpectedSeriesMap = ({
 type MergeExistingAndExpectedSeriesArgs = {
     expectedSeriesMap: Record<string, Series>;
     existingSeries: Series[];
+    sortedByPivot: boolean;
 };
 
 export const mergeExistingAndExpectedSeries = ({
     expectedSeriesMap,
     existingSeries,
+    sortedByPivot,
 }: MergeExistingAndExpectedSeriesArgs) => {
     const { existingValidSeries, existingValidSeriesIds } =
         existingSeries.reduce<{
@@ -174,60 +176,56 @@ export const mergeExistingAndExpectedSeries = ({
         return Object.values(expectedSeriesMap);
     }
 
-    // add missing series in the correct order (next to series of the same group)
-    return Object.entries(expectedSeriesMap).reduce<Series[]>(
+    // add missing series, inheriting properties from existing series in the same group
+    const mergedSeries = Object.entries(expectedSeriesMap).reduce<Series[]>(
         (acc, [expectedSeriesId, expectedSeries]) => {
             // Don't add the expected series if there is a valid one already
             if (existingValidSeriesIds.includes(expectedSeriesId)) {
-                return [...acc];
+                return acc;
             }
 
             let seriesToAdd = expectedSeries;
 
-            // Add series to the end of its group
+            // For pivot series, inherit yAxisIndex from existing series with same field
             if (
                 seriesToAdd.encode.yRef.pivotValues &&
                 seriesToAdd.encode.yRef.pivotValues.length > 0
             ) {
-                // Find a series with the same field to inherit properties like yAxisIndex
                 const seriesInSameGroup = acc.find(
                     (series) =>
                         seriesToAdd.encode.yRef.field ===
                         series.encode.yRef.field,
                 );
 
-                // Inherit yAxisIndex from existing series with same field
-                const seriesWithInheritedProps = seriesInSameGroup
-                    ? {
-                          ...seriesToAdd,
-                          yAxisIndex: seriesInSameGroup.yAxisIndex,
-                      }
-                    : seriesToAdd;
-
-                const lastSeriesInGroupIndex = acc
-                    .reverse()
-                    .findIndex(
-                        (series) =>
-                            seriesToAdd.encode.yRef.field ===
-                            series.encode.yRef.field,
-                    );
-                if (lastSeriesInGroupIndex >= 0) {
-                    return [
-                        // part of the array before the specified index
-                        ...acc.slice(0, lastSeriesInGroupIndex),
-                        // inserted item
-                        seriesWithInheritedProps,
-                        // part of the array after the specified index
-                        ...acc.slice(lastSeriesInGroupIndex),
-                    ].reverse();
+                if (seriesInSameGroup) {
+                    seriesToAdd = {
+                        ...seriesToAdd,
+                        yAxisIndex: seriesInSameGroup.yAxisIndex,
+                    };
                 }
-                return [...acc.reverse(), seriesWithInheritedProps];
             }
-            // Add series to the end
+
             return [...acc, seriesToAdd];
         },
         existingValidSeries,
     );
+
+    // Reorder series to match expectedSeriesMap order only when sorted by
+    // a pivot dimension. This respects the query sort for grouped dimensions
+    // while preserving manual series ordering when sorting by other fields.
+    if (!sortedByPivot) {
+        return mergedSeries;
+    }
+
+    const expectedSeriesIds = Object.keys(expectedSeriesMap);
+    return [...mergedSeries].sort((a, b) => {
+        const aIndex = expectedSeriesIds.indexOf(getSeriesId(a));
+        const bIndex = expectedSeriesIds.indexOf(getSeriesId(b));
+        if (aIndex === -1 && bIndex === -1) return 0;
+        if (aIndex === -1) return 1;
+        if (bIndex === -1) return -1;
+        return aIndex - bIndex;
+    });
 };
 
 export const getSeriesGroupedByField = (series: Series[]) => {

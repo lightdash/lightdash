@@ -1,4 +1,8 @@
-import { CartesianSeriesType, getItemMap } from '@lightdash/common';
+import {
+    CartesianSeriesType,
+    getItemMap,
+    type Series,
+} from '@lightdash/common';
 import { renderHook } from '@testing-library/react';
 import { describe, expect, test, vi } from 'vitest';
 
@@ -152,6 +156,7 @@ describe('mergeExistingAndExpectedSeries', () => {
             mergeExistingAndExpectedSeries({
                 expectedSeriesMap: {},
                 existingSeries: Object.values(expectedSimpleSeriesMap),
+                sortedByPivot: false,
             }),
         ).toStrictEqual([]);
     });
@@ -160,22 +165,106 @@ describe('mergeExistingAndExpectedSeries', () => {
             mergeExistingAndExpectedSeries({
                 expectedSeriesMap: expectedSimpleSeriesMap,
                 existingSeries: [],
+                sortedByPivot: false,
             }),
         ).toStrictEqual(Object.values(expectedSimpleSeriesMap));
         expect(
             mergeExistingAndExpectedSeries({
                 expectedSeriesMap: expectedPivotedSeriesMap,
                 existingSeries: [],
+                sortedByPivot: false,
             }),
         ).toStrictEqual(Object.values(expectedPivotedSeriesMap));
     });
-    test('should return new series in correct order', () => {
+    test('should return new series in correct order when sorted by pivot', () => {
         expect(
             mergeExistingAndExpectedSeries({
                 expectedSeriesMap: expectedMixedSeriesMap,
                 existingSeries: existingMixedSeries,
+                sortedByPivot: true,
             }),
         ).toStrictEqual(Object.values(mergedMixedSeries));
+    });
+    test('should insert new pivot category in sorted position, not at end', () => {
+        const defaultProps = {
+            label: undefined,
+            type: CartesianSeriesType.BAR,
+            areaStyle: undefined,
+            stack: undefined,
+            showSymbol: undefined,
+            smooth: undefined,
+            yAxisIndex: 0,
+        };
+
+        // Existing series: has categories "a" and "c"
+        const existingSeries: Series[] = [
+            {
+                ...defaultProps,
+                encode: {
+                    xRef: { field: 'date' },
+                    yRef: {
+                        field: 'metric',
+                        pivotValues: [{ field: 'version', value: 'a' }],
+                    },
+                },
+            },
+            {
+                ...defaultProps,
+                encode: {
+                    xRef: { field: 'date' },
+                    yRef: {
+                        field: 'metric',
+                        pivotValues: [{ field: 'version', value: 'c' }],
+                    },
+                },
+            },
+        ];
+
+        // Expected series from new query results (sorted): a, b, c
+        // "b" is the newly introduced category
+        const expectedSeriesMap: Record<string, Series> = {
+            'date|metric.version.a': {
+                ...defaultProps,
+                encode: {
+                    xRef: { field: 'date' },
+                    yRef: {
+                        field: 'metric',
+                        pivotValues: [{ field: 'version', value: 'a' }],
+                    },
+                },
+            },
+            'date|metric.version.b': {
+                ...defaultProps,
+                encode: {
+                    xRef: { field: 'date' },
+                    yRef: {
+                        field: 'metric',
+                        pivotValues: [{ field: 'version', value: 'b' }],
+                    },
+                },
+            },
+            'date|metric.version.c': {
+                ...defaultProps,
+                encode: {
+                    xRef: { field: 'date' },
+                    yRef: {
+                        field: 'metric',
+                        pivotValues: [{ field: 'version', value: 'c' }],
+                    },
+                },
+            },
+        };
+
+        const result = mergeExistingAndExpectedSeries({
+            expectedSeriesMap,
+            existingSeries,
+            sortedByPivot: true,
+        });
+
+        // "b" should be inserted between "a" and "c", not at the end
+        expect(result.map((s) => s.encode.yRef.pivotValues?.[0].value)).toEqual(
+            ['a', 'b', 'c'],
+        );
     });
 });
 

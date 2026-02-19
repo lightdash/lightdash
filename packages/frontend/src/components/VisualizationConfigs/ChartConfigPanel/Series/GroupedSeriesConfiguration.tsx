@@ -73,6 +73,7 @@ type GroupedSeriesConfigurationProps = {
     item: Field | TableCalculation | CustomDimension;
     items: Array<Field | TableCalculation | CustomDimension>;
     dragHandleProps?: DraggableProvidedDragHandleProps | null;
+    isDragDisabled?: boolean;
     updateAllGroupedSeries: (fieldKey: string, series: Partial<Series>) => void;
     series: Series[];
 } & Pick<
@@ -89,6 +90,7 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
     updateSingleSeries,
     updateAllGroupedSeries,
     dragHandleProps,
+    isDragDisabled,
     updateSeries,
     series,
 }) => {
@@ -147,7 +149,11 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
         <Config>
             <Config.Section>
                 <Group noWrap spacing="two">
-                    <GrabIcon dragHandleProps={dragHandleProps} />
+                    <GrabIcon
+                        dragHandleProps={dragHandleProps}
+                        disabled={isDragDisabled}
+                        disabledTooltip="Series order is automatically determined by the sort applied to the grouped dimension"
+                    />
 
                     <Config.Heading>
                         {getItemLabelWithoutTableName(item)} (grouped)
@@ -316,6 +322,7 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                                                     singleSeries,
                                                 )}
                                                 index={i}
+                                                isDragDisabled={isDragDisabled}
                                             >
                                                 {(
                                                     {
@@ -342,6 +349,9 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                                                                 <SingleSeriesConfiguration
                                                                     dragHandleProps={
                                                                         groupedDragHandleProps
+                                                                    }
+                                                                    isDragDisabled={
+                                                                        isDragDisabled
                                                                     }
                                                                     isCollapsable
                                                                     layout={
