@@ -120,7 +120,7 @@ const getJoinedModelsRecursively = (
     );
 };
 
-async function dbtList(options: DbtCompileOptions): Promise<string[]> {
+export async function dbtList(options: DbtCompileOptions): Promise<string[]> {
     try {
         const args = [
             ...optionsToArgs(options),
