@@ -1,3 +1,10 @@
+# [0.2491.0](https://github.com/lightdash/lightdash/compare/0.2490.1...0.2491.0) (2026-02-19)
+
+
+### Features
+
+* lazily create default user spaces on login ([#20369](https://github.com/lightdash/lightdash/issues/20369)) ([deffc73](https://github.com/lightdash/lightdash/commit/deffc73cd18fedb35e2789fc4d23a74599f376c6))
+
 ## [0.2490.1](https://github.com/lightdash/lightdash/compare/0.2490.0...0.2490.1) (2026-02-19)
 
 
