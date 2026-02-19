@@ -123,7 +123,7 @@ describe('SpacePermissionService', () => {
             ).toHaveBeenCalledWith(['root-space'], undefined);
         });
 
-        test('space with inherit=false is treated as private, skips project/org access', async () => {
+        test('space with inherit=false is treated as private, direct access user gets role', async () => {
             const spaceUuid = 'private-space';
 
             mockPermissionModel.getInheritanceChain.mockResolvedValue({
@@ -137,8 +137,6 @@ describe('SpacePermissionService', () => {
                 inheritsFromOrgOrProject: false,
             });
 
-            // User has direct space access AND group-based access (which provides
-            // the project-level role that resolveSpaceAccess needs)
             mockPermissionModel.getDirectSpaceAccess.mockResolvedValue({
                 'private-space': [
                     {
@@ -155,10 +153,25 @@ describe('SpacePermissionService', () => {
                     },
                 ],
             });
-            mockPermissionModel.getProjectSpaceAccess.mockResolvedValue({});
-            mockPermissionModel.getOrganizationSpaceAccess.mockResolvedValue(
-                {},
-            );
+            mockPermissionModel.getProjectSpaceAccess.mockResolvedValue({
+                'private-space': [
+                    {
+                        userUuid,
+                        spaceUuid: 'private-space',
+                        role: 'viewer' as ProjectMemberRole,
+                        from: ProjectSpaceAccessOrigin.PROJECT_MEMBERSHIP,
+                    },
+                ],
+            });
+            mockPermissionModel.getOrganizationSpaceAccess.mockResolvedValue({
+                'private-space': [
+                    {
+                        userUuid,
+                        spaceUuid: 'private-space',
+                        role: 'member' as OrganizationMemberRole,
+                    },
+                ],
+            });
             mockPermissionModel.getSpaceInfo.mockResolvedValue({
                 [spaceUuid]: {
                     isPrivate: true,
@@ -170,12 +183,61 @@ describe('SpacePermissionService', () => {
             const result = await service.getAllSpaceAccessContext(spaceUuid);
 
             expect(result.isPrivate).toBe(true);
-            // Project/org access IS fetched (needed for admin detection), but
-            // the resolver won't grant access through inheritance for private spaces.
-            // User has access via direct access
             expect(result.access).toHaveLength(1);
             expect(result.access[0].userUuid).toBe(userUuid);
             expect(result.access[0].role).toBe(SpaceMemberRole.EDITOR);
+        });
+
+        test('org admin gets ADMIN on non-inheriting space even without direct access', async () => {
+            const spaceUuid = 'private-space';
+            const adminUuid = 'admin-user';
+
+            mockPermissionModel.getInheritanceChain.mockResolvedValue({
+                chain: [
+                    {
+                        spaceUuid: 'private-space',
+                        spaceName: 'Private',
+                        inheritParentPermissions: false,
+                    },
+                ],
+                inheritsFromOrgOrProject: false,
+            });
+
+            // No direct access for the admin
+            mockPermissionModel.getDirectSpaceAccess.mockResolvedValue({});
+            mockPermissionModel.getProjectSpaceAccess.mockResolvedValue({
+                'private-space': [
+                    {
+                        userUuid: adminUuid,
+                        spaceUuid: 'private-space',
+                        role: 'admin' as ProjectMemberRole,
+                        from: ProjectSpaceAccessOrigin.PROJECT_MEMBERSHIP,
+                    },
+                ],
+            });
+            mockPermissionModel.getOrganizationSpaceAccess.mockResolvedValue({
+                'private-space': [
+                    {
+                        userUuid: adminUuid,
+                        spaceUuid: 'private-space',
+                        role: 'admin' as OrganizationMemberRole,
+                    },
+                ],
+            });
+            mockPermissionModel.getSpaceInfo.mockResolvedValue({
+                [spaceUuid]: {
+                    isPrivate: true,
+                    projectUuid,
+                    organizationUuid,
+                },
+            });
+
+            const result = await service.getAllSpaceAccessContext(spaceUuid);
+
+            // Admin should always get access, even on private/non-inheriting spaces
+            expect(result.access).toHaveLength(1);
+            expect(result.access[0].userUuid).toBe(adminUuid);
+            expect(result.access[0].role).toBe(SpaceMemberRole.ADMIN);
         });
 
         test('nested space aggregates direct access from all ancestors in chain', async () => {
@@ -320,7 +382,7 @@ describe('SpacePermissionService', () => {
             expect(result.access[0].userUuid).toBe(userUuid);
         });
 
-        test('chain stops at inherit=false ancestor, project/org access excluded', async () => {
+        test('chain stops at inherit=false ancestor, user gets access via direct chain access', async () => {
             const spaceUuid = 'deep-child';
 
             mockPermissionModel.getInheritanceChain.mockResolvedValue({
