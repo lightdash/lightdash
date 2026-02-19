@@ -8,6 +8,7 @@ import {
     TableCalculationType,
     type CustomFormat,
     type TableCalculation,
+    type TableCalculationTemplate,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -154,6 +155,19 @@ const TableCalculationModal: FC<Props> = ({
         [tableCalculation, existingItemIds],
     );
 
+    // Memoize template for TemplateViewer
+    const template = useMemo(
+        () =>
+            tableCalculation && isTemplateTableCalculation(tableCalculation)
+                ? tableCalculation.template
+                : undefined,
+        [tableCalculation],
+    );
+
+    const [editedTemplate, setEditedTemplate] = useState<
+        TableCalculationTemplate | undefined
+    >(template);
+
     const form = useForm<TableCalculationFormInputs>({
         initialValues,
         validate: {
@@ -207,7 +221,7 @@ const TableCalculationModal: FC<Props> = ({
                     displayName: name,
                     format: data.format,
                     type: data.type,
-                    template: tableCalculation.template,
+                    template: editedTemplate ?? tableCalculation.template,
                 });
             } else {
                 onSave({
@@ -248,13 +262,11 @@ const TableCalculationModal: FC<Props> = ({
         }
     }, []);
 
-    // Memoize template for TemplateViewer
-    const template = useMemo(
-        () =>
-            tableCalculation && isTemplateTableCalculation(tableCalculation)
-                ? tableCalculation.template
-                : undefined,
-        [tableCalculation],
+    const handleTemplateChange = useCallback(
+        (updated: TableCalculationTemplate) => {
+            setEditedTemplate(updated);
+        },
+        [],
     );
 
     // Memoize table calculation type options
@@ -407,8 +419,13 @@ const TableCalculationModal: FC<Props> = ({
 
                                     <Tabs.Panel value="template" p="sm">
                                         <TemplateViewer
-                                            template={template}
-                                            readOnly={true}
+                                            template={
+                                                editedTemplate ?? template
+                                            }
+                                            readOnly={false}
+                                            onTemplateChange={
+                                                handleTemplateChange
+                                            }
                                         />
                                     </Tabs.Panel>
 
