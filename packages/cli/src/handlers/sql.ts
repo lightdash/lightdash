@@ -1,10 +1,13 @@
 import {
     ApiExecuteAsyncSqlQueryResults,
     ApiGetAsyncQueryResults,
+    getErrorMessage,
     QueryHistoryStatus,
     ResultRow,
 } from '@lightdash/common';
 import { promises as fs } from 'fs';
+import { v4 as uuidv4 } from 'uuid';
+import { categorizeError, LightdashAnalytics } from '../analytics/analytics';
 import { getConfig } from '../config';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
@@ -111,6 +114,9 @@ export const sqlHandler = async (
 ): Promise<void> => {
     GlobalState.setVerbose(options.verbose ?? false);
 
+    const executionId = uuidv4();
+    const startTime = Date.now();
+
     const config = await getConfig();
     const projectUuid = config.context?.project;
 
@@ -123,54 +129,83 @@ export const sqlHandler = async (
     GlobalState.debug(`> Running SQL query against project: ${projectUuid}`);
     GlobalState.debug(`> SQL: ${sql}`);
 
-    const pageSize = options.pageSize ?? DEFAULT_PAGE_SIZE;
-
-    // Submit the query
-    const spinner = GlobalState.startSpinner('Submitting SQL query...');
-
-    const submitResult = await lightdashApi<ApiExecuteAsyncSqlQueryResults>({
-        method: 'POST',
-        url: `/api/v2/projects/${projectUuid}/query/sql`,
-        body: JSON.stringify({
-            sql,
-            limit: options.limit,
-            context: 'cli',
-        }),
+    await LightdashAnalytics.track({
+        event: 'sql.started',
+        properties: {
+            executionId,
+            projectId: projectUuid,
+        },
     });
 
-    GlobalState.debug(`> Query UUID: ${submitResult.queryUuid}`);
-    spinner.text = 'Waiting for query results...';
+    const pageSize = options.pageSize ?? DEFAULT_PAGE_SIZE;
 
-    // Poll for results
-    const result = await pollQueryResults(
-        projectUuid,
-        submitResult.queryUuid,
-        pageSize,
-    );
+    try {
+        const spinner = GlobalState.startSpinner('Submitting SQL query...');
 
-    if (result.status === QueryHistoryStatus.ERROR) {
-        spinner.fail('Query failed');
-        throw new Error(result.error ?? 'Query execution failed');
+        const submitResult = await lightdashApi<ApiExecuteAsyncSqlQueryResults>(
+            {
+                method: 'POST',
+                url: `/api/v2/projects/${projectUuid}/query/sql`,
+                body: JSON.stringify({
+                    sql,
+                    limit: options.limit,
+                    context: 'cli',
+                }),
+            },
+        );
+
+        GlobalState.debug(`> Query UUID: ${submitResult.queryUuid}`);
+        spinner.text = 'Waiting for query results...';
+
+        const result = await pollQueryResults(
+            projectUuid,
+            submitResult.queryUuid,
+            pageSize,
+        );
+
+        if (result.status === QueryHistoryStatus.ERROR) {
+            spinner.fail('Query failed');
+            throw new Error(result.error ?? 'Query execution failed');
+        }
+
+        if (result.status !== QueryHistoryStatus.READY) {
+            spinner.fail('Unexpected query status');
+            throw new Error(`Unexpected query status: ${result.status}`);
+        }
+
+        const columns = Object.keys(result.columns);
+        const rowCount = result.rows.length;
+
+        spinner.text = `Writing ${rowCount} rows to ${options.output}...`;
+
+        const csv = resultsToCsv(columns, result.rows);
+        await fs.writeFile(options.output, csv, 'utf8');
+
+        spinner.succeed(
+            `${styles.success('Success!')} Wrote ${rowCount} rows to ${
+                options.output
+            }`,
+        );
+
+        await LightdashAnalytics.track({
+            event: 'sql.completed',
+            properties: {
+                executionId,
+                projectId: projectUuid,
+                rowCount,
+                columnCount: columns.length,
+                durationMs: Date.now() - startTime,
+            },
+        });
+    } catch (e) {
+        await LightdashAnalytics.track({
+            event: 'sql.error',
+            properties: {
+                executionId,
+                error: getErrorMessage(e),
+                errorCategory: categorizeError(e),
+            },
+        });
+        throw e;
     }
-
-    if (result.status !== QueryHistoryStatus.READY) {
-        spinner.fail('Unexpected query status');
-        throw new Error(`Unexpected query status: ${result.status}`);
-    }
-
-    // Extract column names from the columns metadata
-    const columns = Object.keys(result.columns);
-    const rowCount = result.rows.length;
-
-    spinner.text = `Writing ${rowCount} rows to ${options.output}...`;
-
-    // Convert to CSV and write to file
-    const csv = resultsToCsv(columns, result.rows);
-    await fs.writeFile(options.output, csv, 'utf8');
-
-    spinner.succeed(
-        `${styles.success('Success!')} Wrote ${rowCount} rows to ${
-            options.output
-        }`,
-    );
 };

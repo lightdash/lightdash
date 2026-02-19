@@ -7,8 +7,10 @@ import type { ErrorObject } from 'ajv';
 import chalk from 'chalk';
 import * as fs from 'fs';
 import * as path from 'path';
+import { v4 as uuidv4 } from 'uuid';
 import * as YAML from 'yaml';
 import { ajv } from '../ajv';
+import { LightdashAnalytics } from '../analytics/analytics';
 import { createSarifReport } from './lint/ajvToSarif';
 import { formatSarifForCli, getSarifSummary } from './lint/sarifFormatter';
 
@@ -247,6 +249,8 @@ function validateFile(filePath: string): FileValidationResult {
 }
 
 export async function lintHandler(options: LintOptions): Promise<void> {
+    const executionId = uuidv4();
+    const startTime = Date.now();
     const searchPath = path.resolve(options.path || process.cwd());
     const outputFormat = options.format || 'cli';
 
@@ -263,86 +267,117 @@ export async function lintHandler(options: LintOptions): Promise<void> {
 
     // Find all YAML/JSON files
     const codeFiles = findLightdashCodeFiles(searchPath);
-
-    if (codeFiles.length === 0) {
-        if (outputFormat === 'cli') {
-            console.log(
-                chalk.yellow('No YAML/JSON files found in the specified path.'),
-            );
-        }
-        return;
-    }
-
-    if (options.verbose && outputFormat === 'cli') {
-        console.log(chalk.dim(`Found ${codeFiles.length} YAML/JSON files\n`));
-    }
-
-    // Validate each file
     const results: FileValidationResult[] = [];
-    for (const file of codeFiles) {
-        const result = validateFile(file);
-        // Only track Lightdash Code files (models, charts, dashboards)
-        if (result.type) {
-            results.push(result);
-        }
-    }
+    let shouldExitWithError = false;
 
-    if (results.length === 0) {
-        if (outputFormat === 'cli') {
-            console.log(chalk.yellow('No Lightdash Code files found.'));
-            console.log(
-                chalk.dim(
-                    'Models must have type: model (or model/v1, model/v1beta), charts must have version: 1 + metricQuery, dashboards must have version: 1 + tiles',
-                ),
-            );
-        }
-        return;
-    }
-
-    // Convert to SARIF format
-    const invalidResults = results.filter((r) => !r.valid);
-    const validCount = results.length - invalidResults.length;
-
-    // Build SARIF report from invalid results
-    const sarifResults = invalidResults
-        .filter((r) => r.errors && r.fileContent && r.type)
-        .map((r) => ({
-            filePath: r.filePath,
-            errors: r.errors!,
-            fileContent: r.fileContent!,
-            locationMap: r.locationMap,
-            schemaType: r.type as 'chart' | 'dashboard',
-        }));
-
-    const sarifLog = createSarifReport(sarifResults);
-
-    // Output based on format
-    if (outputFormat === 'json') {
-        console.log(JSON.stringify(sarifLog, null, 2));
-    } else {
-        // CLI format
-        const summary = getSarifSummary(sarifLog);
-
-        if (!summary.hasErrors) {
-            console.log(
-                chalk.green('\n✓ All Lightdash Code files are valid!\n'),
-            );
+    try {
+        if (codeFiles.length === 0) {
+            if (outputFormat === 'cli') {
+                console.log(
+                    chalk.yellow(
+                        'No YAML/JSON files found in the specified path.',
+                    ),
+                );
+            }
             return;
         }
 
-        // Show summary
-        console.log(
-            chalk.bold(`\nValidated ${results.length} Lightdash Code files:`),
-        );
-        console.log(chalk.green(`  ✓ ${validCount} valid`));
-        console.log(chalk.red(`  ✗ ${summary.totalFiles} invalid`));
+        if (options.verbose && outputFormat === 'cli') {
+            console.log(
+                chalk.dim(`Found ${codeFiles.length} YAML/JSON files\n`),
+            );
+        }
 
-        // Show formatted errors (starts with newline, so we don't need extra spacing)
-        console.log(formatSarifForCli(sarifLog, searchPath));
+        // Validate each file
+        for (const file of codeFiles) {
+            const result = validateFile(file);
+            // Only track Lightdash Code files (models, charts, dashboards)
+            if (result.type) {
+                results.push(result);
+            }
+        }
+
+        if (results.length === 0) {
+            if (outputFormat === 'cli') {
+                console.log(chalk.yellow('No Lightdash Code files found.'));
+                console.log(
+                    chalk.dim(
+                        'Models must have type: model (or model/v1, model/v1beta), charts must have version: 1 + metricQuery, dashboards must have version: 1 + tiles',
+                    ),
+                );
+            }
+            return;
+        }
+
+        // Convert to SARIF format
+        const invalidResults = results.filter((r) => !r.valid);
+        const validCount = results.length - invalidResults.length;
+
+        // Build SARIF report from invalid results
+        const sarifResults = invalidResults
+            .filter((r) => r.errors && r.fileContent && r.type)
+            .map((r) => ({
+                filePath: r.filePath,
+                errors: r.errors!,
+                fileContent: r.fileContent!,
+                locationMap: r.locationMap,
+                schemaType: r.type as 'chart' | 'dashboard',
+            }));
+
+        const sarifLog = createSarifReport(sarifResults);
+
+        // Output based on format
+        if (outputFormat === 'json') {
+            console.log(JSON.stringify(sarifLog, null, 2));
+        } else {
+            // CLI format
+            const summary = getSarifSummary(sarifLog);
+
+            if (!summary.hasErrors) {
+                console.log(
+                    chalk.green('\n✓ All Lightdash Code files are valid!\n'),
+                );
+                return;
+            }
+
+            // Show summary
+            console.log(
+                chalk.bold(
+                    `\nValidated ${results.length} Lightdash Code files:`,
+                ),
+            );
+            console.log(chalk.green(`  ✓ ${validCount} valid`));
+            console.log(chalk.red(`  ✗ ${summary.totalFiles} invalid`));
+
+            // Show formatted errors (starts with newline, so we don't need extra spacing)
+            console.log(formatSarifForCli(sarifLog, searchPath));
+        }
+
+        if (invalidResults.length > 0) {
+            shouldExitWithError = true;
+        }
+    } finally {
+        const invalidCount = results.filter((r) => !r.valid).length;
+
+        await LightdashAnalytics.track({
+            event: 'lint.completed',
+            properties: {
+                executionId,
+                filesScanned: codeFiles.length,
+                lightdashFilesFound: results.length,
+                validFiles: results.length - invalidCount,
+                invalidFiles: invalidCount,
+                chartFiles: results.filter((r) => r.type === 'chart').length,
+                dashboardFiles: results.filter((r) => r.type === 'dashboard')
+                    .length,
+                modelFiles: results.filter((r) => r.type === 'model').length,
+                outputFormat,
+                durationMs: Date.now() - startTime,
+            },
+        });
     }
 
-    // Exit with error if there were validation failures
-    if (invalidResults.length > 0) {
+    if (shouldExitWithError) {
         process.exit(2);
     }
 }

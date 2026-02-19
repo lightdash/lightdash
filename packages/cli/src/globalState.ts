@@ -1,4 +1,5 @@
 import ora from 'ora';
+import { v4 as uuidv4 } from 'uuid';
 import { Config } from './config';
 import * as styles from './styles';
 
@@ -16,8 +17,17 @@ class GlobalState {
 
     private savedPromptAnswers: PromptAnswer;
 
+    private sessionId: string | null = null;
+
     constructor() {
         this.savedPromptAnswers = {};
+    }
+
+    getSessionId(): string {
+        if (!this.sessionId) {
+            this.sessionId = uuidv4();
+        }
+        return this.sessionId;
     }
 
     setNonInteractive(value: boolean) {

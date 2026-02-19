@@ -1,4 +1,5 @@
 import { OrganizationProject, ProjectType } from '@lightdash/common';
+import { LightdashAnalytics } from '../analytics/analytics';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
 import { lightdashApi } from './dbt/apiClient';
@@ -8,6 +9,7 @@ type ListProjectsOptions = {
 };
 
 export const listProjectsHandler = async (options: ListProjectsOptions) => {
+    const startTime = Date.now();
     GlobalState.setVerbose(options.verbose);
 
     const projects = await lightdashApi<OrganizationProject[]>({
@@ -27,17 +29,26 @@ export const listProjectsHandler = async (options: ListProjectsOptions) => {
 
     if (filteredProjects.length === 0) {
         console.error(styles.warning('No projects found.'));
-        return;
+    } else {
+        console.error(
+            styles.bold(`\nProjects (${filteredProjects.length}):\n`),
+        );
+
+        filteredProjects.forEach((project) => {
+            console.error(`  ${styles.bold(project.name)}`);
+            console.error(`    UUID: ${project.projectUuid}`);
+            if (project.warehouseType) {
+                console.error(`    Warehouse: ${project.warehouseType}`);
+            }
+            console.error('');
+        });
     }
 
-    console.error(styles.bold(`\nProjects (${filteredProjects.length}):\n`));
-
-    filteredProjects.forEach((project) => {
-        console.error(`  ${styles.bold(project.name)}`);
-        console.error(`    UUID: ${project.projectUuid}`);
-        if (project.warehouseType) {
-            console.error(`    Warehouse: ${project.warehouseType}`);
-        }
-        console.error('');
+    await LightdashAnalytics.track({
+        event: 'command.executed',
+        properties: {
+            command: 'list-projects',
+            durationMs: Date.now() - startTime,
+        },
     });
 };
