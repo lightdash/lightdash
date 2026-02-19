@@ -1574,20 +1574,22 @@ export class UserService extends BaseService {
                     );
                 span.setAttribute('cacheHit', cacheHit);
 
-                if (!cacheHit) {
-                    void this.ensureDefaultUserSpaces(sessionUser).catch(
-                        (err) => {
-                            this.logger.error(
-                                'Failed to ensure default user spaces',
-                                err,
-                            );
-                        },
-                    );
-                }
-
                 return sessionUser;
             },
         );
+    }
+
+    async onLogin(user: {
+        userUuid: string;
+        organizationUuid?: string;
+    }): Promise<void> {
+        if (!user.organizationUuid) return;
+
+        const sessionUser = await this.findSessionUser({
+            id: user.userUuid,
+            organization: user.organizationUuid,
+        });
+        await this.ensureDefaultUserSpaces(sessionUser);
     }
 
     private async ensureDefaultUserSpaces(
