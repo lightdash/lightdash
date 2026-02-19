@@ -358,12 +358,24 @@ export class SpacePermissionService extends BaseService {
 
     /**
      * Gets group access for a space.
-     * Resolves to the root space for nested spaces.
      */
     async getGroupAccess(spaceUuid: string): Promise<SpaceGroup[]> {
-        const { spaceRoot: rootSpaceUuid } =
-            await this.spaceModel.getSpaceRootFromCacheOrDB(spaceUuid);
-        return this.spacePermissionModel.getGroupAccess(rootSpaceUuid);
+        // Feature flag: NestedSpacesPermissions
+        // When ready to remove, delete getSpacesCaslContextLegacy and inline
+        // getSpacesCaslContextWithInheritance here.
+        const { enabled } = await this.featureFlagModel.get({
+            featureFlagId: FeatureFlags.NestedSpacesPermissions,
+        });
+
+        let effectiveSpaceUuid = spaceUuid;
+
+        if (!enabled) {
+            const { spaceRoot: rootSpaceUuid } =
+                await this.spaceModel.getSpaceRootFromCacheOrDB(spaceUuid);
+            effectiveSpaceUuid = rootSpaceUuid;
+        }
+
+        return this.spacePermissionModel.getGroupAccess(effectiveSpaceUuid);
     }
 
     /**
@@ -399,30 +411,52 @@ export class SpacePermissionService extends BaseService {
     ): Promise<Record<string, string[]>> {
         if (spaceUuids.length === 0) return {};
 
+        const { enabled } = await this.featureFlagModel.get({
+            featureFlagId: FeatureFlags.NestedSpacesPermissions,
+        });
+
         const uniqueSpaceUuids = [...new Set(spaceUuids)];
 
-        // Getting the root space uuids since for nested spaces that's what is used
-        const rootSpaceUuids = await Promise.all(
-            uniqueSpaceUuids.map((uuid) =>
-                this.spaceModel
-                    .getSpaceRootFromCacheOrDB(uuid)
-                    .then((r) => r.spaceRoot),
-            ),
-        );
+        // When the flag is not enabled, we need to get the direct access for the root space
+        if (!enabled) {
+            const rootSpaceUuids = await Promise.all(
+                uniqueSpaceUuids.map((uuid) =>
+                    this.spaceModel
+                        .getSpaceRootFromCacheOrDB(uuid)
+                        .then((r) => r.spaceRoot),
+                ),
+            );
 
-        const spaceToRootSpaceTuples = rootSpaceUuids.map(
-            (rootSpaceUuid, index) => [uniqueSpaceUuids[index], rootSpaceUuid],
-        );
+            const spaceToRootSpaceTuples = rootSpaceUuids.map(
+                (rootSpaceUuid, index) => [
+                    uniqueSpaceUuids[index],
+                    rootSpaceUuid,
+                ],
+            );
+
+            const directAccessMap =
+                await this.spacePermissionModel.getDirectSpaceAccess(
+                    rootSpaceUuids,
+                );
+
+            return Object.fromEntries(
+                spaceToRootSpaceTuples.map(([spaceUuid, rootSpaceUuid]) => [
+                    spaceUuid,
+                    directAccessMap[rootSpaceUuid]?.map((e) => e.userUuid) ??
+                        [],
+                ]),
+            );
+        }
 
         const directAccessMap =
             await this.spacePermissionModel.getDirectSpaceAccess(
-                rootSpaceUuids,
+                uniqueSpaceUuids,
             );
 
         return Object.fromEntries(
-            spaceToRootSpaceTuples.map(([spaceUuid, rootSpaceUuid]) => [
+            uniqueSpaceUuids.map((spaceUuid) => [
                 spaceUuid,
-                directAccessMap[rootSpaceUuid]?.map((e) => e.userUuid) ?? [],
+                directAccessMap[spaceUuid]?.map((e) => e.userUuid) ?? [],
             ]),
         );
     }

@@ -574,6 +574,25 @@ export class SpaceService extends BaseService implements BulkActionable<Knex> {
         });
     }
 
+    private async assertNestedSpaceAccessAllowed(
+        spaceUuid: string,
+        action: string,
+    ): Promise<void> {
+        const isRootSpace = await this.spaceModel.isRootSpace(spaceUuid);
+
+        // Root spaces are always allowed to change access
+        if (isRootSpace) return;
+
+        const flag = await this.featureFlagModel.get({
+            featureFlagId: FeatureFlags.NestedSpacesPermissions,
+        });
+        if (!flag.enabled) {
+            throw new ForbiddenError(
+                `Can't change ${action} access to a nested space`,
+            );
+        }
+    }
+
     async addSpaceUserAccess(
         user: SessionUser,
         spaceUuid: string,
@@ -586,14 +605,7 @@ export class SpaceService extends BaseService implements BulkActionable<Knex> {
             throw new ForbiddenError();
         }
 
-        // Nested Spaces MVP - disables nested spaces' access changes when feature flag is off
-
-        const isNested = !(await this.spaceModel.isRootSpace(spaceUuid));
-        if (isNested) {
-            throw new ForbiddenError(
-                `Can't change user access to a nested space`,
-            );
-        }
+        await this.assertNestedSpaceAccessAllowed(spaceUuid, 'user');
 
         await this.spaceModel.addSpaceAccess(
             spaceUuid,
@@ -613,13 +625,7 @@ export class SpaceService extends BaseService implements BulkActionable<Knex> {
             throw new ForbiddenError();
         }
 
-        // Nested Spaces MVP - disables nested spaces' access changes when feature flag is off
-        const isNested = !(await this.spaceModel.isRootSpace(spaceUuid));
-        if (isNested) {
-            throw new ForbiddenError(
-                `Can't change user access to a nested space`,
-            );
-        }
+        await this.assertNestedSpaceAccessAllowed(spaceUuid, 'user');
 
         await this.spaceModel.removeSpaceAccess(spaceUuid, shareWithUserUuid);
     }
@@ -636,13 +642,7 @@ export class SpaceService extends BaseService implements BulkActionable<Knex> {
             throw new ForbiddenError();
         }
 
-        // Nested Spaces MVP - disables nested spaces' access changes when feature flag is off
-        const isNested = !(await this.spaceModel.isRootSpace(spaceUuid));
-        if (isNested) {
-            throw new ForbiddenError(
-                `Can't change group access to a nested space`,
-            );
-        }
+        await this.assertNestedSpaceAccessAllowed(spaceUuid, 'group');
 
         await this.spaceModel.addSpaceGroupAccess(
             spaceUuid,
@@ -662,13 +662,7 @@ export class SpaceService extends BaseService implements BulkActionable<Knex> {
             throw new ForbiddenError();
         }
 
-        // Nested Spaces MVP - disables nested spaces' access changes when feature flag is off
-        const isNested = !(await this.spaceModel.isRootSpace(spaceUuid));
-        if (isNested) {
-            throw new ForbiddenError(
-                `Can't change group access to a nested space`,
-            );
-        }
+        await this.assertNestedSpaceAccessAllowed(spaceUuid, 'group');
 
         await this.spaceModel.removeSpaceGroupAccess(
             spaceUuid,
