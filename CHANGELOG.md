@@ -1,3 +1,11 @@
+# [0.2498.0](https://github.com/lightdash/lightdash/compare/0.2497.0...0.2498.0) (2026-02-19)
+
+
+### Features
+
+* skip content type check on lightdash upload --force ([#20468](https://github.com/lightdash/lightdash/issues/20468)) ([1b9238c](https://github.com/lightdash/lightdash/commit/1b9238cb3e8e42656094bc37727ecd1ea6303d97))
+* UI support partitionBy in quick templates ([#20428](https://github.com/lightdash/lightdash/issues/20428)) ([4e0d5d2](https://github.com/lightdash/lightdash/commit/4e0d5d233d1b130f0bed2f6fff86dff1bff7ff7b)), closes [#9778](https://github.com/lightdash/lightdash/issues/9778)
+
 # [0.2497.0](https://github.com/lightdash/lightdash/compare/0.2496.0...0.2497.0) (2026-02-19)
 
 
