@@ -99,6 +99,7 @@ const scopes: Scope[] = [
         description:
             'Create, edit, and delete saved charts in the user default space',
         isEnterprise: false,
+        isInternal: true,
         group: ScopeGroup.CONTENT,
         getConditions: (context) => [
             {

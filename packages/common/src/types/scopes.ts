@@ -80,6 +80,10 @@ export type Scope = {
      */
     isEnterprise: boolean;
     /**
+     * Whether this scope is for internal use only and should not be shown in the custom roles UI
+     */
+    isInternal?: boolean;
+    /**
      * The grouping from the ScopeGroup enum
      */
     group: ScopeGroup;
