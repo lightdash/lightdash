@@ -1,3 +1,10 @@
+## [0.2485.2](https://github.com/lightdash/lightdash/compare/0.2485.1...0.2485.2) (2026-02-19)
+
+
+### Bug Fixes
+
+* implement case-insensitive column matching in dbt schema editor ([#20437](https://github.com/lightdash/lightdash/issues/20437)) ([aac5efe](https://github.com/lightdash/lightdash/commit/aac5efe71372af1871cabc45e7832e12fa1fdcbf))
+
 ## [0.2485.1](https://github.com/lightdash/lightdash/compare/0.2485.0...0.2485.1) (2026-02-18)
 
 
