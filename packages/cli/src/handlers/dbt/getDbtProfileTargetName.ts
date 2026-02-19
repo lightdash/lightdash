@@ -39,7 +39,7 @@ export default async function getDbtProfileTargetName(
 ): Promise<string> {
     let targetName;
     if (options.isDbtCloudCLI) {
-        targetName = await getDbtCloudTargetName();
+        targetName = options.target ?? (await getDbtCloudTargetName());
     } else {
         const absoluteProfilesPath = path.resolve(options.profilesDir);
         GlobalState.debug(
