@@ -1,3 +1,10 @@
+# [0.2490.0](https://github.com/lightdash/lightdash/compare/0.2489.0...0.2490.0) (2026-02-19)
+
+
+### Features
+
+* **cli:** add durationMs to analytics completed events ([#20439](https://github.com/lightdash/lightdash/issues/20439)) ([a9b84a1](https://github.com/lightdash/lightdash/commit/a9b84a19c995ac26565ab78f5a91ee30259b320b))
+
 # [0.2489.0](https://github.com/lightdash/lightdash/compare/0.2488.0...0.2489.0) (2026-02-19)
 
 
