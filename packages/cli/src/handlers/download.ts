@@ -693,6 +693,21 @@ const logUploadChanges = (changes: Record<string, number>) => {
     Object.entries(changes).forEach(([key, value]) => {
         console.info(`Total ${key}: ${value} `);
     });
+
+    const totalSkipped = Object.entries(changes)
+        .filter(([key]) => key.includes('skipped'))
+        .reduce((sum, [, value]) => sum + value, 0);
+    const totalUpserted = Object.entries(changes)
+        .filter(([key]) => !key.includes('skipped'))
+        .reduce((sum, [, value]) => sum + value, 0);
+
+    if (totalSkipped > 0 && totalUpserted === 0) {
+        console.warn(
+            styles.warning(
+                `\nAll content was skipped (no local changes detected). Use --force to upload all content, e.g. when uploading to a new project.`,
+            ),
+        );
+    }
 };
 
 // SQL charts have 'sql' field instead of 'tableName'/'metricQuery'
