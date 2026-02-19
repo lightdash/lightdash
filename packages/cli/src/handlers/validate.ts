@@ -98,22 +98,6 @@ export const validateHandler = async (options: ValidateHandlerOptions) => {
     // Log current project info
     GlobalState.logProjectInfo(config);
 
-    let explores: (Explore | ExploreError)[];
-    try {
-        explores = await compile(options);
-    } catch (e) {
-        await LightdashAnalytics.track({
-            event: 'validate.error',
-            properties: {
-                executionId,
-                error: getErrorMessage(e),
-                errorCategory: categorizeError(e),
-            },
-        });
-        throw e;
-    }
-    GlobalState.debug(`> Compiled ${explores.length} explores`);
-
     const selectedProject = options.preview
         ? config.context?.previewProject
         : config.context?.project;
@@ -160,6 +144,22 @@ export const validateHandler = async (options: ValidateHandlerOptions) => {
             validationTargets,
         },
     });
+
+    let explores: (Explore | ExploreError)[];
+    try {
+        explores = await compile(options);
+    } catch (e) {
+        await LightdashAnalytics.track({
+            event: 'validate.error',
+            properties: {
+                executionId,
+                error: getErrorMessage(e),
+                errorCategory: categorizeError(e),
+            },
+        });
+        throw e;
+    }
+    GlobalState.debug(`> Compiled ${explores.length} explores`);
 
     let allValidation;
     try {
