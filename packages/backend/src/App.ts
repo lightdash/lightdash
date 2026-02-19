@@ -808,12 +808,19 @@ export default class App {
         // Before each request handler we read `sess.passport.user` from the session store
         passport.deserializeUser(
             async (
+                req: express.Request,
                 passportUser: { id: string; organization: string },
-                done,
+                done: (err: unknown, user?: Express.User | false) => void,
             ) => {
-                // Convert to a full user profile
                 try {
-                    done(null, await userService.findSessionUser(passportUser));
+                    const sessionUser = await userService.resolveSessionUser(
+                        passportUser,
+                        req.session?.impersonation,
+                        () => {
+                            delete req.session.impersonation;
+                        },
+                    );
+                    done(null, sessionUser);
                 } catch (e) {
                     done(e);
                 }

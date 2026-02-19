@@ -38,6 +38,7 @@ const AppProviderMock: FC<PropsWithChildren<AppProviderMockProps>> = ({
                 ability: new Ability<PossibleAbilities>(
                     userResponse.abilityRules,
                 ),
+                impersonation: null,
             };
         },
         enabled: !!health.data?.isAuthenticated,

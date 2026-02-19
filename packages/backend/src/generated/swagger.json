@@ -12223,10 +12223,48 @@
                 "type": "object",
                 "additionalProperties": true
             },
+            "ImpersonationInfo": {
+                "properties": {
+                    "adminUserUuid": {
+                        "type": "string"
+                    },
+                    "adminName": {
+                        "type": "string"
+                    },
+                    "impersonatedUserUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "adminUserUuid",
+                    "adminName",
+                    "impersonatedUserUuid"
+                ],
+                "type": "object",
+                "additionalProperties": true
+            },
             "ApiGetAuthenticatedUserResponse": {
                 "properties": {
                     "results": {
-                        "$ref": "#/components/schemas/LightdashUser"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/LightdashUser"
+                            },
+                            {
+                                "properties": {
+                                    "impersonation": {
+                                        "allOf": [
+                                            {
+                                                "$ref": "#/components/schemas/ImpersonationInfo"
+                                            }
+                                        ],
+                                        "nullable": true
+                                    }
+                                },
+                                "required": ["impersonation"],
+                                "type": "object"
+                            }
+                        ]
                     },
                     "status": {
                         "type": "string",
@@ -21641,6 +21679,47 @@
                     }
                 },
                 "required": ["parameterReferences", "query"],
+                "type": "object"
+            },
+            "ApiStartImpersonationResponse": {
+                "properties": {
+                    "results": {
+                        "type": "number",
+                        "enum": [null],
+                        "nullable": true
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiStartImpersonationRequest": {
+                "properties": {
+                    "targetUserUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["targetUserUuid"],
+                "type": "object"
+            },
+            "ApiStopImpersonationResponse": {
+                "properties": {
+                    "results": {
+                        "type": "number",
+                        "enum": [null],
+                        "nullable": true
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
                 "type": "object"
             },
             "ApiGroupResponse": {
@@ -37317,6 +37396,80 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/impersonation/start": {
+            "post": {
+                "operationId": "StartImpersonation",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiStartImpersonationResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Start impersonating a user",
+                "summary": "Start impersonation",
+                "tags": ["Impersonation"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiStartImpersonationRequest"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/impersonation/stop": {
+            "post": {
+                "operationId": "StopImpersonation",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiStopImpersonationResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Stop impersonating a user",
+                "summary": "Stop impersonation",
+                "tags": ["Impersonation"],
+                "security": [],
+                "parameters": []
             }
         },
         "/api/v1/groups/{groupUuid}": {

@@ -67,9 +67,21 @@ export class UserController extends BaseController {
         }
         this.setStatus(200);
 
+        const impersonationSession = req.session?.impersonation;
+        const impersonation = impersonationSession
+            ? {
+                  adminUserUuid: impersonationSession.adminUserUuid,
+                  adminName: impersonationSession.adminName,
+                  impersonatedUserUuid: impersonationSession.targetUserUuid,
+              }
+            : null;
+
         return {
             status: 'ok',
-            results: UserModel.lightdashUserFromSession(req.user),
+            results: {
+                ...UserModel.lightdashUserFromSession(req.user),
+                impersonation,
+            },
         };
     }
 

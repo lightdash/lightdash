@@ -1041,6 +1041,9 @@ export type LightdashConfig = {
         enabled: boolean;
         retentionDays: number;
     };
+    userImpersonation: {
+        enabled: boolean | undefined;
+    };
 };
 
 export type SlackConfig = {
@@ -1898,6 +1901,11 @@ export const parseConfig = (): LightdashConfig => {
                 getIntegerFromEnvironmentVariable(
                     'SOFT_DELETE_RETENTION_DAYS',
                 ) ?? 30,
+        },
+        userImpersonation: {
+            enabled: process.env.USER_IMPERSONATION_ENABLED
+                ? process.env.USER_IMPERSONATION_ENABLED === 'true'
+                : undefined,
         },
     };
 };
