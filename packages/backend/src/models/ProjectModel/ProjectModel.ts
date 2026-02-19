@@ -10,6 +10,7 @@ import {
     CreateSnowflakeCredentials,
     CreateVirtualViewPayload,
     CreateWarehouseCredentials,
+    DEFAULT_USER_SPACES_PARENT_NAME,
     DbtProjectConfig,
     Explore,
     ExploreError,
@@ -1572,14 +1573,14 @@ export class ProjectModel {
             let parentSpace = await trx(SpaceTableName)
                 .select('space_uuid', 'path')
                 .where('project_id', project.project_id)
-                .where('name', 'Default User Spaces')
+                .where('name', DEFAULT_USER_SPACES_PARENT_NAME)
                 .whereNull('parent_space_uuid')
                 .whereNull('deleted_at')
                 .first();
 
             if (!parentSpace) {
                 const parentSlug = await generateUniqueSpaceSlug(
-                    'Default User Spaces',
+                    DEFAULT_USER_SPACES_PARENT_NAME,
                     project.project_id,
                     { trx },
                 );
@@ -1588,7 +1589,7 @@ export class ProjectModel {
                 [parentSpace] = await trx(SpaceTableName)
                     .insert({
                         project_id: project.project_id,
-                        name: 'Default User Spaces',
+                        name: DEFAULT_USER_SPACES_PARENT_NAME,
                         is_private: false,
                         inherit_parent_permissions: true,
                         slug: parentSlug,

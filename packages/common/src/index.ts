@@ -63,6 +63,7 @@ export * from './compiler/parameters';
 export * from './compiler/translator';
 export * from './constants/screenshot';
 export * from './constants/sessionStorageKeys';
+export * from './constants/spaces';
 export * from './constants/sqlRunner';
 export { default as DbtSchemaEditor } from './dbt/DbtSchemaEditor/DbtSchemaEditor';
 export * from './dbt/validation';
