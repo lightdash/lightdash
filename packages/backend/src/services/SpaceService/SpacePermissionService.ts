@@ -326,14 +326,13 @@ export class SpacePermissionService extends BaseService {
                 directAccess: directAccessMap[item.spaceUuid] ?? [],
             }));
 
-            // Project/org access only if chain reaches project level
+            // Always pass project/org access — the resolver needs it for
+            // highestRole computation (admin detection) even on non-inheriting
+            // spaces. The isPrivate flag controls the fallback path inside
+            // getSpaceRoleFromChain, not whether this data is available.
             const rootSpaceUuid = chain[chain.length - 1].spaceUuid;
-            const projectAccess = inheritsFromOrgOrProject
-                ? (projectAccessMap[rootSpaceUuid] ?? [])
-                : [];
-            const orgAccess = inheritsFromOrgOrProject
-                ? (orgAccessMap[rootSpaceUuid] ?? [])
-                : [];
+            const projectAccess = projectAccessMap[rootSpaceUuid] ?? [];
+            const orgAccess = orgAccessMap[rootSpaceUuid] ?? [];
 
             const isPrivate = !inheritsFromOrgOrProject;
 
