@@ -2686,6 +2686,7 @@ export class ProjectModel {
             await copyDashboardTileContent('dashboard_tile_looms');
             await copyDashboardTileContent('dashboard_tile_markdowns');
             await copyDashboardTileContent('dashboard_tile_sql_charts');
+            await copyDashboardTileContent('dashboard_tile_headings');
 
             // Get AI Agents from the source project
             // Note: AI agents are an Enterprise Edition feature. The table may not exist
