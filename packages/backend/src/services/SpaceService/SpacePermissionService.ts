@@ -219,7 +219,7 @@ export class SpacePermissionService extends BaseService {
 
             const access = resolveSpaceAccess({
                 spaceUuid: rootSpaceUuid,
-                isPrivate,
+                inheritsFromOrgOrProject: !isPrivate,
                 directAccess: directAccessMap[rootSpaceUuid] ?? [],
                 projectAccess: projectAccessMap[rootSpaceUuid] ?? [],
                 organizationAccess: orgAccessMap[rootSpaceUuid] ?? [],
@@ -328,17 +328,15 @@ export class SpacePermissionService extends BaseService {
 
             // Always pass project/org access — the resolver needs it for
             // highestRole computation (admin detection) even on non-inheriting
-            // spaces. The isPrivate flag controls the fallback path inside
-            // getSpaceRoleFromChain, not whether this data is available.
+            // spaces. The inheritsFromOrgOrProject flag controls the fallback
+            // path inside the resolver, not whether this data is available.
             const rootSpaceUuid = chain[chain.length - 1].spaceUuid;
             const projectAccess = projectAccessMap[rootSpaceUuid] ?? [];
             const orgAccess = orgAccessMap[rootSpaceUuid] ?? [];
 
-            const isPrivate = !inheritsFromOrgOrProject;
-
             const access = resolveSpaceAccessWithInheritance({
                 spaceUuid,
-                isPrivate,
+                inheritsFromOrgOrProject,
                 chainDirectAccess,
                 projectAccess,
                 organizationAccess: orgAccess,
@@ -347,7 +345,7 @@ export class SpacePermissionService extends BaseService {
             result[spaceUuid] = {
                 organizationUuid: space.organizationUuid,
                 projectUuid: space.projectUuid,
-                isPrivate,
+                isPrivate: !inheritsFromOrgOrProject,
                 access,
             };
         }

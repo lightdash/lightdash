@@ -95,7 +95,7 @@ const getUserDirectGroupAccess = (
 const getSpaceRole = (
     highestRole: ProjectMemberRole,
     userDirectAccess: DirectSpaceAccess[],
-    isPrivate: boolean,
+    inheritsFromOrgOrProject: boolean,
 ): SpaceMemberRole | undefined => {
     const userAccessEntries = userDirectAccess.filter(
         (a) => a.from === DirectSpaceAccessOrigin.USER_ACCESS,
@@ -120,7 +120,7 @@ const getSpaceRole = (
             getHighestSpaceRole(groupAccessEntries.map((e) => e.role))
         );
     }
-    if (!isPrivate) {
+    if (inheritsFromOrgOrProject) {
         return convertProjectRoleToSpaceRole(highestRole);
     }
 
@@ -131,8 +131,12 @@ const resolveUserSpaceAccess = (
     userUuid: string,
     input: SpaceAccessInput,
 ): SpaceAccess | undefined => {
-    const { isPrivate, directAccess, projectAccess, organizationAccess } =
-        input;
+    const {
+        inheritsFromOrgOrProject,
+        directAccess,
+        projectAccess,
+        organizationAccess,
+    } = input;
     const organizationRole = getUserOrganizationRole(
         organizationAccess,
         userUuid,
@@ -161,7 +165,7 @@ const resolveUserSpaceAccess = (
     const spaceRole = getSpaceRole(
         highestRole.role,
         userDirectAccess,
-        isPrivate,
+        inheritsFromOrgOrProject,
     );
     if (!spaceRole) return undefined;
 
@@ -203,7 +207,7 @@ const getSpaceRoleFromChain = (
     userUuid: string,
     chainDirectAccess: ChainSpaceDirectAccess[],
     leafSpaceUuid: string,
-    isPrivate: boolean,
+    inheritsFromOrgOrProject: boolean,
 ): { role: SpaceMemberRole; fromLeaf: boolean } | undefined => {
     if (highestProjectRole === ProjectMemberRole.ADMIN) {
         return { role: SpaceMemberRole.ADMIN, fromLeaf: true };
@@ -239,7 +243,7 @@ const getSpaceRoleFromChain = (
     }
 
     // No direct access anywhere in chain — fall through to project/org inheritance
-    if (!isPrivate) {
+    if (inheritsFromOrgOrProject) {
         return {
             role: convertProjectRoleToSpaceRole(highestProjectRole),
             fromLeaf: true, // not relevant — inheritedFrom comes from highestRole.type
@@ -255,7 +259,7 @@ const resolveUserSpaceAccessWithInheritance = (
 ): SpaceAccess | undefined => {
     const {
         spaceUuid,
-        isPrivate,
+        inheritsFromOrgOrProject,
         chainDirectAccess,
         projectAccess,
         organizationAccess,
@@ -291,7 +295,7 @@ const resolveUserSpaceAccessWithInheritance = (
         userUuid,
         chainDirectAccess,
         spaceUuid,
-        isPrivate,
+        inheritsFromOrgOrProject,
     );
     if (!spaceRoleResult) return undefined;
 
