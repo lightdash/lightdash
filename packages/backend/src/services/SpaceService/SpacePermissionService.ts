@@ -244,6 +244,44 @@ export class SpacePermissionService extends BaseService {
         return accessible[0];
     }
 
+    /**
+     * Returns the user UUIDs that have direct access to each space.
+     * Used for populating the `access: string[]` field on SpaceSummary.
+     * Does NOT filter by user — returns all directly-shared user UUIDs.
+     */
+    async getDirectAccessUserUuids(
+        spaceUuids: string[],
+    ): Promise<Record<string, string[]>> {
+        if (spaceUuids.length === 0) return {};
+
+        const uniqueSpaceUuids = [...new Set(spaceUuids)];
+
+        // Getting the root space uuids since for nested spaces that's what is used
+        const rootSpaceUuids = await Promise.all(
+            uniqueSpaceUuids.map((uuid) =>
+                this.spaceModel
+                    .getSpaceRootFromCacheOrDB(uuid)
+                    .then((r) => r.spaceRoot),
+            ),
+        );
+
+        const spaceToRootSpaceTuples = rootSpaceUuids.map(
+            (rootSpaceUuid, index) => [uniqueSpaceUuids[index], rootSpaceUuid],
+        );
+
+        const directAccessMap =
+            await this.spacePermissionModel.getDirectSpaceAccess(
+                rootSpaceUuids,
+            );
+
+        return Object.fromEntries(
+            spaceToRootSpaceTuples.map(([spaceUuid, rootSpaceUuid]) => [
+                spaceUuid,
+                directAccessMap[rootSpaceUuid]?.map((e) => e.userUuid) ?? [],
+            ]),
+        );
+    }
+
     async getUserMetadataByUuids(
         userUuids: string[],
     ): Promise<Record<string, SpaceAccessUserMetadata>> {

@@ -5804,26 +5804,26 @@ export class ProjectService extends BaseService {
 
         const spaces = await this.spaceModel.find({ projectUuid });
         const spaceUuids = spaces.map((s) => s.uuid);
-        const spacesCtx =
-            await this.spacePermissionService.getSpacesAccessContext(
+        const [userSpacesCtx, directAccessMap] = await Promise.all([
+            this.spacePermissionService.getSpacesAccessContext(
                 user.userUuid,
                 spaceUuids,
-            );
+            ),
+            this.spacePermissionService.getDirectAccessUserUuids(spaceUuids),
+        ]);
 
         return spaces
             .filter((space) => {
-                const ctx = spacesCtx[space.uuid];
+                const ctx = userSpacesCtx[space.uuid];
                 return ctx && user.ability.can('view', subject('Space', ctx));
             })
             .map((spaceSummary) => {
-                const ctx = spacesCtx[spaceSummary.uuid];
+                const ctx = userSpacesCtx[spaceSummary.uuid];
+                const directAccessUuids =
+                    directAccessMap[spaceSummary.uuid] ?? [];
                 return {
                     ...spaceSummary,
-                    access: ctx
-                        ? ctx.access
-                              .filter((a) => a.hasDirectAccess)
-                              .map((a) => a.userUuid)
-                        : [],
+                    access: directAccessUuids,
                     userAccess: ctx?.access.find(
                         (a) => a.userUuid === user.userUuid,
                     ),
