@@ -1608,6 +1608,112 @@ export class ProjectModel {
         });
     }
 
+    async getProjectsWithDefaultUserSpaces(organizationUuid: string): Promise<
+        {
+            projectId: number;
+            projectUuid: string;
+            parentSpaceUuid: string;
+            parentPath: string;
+        }[]
+    > {
+        const rows = await this.database(ProjectTableName)
+            .innerJoin(
+                OrganizationTableName,
+                `${OrganizationTableName}.organization_id`,
+                `${ProjectTableName}.organization_id`,
+            )
+            .innerJoin(
+                SpaceTableName,
+                `${SpaceTableName}.project_id`,
+                `${ProjectTableName}.project_id`,
+            )
+            .where(
+                `${OrganizationTableName}.organization_uuid`,
+                organizationUuid,
+            )
+            .where(`${ProjectTableName}.has_default_user_spaces`, true)
+            .where(`${SpaceTableName}.name`, DEFAULT_USER_SPACES_PARENT_NAME)
+            .whereNull(`${SpaceTableName}.parent_space_uuid`)
+            .whereNull(`${SpaceTableName}.deleted_at`)
+            .select(
+                `${ProjectTableName}.project_id as project_id`,
+                `${ProjectTableName}.project_uuid as project_uuid`,
+                `${SpaceTableName}.space_uuid as parent_space_uuid`,
+                `${SpaceTableName}.path as parent_path`,
+            );
+
+        return rows.map((row) => ({
+            projectId: row.project_id,
+            projectUuid: row.project_uuid,
+            parentSpaceUuid: row.parent_space_uuid,
+            parentPath: row.parent_path,
+        }));
+    }
+
+    async ensureDefaultUserSpace(
+        projectId: number,
+        parentSpaceUuid: string,
+        parentPath: string,
+        user: {
+            userId: number;
+            userUuid: string;
+            firstName: string;
+            lastName: string;
+        },
+    ): Promise<void> {
+        const existing = await this.database(SpaceTableName)
+            .where('is_default_user_space', true)
+            .where('created_by_user_id', user.userId)
+            .where('project_id', projectId)
+            .whereNull('deleted_at')
+            .first('space_uuid');
+
+        if (existing) return;
+
+        const spaceName =
+            user.firstName || user.lastName
+                ? `${user.firstName} ${user.lastName}`.trim()
+                : `User ${user.userUuid.slice(0, 8)}`;
+
+        await this.database.transaction(async (trx) => {
+            const slug = await generateUniqueSpaceSlug(spaceName, projectId, {
+                trx,
+            });
+            const path = `${parentPath}.${getLtreePathFromSlug(slug)}`;
+
+            const insertedSpaces = await trx(SpaceTableName)
+                .insert({
+                    project_id: projectId,
+                    name: spaceName,
+                    is_private: true,
+                    inherit_parent_permissions: false,
+                    slug,
+                    parent_space_uuid: parentSpaceUuid,
+                    path,
+                    is_default_user_space: true,
+                    created_by_user_id: user.userId,
+                })
+                .onConflict(
+                    trx.raw(
+                        '(project_id, created_by_user_id) WHERE is_default_user_space = true AND deleted_at IS NULL',
+                    ),
+                )
+                .ignore()
+                .returning('space_uuid');
+
+            if (insertedSpaces.length === 0) return;
+
+            await trx(SpaceUserAccessTableName)
+                .insert({
+                    space_uuid: insertedSpaces[0].space_uuid,
+                    user_uuid: user.userUuid,
+                    space_role: SpaceMemberRole.ADMIN,
+                })
+                .onConflict(['user_uuid', 'space_uuid'])
+                .merge();
+        });
+    }
+
     async deleteProjectAccess(
         projectUuid: string,
         userUuid: string,

@@ -803,6 +803,11 @@ export default class App {
                 id: user.userUuid,
                 organization: user.organizationUuid,
             });
+
+            // Fire-and-forget: run once-per-login setup tasks
+            void userService.onLogin(user).catch((err) => {
+                Logger.error('Failed to run onLogin tasks', err);
+            });
         });
 
         // Before each request handler we read `sess.passport.user` from the session store
