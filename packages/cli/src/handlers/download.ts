@@ -789,6 +789,7 @@ const upsertResources = async <T extends ChartAsCode | DashboardAsCode>(
                     ...item,
                     skipSpaceCreate,
                     publicSpaceCreate,
+                    force,
                 }),
             });
 
