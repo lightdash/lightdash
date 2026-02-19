@@ -1,3 +1,11 @@
+## [0.2492.1](https://github.com/lightdash/lightdash/compare/0.2492.0...0.2492.1) (2026-02-19)
+
+
+### Bug Fixes
+
+* refresh manifest when target is explicitly set in generate command ([#20444](https://github.com/lightdash/lightdash/issues/20444)) ([eb52f92](https://github.com/lightdash/lightdash/commit/eb52f92f76442dde8f64126dbedbe5ae6e5ad1d1))
+* update AI agent test cases to use specific date ranges instead of relative dates ([#20419](https://github.com/lightdash/lightdash/issues/20419)) ([4ab843d](https://github.com/lightdash/lightdash/commit/4ab843da35e6d12e5b0c9af41c3f450975787480))
+
 # [0.2492.0](https://github.com/lightdash/lightdash/compare/0.2491.0...0.2492.0) (2026-02-19)
 
 
