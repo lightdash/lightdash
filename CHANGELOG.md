@@ -1,3 +1,11 @@
+# [0.2496.0](https://github.com/lightdash/lightdash/compare/0.2495.0...0.2496.0) (2026-02-19)
+
+
+### Features
+
+* add column width customization to tables ([#20359](https://github.com/lightdash/lightdash/issues/20359)) ([744f13f](https://github.com/lightdash/lightdash/commit/744f13f0bc736af128ab1acb34abbf973931acd0))
+* auto-generate filter IDs when missing on `lightdash upload` ([#20458](https://github.com/lightdash/lightdash/issues/20458)) ([4ce0e9d](https://github.com/lightdash/lightdash/commit/4ce0e9d21bea19e395e8d9b7b2831ed704aeb4de))
+
 # [0.2495.0](https://github.com/lightdash/lightdash/compare/0.2494.0...0.2495.0) (2026-02-19)
 
 
