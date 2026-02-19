@@ -36,7 +36,7 @@ import { wrapSentryTransaction } from '../utils';
  */
 export const getRootSpaceIsPrivateQuery = (): string => `
                 CASE
-                    WHEN ${SpaceTableName}.parent_space_uuid IS NOT NULL THEN
+                    WHEN ${SpaceTableName}.parent_space_uuid IS NOT NULL AND ${SpaceTableName}.is_default_user_space = false THEN
                         (SELECT ps.is_private
                          FROM ${SpaceTableName} ps
                          WHERE ps.path @> ${SpaceTableName}.path
