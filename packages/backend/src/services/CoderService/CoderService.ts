@@ -10,6 +10,7 @@ import {
     DashboardAsCode,
     DashboardAsCodeInternalization,
     DashboardDAO,
+    DashboardTab,
     DashboardTile,
     DashboardTileAsCode,
     DashboardTileTarget,
@@ -96,6 +97,42 @@ const normalizeFilterIds = (filters: FiltersInput): Filters => ({
     metrics: normalizeFilterGroup(filters.metrics),
     tableCalculations: normalizeFilterGroup(filters.tableCalculations),
 });
+
+/**
+ * Normalize tab IDs: assign a uuid to any tab missing one,
+ * and update tile tabUuid references to match.
+ */
+const normalizeTabIds = (
+    dashboardAsCode: DashboardAsCode,
+): { tabs: DashboardTab[]; tiles: DashboardAsCode['tiles'] } => {
+    const tabIdMap = new Map<number, string>(); // order -> assigned uuid
+    const tabs: DashboardTab[] = dashboardAsCode.tabs.map((tab) => {
+        const uuid = tab.uuid ?? uuidv4();
+        tabIdMap.set(tab.order, uuid);
+        return { ...tab, uuid };
+    });
+
+    // Build a set of old->new uuid mappings for tabs whose uuid was generated
+    const oldToNew = new Map<string | undefined, string>();
+    dashboardAsCode.tabs.forEach((tab, idx) => {
+        if (tab.uuid !== tabs[idx].uuid) {
+            oldToNew.set(tab.uuid, tabs[idx].uuid);
+        }
+    });
+
+    // Update tile tabUuid references if any tab uuids changed
+    const tiles =
+        oldToNew.size > 0
+            ? dashboardAsCode.tiles.map((tile) => ({
+                  ...tile,
+                  tabUuid: tile.tabUuid
+                      ? (oldToNew.get(tile.tabUuid) ?? tile.tabUuid)
+                      : tile.tabUuid,
+              }))
+            : dashboardAsCode.tiles;
+
+    return { tabs, tiles };
+};
 
 const isAnyChartTile = (
     tile: DashboardTileAsCode | DashboardTile,
@@ -1394,9 +1431,15 @@ export class CoderService extends BaseService {
             throw new ForbiddenError();
         }
 
+        // Normalize tab IDs: assign uuids to tabs missing them
+        const { tabs: normalizedTabs, tiles: normalizedTiles } =
+            normalizeTabIds(dashboardAsCode);
+
         // Default optional fields when missing (e.g. user-authored YAML)
         const dashboardWithDefaults = {
             ...dashboardAsCode,
+            tabs: normalizedTabs,
+            tiles: normalizedTiles,
             updatedAt: dashboardAsCode.updatedAt ?? new Date(),
             filters: {
                 dimensions: dashboardAsCode.filters?.dimensions ?? [],

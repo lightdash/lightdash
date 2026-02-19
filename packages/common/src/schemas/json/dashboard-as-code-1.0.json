@@ -241,11 +241,11 @@
             "items": {
                 "type": "object",
                 "additionalProperties": false,
-                "required": ["uuid", "name", "order"],
+                "required": ["name", "order"],
                 "properties": {
                     "uuid": {
                         "type": "string",
-                        "description": "Unique identifier for the tab"
+                        "description": "Identifier for the tab. Can be any string (e.g. 'overview', 'details'). Auto-generated if omitted."
                     },
                     "name": {
                         "type": "string",
