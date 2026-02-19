@@ -1,3 +1,10 @@
+# [0.2489.0](https://github.com/lightdash/lightdash/compare/0.2488.0...0.2489.0) (2026-02-19)
+
+
+### Features
+
+* add endpoint to patch project hasDefaultUserSpaces ([#20343](https://github.com/lightdash/lightdash/issues/20343)) ([c4fa335](https://github.com/lightdash/lightdash/commit/c4fa3356600f476f3aeb1d5f170e49abb9b0ab06))
+
 # [0.2488.0](https://github.com/lightdash/lightdash/compare/0.2487.0...0.2488.0) (2026-02-19)
 
 
