@@ -15,13 +15,13 @@ import { LightdashAnalytics } from '../analytics/analytics';
 import { getConfig, setPreviewProject, unsetPreviewProject } from '../config';
 import { getDbtContext } from '../dbt/context';
 import GlobalState from '../globalState';
+import { CliProjectType, detectProjectType } from '../lightdash/projectType';
 import * as styles from '../styles';
 import { compile } from './compile';
 import { createProject } from './createProject';
 import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
 import { DbtCompileOptions } from './dbt/compile';
 import { deploy } from './deploy';
-import { CliProjectType, detectProjectType } from '../lightdash/projectType';
 
 type PreviewHandlerOptions = DbtCompileOptions & {
     projectDir: string;
@@ -70,6 +70,7 @@ const deletePreviewProject = async (
 const cleanupProject = async (
     executionId: string,
     projectUuid: string,
+    previewStartTime?: number,
 ): Promise<void> => {
     const teardownSpinner = GlobalState.startSpinner(`  Cleaning up`);
 
@@ -80,6 +81,9 @@ const cleanupProject = async (
             properties: {
                 executionId,
                 projectId: projectUuid,
+                durationMs: previewStartTime
+                    ? Date.now() - previewStartTime
+                    : undefined,
             },
         });
         teardownSpinner.succeed(`  Cleaned up`);
@@ -257,6 +261,7 @@ export const previewHandler = async (
         return;
     }
 
+    const previewStartTime = Date.now();
     await LightdashAnalytics.track({
         event: 'preview.started',
         properties: {
@@ -274,7 +279,11 @@ export const previewHandler = async (
         await setPreviewProject(project.projectUuid, name);
 
         process.on('SIGINT', async () => {
-            await cleanupProject(executionId, project!.projectUuid);
+            await cleanupProject(
+                executionId,
+                project!.projectUuid,
+                previewStartTime,
+            );
 
             process.exit(0);
         });
@@ -300,6 +309,7 @@ export const previewHandler = async (
             properties: {
                 executionId,
                 projectId: project.projectUuid,
+                durationMs: Date.now() - previewStartTime,
             },
         });
 
@@ -379,7 +389,7 @@ export const previewHandler = async (
         throw e;
     }
 
-    await cleanupProject(executionId, project.projectUuid);
+    await cleanupProject(executionId, project.projectUuid, previewStartTime);
 };
 
 export const startPreviewHandler = async (

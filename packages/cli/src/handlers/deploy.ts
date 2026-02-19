@@ -20,6 +20,7 @@ import { getConfig, setProject } from '../config';
 import { getDbtContext } from '../dbt/context';
 import GlobalState from '../globalState';
 import { readAndLoadLightdashProjectConfig } from '../lightdash-config';
+import { CliProjectType, detectProjectType } from '../lightdash/projectType';
 import * as styles from '../styles';
 import { compile } from './compile';
 import {
@@ -29,7 +30,6 @@ import {
 import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
 import { DbtCompileOptions } from './dbt/compile';
 import { tryGetDbtVersion } from './dbt/getDbtVersion';
-import { CliProjectType, detectProjectType } from '../lightdash/projectType';
 import { logSelectedProject, selectProject } from './selectProject';
 
 type DeployHandlerOptions = DbtCompileOptions & {
@@ -141,15 +141,19 @@ export const deploy = async (
         );
     }
 
+    const deployStartTime = Date.now();
+    const deployPayload = JSON.stringify(explores);
     await lightdashApi<null>({
         method: 'PUT',
         url: `/api/v1/projects/${options.projectUuid}/explores`,
-        body: JSON.stringify(explores),
+        body: deployPayload,
     });
     await LightdashAnalytics.track({
         event: 'deploy.triggered',
         properties: {
             projectId: options.projectUuid,
+            durationMs: Date.now() - deployStartTime,
+            payloadSizeBytes: Buffer.byteLength(deployPayload),
         },
     });
 };
@@ -198,6 +202,7 @@ const createNewProject = async (
     const spinner = GlobalState.startSpinner(
         `  Creating new project ${styles.bold(projectName)}`,
     );
+    const createStartTime = Date.now();
     await LightdashAnalytics.track({
         event: 'create.started',
         properties: {
@@ -229,6 +234,7 @@ const createNewProject = async (
                 executionId,
                 projectId: project.projectUuid,
                 projectName,
+                durationMs: Date.now() - createStartTime,
             },
         });
 

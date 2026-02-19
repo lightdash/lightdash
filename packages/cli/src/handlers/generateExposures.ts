@@ -35,6 +35,7 @@ export const generateExposuresHandler = async (
         );
     }
 
+    const startTime = Date.now();
     await LightdashAnalytics.track({
         event: 'generate_exposures.started',
         properties: {
@@ -116,6 +117,7 @@ export const generateExposuresHandler = async (
             properties: {
                 executionId,
                 countExposures: Object.keys(exposures).length,
+                durationMs: Date.now() - startTime,
             },
         });
     } catch (e: unknown) {

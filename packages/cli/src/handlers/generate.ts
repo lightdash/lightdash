@@ -57,6 +57,7 @@ export const generateHandler = async (options: GenerateHandlerOptions) => {
     }
 
     const numModelsSelected = (options.select || options.models)?.length;
+    const startTime = Date.now();
     await LightdashAnalytics.track({
         event: 'generate.started',
         properties: {
@@ -197,6 +198,7 @@ export const generateHandler = async (options: GenerateHandlerOptions) => {
             executionId,
             trigger: 'generate',
             numModelsSelected,
+            durationMs: Date.now() - startTime,
         },
     });
 };
