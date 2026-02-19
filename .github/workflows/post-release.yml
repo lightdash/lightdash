@@ -20,7 +20,7 @@ jobs:
     name: Build and Push Images
     runs-on: depot-ubuntu-24.04-4
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 #v4
         with:
           token: ${{ secrets.CI_GITHUB_TOKEN }}
           persist-credentials: false
@@ -128,7 +128,7 @@ jobs:
     outputs:
       should_build: ${{ steps.check.outputs.should_build }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 #v4
         with:
           fetch-depth: 0
           ref: ${{ github.event.release.tag_name }}
@@ -175,13 +175,13 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 #v4
         with:
           ref: ${{ github.event.release.tag_name }}
 
       - uses: pnpm/action-setup@v4
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 #v4
         with:
           node-version: '20'
           cache: 'pnpm'
@@ -189,7 +189,7 @@ jobs:
 
       - name: Cache node_modules
         id: cache-node-modules
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 #v4
         with:
           path: |
             node_modules
@@ -202,7 +202,7 @@ jobs:
 
       - name: Cache common build
         id: cache-common
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 #v4
         with:
           path: packages/common/dist
           key: ${{ runner.os }}-common-build-${{ hashFiles('packages/common/src/**', 'packages/common/tsconfig*.json') }}
@@ -213,7 +213,7 @@ jobs:
 
       - name: Cache warehouses build
         id: cache-warehouses
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 #v4
         with:
           path: packages/warehouses/dist
           key: ${{ runner.os }}-warehouses-build-${{ hashFiles('packages/warehouses/src/**', 'packages/warehouses/tsconfig*.json', 'packages/common/src/**') }}
@@ -307,7 +307,7 @@ jobs:
     runs-on: depot-ubuntu-24.04-4
     steps:
       - name: Checkout Homebrew tap
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 #v4
         with:
           repository: lightdash/homebrew-lightdash
           token: ${{ secrets.CI_GITHUB_TOKEN }}

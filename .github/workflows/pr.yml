@@ -29,9 +29,9 @@ jobs:
       TURBO_API: https://cache.depot.dev
       NODE_OPTIONS: "--max-old-space-size=8192"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 #v4
       - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 #v4
         with:
           node-version: "20"
           cache: "pnpm"
@@ -62,7 +62,7 @@ jobs:
       timezone: ${{ steps.changes.outputs.timezone == 'true' || contains(github.event.pull_request.body, 'test-timezone') || contains(github.event.pull_request.body, 'test-all') }}
       cli: ${{ steps.changes.outputs.cli == 'true' || contains(github.event.pull_request.body, 'test-cli') || contains(github.event.pull_request.body, 'test-all') }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 #v4
       - name: Check for files changes
         uses: dorny/paths-filter@v3
         id: changes
@@ -76,7 +76,7 @@ jobs:
     needs: files-changed
     steps:
       - name: Post comment with test selection info
-        uses: actions/github-script@v6
+        uses: actions/github-script@d7906e4ad0b1822421a7e6a35d5ca353c962f410 #v6
         with:
           script: |
             const marker = '<!-- test-selection-comment -->';
@@ -209,7 +209,7 @@ jobs:
           environment-url: https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev
 
       - name: Comment PR with preview info
-        uses: actions/github-script@v6
+        uses: actions/github-script@d7906e4ad0b1822421a7e6a35d5ca353c962f410 #v6
         with:
           script: |
             const marker = '<!-- preview-environment-comment -->';
@@ -259,7 +259,7 @@ jobs:
     name: Build E2E Image
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 #v4
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
       - name: GitHub Registry Login
@@ -268,7 +268,7 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - uses: docker/build-push-action@v5
+      - uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 #v5
         with:
           file: ./packages/e2e/dockerfile
           context: .
@@ -294,7 +294,7 @@ jobs:
       NODE_OPTIONS: "--max-old-space-size=8192"
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 #v4
       - name: Setup Node, PNPM, and Cypress
         uses: ./.github/workflows/_setup_node_pnpm_cypress
       - name: Build packages/common module
@@ -347,7 +347,7 @@ jobs:
       NODE_OPTIONS: "--max-old-space-size=8192"
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 #v4
       - name: Setup Node, PNPM, and Cypress
         uses: ./.github/workflows/_setup_node_pnpm_cypress
       - name: Build packages/common module
@@ -383,7 +383,7 @@ jobs:
           CYPRESS_TRINO_PASSWORD: ${{ secrets.TRINO_PASSWORD }}
           TZ: "UTC"
           CYPRESS_TZ: "UTC"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 #v4
         if: failure()
         with:
           name: cypress-screenshots-and-videos-${{ strategy.job-index }}
@@ -409,7 +409,7 @@ jobs:
       NODE_OPTIONS: "--max-old-space-size=8192"
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 #v4
       - name: Setup Node, PNPM, and Cypress
         uses: ./.github/workflows/_setup_node_pnpm_cypress
       - name: Build packages/common module
@@ -432,7 +432,7 @@ jobs:
         env:
           TZ: ${{ matrix.timezone }}
           CYPRESS_TZ: ${{ matrix.timezone }}
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 #v4
         if: failure()
         with:
           name: cypress-screenshots-and-videos-timezone-${{ strategy.job-index }}
@@ -452,7 +452,7 @@ jobs:
       NODE_OPTIONS: "--max-old-space-size=8192"
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 #v4
       - name: Setup Node, PNPM, and Cypress
         uses: ./.github/workflows/_setup_node_pnpm_cypress
       - name: Build packages/common module
@@ -485,10 +485,10 @@ jobs:
       NODE_OPTIONS: "--max-old-space-size=8192"
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 #v4
       - name: Setup Node, PNPM, and Cypress
         uses: ./.github/workflows/_setup_node_pnpm_cypress
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@7f4fc3e22c37d6ff65e88745f38bd3157c663f7c #v4
         with:
           python-version: "3.10.x"
       - run: pip install dbt-core~=1.9.0 dbt-postgres~=1.9.0
@@ -552,10 +552,10 @@ jobs:
       NODE_OPTIONS: "--max-old-space-size=8192"
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 #v4
       - name: Setup Node, PNPM, and Cypress
         uses: ./.github/workflows/_setup_node_pnpm_cypress
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@7f4fc3e22c37d6ff65e88745f38bd3157c663f7c #v4
         with:
           python-version: "3.10.x"
       - run: |
