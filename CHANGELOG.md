@@ -1,3 +1,16 @@
+# [0.2493.0](https://github.com/lightdash/lightdash/compare/0.2492.1...0.2493.0) (2026-02-19)
+
+
+### Bug Fixes
+
+* copy dashboard_tile_headings when creating preview ([#20454](https://github.com/lightdash/lightdash/issues/20454)) ([63f003b](https://github.com/lightdash/lightdash/commit/63f003b2a3ee0d766e8662467d68baaf08d66303))
+
+
+### Features
+
+* add partitionBy support to ai agents ([#20423](https://github.com/lightdash/lightdash/issues/20423)) ([ce829f6](https://github.com/lightdash/lightdash/commit/ce829f6eeded986577619c7f8fc313ba5829441c)), closes [#20361](https://github.com/lightdash/lightdash/issues/20361) [#150](https://github.com/lightdash/lightdash/issues/150)
+* add partitionBy support to percent change calculations ([#20422](https://github.com/lightdash/lightdash/issues/20422)) ([40dd72b](https://github.com/lightdash/lightdash/commit/40dd72b9a23326a7a233059ae0ddcae61535f498))
+
 ## [0.2492.1](https://github.com/lightdash/lightdash/compare/0.2492.0...0.2492.1) (2026-02-19)
 
 
