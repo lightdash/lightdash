@@ -10,26 +10,55 @@ import type {
     DashboardLoomTileProperties,
     DashboardMarkdownTileProperties,
     DashboardTile,
+    FilterRule,
+    MetricQuery,
     PromotionChanges,
     SavedChart,
     SqlChart,
 } from '..';
 
 export const currentVersion = 1;
+
+/**
+ * Permissive filter types for chart-as-code uploads where `id` may be omitted.
+ * Filter IDs are auto-generated during upsert if absent.
+ * After normalization these become the strict runtime types (FilterGroup, Filters).
+ */
+export type FilterRuleInput = Omit<FilterRule, 'id'> & { id?: string };
+export type OrFilterGroupInput = {
+    id?: string;
+    or: Array<FilterGroupItemInput>;
+};
+export type AndFilterGroupInput = {
+    id?: string;
+    and: Array<FilterGroupItemInput>;
+};
+export type FilterGroupInput = OrFilterGroupInput | AndFilterGroupInput;
+export type FilterGroupItemInput = FilterGroupInput | FilterRuleInput;
+export type FiltersInput = {
+    dimensions?: FilterGroupInput;
+    metrics?: FilterGroupInput;
+    tableCalculations?: FilterGroupInput;
+};
+
 // We want to only use properties that can be modified by the user
 // We'll be using slug to access these charts, so uuids are not included
 // These are not linked to a project or org, so projectUuid is not included
-export type ChartAsCode = Pick<
-    SavedChart,
-    | 'name'
-    | 'description'
-    | 'tableName'
-    | 'metricQuery'
-    | 'chartConfig'
-    | 'pivotConfig'
-    | 'slug'
-    | 'parameters'
+export type ChartAsCode = Omit<
+    Pick<
+        SavedChart,
+        | 'name'
+        | 'description'
+        | 'tableName'
+        | 'metricQuery'
+        | 'chartConfig'
+        | 'pivotConfig'
+        | 'slug'
+        | 'parameters'
+    >,
+    'metricQuery'
 > & {
+    metricQuery: Omit<MetricQuery, 'filters'> & { filters: FiltersInput };
     /** Not modifiable by user, but useful to know if it has been updated. Defaults to now if omitted. */
     updatedAt?: Date;
     /** Table configuration. Defaults to empty column order if omitted. */
@@ -43,6 +72,7 @@ export type ChartAsCode = Pick<
     /** Timestamp when this chart was downloaded from Lightdash */
     downloadedAt?: Date;
 };
+
 
 // SQL Charts are stored separately from regular saved charts
 // They have SQL queries instead of metricQuery/tableName
