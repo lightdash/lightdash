@@ -2974,7 +2974,6 @@
         "slug",
         "tableName",
         "metricQuery",
-        "tableConfig",
         "spaceSlug",
         "version"
     ],

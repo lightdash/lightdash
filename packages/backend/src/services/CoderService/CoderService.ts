@@ -896,10 +896,11 @@ export class CoderService extends BaseService {
             throw new ForbiddenError();
         }
 
-        // Default updatedAt to now when missing (e.g. user-authored YAML)
+        // Default optional fields when missing (e.g. user-authored YAML)
         const chartWithDefaults = {
             ...chartAsCode,
             updatedAt: chartAsCode.updatedAt ?? new Date(),
+            tableConfig: chartAsCode.tableConfig ?? { columnOrder: [] },
         };
 
         const [chart] = await this.savedChartModel.find({
