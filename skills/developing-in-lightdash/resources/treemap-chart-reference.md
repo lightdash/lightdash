@@ -44,7 +44,7 @@ chartConfig:
 | `sizeMetricId` | string | Field ID that determines rectangle size | Yes |
 | `colorMetricId` | string | Field ID that determines rectangle color value | No |
 | `visibleMin` | number | Minimum size threshold for displaying nodes | No |
-| `leafDepth` | number | Depth level to display as leaf nodes | No |
+| `maxLeafDepth` | number | Depth level to display as leaf nodes | No |
 | `startColor` | string | Start color for gradient (hex code) | No |
 | `endColor` | string | End color for gradient (hex code) | No |
 | `useDynamicColors` | boolean | Enable dynamic color scaling based on values | No |
@@ -166,7 +166,7 @@ chartConfig:
 **Solutions**:
 - Verify `groupFieldIds` array has multiple fields
 - Check that dimensions are in metricQuery
-- Confirm `leafDepth` setting if specified
+- Confirm `maxLeafDepth` setting if specified
 
 ### Colors Not Showing
 
