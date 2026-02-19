@@ -32,6 +32,7 @@ export const dbtRunHandler = async (
         );
     }
 
+    const dbtStartTime = Date.now();
     await LightdashAnalytics.track({
         event: 'dbt_command.started',
         properties: {
@@ -56,6 +57,14 @@ export const dbtRunHandler = async (
             stdio: 'inherit',
         });
         await subprocess;
+
+        await LightdashAnalytics.track({
+            event: 'dbt_command.completed',
+            properties: {
+                command: `${commands}`,
+                durationMs: Date.now() - dbtStartTime,
+            },
+        });
     } catch (e: unknown) {
         const msg = getErrorMessage(e);
         await LightdashAnalytics.track({
