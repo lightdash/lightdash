@@ -142,10 +142,18 @@ export type DashboardTileWithSlug = DashboardTile & {
     tileSlug: string | undefined;
 };
 
+export type DashboardTabAsCode = {
+    name: string;
+    order: number;
+    /** UUID for the tab. Auto-generated if omitted or not a valid UUID. */
+    uuid?: string;
+};
+
 export type DashboardAsCode = Pick<
     Dashboard,
-    'name' | 'description' | 'tabs' | 'slug'
+    'name' | 'description' | 'slug'
 > & {
+    tabs: DashboardTabAsCode[];
     /** Not modifiable by user, but useful to know if it has been updated. Defaults to now if omitted. */
     updatedAt?: Date;
     tiles: DashboardTileAsCode[];
