@@ -29,9 +29,10 @@ export type ChartAsCode = Pick<
     | 'tableConfig'
     | 'pivotConfig'
     | 'slug'
-    | 'updatedAt' // Not modifiable by user, but useful to know if it has been updated
     | 'parameters'
 > & {
+    /** Not modifiable by user, but useful to know if it has been updated. Defaults to now if omitted. */
+    updatedAt?: Date;
     /** Slug of the dashboard this chart belongs to (if any) */
     dashboardSlug: string | undefined;
     /** Schema version for this chart configuration */
@@ -50,7 +51,7 @@ export type SqlChartAsCode = Pick<
 > & {
     version: number;
     spaceSlug: string;
-    updatedAt: Date;
+    updatedAt?: Date;
     downloadedAt?: Date;
 };
 
@@ -112,8 +113,10 @@ export type DashboardTileWithSlug = DashboardTile & {
 
 export type DashboardAsCode = Pick<
     Dashboard,
-    'name' | 'description' | 'updatedAt' | 'tabs' | 'slug'
+    'name' | 'description' | 'tabs' | 'slug'
 > & {
+    /** Not modifiable by user, but useful to know if it has been updated. Defaults to now if omitted. */
+    updatedAt?: Date;
     tiles: DashboardTileAsCode[];
     version: number;
     spaceSlug: string;
