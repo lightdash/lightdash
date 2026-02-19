@@ -1,3 +1,10 @@
+## [0.2498.1](https://github.com/lightdash/lightdash/compare/0.2498.0...0.2498.1) (2026-02-19)
+
+
+### Bug Fixes
+
+* cli double Databricks OAuth and improve TUI/UX ([#20424](https://github.com/lightdash/lightdash/issues/20424)) ([1a58cac](https://github.com/lightdash/lightdash/commit/1a58cacc321ff3d1384c9b8a50a7f61a5f64be28))
+
 # [0.2498.0](https://github.com/lightdash/lightdash/compare/0.2497.0...0.2498.0) (2026-02-19)
 
 
