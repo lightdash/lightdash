@@ -1,4 +1,4 @@
-import { type Space } from '@lightdash/common';
+import { FeatureFlags, type Space } from '@lightdash/common';
 import { Alert, Anchor, Box, Button, Stack, Text } from '@mantine/core';
 import {
     IconAlertCircle,
@@ -9,6 +9,7 @@ import {
 import { useEffect, useState, type FC } from 'react';
 import { Link, useNavigate } from 'react-router';
 import useSearchParams from '../../../hooks/useSearchParams';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
 import MantineModal from '../MantineModal';
 import { ShareSpaceAccessType } from './ShareSpaceAccessType';
@@ -25,7 +26,10 @@ export interface ShareSpaceProps {
     projectUuid: string;
 }
 
-const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
+const ShareSpaceModalContent: FC<ShareSpaceProps> = ({
+    space,
+    projectUuid,
+}) => {
     const navigate = useNavigate();
     const shareSpaceModalSearchParam = useSearchParams('shareSpaceModal');
     const [selectedAccess, setSelectedAccess] = useState<AccessOption>(
@@ -168,6 +172,19 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
             </MantineModal>
         </>
     );
+};
+
+const ShareSpaceModal: FC<ShareSpaceProps> = (props) => {
+    const { data: nestedSpacesPermissionsFlag } = useServerFeatureFlag(
+        FeatureFlags.NestedSpacesPermissions,
+    );
+
+    if (nestedSpacesPermissionsFlag?.enabled) {
+        // TODO: render v2 modal when implemented
+        return <ShareSpaceModalContent {...props} />;
+    }
+
+    return <ShareSpaceModalContent {...props} />;
 };
 
 export default ShareSpaceModal;
