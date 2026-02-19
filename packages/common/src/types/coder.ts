@@ -26,13 +26,14 @@ export type ChartAsCode = Pick<
     | 'tableName'
     | 'metricQuery'
     | 'chartConfig'
-    | 'tableConfig'
     | 'pivotConfig'
     | 'slug'
     | 'parameters'
 > & {
     /** Not modifiable by user, but useful to know if it has been updated. Defaults to now if omitted. */
     updatedAt?: Date;
+    /** Table configuration. Defaults to empty column order if omitted. */
+    tableConfig?: { columnOrder: string[] };
     /** Slug of the dashboard this chart belongs to (if any) */
     dashboardSlug: string | undefined;
     /** Schema version for this chart configuration */
