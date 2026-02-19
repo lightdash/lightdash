@@ -26,7 +26,6 @@ export const GrabIcon: FC<Props> = ({
                 }),
                 opacity: disabled ? 0.3 : 0.6,
                 cursor: disabled ? 'default' : 'grab',
-                '&:hover': { opacity: disabled ? 0.3 : 1 },
             }}
         >
             <MantineIcon color="ldGray.6" icon={IconGripVertical} />
