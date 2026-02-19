@@ -30,7 +30,7 @@ export const getSwaggerPath = (): string =>
 export const getOutputPath = (): string =>
     path.join(
         getRepoRoot(),
-        'packages/common/src/schemas/json/chart-as-code-1.0.json',
+        'packages/common/src/schemas/json/chart-as-code-2.0.json',
     );
 
 const toObject = (value: JsonValue | undefined): JsonObject =>

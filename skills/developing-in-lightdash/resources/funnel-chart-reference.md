@@ -35,7 +35,7 @@ metricQuery:
 chartConfig:
   type: funnel
   config:
-    fieldId: leads_count
+    selectedField: leads_count
     dataInput: row
 ```
 
@@ -65,7 +65,7 @@ How the data is structured in your query results.
 | 10000     | 5000     | 2000          | 500      |
 ```
 
-#### `fieldId`
+#### `selectedField`
 
 The field ID (metric or dimension) to display as the funnel values.
 
@@ -126,7 +126,7 @@ metricQuery:
 chartConfig:
   type: funnel
   config:
-    fieldId: opportunities_count
+    selectedField: opportunities_count
     dataInput: row
 
     # Custom stage labels
