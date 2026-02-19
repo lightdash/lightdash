@@ -1,3 +1,10 @@
+# [0.2495.0](https://github.com/lightdash/lightdash/compare/0.2494.0...0.2495.0) (2026-02-19)
+
+
+### Features
+
+* make `tableConfig` optional in ChartAsCode ([#20456](https://github.com/lightdash/lightdash/issues/20456)) ([fd01631](https://github.com/lightdash/lightdash/commit/fd016313fe26bf1520a9a3382f1e667a9a6027e5))
+
 # [0.2494.0](https://github.com/lightdash/lightdash/compare/0.2493.0...0.2494.0) (2026-02-19)
 
 
