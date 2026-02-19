@@ -27,6 +27,7 @@ export type DbProject = {
     dbt_version: string;
     scheduler_timezone: string;
     created_by_user_uuid: string | null;
+    has_default_user_spaces: boolean;
 };
 
 type CreateDbProject = Pick<
@@ -55,6 +56,7 @@ type UpdateDbProject = Partial<
         | 'dbt_version'
         | 'copied_from_project_uuid'
         | 'scheduler_timezone'
+        | 'has_default_user_spaces'
     >
 >;
 

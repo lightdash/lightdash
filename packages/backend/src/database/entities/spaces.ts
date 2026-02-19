@@ -29,6 +29,7 @@ export type CreateDbSpace = Pick<
     | 'parent_space_uuid'
     | 'path'
     | 'inherit_parent_permissions'
+    | 'is_default_user_space'
 >;
 
 export type UpdateDbSpace = Partial<

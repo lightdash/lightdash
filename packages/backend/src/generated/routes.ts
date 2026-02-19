@@ -7386,11 +7386,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                     ],
                                                     required: true,
@@ -7478,7 +7478,7 @@ const models: TsoaRoute.Models = {
                                                                                             'nestedObjectLiteral',
                                                                                         nestedProperties:
                                                                                             {
-                                                                                                chartUsage:
+                                                                                                searchRank:
                                                                                                     {
                                                                                                         dataType:
                                                                                                             'union',
@@ -7501,7 +7501,7 @@ const models: TsoaRoute.Models = {
                                                                                                                 },
                                                                                                             ],
                                                                                                     },
-                                                                                                searchRank:
+                                                                                                chartUsage:
                                                                                                     {
                                                                                                         dataType:
                                                                                                             'union',
@@ -7530,17 +7530,17 @@ const models: TsoaRoute.Models = {
                                                                                                             'string',
                                                                                                         required: true,
                                                                                                     },
+                                                                                                label: {
+                                                                                                    dataType:
+                                                                                                        'string',
+                                                                                                    required: true,
+                                                                                                },
                                                                                                 tableName:
                                                                                                     {
                                                                                                         dataType:
                                                                                                             'string',
                                                                                                         required: true,
                                                                                                     },
-                                                                                                label: {
-                                                                                                    dataType:
-                                                                                                        'string',
-                                                                                                    required: true,
-                                                                                                },
                                                                                                 name: {
                                                                                                     dataType:
                                                                                                         'string',
@@ -7736,7 +7736,7 @@ const models: TsoaRoute.Models = {
                                                                                                 'nestedObjectLiteral',
                                                                                             nestedProperties:
                                                                                                 {
-                                                                                                    chartUsage:
+                                                                                                    searchRank:
                                                                                                         {
                                                                                                             dataType:
                                                                                                                 'union',
@@ -7759,7 +7759,7 @@ const models: TsoaRoute.Models = {
                                                                                                                     },
                                                                                                                 ],
                                                                                                         },
-                                                                                                    searchRank:
+                                                                                                    chartUsage:
                                                                                                         {
                                                                                                             dataType:
                                                                                                                 'union',
@@ -7788,17 +7788,17 @@ const models: TsoaRoute.Models = {
                                                                                                                 'string',
                                                                                                             required: true,
                                                                                                         },
+                                                                                                    label: {
+                                                                                                        dataType:
+                                                                                                            'string',
+                                                                                                        required: true,
+                                                                                                    },
                                                                                                     tableName:
                                                                                                         {
                                                                                                             dataType:
                                                                                                                 'string',
                                                                                                             required: true,
                                                                                                         },
-                                                                                                    label: {
-                                                                                                        dataType:
-                                                                                                            'string',
-                                                                                                        required: true,
-                                                                                                    },
                                                                                                     name: {
                                                                                                         dataType:
                                                                                                             'string',
@@ -7868,11 +7868,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                     ],
                                                     required: true,
@@ -7887,11 +7887,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                     ],
                                                     required: true,
@@ -7906,11 +7906,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                     ],
                                                     required: true,
@@ -7925,11 +7925,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                     ],
                                                     required: true,
@@ -7944,11 +7944,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                     ],
                                                     required: true,
@@ -16999,6 +16999,17 @@ const models: TsoaRoute.Models = {
                         { dataType: 'enum', enums: [null] },
                     ],
                 },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    UpdateDefaultUserSpaces: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                hasDefaultUserSpaces: { dataType: 'boolean', required: true },
             },
             validators: {},
         },
@@ -39586,6 +39597,71 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'updateProjectMetadata',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsProjectController_updateDefaultUserSpaces: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'UpdateDefaultUserSpaces',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
+    app.patch(
+        '/api/v1/projects/:projectUuid/hasDefaultUserSpaces',
+        ...fetchMiddlewares<RequestHandler>(ProjectController),
+        ...fetchMiddlewares<RequestHandler>(
+            ProjectController.prototype.updateDefaultUserSpaces,
+        ),
+
+        async function ProjectController_updateDefaultUserSpaces(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsProjectController_updateDefaultUserSpaces,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<ProjectController>(ProjectController);
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'updateDefaultUserSpaces',
                     controller,
                     response,
                     next,

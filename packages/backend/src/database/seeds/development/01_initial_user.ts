@@ -247,6 +247,7 @@ export async function seed(knex: Knex): Promise<void> {
             parent_space_uuid: null,
             path: getLtreePathFromSlug(spaceSlug),
             inherit_parent_permissions: true,
+            is_default_user_space: false,
         })
         .returning(['space_id', 'space_uuid']);
 

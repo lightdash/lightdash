@@ -10,6 +10,7 @@ import {
     CreateSnowflakeCredentials,
     CreateVirtualViewPayload,
     CreateWarehouseCredentials,
+    DEFAULT_USER_SPACES_PARENT_NAME,
     DbtProjectConfig,
     Explore,
     ExploreError,
@@ -26,6 +27,7 @@ import {
     ProjectSummary,
     ProjectType,
     SnowflakeAuthenticationType,
+    SpaceMemberRole,
     SpaceSummary,
     SupportedDbtVersions,
     TablesConfiguration,
@@ -91,8 +93,12 @@ import {
     InsertSql,
     SavedSqlTableName,
 } from '../../database/entities/savedSql';
-import { DbSpace, SpaceTableName } from '../../database/entities/spaces';
-import { DbUser } from '../../database/entities/users';
+import {
+    DbSpace,
+    SpaceTableName,
+    SpaceUserAccessTableName,
+} from '../../database/entities/spaces';
+import { DbUser, UserTableName } from '../../database/entities/users';
 import { WarehouseCredentialTableName } from '../../database/entities/warehouseCredentials';
 import {
     AiAgentGroupAccessTableName,
@@ -527,6 +533,7 @@ export class ProjectModel {
                     parent_space_uuid: null,
                     path,
                     inherit_parent_permissions: true,
+                    is_default_user_space: false,
                 });
             }
 
@@ -1536,6 +1543,69 @@ export class ProjectModel {
                 copied_from_project_uuid: data.upstreamProjectUuid, // if upstreamProjectUuid is undefined, it will do nothing, if it is null, it will be unset
             })
             .where('project_uuid', projectUuid);
+    }
+
+    async updateDefaultUserSpaces(
+        projectUuid: string,
+        hasDefaultUserSpaces: boolean,
+    ): Promise<void> {
+        if (!hasDefaultUserSpaces) {
+            await this.database(ProjectTableName)
+                .update({ has_default_user_spaces: false })
+                .where('project_uuid', projectUuid);
+            return;
+        }
+
+        await this.database.transaction(async (trx) => {
+            // 1. Set has_default_user_spaces = true and get project details
+            const [project] = await trx(ProjectTableName)
+                .update({ has_default_user_spaces: true })
+                .where('project_uuid', projectUuid)
+                .returning(['project_id', 'organization_id']);
+
+            if (!project) {
+                throw new NotFoundError(
+                    `Project with uuid ${projectUuid} not found`,
+                );
+            }
+
+            // 2. Find or create the "Default User Spaces" parent folder
+            let parentSpace = await trx(SpaceTableName)
+                .select('space_uuid', 'path')
+                .where('project_id', project.project_id)
+                .where('name', DEFAULT_USER_SPACES_PARENT_NAME)
+                .whereNull('parent_space_uuid')
+                .whereNull('deleted_at')
+                .first();
+
+            if (!parentSpace) {
+                const parentSlug = await generateUniqueSpaceSlug(
+                    DEFAULT_USER_SPACES_PARENT_NAME,
+                    project.project_id,
+                    { trx },
+                );
+                const parentPath = getLtreePathFromSlug(parentSlug);
+
+                [parentSpace] = await trx(SpaceTableName)
+                    .insert({
+                        project_id: project.project_id,
+                        name: DEFAULT_USER_SPACES_PARENT_NAME,
+                        is_private: false,
+                        inherit_parent_permissions: true,
+                        slug: parentSlug,
+                        parent_space_uuid: null,
+                        path: parentPath,
+                        is_default_user_space: false,
+                    })
+                    .returning(['space_uuid', 'path']);
+            }
+
+            if (!parentSpace) {
+                throw new UnexpectedServerError(
+                    'Failed to find or create Default User Spaces folder',
+                );
+            }
+        });
     }
 
     async deleteProjectAccess(

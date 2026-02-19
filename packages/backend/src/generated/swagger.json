@@ -8658,19 +8658,6 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "success",
-                                                            "error"
-                                                        ]
-                                                    }
-                                                },
-                                                "required": ["status"],
-                                                "type": "object"
-                                            },
-                                            {
-                                                "properties": {
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": [
                                                             "error",
                                                             "success"
                                                         ]
@@ -8686,12 +8673,12 @@
                                                             "topMatchingFields": {
                                                                 "items": {
                                                                     "properties": {
-                                                                        "chartUsage": {
+                                                                        "searchRank": {
                                                                             "type": "number",
                                                                             "format": "double",
                                                                             "nullable": true
                                                                         },
-                                                                        "searchRank": {
+                                                                        "chartUsage": {
                                                                             "type": "number",
                                                                             "format": "double",
                                                                             "nullable": true
@@ -8699,10 +8686,10 @@
                                                                         "fieldType": {
                                                                             "type": "string"
                                                                         },
-                                                                        "tableName": {
+                                                                        "label": {
                                                                             "type": "string"
                                                                         },
-                                                                        "label": {
+                                                                        "tableName": {
                                                                             "type": "string"
                                                                         },
                                                                         "name": {
@@ -8711,8 +8698,8 @@
                                                                     },
                                                                     "required": [
                                                                         "fieldType",
-                                                                        "tableName",
                                                                         "label",
+                                                                        "tableName",
                                                                         "name"
                                                                     ],
                                                                     "type": "object"
@@ -8806,12 +8793,12 @@
                                                                         "results": {
                                                                             "items": {
                                                                                 "properties": {
-                                                                                    "chartUsage": {
+                                                                                    "searchRank": {
                                                                                         "type": "number",
                                                                                         "format": "double",
                                                                                         "nullable": true
                                                                                     },
-                                                                                    "searchRank": {
+                                                                                    "chartUsage": {
                                                                                         "type": "number",
                                                                                         "format": "double",
                                                                                         "nullable": true
@@ -8819,10 +8806,10 @@
                                                                                     "fieldType": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "tableName": {
+                                                                                    "label": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "label": {
+                                                                                    "tableName": {
                                                                                         "type": "string"
                                                                                     },
                                                                                     "name": {
@@ -8831,8 +8818,8 @@
                                                                                 },
                                                                                 "required": [
                                                                                     "fieldType",
-                                                                                    "tableName",
                                                                                     "label",
+                                                                                    "tableName",
                                                                                     "name"
                                                                                 ],
                                                                                 "type": "object"
@@ -18266,6 +18253,15 @@
                 },
                 "type": "object"
             },
+            "UpdateDefaultUserSpaces": {
+                "properties": {
+                    "hasDefaultUserSpaces": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["hasDefaultUserSpaces"],
+                "type": "object"
+            },
             "DashboardBasicDetailsWithTileTypes": {
                 "allOf": [
                     {
@@ -26211,7 +26207,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2482.2",
+        "version": "0.2483.3",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -34551,6 +34547,57 @@
                         "application/json": {
                             "schema": {
                                 "$ref": "#/components/schemas/UpdateMetadata"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/hasDefaultUserSpaces": {
+            "patch": {
+                "operationId": "updateDefaultUserSpaces",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Toggle default user spaces for a project.\nWhen enabled, creates personal spaces for all eligible users.",
+                "summary": "Update default user spaces setting",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateDefaultUserSpaces"
                             }
                         }
                     }
