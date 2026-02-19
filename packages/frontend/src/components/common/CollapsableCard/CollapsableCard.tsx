@@ -2,15 +2,15 @@ import {
     Box,
     Button,
     Card,
-    createStyles,
     Flex,
     Group,
     Title,
     Tooltip,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { useCallback, type FC, type MouseEvent, type Ref } from 'react';
 import MantineIcon from './../MantineIcon';
+import classes from './CollapsableCard.module.css';
 import { COLLAPSIBLE_CARD_GAP_SIZE } from './constants';
 
 interface CollapsableCardProps {
@@ -26,18 +26,6 @@ interface CollapsableCardProps {
     isVisualizationCard?: boolean;
 }
 
-const useStyles = createStyles((theme) => ({
-    inactiveCardHeading: {
-        cursor: 'not-allowed',
-    },
-    activeCardHeading: {
-        cursor: 'pointer',
-        '&:hover': {
-            backgroundColor: theme.fn.rgba(theme.colors.ldGray[1], 0.5),
-        },
-    },
-}));
-
 const CollapsableCard: FC<React.PropsWithChildren<CollapsableCardProps>> = ({
     isVisualizationCard = false,
     children,
@@ -51,7 +39,6 @@ const CollapsableCard: FC<React.PropsWithChildren<CollapsableCardProps>> = ({
     rightHeaderElement,
     minHeight = 300,
 }) => {
-    const { classes } = useStyles();
     const handleToggle = useCallback(
         (value: boolean) => onToggle?.(value),
         [onToggle],
@@ -67,14 +54,14 @@ const CollapsableCard: FC<React.PropsWithChildren<CollapsableCardProps>> = ({
     return (
         <Card
             component={Flex}
-            display="flex"
-            direction="column"
-            padding="xxs"
+            p="xxs"
             style={{
+                display: 'flex',
+                flexDirection: 'column',
                 overflow: 'visible',
                 ...(shouldExpand ? { flex: 1 } : undefined),
             }}
-            shadow="xs"
+            shadow="subtle"
         >
             <Flex
                 ref={headingRef}
@@ -110,19 +97,8 @@ const CollapsableCard: FC<React.PropsWithChildren<CollapsableCardProps>> = ({
                                       handleToggle(!isOpen);
                                   }
                         }
-                        sx={
-                            disabled
-                                ? {
-                                      cursor: disabled
-                                          ? 'not-allowed'
-                                          : 'pointer',
-                                      opacity: 0.5,
-                                      backgroundColor: 'transparent',
-                                      '&:hover': {
-                                          backgroundColor: 'transparent',
-                                      },
-                                  }
-                                : undefined
+                        className={
+                            disabled ? classes.disabledButton : undefined
                         }
                     >
                         <MantineIcon
@@ -135,7 +111,7 @@ const CollapsableCard: FC<React.PropsWithChildren<CollapsableCardProps>> = ({
                         {title}
                     </Title>
                     <Group
-                        spacing="xs"
+                        gap="xs"
                         onClick={(e: MouseEvent) => e.stopPropagation()}
                     >
                         {headerElement}
@@ -143,9 +119,9 @@ const CollapsableCard: FC<React.PropsWithChildren<CollapsableCardProps>> = ({
                 </Group>
                 {rightHeaderElement && (
                     <>
-                        <Box sx={{ flexGrow: 1 }} />
+                        <Box flex={1} />
                         <Group
-                            spacing="xs"
+                            gap="xs"
                             pos="relative"
                             right={2}
                             onClick={(e: MouseEvent) => e.stopPropagation()}
