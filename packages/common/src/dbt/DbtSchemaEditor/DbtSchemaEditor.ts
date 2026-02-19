@@ -112,9 +112,11 @@ export default class DbtSchemaEditor {
             // node is not an array
             return undefined;
         }
+        const lowerColumnName = columnName.toLowerCase();
         return columns.items.find(
             (item): item is YAMLMap<unknown, unknown> =>
-                isMap(item) && item.get('name') === columnName,
+                isMap(item) &&
+                (item.get('name') as string)?.toLowerCase() === lowerColumnName,
         );
     }
 
@@ -201,9 +203,12 @@ export default class DbtSchemaEditor {
             throw new Error(`Model ${modelName} has invalid columns array`);
         }
         columnNames.forEach((columnName) => {
+            const lowerColumnName = columnName.toLowerCase();
             const index = columns.items.findIndex(
                 (item): item is YAMLMap<unknown, unknown> =>
-                    isMap(item) && item.get('name') === columnName,
+                    isMap(item) &&
+                    (item.get('name') as string)?.toLowerCase() ===
+                        lowerColumnName,
             );
             if (index !== -1) {
                 model.deleteIn(['columns', index]);
