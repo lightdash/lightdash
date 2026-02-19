@@ -37,7 +37,7 @@ export type ProjectSpaceAccess = {
 
 export type SpaceAccessInput = {
     spaceUuid: string;
-    isPrivate: boolean;
+    inheritsFromOrgOrProject: boolean;
     directAccess: DirectSpaceAccess[];
     projectAccess: ProjectSpaceAccess[];
     organizationAccess: OrganizationSpaceAccess[];
@@ -50,7 +50,7 @@ export type ChainSpaceDirectAccess = {
 
 export type SpaceAccessWithInheritanceInput = {
     spaceUuid: string;
-    isPrivate: boolean;
+    inheritsFromOrgOrProject: boolean;
     chainDirectAccess: ChainSpaceDirectAccess[];
     projectAccess: ProjectSpaceAccess[];
     organizationAccess: OrganizationSpaceAccess[];

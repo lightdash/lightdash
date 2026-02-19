@@ -18,7 +18,7 @@ const makeInput = (
     overrides: Partial<SpaceAccessInput> = {},
 ): SpaceAccessInput => ({
     spaceUuid: 'space-1',
-    isPrivate: false,
+    inheritsFromOrgOrProject: true,
     directAccess: [],
     projectAccess: [],
     organizationAccess: [],
@@ -100,7 +100,7 @@ describe('resolveSpaceAccess', () => {
         it('admin can access private space even without direct access', () => {
             const result = resolveSpaceAccess(
                 makeInput({
-                    isPrivate: true,
+                    inheritsFromOrgOrProject: false,
                     organizationAccess: [
                         {
                             userUuid: 'user-1',
@@ -202,7 +202,7 @@ describe('resolveSpaceAccess', () => {
         it('viewer gets viewer space role', () => {
             const result = resolveSpaceAccess(
                 makeInput({
-                    isPrivate: false,
+                    inheritsFromOrgOrProject: true,
                     organizationAccess: [
                         {
                             userUuid: 'user-1',
@@ -221,7 +221,7 @@ describe('resolveSpaceAccess', () => {
         it('editor gets editor space role', () => {
             const result = resolveSpaceAccess(
                 makeInput({
-                    isPrivate: false,
+                    inheritsFromOrgOrProject: true,
                     organizationAccess: [
                         {
                             userUuid: 'user-1',
@@ -238,7 +238,7 @@ describe('resolveSpaceAccess', () => {
         it('developer gets editor space role', () => {
             const result = resolveSpaceAccess(
                 makeInput({
-                    isPrivate: false,
+                    inheritsFromOrgOrProject: true,
                     organizationAccess: [
                         {
                             userUuid: 'user-1',
@@ -255,7 +255,7 @@ describe('resolveSpaceAccess', () => {
         it('interactive_viewer gets viewer space role', () => {
             const result = resolveSpaceAccess(
                 makeInput({
-                    isPrivate: false,
+                    inheritsFromOrgOrProject: true,
                     organizationAccess: [
                         {
                             userUuid: 'user-1',
@@ -274,7 +274,7 @@ describe('resolveSpaceAccess', () => {
         it('non-admin without direct access excluded from private space', () => {
             const result = resolveSpaceAccess(
                 makeInput({
-                    isPrivate: true,
+                    inheritsFromOrgOrProject: false,
                     organizationAccess: [
                         {
                             userUuid: 'user-1',
@@ -290,7 +290,7 @@ describe('resolveSpaceAccess', () => {
         it('private space with direct access works', () => {
             const result = resolveSpaceAccess(
                 makeInput({
-                    isPrivate: true,
+                    inheritsFromOrgOrProject: false,
                     organizationAccess: [
                         {
                             userUuid: 'user-1',
@@ -317,7 +317,7 @@ describe('resolveSpaceAccess', () => {
         it('org MEMBER with no other access is excluded', () => {
             const result = resolveSpaceAccess(
                 makeInput({
-                    isPrivate: false,
+                    inheritsFromOrgOrProject: true,
                     organizationAccess: [
                         {
                             userUuid: 'user-1',
@@ -334,7 +334,7 @@ describe('resolveSpaceAccess', () => {
         it('org MEMBER with project access is included', () => {
             const result = resolveSpaceAccess(
                 makeInput({
-                    isPrivate: false,
+                    inheritsFromOrgOrProject: true,
                     organizationAccess: [
                         {
                             userUuid: 'user-1',
@@ -361,7 +361,7 @@ describe('resolveSpaceAccess', () => {
         it('highest group role wins', () => {
             const result = resolveSpaceAccess(
                 makeInput({
-                    isPrivate: false,
+                    inheritsFromOrgOrProject: true,
                     organizationAccess: [
                         {
                             userUuid: 'user-1',
@@ -578,7 +578,7 @@ describe('resolveSpaceAccessWithInheritance', () => {
         > = {},
     ) => ({
         spaceUuid: 'child-space',
-        isPrivate: false,
+        inheritsFromOrgOrProject: true,
         chainDirectAccess: [],
         projectAccess: [] as ProjectSpaceAccess[],
         organizationAccess: [] as OrganizationSpaceAccess[],
@@ -924,7 +924,7 @@ describe('resolveSpaceAccessWithInheritance', () => {
         it('no access without direct access on private chain', () => {
             const result = resolveSpaceAccessWithInheritance(
                 makeChainInput({
-                    isPrivate: true,
+                    inheritsFromOrgOrProject: false,
                     chainDirectAccess: [
                         { spaceUuid: 'child-space', directAccess: [] },
                     ],
@@ -951,7 +951,7 @@ describe('resolveSpaceAccessWithInheritance', () => {
         it('admin always gets access on private chain', () => {
             const result = resolveSpaceAccessWithInheritance(
                 makeChainInput({
-                    isPrivate: true,
+                    inheritsFromOrgOrProject: false,
                     chainDirectAccess: [
                         { spaceUuid: 'child-space', directAccess: [] },
                     ],
@@ -971,7 +971,7 @@ describe('resolveSpaceAccessWithInheritance', () => {
         it('direct access on parent grants access on private child', () => {
             const result = resolveSpaceAccessWithInheritance(
                 makeChainInput({
-                    isPrivate: true,
+                    inheritsFromOrgOrProject: false,
                     chainDirectAccess: [
                         { spaceUuid: 'child-space', directAccess: [] },
                         {
