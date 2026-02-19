@@ -10,6 +10,7 @@ import {
     ExploreType,
     FieldType,
     MetricType,
+    SpaceMemberRole,
     WarehouseTypes,
 } from '@lightdash/common';
 import knex from 'knex';
@@ -22,6 +23,10 @@ import {
     CachedExploresTableName,
     ProjectTableName,
 } from '../../database/entities/projects';
+import {
+    SpaceTableName,
+    SpaceUserAccessTableName,
+} from '../../database/entities/spaces';
 import { ChangesetModel } from '../ChangesetModel';
 import { ProjectModel } from './ProjectModel';
 import {
@@ -281,6 +286,213 @@ describe('ProjectModel', () => {
             expect(
                 (project.warehouseConnection as AnyType).sslrootcert,
             ).toBeUndefined();
+        });
+    });
+
+    describe('updateDefaultUserSpaces', () => {
+        test('should only set the flag when disabling', async () => {
+            tracker.on
+                .update(queryMatcher(ProjectTableName, [false, projectUuid]))
+                .response(1);
+
+            await model.updateDefaultUserSpaces(projectUuid, false);
+
+            expect(tracker.history.update).toHaveLength(1);
+            expect(tracker.history.update[0].sql).toContain(ProjectTableName);
+            // No inserts or selects for spaces
+            expect(tracker.history.insert).toHaveLength(0);
+        });
+
+        test('should create parent space when enabling and none exists', async () => {
+            const matchSql =
+                (table: string) =>
+                ({ sql }: RawQuery) =>
+                    sql.includes(table);
+
+            // 1. Update project flag (returning project_id)
+            tracker.on
+                .update(matchSql(ProjectTableName))
+                .response([{ project_id: 1, organization_id: 10 }]);
+
+            // 2. Look for existing "Default User Spaces" parent — not found
+            tracker.on.select(matchSql(SpaceTableName)).responseOnce(undefined);
+
+            // 3. Slug uniqueness check
+            tracker.on.select(matchSql(SpaceTableName)).responseOnce([]);
+
+            // 4. Insert the new parent space
+            tracker.on.insert(matchSql(SpaceTableName)).response([
+                {
+                    space_uuid: 'new-parent-uuid',
+                    path: 'default_user_spaces',
+                },
+            ]);
+
+            await model.updateDefaultUserSpaces(projectUuid, true);
+
+            expect(tracker.history.update).toHaveLength(1);
+            expect(tracker.history.insert).toHaveLength(1);
+            expect(tracker.history.insert[0].sql).toContain(SpaceTableName);
+        });
+
+        test('should not create parent when one already exists', async () => {
+            const matchSql =
+                (table: string) =>
+                ({ sql }: RawQuery) =>
+                    sql.includes(table);
+
+            // 1. Update project flag
+            tracker.on
+                .update(matchSql(ProjectTableName))
+                .response([{ project_id: 1, organization_id: 10 }]);
+
+            // 2. Existing parent found
+            tracker.on.select(matchSql(SpaceTableName)).response({
+                space_uuid: 'existing-parent-uuid',
+                path: 'default_user_spaces',
+            });
+
+            await model.updateDefaultUserSpaces(projectUuid, true);
+
+            expect(tracker.history.update).toHaveLength(1);
+            // No insert because parent already exists
+            expect(tracker.history.insert).toHaveLength(0);
+        });
+    });
+
+    describe('ensureDefaultUserSpace', () => {
+        const parentSpaceUuid = 'parent-space-uuid';
+        const parentPath = 'default_user_spaces';
+        const testUser = {
+            userId: 42,
+            userUuid: 'user-uuid-1234',
+            firstName: 'Jane',
+            lastName: 'Doe',
+        };
+
+        const matchSql =
+            (table: string) =>
+            ({ sql }: RawQuery) =>
+                sql.includes(table);
+
+        test('should return early if user already has a default space', async () => {
+            tracker.on
+                .select(matchSql(SpaceTableName))
+                .response({ space_uuid: 'existing-space-uuid' });
+
+            await model.ensureDefaultUserSpace(
+                1,
+                parentSpaceUuid,
+                parentPath,
+                testUser,
+            );
+
+            expect(tracker.history.select).toHaveLength(1);
+            expect(tracker.history.insert).toHaveLength(0);
+        });
+
+        test('should create space and grant ADMIN access for new user', async () => {
+            // 1. No existing default space
+            tracker.on.select(matchSql(SpaceTableName)).responseOnce(undefined);
+
+            // 2. Slug uniqueness check
+            tracker.on.select(matchSql(SpaceTableName)).responseOnce([]);
+
+            // 3. Insert the user space
+            tracker.on
+                .insert(matchSql(SpaceTableName))
+                .response([{ space_uuid: 'new-space-uuid' }]);
+
+            // 4. Grant ADMIN access
+            tracker.on.insert(matchSql(SpaceUserAccessTableName)).response([]);
+
+            await model.ensureDefaultUserSpace(
+                1,
+                parentSpaceUuid,
+                parentPath,
+                testUser,
+            );
+
+            expect(tracker.history.insert).toHaveLength(2);
+
+            // Verify space insert contains expected values
+            expect(tracker.history.insert[0].sql).toContain(SpaceTableName);
+            expect(tracker.history.insert[0].bindings).toEqual(
+                expect.arrayContaining([
+                    'Jane Doe', // space name
+                    true, // is_default_user_space
+                    false, // is_private
+                    parentSpaceUuid,
+                ]),
+            );
+
+            // Verify access grant
+            expect(tracker.history.insert[1].sql).toContain(
+                SpaceUserAccessTableName,
+            );
+            expect(tracker.history.insert[1].bindings).toEqual(
+                expect.arrayContaining([
+                    'new-space-uuid',
+                    testUser.userUuid,
+                    SpaceMemberRole.ADMIN,
+                ]),
+            );
+        });
+
+        test('should use UUID fallback when user has no name', async () => {
+            const namelessUser = {
+                userId: 43,
+                userUuid: 'abcdef12-0000-0000-0000-000000000000',
+                firstName: '',
+                lastName: '',
+            };
+
+            // 1. No existing default space
+            tracker.on.select(matchSql(SpaceTableName)).responseOnce(undefined);
+
+            // 2. Slug uniqueness check
+            tracker.on.select(matchSql(SpaceTableName)).responseOnce([]);
+
+            // 3. Insert the user space
+            tracker.on
+                .insert(matchSql(SpaceTableName))
+                .response([{ space_uuid: 'new-space-uuid' }]);
+
+            // 4. Grant ADMIN access
+            tracker.on.insert(matchSql(SpaceUserAccessTableName)).response([]);
+
+            await model.ensureDefaultUserSpace(
+                1,
+                parentSpaceUuid,
+                parentPath,
+                namelessUser,
+            );
+
+            // Verify the name fallback: "User abcdef12"
+            expect(tracker.history.insert[0].bindings).toEqual(
+                expect.arrayContaining(['User abcdef12']),
+            );
+        });
+
+        test('should not grant access if insert was a no-op (race condition)', async () => {
+            // 1. No existing default space
+            tracker.on.select(matchSql(SpaceTableName)).responseOnce(undefined);
+
+            // 2. Slug uniqueness check
+            tracker.on.select(matchSql(SpaceTableName)).responseOnce([]);
+
+            // 3. Insert returns empty (onConflict().ignore())
+            tracker.on.insert(matchSql(SpaceTableName)).response([]);
+
+            await model.ensureDefaultUserSpace(
+                1,
+                parentSpaceUuid,
+                parentPath,
+                testUser,
+            );
+
+            // Only the space insert, no access grant
+            expect(tracker.history.insert).toHaveLength(1);
         });
     });
 });
