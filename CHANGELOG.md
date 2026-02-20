@@ -1,3 +1,16 @@
+# [0.2501.0](https://github.com/lightdash/lightdash/compare/0.2500.0...0.2501.0) (2026-02-20)
+
+
+### Bug Fixes
+
+* add real-time timer updates to JobDetailsDrawer ([#20489](https://github.com/lightdash/lightdash/issues/20489)) ([c829c22](https://github.com/lightdash/lightdash/commit/c829c225b68d9b62d271579663b04157c10161db))
+
+
+### Features
+
+* add chart image export API endpoint ([#20476](https://github.com/lightdash/lightdash/issues/20476)) ([557a2ab](https://github.com/lightdash/lightdash/commit/557a2abf29b612e1dbd08c6a224db6166a41f285))
+* add image export option to run chart command ([#20477](https://github.com/lightdash/lightdash/issues/20477)) ([a0f00e1](https://github.com/lightdash/lightdash/commit/a0f00e17fb6a41e53d9d6a98ce6b6ffe432e5414))
+
 # [0.2500.0](https://github.com/lightdash/lightdash/compare/0.2499.1...0.2500.0) (2026-02-20)
 
 
