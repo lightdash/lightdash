@@ -138,13 +138,6 @@ const isPxValue = (value: string): boolean => {
 
 export const getAxisTypeFromField = (item?: ItemsMap[string]): string => {
     if (item && isCustomBinDimension(item)) return 'category';
-    // Numeric dimensions should use category axis (they represent discrete groups, not continuous values)
-    if (
-        item &&
-        (isDimension(item) || isCustomSqlDimension(item)) &&
-        getItemType(item) === DimensionType.NUMBER
-    )
-        return 'category';
     if (item && isTableCalculation(item) && !item.type) return 'value';
     if (
         item &&
