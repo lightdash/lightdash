@@ -1,3 +1,11 @@
+# [0.2503.0](https://github.com/lightdash/lightdash/compare/0.2502.3...0.2503.0) (2026-02-20)
+
+
+### Features
+
+* add confirmBeforeClose prop to MantineModal ([#20509](https://github.com/lightdash/lightdash/issues/20509)) ([9cd8c93](https://github.com/lightdash/lightdash/commit/9cd8c9388a15d734d8f8174f9334561c1aa6338f))
+* confirm before exit when editing sql dimension modal ([#20510](https://github.com/lightdash/lightdash/issues/20510)) ([20611c1](https://github.com/lightdash/lightdash/commit/20611c1e9dafc2f70b71688fc05d07b18fac88fb))
+
 ## [0.2502.3](https://github.com/lightdash/lightdash/compare/0.2502.2...0.2502.3) (2026-02-20)
 
 
