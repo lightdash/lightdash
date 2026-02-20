@@ -1,3 +1,10 @@
+## [0.2498.2](https://github.com/lightdash/lightdash/compare/0.2498.1...0.2498.2) (2026-02-20)
+
+
+### Bug Fixes
+
+* skip manifest refresh for dbt Cloud CLI in generate command ([#20472](https://github.com/lightdash/lightdash/issues/20472)) ([980ad33](https://github.com/lightdash/lightdash/commit/980ad33858e2a57de9884ee589fcfbc463664669))
+
 ## [0.2498.1](https://github.com/lightdash/lightdash/compare/0.2498.0...0.2498.1) (2026-02-19)
 
 
