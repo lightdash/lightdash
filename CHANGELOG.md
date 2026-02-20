@@ -1,3 +1,10 @@
+## [0.2502.1](https://github.com/lightdash/lightdash/compare/0.2502.0...0.2502.1) (2026-02-20)
+
+
+### Bug Fixes
+
+* use category axis for numeric dimensions in charts ([#20492](https://github.com/lightdash/lightdash/issues/20492)) ([70a582b](https://github.com/lightdash/lightdash/commit/70a582b1d3192a564aa14b2ec23f998881a82390)), closes [#19742](https://github.com/lightdash/lightdash/issues/19742)
+
 # [0.2502.0](https://github.com/lightdash/lightdash/compare/0.2501.0...0.2502.0) (2026-02-20)
 
 
