@@ -345,6 +345,19 @@ const METRICS_ROUTES: RouteObject[] = [
             </>
         ),
     },
+    {
+        path: '/projects/:projectUuid/metrics/canvas/:treeSlug',
+        element: (
+            <>
+                <NavBar />
+                <TrackPage name={PageName.METRICS_CATALOG}>
+                    <MetricsCatalog
+                        metricCatalogView={MetricCatalogView.CANVAS}
+                    />
+                </TrackPage>
+            </>
+        ),
+    },
 ];
 
 const APP_ROUTES: RouteObject[] = [

@@ -12,18 +12,17 @@ import {
 import { IconGripVertical, IconLock, IconPlus } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Panel, PanelResizeHandle } from 'react-resizable-panels';
+import { useNavigate } from 'react-router';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { useAppDispatch, useAppSelector } from '../../../sqlRunner/store/hooks';
 import { useMetricsTrees } from '../../hooks/useSavedMetricsTrees';
-import {
-    setActiveTreeUuid,
-    setSavedTreeEditMode,
-} from '../../store/metricsCatalogSlice';
+import { setSavedTreeEditMode } from '../../store/metricsCatalogSlice';
 import { SavedTreeEditMode } from '../../types';
 import classes from './TreeListSidebar.module.css';
 
 const TreeListSidebar: FC = () => {
     const dispatch = useAppDispatch();
+    const navigate = useNavigate();
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
     );
@@ -37,14 +36,14 @@ const TreeListSidebar: FC = () => {
     const { data: treesData, isLoading } = useMetricsTrees(projectUuid);
     const trees = treesData?.data ?? [];
 
-    const handleSelectTree = (metricsTreeUuid: string) => {
-        dispatch(setActiveTreeUuid(metricsTreeUuid));
+    const handleSelectTree = (slug: string) => {
         dispatch(setSavedTreeEditMode(SavedTreeEditMode.VIEW));
+        void navigate(`/projects/${projectUuid}/metrics/canvas/${slug}`);
     };
 
     const handleNewTree = () => {
-        dispatch(setActiveTreeUuid(null));
         dispatch(setSavedTreeEditMode(SavedTreeEditMode.EDIT));
+        void navigate(`/projects/${projectUuid}/metrics/canvas`);
     };
 
     return (
@@ -108,9 +107,7 @@ const TreeListSidebar: FC = () => {
                                                     : ''
                                             }`}
                                             onClick={() =>
-                                                handleSelectTree(
-                                                    tree.metricsTreeUuid,
-                                                )
+                                                handleSelectTree(tree.slug)
                                             }
                                         >
                                             <Group
