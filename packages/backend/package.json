@@ -33,6 +33,7 @@
         "@types/uuid": "^8.3.4",
         "chokidar-cli": "^3.0.0",
         "copyfiles": "^2.4.1",
+        "eslint": "^8.57.1",
         "eslint-plugin-jsdoc": "^62.5.0",
         "jest-fetch-mock": "^3.0.3",
         "knex-mock-client": "^1.11.0",
