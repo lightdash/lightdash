@@ -16,7 +16,10 @@ import { SpacePermissionModel } from '../../models/SpacePermissionModel';
 import { SpacePermissionService } from './SpacePermissionService';
 
 const createMockSpacePermissionModel = () => ({
-    getInheritanceChain: jest.fn<Promise<SpaceInheritanceChain>, [string]>(),
+    getInheritanceChains: jest.fn<
+        Promise<Record<string, SpaceInheritanceChain>>,
+        [string[]]
+    >(),
     getDirectSpaceAccess: jest.fn<
         Promise<Record<string, DirectSpaceAccess[]>>,
         [string[], { userUuid?: string }?]
@@ -71,15 +74,17 @@ describe('SpacePermissionService', () => {
         test('root space with inherit=true includes project and org access', async () => {
             const spaceUuid = 'root-space';
 
-            mockPermissionModel.getInheritanceChain.mockResolvedValue({
-                chain: [
-                    {
-                        spaceUuid: 'root-space',
-                        spaceName: 'Root',
-                        inheritParentPermissions: true,
-                    },
-                ],
-                inheritsFromOrgOrProject: true,
+            mockPermissionModel.getInheritanceChains.mockResolvedValue({
+                'root-space': {
+                    chain: [
+                        {
+                            spaceUuid: 'root-space',
+                            spaceName: 'Root',
+                            inheritParentPermissions: true,
+                        },
+                    ],
+                    inheritsFromOrgOrProject: true,
+                },
             });
 
             mockPermissionModel.getDirectSpaceAccess.mockResolvedValue({});
@@ -126,15 +131,17 @@ describe('SpacePermissionService', () => {
         test('space with inherit=false is treated as private, direct access user gets role', async () => {
             const spaceUuid = 'private-space';
 
-            mockPermissionModel.getInheritanceChain.mockResolvedValue({
-                chain: [
-                    {
-                        spaceUuid: 'private-space',
-                        spaceName: 'Private',
-                        inheritParentPermissions: false,
-                    },
-                ],
-                inheritsFromOrgOrProject: false,
+            mockPermissionModel.getInheritanceChains.mockResolvedValue({
+                'private-space': {
+                    chain: [
+                        {
+                            spaceUuid: 'private-space',
+                            spaceName: 'Private',
+                            inheritParentPermissions: false,
+                        },
+                    ],
+                    inheritsFromOrgOrProject: false,
+                },
             });
 
             mockPermissionModel.getDirectSpaceAccess.mockResolvedValue({
@@ -192,15 +199,17 @@ describe('SpacePermissionService', () => {
             const spaceUuid = 'private-space';
             const adminUuid = 'admin-user';
 
-            mockPermissionModel.getInheritanceChain.mockResolvedValue({
-                chain: [
-                    {
-                        spaceUuid: 'private-space',
-                        spaceName: 'Private',
-                        inheritParentPermissions: false,
-                    },
-                ],
-                inheritsFromOrgOrProject: false,
+            mockPermissionModel.getInheritanceChains.mockResolvedValue({
+                'private-space': {
+                    chain: [
+                        {
+                            spaceUuid: 'private-space',
+                            spaceName: 'Private',
+                            inheritParentPermissions: false,
+                        },
+                    ],
+                    inheritsFromOrgOrProject: false,
+                },
             });
 
             // No direct access for the admin
@@ -243,20 +252,22 @@ describe('SpacePermissionService', () => {
         test('nested space aggregates direct access from all ancestors in chain', async () => {
             const spaceUuid = 'child-space';
 
-            mockPermissionModel.getInheritanceChain.mockResolvedValue({
-                chain: [
-                    {
-                        spaceUuid: 'child-space',
-                        spaceName: 'Child',
-                        inheritParentPermissions: true,
-                    },
-                    {
-                        spaceUuid: 'parent-space',
-                        spaceName: 'Parent',
-                        inheritParentPermissions: false,
-                    },
-                ],
-                inheritsFromOrgOrProject: false,
+            mockPermissionModel.getInheritanceChains.mockResolvedValue({
+                'child-space': {
+                    chain: [
+                        {
+                            spaceUuid: 'child-space',
+                            spaceName: 'Child',
+                            inheritParentPermissions: true,
+                        },
+                        {
+                            spaceUuid: 'parent-space',
+                            spaceName: 'Parent',
+                            inheritParentPermissions: false,
+                        },
+                    ],
+                    inheritsFromOrgOrProject: false,
+                },
             });
 
             const userA = 'user-a';
@@ -327,25 +338,27 @@ describe('SpacePermissionService', () => {
         test('chain with all inherit=true reaches project/org level', async () => {
             const spaceUuid = 'grandchild-space';
 
-            mockPermissionModel.getInheritanceChain.mockResolvedValue({
-                chain: [
-                    {
-                        spaceUuid: 'grandchild-space',
-                        spaceName: 'Grandchild',
-                        inheritParentPermissions: true,
-                    },
-                    {
-                        spaceUuid: 'parent-space',
-                        spaceName: 'Parent',
-                        inheritParentPermissions: true,
-                    },
-                    {
-                        spaceUuid: 'root-space',
-                        spaceName: 'Root',
-                        inheritParentPermissions: true,
-                    },
-                ],
-                inheritsFromOrgOrProject: true,
+            mockPermissionModel.getInheritanceChains.mockResolvedValue({
+                'grandchild-space': {
+                    chain: [
+                        {
+                            spaceUuid: 'grandchild-space',
+                            spaceName: 'Grandchild',
+                            inheritParentPermissions: true,
+                        },
+                        {
+                            spaceUuid: 'parent-space',
+                            spaceName: 'Parent',
+                            inheritParentPermissions: true,
+                        },
+                        {
+                            spaceUuid: 'root-space',
+                            spaceName: 'Root',
+                            inheritParentPermissions: true,
+                        },
+                    ],
+                    inheritsFromOrgOrProject: true,
+                },
             });
 
             mockPermissionModel.getDirectSpaceAccess.mockResolvedValue({});
@@ -385,20 +398,22 @@ describe('SpacePermissionService', () => {
         test('chain stops at inherit=false ancestor, user gets access via direct chain access', async () => {
             const spaceUuid = 'deep-child';
 
-            mockPermissionModel.getInheritanceChain.mockResolvedValue({
-                chain: [
-                    {
-                        spaceUuid: 'deep-child',
-                        spaceName: 'Deep Child',
-                        inheritParentPermissions: true,
-                    },
-                    {
-                        spaceUuid: 'middle-space',
-                        spaceName: 'Middle',
-                        inheritParentPermissions: false, // stops here
-                    },
-                ],
-                inheritsFromOrgOrProject: false,
+            mockPermissionModel.getInheritanceChains.mockResolvedValue({
+                'deep-child': {
+                    chain: [
+                        {
+                            spaceUuid: 'deep-child',
+                            spaceName: 'Deep Child',
+                            inheritParentPermissions: true,
+                        },
+                        {
+                            spaceUuid: 'middle-space',
+                            spaceName: 'Middle',
+                            inheritParentPermissions: false, // stops here
+                        },
+                    ],
+                    inheritsFromOrgOrProject: false,
+                },
             });
 
             mockPermissionModel.getDirectSpaceAccess.mockResolvedValue({
@@ -434,20 +449,22 @@ describe('SpacePermissionService', () => {
         test('most permissive wins: higher role on parent overrides lower on child', async () => {
             const spaceUuid = 'child-space';
 
-            mockPermissionModel.getInheritanceChain.mockResolvedValue({
-                chain: [
-                    {
-                        spaceUuid: 'child-space',
-                        spaceName: 'Child',
-                        inheritParentPermissions: true,
-                    },
-                    {
-                        spaceUuid: 'parent-space',
-                        spaceName: 'Parent',
-                        inheritParentPermissions: false,
-                    },
-                ],
-                inheritsFromOrgOrProject: false,
+            mockPermissionModel.getInheritanceChains.mockResolvedValue({
+                'child-space': {
+                    chain: [
+                        {
+                            spaceUuid: 'child-space',
+                            spaceName: 'Child',
+                            inheritParentPermissions: true,
+                        },
+                        {
+                            spaceUuid: 'parent-space',
+                            spaceName: 'Parent',
+                            inheritParentPermissions: false,
+                        },
+                    ],
+                    inheritsFromOrgOrProject: false,
+                },
             });
 
             mockPermissionModel.getDirectSpaceAccess.mockResolvedValue({
@@ -502,15 +519,17 @@ describe('SpacePermissionService', () => {
         test('throws NotFoundError when space info is missing', async () => {
             const spaceUuid = 'missing-space';
 
-            mockPermissionModel.getInheritanceChain.mockResolvedValue({
-                chain: [
-                    {
-                        spaceUuid: 'missing-space',
-                        spaceName: 'Missing',
-                        inheritParentPermissions: true,
-                    },
-                ],
-                inheritsFromOrgOrProject: true,
+            mockPermissionModel.getInheritanceChains.mockResolvedValue({
+                'missing-space': {
+                    chain: [
+                        {
+                            spaceUuid: 'missing-space',
+                            spaceName: 'Missing',
+                            inheritParentPermissions: true,
+                        },
+                    ],
+                    inheritsFromOrgOrProject: true,
+                },
             });
 
             mockPermissionModel.getDirectSpaceAccess.mockResolvedValue({});
