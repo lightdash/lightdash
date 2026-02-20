@@ -257,13 +257,17 @@ export class SpacePermissionService extends BaseService {
     ): Promise<Record<string, SpaceAccessContextForCasl>> {
         const uniqueSpaceUuids = [...new Set(spaceUuidsArg)];
 
-        // Get inheritance chains for all spaces
-        const chains = await Promise.all(
-            uniqueSpaceUuids.map(async (uuid) => ({
+        // Get inheritance chains for all spaces in a single batched query
+        const chainMap =
+            await this.spacePermissionModel.getInheritanceChains(
+                uniqueSpaceUuids,
+            );
+        const chains = uniqueSpaceUuids
+            .filter((uuid) => chainMap[uuid] !== undefined)
+            .map((uuid) => ({
                 spaceUuid: uuid,
-                ...(await this.spacePermissionModel.getInheritanceChain(uuid)),
-            })),
-        );
+                ...chainMap[uuid],
+            }));
 
         // Collect all unique space UUIDs from all chains (for direct access queries)
         const allChainSpaceUuids = [

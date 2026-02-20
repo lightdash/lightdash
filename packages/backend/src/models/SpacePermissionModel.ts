@@ -416,68 +416,119 @@ export class SpacePermissionModel {
     }
 
     /**
-     * Gets the inheritance chain for a space, walking up from the space
+     * Gets the inheritance chain for an array of spaces, walking up from the space
      * to the first ancestor with inherit_parent_permissions=false (or root).
      *
      * The chain is ordered leaf-to-root.
      *
-     * @param spaceUuid - The UUID of the space to get the chain for
-     * @returns The inheritance chain and whether it reaches the project/org level
+     * @param spaceUuids - The UUIDs of the spaces to get chains for
+     * @returns A record of space UUIDs to their inheritance chains
      */
-    async getInheritanceChain(
-        spaceUuid: string,
-    ): Promise<SpaceInheritanceChain> {
+    async getInheritanceChains(
+        spaceUuids: string[],
+    ): Promise<Record<string, SpaceInheritanceChain>> {
         return wrapSentryTransaction(
-            'SpacePermissionModel.getInheritanceChain',
-            { spaceUuid },
+            'SpacePermissionModel.getInheritanceChains',
+            { spaceUuidsCount: spaceUuids.length },
             async () => {
-                const space = await this.database(SpaceTableName)
-                    .select('path', 'project_id')
-                    .where('space_uuid', spaceUuid)
-                    .first();
+                if (spaceUuids.length === 0) return {};
 
-                if (!space) {
-                    throw new NotFoundError(
-                        `Space with uuid ${spaceUuid} does not exist`,
-                    );
-                }
+                const spaces = await this.database(SpaceTableName)
+                    .select('space_uuid', 'path', 'project_id')
+                    .whereIn('space_uuid', spaceUuids);
 
-                const ancestors = await this.database(SpaceTableName)
-                    .select(
-                        'space_uuid',
-                        'name',
-                        'inherit_parent_permissions',
-                        'parent_space_uuid',
+                if (spaces.length === 0) return {};
+
+                const valuesPlaceholders = spaces
+                    .map(() => '(?, ?::ltree, ?::integer)')
+                    .join(', ');
+                const valuesParams = spaces.flatMap((s) => [
+                    s.space_uuid,
+                    s.path,
+                    s.project_id,
+                ]);
+
+                const ancestorRows: {
+                    requested_space_uuid: string;
+                    space_uuid: string;
+                    name: string;
+                    inherit_parent_permissions: boolean;
+                    parent_space_uuid: string | null;
+                }[] = await this.database
+                    .raw(
+                        `SELECT
+                        req.space_uuid AS requested_space_uuid,
+                        a.space_uuid,
+                        a.name,
+                        a.inherit_parent_permissions,
+                        a.parent_space_uuid
+                    FROM (VALUES ${valuesPlaceholders}) AS req(space_uuid, path, project_id)
+                    JOIN ${SpaceTableName} a
+                        ON a.path @> req.path
+                        AND a.project_id = req.project_id
+                    ORDER BY req.space_uuid, nlevel(a.path) DESC`,
+                        valuesParams,
                     )
-                    .whereRaw(`?::ltree <@ ${SpaceTableName}.path`, [
-                        space.path,
-                    ])
-                    .andWhere('project_id', space.project_id)
-                    .orderByRaw(`nlevel(${SpaceTableName}.path) DESC`);
+                    .then(
+                        (raw: { rows: unknown[] }) =>
+                            raw.rows as {
+                                requested_space_uuid: string;
+                                space_uuid: string;
+                                name: string;
+                                inherit_parent_permissions: boolean;
+                                parent_space_uuid: string | null;
+                            }[],
+                    );
 
-                const chain: SpaceInheritanceChain['chain'] = [];
-                let lastAncestor: (typeof ancestors)[number] | undefined;
-
-                for (const ancestor of ancestors) {
-                    chain.push({
-                        spaceUuid: ancestor.space_uuid,
-                        spaceName: ancestor.name,
-                        inheritParentPermissions:
-                            ancestor.inherit_parent_permissions,
-                    });
-                    lastAncestor = ancestor;
-
-                    if (!ancestor.inherit_parent_permissions) {
-                        break;
+                // Group ancestor rows by requested space (order is preserved)
+                const ancestorsBySpace = new Map<string, typeof ancestorRows>();
+                for (const row of ancestorRows) {
+                    let list = ancestorsBySpace.get(row.requested_space_uuid);
+                    if (!list) {
+                        list = [];
+                        ancestorsBySpace.set(row.requested_space_uuid, list);
                     }
+                    list.push(row);
                 }
 
-                const inheritsFromOrgOrProject =
-                    lastAncestor !== undefined &&
-                    lastAncestor.parent_space_uuid === null &&
-                    lastAncestor.inherit_parent_permissions === true;
+                const result: Record<string, SpaceInheritanceChain> = {};
+                for (const requestedUuid of spaceUuids) {
+                    const myAncestors =
+                        ancestorsBySpace.get(requestedUuid) ?? [];
+                    if (myAncestors.length === 0) {
+                        // Space not found in DB — skip silently (caller
+                        // will notice the missing key in the result map).
+                        // eslint-disable-next-line no-continue
+                        continue;
+                    }
 
-                return { chain, inheritsFromOrgOrProject };
+                    // Walk from leaf toward root, collecting chain items
+                    const chain: SpaceInheritanceChain['chain'] = [];
+                    let lastAncestor: (typeof myAncestors)[number] | undefined;
+
+                    for (const ancestor of myAncestors) {
+                        chain.push({
+                            spaceUuid: ancestor.space_uuid,
+                            spaceName: ancestor.name,
+                            inheritParentPermissions:
+                                ancestor.inherit_parent_permissions,
+                        });
+                        lastAncestor = ancestor;
+
+                        if (!ancestor.inherit_parent_permissions) {
+                            break;
+                        }
+                    }
+
+                    const inheritsFromOrgOrProject =
+                        lastAncestor !== undefined &&
+                        lastAncestor.parent_space_uuid === null &&
+                        lastAncestor.inherit_parent_permissions === true;
+
+                    result[requestedUuid] = { chain, inheritsFromOrgOrProject };
+                }
+
+                return result;
             },
         );
     }
