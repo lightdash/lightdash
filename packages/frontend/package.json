@@ -170,6 +170,7 @@
         "@types/uuid": "^8.3.4",
         "@vitejs/plugin-react": "^4.4.1",
         "csstype": "^3.2.3",
+        "eslint": "^8.57.1",
         "eslint-plugin-css-modules": "^2.11.0",
         "eslint-plugin-jest-dom": "^5.1.0",
         "eslint-plugin-jsx-a11y": "^6.6.1",
