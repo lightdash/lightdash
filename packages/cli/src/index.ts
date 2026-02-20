@@ -22,6 +22,7 @@ import { dbtRunHandler } from './handlers/dbt/run';
 import { deployHandler } from './handlers/deploy';
 import { diagnosticsHandler } from './handlers/diagnostics';
 import { downloadHandler, uploadHandler } from './handlers/download';
+import { exportChartImageHandler } from './handlers/exportChartImage';
 import { generateHandler } from './handlers/generate';
 import { generateExposuresHandler } from './handlers/generateExposures';
 import { getProjectHandler } from './handlers/getProject';
@@ -1169,8 +1170,18 @@ runProgram
         'Number of rows per page (default: 500)',
         parseIntArgument,
     )
-    .option('--verbose', undefined, false)
+    .option('--verbose', 'Show detailed output', false)
     .action(runChartHandler);
+
+program
+    .command('export-chart-image')
+    .description(
+        'Export a deployed chart as a PNG image. The chart must already exist on the server.',
+    )
+    .argument('<chart>', 'Chart slug')
+    .requiredOption('-o, --output <file>', 'Output file path for the PNG image')
+    .option('--verbose', 'Show detailed output', false)
+    .action(exportChartImageHandler);
 
 program
     .command('install-skills')
