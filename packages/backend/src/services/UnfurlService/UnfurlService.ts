@@ -85,6 +85,7 @@ export enum ScreenshotContext {
     SCHEDULED_DELIVERY = 'scheduled_delivery',
     SLACK = 'slack',
     EXPORT_DASHBOARD = 'export_dashboard',
+    EXPORT_CHART = 'export_chart',
 }
 
 // Default values
@@ -549,6 +550,55 @@ export class UnfurlService extends BaseService {
             throw new Error('Unable to unfurl image');
         }
         this.logger.info(`Dashboard "${name}" exported successfully`);
+        return unfurlImage.imageUrl;
+    }
+
+    async exportChart(
+        chartUuidOrSlug: string,
+        user: SessionUser,
+    ): Promise<string> {
+        const chart = await this.savedChartModel.get(chartUuidOrSlug);
+        const { isPrivate, access } =
+            await this.spacePermissionService.getSpaceAccessContext(
+                user.userUuid,
+                chart.spaceUuid,
+            );
+
+        if (
+            user.ability.cannot(
+                'view',
+                subject('SavedChart', {
+                    organizationUuid: chart.organizationUuid,
+                    projectUuid: chart.projectUuid,
+                    isPrivate,
+                    access,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const minimalUrl = new URL(
+            `/minimal/projects/${chart.projectUuid}/saved/${chart.uuid}`,
+            this.lightdashConfig.headlessBrowser.internalLightdashHost,
+        ).href;
+
+        this.logger.info(
+            `Exporting chart "${chart.name}" with minimalUrl ${minimalUrl}`,
+        );
+
+        const unfurlImage = await this.unfurlImage({
+            url: minimalUrl,
+            lightdashPage: LightdashPage.CHART,
+            imageId: `chart-image_${snakeCaseName(chart.name)}_${useNanoid()}`,
+            authUserUuid: user.userUuid,
+            context: ScreenshotContext.EXPORT_CHART,
+            selectedTabs: null,
+        });
+        if (unfurlImage.imageUrl === undefined) {
+            throw new Error('Unable to export chart image');
+        }
+        this.logger.info(`Chart "${chart.name}" exported successfully`);
         return unfurlImage.imageUrl;
     }
 
