@@ -1,4 +1,4 @@
-Add a CLAUDE.md context file in the directory $ARGUMENTS
+Add an AGENTS.md context file in the directory $ARGUMENTS
 
 <format>
 Use XML tags for sections instead of markdown headers
@@ -10,7 +10,7 @@ Keep files between 50 and 100 lines.
 </format>
 
 <content>
-The purpose of the context file is to make it as fast as possible to understand how to use the files in this module. 
+The purpose of the context file is to make it as fast as possible to understand how to use the files in this module.
 
 The file should be easy to understand and useful, but not complete. Provide the minimum viable context for an engineer to use the module contents.
 
@@ -32,6 +32,11 @@ concepts, link to tutorials for engineers to learn more.
 </content>
 
 <linting>
-- After writing the CLAUDE.md file, run `pnpm format` on that single file to ensure proper formatting.
+- After writing the AGENTS.md file, run `pnpm format` on that single file to ensure proper formatting.
 - Add a line break between <codeExample> tag and the code block.
 </linting>
+
+<wrapper>
+After creating the AGENTS.md file, also create a one-liner CLAUDE.md in the same directory containing only:
+@AGENTS.md
+</wrapper>
