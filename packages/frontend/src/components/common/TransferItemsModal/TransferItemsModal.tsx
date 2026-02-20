@@ -5,12 +5,13 @@ import {
 } from '@lightdash/common';
 import { Button, LoadingOverlay, Text } from '@mantine-8/core';
 import { IconFolderShare, IconPlus } from '@tabler/icons-react';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { useSpaceManagement } from '../../../hooks/useSpaceManagement';
 import { useSpaceSummaries } from '../../../hooks/useSpaces';
 import Callout from '../Callout';
 import MantineIcon from '../MantineIcon';
 import MantineModal, { type MantineModalProps } from '../MantineModal';
+import { InheritanceType } from '../ShareSpaceModal/v2/ShareSpaceModalUtils';
 import SpaceCreationForm from '../SpaceSelector/SpaceCreationForm';
 import SpaceSelector from '../SpaceSelector/SpaceSelector';
 
@@ -97,10 +98,28 @@ const TransferItemsModal = <R extends ResourceViewItem, T extends Array<R>>({
         handleCreateNewSpace,
         openCreateSpaceForm,
         closeCreateSpaceForm,
+        inheritanceValue,
+        setInheritanceValue,
     } = useSpaceManagement({
         projectUuid,
         defaultSpaceUuid,
     });
+
+    // Set default inheritance value when entering create mode
+    useEffect(() => {
+        if (isCreatingNewSpace && inheritanceValue === null) {
+            setInheritanceValue(
+                selectedSpaceUuid
+                    ? InheritanceType.INHERIT
+                    : InheritanceType.OWN_ONLY,
+            );
+        }
+    }, [
+        isCreatingNewSpace,
+        inheritanceValue,
+        selectedSpaceUuid,
+        setInheritanceValue,
+    ]);
 
     const selectedSpaceLabel = useMemo(() => {
         if (!selectedSpaceUuid) return '';
@@ -115,14 +134,19 @@ const TransferItemsModal = <R extends ResourceViewItem, T extends Array<R>>({
 
     const createSpace = useCallback(async () => {
         try {
-            const result = await handleCreateNewSpace();
+            const result = await handleCreateNewSpace({
+                ...(inheritanceValue !== null && {
+                    inheritParentPermissions:
+                        inheritanceValue === InheritanceType.INHERIT,
+                }),
+            });
             if (result?.uuid) {
                 onConfirm(result.uuid);
             }
         } catch (error) {
             console.error('Failed to create space:', error);
         }
-    }, [handleCreateNewSpace, onConfirm]);
+    }, [handleCreateNewSpace, inheritanceValue, onConfirm]);
 
     if (items.length === 0) return null;
 
@@ -181,6 +205,8 @@ const TransferItemsModal = <R extends ResourceViewItem, T extends Array<R>>({
                     onCancel={closeCreateSpaceForm}
                     isLoading={createSpaceMutation.isLoading}
                     parentSpaceName={selectedSpaceLabel}
+                    inheritanceValue={inheritanceValue ?? undefined}
+                    onInheritanceChange={setInheritanceValue}
                 />
             ) : (
                 <>

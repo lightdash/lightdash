@@ -10,6 +10,7 @@ import MantineModal, {
 } from '../../../components/common/MantineModal';
 import SaveToSpaceForm from '../../../components/common/modal/ChartCreateModal/SaveToSpaceForm';
 import { saveToSpaceSchema } from '../../../components/common/modal/ChartCreateModal/types';
+import { InheritanceType } from '../../../components/common/ShareSpaceModal/v2/ShareSpaceModalUtils';
 import { useModalSteps } from '../../../hooks/useModalSteps';
 import { useSpaceManagement } from '../../../hooks/useSpaceManagement';
 import { useSpaceSummaries } from '../../../hooks/useSpaces';
@@ -113,9 +114,14 @@ export const UpdateSqlChartModal: FC<Props> = ({
 
     const handleOnSubmit = form.onSubmit(
         async ({ name, description, spaceUuid, newSpaceName }) => {
+            const { inheritanceValue } = spaceManagement;
             let newSpace = newSpaceName
                 ? await spaceManagement.handleCreateNewSpace({
                       isPrivate: true,
+                      ...(inheritanceValue !== null && {
+                          inheritParentPermissions:
+                              inheritanceValue === InheritanceType.INHERIT,
+                      }),
                   })
                 : undefined;
 

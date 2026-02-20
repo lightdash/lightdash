@@ -9,6 +9,7 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal, {
     type MantineModalProps,
 } from '../../../components/common/MantineModal';
+import { InheritanceType } from '../../../components/common/ShareSpaceModal/v2/ShareSpaceModalUtils';
 import SaveToSpaceForm from '../../../components/common/modal/ChartCreateModal/SaveToSpaceForm';
 import { saveToSpaceSchema } from '../../../components/common/modal/ChartCreateModal/types';
 import { useModalSteps } from '../../../hooks/useModalSteps';
@@ -102,8 +103,12 @@ export const SaveSqlChartModal: FC<Props> = ({ opened, onClose }) => {
         projectUuid,
     });
 
-    const { handleCreateNewSpace, isCreatingNewSpace, openCreateSpaceForm } =
-        spaceManagement;
+    const {
+        handleCreateNewSpace,
+        isCreatingNewSpace,
+        openCreateSpaceForm,
+        inheritanceValue,
+    } = spaceManagement;
 
     useEffect(() => {
         if (isSuccessSpace && spaces) {
@@ -132,6 +137,10 @@ export const SaveSqlChartModal: FC<Props> = ({ opened, onClose }) => {
         let newSpace = form.values.newSpaceName
             ? await handleCreateNewSpace({
                   isPrivate: true,
+                  ...(inheritanceValue !== null && {
+                      inheritParentPermissions:
+                          inheritanceValue === InheritanceType.INHERIT,
+                  }),
               })
             : undefined;
         const spaceUuid =
@@ -161,6 +170,7 @@ export const SaveSqlChartModal: FC<Props> = ({ opened, onClose }) => {
         form.values.name,
         form.values.description,
         handleCreateNewSpace,
+        inheritanceValue,
         currentVizConfig,
         sql,
         createSavedSqlChart,
