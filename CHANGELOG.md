@@ -1,3 +1,15 @@
+# [0.2500.0](https://github.com/lightdash/lightdash/compare/0.2499.1...0.2500.0) (2026-02-20)
+
+
+### Bug Fixes
+
+* yml only projects again + add tests ([#20466](https://github.com/lightdash/lightdash/issues/20466)) ([57917c7](https://github.com/lightdash/lightdash/commit/57917c7114d65c0d7e76b901b38613fe374f2155))
+
+
+### Features
+
+* add CLI chart runner command ([#20475](https://github.com/lightdash/lightdash/issues/20475)) ([045aee0](https://github.com/lightdash/lightdash/commit/045aee0da4f3f554e99f4629bcf4bffc2651dc83))
+
 ## [0.2499.1](https://github.com/lightdash/lightdash/compare/0.2499.0...0.2499.1) (2026-02-20)
 
 
