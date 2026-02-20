@@ -2114,10 +2114,10 @@ export class AsyncQueryService extends ProjectService {
 
         let preAggregateMetadata: Pick<CacheMetadata, 'preAggregate'> | null =
             null;
-        if (
-            process.env.ENABLE_PRE_AGGREGATE_DRY_RUN === 'true' &&
-            (explore.preAggregates || []).length > 0
-        ) {
+        const preAggregatesEnabled =
+            process.env.ENABLE_PRE_AGGREGATES === 'true' ||
+            process.env.ENABLE_PRE_AGGREGATE_DRY_RUN === 'true';
+        if (preAggregatesEnabled && (explore.preAggregates || []).length > 0) {
             const matchResult = findMatch(metricQuery, explore);
 
             preAggregateMetadata = {

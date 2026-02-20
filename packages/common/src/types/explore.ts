@@ -58,6 +58,7 @@ export type CompiledTable = TableBase & {
 export enum ExploreType {
     VIRTUAL = 'virtual',
     DEFAULT = 'default',
+    PRE_AGGREGATE = 'pre_aggregate',
 }
 
 export enum InlineErrorType {

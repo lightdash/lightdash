@@ -1249,21 +1249,36 @@ export class SearchModel {
             .limit(1);
 
         if (explores.length > 0 && explores[0].explores) {
+            const includePreAggregateDebugExplores =
+                process.env.ENABLE_PRE_AGGREGATE_DEBUG_VIEW === 'true' ||
+                process.env.ENABLE_PRE_AGGREGATE_INTERNAL_VISIBILITY === 'true';
             return explores[0].explores.filter(
                 (explore: Explore | ExploreError) => {
+                    if (
+                        !includePreAggregateDebugExplores &&
+                        explore.type === ExploreType.PRE_AGGREGATE
+                    ) {
+                        return false;
+                    }
                     if (tableSelection.type === TableSelectionType.WITH_TAGS) {
                         return (
                             hasIntersection(
                                 explore.tags || [],
                                 tableSelection.value || [],
-                            ) || explore.type === ExploreType.VIRTUAL
+                            ) ||
+                            explore.type === ExploreType.VIRTUAL ||
+                            (includePreAggregateDebugExplores &&
+                                explore.type === ExploreType.PRE_AGGREGATE)
                         );
                     }
                     if (tableSelection.type === TableSelectionType.WITH_NAMES) {
                         return (
                             (tableSelection.value || []).includes(
                                 explore.name,
-                            ) || explore.type === ExploreType.VIRTUAL
+                            ) ||
+                            explore.type === ExploreType.VIRTUAL ||
+                            (includePreAggregateDebugExplores &&
+                                explore.type === ExploreType.PRE_AGGREGATE)
                         );
                     }
                     return true;
