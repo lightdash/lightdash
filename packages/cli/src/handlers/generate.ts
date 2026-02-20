@@ -86,7 +86,7 @@ export const generateHandler = async (options: GenerateHandlerOptions) => {
     });
     // When --target is explicitly set, run dbt ls to refresh the manifest
     // so model schema/database/catalog reflect the correct target
-    if (options.target) {
+    if (options.target && !dbtVersion.isDbtCloudCLI) {
         await dbtList(options);
     }
 
