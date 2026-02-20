@@ -1,3 +1,11 @@
+# [0.2499.0](https://github.com/lightdash/lightdash/compare/0.2498.4...0.2499.0) (2026-02-20)
+
+
+### Features
+
+* add shareable links for metrics trees  ([#20365](https://github.com/lightdash/lightdash/issues/20365)) ([9efb39d](https://github.com/lightdash/lightdash/commit/9efb39d28c163e0ecaf0137967aedc8b56831135)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+* support metrics tree lookup by slug ([#20352](https://github.com/lightdash/lightdash/issues/20352)) ([d597235](https://github.com/lightdash/lightdash/commit/d59723517f60cd8a168d946dfdd3caeef9180672)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
 ## [0.2498.4](https://github.com/lightdash/lightdash/compare/0.2498.3...0.2498.4) (2026-02-20)
 
 
