@@ -1,3 +1,10 @@
+# [0.2502.0](https://github.com/lightdash/lightdash/compare/0.2501.0...0.2502.0) (2026-02-20)
+
+
+### Features
+
+* add sum_distinct metric type for deduplication in joins ([#20181](https://github.com/lightdash/lightdash/issues/20181)) ([dd0e9c3](https://github.com/lightdash/lightdash/commit/dd0e9c300ea149e13695d1760efb9a07f3a2a8d5)), closes [#20192](https://github.com/lightdash/lightdash/issues/20192)
+
 # [0.2501.0](https://github.com/lightdash/lightdash/compare/0.2500.0...0.2501.0) (2026-02-20)
 
 
