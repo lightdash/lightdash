@@ -579,8 +579,8 @@ importers:
         specifier: ^1.11.1
         version: 1.11.1
       '@casl/ability':
-        specifier: ^5.4.3
-        version: 5.4.4
+        specifier: ^6.7.5
+        version: 6.8.0
       '@lightdash/common':
         specifier: workspace:*
         version: link:../common
@@ -2367,9 +2367,6 @@ packages:
 
   '@bcoe/v8-coverage@0.2.3':
     resolution: {integrity: sha512-0hYQ8SB4Db5zvZB4axdMHGwEaQjkZzFjQiN9LVYvIFB2nSUHW9tYpxWriPrWDASIxiaXax83REcLxuSdnGPZtw==}
-
-  '@casl/ability@5.4.4':
-    resolution: {integrity: sha512-7+GOnMUq6q4fqtDDesymBXTS9LSDVezYhFiSJ8Rn3f0aQLeRm7qHn66KWbej4niCOvm0XzNj9jzpkK0yz6hUww==}
 
   '@casl/ability@6.8.0':
     resolution: {integrity: sha512-Ipt4mzI4gSgnomFdaPjaLgY2MWuXqAEZLrU6qqWBB7khGiBBuuEp6ytYDnq09bRXqcjaeeHiaCvCGFbBA2SpvA==}
@@ -17878,10 +17875,6 @@ snapshots:
       '@babel/helper-validator-identifier': 7.27.1
 
   '@bcoe/v8-coverage@0.2.3': {}
-
-  '@casl/ability@5.4.4':
-    dependencies:
-      '@ucast/mongo2js': 1.3.3
 
   '@casl/ability@6.8.0':
     dependencies:
