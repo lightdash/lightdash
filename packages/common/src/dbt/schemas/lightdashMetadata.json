@@ -185,7 +185,9 @@
                     "$ref": "#/definitions/Format"
                 },
                 "group_label": {
-                    "type": "string"
+                    "type": "string",
+                    "deprecated": true,
+                    "description": "Deprecated: use groups instead"
                 },
                 "urls": {
                     "$ref": "#/definitions/Urls"
@@ -234,7 +236,9 @@
                     "$ref": "#/definitions/Format"
                 },
                 "group_label": {
-                    "type": "string"
+                    "type": "string",
+                    "deprecated": true,
+                    "description": "Deprecated: use groups instead"
                 },
                 "urls": {
                     "$ref": "#/definitions/Urls"
@@ -299,7 +303,9 @@
                     "$ref": "#/definitions/Format"
                 },
                 "group_label": {
-                    "type": "string"
+                    "type": "string",
+                    "deprecated": true,
+                    "description": "Deprecated: use groups instead"
                 },
                 "urls": {
                     "$ref": "#/definitions/Urls"

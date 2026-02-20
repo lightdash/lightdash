@@ -109,14 +109,26 @@ dimension:
 
 ### Organization
 
+Use `groups` to organize dimensions in the sidebar:
+
 ```yaml
 dimension:
   type: string
-  group_label: "Customer Details"  # Group in sidebar
-  groups:                          # Multiple groups
+  groups:
+    - "Customer Details"
+```
+
+For hierarchical grouping, add multiple levels:
+
+```yaml
+dimension:
+  type: string
+  groups:
     - "Customer"
     - "Demographics"
 ```
+
+> **Note:** `group_label` is deprecated. Use `groups` instead.
 
 ### Colors
 
@@ -252,7 +264,8 @@ columns:
           - MONTH
           - QUARTER
           - YEAR
-        group_label: "Dates"
+        groups:
+          - "Dates"
 
   - name: status
     description: "Current account status"
@@ -265,7 +278,8 @@ columns:
           "Active": "#22c55e"
           "Inactive": "#94a3b8"
           "Churned": "#ef4444"
-        group_label: "Account Info"
+        groups:
+          - "Account Info"
 
   - name: lifetime_value
     description: "Total customer spend"
@@ -276,7 +290,8 @@ columns:
         format: "usd"
         round: 2
         compact: "thousands"
-        group_label: "Financial"
+        groups:
+          - "Financial"
         urls:
           - label: "Revenue Details"
             url: "/customers/${row.customer_id}/revenue"
@@ -288,7 +303,7 @@ columns:
 2. **Set meaningful labels**: Use business-friendly names
 3. **Add descriptions**: Help users understand what dimensions represent
 4. **Configure time intervals**: Only include intervals users actually need
-5. **Group related dimensions**: Use `group_label` for cleaner organization
+5. **Group related dimensions**: Use `groups` for cleaner organization (supports hierarchical grouping)
 6. **Use colors consistently**: Map status values to intuitive colors
 7. **Add URLs where useful**: Link to external systems for context
 8. **Use AI hints**: Help AI assistants understand dimension purpose
