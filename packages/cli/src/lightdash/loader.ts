@@ -67,7 +67,7 @@ async function isLightdashModelFile(filePath: string): Promise<boolean> {
 
 /**
  * Find all Lightdash YAML model files in a directory
- * Looks for files in the lightdash/models directory that contain `type: model`
+ * Looks for files in models/ or lightdash/models/ directory that contain `type: model`
  *
  * This explicitly checks the YAML content for `type: model` (or versioned variants)
  * to avoid false positives from other YAML files (e.g., content-as-code spaces).
@@ -75,14 +75,22 @@ async function isLightdashModelFile(filePath: string): Promise<boolean> {
 export async function findLightdashModelFiles(
     projectDir: string,
 ): Promise<string[]> {
-    const lightdashModelsDir = path.join(projectDir, 'lightdash', 'models');
+    // Check both possible model locations: models/ (preferred) and lightdash/models/ (legacy)
+    const possibleDirs = [
+        path.join(projectDir, 'models'),
+        path.join(projectDir, 'lightdash', 'models'),
+    ];
 
-    if (!fs.existsSync(lightdashModelsDir)) {
+    const lightdashModelsDir = possibleDirs.find((dir) => fs.existsSync(dir));
+
+    if (!lightdashModelsDir) {
         GlobalState.debug(
-            `No lightdash/models directory found at ${lightdashModelsDir}`,
+            `No models directory found at ${possibleDirs.join(' or ')}`,
         );
         return [];
     }
+
+    GlobalState.debug(`Using models directory: ${lightdashModelsDir}`);
 
     const yamlFiles: string[] = [];
 
