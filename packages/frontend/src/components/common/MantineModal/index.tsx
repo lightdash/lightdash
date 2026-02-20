@@ -14,8 +14,9 @@ import {
     Stack,
     Text,
 } from '@mantine-8/core';
+import { useDisclosure } from '@mantine/hooks';
 import { IconTrash, type Icon as IconType } from '@tabler/icons-react';
-import React from 'react';
+import React, { useCallback, useEffect } from 'react';
 import MantineIcon from '../MantineIcon';
 import classes from './MantineModal.module.css';
 
@@ -158,6 +159,12 @@ export type MantineModalProps = {
      * Useful when cancel should do something different (e.g., go back to a previous step).
      */
     onCancel?: () => void;
+    /**
+     * When true, closing the modal will show a confirmation dialog first.
+     * Useful for forms with unsaved changes.
+     * @default false
+     */
+    confirmBeforeClose?: boolean;
     modalRootProps?: Partial<ModalRootProps>;
     modalContentProps?: Partial<ModalContentProps>;
     modalHeaderProps?: Partial<ModalHeaderProps>;
@@ -188,11 +195,31 @@ const MantineModal: React.FC<MantineModalProps> = ({
     cancelLabel = 'Cancel',
     cancelDisabled = false,
     onCancel,
+    confirmBeforeClose = false,
     modalRootProps,
     modalHeaderProps,
     modalBodyProps,
     modalActionsProps,
 }) => {
+    const [
+        isConfirmCloseOpen,
+        { open: openConfirmClose, close: closeConfirmClose },
+    ] = useDisclosure(false);
+
+    useEffect(() => {
+        if (!opened) {
+            closeConfirmClose();
+        }
+    }, [opened, closeConfirmClose]);
+
+    const handleClose = useCallback(() => {
+        if (confirmBeforeClose) {
+            openConfirmClose();
+        } else {
+            onClose();
+        }
+    }, [confirmBeforeClose, onClose, openConfirmClose]);
+
     const config = VARIANT_CONFIG[variant];
 
     const effectiveIcon = icon ?? config.icon;
@@ -249,79 +276,146 @@ const MantineModal: React.FC<MantineModalProps> = ({
     };
 
     return (
-        <Modal.Root
-            opened={opened}
-            onClose={onClose}
-            size={fullScreen ? 'auto' : size}
-            centered
-            {...modalRootProps}
-        >
-            <Modal.Overlay />
-            <Modal.Content
-                className={fullScreen ? classes.fullScreenContent : undefined}
+        <>
+            <Modal.Root
+                opened={opened}
+                onClose={handleClose}
+                size={fullScreen ? 'auto' : size}
+                centered
+                {...modalRootProps}
             >
-                <Modal.Header
-                    className={classes.header}
-                    px="xl"
-                    py="md"
-                    {...modalHeaderProps}
+                <Modal.Overlay />
+                <Modal.Content
+                    className={
+                        fullScreen ? classes.fullScreenContent : undefined
+                    }
                 >
-                    <Group gap="sm" flex={1} wrap="nowrap" align="flex-start">
-                        {effectiveIcon ? (
-                            <Paper p="6px" withBorder radius="md">
-                                <MantineIcon icon={effectiveIcon} size="md" />
-                            </Paper>
-                        ) : null}
-                        <Text c="ldDark.9" fw={700} fz="md" lh="28px">
-                            {title}
-                        </Text>
-                    </Group>
-                    {headerActions ? (
-                        <Group gap="sm" mr="md">
-                            {headerActions}
-                        </Group>
-                    ) : null}
-                    {withCloseButton && <Modal.CloseButton />}
-                </Modal.Header>
-
-                {renderBody()}
-
-                {(onConfirm || actions || leftActions) && !fullScreen ? (
-                    <Flex
-                        className={classes.actions}
+                    <Modal.Header
+                        className={classes.header}
                         px="xl"
                         py="md"
-                        justify={leftActions ? 'space-between' : 'flex-end'}
-                        align="center"
-                        {...modalActionsProps}
+                        {...modalHeaderProps}
                     >
-                        {leftActions ?? <div />}
-                        <Group gap="sm">
-                            {cancelLabel !== false && (
+                        <Group
+                            gap="sm"
+                            flex={1}
+                            wrap="nowrap"
+                            align="flex-start"
+                        >
+                            {effectiveIcon ? (
+                                <Paper p="6px" withBorder radius="md">
+                                    <MantineIcon
+                                        icon={effectiveIcon}
+                                        size="md"
+                                    />
+                                </Paper>
+                            ) : null}
+                            <Text c="ldDark.9" fw={700} fz="md" lh="28px">
+                                {title}
+                            </Text>
+                        </Group>
+                        {headerActions ? (
+                            <Group gap="sm" mr="md">
+                                {headerActions}
+                            </Group>
+                        ) : null}
+                        {withCloseButton && <Modal.CloseButton />}
+                    </Modal.Header>
+
+                    {renderBody()}
+
+                    {(onConfirm || actions || leftActions) && !fullScreen ? (
+                        <Flex
+                            className={classes.actions}
+                            px="xl"
+                            py="md"
+                            justify={leftActions ? 'space-between' : 'flex-end'}
+                            align="center"
+                            {...modalActionsProps}
+                        >
+                            {leftActions ?? <div />}
+                            <Group gap="sm">
+                                {cancelLabel !== false && (
+                                    <Button
+                                        variant="default"
+                                        onClick={onCancel ?? handleClose}
+                                        disabled={cancelDisabled}
+                                    >
+                                        {cancelLabel}
+                                    </Button>
+                                )}
+                                {actions}
+                                {onConfirm && (
+                                    <Button
+                                        color={confirmButtonColor}
+                                        onClick={onConfirm}
+                                        disabled={confirmDisabled}
+                                        loading={confirmLoading}
+                                    >
+                                        {effectiveConfirmLabel}
+                                    </Button>
+                                )}
+                            </Group>
+                        </Flex>
+                    ) : null}
+                </Modal.Content>
+            </Modal.Root>
+
+            {confirmBeforeClose && (
+                <Modal.Root
+                    opened={isConfirmCloseOpen}
+                    onClose={closeConfirmClose}
+                    size="sm"
+                    centered
+                >
+                    <Modal.Overlay />
+                    <Modal.Content>
+                        <Modal.Header
+                            className={classes.header}
+                            px="xl"
+                            py="md"
+                        >
+                            <Text c="ldDark.9" fw={700} fz="md" lh="28px">
+                                Unsaved changes
+                            </Text>
+                            <Modal.CloseButton />
+                        </Modal.Header>
+                        <Modal.Body p={0}>
+                            <Stack gap="md" px="xl" py="md">
+                                <Text fz="sm">
+                                    You have unsaved changes. Are you sure you
+                                    want to close?
+                                </Text>
+                            </Stack>
+                        </Modal.Body>
+                        <Flex
+                            className={classes.actions}
+                            px="xl"
+                            py="md"
+                            justify="flex-end"
+                            align="center"
+                        >
+                            <Group gap="sm">
                                 <Button
                                     variant="default"
-                                    onClick={onCancel ?? onClose}
-                                    disabled={cancelDisabled}
+                                    onClick={closeConfirmClose}
                                 >
-                                    {cancelLabel}
+                                    Keep editing
                                 </Button>
-                            )}
-                            {actions}
-                            {onConfirm && (
                                 <Button
-                                    color={confirmButtonColor}
-                                    onClick={onConfirm}
-                                    disabled={confirmDisabled}
-                                    loading={confirmLoading}
+                                    onClick={() => {
+                                        closeConfirmClose();
+                                        onClose();
+                                    }}
                                 >
-                                    {effectiveConfirmLabel}
+                                    Discard changes
                                 </Button>
-                            )}
-                        </Group>
-                    </Flex>
-                ) : null}
-            </Modal.Content>
-        </Modal.Root>
+                            </Group>
+                        </Flex>
+                    </Modal.Content>
+                </Modal.Root>
+            )}
+        </>
     );
 };
 
