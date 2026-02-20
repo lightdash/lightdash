@@ -1,6 +1,10 @@
+import { FeatureFlags } from '@lightdash/common';
 import { Alert, Box, Button, Stack, Text, TextInput } from '@mantine/core';
 import { IconArrowLeft, IconInfoCircle } from '@tabler/icons-react';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import MantineIcon from '../MantineIcon';
+import { InheritanceType } from '../ShareSpaceModal/v2/ShareSpaceModalUtils';
+import SpaceCreationFormV2 from './SpaceCreationFormV2';
 
 type SpaceCreationFormProps = {
     spaceName: string;
@@ -8,6 +12,8 @@ type SpaceCreationFormProps = {
     onCancel: () => void;
     isLoading?: boolean;
     parentSpaceName?: string;
+    inheritanceValue?: InheritanceType;
+    onInheritanceChange?: (value: InheritanceType) => void;
 };
 
 const SpaceCreationForm = ({
@@ -16,7 +22,27 @@ const SpaceCreationForm = ({
     onCancel,
     isLoading,
     parentSpaceName,
+    inheritanceValue,
+    onInheritanceChange,
 }: SpaceCreationFormProps) => {
+    const { data: nestedSpacesPermissionsFlag } = useServerFeatureFlag(
+        FeatureFlags.NestedSpacesPermissions,
+    );
+
+    if (nestedSpacesPermissionsFlag?.enabled && onInheritanceChange) {
+        return (
+            <SpaceCreationFormV2
+                spaceName={spaceName}
+                onSpaceNameChange={onSpaceNameChange}
+                onCancel={onCancel}
+                isLoading={isLoading}
+                parentSpaceName={parentSpaceName}
+                inheritanceValue={inheritanceValue ?? InheritanceType.OWN_ONLY}
+                onInheritanceChange={onInheritanceChange}
+            />
+        );
+    }
+
     return (
         <Stack spacing="xs">
             <Box>

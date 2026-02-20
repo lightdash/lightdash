@@ -97,6 +97,8 @@ const TransferItemsModal = <R extends ResourceViewItem, T extends Array<R>>({
         handleCreateNewSpace,
         openCreateSpaceForm,
         closeCreateSpaceForm,
+        inheritanceValue,
+        setInheritanceValue,
     } = useSpaceManagement({
         projectUuid,
         defaultSpaceUuid,
@@ -181,6 +183,8 @@ const TransferItemsModal = <R extends ResourceViewItem, T extends Array<R>>({
                     onCancel={closeCreateSpaceForm}
                     isLoading={createSpaceMutation.isLoading}
                     parentSpaceName={selectedSpaceLabel}
+                    inheritanceValue={inheritanceValue ?? undefined}
+                    onInheritanceChange={setInheritanceValue}
                 />
             ) : (
                 <>

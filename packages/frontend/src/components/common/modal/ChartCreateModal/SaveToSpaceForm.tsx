@@ -29,6 +29,8 @@ const SaveToSpaceForm = <T extends SaveToSpaceFormType>({
         selectedSpaceUuid,
         setSelectedSpaceUuid,
         closeCreateSpaceForm,
+        inheritanceValue,
+        setInheritanceValue,
     } = spaceManagement;
 
     if (isCreatingNewSpace) {
@@ -47,6 +49,8 @@ const SaveToSpaceForm = <T extends SaveToSpaceFormType>({
                 }}
                 isLoading={isLoading}
                 parentSpaceName={selectedSpaceName}
+                inheritanceValue={inheritanceValue ?? undefined}
+                onInheritanceChange={setInheritanceValue}
             />
         );
     }
