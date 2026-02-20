@@ -16,7 +16,7 @@
     ],
     "dependencies": {
         "@actions/core": "^1.11.1",
-        "@casl/ability": "^5.4.3",
+        "@casl/ability": "^6.7.5",
         "@lightdash/common": "workspace:*",
         "@lightdash/warehouses": "workspace:*",
         "@types/columnify": "^1.5.1",
