@@ -331,6 +331,10 @@ export const MultiStep: Story = {
 /**
  * Modal with a form.
  * Use form `id` and button `form` attribute to connect them.
+ *
+ * **Recommended:** When a modal contains a form, use `confirmBeforeClose={form.isDirty()}`
+ * to prevent users from accidentally losing their work by pressing Escape or clicking
+ * outside the modal. See the `ConfirmBeforeClose` story for a focused example.
  */
 export const WithForm: Story = {
     render: () => {
@@ -356,8 +360,12 @@ export const WithForm: Story = {
                 <MantineModal
                     title="Create Chart"
                     opened={opened}
-                    onClose={() => setOpened(false)}
+                    onClose={() => {
+                        setOpened(false);
+                        form.reset();
+                    }}
                     icon={IconSettings}
+                    confirmBeforeClose={form.isDirty()}
                     actions={
                         <Button
                             type="submit"
@@ -381,6 +389,93 @@ export const WithForm: Story = {
                                 placeholder="Optional description"
                                 {...form.getInputProps('description')}
                             />
+                        </Stack>
+                    </form>
+                </MantineModal>
+            </>
+        );
+    },
+};
+
+/**
+ * Confirm before closing a modal with unsaved changes.
+ *
+ * Use `confirmBeforeClose` to show a confirmation dialog when the user tries to
+ * close the modal (via Escape, overlay click, close button, or Cancel).
+ * This is **recommended for any modal containing a form** to prevent accidental data loss.
+ *
+ * Pass a dynamic value like `form.isDirty()` so the confirmation only appears
+ * when there are actual unsaved changes — closing a clean form won't prompt.
+ *
+ * ```tsx
+ * <MantineModal
+ *     confirmBeforeClose={form.isDirty()}
+ *     onClose={() => { toggleModal(); form.reset(); }}
+ *     ...
+ * >
+ * ```
+ */
+export const ConfirmBeforeClose: Story = {
+    render: () => {
+        const [opened, setOpened] = useState(true);
+
+        const form = useForm({
+            initialValues: {
+                name: '',
+                sql: '',
+            },
+        });
+
+        const handleSubmit = form.onSubmit((values) => {
+            console.log('Submitted:', values);
+            setOpened(false);
+            form.reset();
+        });
+
+        return (
+            <>
+                <Button onClick={() => setOpened(true)}>
+                    Open Modal with Form
+                </Button>
+
+                <MantineModal
+                    title="Custom SQL Dimension"
+                    opened={opened}
+                    onClose={() => {
+                        setOpened(false);
+                        form.reset();
+                    }}
+                    icon={IconSettings}
+                    confirmBeforeClose={form.isDirty()}
+                    actions={
+                        <Button
+                            type="submit"
+                            form="confirm-close-form"
+                            disabled={!form.values.name}
+                        >
+                            Create
+                        </Button>
+                    }
+                >
+                    <form id="confirm-close-form" onSubmit={handleSubmit}>
+                        <Stack>
+                            <TextInput
+                                label="Label"
+                                required
+                                placeholder="Enter a name"
+                                {...form.getInputProps('name')}
+                            />
+                            <Textarea
+                                label="SQL"
+                                placeholder="Enter SQL expression"
+                                minRows={4}
+                                {...form.getInputProps('sql')}
+                            />
+                            <Text fz="xs" c="dimmed">
+                                Type something, then try pressing Escape or
+                                clicking the X button to see the confirmation
+                                dialog.
+                            </Text>
                         </Stack>
                     </form>
                 </MantineModal>
