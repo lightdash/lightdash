@@ -125,8 +125,17 @@ pnpm -F backend rollback-last
 
 ## Testing
 
+-   Use Chrome DevTools MCP to interact with the frontend web app
 -   Test user login is demo@lightdash.com and 'demo_password!'
 -   Use ./scripts/reset-db.sh to reset the database, run migrations, and seed the database with dev data
+
+## Current Project Status
+
+-   Customer support issues are on milestone 184
+
+## Issue Management
+
+-   bugs use the label 🐛 bug
 
 ## Code Style
 
@@ -241,4 +250,4 @@ curl -H "Authorization: ApiKey $LDPAT" "$SITE_URL/api/v2/content?contentTypes=sp
 
 ## AI Context File Convention
 
-This project uses AGENTS.md files for tool-agnostic AI coding context (architecture, patterns, conventions). Each AGENTS.md has a companion CLAUDE.md containing `@AGENTS.md` to import the content into Claude Code. When adding new context files, create AGENTS.md as the primary file and a one-liner CLAUDE.md wrapper alongside it.
+This project uses AGENTS.md files for AI coding context (architecture, patterns, conventions). Each AGENTS.md has a companion CLAUDE.md symlink (`ln -s AGENTS.md CLAUDE.md`) so Claude Code reads the same content. When adding new context files, create AGENTS.md as the primary file and a symlink alongside it.

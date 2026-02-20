@@ -36,7 +36,7 @@ concepts, link to tutorials for engineers to learn more.
 - Add a line break between <codeExample> tag and the code block.
 </linting>
 
-<wrapper>
-After creating the AGENTS.md file, also create a one-liner CLAUDE.md in the same directory containing only:
-@AGENTS.md
-</wrapper>
+<symlink>
+After creating the AGENTS.md file, also create a CLAUDE.md symlink in the same directory:
+ln -s AGENTS.md CLAUDE.md
+</symlink>
