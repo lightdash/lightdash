@@ -120,15 +120,28 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
                     setSelectedConfigError(undefined);
                 }}
             />
-            <Text c="dimmed">
-                Use the project validator to check what content is broken in
-                your project.
-            </Text>
+            <Group gap="md" justify="space-between">
+                <Text c="dimmed">
+                    Use the project validator to check what content is broken in
+                    your project.
+                </Text>
+                <Button
+                    size="xs"
+                    onClick={() => {
+                        setIsValidating(true);
+                        validateProject();
+                    }}
+                    loading={isValidating}
+                >
+                    Run validation
+                </Button>
+            </Group>
 
             <Paper withBorder shadow="sm">
                 <Group justify="space-between" p="md">
-                    <Group gap="md">
+                    <Group gap="md" w="100%">
                         <TextInput
+                            flex={1}
                             size="xs"
                             placeholder="Search by name or error..."
                             leftSection={<IconSearch size={14} />}
@@ -168,16 +181,6 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
                                 {totalDBRowCount === 1 ? '' : 's'}
                             </Text>
                         )}
-                        <Button
-                            size="xs"
-                            onClick={() => {
-                                setIsValidating(true);
-                                validateProject();
-                            }}
-                            loading={isValidating}
-                        >
-                            Run validation
-                        </Button>
                     </Group>
                 </Group>
 
