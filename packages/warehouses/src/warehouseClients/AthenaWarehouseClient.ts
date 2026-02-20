@@ -23,10 +23,7 @@ import {
     WarehouseTypes,
 } from '@lightdash/common';
 import { WarehouseCatalog } from '../types';
-import {
-    DEFAULT_BATCH_SIZE,
-    processPromisesInBatches,
-} from '../utils/processPromisesInBatches';
+import { processPromisesInBatches } from '../utils/processPromisesInBatches';
 import { normalizeUnicode } from '../utils/sql';
 import WarehouseBaseClient from './WarehouseBaseClient';
 import WarehouseBaseSqlBuilder from './WarehouseBaseSqlBuilder';
@@ -393,60 +390,109 @@ export class AthenaWarehouseClient extends WarehouseBaseClient<CreateAthenaCrede
         }
     }
 
+    private async listMetadataForSchema(
+        database: string,
+        schema: string,
+        tableFilter: Set<string> | null,
+    ): Promise<{ table: string; columns: { name: string; type: string }[] }[]> {
+        const results: {
+            table: string;
+            columns: { name: string; type: string }[];
+        }[] = [];
+
+        let nextToken: string | undefined;
+
+        try {
+            do {
+                // eslint-disable-next-line no-await-in-loop
+                const response = await this.client.send(
+                    new ListTableMetadataCommand({
+                        CatalogName: database,
+                        DatabaseName: schema,
+                        NextToken: nextToken,
+                        MaxResults: 50,
+                    }),
+                );
+
+                response.TableMetadataList?.forEach((tableMeta) => {
+                    if (!tableMeta.Name) return;
+                    if (tableFilter && !tableFilter.has(tableMeta.Name)) return;
+
+                    results.push({
+                        table: tableMeta.Name,
+                        columns:
+                            tableMeta.Columns?.map((col) => ({
+                                name: col.Name || '',
+                                type: col.Type || 'varchar',
+                            })) || [],
+                    });
+                });
+
+                nextToken = response.NextToken;
+            } while (nextToken);
+        } catch (e: unknown) {
+            const error = e as { name?: string };
+            if (error.name === 'MetadataException') {
+                return [];
+            }
+            throw new WarehouseConnectionError(
+                `Failed to list table metadata for '${database}.${schema}'. ${getErrorMessage(e)}`,
+            );
+        }
+
+        return results;
+    }
+
+    private static readonly SCHEMA_BATCH_SIZE = 5;
+
     async getCatalog(
         requests: { database: string; schema: string; table: string }[],
     ): Promise<WarehouseCatalog> {
-        const results = await processPromisesInBatches(
-            requests,
-            DEFAULT_BATCH_SIZE,
-            async ({ database, schema, table }) => {
-                try {
-                    const response = await this.client.send(
-                        new GetTableMetadataCommand({
-                            CatalogName: database,
-                            DatabaseName: schema,
-                            TableName: table,
-                        }),
-                    );
+        // Group requests by {database, schema}
+        const schemaGroups = new Map<
+            string,
+            { database: string; schema: string; tables: Set<string> }
+        >();
 
-                    const columns =
-                        response.TableMetadata?.Columns?.map((col) => ({
-                            name: col.Name || '',
-                            type: col.Type || 'varchar',
-                        })) || [];
+        requests.forEach(({ database, schema, table }) => {
+            const key = `${database}\0${schema}`;
+            const existing = schemaGroups.get(key);
+            if (existing) {
+                existing.tables.add(table);
+            } else {
+                schemaGroups.set(key, {
+                    database,
+                    schema,
+                    tables: new Set([table]),
+                });
+            }
+        });
 
-                    return { database, schema, table, columns };
-                } catch (e: unknown) {
-                    // Table not found - return undefined
-                    const error = e as { name?: string };
-                    if (error.name === 'MetadataException') {
-                        return undefined;
-                    }
-                    throw new WarehouseConnectionError(
-                        `Failed to fetch table metadata for '${database}.${schema}.${table}'. ${getErrorMessage(
-                            e,
-                        )}`,
-                    );
-                }
-            },
+        const groups = Array.from(schemaGroups.values());
+
+        const batchResults = await processPromisesInBatches(
+            groups,
+            AthenaWarehouseClient.SCHEMA_BATCH_SIZE,
+            async ({ database, schema, tables }) =>
+                (
+                    await this.listMetadataForSchema(database, schema, tables)
+                ).map((entry) => ({ database, schema, ...entry })),
         );
 
-        return results.reduce<WarehouseCatalog>((acc, result) => {
-            if (result) {
-                const { database, schema, table, columns } = result;
-                acc[database] = acc[database] || {};
-                acc[database][schema] = acc[database][schema] || {};
-                acc[database][schema][table] = columns.reduce<
-                    Record<string, DimensionType>
-                >(
-                    (colAcc, { name, type }) => ({
-                        ...colAcc,
-                        [normalizeColumnName(name)]:
-                            convertDataTypeToDimensionType(type),
-                    }),
-                    {},
-                );
-            }
+        return batchResults.flat().reduce<WarehouseCatalog>((acc, result) => {
+            const { database, schema, table, columns } = result;
+            acc[database] = acc[database] || {};
+            acc[database][schema] = acc[database][schema] || {};
+            acc[database][schema][table] = columns.reduce<
+                Record<string, DimensionType>
+            >(
+                (colAcc, { name, type }) => ({
+                    ...colAcc,
+                    [normalizeColumnName(name)]:
+                        convertDataTypeToDimensionType(type),
+                }),
+                {},
+            );
             return acc;
         }, {});
     }
