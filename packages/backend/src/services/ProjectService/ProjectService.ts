@@ -4897,28 +4897,40 @@ export class ProjectService extends BaseService {
             projectUuid,
             includeErrors,
         );
+        const includePreAggregateDebugExplores =
+            process.env.ENABLE_PRE_AGGREGATE_DEBUG_VIEW === 'true' ||
+            process.env.ENABLE_PRE_AGGREGATE_INTERNAL_VISIBILITY === 'true';
+        const visibleExploreSummaries = includePreAggregateDebugExplores
+            ? allExploreSummaries
+            : allExploreSummaries.filter(
+                  (explore) => explore.type !== ExploreType.PRE_AGGREGATE,
+              );
 
         if (filtered) {
             const {
                 tableSelection: { type, value },
             } = await this.getTablesConfiguration(account, projectUuid);
             if (type === TableSelectionType.WITH_TAGS) {
-                return allExploreSummaries.filter(
+                return visibleExploreSummaries.filter(
                     (explore) =>
                         hasIntersection(explore.tags || [], value || []) ||
-                        explore.type === ExploreType.VIRTUAL, // Custom explores/Virtual views are included by default
+                        explore.type === ExploreType.VIRTUAL || // Custom explores/Virtual views are included by default
+                        (includePreAggregateDebugExplores &&
+                            explore.type === ExploreType.PRE_AGGREGATE),
                 );
             }
             if (type === TableSelectionType.WITH_NAMES) {
-                return allExploreSummaries.filter(
+                return visibleExploreSummaries.filter(
                     (explore) =>
                         (value || []).includes(explore.name) ||
-                        explore.type === ExploreType.VIRTUAL, // Custom explores/Virtual views are included by default
+                        explore.type === ExploreType.VIRTUAL || // Custom explores/Virtual views are included by default
+                        (includePreAggregateDebugExplores &&
+                            explore.type === ExploreType.PRE_AGGREGATE),
                 );
             }
         }
 
-        return allExploreSummaries;
+        return visibleExploreSummaries;
     }
 
     async getExplore(
@@ -6574,7 +6586,9 @@ export class ProjectService extends BaseService {
         const allExplores = Object.values(cachedExplores);
 
         const validExplores = allExplores?.filter(
-            (explore) => explore.type !== ExploreType.VIRTUAL,
+            (explore) =>
+                explore.type !== ExploreType.VIRTUAL &&
+                explore.type !== ExploreType.PRE_AGGREGATE,
         );
 
         if (!validExplores) {
