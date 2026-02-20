@@ -111,7 +111,9 @@ export const runChartHandler = async (
     });
 
     if (result.status === QueryHistoryStatus.ERROR) {
-        spinner.fail(`Query failed for '${chartName}'`);
+        spinner.fail(
+            `Query failed for '${chartName}'\n Make sure all semantic layer fields referenced in the metric query (dimensions, metrics, custom dimensions, etc.) are deployed to the Lightdash project.`,
+        );
         throw new Error(result.error ?? 'Query execution failed');
     }
 

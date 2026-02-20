@@ -77,6 +77,7 @@ node ./packages/cli/dist/index.js preview --project-dir ./examples/full-jaffle-s
 - `validate` - Validate dbt project structure
 - `deploy` - Deploy project to Lightdash
 - `preview` - Preview changes before deployment
+- `run chart` - Execute a chart YAML's metric query against the warehouse
 - `dbt [command]` - Proxy dbt commands
 
 **Handler Pattern:**
