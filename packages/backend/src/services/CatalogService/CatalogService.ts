@@ -1627,7 +1627,7 @@ export class CatalogService<
     async getMetricsTreeDetails(
         user: SessionUser,
         projectUuid: string,
-        metricsTreeUuid: string,
+        metricsTreeUuidOrSlug: string,
     ): Promise<MetricsTreeWithDetails> {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
@@ -1639,13 +1639,13 @@ export class CatalogService<
             )
         ) {
             throw new ForbiddenError(
-                `User ${user.userUuid} is not authorized to view metrics tree ${metricsTreeUuid}`,
+                `User ${user.userUuid} is not authorized to view metrics tree ${metricsTreeUuidOrSlug}`,
             );
         }
 
-        return this.catalogModel.getMetricsTreeByUuid(
+        return this.catalogModel.getMetricsTreeByUuidOrSlug(
             projectUuid,
-            metricsTreeUuid,
+            metricsTreeUuidOrSlug,
         );
     }
 
