@@ -1,3 +1,10 @@
+## [0.2499.1](https://github.com/lightdash/lightdash/compare/0.2499.0...0.2499.1) (2026-02-20)
+
+
+### Bug Fixes
+
+* improve frontend tree generation performance ([#20484](https://github.com/lightdash/lightdash/issues/20484)) ([f1ae24d](https://github.com/lightdash/lightdash/commit/f1ae24d1acc3a7ad52ccc1a9d6f1f3ad9c00852e))
+
 # [0.2499.0](https://github.com/lightdash/lightdash/compare/0.2498.4...0.2499.0) (2026-02-20)
 
 
