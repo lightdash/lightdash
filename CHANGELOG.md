@@ -1,3 +1,11 @@
+## [0.2502.2](https://github.com/lightdash/lightdash/compare/0.2502.1...0.2502.2) (2026-02-20)
+
+
+### Bug Fixes
+
+* hasDirectAccess in chain resolver should only reflect leaf space ([#20487](https://github.com/lightdash/lightdash/issues/20487)) ([c7b8a7b](https://github.com/lightdash/lightdash/commit/c7b8a7b9608f532a20bebf4ae7d7e8f99cbb2679))
+* Revert "fix: use category axis for numeric dimensions in charts ([#20492](https://github.com/lightdash/lightdash/issues/20492))" ([#20494](https://github.com/lightdash/lightdash/issues/20494)) ([aefc176](https://github.com/lightdash/lightdash/commit/aefc176dcc0c2722701ff91d29ad9827627ed7b4))
+
 ## [0.2502.1](https://github.com/lightdash/lightdash/compare/0.2502.0...0.2502.1) (2026-02-20)
 
 
