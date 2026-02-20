@@ -113,3 +113,7 @@ http-client.private.env.json
 
 # turbo
 .turbo
+
+# Generated AI context (tool-agnostic mirror of .claude/)
+.agents/
+AGENTS.md
