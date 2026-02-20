@@ -1310,7 +1310,9 @@
                                                             ]
                                                         },
                                                         "group_label": {
-                                                            "type": "string"
+                                                            "type": "string",
+                                                            "deprecated": true,
+                                                            "description": "Deprecated: use groups instead"
                                                         },
                                                         "urls": {
                                                             "type": "array",

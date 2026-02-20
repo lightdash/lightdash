@@ -123,7 +123,6 @@ export type DbtModelLightdashConfig = ExploreConfig &
         metrics?: Record<string, DbtModelLightdashMetric>;
         sets?: Record<string, FieldSetDefinition>;
         order_fields_by?: OrderFieldsByStrategy;
-        group_label?: string;
         sql_filter?: string;
         sql_where?: string; // alias for sql_filter
         sql_from?: string; // overrides dbt model relation_name
@@ -193,6 +192,7 @@ export type DbtColumnLightdashDimension = {
     // @deprecated Use format expression instead
     compact?: CompactOrAlias;
     format?: Format | string; // Format type is deprecated, use format expression(string) instead
+    /** @deprecated Use groups instead */
     group_label?: string;
     groups?: string[] | string;
     colors?: Record<string, string>;
@@ -228,6 +228,7 @@ export type DbtColumnLightdashMetric = {
     // @deprecated Use format expression instead
     round?: number;
     format?: Format | string; // Format type is deprecated, use format expression(string) instead
+    /** @deprecated Use groups instead */
     group_label?: string;
     groups?: string[];
     urls?: FieldUrl[];
@@ -394,6 +395,7 @@ export type DbtMetric = Omit<ParsedMetric, 'refs'> & {
 
 export type DbtMetricLightdashMetadata = {
     hidden?: boolean;
+    /** @deprecated Use groups instead */
     group_label?: string;
     groups?: string[];
     show_underlying_values?: string[];

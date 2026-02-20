@@ -54,7 +54,7 @@
                 },
                 "group_label": {
                     "type": "string",
-                    "description": "Group label for organizing models"
+                    "description": "Group label for organizing models in the sidebar"
                 },
                 "sql_filter": {
                     "type": "string",
@@ -294,7 +294,8 @@
                 },
                 "group_label": {
                     "type": "string",
-                    "description": "Group this dimension belongs to"
+                    "description": "Group this dimension belongs to. Deprecated: use groups instead",
+                    "deprecated": true
                 },
                 "groups": {
                     "oneOf": [
@@ -574,7 +575,8 @@
                 },
                 "group_label": {
                     "type": "string",
-                    "description": "Group this metric belongs to"
+                    "description": "Group this metric belongs to. Deprecated: use groups instead",
+                    "deprecated": true
                 },
                 "urls": {
                     "type": "array",
@@ -709,7 +711,8 @@
                 },
                 "group_label": {
                     "type": "string",
-                    "description": "Group this dimension belongs to"
+                    "description": "Group this dimension belongs to. Deprecated: use groups instead",
+                    "deprecated": true
                 },
                 "colors": {
                     "type": "object",
@@ -792,7 +795,7 @@
                 },
                 "group_label": {
                     "type": "string",
-                    "description": "Group this explore belongs to"
+                    "description": "Group this explore belongs to in the sidebar"
                 },
                 "joins": {
                     "type": "array",
