@@ -1,5 +1,6 @@
 import {
     OrganizationMemberRole,
+    SpaceMemberRole,
     type OrganizationMemberProfile,
     type Space,
 } from '@lightdash/common';
@@ -162,7 +163,11 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                   )?.title ?? 'No access')
                 : 'No access';
 
-            const spaceRoleInheritanceInfo = `Access inherited from their ${spaceAccess?.inheritedFrom} role`;
+            const inheritanceSourceLabel =
+                spaceAccess?.inheritedFrom === 'parent_space'
+                    ? 'parent space'
+                    : spaceAccess?.inheritedFrom;
+            const spaceRoleInheritanceInfo = `Access inherited from ${inheritanceSourceLabel}`;
 
             return (
                 <Group ref={ref} {...props} position={'apart'}>
@@ -217,11 +222,16 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
 
                 if (!user) return null;
 
-                const hasDirectAccess = !!(space.access || []).find(
-                    (access) => access.userUuid === userUuid,
-                )?.hasDirectAccess;
+                // Only filter out users with direct access on THIS space
+                // (not from a parent space in the inheritance chain)
+                const hasDirectAccessOnThisSpace = (space.access || []).some(
+                    (access) =>
+                        access.userUuid === userUuid &&
+                        access.hasDirectAccess &&
+                        access.inheritedFrom !== 'parent_space',
+                );
 
-                if (hasDirectAccess) return null;
+                if (hasDirectAccessOnThisSpace) return null;
 
                 return {
                     value: userUuid,
@@ -252,7 +262,7 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                 };
             });
 
-        return [...usersSet, ...(groupsSet ?? [])].filter(
+        return [...(groupsSet ?? []), ...usersSet].filter(
             (item): item is SelectItem => item !== null,
         );
     }, [
@@ -331,10 +341,10 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                 filter={(searchString, selected, item) => {
                     return Boolean(
                         item.group === 'Users' ||
-                            selected ||
-                            item.label
-                                ?.toLowerCase()
-                                .includes(searchString.toLowerCase()),
+                        selected ||
+                        item.label
+                            ?.toLowerCase()
+                            .includes(searchString.toLowerCase()),
                     );
                 }}
             />
@@ -346,10 +356,17 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                         const selectedValue = data.find(
                             (item) => item.value === uuid,
                         );
+                        // Use the user's current effective role as minimum
+                        // so direct access is at least as high as inherited
+                        const currentRole = space.access.find(
+                            (a) => a.userUuid === uuid,
+                        )?.role;
+                        const role = currentRole ?? SpaceMemberRole.VIEWER;
+
                         if (selectedValue?.group === 'Users') {
-                            await shareSpaceMutation([uuid, 'viewer']);
+                            await shareSpaceMutation([uuid, role]);
                         } else {
-                            await shareGroupSpaceMutation([uuid, 'viewer']);
+                            await shareGroupSpaceMutation([uuid, role]);
                         }
                     }
                     setUsersSelected([]);

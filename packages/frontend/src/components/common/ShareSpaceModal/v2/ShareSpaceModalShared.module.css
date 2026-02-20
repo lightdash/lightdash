@@ -1,0 +1,29 @@
+.accessModelCard {
+    border-radius: var(--mantine-radius-md);
+}
+
+.segmentedControl {
+    background-color: light-dark(
+        var(--mantine-color-gray-1),
+        var(--mantine-color-dark-6)
+    );
+}
+
+.selectInput {
+    font-weight: 500;
+    text-align: right;
+}
+
+.userRow {
+    border-radius: var(--mantine-radius-sm);
+    padding: 4px 8px;
+    margin: 0 -8px;
+    transition: background-color 150ms ease;
+}
+
+.userRow:hover {
+    background-color: light-dark(
+        var(--mantine-color-gray-0),
+        var(--mantine-color-dark-5)
+    );
+}
