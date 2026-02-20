@@ -1210,3 +1210,8 @@ export type ApiCreateSavedChartSchedulerResponse = {
     status: 'ok';
     results: SchedulerAndTargets;
 };
+
+export type ApiExportChartImageResponse = {
+    status: 'ok';
+    results: string; // image URL
+};
