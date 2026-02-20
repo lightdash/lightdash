@@ -11,10 +11,10 @@ import { Box, Portal } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
 import { IconCopy } from '@tabler/icons-react';
 import { type FC } from 'react';
-import { useLocation, useParams } from 'react-router';
+import { useLocation } from 'react-router';
 import { FilterDashboardTo } from '../../features/dashboardFilters/FilterDashboardTo';
 import useToaster from '../../hooks/toaster/useToaster';
-import { useProject } from '../../hooks/useProject';
+import { useProjectUuid } from '../../hooks/useProjectUuid';
 import MantineIcon from '../common/MantineIcon';
 import { UnderlyingDataMenuItem } from '../DashboardTiles/UnderlyingDataMenuItem';
 import { isPieVisualizationConfig } from '../LightdashVisualization/types';
@@ -40,8 +40,7 @@ const PieChartContextMenu: FC<PieChartContextMenuProps> = ({
     onClose,
     canViewUnderlyingData,
 }) => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
-    const { data: project } = useProject(projectUuid);
+    const projectUuid = useProjectUuid();
     const { visualizationConfig } = useVisualizationContext();
     const location = useLocation();
     const isDashboardPage = location.pathname.includes('/dashboards');
@@ -51,7 +50,7 @@ const PieChartContextMenu: FC<PieChartContextMenuProps> = ({
     const metricQueryData = useMetricQueryDataContext(true);
     const { itemsMap } = useVisualizationContext();
 
-    if (!value || !metricQueryData || !project) {
+    if (!value || !metricQueryData || !projectUuid) {
         return null;
     }
 
