@@ -19,6 +19,7 @@ import useApp from '../../../providers/App/useApp';
 import Mantine8Provider from '../../../providers/Mantine8Provider';
 import MantineIcon from '../MantineIcon';
 import MantineModal from '../MantineModal';
+import { InheritanceType } from '../ShareSpaceModal/v2/ShareSpaceModalUtils';
 import SaveToSpaceForm from './ChartCreateModal/SaveToSpaceForm';
 
 enum ModalStep {
@@ -126,8 +127,13 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
             let newSpace: Space | undefined;
 
             if (data.newSpaceName) {
+                const { inheritanceValue } = spaceManagement;
                 newSpace = await spaceManagement.handleCreateNewSpace({
                     isPrivate: false,
+                    ...(inheritanceValue !== null && {
+                        inheritParentPermissions:
+                            inheritanceValue === InheritanceType.INHERIT,
+                    }),
                 });
             }
 

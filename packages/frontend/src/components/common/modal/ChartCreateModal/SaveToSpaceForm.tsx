@@ -1,6 +1,8 @@
 import { ResourceViewItemType, type SpaceSummary } from '@lightdash/common';
 import { type UseFormReturnType } from '@mantine/form';
+import { useEffect } from 'react';
 import { type useSpaceManagement } from '../../../../hooks/useSpaceManagement';
+import { InheritanceType } from '../../ShareSpaceModal/v2/ShareSpaceModalUtils';
 import SpaceCreationForm from '../../SpaceSelector/SpaceCreationForm';
 import SpaceSelector from '../../SpaceSelector/SpaceSelector';
 import { type SaveToSpaceFormType } from './types';
@@ -29,7 +31,25 @@ const SaveToSpaceForm = <T extends SaveToSpaceFormType>({
         selectedSpaceUuid,
         setSelectedSpaceUuid,
         closeCreateSpaceForm,
+        inheritanceValue,
+        setInheritanceValue,
     } = spaceManagement;
+
+    // Set default inheritance value when entering create mode
+    useEffect(() => {
+        if (isCreatingNewSpace && inheritanceValue === null) {
+            setInheritanceValue(
+                selectedSpaceUuid
+                    ? InheritanceType.INHERIT
+                    : InheritanceType.OWN_ONLY,
+            );
+        }
+    }, [
+        isCreatingNewSpace,
+        inheritanceValue,
+        selectedSpaceUuid,
+        setInheritanceValue,
+    ]);
 
     if (isCreatingNewSpace) {
         return (
@@ -47,6 +67,8 @@ const SaveToSpaceForm = <T extends SaveToSpaceFormType>({
                 }}
                 isLoading={isLoading}
                 parentSpaceName={selectedSpaceName}
+                inheritanceValue={inheritanceValue ?? undefined}
+                onInheritanceChange={setInheritanceValue}
             />
         );
     }

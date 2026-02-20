@@ -37,6 +37,7 @@ import { useSpaceSummaries } from '../../../../hooks/useSpaces';
 import useApp from '../../../../providers/App/useApp';
 import Callout from '../../Callout';
 import MantineIcon from '../../MantineIcon';
+import { InheritanceType } from '../../ShareSpaceModal/v2/ShareSpaceModalUtils';
 import classes from './ChartCreateModal.module.css';
 import SaveToDashboardForm from './SaveToDashboardForm';
 import SaveToSpaceForm from './SaveToSpaceForm';
@@ -107,6 +108,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
         isCreatingNewSpace,
         openCreateSpaceForm,
         handleCreateNewSpace,
+        inheritanceValue,
     } = spaceManagement;
 
     const form = useForm<FormValues>({
@@ -316,6 +318,10 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
                 let newSpace = values.newSpaceName
                     ? await handleCreateNewSpace({
                           isPrivate: true,
+                          ...(inheritanceValue !== null && {
+                              inheritParentPermissions:
+                                  inheritanceValue === InheritanceType.INHERIT,
+                          }),
                       })
                     : undefined;
 
@@ -344,6 +350,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
             savedData,
             updateDashboard,
             handleCreateNewSpace,
+            inheritanceValue,
             onConfirm,
         ],
     );

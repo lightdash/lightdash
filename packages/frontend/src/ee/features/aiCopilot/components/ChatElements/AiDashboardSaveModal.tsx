@@ -21,6 +21,7 @@ import MantineModal, {
     type MantineModalProps,
 } from '../../../../../components/common/MantineModal';
 import SaveToSpaceForm from '../../../../../components/common/modal/ChartCreateModal/SaveToSpaceForm';
+import { InheritanceType } from '../../../../../components/common/ShareSpaceModal/v2/ShareSpaceModalUtils';
 import { useCreateDashboardWithChartsMutation } from '../../../../../hooks/dashboard/useDashboard';
 import useToaster from '../../../../../hooks/toaster/useToaster';
 import { useSpaceManagement } from '../../../../../hooks/useSpaceManagement';
@@ -191,9 +192,15 @@ export const AiDashboardSaveModal: FC<Props> = ({
                 // Handle new space creation
                 let targetSpaceUuid = values.spaceUuid;
                 if (values.newSpaceName) {
+                    const { inheritanceValue } = spaceManagement;
                     const newSpace = await spaceManagement.handleCreateNewSpace(
                         {
                             isPrivate: false,
+                            ...(inheritanceValue !== null && {
+                                inheritParentPermissions:
+                                    inheritanceValue ===
+                                    InheritanceType.INHERIT,
+                            }),
                         },
                     );
                     targetSpaceUuid = newSpace?.uuid || values.spaceUuid;
