@@ -3,6 +3,8 @@ import {
     SEED_ORG_1_ADMIN,
     SEED_ORG_2_ADMIN,
     SEED_PROJECT,
+    type Group,
+    type UpdateGroupWithMembers,
 } from '@lightdash/common';
 
 describe('Groups API', () => {
@@ -51,7 +53,7 @@ describe('Groups API', () => {
         }).then((resp) => {
             expect(resp.status).to.eq(200);
             expect(
-                resp.body.results.data.find((group) =>
+                resp.body.results.data.find((group: Group) =>
                     group.name.startsWith('Org A Group'),
                 ),
             ).to.not.eq(undefined); // Depends on a previous test
@@ -74,7 +76,8 @@ describe('Groups API', () => {
             url: `api/v1/groups/${SEED_GROUP.groupUuid}/members/${SEED_ORG_1_ADMIN.user_uuid}`,
             method: 'PUT',
         }).then((resp) => {
-            expect(resp.status).to.eq(204);
+            // 201 if member was newly added (fresh DB), 204 if already a member
+            expect(resp.status).to.be.oneOf([201, 204]);
         });
     });
 
@@ -158,7 +161,8 @@ describe('Groups API', () => {
                 })
                 .then(() => {
                     cy.log('Clear members without changing the name');
-                    const emptyMembership = [];
+                    const emptyMembership: UpdateGroupWithMembers['members'] =
+                        [];
                     cy.request({
                         url: `api/v1/groups/${response.body.results.uuid}`,
                         method: 'PATCH',
