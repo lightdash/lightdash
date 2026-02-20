@@ -20,6 +20,7 @@ import {
     type AccessOption,
 } from './ShareSpaceSelect';
 import { ShareSpaceUserList } from './ShareSpaceUserList';
+import ShareSpaceModalV2 from './v2/ShareSpaceModal';
 
 export interface ShareSpaceProps {
     space: Space;
@@ -180,8 +181,7 @@ const ShareSpaceModal: FC<ShareSpaceProps> = (props) => {
     );
 
     if (nestedSpacesPermissionsFlag?.enabled) {
-        // TODO: render v2 modal when implemented
-        return <ShareSpaceModalContent {...props} />;
+        return <ShareSpaceModalV2 {...props} />;
     }
 
     return <ShareSpaceModalContent {...props} />;

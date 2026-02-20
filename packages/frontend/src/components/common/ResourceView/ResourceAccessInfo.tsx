@@ -1,7 +1,9 @@
-import { type ResourceViewSpaceItem } from '@lightdash/common';
+import { FeatureFlags, type ResourceViewSpaceItem } from '@lightdash/common';
 import { Group, Text, Tooltip } from '@mantine-8/core';
 import { IconLock, IconUser, IconUsers } from '@tabler/icons-react';
 import React, { useMemo } from 'react';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
+import useApp from '../../../providers/App/useApp';
 import MantineIcon from '../MantineIcon';
 import { ResourceAccess } from './types';
 import { getResourceAccessLabel, getResourceAccessType } from './utils';
@@ -21,6 +23,52 @@ const ResourceAccessInfoData = {
     },
 } as const;
 
+const getV2AccessType = (
+    item: ResourceViewSpaceItem,
+    currentUserUuid: string | undefined,
+): ResourceAccess => {
+    if (item.data.inheritParentPermissions) {
+        return ResourceAccess.Public;
+    }
+    const othersWithAccess = item.data.access.filter(
+        (uuid) => uuid !== currentUserUuid,
+    );
+    if (othersWithAccess.length > 0) {
+        return ResourceAccess.Shared;
+    }
+    return ResourceAccess.Private;
+};
+
+const getV2Status = (accessType: ResourceAccess): string => {
+    switch (accessType) {
+        case ResourceAccess.Public:
+            return 'Shared';
+        case ResourceAccess.Private:
+            return 'Private';
+        case ResourceAccess.Shared:
+            return 'Shared';
+    }
+};
+
+const getV2Label = (
+    item: ResourceViewSpaceItem,
+    accessType: ResourceAccess,
+    isNestedSpace: boolean,
+): string => {
+    switch (accessType) {
+        case ResourceAccess.Public:
+            return isNestedSpace
+                ? 'Access matches the parent space'
+                : 'Shared with all users in this project';
+        case ResourceAccess.Private:
+            return 'Only invited members and admins have access';
+        case ResourceAccess.Shared:
+            return `Shared with ${item.data.accessListLength} member${
+                item.data.accessListLength > 1 ? 's' : ''
+            }`;
+    }
+};
+
 interface ResourceAccessInfoProps {
     item: ResourceViewSpaceItem;
     type?: 'primary' | 'secondary';
@@ -32,8 +80,23 @@ const ResourceAccessInfo: React.FC<ResourceAccessInfoProps> = ({
     type = 'secondary',
     withTooltip = false,
 }) => {
-    const { Icon, status } =
-        ResourceAccessInfoData[getResourceAccessType(item)];
+    const { user } = useApp();
+    const { data: nestedSpacesPermissionsFlag } = useServerFeatureFlag(
+        FeatureFlags.NestedSpacesPermissions,
+    );
+    const isV2 = !!nestedSpacesPermissionsFlag?.enabled;
+
+    const accessType = isV2
+        ? getV2AccessType(item, user.data?.userUuid)
+        : getResourceAccessType(item);
+    const isNestedSpace = !!item.data.parentSpaceUuid;
+    const { Icon } = ResourceAccessInfoData[accessType];
+    const status = isV2
+        ? getV2Status(accessType)
+        : ResourceAccessInfoData[accessType].status;
+    const tooltipLabel = isV2
+        ? getV2Label(item, accessType, isNestedSpace)
+        : getResourceAccessLabel(item);
 
     const styles = useMemo(() => {
         return {
@@ -51,7 +114,7 @@ const ResourceAccessInfo: React.FC<ResourceAccessInfoProps> = ({
             opened={withTooltip ? undefined : false}
             label={
                 <Text lineClamp={1} fz="xs" fw={600} c="white">
-                    {getResourceAccessLabel(item)}
+                    {tooltipLabel}
                 </Text>
             }
         >

@@ -112,10 +112,7 @@ export class UserFavoritesModel {
                 `${SavedChartsTableName}.last_version_updated_by_user_uuid`,
                 'users.user_uuid',
             )
-            .whereIn(
-                `${SavedChartsTableName}.saved_query_uuid`,
-                chartUuids,
-            )
+            .whereIn(`${SavedChartsTableName}.saved_query_uuid`, chartUuids)
             .whereIn(`${SpaceTableName}.space_uuid`, allowedSpaceUuids)
             .whereNull(`${SavedChartsTableName}.deleted_at`)
             .whereNull(`${SpaceTableName}.deleted_at`)
@@ -129,8 +126,7 @@ export class UserFavoritesModel {
                 first_viewed_at: `${SavedChartsTableName}.first_viewed_at`,
                 chart_kind: `${SavedChartsTableName}.last_version_chart_kind`,
                 slug: `${SavedChartsTableName}.slug`,
-                updated_by_user_uuid:
-                    'users.user_uuid',
+                updated_by_user_uuid: 'users.user_uuid',
                 updated_by_user_first_name: 'users.first_name',
                 updated_by_user_last_name: 'users.last_name',
             })) as Record<string, AnyType>[];
@@ -189,10 +185,7 @@ export class UserFavoritesModel {
                 'dv.dashboard_id',
             )
             .leftJoin('users', 'dv.updated_by_user_uuid', 'users.user_uuid')
-            .whereIn(
-                `${DashboardsTableName}.dashboard_uuid`,
-                dashboardUuids,
-            )
+            .whereIn(`${DashboardsTableName}.dashboard_uuid`, dashboardUuids)
             .whereIn(`${SpaceTableName}.space_uuid`, allowedSpaceUuids)
             .whereNull(`${DashboardsTableName}.deleted_at`)
             .whereNull(`${SpaceTableName}.deleted_at`)
@@ -312,6 +305,7 @@ export class UserFavoritesModel {
                 space_uuid: `${SpaceTableName}.space_uuid`,
                 name: `${SpaceTableName}.name`,
                 is_private: this.database.raw(getRootSpaceIsPrivateQuery()),
+                inherit_parent_permissions: `${SpaceTableName}.inherit_parent_permissions`,
                 parent_space_uuid: `${SpaceTableName}.parent_space_uuid`,
                 path: `${SpaceTableName}.path`,
                 dashboard_count: this.database.raw(
@@ -333,6 +327,7 @@ export class UserFavoritesModel {
                 uuid: row.space_uuid,
                 name: row.name,
                 isPrivate: row.is_private,
+                inheritParentPermissions: row.inherit_parent_permissions,
                 dashboardCount: Number(row.dashboard_count),
                 chartCount: Number(row.chart_count),
                 parentSpaceUuid: row.parent_space_uuid,
