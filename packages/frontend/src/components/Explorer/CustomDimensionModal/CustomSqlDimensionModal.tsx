@@ -20,7 +20,7 @@ import {
 import { useMantineColorScheme } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconMaximize, IconMinimize, IconSql } from '@tabler/icons-react';
-import { useEffect, useRef, type FC } from 'react';
+import { useMemo, useRef, type FC } from 'react';
 import { useToggle } from 'react-use';
 import {
     explorerActions,
@@ -61,12 +61,24 @@ export const CustomSqlDimensionModal: FC<{
     const [isExpanded, toggleExpanded] = useToggle(false);
     const submitButtonRef = useRef<HTMLButtonElement>(null);
 
+    const initialValues = useMemo<FormValues>(
+        () =>
+            isEditing && item
+                ? {
+                      customDimensionLabel: item.name,
+                      sql: item.sql,
+                      dimensionType: item.dimensionType,
+                  }
+                : {
+                      customDimensionLabel: '',
+                      sql: '',
+                      dimensionType: DimensionType.STRING,
+                  },
+        [isEditing, item],
+    );
+
     const form = useForm<FormValues>({
-        initialValues: {
-            customDimensionLabel: '',
-            sql: '',
-            dimensionType: DimensionType.STRING,
-        },
+        initialValues,
         validate: {
             customDimensionLabel: (label) => {
                 if (!label) return null;
@@ -92,16 +104,6 @@ export const CustomSqlDimensionModal: FC<{
             },
         },
     });
-
-    const { setFieldValue } = form;
-
-    useEffect(() => {
-        if (isEditing && item) {
-            setFieldValue('customDimensionLabel', item.name);
-            setFieldValue('sql', item.sql);
-            setFieldValue('dimensionType', item.dimensionType);
-        }
-    }, [setFieldValue, item, isEditing]);
 
     const handleClose = () => {
         toggleModal();
@@ -184,6 +186,7 @@ export const CustomSqlDimensionModal: FC<{
             title={title}
             icon={IconSql}
             size="xl"
+            confirmBeforeClose={form.isDirty()}
             modalRootProps={{
                 styles: {
                     content: {
