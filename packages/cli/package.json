@@ -29,7 +29,7 @@
         "commander": "^9.2.0",
         "execa": "^5",
         "google-auth-library": "^8.5.1",
-        "inquirer": "^8.2.4",
+        "inquirer": "^8.2.7",
         "js-yaml": "^4.1.1",
         "lodash": "^4.17.23",
         "node-fetch": "^2.7.0",
