@@ -67,6 +67,15 @@ const Tree: React.FC<Props> = (props) => {
 
     const treeData = useMemo(() => convertNestableListToTree(data), [data]);
 
+    // Build a map for O(1) lookups in renderNode instead of O(n) .find() calls
+    const dataByPath = useMemo(() => {
+        const map = new Map<string, Data<NestableItem>>();
+        for (const item of data) {
+            map.set(item.path, item);
+        }
+        return map;
+    }, [data]);
+
     const values = useMemo(
         () =>
             props.type === 'multiple'
@@ -98,6 +107,15 @@ const Tree: React.FC<Props> = (props) => {
     const items = useMemo(() => {
         return data.filter((i) => values.includes(i.uuid));
     }, [values, data]);
+
+    // Build a map for O(1) lookups by uuid
+    const dataByUuid = useMemo(() => {
+        const map = new Map<string, Data<NestableItem>>();
+        for (const item of data) {
+            map.set(item.uuid, item);
+        }
+        return map;
+    }, [data]);
 
     const initialSelectedState = useMemo(() => {
         return items.map((item) => item.path);
@@ -154,10 +172,7 @@ const Tree: React.FC<Props> = (props) => {
         }
 
         const expectedPaths = values
-            .map((uuid) => {
-                const item = data.find((i) => i.uuid === uuid);
-                return item?.path;
-            })
+            .map((uuid) => dataByUuid.get(uuid)?.path)
             .filter((path): path is string => path !== undefined);
 
         if (!isEqual(new Set(tree.selectedState), new Set(expectedPaths))) {
@@ -165,7 +180,7 @@ const Tree: React.FC<Props> = (props) => {
         }
         // WARNING: does not need to be re-run every time tree ref changes
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [values, data]);
+    }, [values, dataByUuid]);
 
     /**
      * Internal → External sync: Propagates tree selection changes to parent via onChange.
@@ -174,20 +189,14 @@ const Tree: React.FC<Props> = (props) => {
      */
     useEffect(() => {
         const uuids = tree.selectedState
-            .map((path) => {
-                const item = data.find((i) => i.path === path);
-                if (item) {
-                    return item.uuid;
-                }
-                return null;
-            })
+            .map((path) => dataByPath.get(path)?.uuid ?? null)
             .filter((item) => item !== null);
 
         if (!isEqual(uuids, values)) {
             isInternalUpdate.current = true;
             handleChange(uuids);
         }
-    }, [tree.selectedState, handleChange, data, values]);
+    }, [tree.selectedState, handleChange, dataByPath, values]);
 
     const handleSelectTopLevel = useCallback(() => {
         if (withRootSelectable) {
@@ -218,13 +227,11 @@ const Tree: React.FC<Props> = (props) => {
                         elementProps,
                         tree: nTree,
                     }) => {
-                        const nodeItem = data.find(
-                            (i) => i.path === node.value,
-                        );
+                        const nodeItem = dataByPath.get(node.value);
 
                         if (!nodeItem) {
                             throw new Error(
-                                `Item with uuid ${node.value} not found`,
+                                `Item with path ${node.value} not found`,
                             );
                         }
 
