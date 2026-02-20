@@ -24,7 +24,7 @@ type SnowflakeTarget = {
     database: string;
     warehouse: string;
     schema: string;
-    threads: number;
+    threads?: number;
     client_session_keep_alive?: boolean;
     query_tag?: string;
     connect_retries?: number;
