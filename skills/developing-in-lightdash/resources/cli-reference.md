@@ -136,6 +136,7 @@ lightdash delete -c my-chart --project <project-uuid>
 ```
 
 **Options:**
+
 - `-c, --charts <charts...>` - Chart slugs, UUIDs, or URLs to delete
 - `-d, --dashboards <dashboards...>` - Dashboard slugs, UUIDs, or URLs to delete
 - `-f, --force` - Skip confirmation prompt
@@ -163,6 +164,7 @@ lightdash sql "SELECT COUNT(*) FROM users" -o count.csv --verbose
 ```
 
 **Options:**
+
 - `<query>` - SQL query to execute (required)
 - `-o, --output <file>` - Output CSV file path (required)
 - `--limit <number>` - Maximum rows to return
@@ -171,18 +173,54 @@ lightdash sql "SELECT COUNT(*) FROM users" -o count.csv --verbose
 
 **Note:** Uses warehouse credentials from your currently selected Lightdash project.
 
+## Run Chart
+
+Execute a chart YAML file's metric query against the warehouse. Only supports metric query charts (with `tableName` and `metricQuery`), not SQL charts.
+
+```bash
+# Verify a chart query runs successfully
+lightdash run chart -p ./lightdash/charts/monthly-revenue.yml
+
+# Run chart and save results to CSV
+lightdash run chart -p ./lightdash/charts/monthly-revenue.yml -o results.csv
+
+# Limit rows returned
+lightdash run chart -p ./lightdash/charts/monthly-revenue.yml -o results.csv -l 100
+
+# Adjust pagination for large results
+lightdash run chart -p ./lightdash/charts/monthly-revenue.yml -o results.csv --page-size 2000
+
+# Verbose output for debugging
+lightdash run chart -p ./lightdash/charts/monthly-revenue.yml --verbose
+```
+
+**Options:**
+
+- `-p, --path <path>` - Path to chart YAML file (required)
+- `-o, --output <file>` - Output CSV file path
+- `-l, --limit <number>` - Maximum rows to return
+- `--page-size <number>` - Rows per page (default: 500)
+- `--verbose` - Show detailed output
+
+**Note:**
+
+- Uses warehouse credentials from your currently selected Lightdash project.
+- The chart YAML must contain `tableName` and `metricQuery` fields.
+- All semantic layer fields referenced in the metric query (dimensions, metrics, custom dimensions, etc.) must already be deployed to the Lightdash project.
+
 ## Command Summary
 
-| Command | Purpose |
-|---------|---------|
-| `lightdash login` | Authenticate with Lightdash |
-| `lightdash config` | Manage project selection |
-| `lightdash deploy` | Sync semantic layer to Lightdash |
-| `lightdash upload` | Upload charts/dashboards |
-| `lightdash download` | Download charts/dashboards |
-| `lightdash delete` | Remove charts/dashboards |
-| `lightdash preview` | Create temporary test project |
-| `lightdash validate` | Validate against server |
-| `lightdash lint` | Validate YAML locally |
-| `lightdash generate` | Generate YAML from dbt models |
-| `lightdash sql` | Run SQL queries |
+| Command               | Purpose                          |
+| --------------------- | -------------------------------- |
+| `lightdash login`     | Authenticate with Lightdash      |
+| `lightdash config`    | Manage project selection         |
+| `lightdash deploy`    | Sync semantic layer to Lightdash |
+| `lightdash upload`    | Upload charts/dashboards         |
+| `lightdash download`  | Download charts/dashboards       |
+| `lightdash delete`    | Remove charts/dashboards         |
+| `lightdash preview`   | Create temporary test project    |
+| `lightdash validate`  | Validate against server          |
+| `lightdash lint`      | Validate YAML locally            |
+| `lightdash generate`  | Generate YAML from dbt models    |
+| `lightdash sql`       | Run SQL queries                  |
+| `lightdash run chart` | Execute chart YAML query         |

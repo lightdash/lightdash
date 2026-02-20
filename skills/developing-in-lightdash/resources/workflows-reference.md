@@ -397,6 +397,28 @@ jobs:
    - `LIGHTDASH_API_KEY`
    - `PROJECT_UUID`
 
+## Pattern 7: Chart Query Validation
+
+Verify chart queries execute successfully against the warehouse before deploying.
+
+```bash
+# Validate a single chart runs
+lightdash run chart -p ./lightdash/charts/monthly-revenue.yml
+
+# Validate and inspect results
+lightdash run chart -p ./lightdash/charts/monthly-revenue.yml -o /tmp/results.csv
+```
+
+**When to use:**
+- After modifying chart YAML files
+- Before deploying chart changes to production
+- CI pipeline to catch broken queries early
+
+**Note:**
+
+- Only metric query charts (with `tableName` + `metricQuery`) are supported. SQL charts cannot be run this way.
+- All semantic layer fields referenced in the metric query (dimensions, metrics, custom dimensions, etc.) must already be deployed to the Lightdash project.
+
 ## Validation in CI
 
 Add validation before deployment:
