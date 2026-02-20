@@ -48,6 +48,7 @@ import {
     isTableCalculation,
     LightdashParameters,
     MetricType,
+    OTHER_GROUP_PIVOT_VALUE,
     StackType,
     TableCalculationType,
     TimeFrames,
@@ -58,6 +59,7 @@ import {
     type CustomDimension,
     type EChartsSeries,
     type Field,
+    type GroupLimitConfig,
     type Item,
     type ItemsMap,
     type MarkLine,
@@ -97,6 +99,179 @@ import {
 } from '../plottedData/getPlottedData';
 import { type InfiniteQueryResults } from '../useQueryResults';
 import { useLegendDoubleClickTooltip } from './useLegendDoubleClickTooltip';
+
+/**
+ * Result of applying group limit to data.
+ */
+type GroupLimitResult = {
+    rows: ResultRow[];
+    rowKeyMap: RowKeyMap;
+    /** Keys that were aggregated into "Other" */
+    aggregatedKeys: string[];
+    /** The key used for the "Other" group (equals otherLabel when aggregation occurred) */
+    otherKey: string | null;
+    /** Actual pivot values from the groups combined into "Other" (for view-underlying-data) */
+    otherGroupPivotValues: Array<{ field: string; value: unknown }>;
+};
+
+/**
+ * Aggregates groups that exceed the maxGroups limit into an "Other" category.
+ * Groups are ranked by their total value (sum across all rows).
+ */
+const applyGroupLimit = (
+    rows: ResultRow[],
+    rowKeyMap: RowKeyMap,
+    groupLimit: GroupLimitConfig,
+): GroupLimitResult => {
+    if (!groupLimit.enabled || rows.length === 0) {
+        return { rows, rowKeyMap, aggregatedKeys: [], otherKey: null, otherGroupPivotValues: [] };
+    }
+
+    const { maxGroups, otherLabel } = groupLimit;
+
+    // Get all pivot keys (grouped series) from rowKeyMap
+    // These are keys that have pivotValues (i.e., are pivoted/grouped)
+    const pivotKeys = Object.keys(rowKeyMap).filter((key) => {
+        const ref = rowKeyMap[key];
+        return (
+            typeof ref === 'object' &&
+            'pivotValues' in ref &&
+            ref.pivotValues &&
+            ref.pivotValues.length > 0
+        );
+    });
+
+    // If we have fewer pivot groups than the limit, no aggregation needed
+    if (pivotKeys.length <= maxGroups) {
+        return { rows, rowKeyMap, aggregatedKeys: [], otherKey: null, otherGroupPivotValues: [] };
+    }
+
+    // Calculate total value for each pivot key across all rows
+    const pivotTotals = pivotKeys.map((key) => {
+        const total = rows.reduce((sum, row) => {
+            const cell = row[key];
+            if (!cell || cell.value === undefined || cell.value === null) {
+                return sum;
+            }
+            // ResultRow structure: { [key]: { value: { raw: number, formatted: string } } }
+            const rawValue =
+                typeof cell.value === 'object' && 'raw' in cell.value
+                    ? cell.value.raw
+                    : cell.value;
+            const numValue =
+                typeof rawValue === 'number'
+                    ? rawValue
+                    : parseFloat(String(rawValue)) || 0;
+            return sum + Math.abs(numValue);
+        }, 0);
+        return { key, total };
+    });
+
+    // Sort by total (descending) to get top groups
+    pivotTotals.sort((a, b) => b.total - a.total);
+
+    // Split into top groups and "other" groups
+    const topGroupKeys = new Set(
+        pivotTotals.slice(0, maxGroups).map((g) => g.key),
+    );
+    const otherGroupKeys = pivotTotals.slice(maxGroups).map((g) => g.key);
+
+    if (otherGroupKeys.length === 0) {
+        return { rows, rowKeyMap, aggregatedKeys: [], otherKey: null, otherGroupPivotValues: [] };
+    }
+
+    // Create new rowKeyMap with only top groups + "Other"
+    const newRowKeyMap: RowKeyMap = {};
+
+    // Keep top groups
+    for (const key of topGroupKeys) {
+        newRowKeyMap[key] = rowKeyMap[key];
+    }
+
+    // Add "Other" key - use the field from the first "other" group
+    const firstOtherRef = rowKeyMap[otherGroupKeys[0]];
+    const otherPivotReference: PivotReference = {
+        field:
+            typeof firstOtherRef === 'object' && 'field' in firstOtherRef
+                ? firstOtherRef.field
+                : '',
+        pivotValues: [
+            {
+                field: OTHER_GROUP_PIVOT_VALUE,
+                value: OTHER_GROUP_PIVOT_VALUE,
+            },
+        ],
+    };
+
+    // Compute the hashed key that matches what series generation expects
+    const otherDataKey = hashFieldReference(otherPivotReference);
+
+    if (typeof firstOtherRef === 'object' && 'field' in firstOtherRef) {
+        newRowKeyMap[otherDataKey] = otherPivotReference;
+    }
+
+    // Keep non-pivot keys (regular fields like x-axis dimension)
+    for (const key of Object.keys(rowKeyMap)) {
+        if (!pivotKeys.includes(key)) {
+            newRowKeyMap[key] = rowKeyMap[key];
+        }
+    }
+
+    // Aggregate rows: sum "other" groups into the "Other" column
+    const newRows = rows.map((row) => {
+        const newRow = { ...row };
+
+        // Calculate sum of "other" groups
+        let otherSum = 0;
+        for (const key of otherGroupKeys) {
+            const cell = row[key];
+            if (cell && cell.value !== undefined && cell.value !== null) {
+                const rawValue =
+                    typeof cell.value === 'object' && 'raw' in cell.value
+                        ? cell.value.raw
+                        : cell.value;
+                const numValue =
+                    typeof rawValue === 'number'
+                        ? rawValue
+                        : parseFloat(String(rawValue)) || 0;
+                otherSum += numValue;
+            }
+            // Remove individual "other" group columns
+            delete newRow[key];
+        }
+
+        // Add the "Other" column with aggregated value at the hashed key
+        newRow[otherDataKey] = {
+            value: {
+                raw: otherSum,
+                formatted: otherLabel, // Use the user's label for display
+            },
+        };
+
+        return newRow;
+    });
+
+    // Collect actual pivot values from the aggregated groups for view-underlying-data
+    const otherGroupPivotValues = otherGroupKeys.flatMap((key) => {
+        const ref = rowKeyMap[key];
+        if (
+            typeof ref === 'object' &&
+            'pivotValues' in ref &&
+            ref.pivotValues
+        ) {
+            return ref.pivotValues;
+        }
+        return [];
+    });
+
+    return {
+        rows: newRows,
+        rowKeyMap: newRowKeyMap,
+        aggregatedKeys: otherGroupKeys,
+        otherKey: otherLabel,
+        otherGroupPivotValues,
+    };
+};
 
 // NOTE: CallbackDataParams type doesn't have axisValue, axisValueLabel properties: https://github.com/apache/echarts/issues/17561
 type TooltipFormatterParams = DefaultLabelFormatterCallbackParams & {
@@ -2320,7 +2495,7 @@ const useEchartsCartesianConfig = (
         );
     }, [resultsData?.pivotDetails]);
 
-    const { rows, rowKeyMap } = useMemo(() => {
+    const { rows: rawRows, rowKeyMap: rawRowKeyMap } = useMemo(() => {
         if (resultsData?.pivotDetails) {
             return getPivotedDataFromPivotDetails(resultsData, undefined);
         }
@@ -2334,37 +2509,186 @@ const useEchartsCartesianConfig = (
         );
     }, [resultsData, pivotDimensions, pivotedKeys, nonPivotedKeys]);
 
+    // Apply group limit to aggregate excess groups into "Other"
+    const { rows, rowKeyMap, aggregatedKeys, otherKey, otherGroupPivotValues } =
+        useMemo(() => {
+            const groupLimit = validCartesianConfig?.layout?.groupLimit;
+            if (!groupLimit || !groupLimit.enabled) {
+                return {
+                    rows: rawRows,
+                    rowKeyMap: rawRowKeyMap,
+                    aggregatedKeys: [] as string[],
+                    otherKey: null as string | null,
+                    otherGroupPivotValues: [] as Array<{
+                        field: string;
+                        value: unknown;
+                    }>,
+                };
+            }
+            return applyGroupLimit(rawRows, rawRowKeyMap, groupLimit);
+    }, [rawRows, rawRowKeyMap, validCartesianConfig?.layout?.groupLimit]);
+
+    // Create a modified cartesian config that handles group limiting
+    const effectiveCartesianConfig = useMemo(() => {
+        if (
+            !validCartesianConfig ||
+            !otherKey ||
+            aggregatedKeys.length === 0
+        ) {
+            return validCartesianConfig;
+        }
+
+        const originalSeries = validCartesianConfig.eChartsConfig.series || [];
+
+        // Filter out aggregated series and get a template for "Other"
+        const filteredSeries: Series[] = [];
+        let otherSeriesTemplate: Series | null = null;
+
+        // Create a Set for faster lookups
+        const aggregatedKeysSet = new Set(aggregatedKeys);
+
+        for (const s of originalSeries) {
+            // Check if this series should be aggregated
+            if (isPivotReferenceWithValues(s.encode.yRef)) {
+                let shouldAggregate = false;
+
+                // For new pivot mode (with pivotValuesColumnsMap)
+                if (pivotValuesColumnsMap) {
+                    const yRef = s.encode.yRef;
+                    // Find the matching column for this series
+                    const matchingColumn = Object.values(
+                        pivotValuesColumnsMap,
+                    ).find(
+                        (col) =>
+                            col.referenceField === yRef.field &&
+                            col.pivotValues.length === yRef.pivotValues.length &&
+                            col.pivotValues.every(
+                                (pv, idx) =>
+                                    pv.value === yRef.pivotValues[idx].value,
+                            ),
+                    );
+
+                    if (
+                        matchingColumn &&
+                        aggregatedKeysSet.has(matchingColumn.pivotColumnName)
+                    ) {
+                        shouldAggregate = true;
+                    }
+                } else {
+                    // For legacy mode, use hashFieldReference directly
+                    const yFieldHash = hashFieldReference(s.encode.yRef);
+                    if (aggregatedKeysSet.has(yFieldHash)) {
+                        shouldAggregate = true;
+                    }
+                }
+
+                if (shouldAggregate) {
+                    // This series should be aggregated - save as template if first one
+                    if (!otherSeriesTemplate) {
+                        otherSeriesTemplate = s;
+                    }
+                    continue; // Skip this series
+                }
+            }
+            filteredSeries.push(s);
+        }
+
+        // Add "Other" series if we have a template
+        if (otherSeriesTemplate) {
+            const otherSeries: Series = {
+                ...otherSeriesTemplate,
+                name: otherKey,
+                encode: {
+                    ...otherSeriesTemplate.encode,
+                    yRef: {
+                        field: otherSeriesTemplate.encode.yRef.field,
+                        pivotValues: [
+                            {
+                                field: OTHER_GROUP_PIVOT_VALUE,
+                                value: OTHER_GROUP_PIVOT_VALUE,
+                            },
+                        ],
+                    },
+                },
+                // Clear color so it gets auto-assigned
+                color: undefined,
+            };
+            filteredSeries.push(otherSeries);
+        }
+
+        return {
+            ...validCartesianConfig,
+            eChartsConfig: {
+                ...validCartesianConfig.eChartsConfig,
+                series: filteredSeries,
+            },
+        };
+    }, [
+        validCartesianConfig,
+        otherKey,
+        aggregatedKeys,
+        pivotValuesColumnsMap,
+    ]);
+
     const series = useMemo(() => {
-        if (!itemsMap || !validCartesianConfig || !resultsData) {
+        if (!itemsMap || !effectiveCartesianConfig || !resultsData) {
             return [];
         }
 
+        let generatedSeries: EChartsSeries[];
+
         // Use new series generation for pre-pivoted data
         if (resultsData?.pivotDetails && rowKeyMap) {
-            return getEchartsSeriesFromPivotedData(
+            generatedSeries = getEchartsSeriesFromPivotedData(
                 itemsMap,
-                validCartesianConfig,
+                effectiveCartesianConfig,
                 rowKeyMap,
                 pivotValuesColumnsMap,
                 parameters,
             );
+        } else {
+            // Legacy implementation
+            generatedSeries = getEchartsSeries(
+                itemsMap,
+                effectiveCartesianConfig,
+                pivotDimensions,
+                parameters,
+            );
         }
 
-        // Legacy implementation
-        return getEchartsSeries(
-            itemsMap,
-            validCartesianConfig,
-            pivotDimensions,
-            parameters,
-        );
+        // Override pivotReference on "Other" series with actual group values
+        // so view-underlying-data shows only the groups combined into "Other"
+        if (otherGroupPivotValues.length > 0) {
+            generatedSeries = generatedSeries.map((s) => {
+                if (
+                    s.pivotReference?.pivotValues?.some(
+                        (pv) =>
+                            pv.field === OTHER_GROUP_PIVOT_VALUE ||
+                            pv.value === OTHER_GROUP_PIVOT_VALUE,
+                    )
+                ) {
+                    return {
+                        ...s,
+                        pivotReference: {
+                            ...s.pivotReference,
+                            pivotValues: otherGroupPivotValues,
+                        },
+                    };
+                }
+                return s;
+            });
+        }
+
+        return generatedSeries;
     }, [
-        validCartesianConfig,
+        effectiveCartesianConfig,
         resultsData,
         itemsMap,
         pivotDimensions,
         rowKeyMap,
         pivotValuesColumnsMap,
         parameters,
+        otherGroupPivotValues,
     ]);
 
     const resultsAndMinsAndMaxes = useMemo(

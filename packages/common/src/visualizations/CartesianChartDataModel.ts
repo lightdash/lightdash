@@ -14,6 +14,8 @@ import {
     CartesianSeriesType,
     ChartKind,
     ECHARTS_DEFAULT_COLORS,
+    OTHER_GROUP_PIVOT_VALUE,
+    type GroupLimitConfig,
 } from '../types/savedCharts';
 import { type SqlRunnerQuery } from '../types/sqlRunner';
 import {
@@ -567,6 +569,119 @@ export class CartesianChartDataModel {
         );
     }
 
+    /**
+     * Aggregates groups that exceed the maxGroups limit into an "Other" category.
+     * Groups are ranked by their total value (sum across all rows).
+     *
+     * @param valuesColumns - The pivot value columns (one per group)
+     * @param results - The data rows
+     * @param groupLimit - Configuration for group limiting
+     * @returns Modified valuesColumns and results with "Other" aggregation applied
+     */
+    static aggregateSmallGroups(
+        valuesColumns: PivotChartData['valuesColumns'],
+        results: RawResultRow[],
+        groupLimit: GroupLimitConfig,
+    ): {
+        filteredValuesColumns: PivotChartData['valuesColumns'];
+        aggregatedResults: RawResultRow[];
+    } {
+        const { maxGroups, otherLabel } = groupLimit;
+
+        // If we have fewer groups than the limit, no aggregation needed
+        if (valuesColumns.length <= maxGroups) {
+            return {
+                filteredValuesColumns: valuesColumns,
+                aggregatedResults: results,
+            };
+        }
+
+        // Calculate total value for each column (group) across all rows
+        const columnTotals = valuesColumns.map((col) => {
+            const total = results.reduce((sum, row) => {
+                const value = row[col.pivotColumnName];
+                const numValue =
+                    typeof value === 'number'
+                        ? value
+                        : parseFloat(String(value)) || 0;
+                return sum + Math.abs(numValue); // Use absolute value for ranking
+            }, 0);
+            return { column: col, total };
+        });
+
+        // Sort by total (descending) to get top groups
+        columnTotals.sort((a, b) => b.total - a.total);
+
+        // Split into top groups and "other" groups
+        const topGroups = columnTotals.slice(0, maxGroups);
+        const otherGroups = columnTotals.slice(maxGroups);
+
+        // Create the "Other" column definition
+        // Use the same referenceField as the top groups so stacking works correctly
+        // (stack ID is based on referenceField: `stack-${referenceField}`)
+        const otherColumnName = otherLabel;
+        const sharedReferenceField =
+            topGroups[0]?.column.referenceField || OTHER_GROUP_PIVOT_VALUE;
+
+        // Collect pivot values from aggregated groups for view-underlying-data
+        // This allows filtering by the actual group values when clicking "Other"
+        const otherPivotValues = otherGroups.flatMap(
+            ({ column }) => column.pivotValues,
+        );
+
+        const otherColumn: PivotChartData['valuesColumns'][number] = {
+            referenceField: sharedReferenceField,
+            pivotColumnName: otherColumnName,
+            aggregation: topGroups[0]?.column.aggregation || VizAggregationOptions.SUM,
+            pivotValues:
+                otherPivotValues.length > 0
+                    ? otherPivotValues
+                    : [
+                          {
+                              referenceField: OTHER_GROUP_PIVOT_VALUE,
+                              value: OTHER_GROUP_PIVOT_VALUE,
+                              formatted: otherLabel,
+                          },
+                      ],
+        };
+
+        // Aggregate "Other" values in the results
+        const aggregatedResults = results.map((row) => {
+            const newRow = { ...row };
+
+            // Sum up all the "other" group values
+            const otherValue = otherGroups.reduce((sum, { column }) => {
+                const value = row[column.pivotColumnName];
+                const numValue =
+                    typeof value === 'number'
+                        ? value
+                        : parseFloat(String(value)) || 0;
+                return sum + numValue;
+            }, 0);
+
+            // Add the "Other" column value
+            newRow[otherColumnName] = otherValue;
+
+            // Remove the individual "other" group columns
+            otherGroups.forEach(({ column }) => {
+                delete newRow[column.pivotColumnName];
+            });
+
+            return newRow;
+        });
+
+        // Return top groups + "Other" column
+        const filteredValuesColumns = [
+            ...topGroups.map((g) => g.column),
+            otherColumn,
+        ];
+
+        return {
+            filteredValuesColumns,
+            aggregatedResults,
+        };
+    }
+
     getSpec(
         display?: CartesianChartDisplay,
         colors?: Organization['chartColors'],
@@ -597,13 +712,31 @@ export class CartesianChartDataModel {
             transformedData?.indexColumn,
         )?.reference;
 
-        // Apply 100% stacking transformation if needed
+        // Apply group limiting to aggregate small groups into "Other"
+        let valuesColumnsToRender = transformedData.valuesColumns;
         let dataToRender = transformedData.results;
         let originalValues: Map<string, Map<string, number>> | undefined;
 
+        const groupLimit = this.fieldConfig?.groupLimit;
+        if (groupLimit?.enabled && valuesColumnsToRender.length > 1) {
+            const aggregationResult =
+                CartesianChartDataModel.aggregateSmallGroups(
+                    valuesColumnsToRender,
+                    dataToRender,
+                    groupLimit,
+                );
+            valuesColumnsToRender = aggregationResult.filteredValuesColumns;
+            dataToRender = aggregationResult.aggregatedResults;
+        }
+
+        // Apply 100% stacking transformation if needed
         if (shouldStack100 && xAxisReference) {
             const result = CartesianChartDataModel.convertToPercentageStacking(
-                transformedData,
+                {
+                    ...transformedData,
+                    valuesColumns: valuesColumnsToRender,
+                    results: dataToRender,
+                },
                 xAxisReference,
             );
             dataToRender = result.transformedResults;
@@ -614,7 +747,7 @@ export class CartesianChartDataModel {
         const rightYAxisSeriesReferences: string[] = [];
 
         // Calculate dynamic border radius for non-stacked bars
-        const barSeriesCount = transformedData.valuesColumns.filter(
+        const barSeriesCount = valuesColumnsToRender.filter(
             (col) =>
                 (display?.series?.[col.pivotColumnName]?.type ??
                     display?.series?.[col.referenceField]?.type ??
@@ -631,7 +764,7 @@ export class CartesianChartDataModel {
             : undefined;
 
         let series: SqlRunnerEChartsSeries[] =
-            transformedData.valuesColumns.map((seriesColumn, index) => {
+            valuesColumnsToRender.map((seriesColumn, index) => {
                 const seriesColumnId = seriesColumn.pivotColumnName;
 
                 // NOTE: seriesColumnId is the post pivoted column name and we now store the display based on that.
@@ -654,7 +787,7 @@ export class CartesianChartDataModel {
 
                 const singleYAxisLabel =
                     // NOTE: When there's only one y-axis left, set the label on the series as well
-                    transformedData.valuesColumns.length === 1 &&
+                    valuesColumnsToRender.length === 1 &&
                     display?.yAxis?.[0]?.label
                         ? display.yAxis[0].label
                         : undefined;
@@ -878,7 +1011,7 @@ export class CartesianChartDataModel {
             : getLineChartGridStyle();
 
         // Show legend when there are multiple series
-        const showLegend = transformedData.valuesColumns.length > 1;
+        const showLegend = valuesColumnsToRender.length > 1;
 
         const spec = {
             tooltip: {

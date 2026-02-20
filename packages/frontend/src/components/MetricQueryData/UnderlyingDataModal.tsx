@@ -11,6 +11,7 @@ import {
     isDimension,
     isField,
     isMetric,
+    OTHER_GROUP_PIVOT_VALUE,
     QueryExecutionContext,
     type CreateSavedChartVersion,
     type FilterRule,
@@ -184,18 +185,41 @@ const UnderlyingDataModalContent: FC = () => {
                   },
               ];
 
-        const pivotFilter: FilterRule[] = (
+        // Group pivot values by field so multiple values for the same field
+        // become a single EQUALS (IN) filter instead of multiple AND filters.
+        // This handles "Other" groups that combine multiple pivot values.
+        const pivotValuesByField = (
             pivotReference?.pivotValues || []
-        ).map((pivot) => ({
+        ).reduce<Record<string, unknown[]>>((acc, pivot) => {
+            // Skip synthetic OTHER_GROUP_PIVOT_VALUE markers
+            if (
+                pivot.field === OTHER_GROUP_PIVOT_VALUE ||
+                pivot.value === OTHER_GROUP_PIVOT_VALUE
+            ) {
+                return acc;
+            }
+            if (!acc[pivot.field]) {
+                acc[pivot.field] = [];
+            }
+            acc[pivot.field].push(pivot.value);
+            return acc;
+        }, {});
+
+        const pivotFilter: FilterRule[] = Object.entries(
+            pivotValuesByField,
+        ).map(([field, values]) => ({
             id: uuidv4(),
             target: {
-                fieldId: pivot.field,
+                fieldId: field,
             },
             operator:
-                pivot.value === null
+                values.length === 1 && values[0] === null
                     ? FilterOperator.NULL
                     : FilterOperator.EQUALS,
-            values: pivot.value === null ? undefined : [pivot.value],
+            values:
+                values.length === 1 && values[0] === null
+                    ? undefined
+                    : values,
         }));
 
         const metric: Metric | undefined =

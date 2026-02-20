@@ -22,6 +22,7 @@ import { getSeriesGroupedByField } from '../../../../hooks/cartesianChartConfig/
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
 import BasicSeriesConfiguration from './BasicSeriesConfiguration';
+import { GroupLimitConfig } from './GroupLimitConfig';
 import GroupedSeriesConfiguration from './GroupedSeriesConfiguration';
 import InvalidSeriesConfiguration from './InvalidSeriesConfiguration';
 
@@ -114,9 +115,27 @@ export const Series: FC<Props> = ({ items }) => {
         getSingleSeries,
         updateSingleSeries,
         updateAllGroupedSeries,
+        setGroupLimit,
+        setGroupLimitEnabled,
     } = visualizationConfig.chartConfig;
 
     const allSeries = dirtyEchartsConfig?.series ?? [];
+
+    // Count unique pivot values (groups) across all series
+    const hasPivotedSeries = useMemo(() => {
+        if (!seriesGroupedByField) return false;
+        return seriesGroupedByField.some((group) => group.value.length > 1);
+    }, [seriesGroupedByField]);
+
+    // Count total number of unique pivot values
+    const totalGroups = useMemo(() => {
+        if (!seriesGroupedByField || !hasPivotedSeries) return 0;
+        // Get the first grouped series and count its pivot values
+        const groupedEntry = seriesGroupedByField.find(
+            (group) => group.value.length > 1,
+        );
+        return groupedEntry?.value.length ?? 0;
+    }, [seriesGroupedByField, hasPivotedSeries]);
 
     const stackedBarSeries = allSeries.filter(
         (s) => s.stack && s.type === CartesianSeriesType.BAR,
@@ -144,6 +163,14 @@ export const Series: FC<Props> = ({ items }) => {
 
     return (
         <Stack spacing="md">
+            {hasPivotedSeries && totalGroups > 1 && (
+                <GroupLimitConfig
+                    groupLimit={dirtyLayout?.groupLimit}
+                    setGroupLimit={setGroupLimit}
+                    setGroupLimitEnabled={setGroupLimitEnabled}
+                    totalGroups={totalGroups}
+                />
+            )}
             <DragDropContext onDragEnd={onDragEnd}>
                 <Droppable droppableId="results-table-sort-fields">
                     {(dropProps) => (
