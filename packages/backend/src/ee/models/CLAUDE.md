@@ -1,1 +1,1 @@
-AGENTS.md
+../../models/CLAUDE.md

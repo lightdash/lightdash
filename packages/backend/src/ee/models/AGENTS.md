@@ -1,1 +1,0 @@
-../../models/AGENTS.md
