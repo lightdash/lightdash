@@ -144,13 +144,15 @@ const contentStyle: React.CSSProperties = {
 const chartContainerStyle: React.CSSProperties = {
     width: '100%',
     height: '500px',
+    minHeight: '200px',
     border: '1px solid #e5e5e5',
     borderRadius: '8px',
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#fafafa',
-    overflow: 'hidden',
+    overflow: 'auto',
+    resize: 'vertical',
 };
 
 const singleChartContainerStyle: React.CSSProperties = {
