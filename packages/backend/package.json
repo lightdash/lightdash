@@ -93,6 +93,7 @@
         "cronstrue": "^2.23.0",
         "csv-stringify": "^6.2.4",
         "duckdb-async": "^0.10.2",
+        "e2b": "^2.12.1",
         "echarts": "^6.0.0",
         "exceljs": "^4.4.0",
         "execa": "^5.0.0",

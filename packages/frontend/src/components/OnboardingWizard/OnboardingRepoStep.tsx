@@ -7,8 +7,9 @@ import {
     Stack,
     Text,
     TextInput,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import { IconFolder, IconPlus } from '@tabler/icons-react';
+import MantineIcon from '../common/MantineIcon';
 import { useMutation } from '@tanstack/react-query';
 import { type FC, useMemo, useState } from 'react';
 import { useGitHubRepositories } from '../common/GithubIntegration/hooks/useGithubIntegration';
@@ -18,6 +19,7 @@ type Props = {
         owner: string;
         repo: string;
         branch: string;
+        isNewRepo: boolean;
     }) => void;
 };
 
@@ -75,6 +77,7 @@ export const OnboardingRepoStep: FC<Props> = ({ onSelectRepo }) => {
                 owner: data.owner,
                 repo: data.repo,
                 branch: data.defaultBranch,
+                isNewRepo: true,
             });
         },
     });
@@ -100,6 +103,7 @@ export const OnboardingRepoStep: FC<Props> = ({ onSelectRepo }) => {
             owner: selectedRepo.ownerLogin,
             repo: selectedRepo.name,
             branch: selectedRepo.defaultBranch,
+            isNewRepo: false,
         });
     };
 
@@ -109,9 +113,9 @@ export const OnboardingRepoStep: FC<Props> = ({ onSelectRepo }) => {
     };
 
     return (
-        <Stack spacing="md">
+        <Stack gap="md">
             <Text>
-                Choose an existing repository or create a new one for your dbt
+                Choose an existing repository or create a new one for your
                 project.
             </Text>
 
@@ -125,7 +129,7 @@ export const OnboardingRepoStep: FC<Props> = ({ onSelectRepo }) => {
             />
 
             {mode === 'select' ? (
-                <Stack spacing="sm">
+                <Stack gap="sm">
                     <Select
                         label="Repository"
                         placeholder="Search repositories..."
@@ -133,7 +137,7 @@ export const OnboardingRepoStep: FC<Props> = ({ onSelectRepo }) => {
                         value={selectedRepoFullName}
                         onChange={setSelectedRepoFullName}
                         searchable
-                        nothingFound={
+                        nothingFoundMessage={
                             isLoadingRepos
                                 ? 'Loading...'
                                 : 'No repositories found'
@@ -143,7 +147,7 @@ export const OnboardingRepoStep: FC<Props> = ({ onSelectRepo }) => {
                         }
                     />
                     <Button
-                        leftIcon={<IconFolder size={18} />}
+                        leftSection={<MantineIcon icon={IconFolder} />}
                         onClick={handleSelectExisting}
                         disabled={!selectedRepo}
                     >
@@ -151,10 +155,10 @@ export const OnboardingRepoStep: FC<Props> = ({ onSelectRepo }) => {
                     </Button>
                 </Stack>
             ) : (
-                <Stack spacing="sm">
+                <Stack gap="sm">
                     <TextInput
                         label="Repository name"
-                        placeholder="my-dbt-project"
+                        placeholder="my-analytics-project"
                         value={newRepoName}
                         onChange={(e) => setNewRepoName(e.target.value)}
                         error={
@@ -163,12 +167,12 @@ export const OnboardingRepoStep: FC<Props> = ({ onSelectRepo }) => {
                                 : undefined
                         }
                     />
-                    <Text size="xs" color="dimmed">
+                    <Text size="xs" c="dimmed">
                         A private repository will be created in your GitHub
                         organization.
                     </Text>
                     <Button
-                        leftIcon={<IconPlus size={18} />}
+                        leftSection={<MantineIcon icon={IconPlus} />}
                         onClick={handleCreateNew}
                         disabled={!newRepoName.trim()}
                         loading={createRepoMutation.isLoading}

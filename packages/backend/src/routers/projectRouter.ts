@@ -14,10 +14,14 @@ import {
     isAuthenticated,
     unauthorisedInDemo,
 } from '../controllers/authentication';
+import { agentCodingSessionRouter } from '../ee/routers/agentCodingSessionRouter';
 
 const fs = require('fs');
 
 export const projectRouter: Router = express.Router({ mergeParams: true });
+
+// EE Routes
+projectRouter.use('/agent-coding-sessions', agentCodingSessionRouter);
 
 projectRouter.patch(
     '/',

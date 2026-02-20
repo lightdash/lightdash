@@ -1,29 +1,26 @@
 import { type AiAgentSummary } from '@lightdash/common';
 import {
-    ActionIcon,
     Box,
     Button,
-    Divider,
     Group,
+    Menu,
     Paper,
     Skeleton,
-    Text,
+    Textarea,
 } from '@mantine-8/core';
 import { useForm } from '@mantine/form';
 import {
-    IconArrowUp,
-    IconCornerDownLeft,
-    IconSettings,
-    IconSparkles,
+    IconArrowRight,
+    IconChevronDown,
+    IconCube,
+    IconMessageCircle,
 } from '@tabler/icons-react';
-import { useEffect, useState, type FC } from 'react';
+import { useCallback, useEffect, useState, type FC } from 'react';
 import { Provider } from 'react-redux';
-import { Link, useNavigate } from 'react-router';
+import { useNavigate } from 'react-router';
 import MantineIcon from '../../../../components/common/MantineIcon';
-import { PolymorphicGroupButton } from '../../../../components/common/PolymorphicGroupButton';
-import { CompactAgentSelector } from '../../../features/aiCopilot/components/AgentSelector';
-import { useAiAgentPermission } from '../../../features/aiCopilot/hooks/useAiAgentPermission';
-import { useAiOrganizationSettings } from '../../../features/aiCopilot/hooks/useAiOrganizationSettings';
+import Logo from '../../../../svgs/grey-icon-logo.svg?react';
+import { useCreateAgentCodingSession } from '../../../hooks/useAgentCodingSessions';
 import {
     useCreateAgentThreadMutation,
     useProjectAiAgents,
@@ -32,7 +29,45 @@ import { useGetUserAgentPreferences } from '../../../features/aiCopilot/hooks/us
 import { store } from '../../../features/aiCopilot/store';
 import { AiAgentThreadStreamAbortControllerContextProvider } from '../../../features/aiCopilot/streaming/AiAgentThreadStreamAbortControllerContextProvider';
 import styles from './aiSearchBox.module.css';
-import { SearchDropdown } from './SearchDropdown';
+
+const PLACEHOLDER_PHRASES = [
+    'Build a dashboard to measure...',
+    'Create a chart to show...',
+    'Make all my dashboards beautiful...',
+    'Add a new metric for...',
+];
+
+const useTypewriterPlaceholder = (phrases: string[], typingSpeed = 50) => {
+    const [placeholder, setPlaceholder] = useState('');
+    const [phraseIndex, setPhraseIndex] = useState(0);
+
+    useEffect(() => {
+        const currentPhrase = phrases[phraseIndex];
+        let charIndex = 0;
+        let timeoutId: ReturnType<typeof setTimeout>;
+
+        const typeNextChar = () => {
+            if (charIndex <= currentPhrase.length) {
+                setPlaceholder(currentPhrase.slice(0, charIndex));
+                charIndex++;
+                timeoutId = setTimeout(typeNextChar, typingSpeed);
+            } else {
+                // Wait before moving to next phrase
+                timeoutId = setTimeout(() => {
+                    setPhraseIndex((prev) => (prev + 1) % phrases.length);
+                }, 2000);
+            }
+        };
+
+        typeNextChar();
+
+        return () => clearTimeout(timeoutId);
+    }, [phraseIndex, phrases, typingSpeed]);
+
+    return placeholder;
+};
+
+type Mode = 'build' | 'ask';
 
 type Props = {
     projectUuid: string;
@@ -40,27 +75,18 @@ type Props = {
 
 const AiSearchBoxInner: FC<Props> = ({ projectUuid }) => {
     const navigate = useNavigate();
+    const [mode, setMode] = useState<Mode>('build');
+    const typewriterPlaceholder = useTypewriterPlaceholder(PLACEHOLDER_PHRASES);
 
     const { data: agents, isLoading: isLoadingAgents } = useProjectAiAgents({
         projectUuid,
         redirectOnUnauthorized: false,
     });
-    const aiOrganizationSettingsQuery = useAiOrganizationSettings();
-    const isTrial =
-        aiOrganizationSettingsQuery.isSuccess &&
-        aiOrganizationSettingsQuery.data.isTrial;
     const {
         data: userAgentPreferences,
         isLoading: isLoadingUserAgentPreferences,
     } = useGetUserAgentPreferences(projectUuid);
     const [selectedAgent, setSelectedAgent] = useState<AiAgentSummary>();
-    const canManageAgents = useAiAgentPermission({
-        action: 'manage',
-        projectUuid,
-    });
-
-    const noAgentsAvailable =
-        !isLoadingAgents && (!agents || agents.length === 0);
 
     useEffect(() => {
         if (!agents || agents.length === 0) return;
@@ -84,25 +110,41 @@ const AiSearchBoxInner: FC<Props> = ({ projectUuid }) => {
         projectUuid,
     );
 
-    const handleSubmit = form.onSubmit(async (values) => {
-        if (!selectedAgent) {
-            void navigate(`/projects/${projectUuid}/ai-agents`);
+    const createCodingSession = useCreateAgentCodingSession(projectUuid);
+
+    const handleSubmit = useCallback(async () => {
+        const prompt = form.values.prompt.trim();
+        if (!prompt) return;
+
+        if (mode === 'build') {
+            const branchName = `lightdash/ai/${Date.now()}`;
+            const session = await createCodingSession.mutateAsync({
+                prompt,
+                githubBranch: branchName,
+            });
+            void navigate(
+                `/projects/${projectUuid}/agent-coding-sessions?session=${session.sessionUuid}`,
+            );
         } else {
-            await createAgentThread({ prompt: values.prompt.trim() });
+            if (!selectedAgent) {
+                void navigate(`/projects/${projectUuid}/ai-agents`);
+            } else {
+                await createAgentThread({ prompt });
+            }
         }
+    }, [
+        form.values.prompt,
+        mode,
+        createCodingSession,
+        navigate,
+        projectUuid,
+        selectedAgent,
+        createAgentThread,
+    ]);
+
+    const onFormSubmit = form.onSubmit(() => {
+        void handleSubmit();
     });
-
-    const handleSearchItemSelect = () => {
-        form.reset();
-    };
-
-    const onSelect = (agentUuid: string) => {
-        if (!agents) return;
-        setSelectedAgent(
-            (currentSelection) =>
-                agents.find((a) => a.uuid === agentUuid) ?? currentSelection,
-        );
-    };
 
     if (isLoadingAgents || isLoadingUserAgentPreferences) {
         return (
@@ -120,177 +162,92 @@ const AiSearchBoxInner: FC<Props> = ({ projectUuid }) => {
         return null;
     }
 
+    const isLoading = createCodingSession.isLoading;
+
     return (
         <Paper
             classNames={{
                 root: styles.paperRoot,
             }}
         >
-            <Box p="md">
-                <form onSubmit={handleSubmit}>
-                    <Group>
-                        <CompactAgentSelector
-                            agents={agents}
-                            selectedAgent={selectedAgent ?? agents[0]}
-                            onSelect={onSelect}
-                        />
-                        <Group gap="xs" flex={1}>
-                            <SearchDropdown
-                                projectUuid={projectUuid}
-                                value={form.values.prompt}
-                                onChange={(value) =>
-                                    form.setFieldValue('prompt', value)
-                                }
-                                onSearchItemSelect={handleSearchItemSelect}
-                                placeholder={
-                                    selectedAgent
-                                        ? `Ask ${selectedAgent.name} or search your data`
-                                        : 'Search your data'
-                                }
-                                onHeaderClick={handleSubmit}
-                                header={
-                                    <PolymorphicGroupButton
-                                        p="sm"
-                                        className={styles.askAiSection}
-                                        gap="xs"
-                                        wrap="nowrap"
-                                        style={{ overflow: 'hidden' }}
-                                        align="flex-start"
-                                    >
+            <form onSubmit={onFormSubmit}>
+                {/* Textarea area */}
+                <Box p="md" pb="sm">
+                    <Textarea
+                        rows={4}
+                        placeholder={typewriterPlaceholder}
+                        {...form.getInputProps('prompt')}
+                        classNames={{
+                            input: styles.textareaInput,
+                        }}
+                    />
+                </Box>
+
+                {/* Footer bar */}
+                <Box px="md" pb="md">
+                    <Group justify="space-between">
+                        <Menu position="bottom-start" withinPortal>
+                            <Menu.Target>
+                                <Button
+                                    variant="subtle"
+                                    color="gray"
+                                    leftSection={
                                         <MantineIcon
-                                            style={{
-                                                flexShrink: 0,
-                                                marginTop: 4,
-                                            }}
-                                            icon={IconSparkles}
-                                            color="violet.4"
-                                            fill="violet.4"
-                                            size={16}
+                                            icon={
+                                                mode === 'build'
+                                                    ? IconCube
+                                                    : IconMessageCircle
+                                            }
                                         />
-                                        <Text
-                                            size="sm"
-                                            c="foreground"
-                                            flex="1"
-                                            mt={2}
-                                        >
-                                            Ask{' '}
-                                            {selectedAgent
-                                                ? selectedAgent.name
-                                                : 'AI'}
-                                            :{' '}
-                                            <Text
-                                                component="span"
-                                                fw={600}
-                                                c="ldDark.9"
-                                            >
-                                                "{form.values.prompt.trim()}"
-                                            </Text>
-                                        </Text>
-                                        <Box
-                                            className={styles.askAiSectionArrow}
-                                            p={4}
-                                        >
-                                            <MantineIcon
-                                                icon={IconCornerDownLeft}
-                                                size={16}
-                                                color="violet.4"
-                                            />
-                                        </Box>
-                                    </PolymorphicGroupButton>
-                                }
-                            />
-                            <ActionIcon
-                                type="submit"
-                                disabled={!form.values.prompt.trim()}
-                                classNames={{
-                                    root: styles.actionIcon,
-                                    icon: styles.actionIconIcon,
-                                }}
-                            >
-                                <MantineIcon icon={IconArrowUp} />
-                            </ActionIcon>
-                        </Group>
-                    </Group>
-                </form>
-            </Box>
-            {canManageAgents && (
-                <>
-                    <Divider color="ldGray.2" />
-                    <Box bg="ldGray.0" px="md" py="5px">
-                        <Group
-                            flex={1}
-                            justify={
-                                isTrial || noAgentsAvailable
-                                    ? 'space-between'
-                                    : 'flex-end'
+                                    }
+                                    rightSection={
+                                        <MantineIcon icon={IconChevronDown} />
+                                    }
+                                    classNames={{
+                                        root: styles.modeButton,
+                                    }}
+                                >
+                                    {mode === 'build' ? 'Build' : 'Ask'}
+                                </Button>
+                            </Menu.Target>
+                            <Menu.Dropdown>
+                                <Menu.Item
+                                    leftSection={<MantineIcon icon={IconCube} />}
+                                    onClick={() => setMode('build')}
+                                >
+                                    Build
+                                </Menu.Item>
+                                <Menu.Item
+                                    leftSection={
+                                        <MantineIcon icon={IconMessageCircle} />
+                                    }
+                                    onClick={() => setMode('ask')}
+                                >
+                                    Ask
+                                </Menu.Item>
+                            </Menu.Dropdown>
+                        </Menu>
+
+                        <Button
+                            type="submit"
+                            variant="subtle"
+                            color="gray"
+                            disabled={!form.values.prompt.trim()}
+                            loading={isLoading}
+                            leftSection={
+                                <Box className={styles.startIconWrapper}>
+                                    <Logo className={styles.logoIcon} />
+                                </Box>
+                            }
+                            rightSection={
+                                <MantineIcon icon={IconArrowRight} />
                             }
                         >
-                            <Group gap={2}>
-                                {noAgentsAvailable ? (
-                                    <Button
-                                        size="compact-xs"
-                                        variant="subtle"
-                                        leftSection={
-                                            <MantineIcon
-                                                icon={IconSparkles}
-                                                color="violet.5"
-                                                fill="violet.5"
-                                            />
-                                        }
-                                        component={Link}
-                                        to="/ai-agents"
-                                    >
-                                        <Group gap={2}>
-                                            {isTrial && (
-                                                <Text size="xs" c="ldGray.8">
-                                                    You are trialing the AI
-                                                    Agents feature.
-                                                </Text>
-                                            )}{' '}
-                                            <Text size="xs" fw={500}>
-                                                Set up your first agent to get
-                                                started
-                                            </Text>
-                                        </Group>
-                                    </Button>
-                                ) : isTrial ? (
-                                    <Group gap="xs">
-                                        <MantineIcon
-                                            icon={IconSparkles}
-                                            color="violet.5"
-                                            fill="violet.5"
-                                        />
-                                        <Text size="xs" c="ldGray.8">
-                                            You are trialing the AI Agents
-                                            feature.
-                                        </Text>
-                                    </Group>
-                                ) : null}
-                            </Group>
-
-                            <Button
-                                size="compact-xs"
-                                variant="subtle"
-                                leftSection={
-                                    <MantineIcon
-                                        color="ldGray.7"
-                                        icon={IconSettings}
-                                        strokeWidth={1.5}
-                                    />
-                                }
-                                component={Link}
-                                to="/ai-agents/admin/agents"
-                                classNames={{
-                                    label: styles.adminSettingsButtonLabel,
-                                    section: styles.adminSettingsButtonSection,
-                                }}
-                            >
-                                Admin Settings
-                            </Button>
-                        </Group>
-                    </Box>
-                </>
-            )}
+                            Start
+                        </Button>
+                    </Group>
+                </Box>
+            </form>
         </Paper>
     );
 };

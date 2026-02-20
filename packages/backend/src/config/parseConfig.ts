@@ -1045,6 +1045,9 @@ export type LightdashConfig = {
         enabled: boolean;
         retentionDays: number;
     };
+    e2b?: {
+        apiKey: string;
+    };
 };
 
 export type SlackConfig = {
@@ -1911,5 +1914,10 @@ export const parseConfig = (): LightdashConfig => {
                     'SOFT_DELETE_RETENTION_DAYS',
                 ) ?? 30,
         },
+        e2b: process.env.E2B_API_KEY
+            ? {
+                  apiKey: process.env.E2B_API_KEY,
+              }
+            : undefined,
     };
 };

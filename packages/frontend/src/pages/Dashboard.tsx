@@ -28,7 +28,7 @@ import {
 } from '../hooks/dashboard/useDashboard';
 import useDashboardStorage from '../hooks/dashboard/useDashboardStorage';
 import { useOrganization } from '../hooks/organization/useOrganization';
-import useToaster from '../hooks/toaster/useToaster';
+import { useToasterWithAiFix } from '../ee/hooks/useFixWithAi';
 import { useContentAction } from '../hooks/useContent';
 import useApp from '../providers/App/useApp';
 import DashboardProvider from '../providers/Dashboard/DashboardProvider';
@@ -139,7 +139,7 @@ const Dashboard: FC = () => {
         isFullscreen,
         toggleFullscreen,
     } = useFullscreen();
-    const { showToastError } = useToaster();
+    const { showToastError } = useToasterWithAiFix();
 
     const { data: organization } = useOrganization();
     const hasTemporaryFilters = useMemo(

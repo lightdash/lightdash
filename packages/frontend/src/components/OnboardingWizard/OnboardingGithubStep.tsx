@@ -109,7 +109,7 @@ export const OnboardingGithubStep: FC<Props> = ({ onComplete }) => {
     return (
         <Stack spacing="md">
             <Text>
-                Connect Lightdash to GitHub to sync your dbt project and enable
+                Connect Lightdash to GitHub to sync your project and enable
                 version control.
             </Text>
             <Button

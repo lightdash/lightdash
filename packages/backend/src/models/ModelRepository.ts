@@ -116,6 +116,7 @@ export type ModelManifest = {
     projectParametersModel: ProjectParametersModel;
     changesetModel: ChangesetModel;
     /** An implementation signature for these models are not available at this stage */
+    agentCodingSessionModel: unknown;
     aiAgentModel: unknown;
     aiOrganizationSettingsModel: unknown;
     embedModel: unknown;
@@ -625,6 +626,10 @@ export class ModelRepository
                     lightdashConfig: this.lightdashConfig,
                 }),
         );
+    }
+
+    public getAgentCodingSessionModel<ModelImplT>(): ModelImplT {
+        return this.getModel('agentCodingSessionModel');
     }
 
     public getAiAgentModel<ModelImplT>(): ModelImplT {
