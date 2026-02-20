@@ -656,6 +656,8 @@ type CompiledProperties = {
      * will have this property set instead of causing the entire explore to fail.
      */
     compilationError?: FieldCompilationError;
+    compiledValueSql?: string; // raw value expression before aggregation (for sum_distinct CTE)
+    compiledDistinctKeys?: string[]; // compiled SQL for distinct keys (sum_distinct only)
 };
 export type CompiledDimension = Dimension & CompiledProperties;
 export type CompiledMetric = Metric & CompiledProperties;
@@ -702,6 +704,7 @@ export enum MetricType {
     COUNT = 'count',
     COUNT_DISTINCT = 'count_distinct',
     SUM = 'sum',
+    SUM_DISTINCT = 'sum_distinct',
     MIN = 'min',
     MAX = 'max',
     PERCENT_OF_PREVIOUS = 'percent_of_previous',
@@ -744,6 +747,8 @@ export const parseMetricType = (metricType: string): MetricType => {
             return MetricType.COUNT_DISTINCT;
         case 'sum':
             return MetricType.SUM;
+        case 'sum_distinct':
+            return MetricType.SUM_DISTINCT;
         case 'min':
             return MetricType.MIN;
         case 'max':
@@ -811,6 +816,7 @@ export interface Metric extends Field {
     showUnderlyingValues?: string[];
     filters?: MetricFilterRule[];
     percentile?: number;
+    distinctKeys?: string[]; // dimension references for sum_distinct deduplication key
     formatOptions?: CustomFormat;
     dimensionReference?: string; // field id of the dimension this metric is based on
     requiredAttributes?: Record<string, string | string[]>; // Required attributes for the dimension this metric is based on

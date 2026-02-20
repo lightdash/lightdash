@@ -56,6 +56,7 @@ export interface AdditionalMetric {
     uuid?: string | null;
     /** Percentile value for percentile metrics */
     percentile?: number;
+    distinctKeys?: string[]; // dimension references for sum_distinct deduplication key
     /** Formatting configuration */
     formatOptions?: CustomFormat;
     /**

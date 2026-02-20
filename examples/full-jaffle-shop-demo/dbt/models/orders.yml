@@ -195,6 +195,9 @@ models:
           - not_null
         config:
           meta:
+            dimension:
+              format: usd
+              round: 2
             metrics:
               average_order_size:
                 type: average
@@ -257,8 +260,6 @@ models:
                 type: number
                 format: "$#,##0.00"
                 sql: ${total_order_amount}-${total_completed_order_amount}
-            dimension:
-              hidden: true
         meta:
           dimension:
             type: number

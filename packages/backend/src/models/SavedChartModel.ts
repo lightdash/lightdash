@@ -339,6 +339,9 @@ const createSavedChartVersion = async (
                 sql: additionalMetric.sql,
                 hidden: additionalMetric.hidden,
                 percentile: additionalMetric.percentile,
+                distinct_keys: additionalMetric.distinctKeys
+                    ? JSON.stringify(additionalMetric.distinctKeys)
+                    : undefined,
                 compact: additionalMetric.compact,
                 round: additionalMetric.round,
                 format: additionalMetric.format,
@@ -492,6 +495,14 @@ export class SavedChartModel {
                 ? additionalMetric.format
                 : undefined,
             percentile: additionalMetric.percentile,
+            ...(additionalMetric.distinct_keys
+                ? {
+                      distinctKeys:
+                          typeof additionalMetric.distinct_keys === 'string'
+                              ? JSON.parse(additionalMetric.distinct_keys)
+                              : additionalMetric.distinct_keys,
+                  }
+                : {}),
             uuid: additionalMetric.uuid,
             sql: additionalMetric.sql,
             table: additionalMetric.table,
@@ -1026,6 +1037,7 @@ export class SavedChartModel {
                         'round',
                         'format',
                         'percentile',
+                        'distinct_keys',
                         'filters',
                         'base_dimension_name',
                         'uuid',

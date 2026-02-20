@@ -887,9 +887,12 @@ export const getJoinedTables = (
  * Determines if a metric type is "inflation-proof" (not affected by join inflation)
  */
 export const isInflationProofMetric = (metricType: MetricType): boolean =>
-    [MetricType.COUNT_DISTINCT, MetricType.MIN, MetricType.MAX].includes(
-        metricType,
-    );
+    [
+        MetricType.COUNT_DISTINCT,
+        MetricType.SUM_DISTINCT,
+        MetricType.MIN,
+        MetricType.MAX,
+    ].includes(metricType);
 
 const findTablesWithInflationFromJoin = (join: CompiledExploreJoin) => {
     const tablesWithInflation = new Set<string>();

@@ -235,6 +235,7 @@ export type DbtColumnLightdashMetric = {
     show_underlying_values?: string[];
     filters?: { [key: string]: AnyType }[];
     percentile?: number;
+    distinct_keys?: string | string[]; // dimension references for sum_distinct deduplication key
     default_time_dimension?: DefaultTimeDimension;
     spotlight?: {
         visibility?: NonNullable<
@@ -595,6 +596,13 @@ export const convertModelMetric = ({
             metric.show_underlying_values ?? defaultShowUnderlyingValues,
         filters: parseFilters(metric.filters),
         percentile: metric.percentile,
+        ...(metric.distinct_keys
+            ? {
+                  distinctKeys: Array.isArray(metric.distinct_keys)
+                      ? metric.distinct_keys
+                      : [metric.distinct_keys],
+              }
+            : {}),
         dimensionReference,
         requiredAttributes,
         anyAttributes,

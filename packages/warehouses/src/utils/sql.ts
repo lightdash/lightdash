@@ -21,6 +21,7 @@ export function getDefaultMetricSql(sql: string, type: MetricType): string {
         case MetricType.BOOLEAN:
         case MetricType.PERCENTILE:
         case MetricType.MEDIAN:
+        case MetricType.SUM_DISTINCT:
             break;
         case MetricType.PERCENT_OF_PREVIOUS:
         case MetricType.PERCENT_OF_TOTAL:

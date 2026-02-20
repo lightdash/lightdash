@@ -1,0 +1,202 @@
+version: 2
+models:
+  - name: customer_order_payments
+    description: >
+      Wide table joining customers, orders, order line items, and payments.
+
+      **Compound Fanout**: This table joins two one-to-many relationships through orders:
+      - orders → line_items (1:N)
+      - orders → payments (1:N)
+
+      Result: Each order with M line items and N payments produces M × N rows.
+
+      Example: Order #9 has 3 line items and 2 payments = 6 rows in this table.
+
+      **Deduplication with sum_distinct**:
+      - Order-level metrics (shipping_cost): dedupe by `order_id`
+      - Line item metrics (line_item_total): dedupe by `line_item_id`
+      - Payment metrics (payment_amount): dedupe by `payment_id`
+    config:
+      tags: ["core", "wide-table", "fanout-demo"]
+      meta:
+        primary_key: [order_id, line_item_id, payment_id]
+
+    columns:
+      # Customer grain columns
+      - name: customer_id
+        description: Unique identifier for the customer
+        config:
+          meta:
+            metrics:
+              unique_customers:
+                type: count_distinct
+                description: Count of unique customers
+
+      - name: first_name
+        description: Customer's first name
+
+      - name: last_name
+        description: Customer's last name
+
+      # Order grain columns
+      - name: order_id
+        description: Unique identifier for the order. Use as distinct_key for order-level aggregations.
+        tests:
+          - not_null
+        config:
+          meta:
+            metrics:
+              unique_orders:
+                type: count_distinct
+                description: Count of unique orders
+
+      - name: order_date
+        description: Date the order was placed
+        config:
+          meta:
+            dimension:
+              type: date
+
+      - name: order_status
+        description: Current status of the order
+
+      - name: shipping_cost
+        description: >
+          Shipping cost for the order. Duplicated across all line_item × payment combinations
+          for this order. Use sum_distinct with order_id to get correct totals.
+        config:
+          meta:
+            dimension:
+              format: usd
+              round: 2
+            metrics:
+              total_shipping_cost_deduped:
+                type: sum_distinct
+                sql: ${shipping_cost}
+                distinct_keys: [order_id]
+                description: >
+                  Total shipping costs correctly deduped by order_id. Each order's shipping
+                  cost is summed once, regardless of line items or payment methods.
+                format: usd
+                round: 2
+              total_shipping_cost_inflated:
+                type: sum
+                sql: ${shipping_cost}
+                description: >
+                  Inflated sum - shipping cost counted once per (line_item × payment) combination.
+                  For an order with 3 items and 2 payments, shipping is counted 6 times!
+                format: usd
+                round: 2
+
+      # Line item grain columns
+      - name: line_item_id
+        description: >
+          Unique identifier for the line item. Use as distinct_key for line-item-level aggregations.
+        tests:
+          - not_null
+        config:
+          meta:
+            metrics:
+              unique_line_items:
+                type: count_distinct
+                description: Count of unique line items
+
+      - name: product_name
+        description: Name of the product in this line item
+
+      - name: quantity
+        description: Quantity of this product ordered
+
+      - name: unit_price
+        description: Price per unit
+        config:
+          meta:
+            dimension:
+              format: usd
+              round: 2
+
+      - name: line_item_total
+        description: >
+          Total for this line item (quantity × unit_price). Duplicated across all payments
+          for this order. Use sum_distinct with line_item_id to get correct totals.
+        config:
+          meta:
+            dimension:
+              format: usd
+              round: 2
+            metrics:
+              total_line_item_revenue_deduped:
+                type: sum_distinct
+                sql: ${line_item_total}
+                distinct_keys: [line_item_id]
+                description: >
+                  Total line item revenue correctly deduped. Each line item's total is
+                  summed once, regardless of how many payments the order has.
+                format: usd
+                round: 2
+              total_line_item_revenue_inflated:
+                type: sum
+                sql: ${line_item_total}
+                description: >
+                  Inflated sum - line item totals counted once per payment on the order.
+                  An order with 2 payments doubles all line item amounts!
+                format: usd
+                round: 2
+
+      # Payment grain columns
+      - name: payment_id
+        description: Unique identifier for the payment
+        tests:
+          - not_null
+        config:
+          meta:
+            metrics:
+              unique_payments:
+                type: count_distinct
+                description: Count of unique payments
+
+      - name: payment_method
+        description: Payment method used (credit_card, coupon, bank_transfer, gift_card)
+
+      - name: payment_amount
+        description: >
+          Amount of this individual payment. Duplicated across all line items for this order.
+          Use sum_distinct with payment_id to get correct totals.
+        config:
+          meta:
+            dimension:
+              format: usd
+              round: 2
+            metrics:
+              total_payment_amount_deduped:
+                type: sum_distinct
+                sql: ${payment_amount}
+                distinct_keys: [payment_id]
+                description: >
+                  Total payment amount correctly deduped. Each payment is summed once,
+                  regardless of how many line items the order has.
+                format: usd
+                round: 2
+              total_payment_amount_inflated:
+                type: sum
+                sql: ${payment_amount}
+                description: >
+                  Inflated sum - payment amounts counted once per line item on the order.
+                  An order with 3 line items triples all payment amounts!
+                format: usd
+                round: 2
+              # Multi-key deduplication example:
+              # This metric sums payment amounts but dedupes by BOTH order_id and payment_method.
+              # Use case: "Total paid by each payment method per order" when analyzing across
+              # the line_item dimension. If an order has 3 items and 1 credit card payment,
+              # without multi-key dedup the credit card amount would be counted 3 times.
+              total_payment_by_method_per_order:
+                type: sum_distinct
+                sql: ${payment_amount}
+                distinct_keys: [order_id, payment_method]
+                description: >
+                  Total payment amount deduped by order + payment method combination.
+                  Useful when you want to analyze payment methods but your query includes
+                  line items. Each (order, payment_method) combination is counted once.
+                format: usd
+                round: 2
