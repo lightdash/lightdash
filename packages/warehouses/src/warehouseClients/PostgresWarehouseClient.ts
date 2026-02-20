@@ -209,14 +209,11 @@ export class PostgresClient<
     static convertQueryResultFields(
         fields: QueryResult<AnyType>['fields'],
     ): Record<string, { type: DimensionType }> {
-        return fields.reduce(
-            (acc, { name, dataTypeID }) => ({
-                ...acc,
-                [name]: {
-                    type: convertDataTypeIdToDimensionType(dataTypeID),
-                },
-            }),
-            {},
+        return Object.fromEntries(
+            fields.map(({ name, dataTypeID }) => [
+                name,
+                { type: convertDataTypeIdToDimensionType(dataTypeID) },
+            ]),
         );
     }
 
@@ -292,6 +289,16 @@ export class PostgresClient<
                         // typecast is necessary to fix the type issue described above
                     ) as unknown as QueryStream;
 
+                    // Cache field conversion — result.fields is the same
+                    // array reference for every row in a query, so we only
+                    // need to convert it once.
+                    let cachedFields: Record<
+                        string,
+                        { type: DimensionType }
+                    > | null = null;
+                    let cachedFieldsRef: QueryResult<AnyType>['fields'] | null =
+                        null;
+
                     const writable = new Writable({
                         objectMode: true,
                         async write(
@@ -303,10 +310,18 @@ export class PostgresClient<
                             callback,
                         ) {
                             try {
+                                if (
+                                    cachedFields === null ||
+                                    cachedFieldsRef !== chunk.fields
+                                ) {
+                                    cachedFields =
+                                        PostgresClient.convertQueryResultFields(
+                                            chunk.fields,
+                                        );
+                                    cachedFieldsRef = chunk.fields;
+                                }
                                 await streamCallback({
-                                    fields: PostgresClient.convertQueryResultFields(
-                                        chunk.fields,
-                                    ),
+                                    fields: cachedFields,
                                     rows: [chunk.row],
                                 });
                                 callback();
