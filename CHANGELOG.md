@@ -1,3 +1,10 @@
+## [0.2498.4](https://github.com/lightdash/lightdash/compare/0.2498.3...0.2498.4) (2026-02-20)
+
+
+### Bug Fixes
+
+* upgrade ajv from 8.11.0 to 8.18.0 ([#20473](https://github.com/lightdash/lightdash/issues/20473)) ([7d8e245](https://github.com/lightdash/lightdash/commit/7d8e2457f1add2810a398b333d4c65a7d250be88))
+
 ## [0.2498.3](https://github.com/lightdash/lightdash/compare/0.2498.2...0.2498.3) (2026-02-20)
 
 
