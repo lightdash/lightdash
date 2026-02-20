@@ -1,4 +1,5 @@
 import { type AnyType } from './any';
+import { type ApiFavoriteItems, type ApiToggleFavorite } from './favorites';
 import { type ApiTogglePinnedItem, type PinnedItems } from './pinning';
 import { type ProjectGroupAccess } from './projectGroupAccess';
 import { type MostPopularAndRecentlyUpdated } from './resourceViewItem';
@@ -221,6 +222,10 @@ export type UpdateProjectMember = {
 
 export type UpdateMetadata = {
     upstreamProjectUuid?: string | null; // null means we unset this value
+};
+
+export type UpdateDefaultUserSpaces = {
+    hasDefaultUserSpaces: boolean;
 };
 export type ApiCompiledQueryResults = {
     query: string;
@@ -489,6 +494,7 @@ export type CreateProject = Omit<
     | 'organizationUuid'
     | 'schedulerTimezone'
     | 'createdByUserUuid'
+    | 'hasDefaultUserSpaces'
 > & {
     warehouseConnection: CreateWarehouseCredentials;
     copyWarehouseConnectionFromUpstreamProject?: boolean;
@@ -518,6 +524,7 @@ export type UpdateProject = Omit<
     | 'type'
     | 'schedulerTimezone'
     | 'createdByUserUuid'
+    | 'hasDefaultUserSpaces'
 > & {
     warehouseConnection: CreateWarehouseCredentials;
 };
@@ -863,7 +870,9 @@ type ApiResults =
     | ApiUpdateAiOrganizationSettingsResponse['results']
     | ApiProjectCompileLogsResponse['results']
     | ApiProjectCompileLogResponse['results']
-    | ApiSingleValidationResponse['results'];
+    | ApiSingleValidationResponse['results']
+    | ApiFavoriteItems['results']
+    | ApiToggleFavorite['results'];
 // Note: EE API types removed from ApiResults to avoid circular imports
 // They can still be used with ApiResponse<T> by importing from '@lightdash/common'
 

@@ -29,6 +29,7 @@ import {
     ParameterError,
     RequestMethod,
     SqlChartAsCode,
+    UpdateDefaultUserSpaces,
     UpdateMetadata,
     UpdateProjectMember,
     UserWarehouseCredentials,
@@ -474,6 +475,30 @@ export class ProjectController extends BaseController {
     }
 
     /**
+     * Get user warehouse credentials available for a project
+     * @summary List project user warehouse credentials
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('{projectUuid}/user-warehouse-credentials')
+    @OperationId('getProjectUserWarehouseCredentials')
+    async getProjectUserWarehouseCredentials(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<{
+        status: 'ok';
+        results: UserWarehouseCredentials[];
+    }> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getProjectService()
+                .getProjectUserWarehouseCredentials(req.user!, projectUuid),
+        };
+    }
+
+    /**
      * Update the user's warehouse credentials preference for a project
      * @summary Update user warehouse credentials preference
      */
@@ -553,6 +578,34 @@ export class ProjectController extends BaseController {
         await this.services
             .getProjectService()
             .updateMetadata(req.user!, projectUuid, body);
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    /**
+     * Toggle default user spaces for a project.
+     * When enabled, creates personal spaces for all eligible users.
+     * @summary Update default user spaces setting
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Patch('{projectUuid}/hasDefaultUserSpaces')
+    @OperationId('updateDefaultUserSpaces')
+    async updateDefaultUserSpaces(
+        @Path() projectUuid: string,
+        @Body() body: UpdateDefaultUserSpaces,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        this.setStatus(200);
+        await this.services
+            .getProjectService()
+            .updateDefaultUserSpaces(req.user!, projectUuid, body);
         return {
             status: 'ok',
             results: undefined,
@@ -1014,6 +1067,7 @@ export class ProjectController extends BaseController {
         chart: Omit<ChartAsCode, 'chartConfig' | 'description'> & {
             skipSpaceCreate?: boolean;
             publicSpaceCreate?: boolean;
+            force?: boolean;
             chartConfig: AnyType;
             description?: string | null; // Allow both undefined and null
         },
@@ -1032,6 +1086,7 @@ export class ProjectController extends BaseController {
                 },
                 chart.skipSpaceCreate,
                 chart.publicSpaceCreate,
+                chart.force,
             ),
         };
     }
@@ -1074,6 +1129,7 @@ export class ProjectController extends BaseController {
         sqlChart: Omit<SqlChartAsCode, 'config' | 'description'> & {
             skipSpaceCreate?: boolean;
             publicSpaceCreate?: boolean;
+            force?: boolean;
             config: AnyType;
             description?: string | null;
         },
@@ -1092,6 +1148,7 @@ export class ProjectController extends BaseController {
                 },
                 sqlChart.skipSpaceCreate,
                 sqlChart.publicSpaceCreate,
+                sqlChart.force,
             ),
         };
     }
@@ -1111,6 +1168,7 @@ export class ProjectController extends BaseController {
         dashboard: Omit<DashboardAsCode, 'tiles' | 'description'> & {
             skipSpaceCreate?: boolean;
             publicSpaceCreate?: boolean;
+            force?: boolean;
             tiles: AnyType;
             description?: string | null; // Allow both undefined and null
         }, // Simplify filter type for tsoa
@@ -1129,6 +1187,7 @@ export class ProjectController extends BaseController {
                 },
                 dashboard.skipSpaceCreate,
                 dashboard.publicSpaceCreate,
+                dashboard.force,
             ),
         };
     }

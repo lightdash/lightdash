@@ -14,6 +14,7 @@ import {
     KnexPaginatedData,
     NotFoundError,
     SessionUser,
+    SpaceContentBase,
     SummaryContent,
 } from '@lightdash/common';
 import { intersection } from 'lodash';
@@ -126,7 +127,7 @@ export class ContentService extends BaseService {
                 spaceUuids,
             );
 
-        return this.contentModel.findSummaryContents(
+        const results = await this.contentModel.findSummaryContents(
             {
                 ...filters,
                 projectUuids: allowedProjectUuids,
@@ -139,6 +140,33 @@ export class ContentService extends BaseService {
             queryArgs,
             paginateArgs,
         );
+
+        // Enrich SpaceContentBase items with access data → SpaceContent
+        const spaceItems = results.data.filter(
+            (item): item is SpaceContentBase =>
+                item.contentType === ContentType.SPACE,
+        );
+
+        let directAccessMap: Record<string, string[]> = {};
+        if (spaceItems.length > 0) {
+            directAccessMap =
+                await this.spacePermissionService.getDirectAccessUserUuids(
+                    spaceItems.map((s) => s.uuid),
+                );
+        }
+
+        return {
+            ...results,
+            data: results.data.map((item): SummaryContent => {
+                if (item.contentType !== ContentType.SPACE) {
+                    return item;
+                }
+                return {
+                    ...item,
+                    access: directAccessMap[item.uuid] ?? [],
+                };
+            }),
+        };
     }
 
     async bulkMove(

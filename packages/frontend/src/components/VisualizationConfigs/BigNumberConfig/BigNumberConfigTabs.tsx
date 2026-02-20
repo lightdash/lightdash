@@ -2,6 +2,7 @@ import { MantineProvider, Tabs, useMantineColorScheme } from '@mantine/core';
 import { type FC, memo, useMemo } from 'react';
 import { getVizConfigThemeOverride } from '../mantineTheme';
 import { Comparison } from './BigNumberComparison';
+import { BigNumberConditionalFormatting } from './BigNumberConditionalFormatting';
 import { Layout } from './BigNumberLayout';
 
 export const ConfigTabs: FC = memo(() => {
@@ -21,6 +22,9 @@ export const ConfigTabs: FC = memo(() => {
                     <Tabs.Tab px="sm" value="comparison">
                         Comparison
                     </Tabs.Tab>
+                    <Tabs.Tab px="sm" value="conditionalFormatting">
+                        Conditional formatting
+                    </Tabs.Tab>
                 </Tabs.List>
 
                 <Tabs.Panel value="layout">
@@ -28,6 +32,9 @@ export const ConfigTabs: FC = memo(() => {
                 </Tabs.Panel>
                 <Tabs.Panel value="comparison">
                     <Comparison />
+                </Tabs.Panel>
+                <Tabs.Panel value="conditionalFormatting">
+                    <BigNumberConditionalFormatting />
                 </Tabs.Panel>
             </Tabs>
         </MantineProvider>

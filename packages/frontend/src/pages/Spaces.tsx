@@ -15,6 +15,7 @@ import SpaceActionModal from '../components/common/SpaceActionModal';
 import { ActionType } from '../components/common/SpaceActionModal/types';
 
 import useApp from '../providers/App/useApp';
+import { FavoritesProvider } from '../providers/Favorites/FavoritesProvider';
 
 const Spaces: FC = () => {
     const { projectUuid } = useParams() as {
@@ -60,67 +61,69 @@ const Spaces: FC = () => {
     }
 
     return (
-        <Page
-            title="Spaces"
-            withCenteredRoot
-            withCenteredContent
-            withXLargePaddedContent
-            withLargeContent
-        >
-            <Stack spacing="xxl" w="100%">
-                <Group position="apart">
-                    <PageBreadcrumbs
-                        items={[
-                            { to: '/home', title: 'Home' },
-                            { title: 'Spaces', active: true },
-                        ]}
-                    />
+        <FavoritesProvider projectUuid={projectUuid}>
+            <Page
+                title="Spaces"
+                withCenteredRoot
+                withCenteredContent
+                withXLargePaddedContent
+                withLargeContent
+            >
+                <Stack spacing="xxl" w="100%">
+                    <Group position="apart">
+                        <PageBreadcrumbs
+                            items={[
+                                { to: '/home', title: 'Home' },
+                                { title: 'Spaces', active: true },
+                            ]}
+                        />
 
-                    <Group spacing="xs">
-                        {!isDemo && userCanManageSpace && (
-                            <Button
-                                leftIcon={<IconPlus size={18} />}
-                                onClick={handleCreateSpace}
-                            >
-                                Add
-                            </Button>
-                        )}
+                        <Group spacing="xs">
+                            {!isDemo && userCanManageSpace && (
+                                <Button
+                                    leftIcon={<IconPlus size={18} />}
+                                    onClick={handleCreateSpace}
+                                >
+                                    Add
+                                </Button>
+                            )}
+                        </Group>
                     </Group>
-                </Group>
-                <InfiniteResourceTable
-                    filters={{
-                        projectUuid,
-                        spaceUuids: [],
-                        contentTypes: [ContentType.SPACE],
-                    }}
-                    contentTypeFilter={{
-                        defaultValue: ContentType.SPACE,
-                        options: [],
-                    }}
-                    columnVisibility={{
-                        [ColumnVisibility.SPACE]: false,
-                        [ColumnVisibility.UPDATED_AT]: false,
-                        [ColumnVisibility.ACCESS]: true,
-                        [ColumnVisibility.CONTENT]: true,
-                    }}
-                    adminContentView={userCanManageProject}
-                    enableBottomToolbar={false}
-                    enableRowSelection={userCanManageSpace}
-                />
-
-                {isCreateModalOpen && (
-                    <SpaceActionModal
-                        projectUuid={projectUuid}
-                        parentSpaceUuid={null}
-                        actionType={ActionType.CREATE}
-                        title="Create new space"
-                        confirmButtonLabel="Create"
-                        icon={IconFolderPlus}
-                        onClose={() => setIsCreateModalOpen(false)}
+                    <InfiniteResourceTable
+                        filters={{
+                            projectUuid,
+                            spaceUuids: [],
+                            contentTypes: [ContentType.SPACE],
+                        }}
+                        contentTypeFilter={{
+                            defaultValue: ContentType.SPACE,
+                            options: [],
+                        }}
+                        columnVisibility={{
+                            [ColumnVisibility.SPACE]: false,
+                            [ColumnVisibility.UPDATED_AT]: false,
+                            [ColumnVisibility.ACCESS]: true,
+                            [ColumnVisibility.CONTENT]: true,
+                        }}
+                        adminContentView={userCanManageProject}
+                        enableBottomToolbar={false}
+                        enableRowSelection={userCanManageSpace}
                     />
-                )}
-            </Stack>
-        </Page>
+
+                    {isCreateModalOpen && (
+                        <SpaceActionModal
+                            projectUuid={projectUuid}
+                            parentSpaceUuid={null}
+                            actionType={ActionType.CREATE}
+                            title="Create new space"
+                            confirmButtonLabel="Create"
+                            icon={IconFolderPlus}
+                            onClose={() => setIsCreateModalOpen(false)}
+                        />
+                    )}
+                </Stack>
+            </Page>
+        </FavoritesProvider>
     );
 };
 

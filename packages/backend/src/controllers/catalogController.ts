@@ -138,22 +138,26 @@ export class CatalogController extends BaseController {
      * Get details of a saved metrics tree including nodes and edges
      * @summary Get metrics tree details
      * @param projectUuid
-     * @param metricsTreeUuid
+     * @param metricsTreeUuidOrSlug
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
-    @Get('/metrics/trees/{metricsTreeUuid}')
+    @Get('/metrics/trees/{metricsTreeUuidOrSlug}')
     @OperationId('getMetricsTreeDetails')
     async getMetricsTreeDetails(
         @Path() projectUuid: string,
-        @Path() metricsTreeUuid: string,
+        @Path() metricsTreeUuidOrSlug: string,
         @Request() req: express.Request,
     ): Promise<ApiGetMetricsTreeResponse> {
         this.setStatus(200);
 
         const results = await this.services
             .getCatalogService()
-            .getMetricsTreeDetails(req.user!, projectUuid, metricsTreeUuid);
+            .getMetricsTreeDetails(
+                req.user!,
+                projectUuid,
+                metricsTreeUuidOrSlug,
+            );
 
         return {
             status: 'ok',

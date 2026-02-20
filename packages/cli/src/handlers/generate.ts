@@ -21,6 +21,7 @@ import GlobalState from '../globalState';
 import * as styles from '../styles';
 import { CompileHandlerOptions } from './compile';
 import { checkLightdashVersion } from './dbt/apiClient';
+import { dbtList } from './dbt/compile';
 import { getDbtVersion } from './dbt/getDbtVersion';
 import getWarehouseClient from './dbt/getWarehouseClient';
 
@@ -57,6 +58,7 @@ export const generateHandler = async (options: GenerateHandlerOptions) => {
     }
 
     const numModelsSelected = (options.select || options.models)?.length;
+    const startTime = Date.now();
     await LightdashAnalytics.track({
         event: 'generate.started',
         properties: {
@@ -82,6 +84,12 @@ export const generateHandler = async (options: GenerateHandlerOptions) => {
         target: options.target,
         startOfWeek: options.startOfWeek,
     });
+    // When --target is explicitly set, run dbt ls to refresh the manifest
+    // so model schema/database/catalog reflect the correct target
+    if (options.target && !dbtVersion.isDbtCloudCLI) {
+        await dbtList(options);
+    }
+
     const manifest = await loadManifest({ targetDir: context.targetDir });
     const models = getModelsFromManifest(manifest);
     const compiledModels = await getCompiledModels(models, {
@@ -197,6 +205,7 @@ export const generateHandler = async (options: GenerateHandlerOptions) => {
             executionId,
             trigger: 'generate',
             numModelsSelected,
+            durationMs: Date.now() - startTime,
         },
     });
 };

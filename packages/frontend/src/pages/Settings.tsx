@@ -10,6 +10,7 @@ import {
     IconDatabase,
     IconDatabaseCog,
     IconDatabaseExport,
+    IconFolders,
     IconHistory,
     IconIdBadge2,
     IconKey,
@@ -113,6 +114,10 @@ const Settings: FC = () => {
 
     const userGroupsFeatureFlagQuery = useServerFeatureFlag(
         FeatureFlags.UserGroupsEnabled,
+    );
+
+    const { data: defaultUserSpacesFlag } = useServerFeatureFlag(
+        FeatureFlags.DefaultUserSpaces,
     );
 
     const { track } = useTracking();
@@ -846,6 +851,18 @@ const Settings: FC = () => {
                                                 <MantineIcon icon={IconUsers} />
                                             }
                                         />
+                                        {defaultUserSpacesFlag?.enabled && (
+                                            <RouterNavLink
+                                                label="Default user spaces"
+                                                exact
+                                                to={`/generalSettings/projectManagement/${project.projectUuid}/defaultUserSpaces`}
+                                                leftSection={
+                                                    <MantineIcon
+                                                        icon={IconFolders}
+                                                    />
+                                                }
+                                            />
+                                        )}
                                     </Can>
 
                                     {user.ability.can(

@@ -180,33 +180,42 @@ export const compileTableCalculationFromTemplate = (
     };
 
     const orderByClause = buildOrderByClause(template);
+
+    const buildPartitionByClause = (
+        calcTemplate: TableCalculationTemplate,
+    ): string => {
+        if (!('partitionBy' in calcTemplate) || !calcTemplate.partitionBy)
+            return '';
+        const { partitionBy } = calcTemplate;
+        if (partitionBy.length === 0) return '';
+        const partitionFields = partitionBy
+            .map((fieldId) => `${quoteChar}${fieldId}${quoteChar}`)
+            .join(', ');
+        return `PARTITION BY ${partitionFields} `;
+    };
+
+    const partitionByClause = buildPartitionByClause(template);
+
     const templateType = template.type;
     switch (templateType) {
         case TableCalculationTemplateType.PERCENT_CHANGE_FROM_PREVIOUS: {
             return (
                 `(CAST(${quotedFieldId} AS ${floatType}) / ` +
-                `CAST(NULLIF(LAG(${quotedFieldId}) OVER(${orderByClause}), 0) AS ${floatType})) - 1`
+                `CAST(NULLIF(LAG(${quotedFieldId}) OVER(${partitionByClause}${orderByClause}), 0) AS ${floatType})) - 1`
             );
         }
 
         case TableCalculationTemplateType.PERCENT_OF_PREVIOUS_VALUE: {
             return (
                 `(CAST(${quotedFieldId} AS ${floatType}) / ` +
-                `CAST(NULLIF(LAG(${quotedFieldId}) OVER(${orderByClause}), 0) AS ${floatType}))`
+                `CAST(NULLIF(LAG(${quotedFieldId}) OVER(${partitionByClause}${orderByClause}), 0) AS ${floatType}))`
             );
         }
 
         case TableCalculationTemplateType.PERCENT_OF_COLUMN_TOTAL: {
-            let overClause = '';
-            if (template.partitionBy && template.partitionBy.length > 0) {
-                const partitionFields = template.partitionBy
-                    .map((fieldId) => `${quoteChar}${fieldId}${quoteChar}`)
-                    .join(', ');
-                overClause = `PARTITION BY ${partitionFields}`;
-            }
             return (
                 `(CAST(${quotedFieldId} AS ${floatType}) / ` +
-                `CAST(NULLIF(SUM(${quotedFieldId}) OVER(${overClause}), 0) AS ${floatType}))`
+                `CAST(NULLIF(SUM(${quotedFieldId}) OVER(${partitionByClause.trimEnd()}), 0) AS ${floatType}))`
             );
         }
 

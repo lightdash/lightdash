@@ -37,8 +37,21 @@ export type ProjectSpaceAccess = {
 
 export type SpaceAccessInput = {
     spaceUuid: string;
-    isPrivate: boolean;
+    inheritsFromOrgOrProject: boolean;
     directAccess: DirectSpaceAccess[];
+    projectAccess: ProjectSpaceAccess[];
+    organizationAccess: OrganizationSpaceAccess[];
+};
+
+export type ChainSpaceDirectAccess = {
+    spaceUuid: string;
+    directAccess: DirectSpaceAccess[];
+};
+
+export type SpaceAccessWithInheritanceInput = {
+    spaceUuid: string;
+    inheritsFromOrgOrProject: boolean;
+    chainDirectAccess: ChainSpaceDirectAccess[];
     projectAccess: ProjectSpaceAccess[];
     organizationAccess: OrganizationSpaceAccess[];
 };
@@ -56,8 +69,7 @@ export type Space = {
     pinnedListUuid: string | null;
     pinnedListOrder: number | null;
     slug: string;
-    // Nested Spaces MVP - disables nested spaces' access changes
-    childSpaces: Omit<SpaceSummary, 'userAccess'>[];
+    childSpaces: SpaceSummaryBase[];
     parentSpaceUuid: string | null;
     inheritParentPermissions: boolean;
     // ltree path serialized as string
@@ -68,7 +80,9 @@ export type Space = {
     }[];
 };
 
-export type SpaceSummary = Pick<
+// Base space summary without access data — returned by SpaceModel.find().
+// Use SpaceSummary for API responses that include access info.
+export type SpaceSummaryBase = Pick<
     Space,
     | 'organizationUuid'
     | 'projectUuid'
@@ -82,8 +96,6 @@ export type SpaceSummary = Pick<
     | 'parentSpaceUuid'
     | 'path'
 > & {
-    userAccess: SpaceAccess | undefined;
-    access: string[];
     chartCount: number;
     dashboardCount: number;
     deletedAt?: Date;
@@ -92,6 +104,11 @@ export type SpaceSummary = Pick<
         firstName: string;
         lastName: string;
     };
+};
+
+export type SpaceSummary = SpaceSummaryBase & {
+    userAccess: SpaceAccess | undefined;
+    access: string[];
 };
 
 export type CreateSpace = {
@@ -112,6 +129,19 @@ export type SpaceAccessUserMetadata = {
     firstName: string;
     lastName: string;
     email: string;
+};
+
+export type SpaceInheritanceChainItem = {
+    spaceUuid: string;
+    spaceName: string;
+    inheritParentPermissions: boolean;
+};
+
+export type SpaceInheritanceChain = {
+    /** Spaces from leaf to the first inherit=false ancestor (or root). */
+    chain: SpaceInheritanceChainItem[];
+    /** True if the chain reaches a root space that inherits from the project/org. */
+    inheritsFromOrgOrProject: boolean;
 };
 
 // Access data for checking Space access permissions with CASL where only the role/access data matters.

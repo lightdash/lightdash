@@ -51,12 +51,14 @@ import QuickCalculationMenuOptions from './QuickCalculations';
 interface ContextMenuProps extends HeaderProps {
     onToggleCalculationEditModal: (value: boolean) => void;
     onToggleCalculationDeleteModal: (value: boolean) => void;
+    onQuickCalculationCreated: (tableCalculation: TableCalculation) => void;
 }
 
 const ContextMenu: FC<ContextMenuProps> = ({
     header,
     onToggleCalculationEditModal,
     onToggleCalculationDeleteModal,
+    onQuickCalculationCreated,
 }) => {
     const { addFilter } = useFilters();
     const { track } = useTracking();
@@ -176,7 +178,10 @@ const ContextMenu: FC<ContextMenuProps> = ({
                                 </>
                             )}
 
-                        <QuickCalculationMenuOptions item={item} />
+                        <QuickCalculationMenuOptions
+                            item={item}
+                            onCalculationCreated={onQuickCalculationCreated}
+                        />
                         <Menu.Divider />
                     </>
                 )}
@@ -335,6 +340,8 @@ const ContextMenu: FC<ContextMenuProps> = ({
 const ColumnHeaderContextMenu: FC<HeaderProps> = ({ header }) => {
     const [showUpdate, setShowUpdate] = useState(false);
     const [showDelete, setShowDelete] = useState(false);
+    const [quickCalcToEdit, setQuickCalcToEdit] =
+        useState<TableCalculation | null>(null);
 
     const meta = header.column.columnDef.meta as TableColumn['meta'];
     const item = meta?.item;
@@ -363,6 +370,7 @@ const ColumnHeaderContextMenu: FC<HeaderProps> = ({ header }) => {
                                 header={header}
                                 onToggleCalculationEditModal={setShowUpdate}
                                 onToggleCalculationDeleteModal={setShowDelete}
+                                onQuickCalculationCreated={setQuickCalcToEdit}
                             />
                         </Menu.Dropdown>
                     </Menu>
@@ -380,6 +388,14 @@ const ColumnHeaderContextMenu: FC<HeaderProps> = ({ header }) => {
                     <DeleteTableCalculationModal
                         tableCalculation={item as TableCalculation}
                         onClose={() => setShowDelete(false)}
+                    />
+                )}
+
+                {quickCalcToEdit && (
+                    <UpdateTableCalculationModal
+                        opened
+                        tableCalculation={quickCalcToEdit}
+                        onClose={() => setQuickCalcToEdit(null)}
                     />
                 )}
             </div>

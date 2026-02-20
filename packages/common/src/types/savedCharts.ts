@@ -56,15 +56,27 @@ export enum ComparisonDiffTypes {
 }
 
 export type BigNumber = {
+    /** Custom label for the big number */
     label?: string;
+    /** Number formatting style (compact notation) */
     style?: CompactOrAlias;
+    /** Field ID to display as the big number */
     selectedField?: string;
+    /** Show the label above the number */
     showBigNumberLabel?: boolean;
+    /** Include table name in the label */
     showTableNamesInLabel?: boolean;
+    /** Show comparison with previous value */
     showComparison?: boolean;
+    /** Format for comparison value */
     comparisonFormat?: ComparisonFormatTypes;
+    /** Flip positive/negative colors (red for increase, green for decrease) */
     flipColors?: boolean;
+    /** Custom label for the comparison value */
     comparisonLabel?: string;
+    /** Conditional formatting rules */
+    conditionalFormattings?: ConditionalFormattingConfig[];
+    comparisonField?: string;
 };
 
 export const PieChartValueLabels = {
@@ -94,55 +106,94 @@ export const PieChartLegendLabelMaxLengthDefault = 30;
 export const PieChartTooltipLabelMaxLength = 40;
 
 export type SeriesMetadata = {
+    /** Color for the series */
     color: string;
 };
 export type PieChart = {
+    /** Field IDs used for grouping/slicing the pie */
     groupFieldIds?: string[];
+    /** Field ID of the metric to display */
     metricId?: string;
+    /** Display as donut chart with hole in center */
     isDonut?: boolean;
+    /** Position of value labels on slices */
     valueLabel?: PieChartValueOptions['valueLabel'];
+    /** Show the actual value on slices */
     showValue?: PieChartValueOptions['showValue'];
+    /** Show percentage on slices */
     showPercentage?: PieChartValueOptions['showPercentage'];
+    /** Custom labels for each group/slice */
     groupLabelOverrides?: Record<string, string>;
+    /** Custom colors for each group/slice */
     groupColorOverrides?: Record<string, string>;
+    /** Per-slice value display options */
     groupValueOptionOverrides?: Record<string, Partial<PieChartValueOptions>>;
+    /** Custom sort order for groups/slices */
     groupSortOverrides?: string[];
+    /** Show the chart legend */
     showLegend?: boolean;
+    /** Legend position/orientation */
     legendPosition?: PieChartLegendPosition;
+    /** Maximum character length for legend items */
     legendMaxItemLength?: number;
+    /** Metadata for series (colors, etc.) */
     metadata?: Record<string, SeriesMetadata>;
 };
 
 export type TreemapChart = {
+    /** Minimum size for visible nodes */
     visibleMin?: number;
+    /** Depth of leaf nodes to display */
     leafDepth?: number;
+    /** Field IDs for hierarchical grouping */
     groupFieldIds?: string[];
+    /** Field ID for node size */
     sizeMetricId?: string;
+    /** Field ID for node color value */
     colorMetricId?: string;
+    /** Start color for color gradient (hex code) */
     startColor?: string;
+    /** End color for color gradient (hex code) */
     endColor?: string;
+    /** Use dynamic color scaling based on values */
     useDynamicColors?: boolean;
+    /** Value threshold for start color */
     startColorThreshold?: number;
+    /** Value threshold for end color */
     endColorThreshold?: number;
 };
 
 export type GaugeSection = {
+    /** Start value for this section */
     min: number;
+    /** End value for this section */
     max: number;
+    /** Field ID to use as min value */
     minFieldId?: string;
+    /** Field ID to use as max value */
     maxFieldId?: string;
+    /** Color for this section (hex code) */
     color: string;
 };
 
 export type GaugeChart = {
+    /** Field ID for the gauge value */
     selectedField?: string;
+    /** Minimum value for the gauge */
     min?: number;
+    /** Maximum value for the gauge */
     max?: number;
+    /** Field ID to use as the max value */
     maxFieldId?: string;
+    /** Show min/max labels on the gauge */
     showAxisLabels?: boolean;
+    /** Color sections/ranges for the gauge */
     sections?: GaugeSection[];
+    /** Custom label for the gauge value */
     customLabel?: string;
+    /** Show value as percentage */
     showPercentage?: boolean;
+    /** Custom label for the percentage display */
     customPercentageLabel?: string;
 };
 
@@ -168,52 +219,67 @@ export enum MapTileBackground {
 }
 
 export type MapFieldConfig = {
+    /** Whether to show this field in tooltips */
     visible?: boolean;
+    /** Custom label for the field */
     label?: string;
 };
 
 export type MapChart = {
+    /** Type of map to display */
     mapType?: MapChartLocation;
+    /** URL to custom GeoJSON file */
     customGeoJsonUrl?: string;
+    /** How to display location data */
     locationType?: MapChartType;
-    // Lat/Long fields
+    /** Field ID for latitude values */
     latitudeFieldId?: string;
+    /** Field ID for longitude values */
     longitudeFieldId?: string;
-    // Country/Region field for area maps
+    /** Field ID for location/region names (area maps) */
     locationFieldId?: string;
-    // GeoJSON property key to match against (e.g., 'name', 'ISO3166-1-Alpha-3')
-    // For World map: matches against countries.geojson properties
-    // For US map: matches against us-states.geojson properties
+    /** Property key in GeoJSON to match against data */
     geoJsonPropertyKey?: string;
-    // Common fields
+    /** Field ID for the value to display */
     valueFieldId?: string;
+    /** Show the map legend */
     showLegend?: boolean;
-    // Color range (array of 2-5 colors for gradient)
+    /** Array of colors for the value gradient */
     colorRange?: string[];
-    // Per-value color overrides for categorical (string) color fields
+    /** Per-value color overrides for categorical color fields */
     colorOverrides?: Record<string, string>;
-    // Map extent settings (zoom and center are saved when user enables "save map extent")
+    /** Default zoom level */
     defaultZoom?: number;
+    /** Default center latitude */
     defaultCenterLat?: number;
+    /** Default center longitude */
     defaultCenterLon?: number;
-    // Scatter bubble size settings (for lat/long maps)
+    /** Minimum bubble size for scatter maps */
     minBubbleSize?: number;
+    /** Maximum bubble size for scatter maps */
     maxBubbleSize?: number;
+    /** Field ID for bubble size (scatter maps) */
     sizeFieldId?: string;
-    // Heatmap settings
+    /** Configuration for heatmap visualization */
     heatmapConfig?: {
+        /** Radius of heat points */
         radius?: number;
+        /** Blur amount for heat points */
         blur?: number;
+        /** Opacity of the heatmap layer */
         opacity?: number;
     };
-    // Data layer opacity for scatter and area maps (0.1 to 1, default 0.7)
+    /** Data layer opacity (0.1 to 1) */
     dataLayerOpacity?: number;
+    /** Map tile background style */
     tileBackground?: MapTileBackground;
+    /** Background color for the map (hex code) */
     backgroundColor?: string;
-    // Color for regions with no matching data (area maps only)
+    /** Color for regions with no data (hex code) */
     noDataColor?: string;
-    // Field configuration (controls tooltip visibility and custom labels)
+    /** Field-specific configuration for tooltips */
     fieldConfig?: Record<string, MapFieldConfig>;
+    /** Save the current map zoom/position */
     saveMapExtent?: boolean;
 };
 
@@ -235,37 +301,63 @@ export enum FunnelChartLegendPosition {
 }
 
 export type FunnelChart = {
+    /** How data is structured (row-based or column-based) */
     dataInput?: FunnelChartDataInput;
+    /** Field ID to display in funnel */
     fieldId?: string;
+    /** Metadata for series (colors, etc.) */
     metadata?: Record<string, SeriesMetadata>;
+    /** Custom labels for funnel stages */
     labelOverrides?: Record<string, string>;
+    /** Custom colors for funnel stages */
     colorOverrides?: Record<string, string>;
+    /** Label display configuration */
     labels?: {
+        /** Position of labels */
         position?: FunnelChartLabelPosition;
+        /** Show the actual value */
         showValue?: boolean;
+        /** Show percentage */
         showPercentage?: boolean;
     };
+    /** Show the chart legend */
     showLegend?: boolean;
+    /** Legend orientation */
     legendPosition?: FunnelChartLegendPosition;
 };
 
 export type ColumnProperties = {
+    /** Whether the column is visible */
     visible?: boolean;
+    /** Custom display name for the column */
     name?: string;
+    /** Freeze the column (stick to left side) */
     frozen?: boolean;
+    /** How to display the cell value */
     displayStyle?: 'text' | 'bar';
+    /** Color for bar display style (hex code) */
     color?: string;
+    width?: number;
 };
 
 export type TableChart = {
+    /** Show column totals/calculations */
     showColumnCalculation?: boolean;
+    /** Show row totals/calculations */
     showRowCalculation?: boolean;
+    /** Show table names in column headers */
     showTableNames?: boolean;
+    /** Hide row number column */
     hideRowNumbers?: boolean;
+    /** Show total results count */
     showResultsTotal?: boolean;
+    /** Show subtotal rows */
     showSubtotals?: boolean;
+    /** Column-specific configuration */
     columns?: Record<string, ColumnProperties>;
+    /** Conditional formatting rules */
     conditionalFormattings?: ConditionalFormattingConfig[];
+    /** Display metrics as rows instead of columns */
     metricsAsRows?: boolean;
 };
 
@@ -300,12 +392,16 @@ export const DEFAULT_GROUP_LIMIT_CONFIG: GroupLimitConfig = {
 export const OTHER_GROUP_PIVOT_VALUE = '__other__';
 
 export type PivotValue = {
+    /** Pivot field ID */
     field: string;
+    /** Pivot value */
     value: unknown;
 };
 
 export type PivotReference = {
+    /** Field ID being referenced */
     field: string;
+    /** Pivot values for this reference (for pivoted data) */
     pivotValues?: PivotValue[];
 };
 
@@ -315,75 +411,131 @@ export const isPivotReferenceWithValues = (
     !!value.pivotValues && value.pivotValues.length > 0;
 
 export type MarkLineData = {
+    /** Y axis value for horizontal line */
     yAxis?: string;
+    /** X axis value for vertical line */
     xAxis?: string;
+    /** Name of the reference line */
     name?: string;
+    /** Value to display */
     value?: string;
+    /** Point type (e.g., 'average') */
     type?: string;
+    /** Unique identifier for this mark line */
     uuid: string;
+    /** Line style for this data point */
     lineStyle?: {
+        /** Line color */
         color: string;
     };
+    /** Label configuration for this data point */
     label?: {
+        /** Label formatter */
         formatter?: string;
+        /** Label position */
         position?: 'start' | 'middle' | 'end';
     };
+    /** Dynamic value type */
     dynamicValue?: 'average';
 };
 export type MarkLine = {
+    /** Reference line data points */
     data: MarkLineData[];
+    /** Symbol at line endpoints */
     symbol?: string;
+    /** Line style configuration */
     lineStyle?: {
+        /** Line color */
         color: string;
+        /** Line width */
         width: number;
+        /** Line type */
         type: string;
     };
+    /** Label configuration */
     label?: {
+        /** Label formatter */
         formatter?: string;
     };
 };
 export type Series = {
+    /** Field references for this series */
     encode: {
+        /** X axis field reference */
         xRef: PivotReference;
+        /** Y axis field reference */
         yRef: PivotReference;
-        x?: string; // hash of xRef
-        y?: string; // hash of yRef
+        /** Hash of xRef (computed) */
+        x?: string;
+        /** Hash of yRef (computed) */
+        y?: string;
     };
+    /** Series visualization type */
     type: CartesianSeriesType;
+    /** Stack group name (series with same stack name are stacked) */
     stack?: string;
+    /** Stack total label configuration */
     stackLabel?: {
+        /** Show stack total labels */
         show?: boolean;
     };
+    /** Display name for the series */
     name?: string;
+    /** Color for the series (hex code) */
     color?: string;
+    /** Index of Y axis to use (for dual Y axis charts) */
     yAxisIndex?: number;
+    /** Data label configuration */
     label?: {
+        /** Show data labels on points */
         show?: boolean;
+        /** Position of data labels */
         position?: 'left' | 'top' | 'right' | 'bottom' | 'inside';
+        /** Show labels even when they overlap */
         showOverlappingLabels?: boolean;
-        showValue?: boolean; // Show the metric value (default: true when labels are shown)
-        showLabel?: boolean; // Show the legend/pivot name (e.g., "United States") or metric name for non-pivoted
-        showSeriesName?: boolean; // Show the metric field name (e.g., "Revenue")
+        /** Show the metric value */
+        showValue?: boolean;
+        /** Show the legend/pivot name */
+        showLabel?: boolean;
+        /** Show the metric field name */
+        showSeriesName?: boolean;
     };
+    /** Hide this series from the chart */
     hidden?: boolean;
+    /** Area fill style (presence indicates area chart) */
     areaStyle?: Record<string, unknown>;
+    /** Show symbols/markers on data points */
     showSymbol?: boolean;
+    /** Use smooth curves for line/area charts */
     smooth?: boolean;
+    /** Reference line configuration */
     markLine?: MarkLine;
+    /** Whether this series is currently filtered out */
     isFilteredOut?: boolean;
 };
 
 export type EchartsLegend = {
+    /** Show the legend */
     show?: boolean;
+    /** Legend type (plain or scrollable) */
     type?: 'plain' | 'scroll';
+    /** Legend orientation */
     orient?: 'horizontal' | 'vertical';
+    /** Top position */
     top?: string;
+    /** Right position */
     right?: string;
+    /** Bottom position */
     bottom?: string;
+    /** Left position */
     left?: string;
+    /** Legend width */
     width?: string;
+    /** Legend height */
     height?: string;
+    /** Legend alignment */
     align?: 'auto' | 'left' | 'right';
+    /** Legend icon shape */
     icon?:
         | 'circle'
         | 'rect'
@@ -396,12 +548,19 @@ export type EchartsLegend = {
 };
 
 export type EchartsGrid = {
+    /** Whether the grid area contains axis labels */
     containLabel?: boolean;
+    /** Top padding */
     top?: string;
+    /** Right padding */
     right?: string;
+    /** Bottom padding */
     bottom?: string;
+    /** Left padding */
     left?: string;
+    /** Grid width */
     width?: string;
+    /** Grid height */
     height?: string;
 };
 
@@ -416,32 +575,51 @@ export type TooltipSortBy =
     (typeof TooltipSortByOptions)[keyof typeof TooltipSortByOptions];
 
 export type CompleteEChartsConfig = {
+    /** Legend configuration */
     legend?: EchartsLegend;
+    /** Grid (chart area) configuration */
     grid?: EchartsGrid;
+    /** Chart series configuration */
     series: Series[];
+    /** X axis configuration */
     xAxis: XAxis[];
+    /** Y axis configuration */
     yAxis: Axis[];
+    /** Tooltip formatter template */
     tooltip?: string;
+    /** How to sort tooltip items */
     tooltipSort?: TooltipSortBy;
+    /** Show tick marks on axes */
     showAxisTicks?: boolean;
+    /** Font size for axis labels */
     axisLabelFontSize?: number;
+    /** Font size for axis titles */
     axisTitleFontSize?: number;
 };
 
 export type EChartsConfig = Partial<CompleteEChartsConfig>;
 
 type Axis = {
+    /** Axis title */
     name?: string;
+    /** Minimum value (or 'dataMin' for auto) */
     min?: string | undefined;
+    /** Maximum value (or 'dataMax' for auto) */
     max?: string | undefined;
+    /** Offset from minimum value */
     minOffset?: string | undefined;
+    /** Offset from maximum value */
     maxOffset?: string | undefined;
+    /** Reverse the axis direction */
     inverse?: boolean;
+    /** Rotation angle for axis labels */
     rotate?: number;
 };
 
 export type XAxis = Axis & {
+    /** How to sort the X axis */
     sortType?: XAxisSortType;
+    /** Enable data zoom slider for this axis */
     enableDataZoom?: boolean;
 };
 
@@ -481,17 +659,28 @@ export function getXAxisSort(
 }
 
 export type CompleteCartesianChartLayout = {
+    /** Field ID to use for the X axis */
     xField: string;
+    /** Field IDs to use for the Y axis */
     yField: string[];
+    /** Swap X and Y axes (creates horizontal bar charts) */
     flipAxes?: boolean | undefined;
+    /** Show vertical grid lines */
     showGridX?: boolean | undefined;
+    /** Show horizontal grid lines */
     showGridY?: boolean | undefined;
+    /** Show the X axis */
     showXAxis?: boolean | undefined;
-    showYAxis?: boolean | undefined; // Legacy: controls all Y-axes together
-    showLeftYAxis?: boolean | undefined; // Controls left/primary Y-axis visibility independently
-    showRightYAxis?: boolean | undefined; // Controls right/secondary Y-axis visibility independently
-    stack?: boolean | string | undefined; // Support both old boolean and new StackType string for backward compatibility
-    connectNulls?: boolean | undefined; // only applicable for line series, defaults to true
+    /** Show the Y axis */
+    showYAxis?: boolean | undefined;
+    /** Controls left/primary Y-axis visibility */
+    showLeftYAxis?: boolean | undefined;
+    /** Controls right/secondary Y-axis visibility */
+    showRightYAxis?: boolean | undefined;
+    /** Stack series together (true for default stacking, or string for stack group name) */
+    stack?: boolean | string | undefined;
+    /** Connect null data points with a line */
+    connectNulls?: boolean | undefined;
     /** Configuration for limiting visible groups and aggregating the rest into "Other" */
     groupLimit?: GroupLimitConfig | undefined;
 };
@@ -499,57 +688,79 @@ export type CompleteCartesianChartLayout = {
 export type CartesianChartLayout = Partial<CompleteCartesianChartLayout>;
 
 export type CustomVis = {
+    /** Custom visualization specification (Vega-Lite or other) */
     spec?: Record<string, unknown>;
 };
 
 export type CartesianChart = {
+    /** Layout configuration for the chart axes and orientation */
     layout: CartesianChartLayout;
+    /** ECharts-specific configuration */
     eChartsConfig: EChartsConfig;
+    /** Metadata for series (colors, etc.) */
     metadata?: Record<string, SeriesMetadata>;
 };
 
 export type BigNumberConfig = {
+    /** Type of chart visualization */
     type: ChartType.BIG_NUMBER;
+    /** Chart-type-specific configuration */
     config?: BigNumber;
 };
 
 export type CartesianChartConfig = {
+    /** Type of chart visualization */
     type: ChartType.CARTESIAN;
+    /** Chart-type-specific configuration */
     config?: CartesianChart;
 };
 
 export type CustomVisConfig = {
+    /** Type of chart visualization */
     type: ChartType.CUSTOM;
+    /** Chart-type-specific configuration */
     config?: CustomVis;
 };
 
 export type PieChartConfig = {
+    /** Type of chart visualization */
     type: ChartType.PIE;
+    /** Chart-type-specific configuration */
     config?: PieChart;
 };
 
 export type FunnelChartConfig = {
+    /** Type of chart visualization */
     type: ChartType.FUNNEL;
+    /** Chart-type-specific configuration */
     config?: FunnelChart;
 };
 
 export type TableChartConfig = {
+    /** Type of chart visualization */
     type: ChartType.TABLE;
+    /** Chart-type-specific configuration */
     config?: TableChart;
 };
 
 export type TreemapChartConfig = {
+    /** Type of chart visualization */
     type: ChartType.TREEMAP;
+    /** Chart-type-specific configuration */
     config?: TreemapChart;
 };
 
 export type GaugeChartConfig = {
+    /** Type of chart visualization */
     type: ChartType.GAUGE;
+    /** Chart-type-specific configuration */
     config?: GaugeChart;
 };
 
 export type MapChartConfig = {
+    /** Type of chart visualization */
     type: ChartType.MAP;
+    /** Chart-type-specific configuration */
     config?: MapChart;
 };
 
@@ -571,18 +782,29 @@ export type SavedChartDAO = Omit<SavedChart, 'isPrivate' | 'access'>;
 export type SavedChart = {
     uuid: string;
     projectUuid: string;
+    /** Display name of the chart */
     name: string;
+    /** Optional description of what this chart displays */
     description?: string;
+    /** The explore/table name this chart queries from */
     tableName: string;
+    /** The query configuration defining what data to fetch */
     metricQuery: MetricQuery;
+    /** Pivot table configuration */
     pivotConfig?: {
+        /** Fields to use as pivot columns */
         columns: string[];
     };
+    /** Visualization configuration for the chart */
     chartConfig: ChartConfig;
+    /** Table view configuration */
     tableConfig: {
+        /** Order of columns in table view */
         columnOrder: string[];
     };
+    /** Parameter values for the chart query */
     parameters?: ParametersValuesMap;
+    /** Timestamp when the chart was last updated */
     updatedAt: Date;
     updatedByUser?: UpdatedByUser;
     organizationUuid: string;
@@ -595,8 +817,8 @@ export type SavedChart = {
     colorPalette: string[];
     isPrivate: boolean;
     access: SpaceAccess[];
+    /** Unique identifier slug for this chart */
     slug: string;
-    // Soft delete fields (only present when deleted: true option is used)
     deletedAt?: Date;
     deletedBy?: {
         userUuid: string;

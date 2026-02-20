@@ -1,0 +1,23 @@
+.gridCard {
+    &:hover {
+        background-color: color-mix(
+            in srgb,
+            var(--mantine-color-ldGray-0) 50%,
+            transparent
+        );
+    }
+}
+
+.spaceActionBox {
+    flex-grow: 0;
+    flex-shrink: 0;
+}
+
+.spaceName {
+    overflow-wrap: anywhere;
+}
+
+.spaceContentStack {
+    flex-grow: 1;
+    flex-shrink: 1;
+}

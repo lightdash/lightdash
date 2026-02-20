@@ -64,11 +64,6 @@ export enum FeatureFlags {
     UnusedContentDashboard = 'unused-content-dashboard',
 
     /**
-     * Enable period-over-period comparisons option
-     */
-    PeriodOverPeriod = 'pop',
-
-    /**
      * Enable viewing and editing YAML source files in the Explore UI
      */
     EditYamlInUi = 'edit-yaml-in-ui',
@@ -88,6 +83,11 @@ export enum FeatureFlags {
      * Enable saved metrics tree in metrics catalog
      */
     SavedMetricsTree = 'saved-metrics-tree',
+
+    /**
+     * Enable default personal spaces for project members
+     */
+    DefaultUserSpaces = 'default-user-spaces',
 }
 
 export type FeatureFlag = {

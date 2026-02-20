@@ -6,7 +6,7 @@ import LandingPanel from '../components/Home/LandingPanel';
 import { MostPopularAndRecentlyUpdatedPanel } from '../components/Home/MostPopularAndRecentlyUpdatedPanel';
 import OnboardingPanel from '../components/Home/OnboardingPanel/index';
 import PageSpinner from '../components/PageSpinner';
-import PinnedItemsPanel from '../components/PinnedItemsPanel';
+import PinnedAndFavoritesSection from '../components/PinnedAndFavoritesSection';
 import ErrorState from '../components/common/ErrorState';
 import Page from '../components/common/Page/Page';
 import AiSearchBox from '../ee/components/Home/AiSearchBox';
@@ -14,6 +14,7 @@ import AiSearchBox from '../ee/components/Home/AiSearchBox';
 import { subject } from '@casl/ability';
 import { Stack } from '@mantine-8/core';
 import { useAiAgentButtonVisibility } from '../ee/features/aiCopilot/hooks/useAiAgentsButtonVisibility';
+import { useFavorites } from '../hooks/favorites/useFavorites';
 import { usePinnedItems } from '../hooks/pinning/usePinnedItems';
 import { useOnboardingStatus } from '../hooks/useOnboardingStatus';
 import {
@@ -21,6 +22,7 @@ import {
     useProject,
 } from '../hooks/useProject';
 import useApp from '../providers/App/useApp';
+import { FavoritesProvider } from '../providers/Favorites/FavoritesProvider';
 import { PinnedItemsProvider } from '../providers/PinnedItems/PinnedItemsProvider';
 
 const Home: FC = () => {
@@ -32,6 +34,7 @@ const Home: FC = () => {
         selectedProjectUuid,
         project.data?.pinnedListUuid,
     );
+    const favorites = useFavorites(selectedProjectUuid);
     const {
         data: mostPopularAndRecentlyUpdated,
         isInitialLoading: isMostPopularAndRecentlyUpdatedLoading,
@@ -44,7 +47,8 @@ const Home: FC = () => {
         onboarding.isInitialLoading ||
         project.isInitialLoading ||
         isMostPopularAndRecentlyUpdatedLoading ||
-        pinnedItems.isInitialLoading;
+        pinnedItems.isInitialLoading ||
+        favorites.isInitialLoading;
 
     const error = onboarding.error || project.error;
 
@@ -75,7 +79,9 @@ const Home: FC = () => {
                         userName={user.data?.firstName}
                     />
                 ) : (
-                    <>
+                    <FavoritesProvider
+                        projectUuid={project.data.projectUuid}
+                    >
                         <LandingPanel
                             userName={user.data?.firstName}
                             projectUuid={project.data.projectUuid}
@@ -88,14 +94,17 @@ const Home: FC = () => {
                         <PinnedItemsProvider
                             organizationUuid={project.data.organizationUuid}
                             projectUuid={project.data.projectUuid}
-                            pinnedListUuid={project.data.pinnedListUuid || ''}
+                            pinnedListUuid={
+                                project.data.pinnedListUuid || ''
+                            }
                             allowDelete={false}
                         >
-                            <PinnedItemsPanel
+                            <PinnedAndFavoritesSection
                                 pinnedItems={pinnedItems.data ?? []}
-                                isEnabled={Boolean(
-                                    mostPopularAndRecentlyUpdated?.mostPopular
-                                        .length ||
+                                favoriteItems={favorites.data ?? []}
+                                pinnedIsEnabled={Boolean(
+                                    mostPopularAndRecentlyUpdated
+                                        ?.mostPopular.length ||
                                         mostPopularAndRecentlyUpdated
                                             ?.recentlyUpdated.length,
                                 )}
@@ -105,7 +114,7 @@ const Home: FC = () => {
                             data={mostPopularAndRecentlyUpdated}
                             projectUuid={project.data.projectUuid}
                         />
-                    </>
+                    </FavoritesProvider>
                 )}
             </Stack>
         </Page>

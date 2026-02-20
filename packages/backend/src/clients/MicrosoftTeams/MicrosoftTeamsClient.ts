@@ -40,11 +40,15 @@ export class MicrosoftTeamsClient {
         }
         const response = await fetch(webhookUrl, {
             method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
             body: JSON.stringify(payload),
         });
 
-        const responseText = await response.text();
-        if (response.status !== 200 || responseText.includes('error')) {
+        // Accept any 2xx status: legacy webhooks return 200, Power Automate Workflows return 202
+        if (!response.ok) {
+            const responseText = await response.text();
             Logger.error(
                 `Microsoft teams webhook returned an error: ${response.status} ${responseText}`,
             );

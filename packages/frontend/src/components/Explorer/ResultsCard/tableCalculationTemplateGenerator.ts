@@ -40,6 +40,7 @@ export function generateTableCalculationTemplate(
                 type: TableCalculationTemplateType.PERCENT_CHANGE_FROM_PREVIOUS,
                 fieldId,
                 orderBy: mapSortsToOrderBy(currentSorts),
+                partitionBy: [],
             };
 
         case TableCalculationTemplateType.PERCENT_OF_PREVIOUS_VALUE:
@@ -47,6 +48,7 @@ export function generateTableCalculationTemplate(
                 type: TableCalculationTemplateType.PERCENT_OF_PREVIOUS_VALUE,
                 fieldId,
                 orderBy: mapSortsToOrderBy(currentSorts),
+                partitionBy: [],
             };
 
         case TableCalculationTemplateType.RUNNING_TOTAL:

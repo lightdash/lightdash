@@ -536,7 +536,9 @@ export const maybeOverrideDbtConnection = <T extends DbtProjectConfig>(
         ...(isGitProjectType(connection) && overrides.branch
             ? { branch: overrides.branch }
             : undefined),
-        ...(!isRemoteType(connection) && overrides.environment
+        ...(!isRemoteType(connection) &&
+        overrides.environment &&
+        overrides.environment.length > 0
             ? { environment: overrides.environment }
             : undefined),
     };
@@ -555,6 +557,7 @@ export type Project = {
     schedulerTimezone: string;
     createdByUserUuid: string | null;
     organizationWarehouseCredentialsUuid?: string;
+    hasDefaultUserSpaces: boolean;
 };
 
 export type ProjectSummary = Pick<

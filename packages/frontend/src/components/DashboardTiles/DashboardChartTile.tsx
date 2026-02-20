@@ -211,9 +211,16 @@ const computeDashboardChartSeries = (
             defaultLabel: firstSerie?.label,
             itemsMap,
         });
+        const sortedByPivot =
+            !!validPivotDimensions?.length &&
+            chart.metricQuery.sorts.some((sort) =>
+                validPivotDimensions.includes(sort.fieldId),
+            );
+
         const newSeries = mergeExistingAndExpectedSeries({
             expectedSeriesMap,
             existingSeries: chart.chartConfig.config.eChartsConfig.series || [],
+            sortedByPivot,
         });
         return newSeries;
     }

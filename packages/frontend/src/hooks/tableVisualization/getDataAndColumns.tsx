@@ -28,6 +28,7 @@ type Args = {
     selectedItemIds: string[];
     isColumnVisible: (key: string) => boolean;
     isColumnFrozen: (key: string) => boolean;
+    getColumnWidth: (key: string) => number | undefined;
     showTableNames: boolean;
     getFieldLabelOverride: (key: string) => string | undefined;
     columnOrder: string[];
@@ -94,11 +95,24 @@ const getImageSize = (item: ItemsMap[string] | undefined) => {
     return {};
 };
 
+const getColumnWidthMeta = (width: number | undefined) => {
+    if (width === undefined) return {};
+    return {
+        width,
+        style: {
+            width,
+            minWidth: width,
+            maxWidth: width,
+        },
+    };
+};
+
 const getDataAndColumns = ({
     itemsMap,
     selectedItemIds,
     isColumnVisible,
     isColumnFrozen,
+    getColumnWidth,
     showTableNames,
     getFieldLabelOverride,
     columnOrder,
@@ -185,6 +199,8 @@ const getDataAndColumns = ({
                         frozen: isColumnFrozen(itemId),
                         // For image columns with explicit width: set fixed width constraints
                         ...getImageSize(item),
+                        // Apply user-configured column width (overrides image size)
+                        ...getColumnWidthMeta(getColumnWidth(itemId)),
                     },
                     // Some features work in the TanStack Table demos but not here, for unknown reasons.
                     // For example, setting grouping value here does not work. The workaround is to use

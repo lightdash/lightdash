@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    ContentType,
     type Dashboard,
     type FeatureFlags,
     ResourceViewItemType,
@@ -33,6 +34,8 @@ import {
     IconPin,
     IconPinnedOff,
     IconSend,
+    IconStar,
+    IconStarFilled,
     IconTrash,
     IconUpload,
 } from '@tabler/icons-react';
@@ -48,6 +51,8 @@ import {
 } from '../../../features/promotion/hooks/usePromoteDashboard';
 import { DashboardSchedulersModal } from '../../../features/scheduler';
 import { getSchedulerUuidFromUrlParams } from '../../../features/scheduler/utils';
+import { useFavoriteMutation } from '../../../hooks/favorites/useFavoriteMutation';
+import { useFavorites } from '../../../hooks/favorites/useFavorites';
 import { useDashboardPinningMutation } from '../../../hooks/pinning/useDashboardPinningMutation';
 import { useProject } from '../../../hooks/useProject';
 import { useClientFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
@@ -58,12 +63,12 @@ import AddTileButton from '../../DashboardTiles/AddTileButton';
 import MantineIcon from '../MantineIcon';
 import PageHeader from '../Page/PageHeader';
 import DashboardInfoOverlay from '../PageHeader/DashboardInfoOverlay';
+import { ShareLinkButton } from '../ShareLinkButton';
 import SpaceActionModal from '../SpaceActionModal';
 import { ActionType } from '../SpaceActionModal/types';
 import TransferItemsModal from '../TransferItemsModal/TransferItemsModal';
 import DashboardUpdateModal from '../modal/DashboardUpdateModal';
 import { DashboardRefreshButton } from './DashboardRefreshButton';
-import { ShareLinkButton } from './ShareLinkButton';
 import {
     DASHBOARD_HEADER_HEIGHT,
     DASHBOARD_HEADER_ZINDEX,
@@ -202,6 +207,13 @@ const DashboardHeader = ({
         toggleDashboardPinning({ uuid: dashboardUuid });
     }, [dashboardUuid, toggleDashboardPinning]);
 
+    const { data: favorites } = useFavorites(projectUuid);
+    const { mutate: toggleFavorite } = useFavoriteMutation(projectUuid);
+    const isDashboardFavorited = useMemo(
+        () => favorites?.some((f) => f.data.uuid === dashboardUuid) ?? false,
+        [favorites, dashboardUuid],
+    );
+
     const { user } = useApp();
     const userCanManageDashboard = user.data?.ability.can(
         'manage',
@@ -271,6 +283,27 @@ const DashboardHeader = ({
         >
             <Group gap="xs" flex={1} wrap="nowrap">
                 <Title order={6}>{dashboard.name}</Title>
+
+                {dashboardUuid && (
+                    <ActionIcon
+                        variant="subtle"
+                        size="md"
+                        radius="md"
+                        color={isDashboardFavorited ? 'orange' : 'ldGray.6'}
+                        onClick={() => {
+                            toggleFavorite({
+                                contentType: ContentType.DASHBOARD,
+                                contentUuid: dashboardUuid,
+                            });
+                        }}
+                    >
+                        {isDashboardFavorited ? (
+                            <IconStarFilled size={16} />
+                        ) : (
+                            <IconStar size={16} />
+                        )}
+                    </ActionIcon>
+                )}
 
                 <Popover
                     withinPortal
@@ -511,7 +544,10 @@ const DashboardHeader = ({
                         )}
 
                     {userCanExportData && !isFullscreen && (
-                        <ShareLinkButton url={`${window.location.href}`} />
+                        <ShareLinkButton
+                            url={`${window.location.href}`}
+                            label="Copy link to the dashboard"
+                        />
                     )}
 
                     {!isFullscreen && (

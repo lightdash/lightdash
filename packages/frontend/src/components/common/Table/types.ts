@@ -76,6 +76,7 @@ export type ProviderProps = {
     };
     columnOrder?: string[];
     onColumnOrderChange?: (value: string[]) => void;
+    onColumnWidthChange?: (fieldId: string, width: number) => void;
 };
 
 export type TableContext = ProviderProps & {

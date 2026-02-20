@@ -447,7 +447,7 @@ jobs:
     timeout-minutes: 30
     runs-on: depot-ubuntu-24.04-4
     needs: [preview, files-changed]
-    name: "CLI: API"
+    name: "CLI: Without dbt"
     env:
       NODE_OPTIONS: "--max-old-space-size=8192"
     steps:
@@ -471,7 +471,7 @@ jobs:
         with:
           install: false
           working-directory: packages/e2e
-          spec: cypress/cli/api
+          spec: cypress/cli/api,cypress/cli/yaml-only
           config: "baseUrl=https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev"
 
   # CLI tests with dbt

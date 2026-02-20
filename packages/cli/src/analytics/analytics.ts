@@ -52,6 +52,7 @@ type CliGenerateExposuresCompleted = BaseTrack & {
     properties: {
         executionId: string;
         countExposures: number;
+        durationMs?: number;
     };
 };
 type CliGenerateExposuresError = BaseTrack & {
@@ -75,6 +76,7 @@ type CliGenerateCompleted = BaseTrack & {
         executionId: string;
         numModelsSelected: number | undefined;
         trigger: string; // generate or dbt
+        durationMs?: number;
     };
 };
 type CliGenerateError = BaseTrack & {
@@ -92,11 +94,20 @@ type CliDbtCommand = BaseTrack & {
     };
 };
 
+type CliDbtCommandCompleted = BaseTrack & {
+    event: 'dbt_command.completed';
+    properties: {
+        command: string;
+        durationMs: number;
+    };
+};
+
 type CliDbtError = BaseTrack & {
     event: 'dbt_command.error';
     properties: {
         command: string;
         error: string;
+        durationMs: number;
     };
 };
 
@@ -112,6 +123,7 @@ type CliPreviewCompleted = BaseTrack & {
     properties: {
         executionId: string;
         projectId: string;
+        durationMs?: number;
     };
 };
 type CliPreviewStopped = BaseTrack & {
@@ -119,6 +131,7 @@ type CliPreviewStopped = BaseTrack & {
     properties: {
         executionId: string;
         projectId: string;
+        durationMs?: number;
     };
 };
 type CliPreviewError = BaseTrack & {
@@ -142,6 +155,7 @@ type CliRefreshCompleted = BaseTrack & {
     properties: {
         executionId: string;
         projectId: string;
+        durationMs?: number;
     };
 };
 type CliRefreshError = BaseTrack & {
@@ -171,6 +185,7 @@ type CliCompileCompleted = BaseTrack & {
         errors: number;
         dbtMetrics: number;
         dbtVersion?: string;
+        durationMs?: number;
     };
 };
 type CliCompileError = BaseTrack & {
@@ -186,6 +201,8 @@ type CliDeployTriggered = BaseTrack & {
     event: 'deploy.triggered';
     properties: {
         projectId: string;
+        durationMs?: number;
+        payloadSizeBytes?: number;
     };
 };
 
@@ -203,6 +220,7 @@ type CliCreateCompleted = BaseTrack & {
         executionId: string;
         projectId: string;
         projectName: string;
+        durationMs?: number;
     };
 };
 type CliCreateError = BaseTrack & {
@@ -291,6 +309,7 @@ type Track =
     | CliGenerateCompleted
     | CliGenerateError
     | CliDbtCommand
+    | CliDbtCommandCompleted
     | CliDbtError
     | CliPreviewStarted
     | CliPreviewCompleted

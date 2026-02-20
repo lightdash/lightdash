@@ -8,7 +8,7 @@ import {
     Stack,
     Text,
     Tooltip,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import { IconCheck, IconCopy, IconDownload } from '@tabler/icons-react';
 import React, { useCallback, useState } from 'react';
 import {
@@ -225,7 +225,6 @@ const ChartDownloadOptions: React.FC<DownloadOptions> = ({
                 id="download-type"
                 value={type}
                 onChange={(value) => setType(value as DownloadType)}
-                withinPortal
                 data={Object.values(DownloadType)
                     .filter(
                         (downloadType) =>
@@ -250,15 +249,15 @@ const ChartDownloadOptions: React.FC<DownloadOptions> = ({
                     ]}
                 />
             )}
-            <Group spacing="xs" position="right">
+            <Group gap="xs" justify="flex-end">
                 <Tooltip
-                    variant="xs"
                     withinPortal
                     color={isCopied ? 'teal' : undefined}
                     label={isCopied ? 'Copied!' : 'Copy to clipboard'}
                 >
                     <ActionIcon
                         size="md"
+                        radius="md"
                         onClick={onCopyToClipboard}
                         variant="default"
                     >
@@ -270,7 +269,7 @@ const ChartDownloadOptions: React.FC<DownloadOptions> = ({
                 </Tooltip>
                 <Button
                     size="xs"
-                    leftIcon={<MantineIcon icon={IconDownload} />}
+                    leftSection={<MantineIcon icon={IconDownload} />}
                     onClick={onDownload}
                 >
                     Download

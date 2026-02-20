@@ -1,6 +1,7 @@
 import {
     defineUserAbility,
     FilterOperator,
+    ForbiddenError,
     NotFoundError,
     OrganizationMemberRole,
     ParameterError,
@@ -103,6 +104,7 @@ const projectModel = {
         runQuery: jest.fn(async () => resultsWith1Row),
     })),
     findExploreByTableName: jest.fn(async () => validExplore),
+    updateDefaultUserSpaces: jest.fn(async () => undefined),
 };
 const onboardingModel = {
     getByOrganizationUuid: jest.fn(async () => ({
@@ -906,6 +908,120 @@ describe('ProjectService', () => {
                                         GROUP BY 1
                                         ORDER BY "a_dim1"
                                         LIMIT 10`),
+            );
+        });
+    });
+
+    describe('updateDefaultUserSpaces', () => {
+        test('should throw ForbiddenError when feature flag is disabled', async () => {
+            const serviceWithFeatureOff = getMockedProjectService({
+                ...lightdashConfigMock,
+                defaultUserSpaces: { enabled: false },
+            });
+
+            await expect(
+                serviceWithFeatureOff.updateDefaultUserSpaces(
+                    user,
+                    projectUuid,
+                    { hasDefaultUserSpaces: true },
+                ),
+            ).rejects.toThrowError(ForbiddenError);
+        });
+
+        test('should throw ForbiddenError when user cannot manage the project', async () => {
+            const serviceWithFeatureOn = getMockedProjectService({
+                ...lightdashConfigMock,
+                defaultUserSpaces: { enabled: true },
+            });
+
+            const viewerUser: SessionUser = {
+                ...user,
+                userUuid: 'viewer-uuid',
+                role: OrganizationMemberRole.VIEWER,
+                ability: defineUserAbility(
+                    {
+                        userUuid: 'viewer-uuid',
+                        role: OrganizationMemberRole.VIEWER,
+                        organizationUuid: 'organizationUuid',
+                    },
+                    [],
+                ),
+            };
+
+            await expect(
+                serviceWithFeatureOn.updateDefaultUserSpaces(
+                    viewerUser,
+                    projectUuid,
+                    { hasDefaultUserSpaces: true },
+                ),
+            ).rejects.toThrowError(ForbiddenError);
+        });
+
+        test('should delegate to projectModel when admin enables the feature', async () => {
+            const serviceWithFeatureOn = getMockedProjectService({
+                ...lightdashConfigMock,
+                defaultUserSpaces: { enabled: true },
+            });
+
+            const adminUser: SessionUser = {
+                ...user,
+                role: OrganizationMemberRole.ADMIN,
+                ability: defineUserAbility(
+                    {
+                        userUuid: user.userUuid,
+                        role: OrganizationMemberRole.ADMIN,
+                        organizationUuid: 'organizationUuid',
+                    },
+                    [],
+                ),
+            };
+
+            await serviceWithFeatureOn.updateDefaultUserSpaces(
+                adminUser,
+                projectUuid,
+                { hasDefaultUserSpaces: true },
+            );
+
+            expect(projectModel.updateDefaultUserSpaces).toHaveBeenCalledTimes(
+                1,
+            );
+            expect(projectModel.updateDefaultUserSpaces).toHaveBeenCalledWith(
+                projectUuid,
+                true,
+            );
+        });
+
+        test('should delegate to projectModel when admin disables the feature', async () => {
+            const serviceWithFeatureOn = getMockedProjectService({
+                ...lightdashConfigMock,
+                defaultUserSpaces: { enabled: true },
+            });
+
+            const adminUser: SessionUser = {
+                ...user,
+                role: OrganizationMemberRole.ADMIN,
+                ability: defineUserAbility(
+                    {
+                        userUuid: user.userUuid,
+                        role: OrganizationMemberRole.ADMIN,
+                        organizationUuid: 'organizationUuid',
+                    },
+                    [],
+                ),
+            };
+
+            await serviceWithFeatureOn.updateDefaultUserSpaces(
+                adminUser,
+                projectUuid,
+                { hasDefaultUserSpaces: false },
+            );
+
+            expect(projectModel.updateDefaultUserSpaces).toHaveBeenCalledTimes(
+                1,
+            );
+            expect(projectModel.updateDefaultUserSpaces).toHaveBeenCalledWith(
+                projectUuid,
+                false,
             );
         });
     });

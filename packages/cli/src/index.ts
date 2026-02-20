@@ -35,6 +35,7 @@ import {
     stopPreviewHandler,
 } from './handlers/preview';
 import { renameHandler } from './handlers/renameHandler';
+import { runChartHandler } from './handlers/runChart';
 import { setProjectHandler } from './handlers/setProject';
 import { sqlHandler } from './handlers/sql';
 import { validateHandler } from './handlers/validate';
@@ -1152,6 +1153,24 @@ program
     )
     .option('--verbose', 'Show detailed output', false)
     .action(sqlHandler);
+
+const runProgram = program
+    .command('run')
+    .description('Run Lightdash resources');
+
+runProgram
+    .command('chart')
+    .description('Execute a chart YAML to verify the query runs')
+    .requiredOption('-p, --path <path>', 'Path to chart YAML file')
+    .option('-o, --output <file>', 'Output file path for CSV results')
+    .option('-l, --limit <number>', 'Row limit for query', parseIntArgument)
+    .option(
+        '--page-size <number>',
+        'Number of rows per page (default: 500)',
+        parseIntArgument,
+    )
+    .option('--verbose', undefined, false)
+    .action(runChartHandler);
 
 program
     .command('install-skills')

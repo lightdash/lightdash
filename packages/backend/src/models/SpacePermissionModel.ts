@@ -8,10 +8,9 @@ import {
     ProjectSpaceAccessOrigin,
     SpaceAccessUserMetadata,
     type SpaceGroup,
+    type SpaceInheritanceChain,
 } from '@lightdash/common';
-import * as Sentry from '@sentry/node';
 import { Knex } from 'knex';
-import NodeCache from 'node-cache';
 import { EmailTableName } from '../database/entities/emails';
 import { GroupMembershipTableName } from '../database/entities/groupMemberships';
 import { GroupTableName } from '../database/entities/groups';
@@ -30,31 +29,6 @@ import { wrapSentryTransaction } from '../utils';
 
 /**
  * ! This needs to be removed once nested spaces permissions are fully implemented
- * ! Used for SpaceContent and ResouceViewItem model
- * Nested spaces MVP - get access list from root space
- * Returns a raw SQL expression to get user access for a space.
- * For nested spaces, it retrieves access from the root space.
- * @returns SQL string for retrieving access information
- */
-export const getRootSpaceAccessQuery = (
-    sharedWithTableName: string,
-): string => `
-                CASE
-                    WHEN ${SpaceTableName}.parent_space_uuid IS NOT NULL THEN
-                        (SELECT COALESCE(json_agg(sua.user_uuid) FILTER (WHERE sua.user_uuid IS NOT NULL), '[]')
-                         FROM ${SpaceUserAccessTableName} sua
-                         JOIN ${SpaceTableName} root_space ON sua.space_uuid = root_space.space_uuid
-                         WHERE root_space.path @> ${SpaceTableName}.path
-                         AND nlevel(root_space.path) = 1
-                         AND root_space.project_id = ${SpaceTableName}.project_id
-                         LIMIT 1)
-                    ELSE
-                        COALESCE(json_agg(${sharedWithTableName}.user_uuid) FILTER (WHERE ${sharedWithTableName}.user_uuid IS NOT NULL), '[]')
-                END
-            `;
-
-/**
- * ! This needs to be removed once nested spaces permissions are fully implemented
  * Nested spaces MVP - get is_private from root space
  * Returns a raw SQL expression to determine if a space is private.
  * For nested spaces, it checks the root space's privacy setting.
@@ -62,7 +36,7 @@ export const getRootSpaceAccessQuery = (
  */
 export const getRootSpaceIsPrivateQuery = (): string => `
                 CASE
-                    WHEN ${SpaceTableName}.parent_space_uuid IS NOT NULL THEN
+                    WHEN ${SpaceTableName}.parent_space_uuid IS NOT NULL AND ${SpaceTableName}.is_default_user_space = false THEN
                         (SELECT ps.is_private
                          FROM ${SpaceTableName} ps
                          WHERE ps.path @> ${SpaceTableName}.path
@@ -439,5 +413,72 @@ export class SpacePermissionModel {
             )
             .where('space_uuid', spaceUuid);
         return access;
+    }
+
+    /**
+     * Gets the inheritance chain for a space, walking up from the space
+     * to the first ancestor with inherit_parent_permissions=false (or root).
+     *
+     * The chain is ordered leaf-to-root.
+     *
+     * @param spaceUuid - The UUID of the space to get the chain for
+     * @returns The inheritance chain and whether it reaches the project/org level
+     */
+    async getInheritanceChain(
+        spaceUuid: string,
+    ): Promise<SpaceInheritanceChain> {
+        return wrapSentryTransaction(
+            'SpacePermissionModel.getInheritanceChain',
+            { spaceUuid },
+            async () => {
+                const space = await this.database(SpaceTableName)
+                    .select('path', 'project_id')
+                    .where('space_uuid', spaceUuid)
+                    .first();
+
+                if (!space) {
+                    throw new NotFoundError(
+                        `Space with uuid ${spaceUuid} does not exist`,
+                    );
+                }
+
+                const ancestors = await this.database(SpaceTableName)
+                    .select(
+                        'space_uuid',
+                        'name',
+                        'inherit_parent_permissions',
+                        'parent_space_uuid',
+                    )
+                    .whereRaw(`?::ltree <@ ${SpaceTableName}.path`, [
+                        space.path,
+                    ])
+                    .andWhere('project_id', space.project_id)
+                    .orderByRaw(`nlevel(${SpaceTableName}.path) DESC`);
+
+                const chain: SpaceInheritanceChain['chain'] = [];
+                let lastAncestor: (typeof ancestors)[number] | undefined;
+
+                for (const ancestor of ancestors) {
+                    chain.push({
+                        spaceUuid: ancestor.space_uuid,
+                        spaceName: ancestor.name,
+                        inheritParentPermissions:
+                            ancestor.inherit_parent_permissions,
+                    });
+                    lastAncestor = ancestor;
+
+                    if (!ancestor.inherit_parent_permissions) {
+                        break;
+                    }
+                }
+
+                const inheritsFromOrgOrProject =
+                    lastAncestor !== undefined &&
+                    lastAncestor.parent_space_uuid === null &&
+                    lastAncestor.inherit_parent_permissions === true;
+
+                return { chain, inheritsFromOrgOrProject };
+            },
+        );
     }
 }

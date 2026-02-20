@@ -41,6 +41,7 @@ import {
     RegisterOrActivateUser,
     SessionUser,
     SnowflakeAuthenticationType,
+    SpaceMemberRole,
     UpdateUserArgs,
     UpsertUserWarehouseCredentials,
     UserAllowedOrganization,
@@ -65,6 +66,7 @@ import { OrganizationAllowedEmailDomainsModel } from '../models/OrganizationAllo
 import { OrganizationMemberProfileModel } from '../models/OrganizationMemberProfileModel';
 import { OrganizationModel } from '../models/OrganizationModel';
 import { PasswordResetLinkModel } from '../models/PasswordResetLinkModel';
+import { ProjectModel } from '../models/ProjectModel/ProjectModel';
 import { SessionModel } from '../models/SessionModel';
 import { UserModel } from '../models/UserModel';
 import { UserWarehouseCredentialsModel } from '../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
@@ -90,6 +92,7 @@ type UserServiceArguments = {
     organizationAllowedEmailDomainsModel: OrganizationAllowedEmailDomainsModel;
     userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
     warehouseAvailableTablesModel: WarehouseAvailableTablesModel;
+    projectModel: ProjectModel;
 };
 
 export class UserService extends BaseService {
@@ -125,6 +128,8 @@ export class UserService extends BaseService {
 
     private readonly warehouseAvailableTablesModel: WarehouseAvailableTablesModel;
 
+    private readonly projectModel: ProjectModel;
+
     private readonly emailOneTimePasscodeExpirySeconds = 60 * 15;
 
     private readonly emailOneTimePasscodeMaxAttempts = 5;
@@ -146,6 +151,7 @@ export class UserService extends BaseService {
         organizationAllowedEmailDomainsModel,
         userWarehouseCredentialsModel,
         warehouseAvailableTablesModel,
+        projectModel,
     }: UserServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -165,6 +171,7 @@ export class UserService extends BaseService {
             organizationAllowedEmailDomainsModel;
         this.userWarehouseCredentialsModel = userWarehouseCredentialsModel;
         this.warehouseAvailableTablesModel = warehouseAvailableTablesModel;
+        this.projectModel = projectModel;
     }
 
     private identifyUser(
@@ -303,8 +310,7 @@ export class UserService extends BaseService {
                     const emailDomain = getEmailDomain(userEmail);
                     if (
                         allowedEmailDomains.emailDomains.some(
-                            (domain) =>
-                                domain.toLowerCase() === emailDomain,
+                            (domain) => domain.toLowerCase() === emailDomain,
                         ) &&
                         allowedEmailDomains.projects.length > 0
                     ) {
@@ -1567,8 +1573,78 @@ export class UserService extends BaseService {
                         passportUser.organization,
                     );
                 span.setAttribute('cacheHit', cacheHit);
+
                 return sessionUser;
             },
+        );
+    }
+
+    async onLogin(user: {
+        userUuid: string;
+        organizationUuid?: string;
+    }): Promise<void> {
+        if (!user.organizationUuid) return;
+
+        const sessionUser = await this.findSessionUser({
+            id: user.userUuid,
+            organization: user.organizationUuid,
+        });
+        await this.ensureDefaultUserSpaces(sessionUser);
+    }
+
+    private async ensureDefaultUserSpaces(
+        sessionUser: SessionUser,
+    ): Promise<void> {
+        if (!this.lightdashConfig.defaultUserSpaces.enabled) return;
+        if (!sessionUser.organizationUuid) return;
+
+        const projects =
+            await this.projectModel.getProjectsWithDefaultUserSpaces(
+                sessionUser.organizationUuid,
+            );
+
+        if (projects.length === 0) return;
+
+        await Promise.all(
+            projects.map(async (project) => {
+                if (
+                    sessionUser.ability.cannot(
+                        'manage',
+                        subject('SavedChart', {
+                            projectUuid: project.projectUuid,
+                            organizationUuid: sessionUser.organizationUuid,
+                            access: [
+                                {
+                                    userUuid: sessionUser.userUuid,
+                                    // We already know that we'll assign ADMIN permissions
+                                    // for the user in their default space
+                                    role: SpaceMemberRole.ADMIN,
+                                },
+                            ],
+                        }),
+                    ) ||
+                    sessionUser.ability.cannot(
+                        'manage',
+                        subject('Explore', {
+                            projectUuid: project.projectUuid,
+                            organizationUuid: sessionUser.organizationUuid,
+                        }),
+                    )
+                )
+                    return;
+
+                await this.projectModel.ensureDefaultUserSpace(
+                    project.projectId,
+                    project.parentSpaceUuid,
+                    project.parentPath,
+                    {
+                        userId: sessionUser.userId,
+                        userUuid: sessionUser.userUuid,
+                        firstName: sessionUser.firstName,
+                        lastName: sessionUser.lastName,
+                    },
+                );
+            }),
         );
     }
 

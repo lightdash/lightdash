@@ -21,7 +21,7 @@ import {
     Space,
     SpaceAccess,
     SpaceGroup,
-    SpaceSummary,
+    type SpaceSummaryBase,
     UnexpectedServerError,
     UpdateSqlChart,
 } from '@lightdash/common';
@@ -652,8 +652,8 @@ export class PromoteService extends BaseService {
     }
 
     private static isSpaceUpdated(
-        promotedSpace: Pick<SpaceSummary, 'name'>,
-        upstreamSpace: Pick<SpaceSummary, 'name'>,
+        promotedSpace: Pick<SpaceSummaryBase, 'name'>,
+        upstreamSpace: Pick<SpaceSummaryBase, 'name'>,
     ) {
         return promotedSpace.name !== upstreamSpace.name;
     }
@@ -1469,7 +1469,6 @@ export class PromoteService extends BaseService {
         const newSpaceChanges = Array.from(newSpaces.values()).map((space) => {
             const promotedSpace: PromotedSpace = {
                 ...space,
-                access: [],
                 chartCount: 0,
                 dashboardCount: 0,
             };

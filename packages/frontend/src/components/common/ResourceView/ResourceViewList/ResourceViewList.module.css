@@ -1,0 +1,48 @@
+.table {
+    & thead tr {
+        background-color: var(--mantine-color-ldGray-0);
+    }
+
+    & thead tr th {
+        font-size: var(--mantine-font-size-xs);
+        color: var(--mantine-color-ldGray-6);
+        font-weight: 600;
+        border-radius: var(--mantine-radius-sm);
+    }
+
+    & thead tr th,
+    & tbody tr td {
+        padding: var(--mantine-spacing-sm) var(--mantine-spacing-lg);
+    }
+
+    &[data-hover] tbody tr:hover {
+        cursor: pointer;
+        background-color: color-mix(
+            in srgb,
+            var(--mantine-color-ldGray-0) 50%,
+            transparent
+        );
+    }
+}
+
+.sortableHeader {
+    cursor: pointer;
+    user-select: none;
+
+    &:hover {
+        background-color: var(--mantine-color-ldGray-1);
+    }
+}
+
+.anchor {
+    color: unset;
+
+    &:hover {
+        color: unset;
+        text-decoration: none;
+    }
+}
+
+.itemName {
+    overflow-wrap: anywhere;
+}

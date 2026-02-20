@@ -17,6 +17,7 @@ import { ContentService } from './ContentService/ContentService';
 import { CsvService } from './CsvService/CsvService';
 import { DashboardService } from './DashboardService/DashboardService';
 import { DownloadFileService } from './DownloadFileService/DownloadFileService';
+import { FavoritesService } from './FavoritesService/FavoritesService';
 import { FeatureFlagService } from './FeatureFlag/FeatureFlagService';
 import { FunnelService } from './FunnelService/FunnelService';
 import { GdriveService } from './GdriveService/GdriveService';
@@ -68,6 +69,7 @@ interface ServiceManifest {
     csvService: CsvService;
     dashboardService: DashboardService;
     downloadFileService: DownloadFileService;
+    favoritesService: FavoritesService;
     gitIntegrationService: GitIntegrationService;
     githubAppService: GithubAppService;
     gitlabAppService: GitlabAppService;
@@ -768,6 +770,7 @@ export class ServiceRepository
             'spacePermissionService',
             () =>
                 new SpacePermissionService(
+                    this.models.getFeatureFlagModel(),
                     this.models.getSpaceModel(),
                     this.models.getSpacePermissionModel(),
                 ),
@@ -851,6 +854,7 @@ export class ServiceRepository
                         this.models.getUserWarehouseCredentialsModel(),
                     warehouseAvailableTablesModel:
                         this.models.getWarehouseAvailableTablesModel(),
+                    projectModel: this.models.getProjectModel(),
                 }),
         );
     }
@@ -1000,6 +1004,22 @@ export class ServiceRepository
                     savedChartService: this.getSavedChartService(),
                     savedSqlService: this.getSavedSqlService(),
                     spacePermissionService: this.getSpacePermissionService(),
+                }),
+        );
+    }
+
+    public getFavoritesService(): FavoritesService {
+        return this.getService(
+            'favoritesService',
+            () =>
+                new FavoritesService({
+                    analytics: this.context.lightdashAnalytics,
+                    userFavoritesModel: this.models.getUserFavoritesModel(),
+                    projectModel: this.models.getProjectModel(),
+                    spaceModel: this.models.getSpaceModel(),
+                    spacePermissionService: this.getSpacePermissionService(),
+                    savedChartModel: this.models.getSavedChartModel(),
+                    dashboardModel: this.models.getDashboardModel(),
                 }),
         );
     }

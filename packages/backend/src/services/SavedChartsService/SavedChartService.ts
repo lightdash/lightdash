@@ -26,7 +26,6 @@ import {
     SchedulerAndTargets,
     SchedulerFormat,
     SessionUser,
-    SpaceSummary,
     TogglePinnedItemInfo,
     UnexpectedGoogleSheetsError,
     UpdateMultipleSavedChart,
@@ -51,6 +50,7 @@ import {
     type Explore,
     type ExploreError,
     type SpaceAccess,
+    type SpaceSummaryBase,
 } from '@lightdash/common';
 import cronstrue from 'cronstrue';
 import { Knex } from 'knex';
@@ -805,7 +805,7 @@ export class SavedChartService
 
     private async checkPermissions(
         account: Account,
-        space: Omit<SpaceSummary, 'userAccess'>,
+        space: SpaceSummaryBase,
         savedChart: SavedChartDAO,
     ): Promise<SpaceAccess[]> {
         let access;
@@ -891,15 +891,16 @@ export class SavedChartService
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
 
-        // Resolve space UUID if neither spaceUuid nor dashboardUuid is provided
-        const resolvedSpaceUuid =
-            savedChart.spaceUuid ??
-            (!savedChart.dashboardUuid
-                ? await this.spacePermissionService.getFirstViewableSpaceUuid(
-                      user,
-                      projectUuid,
-                  )
-                : undefined);
+        // When saving to a dashboard, always check permissions against the
+        // dashboard's space — the chart's spaceUuid may refer to a different
+        // space where the user has no access.
+        const resolvedSpaceUuid = savedChart.dashboardUuid
+            ? undefined
+            : (savedChart.spaceUuid ??
+              (await this.spacePermissionService.getFirstViewableSpaceUuid(
+                  user,
+                  projectUuid,
+              )));
 
         let isPrivate = false;
         let access: SpaceAccess[] = [];

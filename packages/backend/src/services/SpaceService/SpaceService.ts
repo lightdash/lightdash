@@ -286,6 +286,12 @@ export class SpaceService extends BaseService implements BulkActionable<Knex> {
             isPrivate,
             inheritParentPermissions,
         });
+
+        const updatedSpace = await this.assembleFullSpace(spaceUuid);
+        const directAccessCount = updatedSpace.access.filter(
+            (a) => a.hasDirectAccess,
+        ).length;
+
         this.analytics.track({
             event: 'space.updated',
             userId: user.userUuid,
@@ -294,11 +300,13 @@ export class SpaceService extends BaseService implements BulkActionable<Knex> {
                 spaceId: spaceUuid,
                 projectId: space.projectUuid,
                 isPrivate: space.isPrivate,
-                userAccessCount: space.access.length,
                 isNested,
+                // This used to rely on summary.access.length, which only contained direct user access and ignored direct group access
+                userAccessCount: directAccessCount,
             },
         });
-        return this.assembleFullSpace(spaceUuid);
+
+        return updatedSpace;
     }
 
     private async hasAccess(

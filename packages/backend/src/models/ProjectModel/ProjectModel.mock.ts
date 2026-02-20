@@ -58,6 +58,7 @@ export const projectMock = {
     organization_uuid: 'organizationUuid',
     dbt_version: DefaultSupportedDbtVersion,
     scheduler_timezone: 'UTC',
+    has_default_user_spaces: false,
 };
 
 export const tableSelectionMock: Pick<
@@ -105,6 +106,7 @@ export const expectedProject: Project = {
     dbtVersion: DefaultSupportedDbtVersion,
     schedulerTimezone: 'UTC',
     createdByUserUuid: null,
+    hasDefaultUserSpaces: false,
 };
 
 const metricFilter: MetricFilterRule = {

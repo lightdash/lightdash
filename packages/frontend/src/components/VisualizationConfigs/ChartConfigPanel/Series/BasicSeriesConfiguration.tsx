@@ -24,6 +24,7 @@ type BasicSeriesConfigurationProps = {
     series: Series;
     item: Field | TableCalculation | CustomDimension;
     dragHandleProps?: DraggableProvidedDragHandleProps | null;
+    isDragDisabled?: boolean;
 } & Pick<
     ReturnType<typeof useCartesianChartConfig>,
     'updateSingleSeries' | 'getSingleSeries'
@@ -37,6 +38,7 @@ const BasicSeriesConfiguration: FC<BasicSeriesConfigurationProps> = ({
     getSingleSeries,
     updateSingleSeries,
     dragHandleProps,
+    isDragDisabled,
 }) => {
     const { colorPalette, getSeriesColor } = useVisualizationContext();
     const [value, setValue] = useDebouncedState(
@@ -48,7 +50,11 @@ const BasicSeriesConfiguration: FC<BasicSeriesConfigurationProps> = ({
         <Config>
             <Config.Section>
                 <Group noWrap spacing="two">
-                    <GrabIcon dragHandleProps={dragHandleProps} />
+                    <GrabIcon
+                        dragHandleProps={dragHandleProps}
+                        disabled={isDragDisabled}
+                        disabledTooltip="Series order is automatically determined by the sort applied to the grouped dimension"
+                    />
 
                     <ColorSelector
                         color={getSeriesColor(series)}

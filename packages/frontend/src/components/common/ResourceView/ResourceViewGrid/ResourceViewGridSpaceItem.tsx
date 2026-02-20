@@ -7,9 +7,9 @@ import {
     Stack,
     Text,
     Tooltip,
-    useMantineTheme,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import { useDisclosure, useHover } from '@mantine/hooks';
+import classes from './ResourceViewGridSpaceItem.module.css';
 import { IconChartBar, IconLayoutDashboard } from '@tabler/icons-react';
 import { useMemo, type FC, type ReactNode } from 'react';
 
@@ -21,8 +21,10 @@ import ResourceViewActionMenu, {
 import AttributeCount from '../ResourceAttributeCount';
 import { getResourceAccessLabel } from '../utils';
 
-interface ResourceViewGridSpaceItemProps
-    extends Pick<ResourceViewActionMenuCommonProps, 'onAction'> {
+interface ResourceViewGridSpaceItemProps extends Pick<
+    ResourceViewActionMenuCommonProps,
+    'onAction'
+> {
     item: ResourceViewSpaceItem;
     dragIcon: ReactNode;
     allowDelete?: boolean;
@@ -37,8 +39,6 @@ const ResourceViewGridSpaceItem: FC<ResourceViewGridSpaceItemProps> = ({
     const { hovered, ref } = useHover();
     const [opened, handlers] = useDisclosure(false);
 
-    const theme = useMantineTheme();
-
     const tooltipText = useMemo(() => {
         return getResourceAccessLabel(item);
     }, [item]);
@@ -49,12 +49,10 @@ const ResourceViewGridSpaceItem: FC<ResourceViewGridSpaceItemProps> = ({
             pos="relative"
             p={0}
             withBorder
-            bg={
-                hovered ? theme.fn.rgba(theme.colors.ldGray[0], 0.5) : undefined
-            }
+            className={classes.gridCard}
             h="100%"
         >
-            <Group p="md" align="center" spacing="md" noWrap>
+            <Group p="md" align="center" gap="md" wrap="nowrap">
                 {dragIcon}
                 <ResourceIcon item={item} />
 
@@ -62,7 +60,7 @@ const ResourceViewGridSpaceItem: FC<ResourceViewGridSpaceItemProps> = ({
                     position="top"
                     withArrow
                     label={
-                        <Stack spacing={4}>
+                        <Stack gap={4}>
                             <Text lineClamp={1} fz="xs" fw={600}>
                                 {tooltipText}
                             </Text>
@@ -79,47 +77,45 @@ const ResourceViewGridSpaceItem: FC<ResourceViewGridSpaceItemProps> = ({
                         </Stack>
                     }
                 >
-                    <Stack spacing={4} sx={{ flexGrow: 1, flexShrink: 1 }}>
+                    <Stack gap={4} className={classes.spaceContentStack}>
                         <Text
                             lineClamp={1}
                             fz="sm"
                             fw={600}
-                            sx={{ overflowWrap: 'anywhere' }}
+                            className={classes.spaceName}
                         >
                             {item.data.name}
                         </Text>
 
-                        <Group spacing="sm">
+                        <Group gap="sm">
                             <Flex align="center" gap={4}>
                                 <AccessInfo item={item} />
                             </Flex>
                         </Group>
                     </Stack>
                 </Tooltip>
-                <Box
-                    sx={{
-                        flexGrow: 0,
-                        flexShrink: 0,
-                        // FIXME: change logic to use position absolute
-                        // transition: 'opacity 0.2s',
-                        // opacity: hovered || opened ? 1 : 0,
-                        display: hovered || opened ? 'block' : 'none',
-                    }}
-                    component="div"
+                <Flex
+                    align="center"
+                    gap={4}
+                    className={classes.spaceActionBox}
                     onClick={(e: React.MouseEvent<HTMLDivElement>) => {
                         e.stopPropagation();
                         e.preventDefault();
                     }}
                 >
-                    <ResourceViewActionMenu
-                        item={item}
-                        allowDelete={allowDelete}
-                        isOpen={opened}
-                        onOpen={handlers.open}
-                        onClose={handlers.close}
-                        onAction={onAction}
-                    />
-                </Box>
+                    <Box
+                        display={hovered || opened ? 'block' : 'none'}
+                    >
+                        <ResourceViewActionMenu
+                            item={item}
+                            allowDelete={allowDelete}
+                            isOpen={opened}
+                            onOpen={handlers.open}
+                            onClose={handlers.close}
+                            onAction={onAction}
+                        />
+                    </Box>
+                </Flex>
             </Group>
         </Paper>
     );

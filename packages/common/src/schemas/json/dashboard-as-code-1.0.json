@@ -11,9 +11,7 @@
         "spaceSlug",
         "version",
         "tiles",
-        "filters",
-        "tabs",
-        "updatedAt"
+        "tabs"
     ],
     "properties": {
         "version": {
@@ -266,7 +264,6 @@
             "type": "object",
             "description": "Dashboard-level filters that can be applied across all tiles",
             "additionalProperties": false,
-            "required": ["dimensions", "metrics", "tableCalculations"],
             "properties": {
                 "dimensions": {
                     "type": "array",

@@ -147,6 +147,7 @@ import {
     SortField,
     SpaceQuery,
     SpaceSummary,
+    type SpaceSummaryBase,
     SqlRunnerPayload,
     SqlRunnerPivotQueryPayload,
     SummaryExplore,
@@ -154,6 +155,7 @@ import {
     TableSelectionType,
     type Tag,
     UnexpectedServerError,
+    UpdateDefaultUserSpaces,
     UpdateMetadata,
     UpdateProject,
     UpdateProjectMember,
@@ -846,23 +848,31 @@ export class ProjectService extends BaseService {
                     `Refreshing databricks U2M OAuth token for user ${userUuid}`,
                 );
 
-                // Use client ID from config (same as used during OAuth authorization)
-                // Default to pre-registered Databricks public client
-                const clientId =
-                    this.lightdashConfig.auth.databricks.clientId ||
-                    args.oauthClientId ||
-                    DATABRICKS_DEFAULT_OAUTH_CLIENT_ID;
-                const clientSecret =
-                    this.lightdashConfig.auth.databricks.clientSecret ||
-                    args.oauthClientSecret;
-
-                const { accessToken, refreshToken: newRefreshToken } =
-                    await refreshDatabricksOAuthToken(
-                        args.serverHostName,
-                        clientId,
-                        refreshToken,
-                        clientSecret,
-                    );
+                // Keep client ID and secret paired: if the request provides a
+                // client ID (CLI flow), use its secret too; otherwise fall back
+                // to server config (browser SSO flow)
+                let accessToken: string;
+                let newRefreshToken: string | undefined;
+                if (args.oauthClientId) {
+                    ({ accessToken, refreshToken: newRefreshToken } =
+                        await refreshDatabricksOAuthToken(
+                            args.serverHostName,
+                            args.oauthClientId,
+                            refreshToken,
+                            args.oauthClientSecret,
+                        ));
+                } else {
+                    const clientId =
+                        this.lightdashConfig.auth.databricks.clientId ||
+                        DATABRICKS_DEFAULT_OAUTH_CLIENT_ID;
+                    ({ accessToken, refreshToken: newRefreshToken } =
+                        await refreshDatabricksOAuthToken(
+                            args.serverHostName,
+                            clientId,
+                            refreshToken,
+                            this.lightdashConfig.auth.databricks.clientSecret,
+                        ));
+                }
 
                 return {
                     ...args,
@@ -1043,10 +1053,14 @@ export class ProjectService extends BaseService {
                     DatabricksAuthenticationType.OAUTH_U2M) &&
             !organizationWarehouseCredentialsUuid
         ) {
-            const refreshToken = await this.userModel.getRefreshToken(
-                userUuid,
-                OpenIdIdentityIssuerType.DATABRICKS,
-            );
+            // Use refresh token from request body (e.g. CLI-obtained tokens) if available,
+            // otherwise look up from stored user identity
+            const refreshToken =
+                args.warehouseConnection.refreshToken ||
+                (await this.userModel.getRefreshToken(
+                    userUuid,
+                    OpenIdIdentityIssuerType.DATABRICKS,
+                ));
             // Validate refresh token and generate new access token
             this.logger.debug(
                 `Refreshing databricks warehouse credentials from user uuid: ${userUuid}`,
@@ -1055,6 +1069,7 @@ export class ProjectService extends BaseService {
                 { ...args.warehouseConnection, refreshToken },
                 userUuid,
             );
+
             return {
                 ...args,
                 warehouseConnection: {
@@ -1485,6 +1500,65 @@ export class ProjectService extends BaseService {
                 method,
             ),
         });
+
+        // For preview projects: if the upstream requires user warehouse credentials
+        // and the request includes CLI-obtained tokens, create user warehouse
+        // credentials so the user doesn't have to re-authenticate in the UI
+        if (
+            createProject.type === ProjectType.PREVIEW &&
+            createProject.warehouseConnection?.requireUserCredentials
+        ) {
+            try {
+                const { warehouseConnection } = createProject;
+                const warehouseType = warehouseConnection.type;
+                switch (warehouseType) {
+                    case WarehouseTypes.DATABRICKS: {
+                        if (!warehouseConnection.refreshToken) break;
+                        const userWarehouseCredentialsUuid =
+                            await this.userWarehouseCredentialsModel.create(
+                                user.userUuid,
+                                {
+                                    name: `Databricks credentials for "${createProject.name}"`,
+                                    credentials: {
+                                        type: WarehouseTypes.DATABRICKS,
+                                        authenticationType:
+                                            DatabricksAuthenticationType.OAUTH_U2M,
+                                        refreshToken:
+                                            warehouseConnection.refreshToken,
+                                    },
+                                },
+                                projectUuid,
+                            );
+                        await this.userWarehouseCredentialsModel.upsertUserCredentialsPreference(
+                            user.userUuid,
+                            projectUuid,
+                            userWarehouseCredentialsUuid,
+                        );
+                        this.logger.info(
+                            `Created user warehouse credentials for Databricks on project ${projectUuid}`,
+                        );
+                        break;
+                    }
+                    case WarehouseTypes.BIGQUERY:
+                    case WarehouseTypes.SNOWFLAKE:
+                    case WarehouseTypes.POSTGRES:
+                    case WarehouseTypes.REDSHIFT:
+                    case WarehouseTypes.TRINO:
+                    case WarehouseTypes.CLICKHOUSE:
+                    case WarehouseTypes.ATHENA:
+                        break;
+                    default:
+                        assertUnreachable(
+                            warehouseType,
+                            `Unknown warehouse type for user credentials`,
+                        );
+                }
+            } catch (e) {
+                this.logger.error(
+                    `Failed to create user warehouse credentials: ${e instanceof Error ? e.message : String(e)}`,
+                );
+            }
+        }
 
         let hasContentCopy = false;
         let contentCopyError: string | undefined;
@@ -1986,9 +2060,9 @@ export class ProjectService extends BaseService {
         };
     }
 
-    /* 
+    /*
     Similar code to updateAndScheduleAsyncWork, but only for warehouse credentials
-    This will not trigger any job 
+    This will not trigger any job
     We could reuse this method in updateAndScheduleAsyncWork to avoid code duplication
     */
     async updateWarehouseCredentials(
@@ -2420,21 +2494,28 @@ export class ProjectService extends BaseService {
                 this.logger.debug(
                     `Refreshing databricks U2M OAuth token from refresh token on buildAdapter`,
                 );
-                const clientId =
-                    this.lightdashConfig.auth.databricks.clientId ||
-                    project.warehouseConnection.oauthClientId ||
-                    DATABRICKS_DEFAULT_OAUTH_CLIENT_ID;
-                const clientSecret =
-                    this.lightdashConfig.auth.databricks.clientSecret ||
-                    project.warehouseConnection.oauthClientSecret;
-
-                const { accessToken, refreshToken } =
-                    await refreshDatabricksOAuthToken(
-                        project.warehouseConnection.serverHostName,
-                        clientId,
-                        u2mRefreshToken,
-                        clientSecret,
-                    );
+                let accessToken: string;
+                let refreshToken: string | undefined;
+                if (project.warehouseConnection.oauthClientId) {
+                    ({ accessToken, refreshToken } =
+                        await refreshDatabricksOAuthToken(
+                            project.warehouseConnection.serverHostName,
+                            project.warehouseConnection.oauthClientId,
+                            u2mRefreshToken,
+                            project.warehouseConnection.oauthClientSecret,
+                        ));
+                } else {
+                    const clientId =
+                        this.lightdashConfig.auth.databricks.clientId ||
+                        DATABRICKS_DEFAULT_OAUTH_CLIENT_ID;
+                    ({ accessToken, refreshToken } =
+                        await refreshDatabricksOAuthToken(
+                            project.warehouseConnection.serverHostName,
+                            clientId,
+                            u2mRefreshToken,
+                            this.lightdashConfig.auth.databricks.clientSecret,
+                        ));
+                }
                 project.warehouseConnection.token = accessToken;
                 project.warehouseConnection.refreshToken = refreshToken;
             }
@@ -5468,6 +5549,37 @@ export class ProjectService extends BaseService {
         await this.projectModel.updateMetadata(projectUuid, data);
     }
 
+    async updateDefaultUserSpaces(
+        user: SessionUser,
+        projectUuid: string,
+        data: UpdateDefaultUserSpaces,
+    ): Promise<void> {
+        if (!this.lightdashConfig.defaultUserSpaces.enabled) {
+            throw new ForbiddenError(
+                'Default user spaces feature is not enabled',
+            );
+        }
+
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        await this.projectModel.updateDefaultUserSpaces(
+            projectUuid,
+            data.hasDefaultUserSpaces,
+        );
+    }
+
     async deleteProjectAccess(
         user: SessionUser,
         projectUuid: string,
@@ -5623,7 +5735,7 @@ export class ProjectService extends BaseService {
     }
 
     async getMostPopular(
-        allowedSpaces: Pick<SpaceSummary, 'uuid'>[],
+        allowedSpaces: Pick<SpaceSummaryBase, 'uuid'>[],
     ): Promise<(SpaceQuery | DashboardBasicDetails)[]> {
         const mostPopularCharts = await this.spaceModel.getSpaceQueries(
             allowedSpaces.map(({ uuid }) => uuid),
@@ -5652,7 +5764,7 @@ export class ProjectService extends BaseService {
     }
 
     async getRecentlyUpdated(
-        allowedSpaces: Pick<SpaceSummary, 'uuid'>[],
+        allowedSpaces: Pick<SpaceSummaryBase, 'uuid'>[],
     ): Promise<(SpaceQuery | DashboardBasicDetails)[]> {
         const recentlyUpdatedCharts = await this.spaceModel.getSpaceQueries(
             allowedSpaces.map(({ uuid }) => uuid),
@@ -5698,24 +5810,31 @@ export class ProjectService extends BaseService {
 
         const spaces = await this.spaceModel.find({ projectUuid });
         const spaceUuids = spaces.map((s) => s.uuid);
-        const spacesCtx =
-            await this.spacePermissionService.getSpacesAccessContext(
+        const [userSpacesCtx, directAccessMap] = await Promise.all([
+            this.spacePermissionService.getSpacesAccessContext(
                 user.userUuid,
                 spaceUuids,
-            );
+            ),
+            this.spacePermissionService.getDirectAccessUserUuids(spaceUuids),
+        ]);
 
         return spaces
             .filter((space) => {
-                const ctx = spacesCtx[space.uuid];
+                const ctx = userSpacesCtx[space.uuid];
                 return ctx && user.ability.can('view', subject('Space', ctx));
             })
-            .map((spaceSummary) => ({
-                ...spaceSummary,
-                userAccess:
-                    spacesCtx[spaceSummary.uuid]?.access.find(
+            .map((spaceSummary) => {
+                const ctx = userSpacesCtx[spaceSummary.uuid];
+                const directAccessUuids =
+                    directAccessMap[spaceSummary.uuid] ?? [];
+                return {
+                    ...spaceSummary,
+                    access: directAccessUuids,
+                    userAccess: ctx?.access.find(
                         (a) => a.userUuid === user.userUuid,
-                    ) ?? undefined,
-            }));
+                    ),
+                };
+            });
     }
 
     async createPreview(
@@ -6473,6 +6592,20 @@ export class ProjectService extends BaseService {
             project.projectUuid,
             user.userUuid,
             credentials.type,
+        );
+    }
+
+    async getProjectUserWarehouseCredentials(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<UserWarehouseCredentials[]> {
+        const project = await this.projectModel.getSummary(projectUuid);
+        if (user.ability.cannot('view', subject('Project', project))) {
+            throw new ForbiddenError();
+        }
+        return this.userWarehouseCredentialsModel.getAllByUserUuidForProject(
+            user.userUuid,
+            projectUuid,
         );
     }
 

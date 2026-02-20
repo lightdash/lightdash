@@ -44,6 +44,7 @@ import {
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { uniqBy } from 'lodash';
+import { validate as isValidUuid } from 'uuid';
 import type { LightdashConfig } from '../../config/parseConfig';
 import {
     CatalogTableName,
@@ -2031,13 +2032,13 @@ export class CatalogModel {
         });
     }
 
-    async getMetricsTreeByUuid(
+    async getMetricsTreeByUuidOrSlug(
         projectUuid: string,
-        metricsTreeUuid: string,
+        metricsTreeUuidOrSlug: string,
     ): Promise<MetricsTreeWithDetails> {
         const lockExpiryCondition = this.getLockExpiryCondition();
 
-        const tree = await this.database(MetricsTreesTableName)
+        const query = this.database(MetricsTreesTableName)
             .select<DbMetricsTreeWithLock>(
                 `${MetricsTreesTableName}.*`,
                 `${MetricsTreeLocksTableName}.locked_by_user_uuid as lock_user_uuid`,
@@ -2057,18 +2058,34 @@ export class CatalogModel {
                 `${MetricsTreeLocksTableName}.locked_by_user_uuid`,
                 `lock_users.user_uuid`,
             )
-            .where(
-                `${MetricsTreesTableName}.metrics_tree_uuid`,
-                metricsTreeUuid,
-            )
-            .andWhere(`${MetricsTreesTableName}.project_uuid`, projectUuid)
-            .first();
+            .andWhere(`${MetricsTreesTableName}.project_uuid`, projectUuid);
+
+        if (isValidUuid(metricsTreeUuidOrSlug)) {
+            void query.where(function uuidOrSlug() {
+                void this.where(
+                    `${MetricsTreesTableName}.metrics_tree_uuid`,
+                    metricsTreeUuidOrSlug,
+                ).orWhere(
+                    `${MetricsTreesTableName}.slug`,
+                    metricsTreeUuidOrSlug,
+                );
+            });
+        } else {
+            void query.where(
+                `${MetricsTreesTableName}.slug`,
+                metricsTreeUuidOrSlug,
+            );
+        }
+
+        const tree = await query.first();
 
         if (!tree) {
             throw new NotFoundError(
-                `Metrics tree ${metricsTreeUuid} not found in project ${projectUuid}`,
+                `Metrics tree ${metricsTreeUuidOrSlug} not found in project ${projectUuid}`,
             );
         }
+
+        const metricsTreeUuid = tree.metrics_tree_uuid;
 
         // Fetch nodes with hydrated catalog data
         const nodeRows = await this.getHydratedNodesQuery({
@@ -2380,7 +2397,7 @@ export class CatalogModel {
             }
         });
 
-        return this.getMetricsTreeByUuid(projectUuid, metricsTreeUuid);
+        return this.getMetricsTreeByUuidOrSlug(projectUuid, metricsTreeUuid);
     }
 
     async deleteMetricsTree(

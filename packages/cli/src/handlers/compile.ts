@@ -26,11 +26,11 @@ import { validateDbtModel } from '../dbt/validation';
 import GlobalState from '../globalState';
 import { readAndLoadLightdashProjectConfig } from '../lightdash-config';
 import { loadLightdashModels } from '../lightdash/loader';
+import { detectProjectType } from '../lightdash/projectType';
 import * as styles from '../styles';
 import { DbtCompileOptions, maybeCompileModelsAndJoins } from './dbt/compile';
 import { tryGetDbtVersion } from './dbt/getDbtVersion';
 import getWarehouseClient from './dbt/getWarehouseClient';
-import { detectProjectType } from '../lightdash/projectType';
 
 export type CompileHandlerOptions = DbtCompileOptions & {
     projectDir: string;
@@ -105,6 +105,7 @@ const getExploresFromLightdashYmlProject = async (
 export const compile = async (options: CompileHandlerOptions) => {
     const dbtVersionResult = await tryGetDbtVersion();
     const executionId = uuidv4();
+    const startTime = Date.now();
 
     await LightdashAnalytics.track({
         event: 'compile.started',
@@ -324,10 +325,12 @@ export const compile = async (options: CompileHandlerOptions) => {
             dbtVersion: dbtVersionResult.success
                 ? dbtVersionResult.version.verboseVersion
                 : undefined,
+            durationMs: Date.now() - startTime,
         },
     });
     return explores;
 };
+
 export const compileHandler = async (
     originalOptions: CompileHandlerOptions,
 ) => {

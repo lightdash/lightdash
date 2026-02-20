@@ -1,6 +1,6 @@
 {
     "name": "@lightdash/cli",
-    "version": "0.2473.1",
+    "version": "0.2500.0",
     "license": "MIT",
     "repository": {
         "type": "git",
@@ -16,11 +16,11 @@
     ],
     "dependencies": {
         "@actions/core": "^1.11.1",
-        "@casl/ability": "^5.4.3",
+        "@casl/ability": "^6.7.5",
         "@lightdash/common": "workspace:*",
         "@lightdash/warehouses": "workspace:*",
         "@types/columnify": "^1.5.1",
-        "ajv": "^8.11.0",
+        "ajv": "^8.18.0",
         "ajv-formats": "^2.1.1",
         "better-ajv-errors": "^1.2.0",
         "chalk": "4.1.2",

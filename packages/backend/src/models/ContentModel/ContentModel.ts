@@ -6,7 +6,7 @@ import {
     DeletedContentWithDescendants,
     KnexPaginateArgs,
     KnexPaginatedData,
-    SummaryContent,
+    SummaryContentBase,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import KnexPaginate from '../../database/pagination';
@@ -50,7 +50,7 @@ export class ContentModel {
         filters: ContentFilters,
         queryArgs: ContentArgs,
         paginateArgs?: KnexPaginateArgs,
-    ): Promise<KnexPaginatedData<SummaryContent[]>> {
+    ): Promise<KnexPaginatedData<SummaryContentBase[]>> {
         const matchingConfigurations = this.contentConfigurations.filter(
             (config) => config.shouldQueryBeIncluded(filters),
         );

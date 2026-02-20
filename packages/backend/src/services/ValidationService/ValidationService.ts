@@ -16,6 +16,7 @@ import {
     getFilterRules,
     getItemId,
     getUnusedDimensions,
+    getUnusedTableCalculations,
     InlineErrorType,
     isChartValidationError,
     isDashboardFieldTarget,
@@ -483,9 +484,25 @@ export class ValidationService extends BaseService {
                     const unusedDimensionErrors: CreateChartValidation[] =
                         unusedDimensions.map((dimension) => ({
                             ...commonValidation,
-                            error: `Chart configuration warning: dimension '${dimension}' is not used in the chart configuration (x-axis, y-axis, or group by). This can cause incorrect rendering.`,
+                            error: `dimension is not used in the chart configuration (x-axis, y-axis, or group by). This can cause incorrect rendering. We recommend removing unused fields.`,
                             errorType: ValidationErrorType.ChartConfiguration,
                             fieldName: dimension,
+                        }));
+
+                    // Check for unused table calculations in chart configuration
+                    const { unusedTableCalculations } =
+                        getUnusedTableCalculations({
+                            chartType,
+                            chartConfig,
+                            queryTableCalculations: tableCalculations,
+                        });
+
+                    const unusedTableCalculationErrors: CreateChartValidation[] =
+                        unusedTableCalculations.map((tc) => ({
+                            ...commonValidation,
+                            error: `table calculation is not used in the chart configuration (x-axis or y-axis). This can cause incorrect rendering. We recommend removing unused fields.`,
+                            errorType: ValidationErrorType.ChartConfiguration,
+                            fieldName: tc,
                         }));
 
                     return [
@@ -496,6 +513,7 @@ export class ValidationService extends BaseService {
                         ...customMetricsErrors,
                         ...customMetricFilterErrors,
                         ...unusedDimensionErrors,
+                        ...unusedTableCalculationErrors,
                     ];
                 },
             );

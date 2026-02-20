@@ -54,6 +54,13 @@ Generate OpenAPI specs from TSOA controllers, needs to be run when controllers c
 pnpm generate-api
 ```
 
+Chart-as-code JSON schema is generated from backend OpenAPI:
+
+```bash
+pnpm generate:chart-as-code-schema
+pnpm check:chart-as-code-schema
+```
+
 **Database Migrations:**
 
 ```bash

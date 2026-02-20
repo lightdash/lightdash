@@ -1,6 +1,6 @@
 {
     "name": "@lightdash/common",
-    "version": "0.2473.1",
+    "version": "0.2500.0",
     "main": "dist/cjs/index.js",
     "module": "dist/esm/index.js",
     "types": "dist/types/index.d.ts",
@@ -22,7 +22,7 @@
     "dependencies": {
         "@casl/ability": "^6.7.5",
         "@types/lodash": "^4.14.202",
-        "ajv": "^8.3.0",
+        "ajv": "^8.18.0",
         "ajv-errors": "^3.0.0",
         "ajv-formats": "^2.1.0",
         "better-ajv-errors": "^1.2.0",
@@ -56,6 +56,8 @@
         "fix-lint": "pnpm run linter ./src --fix",
         "format": "pnpm run formatter ./src --check",
         "fix-format": "pnpm run formatter ./src --write",
+        "generate:chart-as-code-schema": "tsx src/schemas/generateChartAsCodeSchema.ts",
+        "check:chart-as-code-schema": "tsx src/schemas/generateChartAsCodeSchema.ts --check",
         "test": "TZ=UTC LANG=en_US.UTF-8 jest",
         "test:dev": "TZ=UTC LANG=en_US.UTF-8 jest --config jest.config.dev.js --onlyChanged --watch",
         "release": "pnpm publish --no-git-checks --access public"

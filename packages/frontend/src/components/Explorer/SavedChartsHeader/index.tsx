@@ -35,6 +35,8 @@ import {
     IconPin,
     IconPinnedOff,
     IconSend,
+    IconStar,
+    IconStarFilled,
     IconTrash,
 } from '@tabler/icons-react';
 import {
@@ -70,6 +72,8 @@ import {
 import { SyncModal as GoogleSheetsSyncModal } from '../../../features/sync/components';
 import { useChartViewStats } from '../../../hooks/chart/useChartViewStats';
 import useDashboardStorage from '../../../hooks/dashboard/useDashboardStorage';
+import { useFavoriteMutation } from '../../../hooks/favorites/useFavoriteMutation';
+import { useFavorites } from '../../../hooks/favorites/useFavorites';
 import { useChartPinningMutation } from '../../../hooks/pinning/useChartPinningMutation';
 import { useContentAction } from '../../../hooks/useContent';
 import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
@@ -148,6 +152,14 @@ const SavedChartsHeader: FC = () => {
         if (!savedChart) return;
         togglePinChart({ uuid: savedChart.uuid });
     }, [savedChart, togglePinChart]);
+
+    const { data: favorites } = useFavorites(projectUuid);
+    const { mutate: toggleFavorite } = useFavoriteMutation(projectUuid);
+    const isChartFavorited = useMemo(
+        () =>
+            favorites?.some((f) => f.data.uuid === savedChart?.uuid) ?? false,
+        [favorites, savedChart?.uuid],
+    );
 
     const { clearDashboardStorage } = useDashboardStorage();
     const [isRenamingChart, setIsRenamingChart] = useState(false);
@@ -423,6 +435,29 @@ const SavedChartsHeader: FC = () => {
                                 >
                                     {savedChart.name}
                                 </Title>
+
+                                <ActionIcon
+                                    size="xs"
+                                    variant="transparent"
+                                    color={
+                                        isChartFavorited
+                                            ? 'orange'
+                                            : 'ldGray.6'
+                                    }
+                                    onClick={() => {
+                                        toggleFavorite({
+                                            contentType: ContentType.CHART,
+                                            contentUuid: savedChart.uuid,
+                                        });
+                                    }}
+                                >
+                                    {isChartFavorited ? (
+                                        <IconStarFilled size={16} />
+                                    ) : (
+                                        <IconStar size={16} />
+                                    )}
+                                </ActionIcon>
+
                                 {isEditMode && userCanManageChart && (
                                     <ActionIcon
                                         size="xs"

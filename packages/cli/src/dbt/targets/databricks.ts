@@ -8,6 +8,7 @@ import { JSONSchemaType } from 'ajv';
 import betterAjvErrors from 'better-ajv-errors';
 import { ajv } from '../../ajv';
 import { Target } from '../types';
+import { DATABRICKS_DEFAULT_OAUTH_CLIENT_ID } from './Databricks/oauth';
 
 type DatabricksComputeConfig = {
     [name: string]: {
@@ -143,7 +144,7 @@ export const convertDatabricksSchema = (
                     : DatabricksAuthenticationType.OAUTH_U2M;
         }
 
-        const clientId = target.client_id || 'dbt-databricks'; // Use the same default dbt client for databricks
+        const clientId = target.client_id || DATABRICKS_DEFAULT_OAUTH_CLIENT_ID;
 
         return {
             type: WarehouseTypes.DATABRICKS,

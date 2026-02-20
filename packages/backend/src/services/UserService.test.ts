@@ -1,4 +1,11 @@
-import { EmailStatus, OpenIdIdentityIssuerType } from '@lightdash/common';
+import {
+    defineUserAbility,
+    EmailStatus,
+    OpenIdIdentityIssuerType,
+    OrganizationMemberRole,
+    ProjectMemberRole,
+    SessionUser,
+} from '@lightdash/common';
 import { analyticsMock } from '../analytics/LightdashAnalytics.mock';
 import EmailClient from '../clients/EmailClient/EmailClient';
 import { lightdashConfigMock } from '../config/lightdashConfig.mock';
@@ -12,6 +19,7 @@ import { OrganizationAllowedEmailDomainsModel } from '../models/OrganizationAllo
 import { OrganizationMemberProfileModel } from '../models/OrganizationMemberProfileModel';
 import { OrganizationModel } from '../models/OrganizationModel';
 import { PasswordResetLinkModel } from '../models/PasswordResetLinkModel';
+import { ProjectModel } from '../models/ProjectModel/ProjectModel';
 import { SessionModel } from '../models/SessionModel';
 import { UserModel } from '../models/UserModel';
 import { UserWarehouseCredentialsModel } from '../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
@@ -35,6 +43,10 @@ const userModel = {
     hasPasswordByEmail: jest.fn(async () => false),
     findSessionUserByOpenId: jest.fn(async () => undefined),
     findSessionUserByUUID: jest.fn(async () => sessionUser),
+    getSessionUserFromCacheOrDB: jest.fn(async () => ({
+        sessionUser,
+        cacheHit: false,
+    })),
     createUser: jest.fn(async () => sessionUser),
     activateUser: jest.fn(async () => sessionUser),
     getOrganizationsForUser: jest.fn(async () => [sessionUser]),
@@ -77,6 +89,11 @@ const organizationModel = {
     getAllowedOrgsForDomain: jest.fn(async () => []),
 };
 
+const projectModel = {
+    getProjectsWithDefaultUserSpaces: jest.fn(async () => []),
+    ensureDefaultUserSpace: jest.fn(async () => undefined),
+};
+
 const createUserService = (lightdashConfig: LightdashConfig) =>
     new UserService({
         analytics: analyticsMock,
@@ -97,6 +114,7 @@ const createUserService = (lightdashConfig: LightdashConfig) =>
             {} as OrganizationAllowedEmailDomainsModel,
         userWarehouseCredentialsModel: {} as UserWarehouseCredentialsModel,
         warehouseAvailableTablesModel: {} as WarehouseAvailableTablesModel,
+        projectModel: projectModel as unknown as ProjectModel,
     });
 
 jest.spyOn(analyticsMock, 'track');
@@ -525,6 +543,202 @@ describe('UserService', () => {
                 ),
             ).rejects.toThrowError(
                 'Email is already used by a user in your organization',
+            );
+        });
+    });
+
+    describe('ensureDefaultUserSpaces', () => {
+        const projectUuid = 'project-uuid';
+        const organizationUuid = 'organizationUuid';
+
+        const projectWithDefaultSpaces = {
+            projectId: 1,
+            projectUuid,
+            parentSpaceUuid: 'parent-space-uuid',
+            parentPath: 'default_user_spaces',
+        };
+
+        const makeSessionUser = (
+            overrides: Partial<SessionUser> & {
+                orgRole?: OrganizationMemberRole;
+                projectRole?: ProjectMemberRole;
+            } = {},
+        ): SessionUser => {
+            const {
+                orgRole = OrganizationMemberRole.EDITOR,
+                projectRole,
+                ...rest
+            } = overrides;
+            const userUuid = rest.userUuid ?? 'test-user-uuid';
+            return {
+                ...sessionUser,
+                userUuid,
+                userId: rest.userId ?? 42,
+                firstName: rest.firstName ?? 'Test',
+                lastName: rest.lastName ?? 'User',
+                organizationUuid,
+                role: orgRole,
+                ability: defineUserAbility(
+                    {
+                        userUuid,
+                        role: orgRole,
+                        organizationUuid,
+                    },
+                    projectRole
+                        ? [
+                              {
+                                  projectUuid,
+                                  role: projectRole,
+                                  userUuid,
+                                  roleUuid: undefined,
+                              },
+                          ]
+                        : [],
+                ),
+                ...rest,
+            };
+        };
+
+        const callOnLogin = async (
+            service: UserService,
+            user: SessionUser,
+        ) => {
+            (
+                userModel.getSessionUserFromCacheOrDB as jest.Mock
+            ).mockResolvedValueOnce({
+                sessionUser: user,
+                cacheHit: false,
+            });
+            await service.onLogin({
+                userUuid: user.userUuid,
+                organizationUuid: user.organizationUuid,
+            });
+        };
+
+        test('should return early when feature flag is disabled', async () => {
+            const service = createUserService({
+                ...lightdashConfigMock,
+                defaultUserSpaces: { enabled: false },
+            });
+
+            await callOnLogin(service, makeSessionUser());
+
+            expect(
+                projectModel.getProjectsWithDefaultUserSpaces,
+            ).not.toHaveBeenCalled();
+        });
+
+        test('should return early when user has no organization', async () => {
+            const service = createUserService({
+                ...lightdashConfigMock,
+                defaultUserSpaces: { enabled: true },
+            });
+
+            await service.onLogin({
+                userUuid: 'test-user-uuid',
+                organizationUuid: undefined,
+            });
+
+            expect(
+                userModel.getSessionUserFromCacheOrDB,
+            ).not.toHaveBeenCalled();
+            expect(
+                projectModel.getProjectsWithDefaultUserSpaces,
+            ).not.toHaveBeenCalled();
+        });
+
+        test('should return early when no projects have the feature enabled', async () => {
+            const service = createUserService({
+                ...lightdashConfigMock,
+                defaultUserSpaces: { enabled: true },
+            });
+
+            (
+                projectModel.getProjectsWithDefaultUserSpaces as jest.Mock
+            ).mockResolvedValueOnce([]);
+
+            await callOnLogin(service, makeSessionUser());
+
+            expect(projectModel.ensureDefaultUserSpace).not.toHaveBeenCalled();
+        });
+
+        test('should create space for interactive viewer', async () => {
+            const service = createUserService({
+                ...lightdashConfigMock,
+                defaultUserSpaces: { enabled: true },
+            });
+
+            (
+                projectModel.getProjectsWithDefaultUserSpaces as jest.Mock
+            ).mockResolvedValueOnce([projectWithDefaultSpaces]);
+
+            const interactiveViewer = makeSessionUser({
+                projectRole: ProjectMemberRole.INTERACTIVE_VIEWER,
+            });
+
+            await callOnLogin(service, interactiveViewer);
+
+            expect(projectModel.ensureDefaultUserSpace).toHaveBeenCalledTimes(
+                1,
+            );
+            expect(projectModel.ensureDefaultUserSpace).toHaveBeenCalledWith(
+                projectWithDefaultSpaces.projectId,
+                projectWithDefaultSpaces.parentSpaceUuid,
+                projectWithDefaultSpaces.parentPath,
+                {
+                    userId: interactiveViewer.userId,
+                    userUuid: interactiveViewer.userUuid,
+                    firstName: interactiveViewer.firstName,
+                    lastName: interactiveViewer.lastName,
+                },
+            );
+        });
+
+        test('should skip space creation for viewer (no manage:SavedChart ability)', async () => {
+            const service = createUserService({
+                ...lightdashConfigMock,
+                defaultUserSpaces: { enabled: true },
+            });
+
+            (
+                projectModel.getProjectsWithDefaultUserSpaces as jest.Mock
+            ).mockResolvedValueOnce([projectWithDefaultSpaces]);
+
+            const viewer = makeSessionUser({
+                orgRole: OrganizationMemberRole.VIEWER,
+                projectRole: ProjectMemberRole.VIEWER,
+            });
+
+            await callOnLogin(service, viewer);
+
+            expect(projectModel.ensureDefaultUserSpace).not.toHaveBeenCalled();
+        });
+
+        test('should create spaces across multiple projects', async () => {
+            const service = createUserService({
+                ...lightdashConfigMock,
+                defaultUserSpaces: { enabled: true },
+            });
+
+            const secondProject = {
+                projectId: 2,
+                projectUuid: 'project-uuid-2',
+                parentSpaceUuid: 'parent-space-uuid-2',
+                parentPath: 'default_user_spaces_2',
+            };
+
+            (
+                projectModel.getProjectsWithDefaultUserSpaces as jest.Mock
+            ).mockResolvedValueOnce([projectWithDefaultSpaces, secondProject]);
+
+            const editor = makeSessionUser({
+                orgRole: OrganizationMemberRole.EDITOR,
+            });
+
+            await callOnLogin(service, editor);
+
+            expect(projectModel.ensureDefaultUserSpace).toHaveBeenCalledTimes(
+                2,
             );
         });
     });
