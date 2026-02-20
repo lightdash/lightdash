@@ -1,3 +1,10 @@
+## [0.2502.3](https://github.com/lightdash/lightdash/compare/0.2502.2...0.2502.3) (2026-02-20)
+
+
+### Bug Fixes
+
+* groups.cy.ts add members to group test ([#20495](https://github.com/lightdash/lightdash/issues/20495)) ([d1594a1](https://github.com/lightdash/lightdash/commit/d1594a19d0eaabff85e48701806d091977cc46c8))
+
 ## [0.2502.2](https://github.com/lightdash/lightdash/compare/0.2502.1...0.2502.2) (2026-02-20)
 
 
