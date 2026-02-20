@@ -1,3 +1,10 @@
+## [0.2498.3](https://github.com/lightdash/lightdash/compare/0.2498.2...0.2498.3) (2026-02-20)
+
+
+### Bug Fixes
+
+* upgrade @casl/ability from 5.4.4 to 6.7.5 on CLI ([#20474](https://github.com/lightdash/lightdash/issues/20474)) ([8f8a8db](https://github.com/lightdash/lightdash/commit/8f8a8dbbf06ce053c61ab8d451f89b70a05f1b21))
+
 ## [0.2498.2](https://github.com/lightdash/lightdash/compare/0.2498.1...0.2498.2) (2026-02-20)
 
 
