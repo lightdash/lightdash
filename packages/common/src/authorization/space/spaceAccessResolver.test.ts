@@ -809,7 +809,7 @@ describe('resolveSpaceAccessWithInheritance', () => {
     });
 
     describe('hasDirectAccess', () => {
-        it('is true when user has direct access only on parent (inherited)', () => {
+        it('is false when user has direct access only on parent (inherited)', () => {
             const result = resolveSpaceAccessWithInheritance(
                 makeChainInput({
                     chainDirectAccess: [
@@ -836,7 +836,67 @@ describe('resolveSpaceAccessWithInheritance', () => {
                 }),
             );
             expect(result).toHaveLength(1);
+            expect(result[0].hasDirectAccess).toBe(false);
+        });
+
+        it('is true when user has direct access on the leaf space', () => {
+            const result = resolveSpaceAccessWithInheritance(
+                makeChainInput({
+                    chainDirectAccess: [
+                        {
+                            spaceUuid: 'child-space',
+                            directAccess: [
+                                {
+                                    userUuid: 'user-1',
+                                    spaceUuid: 'child-space',
+                                    role: SpaceMemberRole.VIEWER,
+                                    from: DirectSpaceAccessOrigin.USER_ACCESS,
+                                },
+                            ],
+                        },
+                    ],
+                    organizationAccess: [
+                        {
+                            userUuid: 'user-1',
+                            spaceUuid: 'child-space',
+                            role: OrganizationMemberRole.VIEWER,
+                        },
+                    ],
+                }),
+            );
+            expect(result).toHaveLength(1);
             expect(result[0].hasDirectAccess).toBe(true);
+        });
+
+        it('is false when user has group access only on parent', () => {
+            const result = resolveSpaceAccessWithInheritance(
+                makeChainInput({
+                    chainDirectAccess: [
+                        { spaceUuid: 'child-space', directAccess: [] },
+                        {
+                            spaceUuid: 'parent-space',
+                            directAccess: [
+                                {
+                                    userUuid: 'user-1',
+                                    spaceUuid: 'parent-space',
+                                    role: SpaceMemberRole.EDITOR,
+                                    from: DirectSpaceAccessOrigin.GROUP_ACCESS,
+                                },
+                            ],
+                        },
+                    ],
+                    organizationAccess: [
+                        {
+                            userUuid: 'user-1',
+                            spaceUuid: 'child-space',
+                            role: OrganizationMemberRole.VIEWER,
+                        },
+                    ],
+                }),
+            );
+            expect(result).toHaveLength(1);
+            expect(result[0].hasDirectAccess).toBe(false);
+            expect(result[0].inheritedFrom).toBe('parent_space');
         });
 
         it('is false when user has only project/org access', () => {
@@ -888,6 +948,37 @@ describe('resolveSpaceAccessWithInheritance', () => {
             );
             expect(result).toHaveLength(1);
             expect(result[0].inheritedFrom).toBe('parent_space');
+        });
+
+        it('reports parent_space when group access is from ancestor', () => {
+            const result = resolveSpaceAccessWithInheritance(
+                makeChainInput({
+                    chainDirectAccess: [
+                        { spaceUuid: 'child-space', directAccess: [] },
+                        {
+                            spaceUuid: 'parent-space',
+                            directAccess: [
+                                {
+                                    userUuid: 'user-1',
+                                    spaceUuid: 'parent-space',
+                                    role: SpaceMemberRole.EDITOR,
+                                    from: DirectSpaceAccessOrigin.GROUP_ACCESS,
+                                },
+                            ],
+                        },
+                    ],
+                    organizationAccess: [
+                        {
+                            userUuid: 'user-1',
+                            spaceUuid: 'child-space',
+                            role: OrganizationMemberRole.VIEWER,
+                        },
+                    ],
+                }),
+            );
+            expect(result).toHaveLength(1);
+            expect(result[0].inheritedFrom).toBe('parent_space');
+            expect(result[0].hasDirectAccess).toBe(false);
         });
 
         it('does not report parent_space when winning role is from leaf', () => {
