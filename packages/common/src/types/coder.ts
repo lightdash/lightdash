@@ -8,6 +8,7 @@ import type {
     DashboardHeadingTileProperties,
     DashboardLoomTileProperties,
     DashboardMarkdownTileProperties,
+    DashboardTab,
     DashboardTile,
     FilterRule,
     MetricQuery,
@@ -141,10 +142,15 @@ export type DashboardTileWithSlug = DashboardTile & {
     tileSlug: string | undefined;
 };
 
+export type DashboardTabInput = Omit<DashboardTab, 'uuid'> & {
+    uuid?: string;
+};
+
 export type DashboardAsCode = Pick<
     Dashboard,
-    'name' | 'description' | 'tabs' | 'slug'
+    'name' | 'description' | 'slug'
 > & {
+    tabs: DashboardTabInput[];
     /** Not modifiable by user, but useful to know if it has been updated. Defaults to now if omitted. */
     updatedAt?: Date;
     tiles: DashboardTileAsCode[];
