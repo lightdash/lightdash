@@ -664,6 +664,18 @@ const getBedrockConfig = () => {
             ),
         } as const;
     }
+    if (process.env.BEDROCK_USE_DEFAULT_CREDENTIALS === 'true') {
+        return {
+            useDefaultCredentials: true as const,
+            region: process.env.BEDROCK_REGION,
+            modelName:
+                process.env.BEDROCK_MODEL_NAME || DEFAULT_BEDROCK_MODEL_NAME,
+            embeddingModelName: process.env.BEDROCK_EMBEDDING_MODEL,
+            availableModels: getArrayFromCommaSeparatedList(
+                'BEDROCK_AVAILABLE_MODELS',
+            ),
+        } as const;
+    }
 
     return undefined;
 };
