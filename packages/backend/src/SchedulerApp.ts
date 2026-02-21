@@ -15,7 +15,7 @@ import { databricksPassportStrategy } from './controllers/authentication/strateg
 import { snowflakePassportStrategy } from './controllers/authentication/strategies/snowflakeStrategy';
 import Logger from './logging/logger';
 import { ModelProviderMap, ModelRepository } from './models/ModelRepository';
-import PrometheusMetrics from './prometheus';
+import PrometheusMetrics from './prometheus/PrometheusMetrics';
 import { SchedulerWorker } from './scheduler/SchedulerWorker';
 import { IGNORE_ERRORS } from './sentry';
 import {
