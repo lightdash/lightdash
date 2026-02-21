@@ -17,6 +17,7 @@ import { lightdashApi } from '../../api';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { convertDateDashboardFilters } from '../../utils/dateFilter';
 import { useExplore } from '../useExplore';
+import { defaultRetryConfig } from '../useQueryRetry';
 import { useSavedQuery } from '../useSavedQuery';
 import useSearchParams from '../useSearchParams';
 import { useServerFeatureFlag } from '../useServerOrClientFeatureFlag';
@@ -260,7 +261,7 @@ export const useDashboardChartReadyQuery = (
         enabled: Boolean(
             chartUuid && dashboardUuid && chartQuery.data && explore,
         ),
-        retry: false,
+        ...defaultRetryConfig,
         refetchOnMount: false,
     });
 
