@@ -492,6 +492,345 @@ export const removeCommentsAndOuterLimitOffset = (sql: string): string => {
     return restoreStringsFromPlaceholders(sqlWithoutLimit, placeholders);
 };
 
+/**
+ * Finds the position of the outermost ORDER BY clause in a SQL string
+ * (with strings already replaced by placeholders).
+ * Returns the start index and end index, or undefined if not found.
+ * Only matches ORDER BY at parenthesis depth 0 (not inside subqueries).
+ */
+export const findOuterOrderByPosition = (
+    sqlWithoutStrings: string,
+): { start: number; end: number } | undefined => {
+    const orderByRegex = /\bORDER\s+BY\b/gi;
+    let match = orderByRegex.exec(sqlWithoutStrings);
+    let outerOrderByStart: number | undefined;
+
+    while (match) {
+        let depth = 0;
+        for (let i = 0; i < match.index; i += 1) {
+            if (sqlWithoutStrings[i] === '(') depth += 1;
+            if (sqlWithoutStrings[i] === ')') depth -= 1;
+        }
+        if (depth === 0) {
+            outerOrderByStart = match.index;
+        }
+        match = orderByRegex.exec(sqlWithoutStrings);
+    }
+
+    if (outerOrderByStart === undefined) return undefined;
+
+    const afterOrderBy = sqlWithoutStrings.substring(outerOrderByStart);
+    const endMatch = afterOrderBy.match(
+        /\bORDER\s+BY\b([\s\S]+?)(?=\s*\b(?:LIMIT|OFFSET)\b|\s*;|\s*$)/i,
+    );
+
+    if (!endMatch) return undefined;
+
+    const end = outerOrderByStart + endMatch[0].length;
+    return { start: outerOrderByStart, end };
+};
+
+/**
+ * Finds the position of the first FROM keyword at parenthesis depth 0
+ * in a SQL string (with strings already replaced by placeholders).
+ * Returns the start index, or undefined if not found.
+ */
+export const findOuterFromPosition = (
+    sqlWithoutStrings: string,
+): number | undefined => {
+    const fromRegex = /\bFROM\b/gi;
+    let match = fromRegex.exec(sqlWithoutStrings);
+
+    while (match) {
+        let depth = 0;
+        for (let i = 0; i < match.index; i += 1) {
+            if (sqlWithoutStrings[i] === '(') depth += 1;
+            if (sqlWithoutStrings[i] === ')') depth -= 1;
+        }
+        if (depth === 0) {
+            return match.index;
+        }
+        match = fromRegex.exec(sqlWithoutStrings);
+    }
+
+    return undefined;
+};
+
+export interface ProcessedOrderBy {
+    rawOrderByText: string | undefined;
+    sqlWithoutOrderBy: string;
+}
+
+/**
+ * Splits a SQL list by commas at parenthesis depth 0.
+ */
+const splitTopLevelCommaSeparated = (sql: string): string[] => {
+    const items: string[] = [];
+    let start = 0;
+    let depth = 0;
+
+    for (let i = 0; i < sql.length; i += 1) {
+        const char = sql[i];
+        if (char === '(') depth += 1;
+        if (char === ')') depth = Math.max(0, depth - 1);
+        if (char === ',' && depth === 0) {
+            items.push(sql.substring(start, i).trim());
+            start = i + 1;
+        }
+    }
+
+    const last = sql.substring(start).trim();
+    if (last.length > 0) {
+        items.push(last);
+    }
+    return items;
+};
+
+const findOuterSelectPosition = (
+    sqlWithoutStrings: string,
+): number | undefined => {
+    const selectRegex = /\bSELECT\b/gi;
+    let match = selectRegex.exec(sqlWithoutStrings);
+
+    while (match) {
+        let depth = 0;
+        for (let i = 0; i < match.index; i += 1) {
+            if (sqlWithoutStrings[i] === '(') depth += 1;
+            if (sqlWithoutStrings[i] === ')') depth -= 1;
+        }
+        if (depth === 0) {
+            return match.index;
+        }
+        match = selectRegex.exec(sqlWithoutStrings);
+    }
+
+    return undefined;
+};
+
+const removeLeadingSelectModifiers = (
+    selectListSqlWithoutStrings: string,
+): string => {
+    const trimmed = selectListSqlWithoutStrings.trim();
+
+    // DISTINCT ON (<expr>)
+    const distinctOnMatch = trimmed.match(/^DISTINCT\s+ON\s*\(/i);
+    if (distinctOnMatch) {
+        let depth = 0;
+        for (
+            let i = distinctOnMatch[0].length - 1;
+            i < trimmed.length;
+            i += 1
+        ) {
+            if (trimmed[i] === '(') depth += 1;
+            if (trimmed[i] === ')') {
+                depth -= 1;
+                if (depth === 0) {
+                    return trimmed.substring(i + 1).trim();
+                }
+            }
+        }
+        return trimmed;
+    }
+
+    return trimmed.replace(/^(DISTINCT|ALL)\s+/i, '').trim();
+};
+
+const getOuterSelectExpressions = (sql: string): string[] | undefined => {
+    const { sqlWithoutStrings, placeholders } = replaceStringsWithPlaceholders(
+        sql.trim(),
+    );
+    const selectPos = findOuterSelectPosition(sqlWithoutStrings);
+    const fromPos = findOuterFromPosition(sqlWithoutStrings);
+
+    if (
+        selectPos === undefined ||
+        fromPos === undefined ||
+        fromPos <= selectPos
+    ) {
+        return undefined;
+    }
+
+    const selectListWithoutStrings = sqlWithoutStrings
+        .substring(selectPos + 'SELECT'.length, fromPos)
+        .trim();
+    const selectList = removeLeadingSelectModifiers(selectListWithoutStrings);
+    if (!selectList) return undefined;
+
+    return splitTopLevelCommaSeparated(selectList).map((item) =>
+        restoreStringsFromPlaceholders(item, placeholders),
+    );
+};
+
+const stripTrailingAlias = (selectExpr: string): string => {
+    const { sqlWithoutStrings } = replaceStringsWithPlaceholders(selectExpr);
+
+    // Strip explicit alias with AS
+    const asRegex =
+        /\s+AS\s+("[^"]+"|`[^`]+`|\[[^\]]+\]|[A-Za-z_][A-Za-z0-9_$]*)\s*$/i;
+    const asMatch = sqlWithoutStrings.match(asRegex);
+    if (asMatch?.index !== undefined) {
+        return selectExpr.substring(0, asMatch.index).trim();
+    }
+
+    // Strip implicit alias when suffix is a valid identifier-like token.
+    const implicitAliasRegex =
+        /\s+("[^"]+"|`[^`]+`|\[[^\]]+\]|[A-Za-z_][A-Za-z0-9_$]*)\s*$/;
+    const implicitAliasMatch = sqlWithoutStrings.match(implicitAliasRegex);
+    if (!implicitAliasMatch || implicitAliasMatch.index === undefined) {
+        return selectExpr.trim();
+    }
+
+    const beforeAlias = sqlWithoutStrings
+        .substring(0, implicitAliasMatch.index)
+        .trim();
+    if (!beforeAlias) {
+        return selectExpr.trim();
+    }
+
+    // Avoid stripping for constructs where trailing token is clearly part of the expression.
+    if (/[+\-*/%<>=!~|&^]$/.test(beforeAlias)) {
+        return selectExpr.trim();
+    }
+
+    return selectExpr.substring(0, implicitAliasMatch.index).trim();
+};
+
+const normalizeOrderByTermOrdinal = (
+    orderByTerm: string,
+    selectExpressions: string[],
+): string => {
+    const ordinalMatch = orderByTerm.match(/^\s*(\d+)\b([\s\S]*)$/);
+    if (!ordinalMatch) return orderByTerm;
+
+    const ordinal = Number(ordinalMatch[1]);
+    if (!Number.isInteger(ordinal) || ordinal < 1) return orderByTerm;
+    if (ordinal > selectExpressions.length) return orderByTerm;
+
+    const suffix = ordinalMatch[2] ?? '';
+    const normalizedSuffix = suffix.trim();
+    if (
+        normalizedSuffix.length > 0 &&
+        !/^((ASC|DESC)\b)?(\s+NULLS\s+(FIRST|LAST)\b)?$/i.test(
+            normalizedSuffix,
+        ) &&
+        !/^NULLS\s+(FIRST|LAST)\b(\s+(ASC|DESC)\b)?$/i.test(normalizedSuffix)
+    ) {
+        return orderByTerm;
+    }
+
+    const selectExpr = stripTrailingAlias(selectExpressions[ordinal - 1]);
+    return `(${selectExpr})${suffix}`;
+};
+
+/**
+ * Converts outer ORDER BY ordinal references (e.g. ORDER BY 1 DESC) into the
+ * corresponding outer SELECT expressions so ROW_NUMBER() OVER (...) preserves
+ * the original user ordering semantics.
+ */
+export const normalizeOrderByOrdinals = (
+    rawOrderByText: string,
+    sqlWithoutOrderBy: string,
+): string => {
+    const selectExpressions = getOuterSelectExpressions(sqlWithoutOrderBy);
+    if (!selectExpressions || selectExpressions.length === 0) {
+        return rawOrderByText;
+    }
+
+    const orderByTerms = splitTopLevelCommaSeparated(rawOrderByText);
+    if (orderByTerms.length === 0) {
+        return rawOrderByText;
+    }
+
+    return orderByTerms
+        .map((term) => normalizeOrderByTermOrdinal(term, selectExpressions))
+        .join(', ');
+};
+
+/**
+ * Processes the outermost ORDER BY clause from a SQL query.
+ * Returns the raw ORDER BY text (for use in OVER clause) and the SQL with ORDER BY removed.
+ */
+export const processOuterOrderBy = (sql: string): ProcessedOrderBy => {
+    const { sqlWithoutStrings, placeholders } = replaceStringsWithPlaceholders(
+        sql.trim(),
+    );
+
+    const pos = findOuterOrderByPosition(sqlWithoutStrings);
+    if (!pos) {
+        return {
+            rawOrderByText: undefined,
+            sqlWithoutOrderBy: restoreStringsFromPlaceholders(
+                sqlWithoutStrings,
+                placeholders,
+            ),
+        };
+    }
+
+    // Extract the raw ORDER BY text (everything after "ORDER BY" keyword)
+    const orderByClausePlaceholder = sqlWithoutStrings.substring(
+        pos.start,
+        pos.end,
+    );
+    const orderByTextMatch = orderByClausePlaceholder.match(
+        /\bORDER\s+BY\b\s+([\s\S]+)/i,
+    );
+    const rawOrderByText = orderByTextMatch
+        ? restoreStringsFromPlaceholders(
+              orderByTextMatch[1].trim(),
+              placeholders,
+          )
+        : undefined;
+
+    // Remove ORDER BY from SQL and restore
+    let sqlWithout =
+        sqlWithoutStrings.substring(0, pos.start) +
+        sqlWithoutStrings.substring(pos.end);
+    sqlWithout = sqlWithout.replace(/\s+/g, ' ').trim();
+    sqlWithout = sqlWithout.replace(/\s*;+\s*$/g, '').trim();
+
+    return {
+        rawOrderByText,
+        sqlWithoutOrderBy: restoreStringsFromPlaceholders(
+            sqlWithout,
+            placeholders,
+        ),
+    };
+};
+
+export const ROW_NUMBER_COLUMN_NAME = '__lightdash_row_number__';
+
+/**
+ * Injects a ROW_NUMBER() OVER (ORDER BY ...) column into the user's SQL
+ * right before the first outer FROM keyword.
+ * This preserves access to all table columns in the ORDER BY clause.
+ *
+ * Falls back to returning the original SQL unchanged if the outer FROM can't be found.
+ */
+export const injectRowNumber = (
+    sqlWithoutOrderBy: string,
+    rawOrderByText: string,
+    fieldQuoteChar: string,
+): string => {
+    const { sqlWithoutStrings, placeholders } =
+        replaceStringsWithPlaceholders(sqlWithoutOrderBy);
+
+    const fromPos = findOuterFromPosition(sqlWithoutStrings);
+    if (fromPos === undefined) {
+        // Fallback: can't find outer FROM, return original SQL unchanged
+        return sqlWithoutOrderBy;
+    }
+
+    const quotedColumnName = `${fieldQuoteChar}${ROW_NUMBER_COLUMN_NAME}${fieldQuoteChar}`;
+    const rowNumberExpr = `, ROW_NUMBER() OVER (ORDER BY ${rawOrderByText}) AS ${quotedColumnName}`;
+
+    // Insert the ROW_NUMBER expression right before FROM, trimming trailing whitespace
+    const beforeFrom = sqlWithoutStrings.substring(0, fromPos).trimEnd();
+    const fromAndAfter = sqlWithoutStrings.substring(fromPos);
+    const result = `${beforeFrom}${rowNumberExpr} ${fromAndAfter}`;
+
+    return restoreStringsFromPlaceholders(result, placeholders);
+};
+
 // Apply a limit (and optional offset) to a SQL query
 export const applyLimitToSqlQuery = ({
     sqlQuery,

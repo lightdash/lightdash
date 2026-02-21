@@ -29,9 +29,12 @@ import {
     applyLimitToSqlQuery,
     assertValidDimensionRequiredAttribute,
     findMetricInflationWarnings,
+    findOuterFromPosition,
     getCustomBinDimensionSql,
     getCustomSqlDimensionSql,
     getJoinedTables,
+    injectRowNumber,
+    processOuterOrderBy,
     replaceUserAttributesAsStrings,
     sortDayOfWeekName,
     sortMonthName,
@@ -1447,5 +1450,165 @@ describe('getJoinedTables', () => {
         const result = getJoinedTables(explore, ['orders', 'users']);
 
         expect(result).toContain('intermediary_table');
+    });
+});
+
+describe('findOuterFromPosition', () => {
+    it('should find FROM in a simple query', () => {
+        const sql = 'SELECT a, b FROM my_table';
+        const pos = findOuterFromPosition(sql);
+        expect(pos).toBe(sql.indexOf('FROM'));
+    });
+
+    it('should skip FROM inside subqueries', () => {
+        const sql =
+            'SELECT (SELECT x FROM inner_table) AS sub FROM outer_table';
+        const pos = findOuterFromPosition(sql);
+        expect(pos).toBe(sql.lastIndexOf('FROM'));
+    });
+
+    it('should find FROM after CTE', () => {
+        const sql =
+            'WITH cte AS (SELECT x FROM inner_table) SELECT a FROM outer_table';
+        const pos = findOuterFromPosition(sql);
+        // Should find the outer FROM, not the one inside the CTE
+        expect(pos).toBe(sql.lastIndexOf('FROM'));
+    });
+
+    it('should return undefined when no outer FROM exists', () => {
+        const sql = 'SELECT 1 + 2';
+        const pos = findOuterFromPosition(sql);
+        expect(pos).toBeUndefined();
+    });
+});
+
+describe('processOuterOrderBy', () => {
+    it('should extract raw ORDER BY text from simple query', () => {
+        const sql = 'SELECT * FROM users ORDER BY name DESC';
+        const result = processOuterOrderBy(sql);
+        expect(result.rawOrderByText).toBe('name DESC');
+        expect(result.sqlWithoutOrderBy).toBe('SELECT * FROM users');
+    });
+
+    it('should extract raw ORDER BY text with multiple columns', () => {
+        const sql = 'SELECT * FROM users ORDER BY date DESC, name ASC';
+        const result = processOuterOrderBy(sql);
+        expect(result.rawOrderByText).toBe('date DESC, name ASC');
+        expect(result.sqlWithoutOrderBy).toBe('SELECT * FROM users');
+    });
+
+    it('should return undefined rawOrderByText when no ORDER BY exists', () => {
+        const sql = 'SELECT * FROM users WHERE active = true';
+        const result = processOuterOrderBy(sql);
+        expect(result.rawOrderByText).toBeUndefined();
+        expect(result.sqlWithoutOrderBy).toBe(
+            'SELECT * FROM users WHERE active = true',
+        );
+    });
+
+    it('should not extract ORDER BY inside subquery', () => {
+        const sql =
+            'SELECT * FROM (SELECT * FROM users ORDER BY name) AS subquery';
+        const result = processOuterOrderBy(sql);
+        expect(result.rawOrderByText).toBeUndefined();
+    });
+
+    it('should extract outer ORDER BY when there is also one in a subquery', () => {
+        const sql =
+            'SELECT * FROM (SELECT * FROM users ORDER BY name) AS subquery ORDER BY date DESC';
+        const result = processOuterOrderBy(sql);
+        expect(result.rawOrderByText).toBe('date DESC');
+    });
+
+    it('should extract ORDER BY before LIMIT clause', () => {
+        const sql = 'SELECT * FROM users ORDER BY name DESC LIMIT 10';
+        const result = processOuterOrderBy(sql);
+        expect(result.rawOrderByText).toBe('name DESC');
+        expect(result.sqlWithoutOrderBy).toBe('SELECT * FROM users LIMIT 10');
+    });
+
+    it('should extract complex ORDER BY expressions', () => {
+        const sql =
+            'SELECT * FROM users ORDER BY CASE WHEN active THEN 1 ELSE 0 END';
+        const result = processOuterOrderBy(sql);
+        expect(result.rawOrderByText).toBe(
+            'CASE WHEN active THEN 1 ELSE 0 END',
+        );
+    });
+
+    it('should extract ORDER BY with NULLS FIRST/LAST', () => {
+        const sql = 'SELECT * FROM users ORDER BY name DESC NULLS FIRST';
+        const result = processOuterOrderBy(sql);
+        expect(result.rawOrderByText).toBe('name DESC NULLS FIRST');
+    });
+});
+
+describe('injectRowNumber', () => {
+    it('should inject ROW_NUMBER before FROM in simple query', () => {
+        const sql = 'SELECT a, b FROM my_table';
+        const result = injectRowNumber(sql, 'a DESC', '"');
+        expect(result).toBe(
+            'SELECT a, b, ROW_NUMBER() OVER (ORDER BY a DESC) AS "__lightdash_row_number__" FROM my_table',
+        );
+    });
+
+    it('should inject ROW_NUMBER with multiple order columns', () => {
+        const sql = 'SELECT date, revenue FROM sales';
+        const result = injectRowNumber(sql, 'revenue DESC, date ASC', '"');
+        expect(result).toBe(
+            'SELECT date, revenue, ROW_NUMBER() OVER (ORDER BY revenue DESC, date ASC) AS "__lightdash_row_number__" FROM sales',
+        );
+    });
+
+    it('should inject ROW_NUMBER with SELECT * query', () => {
+        const sql = 'SELECT * FROM my_table';
+        const result = injectRowNumber(sql, 'col DESC', '"');
+        expect(result).toBe(
+            'SELECT *, ROW_NUMBER() OVER (ORDER BY col DESC) AS "__lightdash_row_number__" FROM my_table',
+        );
+    });
+
+    it('should inject ROW_NUMBER in query with CTE', () => {
+        const sql =
+            'WITH cte AS (SELECT x FROM inner_table) SELECT a FROM outer_table';
+        const result = injectRowNumber(sql, 'a DESC', '"');
+        expect(result).toBe(
+            'WITH cte AS (SELECT x FROM inner_table) SELECT a, ROW_NUMBER() OVER (ORDER BY a DESC) AS "__lightdash_row_number__" FROM outer_table',
+        );
+    });
+
+    it('should inject ROW_NUMBER with subquery in SELECT', () => {
+        const sql =
+            'SELECT (SELECT MAX(x) FROM inner_table) AS sub, a FROM outer_table';
+        const result = injectRowNumber(sql, 'a DESC', '"');
+        expect(result).toBe(
+            'SELECT (SELECT MAX(x) FROM inner_table) AS sub, a, ROW_NUMBER() OVER (ORDER BY a DESC) AS "__lightdash_row_number__" FROM outer_table',
+        );
+    });
+
+    it('should return original SQL when outer FROM is not found', () => {
+        const sql = 'SELECT 1 + 2';
+        const result = injectRowNumber(sql, 'col DESC', '"');
+        expect(result).toBe(sql);
+    });
+
+    it('should use backtick quote char for BigQuery', () => {
+        const sql = 'SELECT a, b FROM my_table';
+        const result = injectRowNumber(sql, 'a DESC', '`');
+        expect(result).toBe(
+            'SELECT a, b, ROW_NUMBER() OVER (ORDER BY a DESC) AS `__lightdash_row_number__` FROM my_table',
+        );
+    });
+
+    it('should handle complex ORDER BY expression', () => {
+        const sql = 'SELECT date, revenue FROM sales';
+        const result = injectRowNumber(
+            sql,
+            'CASE WHEN revenue > 100 THEN 1 ELSE 2 END',
+            '"',
+        );
+        expect(result).toBe(
+            'SELECT date, revenue, ROW_NUMBER() OVER (ORDER BY CASE WHEN revenue > 100 THEN 1 ELSE 2 END) AS "__lightdash_row_number__" FROM sales',
+        );
     });
 });
