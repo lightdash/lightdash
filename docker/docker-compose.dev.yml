@@ -1,3 +1,6 @@
+include:
+    - docker-compose.infra.yml
+
 volumes:
     node_modules:
 
@@ -107,32 +110,13 @@ x-lightdash-environment: &lightdash-environment
     EMAIL_SMTP_SENDER_NAME: ${EMAIL_SMTP_SENDER_NAME}
     EMAIL_SMTP_SENDER_EMAIL: ${EMAIL_SMTP_SENDER_EMAIL}
 
-x-lightdash-base: &lightdash-base
-    build: *lightdash-build
-    depends_on:
-        - minio
-        - db-dev
-    volumes: *lightdash-volumes
-    environment:
-        <<: *lightdash-environment
-
 services:
-    minio:
-        image: coollabsio/minio:latest
-        ports:
-            - '9000:9000'
-            - '9001:9001' # for minio console
-        volumes:
-            - ./init-minio.sh:/init-minio.sh
-        entrypoint: '/init-minio.sh'
-        environment:
-            - MINIO_ROOT_USER=${MINIO_ROOT_USER}
-            - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
-            - MINIO_DEFAULT_BUCKETS=${MINIO_DEFAULT_BUCKETS}
-            - MINIO_BROWSER=${MINIO_BROWSER:-off}
-
     lightdash-dev:
-        <<: *lightdash-base
+        build: *lightdash-build
+        depends_on:
+            - minio
+            - db-dev
+        volumes: *lightdash-volumes
         environment:
             <<: *lightdash-environment
             SCHEDULER_ENABLED: ${SCHEDULER_ENABLED}
@@ -148,63 +132,3 @@ services:
             - '9229:9229'
         command: ''
         entrypoint: ['/bin/sh', '-c', 'sleep infinity']
-
-    db-dev:
-        image: pgvector/pgvector:pg16
-        restart: always
-        environment:
-            POSTGRES_PASSWORD: password
-        ports:
-            - '5432:5432'
-
-    ssh-server:
-        image: linuxserver/openssh-server:latest
-        restart: always
-        depends_on:
-            - db-dev
-        environment:
-            - PUID=1000
-            - PGID=1000
-            - TZ=UTC
-            - PUBLIC_KEY=${DEV_SSH_PUBLIC_KEY:-}
-            - USER_NAME=sshuser
-            - SUDO_ACCESS=true
-            - PASSWORD_ACCESS=false
-            - LOG_STDOUT=true
-        ports:
-            - '2222:2222'
-        volumes:
-            - ./dev-configs/sshd_config:/config/sshd/sshd_config
-
-    headless-browser:
-        build:
-            dockerfile: Dockerfile.headless-browser
-        restart: always
-        ports:
-            - '3001:3000'
-
-    prometheus:
-        image: prom/prometheus:latest
-        restart: always
-        ports:
-            - '9091:9090'
-        volumes:
-            - ./dev-configs/prometheus.dev.yml:/etc/prometheus/prometheus.yml
-        command:
-            - '--config.file=/etc/prometheus/prometheus.yml'
-            - '--storage.tsdb.path=/prometheus'
-            - '--web.console.libraries=/etc/prometheus/console_libraries'
-            - '--web.console.templates=/etc/prometheus/consoles'
-            - '--storage.tsdb.retention.time=200h'
-            - '--web.enable-lifecycle'
-
-    mailpit:
-        image: axllent/mailpit:latest
-        restart: unless-stopped
-        ports:
-            - '8025:8025'
-            - '1025:1025'
-        environment:
-            MP_MAX_MESSAGES: 5000
-            MP_SMTP_AUTH_ACCEPT_ANY: 1
-            MP_SMTP_AUTH_ALLOW_INSECURE: 1
