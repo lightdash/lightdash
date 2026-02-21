@@ -98,6 +98,25 @@ export const WarehouseFormInputs: FC<{
             return <BigQueryFormInput onClose={onClose} />;
         case WarehouseTypes.DATABRICKS:
             return <DatabricksFormInput onClose={onClose} />;
+        case WarehouseTypes.ATHENA:
+            return (
+                <>
+                    <TextInput
+                        required
+                        size="xs"
+                        label="Access key ID"
+                        disabled={disabled}
+                        {...form.getInputProps('credentials.accessKeyId')}
+                    />
+                    <PasswordInput
+                        required
+                        size="xs"
+                        label="Secret access key"
+                        disabled={disabled}
+                        {...form.getInputProps('credentials.secretAccessKey')}
+                    />
+                </>
+            );
         default:
             return null;
     }
