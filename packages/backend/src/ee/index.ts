@@ -327,6 +327,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     mcpContextModel: models.getMcpContextModel(),
                     projectModel: models.getProjectModel(),
                     featureFlagService: repository.getFeatureFlagService(),
+                    aiOrganizationSettingsService:
+                        repository.getAiOrganizationSettingsService(),
                 }),
             slackService: ({ repository, clients }) =>
                 new CommercialSlackService({
