@@ -1,0 +1,40 @@
+# Metadata
+type: model
+name: transactions
+
+# Table definition
+sql_from: 'SNOWFLAKE_DATABASE_STAGING.DBT_DEMO.TRANSACTIONS'
+
+# Metric definitions
+# For more configuration see: https://docs.lightdash.com/references/metrics
+metrics:
+  lead_count:
+    type: count_distinct
+    sql: ${TABLE}.TRANSACTION_ID
+    description: Total unique transactions
+  deal_count:
+    type: count_distinct
+    sql: ${TABLE}.MERCHANT_ID
+    description: Total unique merchants
+
+# Dimension definitions
+# For more configuration see: https://docs.lightdash.com/references/dimensions
+dimensions:
+  - name: amount
+    sql: ${TABLE}.AMOUNT
+    type: number
+    format: '$#,##0.00'
+  - name: payment_method
+    sql: ${TABLE}.PAYMENT_METHOD
+    type: string
+
+  - name: transaction_date
+    sql: ${TABLE}.TRANSACTION_DATE
+    type: date
+    time_intervals:
+      - DAY
+      - WEEK
+      - MONTH
+      - YEAR
+      - DAY_OF_MONTH_NUM
+      - QUARTER
