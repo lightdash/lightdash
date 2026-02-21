@@ -1,3 +1,10 @@
+## [0.2503.1](https://github.com/lightdash/lightdash/compare/0.2503.0...0.2503.1) (2026-02-21)
+
+
+### Bug Fixes
+
+* enable mcp in trial ([#20517](https://github.com/lightdash/lightdash/issues/20517)) ([b53a27e](https://github.com/lightdash/lightdash/commit/b53a27e90a5065e3a0fb7b23cdd2f9d85d3c410b))
+
 # [0.2503.0](https://github.com/lightdash/lightdash/compare/0.2502.3...0.2503.0) (2026-02-20)
 
 
