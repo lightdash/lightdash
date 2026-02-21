@@ -69,12 +69,8 @@ const applyReferenceLines = (
     dirtyLayout: Partial<Partial<CompleteCartesianChartLayout>> | undefined,
     referenceLines: ReferenceLineField[],
 ): Series[] => {
-    // Track which reference lines have been applied to visible series
-    let appliedReferenceLines: string[] = [];
-
     return series.map((serie) => {
         // If series is filtered out or hidden, ensure it has no markLine
-        // but DON'T mark the reference line as applied so another visible series can pick it up
         if (serie.isFilteredOut || serie.hidden) {
             return { ...serie, markLine: undefined };
         }
@@ -82,8 +78,6 @@ const applyReferenceLines = (
         const referenceLinesForSerie = referenceLines.filter(
             (referenceLine) => {
                 if (referenceLine.fieldId === undefined) return false;
-                if (appliedReferenceLines.includes(referenceLine.fieldId))
-                    return false;
                 return (
                     referenceLine.fieldId === serie.encode?.xRef.field ||
                     referenceLine.fieldId === serie.encode?.yRef.field
@@ -99,7 +93,6 @@ const applyReferenceLines = (
                 if (line.fieldId === undefined) return line.data;
                 const value = line.data.xAxis || line.data.yAxis;
                 if (value === undefined) return line.data;
-                appliedReferenceLines.push(line.fieldId);
 
                 const axis = getMarkLineAxis(
                     dirtyLayout?.xField,
