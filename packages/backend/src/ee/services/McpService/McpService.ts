@@ -92,6 +92,7 @@ import { AgentContext } from '../ai/utils/AgentContext';
 import { getPivotedResults } from '../ai/utils/getPivotedResults';
 import { populateCustomMetricsSQL } from '../ai/utils/populateCustomMetricsSQL';
 import { serializeData } from '../ai/utils/serializeData';
+import { AiOrganizationSettingsService } from '../AiOrganizationSettingsService';
 import {
     registerAppResource,
     registerAppTool,
@@ -125,6 +126,7 @@ type McpServiceArguments = {
     spaceService: SpaceService;
     mcpContextModel: McpContextModel;
     featureFlagService: FeatureFlagService;
+    aiOrganizationSettingsService: AiOrganizationSettingsService;
 };
 
 export type ExtraContext = {
@@ -164,6 +166,8 @@ export class McpService extends BaseService {
 
     private featureFlagService: FeatureFlagService;
 
+    private aiOrganizationSettingsService: AiOrganizationSettingsService;
+
     private mcpServer: McpServer;
 
     private mcpCompatLayer: McpSchemaCompatLayer;
@@ -181,6 +185,7 @@ export class McpService extends BaseService {
         projectModel,
         mcpContextModel,
         featureFlagService,
+        aiOrganizationSettingsService,
     }: McpServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -195,6 +200,7 @@ export class McpService extends BaseService {
         this.spaceService = spaceService;
         this.mcpContextModel = mcpContextModel;
         this.featureFlagService = featureFlagService;
+        this.aiOrganizationSettingsService = aiOrganizationSettingsService;
         this.mcpCompatLayer = new McpSchemaCompatLayer();
         try {
             this.mcpServer = Sentry.wrapMcpServerWithSentry(
@@ -1674,7 +1680,7 @@ export class McpService extends BaseService {
         return true;
     }
 
-    // MCP is enabled if MCP_ENABLED is true OR if AI Copilot is enabled
+    // MCP is enabled if MCP_ENABLED is true, AI Copilot is enabled, or user is on trial
     public async isEnabled(
         user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
     ): Promise<boolean> {
@@ -1686,7 +1692,19 @@ export class McpService extends BaseService {
             user,
             featureFlagId: CommercialFeatureFlags.AiCopilot,
         });
-        return aiCopilotFlag.enabled;
+
+        if (aiCopilotFlag.enabled) {
+            return true;
+        }
+
+        if (!user.organizationUuid) {
+            return false;
+        }
+
+        return this.aiOrganizationSettingsService.isEligibleForTrial(
+            aiCopilotFlag.enabled,
+            user.organizationUuid,
+        );
     }
 
     public getLightdashVersion(context: McpProtocolContext): string {
