@@ -1,11 +1,11 @@
 #!/bin/bash
-# Creates a branch database by copying from lightdash_template.
+# Creates a branch database by copying from lightdash-template.
 # Database name: lightdash-<branch-name> (only a-z, A-Z, 0-9, _, - allowed)
 #
 # Usage: ./scripts/setup-branch-db.sh <branch-name>
 set -e
 
-TEMPLATE_DB="lightdash_template"
+TEMPLATE_DB="lightdash-template"
 
 RAW_BRANCH="${1:?Usage: ./scripts/setup-branch-db.sh <branch-name>}"
 

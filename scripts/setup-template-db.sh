@@ -1,12 +1,12 @@
 #!/bin/bash
-# Creates and seeds 'lightdash_template', a PostgreSQL template database.
+# Creates and seeds 'lightdash-template', a PostgreSQL template database.
 # Used as a fast-copy source for branch-based databases via:
-#   CREATE DATABASE <branch_db> TEMPLATE lightdash_template
+#   CREATE DATABASE <branch_db> TEMPLATE lightdash-template
 #
 # Usage: ./scripts/setup-template-db.sh
 set -e
 
-TEMPLATE_DB="lightdash_template"
+TEMPLATE_DB="lightdash-template"
 
 echo "Creating '$TEMPLATE_DB' database if it doesn't exist..."
 psql -c "SELECT 1 FROM pg_database WHERE datname = '$TEMPLATE_DB'" \
