@@ -44,15 +44,6 @@
 
               # for @databricks/sql
               lz4
-
-              # for node-canvas
-              pixman
-              cairo
-              pango
-              libjpeg
-              libpng
-              librsvg
-              giflib
             ];
 
             buildInputs = with pkgs; [

@@ -40,6 +40,7 @@ docker exec docker-db-dev-1 psql -U postgres -tAc "SELECT CASE WHEN EXISTS(SELEC
 ```
 
 **How to interpret the output:**
+
 - Lines starting with `NEED:` indicate setup steps that must be run
 - Lines starting with `OK:` indicate that component is ready
 - If all lines show `OK:`, the environment is ready - just start the dev server
@@ -49,6 +50,7 @@ docker exec docker-db-dev-1 psql -U postgres -tAc "SELECT CASE WHEN EXISTS(SELEC
 ### Why Use `docker exec` for Database Checks?
 
 PostgreSQL runs inside a Docker container, so we use `docker exec docker-db-dev-1 psql` instead of a local `psql` client. This:
+
 - Works without requiring psql installed locally
 - Uses the exact same connection the app uses
 - Fails clearly if Docker isn't running (which is the first thing to fix anyway)
@@ -56,11 +58,13 @@ PostgreSQL runs inside a Docker container, so we use `docker exec docker-db-dev-
 ### Database Check Details
 
 **Why `information_schema` instead of direct queries?**
+
 - Checking `SELECT 1 FROM tablename` can fail with "relation does not exist" errors
 - Using `information_schema.tables` always succeeds and returns a clean result
 - The `CASE WHEN EXISTS(...)` pattern returns deterministic strings for easy parsing
 
 **Why check `emails` table for seeded status?**
+
 - The demo user's email (`demo@lightdash.com`) is in the `emails` table, not `users`
 - The `users` table doesn't have an `email` column (Lightdash separates user identity from emails)
 - There's also a `jaffle.users` dbt model that would cause ambiguity
@@ -69,10 +73,7 @@ PostgreSQL runs inside a Docker container, so we use `docker exec docker-db-dev-
 
 ### Prerequisites (macOS)
 
-If `pnpm install` fails with canvas errors:
-```bash
-brew install pkg-config cairo pango libpng jpeg giflib librsvg pixman
-```
+If `pnpm install` fails with canvas errors - read this guide: https://github.com/Automattic/node-canvas?tab=readme-ov-file#installation
 
 ### Start Docker Services
 
@@ -85,6 +86,7 @@ Wait a few seconds for PostgreSQL to be ready.
 ### Create Environment File
 
 Create `.env.development.local` with localhost overrides:
+
 ```bash
 cat > .env.development.local << 'EOF'
 # Local development overrides
@@ -106,6 +108,7 @@ EOF
 ```
 
 Then add the DBT_DEMO_DIR with the actual path:
+
 ```bash
 echo "DBT_DEMO_DIR=$(pwd)/examples/full-jaffle-shop-demo" >> .env.development.local
 ```
@@ -119,7 +122,8 @@ echo "DBT_DEMO_DIR=$(pwd)/examples/full-jaffle-shop-demo" >> .env.development.lo
 **Only proceed with this step after the user confirms.** If declined, skip this step and continue with the remaining setup.
 
 Once permission is granted, append local development instructions to `CLAUDE.local.md` (creates file if it doesn't exist, appends if it does):
-```bash
+
+````bash
 cat >> CLAUDE.local.md << 'EOF'
 # Local Development Environment
 
@@ -131,7 +135,7 @@ Start the Docker services (PostgreSQL, MinIO, headless browser, Mailpit) before 
 
 ```bash
 /docker-dev
-```
+````
 
 ### PM2 (Recommended for LLM Development)
 
@@ -153,20 +157,21 @@ pnpm pm2:stop           # Stop all services
 
 Use the `/debug-local` skill for comprehensive debugging workflows combining:
 
--   **PM2 logs**: `pnpm pm2:logs:api` to view API server logs with trace IDs
--   **Spotlight MCP**: Query traces and errors programmatically via `mcp__spotlight__search_traces`, `mcp__spotlight__get_traces`, `mcp__spotlight__search_errors`
--   **Browser automation**: Use Chrome DevTools MCP (`mcp__chrome-devtools__*`) for UI debugging
+- **PM2 logs**: `pnpm pm2:logs:api` to view API server logs with trace IDs
+- **Spotlight MCP**: Query traces and errors programmatically via `mcp__spotlight__search_traces`, `mcp__spotlight__get_traces`, `mcp__spotlight__search_errors`
+- **Browser automation**: Use Chrome DevTools MCP (`mcp__chrome-devtools__*`) for UI debugging
 
 Spotlight UI is available at http://localhost:8969 when running `pnpm pm2:start`.
 EOF
-```
+
+````
 
 ### Install Dependencies
 
 ```bash
 pnpm install
 pnpm -F common build && pnpm -F warehouses build
-```
+````
 
 ### Set Up Python/dbt
 
@@ -239,6 +244,7 @@ docker compose -f docker/docker-compose.dev.mini.yml down
 This stops PM2 processes (keeps them registered for quick restart) and removes Docker containers but **preserves the data volumes** (database data, MinIO files).
 
 To verify everything is stopped:
+
 ```bash
 pnpm pm2:status
 docker compose -f docker/docker-compose.dev.mini.yml ps
@@ -258,16 +264,16 @@ PM2 provides process isolation, individual service restarts, and monitoring - id
 
 **Useful PM2 commands:**
 
-| Command                      | Description                        |
-| ---------------------------- | ---------------------------------- |
-| `pnpm pm2:logs`              | Stream all process logs            |
-| `pnpm pm2:status`            | Show process status table          |
-| `pnpm pm2:restart:api`       | Restart only the API server        |
-| `pnpm pm2:restart:scheduler` | Restart only the scheduler         |
-| `pnpm pm2:restart:frontend`  | Restart only the frontend          |
-| `pnpm pm2:monit`             | Interactive monitoring dashboard   |
-| `pnpm pm2:stop`              | Stop all processes                 |
-| `pnpm pm2:delete`            | Stop and remove all processes      |
+| Command                      | Description                      |
+| ---------------------------- | -------------------------------- |
+| `pnpm pm2:logs`              | Stream all process logs          |
+| `pnpm pm2:status`            | Show process status table        |
+| `pnpm pm2:restart:api`       | Restart only the API server      |
+| `pnpm pm2:restart:scheduler` | Restart only the scheduler       |
+| `pnpm pm2:restart:frontend`  | Restart only the frontend        |
+| `pnpm pm2:monit`             | Interactive monitoring dashboard |
+| `pnpm pm2:stop`              | Stop all processes               |
+| `pnpm pm2:delete`            | Stop and remove all processes    |
 
 ### Alternative: Traditional Dev Server
 
@@ -280,14 +286,14 @@ pnpx dotenv-cli -e .env.development -- pnpm dev
 
 **Why PM2 is preferred:**
 
-| Feature                    | `pnpm dev`          | `pnpm pm2:start`               |
-| -------------------------- | ------------------- | ------------------------------ |
-| Process visibility         | Interleaved output  | Individual status/logs         |
-| Restart individual service | Not possible        | `pnpm pm2:restart:api`         |
-| Memory/CPU monitoring      | Not available       | `pnpm pm2:monit`               |
-| Log management             | Terminal only       | Persistent log files           |
-| Background running         | No                  | Yes (processes persist)        |
-| Best for                   | Quick terminal dev  | LLM control, debugging         |
+| Feature                    | `pnpm dev`         | `pnpm pm2:start`        |
+| -------------------------- | ------------------ | ----------------------- |
+| Process visibility         | Interleaved output | Individual status/logs  |
+| Restart individual service | Not possible       | `pnpm pm2:restart:api`  |
+| Memory/CPU monitoring      | Not available      | `pnpm pm2:monit`        |
+| Log management             | Terminal only      | Persistent log files    |
+| Background running         | No                 | Yes (processes persist) |
+| Best for                   | Quick terminal dev | LLM control, debugging  |
 
 ## Access the Application
 
@@ -297,29 +303,26 @@ pnpx dotenv-cli -e .env.development -- pnpm dev
 
 ## Service Ports Reference
 
-| Service           | Port      | Description                       |
-| ----------------- | --------- | --------------------------------- |
-| Frontend (Vite)   | 3000      | React development server          |
-| Backend (Express) | 8080      | API server                        |
-| Scheduler         | 8081      | Background job processor          |
-| PostgreSQL        | 5432      | Database                          |
-| MinIO             | 9000/9001 | S3-compatible storage/console     |
-| Headless Browser  | 3001      | PDF/image generation              |
-| Mailpit           | 8025/1025 | Email testing Web UI/SMTP server  |
+| Service           | Port      | Description                      |
+| ----------------- | --------- | -------------------------------- |
+| Frontend (Vite)   | 3000      | React development server         |
+| Backend (Express) | 8080      | API server                       |
+| Scheduler         | 8081      | Background job processor         |
+| PostgreSQL        | 5432      | Database                         |
+| MinIO             | 9000/9001 | S3-compatible storage/console    |
+| Headless Browser  | 3001      | PDF/image generation             |
+| Mailpit           | 8025/1025 | Email testing Web UI/SMTP server |
 
 ## Troubleshooting
 
 ### Canvas Installation Fails (macOS)
 
-```bash
-brew install pkg-config cairo pango libpng jpeg giflib librsvg pixman
-rm -rf node_modules
-pnpm install
-```
+If `pnpm install` fails with canvas errors - read this guide: https://github.com/Automattic/node-canvas?tab=readme-ov-file#installation
 
 ### PostgreSQL Connection Refused
 
 Wait for Docker services to fully start:
+
 ```bash
 docker compose -f docker/docker-compose.dev.mini.yml ps
 ```
@@ -329,6 +332,7 @@ All services should show "running" state.
 ### MinIO Connection Refused / Query Results Error
 
 If queries fail with `ECONNREFUSED` when uploading results, MinIO isn't running:
+
 ```bash
 # Check if MinIO is running
 docker compose -f docker/docker-compose.dev.mini.yml ps | grep minio

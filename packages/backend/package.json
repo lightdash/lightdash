@@ -82,7 +82,7 @@
         "archiver": "^7.0.1",
         "autoevals": "^0.0.130",
         "bcrypt": "^5.1.1",
-        "canvas": "^2.11.2",
+        "canvas": "^3.0.0",
         "chokidar": "^4.0.2",
         "connect-flash": "^0.1.1",
         "connect-session-knex": "^3.0.0",
