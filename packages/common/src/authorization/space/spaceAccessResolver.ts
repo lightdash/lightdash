@@ -209,10 +209,6 @@ const getSpaceRoleFromChain = (
     leafSpaceUuid: string,
     inheritsFromOrgOrProject: boolean,
 ): { role: SpaceMemberRole; fromLeaf: boolean } | undefined => {
-    if (highestProjectRole === ProjectMemberRole.ADMIN) {
-        return { role: SpaceMemberRole.ADMIN, fromLeaf: true };
-    }
-
     // Collect all direct access entries for this user across the entire chain
     const allUserEntries: { role: SpaceMemberRole; spaceUuid: string }[] = [];
     for (const chainLevel of chainDirectAccess) {

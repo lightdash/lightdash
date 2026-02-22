@@ -188,7 +188,7 @@ describe('SpacePermissionService', () => {
             expect(result.access[0].role).toBe(SpaceMemberRole.EDITOR);
         });
 
-        test('org admin gets ADMIN on non-inheriting space even without direct access', async () => {
+        test('org admin without direct access is NOT in access list (CASL handles admin permissions)', async () => {
             const spaceUuid = 'private-space';
             const adminUuid = 'admin-user';
 
@@ -234,10 +234,10 @@ describe('SpacePermissionService', () => {
 
             const result = await service.getAllSpaceAccessContext(spaceUuid);
 
-            // Admin should always get access, even on private/non-inheriting spaces
-            expect(result.access).toHaveLength(1);
-            expect(result.access[0].userUuid).toBe(adminUuid);
-            expect(result.access[0].role).toBe(SpaceMemberRole.ADMIN);
+            // Admin is not in the access list — CASL grants admin users
+            // blanket can('manage', 'Space') at the org/project ability level,
+            // so the resolver doesn't need to include them explicitly.
+            expect(result.access).toHaveLength(0);
         });
 
         test('nested space aggregates direct access from all ancestors in chain', async () => {
