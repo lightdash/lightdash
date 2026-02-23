@@ -1,4 +1,5 @@
 import { OrganizationProject, ProjectType } from '@lightdash/common';
+import { LightdashAnalytics } from '../analytics/analytics';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
 import { lightdashApi } from './dbt/apiClient';
@@ -8,36 +9,53 @@ type ListProjectsOptions = {
 };
 
 export const listProjectsHandler = async (options: ListProjectsOptions) => {
+    const startTime = Date.now();
+    let success = true;
     GlobalState.setVerbose(options.verbose);
 
-    const projects = await lightdashApi<OrganizationProject[]>({
-        method: 'GET',
-        url: `/api/v1/org/projects`,
-        body: undefined,
-    });
+    try {
+        const projects = await lightdashApi<OrganizationProject[]>({
+            method: 'GET',
+            url: `/api/v1/org/projects`,
+            body: undefined,
+        });
 
-    GlobalState.debug(
-        `> List projects returned response: ${JSON.stringify(projects)}`,
-    );
+        GlobalState.debug(
+            `> List projects returned response: ${JSON.stringify(projects)}`,
+        );
 
-    // Filter out preview projects
-    const filteredProjects = projects.filter(
-        (project) => project.type !== ProjectType.PREVIEW,
-    );
+        // Filter out preview projects
+        const filteredProjects = projects.filter(
+            (project) => project.type !== ProjectType.PREVIEW,
+        );
 
-    if (filteredProjects.length === 0) {
-        console.error(styles.warning('No projects found.'));
-        return;
-    }
+        if (filteredProjects.length === 0) {
+            console.error(styles.warning('No projects found.'));
+        } else {
+            console.error(
+                styles.bold(`\nProjects (${filteredProjects.length}):\n`),
+            );
 
-    console.error(styles.bold(`\nProjects (${filteredProjects.length}):\n`));
-
-    filteredProjects.forEach((project) => {
-        console.error(`  ${styles.bold(project.name)}`);
-        console.error(`    UUID: ${project.projectUuid}`);
-        if (project.warehouseType) {
-            console.error(`    Warehouse: ${project.warehouseType}`);
+            filteredProjects.forEach((project) => {
+                console.error(`  ${styles.bold(project.name)}`);
+                console.error(`    UUID: ${project.projectUuid}`);
+                if (project.warehouseType) {
+                    console.error(`    Warehouse: ${project.warehouseType}`);
+                }
+                console.error('');
+            });
         }
-        console.error('');
-    });
+    } catch (e) {
+        success = false;
+        throw e;
+    } finally {
+        await LightdashAnalytics.track({
+            event: 'command.executed',
+            properties: {
+                command: 'list-projects',
+                durationMs: Date.now() - startTime,
+                success,
+            },
+        });
+    }
 };

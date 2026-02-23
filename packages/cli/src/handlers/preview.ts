@@ -84,7 +84,7 @@ const cleanupProject = async (
                 projectId: projectUuid,
                 durationMs: previewStartTime
                     ? Date.now() - previewStartTime
-                    : undefined,
+                    : 0,
             },
         });
         teardownSpinner.succeed(`  Cleaned up`);
