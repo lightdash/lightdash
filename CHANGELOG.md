@@ -1,3 +1,10 @@
+# [0.2508.0](https://github.com/lightdash/lightdash/compare/0.2507.0...0.2508.0) (2026-02-23)
+
+
+### Features
+
+* add feature flag gate for ShareSpaceModal ([#20491](https://github.com/lightdash/lightdash/issues/20491)) ([6a064d0](https://github.com/lightdash/lightdash/commit/6a064d0ed591bf2a5df3a2ada7cc6f318a38c009))
+
 # [0.2507.0](https://github.com/lightdash/lightdash/compare/0.2506.3...0.2507.0) (2026-02-23)
 
 
