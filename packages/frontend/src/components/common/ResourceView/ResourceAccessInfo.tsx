@@ -39,14 +39,17 @@ const getV2AccessType = (
     return ResourceAccess.Private;
 };
 
-const getV2Status = (accessType: ResourceAccess): string => {
+const getV2Status = (
+    accessType: ResourceAccess,
+    isNestedSpace: boolean,
+): string => {
     switch (accessType) {
         case ResourceAccess.Public:
-            return 'Shared';
+            return isNestedSpace ? 'Parent Access' : 'Project Access';
         case ResourceAccess.Private:
             return 'Private';
         case ResourceAccess.Shared:
-            return 'Shared';
+            return 'Custom Access';
     }
 };
 
@@ -58,10 +61,10 @@ const getV2Label = (
     switch (accessType) {
         case ResourceAccess.Public:
             return isNestedSpace
-                ? 'Access matches the parent space'
-                : 'Shared with all users in this project';
+                ? 'Inherits access from the parent space'
+                : 'All project members can access';
         case ResourceAccess.Private:
-            return 'Only invited members and admins have access';
+            return 'Only you and admins can access';
         case ResourceAccess.Shared:
             return `Shared with ${item.data.accessListLength} member${
                 item.data.accessListLength > 1 ? 's' : ''
@@ -92,7 +95,7 @@ const ResourceAccessInfo: React.FC<ResourceAccessInfoProps> = ({
     const isNestedSpace = !!item.data.parentSpaceUuid;
     const { Icon } = ResourceAccessInfoData[accessType];
     const status = isV2
-        ? getV2Status(accessType)
+        ? getV2Status(accessType, isNestedSpace)
         : ResourceAccessInfoData[accessType].status;
     const tooltipLabel = isV2
         ? getV2Label(item, accessType, isNestedSpace)
