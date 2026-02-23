@@ -141,7 +141,7 @@ export const useContentAction = (
     const queryClient = useQueryClient();
     const navigate = useNavigate();
     const { health } = useApp();
-    const isSoftDeleteEnabled = health.data?.softDelete.enabled ?? false;
+    const isSoftDeleteEnabled = health.data?.softDelete?.enabled ?? false;
 
     return useMutation<ApiSuccessEmpty, ApiError, ApiContentActionBody>({
         mutationFn: (body) => {
@@ -228,7 +228,7 @@ export const useContentBulkAction = (
     const queryClient = useQueryClient();
     const navigate = useNavigate();
     const { health } = useApp();
-    const isSoftDeleteEnabled = health.data?.softDelete.enabled ?? false;
+    const isSoftDeleteEnabled = health.data?.softDelete?.enabled ?? false;
 
     return useMutation<ApiSuccessEmpty, ApiError, ApiContentBulkActionBody>({
         mutationFn: (body) => {

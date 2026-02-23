@@ -84,8 +84,8 @@ export const DeleteSpaceModal: FC<DeleteSpaceModalBody> = ({
     isLoading,
 }) => {
     const { health } = useApp();
-    const softDeleteEnabled = health.data?.softDelete.enabled ?? false;
-    const retentionDays = health.data?.softDelete.retentionDays ?? 30;
+    const softDeleteEnabled = health.data?.softDelete?.enabled ?? false;
+    const retentionDays = health.data?.softDelete?.retentionDays ?? 30;
 
     const [canDelete, setCanDelete] = useState(false);
 

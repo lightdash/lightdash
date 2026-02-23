@@ -90,7 +90,7 @@ export const useSpaceDeleteMutation = (projectUuid: string) => {
     const queryClient = useQueryClient();
     const navigate = useNavigate();
     const { health } = useApp();
-    const isSoftDeleteEnabled = health.data?.softDelete.enabled ?? false;
+    const isSoftDeleteEnabled = health.data?.softDelete?.enabled ?? false;
 
     return useMutation<null, ApiError, string>(
         (spaceUuid) => deleteQuery(projectUuid, spaceUuid),

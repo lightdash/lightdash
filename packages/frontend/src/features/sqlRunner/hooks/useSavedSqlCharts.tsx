@@ -179,7 +179,7 @@ export const useDeleteSqlChartMutation = (
     const queryClient = useQueryClient();
     const navigate = useNavigate();
     const { health } = useApp();
-    const isSoftDeleteEnabled = health.data?.softDelete.enabled ?? false;
+    const isSoftDeleteEnabled = health.data?.softDelete?.enabled ?? false;
     const { showToastSuccess, showToastApiError } = useToaster();
 
     return useMutation<{ savedSqlUuid: string }, ApiError>(

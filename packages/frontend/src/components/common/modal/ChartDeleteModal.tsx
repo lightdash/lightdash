@@ -22,8 +22,8 @@ const ChartDeleteModal: FC<ChartDeleteModalProps> = ({
 }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { health } = useApp();
-    const softDeleteEnabled = health.data?.softDelete.enabled;
-    const retentionDays = health.data?.softDelete.retentionDays;
+    const softDeleteEnabled = health.data?.softDelete?.enabled;
+    const retentionDays = health.data?.softDelete?.retentionDays;
 
     const { data: chart, isInitialLoading } = useSavedQuery({ id: uuid });
     const {

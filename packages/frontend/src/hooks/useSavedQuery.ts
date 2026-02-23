@@ -199,7 +199,7 @@ export const useSavedQueryDeleteMutation = () => {
     const navigate = useNavigate();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { health } = useApp();
-    const isSoftDeleteEnabled = health.data?.softDelete.enabled ?? false;
+    const isSoftDeleteEnabled = health.data?.softDelete?.enabled ?? false;
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<null, ApiError, string>(
         async (data) => {
