@@ -339,4 +339,8 @@ export const lightdashConfigMock: LightdashConfig = {
         enabled: false,
         retentionDays: 30,
     },
+    preAggregates: {
+        enabled: false,
+        debug: false,
+    },
 };

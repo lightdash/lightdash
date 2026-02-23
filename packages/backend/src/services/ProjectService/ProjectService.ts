@@ -1613,10 +1613,7 @@ export class ProjectService extends BaseService {
             prevMetricsTreeNodes,
         });
 
-        if (
-            process.env.ENABLE_PRE_AGGREGATES === 'true' ||
-            process.env.ENABLE_PRE_AGGREGATE_VIRTUAL_EXPLORES === 'true'
-        ) {
+        if (this.lightdashConfig.preAggregates.enabled) {
             await this.syncAndEnqueuePreAggregateMaterializations({
                 projectUuid,
                 organizationUuid,
@@ -5188,8 +5185,7 @@ export class ProjectService extends BaseService {
             includeErrors,
         );
         const includePreAggregateDebugExplores =
-            process.env.ENABLE_PRE_AGGREGATE_DEBUG_VIEW === 'true' ||
-            process.env.ENABLE_PRE_AGGREGATE_INTERNAL_VISIBILITY === 'true';
+            this.lightdashConfig.preAggregates.debug;
         const visibleExploreSummaries = includePreAggregateDebugExplores
             ? allExploreSummaries
             : allExploreSummaries.filter(

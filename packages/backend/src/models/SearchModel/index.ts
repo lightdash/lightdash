@@ -22,6 +22,7 @@ import {
     TableSelectionType,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import { type LightdashConfig } from '../../config/parseConfig';
 import {
     DashboardsTableName,
     DashboardTabsTableName,
@@ -50,6 +51,7 @@ import {
 
 type SearchModelArguments = {
     database: Knex;
+    lightdashConfig: LightdashConfig;
 };
 
 const SEARCH_LIMIT_PER_ITEM_TYPE = 10;
@@ -57,8 +59,11 @@ const SEARCH_LIMIT_PER_ITEM_TYPE = 10;
 export class SearchModel {
     private database: Knex;
 
+    private lightdashConfig: LightdashConfig;
+
     constructor(args: SearchModelArguments) {
         this.database = args.database;
+        this.lightdashConfig = args.lightdashConfig;
     }
 
     private async searchSpaces(
@@ -1250,8 +1255,7 @@ export class SearchModel {
 
         if (explores.length > 0 && explores[0].explores) {
             const includePreAggregateDebugExplores =
-                process.env.ENABLE_PRE_AGGREGATE_DEBUG_VIEW === 'true' ||
-                process.env.ENABLE_PRE_AGGREGATE_INTERNAL_VISIBILITY === 'true';
+                this.lightdashConfig.preAggregates.debug;
             return explores[0].explores.filter(
                 (explore: Explore | ExploreError) => {
                     if (

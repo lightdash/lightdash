@@ -1045,6 +1045,10 @@ export type LightdashConfig = {
         enabled: boolean;
         retentionDays: number;
     };
+    preAggregates: {
+        enabled: boolean;
+        debug: boolean;
+    };
 };
 
 export type SlackConfig = {
@@ -1909,6 +1913,10 @@ export const parseConfig = (): LightdashConfig => {
                 getIntegerFromEnvironmentVariable(
                     'SOFT_DELETE_RETENTION_DAYS',
                 ) ?? 30,
+        },
+        preAggregates: {
+            enabled: process.env.PRE_AGGREGATES_ENABLED === 'true',
+            debug: process.env.DEBUG_PRE_AGGREGATES === 'true',
         },
     };
 };
