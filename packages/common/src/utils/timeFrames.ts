@@ -692,7 +692,7 @@ export const validateTimeFrames = (values: string[]): TimeFrames[] =>
         return isTimeInterval(uppercaseValue) ? [...acc, uppercaseValue] : acc;
     }, []);
 
-const timeFrameOrder = [
+export const timeFrameOrder = [
     undefined,
     TimeFrames.RAW,
     TimeFrames.MILLISECOND,
