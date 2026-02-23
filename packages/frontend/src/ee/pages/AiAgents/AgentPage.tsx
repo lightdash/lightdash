@@ -82,10 +82,10 @@ const AgentSidebar: FC<{
     threadUuid?: string;
     isAgentSidebarCollapsed: boolean;
 }> = ({ agent, projectUuid, threadUuid, isAgentSidebarCollapsed }) => {
-    const organizationSettingsQuery = useAiOrganizationSettings();
+    const aiOrganizationSettingsQuery = useAiOrganizationSettings();
     const isTrial =
-        organizationSettingsQuery.isSuccess &&
-        organizationSettingsQuery.data?.isTrial;
+        aiOrganizationSettingsQuery.isSuccess &&
+        aiOrganizationSettingsQuery.data.isTrial;
     const { data: threads } = useAiAgentThreads(projectUuid, agent.uuid);
     const [showMaxItems, setShowMaxItems] = useState(INITIAL_MAX_THREADS);
 

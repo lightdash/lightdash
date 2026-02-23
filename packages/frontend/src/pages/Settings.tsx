@@ -93,9 +93,9 @@ const Settings: FC = () => {
 
     const aiOrganizationSettingsQuery = useAiOrganizationSettings();
     const isAiCopilotEnabledOrTrial =
-        (aiOrganizationSettingsQuery.isSuccess &&
-            aiOrganizationSettingsQuery.data?.isCopilotEnabled) ||
-        aiOrganizationSettingsQuery.data?.isTrial;
+        aiOrganizationSettingsQuery.isSuccess &&
+        (aiOrganizationSettingsQuery.data.isCopilotEnabled ||
+            aiOrganizationSettingsQuery.data.isTrial);
 
     const isServiceAccountFeatureFlagEnabled = useClientFeatureFlag(
         CommercialFeatureFlags.ServiceAccounts,
