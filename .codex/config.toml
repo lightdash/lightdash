@@ -1,0 +1,16 @@
+# Auto-generated from .mcp.json by migrate-to-agents
+
+[mcp_servers.chrome-devtools]
+command = "pnpx"
+args = ["chrome-devtools-mcp@latest"]
+
+[mcp_servers.lightdash-docs]
+url = "https://docs.lightdash.com/mcp"
+
+[mcp_servers.sentry]
+url = "https://mcp.sentry.dev/mcp"
+
+[mcp_servers.spotlight]
+command = "pnpx"
+args = ["@spotlightjs/spotlight@latest", "mcp"]
+
