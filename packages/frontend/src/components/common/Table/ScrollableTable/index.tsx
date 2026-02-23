@@ -1,6 +1,5 @@
-import { FeatureFlags } from '@lightdash/common';
 import { useMemo, useRef, type FC } from 'react';
-import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
+import { useIsTableColumnWidthStabilizationEnabled } from '../../../../hooks/useIsTableColumnWidthStabilizationEnabled';
 import { Table, TableScrollableWrapper } from '../Table.styles';
 import { useTableContext } from '../useTableContext';
 import TableBody from './TableBody';
@@ -20,11 +19,8 @@ const ScrollableTable: FC<ScrollableTableProps> = ({
 }) => {
     const { footer, columns } = useTableContext();
     const tableContainerRef = useRef<HTMLDivElement>(null);
-    const { data: tableColumnWidthStabilizationFlag } = useServerFeatureFlag(
-        FeatureFlags.EnableTableColumnWidthStabilization,
-    );
     const isTableColumnWidthStabilizationEnabled =
-        tableColumnWidthStabilizationFlag?.enabled ?? false;
+        useIsTableColumnWidthStabilizationEnabled();
 
     const totalColumnWidth = useMemo(() => {
         if (!isTableColumnWidthStabilizationEnabled) return 0;

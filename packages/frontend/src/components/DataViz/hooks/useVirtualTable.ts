@@ -1,5 +1,4 @@
 import {
-    FeatureFlags,
     TableDataModel,
     type RawResultRow,
     type VizColumnsConfig,
@@ -13,7 +12,7 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { useCallback, useMemo, useRef } from 'react';
 import { useAutoColumnWidths } from '../../../hooks/useAutoColumnWidths';
 import { getValueCell } from '../../../hooks/useColumns';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
+import { useIsTableColumnWidthStabilizationEnabled } from '../../../hooks/useIsTableColumnWidthStabilizationEnabled';
 import { ROW_HEIGHT_PX } from '../../common/Table/constants';
 
 // This just makes a virtual table from rows and columns. It's very similar to useTableDataModel.
@@ -41,11 +40,8 @@ export const useVirtualTable = ({
         [],
     );
 
-    const { data: tableColumnWidthStabilizationFlag } = useServerFeatureFlag(
-        FeatureFlags.EnableTableColumnWidthStabilization,
-    );
     const isTableColumnWidthStabilizationEnabled =
-        tableColumnWidthStabilizationFlag?.enabled ?? false;
+        useIsTableColumnWidthStabilizationEnabled();
 
     const autoColumnWidths = useAutoColumnWidths({
         columnIds: columnNames,
@@ -54,6 +50,11 @@ export const useVirtualTable = ({
         headerLabels,
         enabled: isTableColumnWidthStabilizationEnabled,
     });
+
+    const totalColumnWidth = useMemo(() => {
+        if (!isTableColumnWidthStabilizationEnabled) return 0;
+        return Object.values(autoColumnWidths).reduce((sum, w) => sum + w, 0);
+    }, [autoColumnWidths, isTableColumnWidthStabilizationEnabled]);
 
     const tanstackColumns: ColumnDef<RawResultRow, any>[] = useMemo(() => {
         return columnNames.map((columnName) => {
@@ -129,5 +130,6 @@ export const useVirtualTable = ({
         getTableData,
         paddingTop,
         paddingBottom,
+        totalColumnWidth,
     };
 };

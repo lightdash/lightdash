@@ -1,5 +1,4 @@
 import {
-    FeatureFlags,
     SortByDirection,
     type RawResultRow,
     type VizColumnsConfig,
@@ -15,8 +14,6 @@ import {
 } from '@mantine/core';
 import { IconArrowDown, IconArrowUp } from '@tabler/icons-react';
 import { flexRender } from '@tanstack/react-table';
-import { useMemo } from 'react';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { SMALL_TEXT_LENGTH } from '../../common/LightTable/constants';
 import MantineIcon from '../../common/MantineIcon';
 import BodyCell from '../../common/Table/ScrollableTable/BodyCell';
@@ -46,26 +43,16 @@ export const ChartDataTable = ({
     onTHClick,
 }: TableProps) => {
     const theme = useMantineTheme();
-    const { tableWrapperRef, getTableData, paddingTop, paddingBottom } =
-        useVirtualTable({ columnNames, rows, config: columnsConfig });
+    const {
+        tableWrapperRef,
+        getTableData,
+        paddingTop,
+        paddingBottom,
+        totalColumnWidth,
+    } = useVirtualTable({ columnNames, rows, config: columnsConfig });
 
-    const columnsCount = useMemo(() => columnNames.length, [columnNames]);
+    const columnsCount = columnNames.length;
     const { headerGroups, virtualRows, rowModelRows } = getTableData();
-    const { data: tableColumnWidthStabilizationFlag } = useServerFeatureFlag(
-        FeatureFlags.EnableTableColumnWidthStabilization,
-    );
-    const isTableColumnWidthStabilizationEnabled =
-        tableColumnWidthStabilizationFlag?.enabled ?? false;
-
-    const totalColumnWidth = useMemo(() => {
-        let total = 0;
-        for (const hg of headerGroups) {
-            for (const h of hg.headers) {
-                total += (h.column.columnDef.meta?.style?.width as number) ?? 0;
-            }
-        }
-        return total;
-    }, [headerGroups]);
 
     return (
         <Flex
@@ -82,13 +69,7 @@ export const ChartDataTable = ({
             className="sentry-block ph-no-capture"
             data-testid="chart-data-table"
         >
-            <TableStyled
-                $fixedLayout={
-                    isTableColumnWidthStabilizationEnabled
-                        ? totalColumnWidth
-                        : undefined
-                }
-            >
+            <TableStyled $fixedLayout={totalColumnWidth || undefined}>
                 <Tooltip.Group>
                     <thead>
                         <tr>

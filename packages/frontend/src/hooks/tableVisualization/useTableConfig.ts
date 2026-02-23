@@ -1,6 +1,5 @@
 import {
     convertFormattedValue,
-    FeatureFlags,
     getItemLabel,
     isCustomDimension,
     isDimension,
@@ -25,11 +24,9 @@ import { createWorkerFactory, useWorker } from '@shopify/react-web-worker';
 import uniq from 'lodash/uniq';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import useEmbed from '../../ee/providers/Embed/useEmbed';
-import { useAutoColumnWidths } from '../useAutoColumnWidths';
 import { useCalculateSubtotals } from '../useCalculateSubtotals';
 import { useCalculateTotal } from '../useCalculateTotal';
 import { type InfiniteQueryResults } from '../useQueryResults';
-import { useServerFeatureFlag } from '../useServerOrClientFeatureFlag';
 import getDataAndColumns from './getDataAndColumns';
 
 const createWorker = createWorkerFactory(
@@ -263,47 +260,6 @@ const useTableConfig = (
               },
     );
 
-    const headerLabels = useMemo(() => {
-        if (!itemsMap) return {};
-        const labels: Record<string, string> = {};
-        for (const id of columnOrder) {
-            const override = getFieldLabelOverride(id);
-            if (override) {
-                labels[id] = override;
-            } else {
-                const item = itemsMap[id];
-                if (item) {
-                    labels[id] = getItemLabel(item);
-                }
-            }
-        }
-        return labels;
-    }, [columnOrder, itemsMap, getFieldLabelOverride]);
-
-    const getCellText = useCallback(
-        (row: Record<string, unknown>, colId: string) => {
-            const cell = row[colId] as
-                | { value?: { formatted?: string } }
-                | undefined;
-            return cell?.value?.formatted ?? '';
-        },
-        [],
-    );
-
-    const { data: tableColumnWidthStabilizationFlag } = useServerFeatureFlag(
-        FeatureFlags.EnableTableColumnWidthStabilization,
-    );
-    const isTableColumnWidthStabilizationEnabled =
-        tableColumnWidthStabilizationFlag?.enabled ?? false;
-
-    const autoColumnWidths = useAutoColumnWidths({
-        columnIds: columnOrder,
-        rows: resultsData?.rows ?? [],
-        getCellText,
-        headerLabels,
-        enabled: isTableColumnWidthStabilizationEnabled,
-    });
-
     const columns = useMemo(() => {
         if (!selectedItemIds || !itemsMap) {
             return [];
@@ -325,8 +281,6 @@ const useTableConfig = (
             totals: totalCalculations,
             groupedSubtotals,
             parameters,
-            enableAutoColumnWidths: isTableColumnWidthStabilizationEnabled,
-            autoColumnWidths,
         });
     }, [
         columnOrder,
@@ -341,8 +295,6 @@ const useTableConfig = (
         totalCalculations,
         groupedSubtotals,
         parameters,
-        isTableColumnWidthStabilizationEnabled,
-        autoColumnWidths,
     ]);
     const worker = useWorker(createWorker);
     const [pivotTableData, setPivotTableData] = useState<{

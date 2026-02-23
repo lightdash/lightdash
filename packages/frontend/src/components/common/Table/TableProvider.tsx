@@ -1,4 +1,3 @@
-import { FeatureFlags } from '@lightdash/common';
 import {
     getCoreRowModel,
     getExpandedRowModel,
@@ -7,7 +6,7 @@ import {
     type GroupingState,
 } from '@tanstack/react-table';
 import React, { useEffect, useMemo, useState, type FC } from 'react';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
+import { useIsTableColumnWidthStabilizationEnabled } from '../../../hooks/useIsTableColumnWidthStabilizationEnabled';
 import {
     DEFAULT_PAGE_SIZE,
     FROZEN_COLUMN_BACKGROUND,
@@ -66,11 +65,8 @@ export const TableProvider: FC<React.PropsWithChildren<ProviderProps>> = ({
     const [isInfiniteScrollEnabled, setIsInfiniteScrollEnabled] = useState(
         !pagination?.show || !!pagination?.defaultScroll,
     );
-    const { data: tableColumnWidthStabilizationFlag } = useServerFeatureFlag(
-        FeatureFlags.EnableTableColumnWidthStabilization,
-    );
     const isTableColumnWidthStabilizationEnabled =
-        tableColumnWidthStabilizationFlag?.enabled ?? false;
+        useIsTableColumnWidthStabilizationEnabled();
 
     useEffect(() => {
         setColumnVisibility(calculateColumnVisibility(columns));

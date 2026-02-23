@@ -1,12 +1,8 @@
-import {
-    FeatureFlags,
-    getItemLabel,
-    getItemMap,
-    isField,
-} from '@lightdash/common';
+import { getItemLabel, getItemMap, isField } from '@lightdash/common';
 import { Box, Loader, Text } from '@mantine/core';
 import { memo, useCallback, useMemo, useState, type FC } from 'react';
 import { useAutoColumnWidths } from '../../../hooks/useAutoColumnWidths';
+import { useIsTableColumnWidthStabilizationEnabled } from '../../../hooks/useIsTableColumnWidthStabilizationEnabled';
 import { ResultsViewMode } from './types';
 
 import {
@@ -28,7 +24,6 @@ import type {
     useGetReadyQueryResults,
     useInfiniteQueryResults,
 } from '../../../hooks/useQueryResults';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { TrackSection } from '../../../providers/Tracking/TrackingProvider';
 import { SectionName } from '../../../types/Events';
 import PivotTable from '../../common/PivotTable';
@@ -280,11 +275,8 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
         [],
     );
 
-    const { data: tableColumnWidthStabilizationFlag } = useServerFeatureFlag(
-        FeatureFlags.EnableTableColumnWidthStabilization,
-    );
     const isTableColumnWidthStabilizationEnabled =
-        tableColumnWidthStabilizationFlag?.enabled ?? false;
+        useIsTableColumnWidthStabilizationEnabled();
 
     const autoColumnWidths = useAutoColumnWidths({
         columnIds: explorerColumnOrder,

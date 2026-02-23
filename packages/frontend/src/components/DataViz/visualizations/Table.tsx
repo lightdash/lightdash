@@ -1,5 +1,4 @@
 import {
-    FeatureFlags,
     SortByDirection,
     type IResultsRunner,
     type RawResultRow,
@@ -15,8 +14,6 @@ import {
 } from '@mantine/core';
 import { IconArrowDown, IconArrowUp } from '@tabler/icons-react';
 import { flexRender } from '@tanstack/react-table';
-import { useMemo } from 'react';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { SMALL_TEXT_LENGTH } from '../../common/LightTable/constants';
 import MantineIcon from '../../common/MantineIcon';
 import BodyCell from '../../common/Table/ScrollableTable/BodyCell';
@@ -46,6 +43,7 @@ export const Table = <T extends IResultsRunner>({
         getTableData,
         paddingTop,
         paddingBottom,
+        totalColumnWidth,
     } = useTableDataModel({
         config: {
             columns: columnsConfig,
@@ -55,21 +53,6 @@ export const Table = <T extends IResultsRunner>({
 
     const columnsCount = getColumnsCount();
     const { headerGroups, virtualRows, rowModelRows } = getTableData();
-    const { data: tableColumnWidthStabilizationFlag } = useServerFeatureFlag(
-        FeatureFlags.EnableTableColumnWidthStabilization,
-    );
-    const isTableColumnWidthStabilizationEnabled =
-        tableColumnWidthStabilizationFlag?.enabled ?? false;
-
-    const totalColumnWidth = useMemo(() => {
-        let total = 0;
-        for (const hg of headerGroups) {
-            for (const h of hg.headers) {
-                total += (h.column.columnDef.meta?.style?.width as number) ?? 0;
-            }
-        }
-        return total;
-    }, [headerGroups]);
 
     return (
         <Flex
@@ -85,13 +68,7 @@ export const Table = <T extends IResultsRunner>({
             }}
             className="sentry-block ph-no-capture"
         >
-            <TableStyled
-                $fixedLayout={
-                    isTableColumnWidthStabilizationEnabled
-                        ? totalColumnWidth
-                        : undefined
-                }
-            >
+            <TableStyled $fixedLayout={totalColumnWidth || undefined}>
                 <thead>
                     <tr>
                         {headerGroups.map((headerGroup) =>

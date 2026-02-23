@@ -35,8 +35,6 @@ type Args = {
     totals?: Record<string, number>;
     groupedSubtotals?: Record<string, Record<string, number>[]>;
     parameters?: ParametersValuesMap;
-    autoColumnWidths?: Record<string, number>;
-    enableAutoColumnWidths?: boolean;
 };
 
 export function getGroupingValuesAndSubtotalKey(
@@ -121,8 +119,6 @@ const getDataAndColumns = ({
     totals,
     groupedSubtotals,
     parameters,
-    autoColumnWidths,
-    enableAutoColumnWidths,
 }: Args): Array<TableHeader | TableColumn> => {
     // Deduplicate columnOrder to prevent duplicate columns if the same field appears multiple times
     const uniqueColumnOrder = [...new Set(columnOrder)];
@@ -204,13 +200,7 @@ const getDataAndColumns = ({
                         frozen: isColumnFrozen(itemId),
                         // For image columns with explicit width: set fixed width constraints
                         ...getImageSize(item),
-                        // Priority: user width > image width > auto width
-                        ...getColumnWidthMeta(
-                            getColumnWidth(itemId) ??
-                                (enableAutoColumnWidths
-                                    ? autoColumnWidths?.[itemId]
-                                    : undefined),
-                        ),
+                        ...getColumnWidthMeta(getColumnWidth(itemId)),
                     },
                     // Some features work in the TanStack Table demos but not here, for unknown reasons.
                     // For example, setting grouping value here does not work. The workaround is to use

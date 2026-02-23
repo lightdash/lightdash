@@ -33,14 +33,12 @@ export function useAutoColumnWidths({
 
     useEffect(() => {
         if (!enabled || columnIds.length === 0 || rows.length === 0) {
-            if (Object.keys(widths).length > 0) {
-                setWidths({});
-            }
+            setWidths({});
             computedForRef.current = null;
             return;
         }
 
-        const columnKey = columnIds.join('\0');
+        const columnKey = `${columnIds.join('\0')}\0${rows.length}`;
         if (computedForRef.current === columnKey) return;
 
         const ctx = getCanvasContext();
@@ -70,7 +68,7 @@ export function useAutoColumnWidths({
 
         computedForRef.current = columnKey;
         setWidths(newWidths);
-    }, [enabled, columnIds, rows, widths, getCellText, headerLabels]);
+    }, [enabled, columnIds, rows, getCellText, headerLabels]);
 
     return widths;
 }
