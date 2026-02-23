@@ -93,97 +93,99 @@ export const diagnosticsHandler = async (options: DiagnosticsOptions) => {
     const startTime = Date.now();
     GlobalState.setVerbose(true); // Always verbose for diagnostics
 
-    console.log(styles.title('⚡️ Lightdash CLI Diagnostics'));
-    console.log('');
-
-    // CLI Version
-    console.log(styles.bold('Lightdash CLI Version:'));
-    console.log(`  ${CLI_VERSION}`);
-    await checkLightdashVersion();
-    console.log('');
-
-    // Node.js Version
-    console.log(styles.bold('Node.js Version:'));
-    console.log(`  ${NODE_VERSION.major}`);
-    if (NODE_VERSION.major !== OPTIMIZED_NODE_VERSION) {
-        console.log(
-            styles.warning(
-                `  ⚠️ You are using Node.js version ${process.version}. Lightdash CLI is optimized for v${OPTIMIZED_NODE_VERSION} so you might experience issues.`,
-            ),
-        );
-    }
-    console.log('');
-
-    // Auth Status
-    console.log(styles.bold('Authentication Status:'));
-    const authStatus = await getAuthStatus();
-
-    // Check for LIGHTDASH_API_KEY environment variable
-    const hasEnvApiKey = !!process.env.LIGHTDASH_API_KEY;
-    if (hasEnvApiKey) {
-        console.log(
-            `  ⚠️ ${styles.warning(
-                'LIGHTDASH_API_KEY environment variable is set and will override config file credentials',
-            )}`,
-        );
-    }
-
-    if (authStatus.hasAuth) {
-        console.log(`  ✅ Authenticated`);
-        console.log(`  Instance: ${authStatus.serverUrl}`);
-        console.log(`  Organization: ${authStatus.organizationUuid}`);
-        console.log(
-            `  Project: ${authStatus.projectName} (${authStatus.projectUuid})`,
-        );
-    } else {
-        console.log(`  ❌ Not authenticated`);
-        console.log(`  Instance: ${authStatus.serverUrl}`);
-        console.log(`  Organization: ${authStatus.organizationUuid}`);
-        console.log(`  Project: ${authStatus.projectName}`);
-    }
-    console.log('');
-
-    // dbt Debug (if --dbt flag is provided)
-    if (options.dbt) {
-        console.log(styles.bold('dbt Debug:'));
-
-        // First get dbt version
-        try {
-            const dbtVersion = await getDbtVersion();
-            console.log(`  dbt Version: ${dbtVersion.verboseVersion}`);
-            console.log('');
-        } catch (error) {
-            console.log(
-                `  Error getting dbt version: ${getErrorMessage(error)}`,
-            );
-            console.log('');
-        }
-
-        // Then run dbt debug
-        const projectDir = options.projectDir || DEFAULT_DBT_PROJECT_DIR;
-        const profilesDir = options.profilesDir || DEFAULT_DBT_PROFILES_DIR;
-
-        let debugCommand = `dbt debug --project-dir ${projectDir} --profiles-dir ${profilesDir}`;
-        if (options.defer) debugCommand += ' --defer';
-        if (options.noDefer) debugCommand += ' --no-defer';
-        if (options.state) debugCommand += ` --state ${options.state}`;
-
-        console.log(`  Running: ${debugCommand}`);
+    try {
+        console.log(styles.title('⚡️ Lightdash CLI Diagnostics'));
         console.log('');
 
-        const debugOutput = await runDbtDebug(projectDir, profilesDir, {
-            defer: options.defer,
-            noDefer: options.noDefer,
-            state: options.state,
-        });
-        console.log(debugOutput);
-    }
+        // CLI Version
+        console.log(styles.bold('Lightdash CLI Version:'));
+        console.log(`  ${CLI_VERSION}`);
+        await checkLightdashVersion();
+        console.log('');
 
-    await LightdashAnalytics.track({
-        event: 'command.executed',
-        properties: {
-            command: 'diagnostics',
-            durationMs: Date.now() - startTime,
-        },
-    });
+        // Node.js Version
+        console.log(styles.bold('Node.js Version:'));
+        console.log(`  ${NODE_VERSION.major}`);
+        if (NODE_VERSION.major !== OPTIMIZED_NODE_VERSION) {
+            console.log(
+                styles.warning(
+                    `  ⚠️ You are using Node.js version ${process.version}. Lightdash CLI is optimized for v${OPTIMIZED_NODE_VERSION} so you might experience issues.`,
+                ),
+            );
+        }
+        console.log('');
+
+        // Auth Status
+        console.log(styles.bold('Authentication Status:'));
+        const authStatus = await getAuthStatus();
+
+        // Check for LIGHTDASH_API_KEY environment variable
+        const hasEnvApiKey = !!process.env.LIGHTDASH_API_KEY;
+        if (hasEnvApiKey) {
+            console.log(
+                `  ⚠️ ${styles.warning(
+                    'LIGHTDASH_API_KEY environment variable is set and will override config file credentials',
+                )}`,
+            );
+        }
+
+        if (authStatus.hasAuth) {
+            console.log(`  ✅ Authenticated`);
+            console.log(`  Instance: ${authStatus.serverUrl}`);
+            console.log(`  Organization: ${authStatus.organizationUuid}`);
+            console.log(
+                `  Project: ${authStatus.projectName} (${authStatus.projectUuid})`,
+            );
+        } else {
+            console.log(`  ❌ Not authenticated`);
+            console.log(`  Instance: ${authStatus.serverUrl}`);
+            console.log(`  Organization: ${authStatus.organizationUuid}`);
+            console.log(`  Project: ${authStatus.projectName}`);
+        }
+        console.log('');
+
+        // dbt Debug (if --dbt flag is provided)
+        if (options.dbt) {
+            console.log(styles.bold('dbt Debug:'));
+
+            // First get dbt version
+            try {
+                const dbtVersion = await getDbtVersion();
+                console.log(`  dbt Version: ${dbtVersion.verboseVersion}`);
+                console.log('');
+            } catch (error) {
+                console.log(
+                    `  Error getting dbt version: ${getErrorMessage(error)}`,
+                );
+                console.log('');
+            }
+
+            // Then run dbt debug
+            const projectDir = options.projectDir || DEFAULT_DBT_PROJECT_DIR;
+            const profilesDir = options.profilesDir || DEFAULT_DBT_PROFILES_DIR;
+
+            let debugCommand = `dbt debug --project-dir ${projectDir} --profiles-dir ${profilesDir}`;
+            if (options.defer) debugCommand += ' --defer';
+            if (options.noDefer) debugCommand += ' --no-defer';
+            if (options.state) debugCommand += ` --state ${options.state}`;
+
+            console.log(`  Running: ${debugCommand}`);
+            console.log('');
+
+            const debugOutput = await runDbtDebug(projectDir, profilesDir, {
+                defer: options.defer,
+                noDefer: options.noDefer,
+                state: options.state,
+            });
+            console.log(debugOutput);
+        }
+    } finally {
+        await LightdashAnalytics.track({
+            event: 'command.executed',
+            properties: {
+                command: 'diagnostics',
+                durationMs: Date.now() - startTime,
+            },
+        });
+    }
 };

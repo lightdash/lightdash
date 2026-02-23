@@ -93,12 +93,15 @@ export const setFirstProject = async () => {
 export const setProjectHandler = async (options: SetProjectOptions) => {
     const startTime = Date.now();
     GlobalState.setVerbose(options.verbose);
-    await setProjectCommand(options.name, options.uuid);
-    await LightdashAnalytics.track({
-        event: 'command.executed',
-        properties: {
-            command: 'set-project',
-            durationMs: Date.now() - startTime,
-        },
-    });
+    try {
+        await setProjectCommand(options.name, options.uuid);
+    } finally {
+        await LightdashAnalytics.track({
+            event: 'command.executed',
+            properties: {
+                command: 'set-project',
+                durationMs: Date.now() - startTime,
+            },
+        });
+    }
 };

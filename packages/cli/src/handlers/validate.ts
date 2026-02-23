@@ -145,25 +145,11 @@ export const validateHandler = async (options: ValidateHandlerOptions) => {
         },
     });
 
-    let explores: (Explore | ExploreError)[];
-    try {
-        explores = await compile(options);
-    } catch (e) {
-        await LightdashAnalytics.track({
-            event: 'validate.error',
-            properties: {
-                executionId,
-                error: getErrorMessage(e),
-                errorCategory: categorizeError(e),
-            },
-        });
-        throw e;
-    }
-    GlobalState.debug(`> Compiled ${explores.length} explores`);
-
-    let allValidation;
     let shouldExitWithError = false;
     try {
+        const explores = await compile(options);
+        GlobalState.debug(`> Compiled ${explores.length} explores`);
+
         const validationJob = await requestValidation(
             projectUuid,
             explores,
@@ -178,7 +164,7 @@ export const validateHandler = async (options: ValidateHandlerOptions) => {
 
         await waitUntilFinished(jobId);
 
-        allValidation = await getValidation(projectUuid, jobId);
+        const allValidation = await getValidation(projectUuid, jobId);
 
         // Filter out chart configuration warnings unless explicitly requested
         const validation = options.showChartConfigurationWarnings
