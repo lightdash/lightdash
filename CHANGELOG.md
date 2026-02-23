@@ -1,3 +1,10 @@
+## [0.2506.3](https://github.com/lightdash/lightdash/compare/0.2506.2...0.2506.3) (2026-02-23)
+
+
+### Bug Fixes
+
+* preserve SQL LIMIT clause when no limit parameter provided ([#20537](https://github.com/lightdash/lightdash/issues/20537)) ([86eda57](https://github.com/lightdash/lightdash/commit/86eda5710b240ff7213544cc9e902d67290a8557))
+
 ## [0.2506.2](https://github.com/lightdash/lightdash/compare/0.2506.1...0.2506.2) (2026-02-23)
 
 
