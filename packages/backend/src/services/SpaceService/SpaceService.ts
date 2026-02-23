@@ -574,9 +574,9 @@ export class SpaceService extends BaseService implements BulkActionable<Knex> {
         });
     }
 
-    private async assertNestedSpaceAccessAllowed(
+    private async assertSpacePermissionChangeAllowed(
         spaceUuid: string,
-        action: string,
+        type: 'user' | 'group',
     ): Promise<void> {
         const isRootSpace = await this.spaceModel.isRootSpace(spaceUuid);
 
@@ -588,7 +588,7 @@ export class SpaceService extends BaseService implements BulkActionable<Knex> {
         });
         if (!flag.enabled) {
             throw new ForbiddenError(
-                `Can't change ${action} access to a nested space`,
+                `Can't change ${type} access to a nested space`,
             );
         }
     }
@@ -605,7 +605,7 @@ export class SpaceService extends BaseService implements BulkActionable<Knex> {
             throw new ForbiddenError();
         }
 
-        await this.assertNestedSpaceAccessAllowed(spaceUuid, 'user');
+        await this.assertSpacePermissionChangeAllowed(spaceUuid, 'user');
 
         await this.spaceModel.addSpaceAccess(
             spaceUuid,
@@ -625,7 +625,7 @@ export class SpaceService extends BaseService implements BulkActionable<Knex> {
             throw new ForbiddenError();
         }
 
-        await this.assertNestedSpaceAccessAllowed(spaceUuid, 'user');
+        await this.assertSpacePermissionChangeAllowed(spaceUuid, 'user');
 
         await this.spaceModel.removeSpaceAccess(spaceUuid, shareWithUserUuid);
     }
@@ -642,7 +642,7 @@ export class SpaceService extends BaseService implements BulkActionable<Knex> {
             throw new ForbiddenError();
         }
 
-        await this.assertNestedSpaceAccessAllowed(spaceUuid, 'group');
+        await this.assertSpacePermissionChangeAllowed(spaceUuid, 'group');
 
         await this.spaceModel.addSpaceGroupAccess(
             spaceUuid,
@@ -662,7 +662,7 @@ export class SpaceService extends BaseService implements BulkActionable<Knex> {
             throw new ForbiddenError();
         }
 
-        await this.assertNestedSpaceAccessAllowed(spaceUuid, 'group');
+        await this.assertSpacePermissionChangeAllowed(spaceUuid, 'group');
 
         await this.spaceModel.removeSpaceGroupAccess(
             spaceUuid,
