@@ -19,6 +19,12 @@
                     "description": "Description of what the metric measures",
                     "type": "string"
                 },
+                "distinctKeys": {
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": "array"
+                },
                 "filters": {
                     "description": "Filters to apply to this metric",
                     "items": {
@@ -1805,6 +1811,7 @@
                 "count",
                 "count_distinct",
                 "sum",
+                "sum_distinct",
                 "min",
                 "max",
                 "percent_of_previous",
@@ -2887,6 +2894,10 @@
                 },
                 "showTableNames": {
                     "description": "Show table names in column headers",
+                    "type": "boolean"
+                },
+                "wrapColumnTitles": {
+                    "description": "Wrap column titles in header cells",
                     "type": "boolean"
                 }
             },

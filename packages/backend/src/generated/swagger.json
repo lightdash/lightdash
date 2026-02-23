@@ -3364,6 +3364,7 @@
                     "count",
                     "count_distinct",
                     "sum",
+                    "sum_distinct",
                     "min",
                     "max",
                     "percent_of_previous",
@@ -3499,6 +3500,12 @@
                         "type": "number",
                         "format": "double",
                         "description": "Percentile value for percentile metrics"
+                    },
+                    "distinctKeys": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
                     },
                     "formatOptions": {
                         "$ref": "#/components/schemas/CustomFormat",
@@ -5006,6 +5013,10 @@
                         "type": "boolean",
                         "description": "Show total results count"
                     },
+                    "wrapColumnTitles": {
+                        "type": "boolean",
+                        "description": "Wrap column titles in header cells"
+                    },
                     "hideRowNumbers": {
                         "type": "boolean",
                         "description": "Hide row number column"
@@ -6003,6 +6014,15 @@
             },
             "CompiledProperties": {
                 "properties": {
+                    "compiledDistinctKeys": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "compiledValueSql": {
+                        "type": "string"
+                    },
                     "compilationError": {
                         "$ref": "#/components/schemas/FieldCompilationError",
                         "description": "When partial compilation mode is enabled, fields that fail to compile\nwill have this property set instead of causing the entire explore to fail."
@@ -6144,6 +6164,12 @@
                     "percentile": {
                         "type": "number",
                         "format": "double"
+                    },
+                    "distinctKeys": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
                     },
                     "formatOptions": {
                         "$ref": "#/components/schemas/CustomFormat"
@@ -8667,19 +8693,6 @@
                                                         "type": "string",
                                                         "enum": ["error"],
                                                         "nullable": false
-                                                    }
-                                                },
-                                                "required": ["status"],
-                                                "type": "object"
-                                            },
-                                            {
-                                                "properties": {
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": [
-                                                            "success",
-                                                            "error"
-                                                        ]
                                                     }
                                                 },
                                                 "required": ["status"],
@@ -26397,7 +26410,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2499.1",
+        "version": "0.2505.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

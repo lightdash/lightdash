@@ -300,13 +300,21 @@ export const ThContainer = styled.div`
     align-items: flex-start;
 `;
 
-export const ThLabelContainer = styled.div`
+export const ThLabelContainer = styled.div<{ $wrapColumnTitles?: boolean }>`
     overflow: hidden;
     min-width: 0;
     flex: 1;
     text-overflow: ellipsis;
-    white-space: normal;
-    word-break: break-word;
+    ${({ $wrapColumnTitles }) =>
+        $wrapColumnTitles
+            ? `
+                white-space: normal;
+                word-break: break-word;
+            `
+            : `
+                white-space: nowrap;
+                word-break: normal;
+            `}
 `;
 
 export const ThActionsContainer = styled.div`

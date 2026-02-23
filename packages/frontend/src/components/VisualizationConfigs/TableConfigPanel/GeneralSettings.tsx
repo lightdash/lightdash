@@ -147,8 +147,10 @@ const GeneralSettings: FC = () => {
         isPivotTableEnabled,
         canUseSubtotals,
         hideRowNumbers,
+        wrapColumnTitles,
         metricsAsRows,
         setHideRowNumbers,
+        setWrapColumnTitles,
         setShowColumnCalculation,
         setShowResultsTotal,
         setShowRowCalculation,
@@ -243,6 +245,13 @@ const GeneralSettings: FC = () => {
                     checked={!hideRowNumbers}
                     onChange={() => {
                         setHideRowNumbers(!hideRowNumbers);
+                    }}
+                />
+                <Checkbox
+                    label="Wrap column titles"
+                    checked={wrapColumnTitles}
+                    onChange={() => {
+                        setWrapColumnTitles(!wrapColumnTitles);
                     }}
                 />
             </Config.Section>
