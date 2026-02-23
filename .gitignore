@@ -116,4 +116,5 @@ http-client.private.env.json
 
 # Generated AI context (tool-agnostic mirror of .claude/)
 .agents/
+.codex/
 AGENTS.md
