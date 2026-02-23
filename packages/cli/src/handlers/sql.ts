@@ -17,6 +17,7 @@ type SqlHandlerOptions = {
 };
 
 const DEFAULT_PAGE_SIZE = 500;
+const DEFAULT_LIMIT = 50000;
 
 export const sqlHandler = async (
     sql: string,
@@ -41,12 +42,15 @@ export const sqlHandler = async (
     // Submit the query
     const spinner = GlobalState.startSpinner('Submitting SQL query...');
 
+    // Default to 50k limit to prevent runaway queries
+    const limit = options.limit ?? DEFAULT_LIMIT;
+
     const submitResult = await lightdashApi<ApiExecuteAsyncSqlQueryResults>({
         method: 'POST',
         url: `/api/v2/projects/${projectUuid}/query/sql`,
         body: JSON.stringify({
             sql,
-            limit: options.limit,
+            limit,
             context: 'cli',
         }),
     });
