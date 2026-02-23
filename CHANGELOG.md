@@ -1,3 +1,10 @@
+## [0.2506.2](https://github.com/lightdash/lightdash/compare/0.2506.1...0.2506.2) (2026-02-23)
+
+
+### Bug Fixes
+
+* warehouse credentials flag for dbt projects ([#20528](https://github.com/lightdash/lightdash/issues/20528)) ([900333d](https://github.com/lightdash/lightdash/commit/900333ded3a358d6c5fdcac44a972495c919167f))
+
 ## [0.2506.1](https://github.com/lightdash/lightdash/compare/0.2506.0...0.2506.1) (2026-02-23)
 
 
