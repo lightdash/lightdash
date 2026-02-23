@@ -80,6 +80,12 @@ const useTableConfig = (
             : tableChartConfig.hideRowNumbers,
     );
 
+    const [wrapColumnText, setWrapColumnText] = useState<boolean>(
+        tableChartConfig?.wrapColumnText === undefined
+            ? true
+            : tableChartConfig.wrapColumnText,
+    );
+
     const [metricsAsRows, setMetricsAsRows] = useState<boolean>(
         tableChartConfig?.metricsAsRows || false,
     );
@@ -616,6 +622,7 @@ const useTableConfig = (
             showSubtotals,
             columns: columnProperties,
             hideRowNumbers,
+            wrapColumnText,
             conditionalFormattings,
             metricsAsRows,
         }),
@@ -629,6 +636,7 @@ const useTableConfig = (
             columnProperties,
             conditionalFormattings,
             metricsAsRows,
+            wrapColumnText,
         ],
     );
 
@@ -649,6 +657,8 @@ const useTableConfig = (
             setShowResultsTotal,
             showSubtotals,
             setShowSubtotals,
+            wrapColumnText,
+            setWrapColumnText,
             columnProperties,
             setColumnProperties,
             updateColumnProperty,
@@ -687,6 +697,8 @@ const useTableConfig = (
             setShowSubtotals,
             columnProperties,
             setColumnProperties,
+            wrapColumnText,
+            setWrapColumnText,
             updateColumnProperty,
             columns,
             getFieldLabelOverride,

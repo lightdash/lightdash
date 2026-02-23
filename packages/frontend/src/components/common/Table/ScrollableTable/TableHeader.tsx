@@ -25,8 +25,13 @@ const TableHeader: FC<TableHeaderProps> = ({
     showSubtotals = true,
 }) => {
     const theme = useMantineTheme();
-    const { table, headerContextMenu, columns, onColumnWidthChange } =
-        useTableContext();
+    const {
+        table,
+        headerContextMenu,
+        columns,
+        onColumnWidthChange,
+        wrapColumnText,
+    } = useTableContext();
     const HeaderContextMenu = headerContextMenu;
     const currentColOrder = React.useRef<Array<string>>([]);
 
@@ -80,10 +85,25 @@ const TableHeader: FC<TableHeaderProps> = ({
                     <HeaderDroppable headerGroup={headerGroup}>
                         {headerGroup.headers.map((header) => {
                             const meta = header.column.columnDef.meta;
-                            const tooltipLabel =
-                                meta?.item && isField(meta?.item)
+                            const titleLabel =
+                                meta?.labelOverride?.trim() ||
+                                (isField(meta?.item) && meta.item.label
+                                    ? meta.item.label
+                                    : undefined);
+                            const tooltipDescription =
+                                meta?.item && isField(meta.item)
                                     ? meta.item.description
                                     : undefined;
+                            const tooltipLabel =
+                                titleLabel && tooltipDescription ? (
+                                    <>
+                                        {titleLabel}
+                                        <br />
+                                        {tooltipDescription}
+                                    </>
+                                ) : (
+                                    (titleLabel ?? tooltipDescription)
+                                );
                             const canResize =
                                 onColumnWidthChange &&
                                 !minimal &&
@@ -116,6 +136,9 @@ const TableHeader: FC<TableHeaderProps> = ({
                                                     ref={provided.innerRef}
                                                     {...provided.draggableProps}
                                                     {...provided.dragHandleProps}
+                                                    $wrapColumnText={
+                                                        wrapColumnText
+                                                    }
                                                     style={{
                                                         ...provided
                                                             .draggableProps

@@ -195,6 +195,7 @@ const getDataAndColumns = ({
                             : null,
                     meta: {
                         item,
+                        labelOverride: headerOverride,
                         isVisible: isColumnVisible(itemId),
                         frozen: isColumnFrozen(itemId),
                         // For image columns with explicit width: set fixed width constraints
