@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { InheritanceType } from '../components/common/ShareSpaceModal/v2/ShareSpaceModalUtils';
 import { useCreateMutation } from './useSpaces';
 
 type UseSpaceManagementProps = {
@@ -19,6 +20,8 @@ export const useSpaceManagement = ({
     );
     const [isCreatingNewSpace, setIsCreatingNewSpace] = useState(false);
     const [newSpaceName, setNewSpaceName] = useState('');
+    const [inheritanceValue, setInheritanceValue] =
+        useState<InheritanceType | null>(null);
 
     const createSpaceMutation = useCreateMutation(projectUuid);
 
@@ -30,19 +33,33 @@ export const useSpaceManagement = ({
         async ({ isPrivate }: { isPrivate?: boolean } = {}) => {
             if (newSpaceName.length === 0) return;
 
+            const inheritParentPermissions =
+                inheritanceValue !== null
+                    ? inheritanceValue === InheritanceType.INHERIT
+                    : undefined;
+
             const result = await createSpaceMutation.mutateAsync({
                 name: newSpaceName,
                 parentSpaceUuid: selectedSpaceUuid || undefined,
                 ...(isPrivate && { isPrivate }),
+                ...(inheritParentPermissions !== undefined && {
+                    inheritParentPermissions,
+                }),
             });
 
             // Reset form state after successful creation
             setNewSpaceName('');
             setIsCreatingNewSpace(false);
+            setInheritanceValue(null);
 
             return result;
         },
-        [createSpaceMutation, newSpaceName, selectedSpaceUuid],
+        [
+            createSpaceMutation,
+            inheritanceValue,
+            newSpaceName,
+            selectedSpaceUuid,
+        ],
     );
 
     const openCreateSpaceForm = useCallback(() => {
@@ -52,6 +69,7 @@ export const useSpaceManagement = ({
     const closeCreateSpaceForm = useCallback(() => {
         setIsCreatingNewSpace(false);
         setNewSpaceName('');
+        setInheritanceValue(null);
     }, []);
 
     return {
@@ -65,5 +83,7 @@ export const useSpaceManagement = ({
         handleCreateNewSpace,
         openCreateSpaceForm,
         closeCreateSpaceForm,
+        inheritanceValue,
+        setInheritanceValue,
     };
 };

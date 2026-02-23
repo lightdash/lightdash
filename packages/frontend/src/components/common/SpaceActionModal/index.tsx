@@ -1,5 +1,6 @@
 import {
     assertUnreachable,
+    FeatureFlags,
     getErrorMessage,
     type OrganizationMemberProfile,
     type Space,
@@ -18,6 +19,7 @@ import { useNavigate } from 'react-router';
 import { z } from 'zod';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import {
     useCreateMutation,
     useSpace,
@@ -26,10 +28,12 @@ import {
 } from '../../../hooks/useSpaces';
 import MantineModal from '../MantineModal';
 import { SpacePrivateAccessType } from '../ShareSpaceModal/ShareSpaceSelect';
+import { InheritanceType } from '../ShareSpaceModal/v2/ShareSpaceModalUtils';
 import CreateSpaceModalContent from './CreateSpaceModalContent';
 import { DeleteSpaceModal } from './DeleteSpaceModal';
 import { ActionType, CreateModalStep } from './types';
 import UpdateSpaceModalContent from './UpdateSpaceModalContent';
+import CreateSpaceModalContentV2 from './v2/CreateSpaceModalContentV2';
 
 interface ActionModalProps {
     actionType: ActionType;
@@ -47,6 +51,7 @@ interface ActionModalProps {
     shouldRedirect?: boolean;
     parentSpaceUuid: Space['parentSpaceUuid'];
     rootSpace?: Pick<Space, 'name' | 'uuid'>;
+    isV2?: boolean;
 }
 
 export interface SpaceModalBody {
@@ -55,7 +60,8 @@ export interface SpaceModalBody {
 }
 
 export interface CreateSpaceModalBody
-    extends Pick<ActionModalProps, 'parentSpaceUuid' | 'onClose' | 'rootSpace'>,
+    extends
+        Pick<ActionModalProps, 'parentSpaceUuid' | 'onClose' | 'rootSpace'>,
         SpaceModalBody {
     modalStep: CreateModalStep;
     projectUuid: string;
@@ -65,7 +71,8 @@ export interface CreateSpaceModalBody
 }
 
 export interface DeleteSpaceModalBody
-    extends Pick<CreateSpaceModalBody, 'data' | 'form'>,
+    extends
+        Pick<CreateSpaceModalBody, 'data' | 'form'>,
         Pick<ActionModalProps, 'title' | 'icon'> {
     isLoading: boolean;
     handleSubmit: (values: Space) => void;
@@ -90,6 +97,7 @@ const SpaceModal: FC<ActionModalProps> = ({
     onSubmitForm,
     parentSpaceUuid,
     rootSpace,
+    isV2 = false,
 }) => {
     const { showToastError } = useToaster();
     const { colorScheme } = useMantineColorScheme();
@@ -99,6 +107,11 @@ const SpaceModal: FC<ActionModalProps> = ({
         SpacePrivateAccessType.PRIVATE,
     );
 
+    const isNestedSpace = !!parentSpaceUuid;
+    const [inheritanceValue, setInheritanceValue] = useState<InheritanceType>(
+        isNestedSpace ? InheritanceType.INHERIT : InheritanceType.OWN_ONLY,
+    );
+
     const [modalStep, setModalStep] = useState(CreateModalStep.SET_NAME);
 
     const form = useForm<Space>({
@@ -106,8 +119,11 @@ const SpaceModal: FC<ActionModalProps> = ({
         validate: zodResolver(validate),
     });
 
+    const isV2Create = isV2 && actionType === ActionType.CREATE;
+
     const handleSubmit = (values: Space) => {
         if (
+            !isV2Create &&
             actionType === ActionType.CREATE &&
             modalStep === CreateModalStep.SET_NAME &&
             privateAccessType === SpacePrivateAccessType.SHARED
@@ -117,7 +133,24 @@ const SpaceModal: FC<ActionModalProps> = ({
         }
 
         try {
-            onSubmitForm?.(values);
+            if (isV2Create) {
+                onSubmitForm?.({
+                    ...values,
+                    ...(isNestedSpace
+                        ? {
+                              inheritParentPermissions: true,
+                              isPrivate: false,
+                          }
+                        : {
+                              inheritParentPermissions:
+                                  inheritanceValue === InheritanceType.INHERIT,
+                              isPrivate:
+                                  inheritanceValue === InheritanceType.OWN_ONLY,
+                          }),
+                });
+            } else {
+                onSubmitForm?.(values);
+            }
         } catch (e: any) {
             showToastError({
                 title: 'Error saving',
@@ -154,58 +187,7 @@ const SpaceModal: FC<ActionModalProps> = ({
                 onClose={onClose}
                 actions={
                     <Group spacing="xs" position="right">
-                        {actionType === ActionType.CREATE &&
-                            modalStep === CreateModalStep.SET_ACCESS && (
-                                <>
-                                    <Button
-                                        variant="outline"
-                                        onClick={(
-                                            ev: React.MouseEvent<HTMLButtonElement>,
-                                        ) => {
-                                            form.setValues({
-                                                access: undefined,
-                                            });
-                                            setModalStep(
-                                                CreateModalStep.SET_NAME,
-                                            );
-                                            ev.preventDefault();
-                                        }}
-                                    >
-                                        Back
-                                    </Button>
-
-                                    <Button
-                                        type="submit"
-                                        disabled={isDisabled || !form.isValid}
-                                        color={confirmButtonColor}
-                                        loading={isLoading}
-                                        form="form-space-action-modal"
-                                    >
-                                        {confirmButtonLabel}
-                                    </Button>
-                                </>
-                            )}
-
-                        {actionType === ActionType.CREATE &&
-                            modalStep === CreateModalStep.SET_NAME &&
-                            !(
-                                privateAccessType ===
-                                SpacePrivateAccessType.PRIVATE
-                            ) && (
-                                <Button
-                                    type="submit"
-                                    disabled={isDisabled || !form.isValid}
-                                    form="form-space-action-modal"
-                                >
-                                    Continue
-                                </Button>
-                            )}
-
-                        {(actionType !== ActionType.CREATE ||
-                            (actionType === ActionType.CREATE &&
-                                modalStep === CreateModalStep.SET_NAME &&
-                                privateAccessType ===
-                                    SpacePrivateAccessType.PRIVATE)) && (
+                        {isV2Create ? (
                             <Button
                                 type="submit"
                                 disabled={isDisabled || !form.isValid}
@@ -215,6 +197,77 @@ const SpaceModal: FC<ActionModalProps> = ({
                             >
                                 {confirmButtonLabel}
                             </Button>
+                        ) : (
+                            <>
+                                {actionType === ActionType.CREATE &&
+                                    modalStep ===
+                                        CreateModalStep.SET_ACCESS && (
+                                        <>
+                                            <Button
+                                                variant="outline"
+                                                onClick={(
+                                                    ev: React.MouseEvent<HTMLButtonElement>,
+                                                ) => {
+                                                    form.setValues({
+                                                        access: undefined,
+                                                    });
+                                                    setModalStep(
+                                                        CreateModalStep.SET_NAME,
+                                                    );
+                                                    ev.preventDefault();
+                                                }}
+                                            >
+                                                Back
+                                            </Button>
+
+                                            <Button
+                                                type="submit"
+                                                disabled={
+                                                    isDisabled || !form.isValid
+                                                }
+                                                color={confirmButtonColor}
+                                                loading={isLoading}
+                                                form="form-space-action-modal"
+                                            >
+                                                {confirmButtonLabel}
+                                            </Button>
+                                        </>
+                                    )}
+
+                                {actionType === ActionType.CREATE &&
+                                    modalStep === CreateModalStep.SET_NAME &&
+                                    !(
+                                        privateAccessType ===
+                                        SpacePrivateAccessType.PRIVATE
+                                    ) && (
+                                        <Button
+                                            type="submit"
+                                            disabled={
+                                                isDisabled || !form.isValid
+                                            }
+                                            form="form-space-action-modal"
+                                        >
+                                            Continue
+                                        </Button>
+                                    )}
+
+                                {(actionType !== ActionType.CREATE ||
+                                    (actionType === ActionType.CREATE &&
+                                        modalStep ===
+                                            CreateModalStep.SET_NAME &&
+                                        privateAccessType ===
+                                            SpacePrivateAccessType.PRIVATE)) && (
+                                    <Button
+                                        type="submit"
+                                        disabled={isDisabled || !form.isValid}
+                                        color={confirmButtonColor}
+                                        loading={isLoading}
+                                        form="form-space-action-modal"
+                                    >
+                                        {confirmButtonLabel}
+                                    </Button>
+                                )}
+                            </>
                         )}
                     </Group>
                 }
@@ -224,7 +277,15 @@ const SpaceModal: FC<ActionModalProps> = ({
                     onSubmit={form.onSubmit(handleSubmit)}
                     id="form-space-action-modal"
                 >
-                    {actionType === ActionType.CREATE ? (
+                    {isV2Create ? (
+                        <CreateSpaceModalContentV2
+                            form={form}
+                            projectUuid={projectUuid}
+                            parentSpaceUuid={parentSpaceUuid}
+                            inheritanceValue={inheritanceValue}
+                            onInheritanceChange={setInheritanceValue}
+                        />
+                    ) : actionType === ActionType.CREATE ? (
                         <CreateSpaceModalContent
                             projectUuid={projectUuid}
                             data={data}
@@ -252,7 +313,7 @@ const SpaceModal: FC<ActionModalProps> = ({
 };
 
 const SpaceActionModal: FC<
-    Omit<ActionModalProps, 'data' | 'isDisabled' | 'isLoading'>
+    Omit<ActionModalProps, 'data' | 'isDisabled' | 'isLoading' | 'isV2'>
 > = ({
     actionType,
     projectUuid,
@@ -262,6 +323,11 @@ const SpaceActionModal: FC<
     parentSpaceUuid,
     ...props
 }) => {
+    const { data: nestedSpacesPermissionsFlag } = useServerFeatureFlag(
+        FeatureFlags.NestedSpacesPermissions,
+    );
+    const isV2 = !!nestedSpacesPermissionsFlag?.enabled;
+
     const { data, isInitialLoading } = useSpace(projectUuid, spaceUuid, {
         enabled: !!spaceUuid,
     });
@@ -301,6 +367,11 @@ const SpaceActionModal: FC<
                 ...(parentSpaceUuid && {
                     parentSpaceUuid,
                 }),
+                ...(isV2 &&
+                    state.inheritParentPermissions !== undefined && {
+                        inheritParentPermissions:
+                            state.inheritParentPermissions,
+                    }),
             });
             onSubmitForm?.(result);
         } else if (actionType === ActionType.UPDATE) {
@@ -338,6 +409,7 @@ const SpaceActionModal: FC<
             isLoading={isWorking}
             parentSpaceUuid={parentSpaceUuid}
             rootSpace={data?.breadcrumbs?.[0]}
+            isV2={isV2}
             {...props}
         />
     );
