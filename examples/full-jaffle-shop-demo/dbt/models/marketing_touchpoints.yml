@@ -16,6 +16,9 @@ models:
           - join: campaigns
             sql_on: ${campaigns.campaign_id} = ${marketing_touchpoints.campaign_id}
             relationship: many-to-one
+          - join: orders
+            sql_on: ${customers.customer_id} = ${orders.customer_id}
+            relationship: one-to-many
         metrics:
           conversion_rate:
             type: number

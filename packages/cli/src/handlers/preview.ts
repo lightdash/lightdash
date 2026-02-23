@@ -36,6 +36,7 @@ type PreviewHandlerOptions = DbtCompileOptions & {
     skipCopyContent?: boolean;
     organizationCredentials?: string;
     assumeYes?: boolean;
+    warehouseCredentials?: boolean;
 };
 
 type StopPreviewHandlerOptions = {
@@ -129,6 +130,11 @@ export const previewHandler = async (
     const absoluteProjectPath = path.resolve(options.projectDir);
     const projectTypeConfig = await detectProjectType({
         projectDir: options.projectDir,
+        userOptions: {
+            warehouseCredentials: options.warehouseCredentials,
+            skipDbtCompile: options.skipDbtCompile,
+            skipWarehouseCatalog: options.skipWarehouseCatalog,
+        },
     });
 
     let name = options?.name;
@@ -406,6 +412,11 @@ export const startPreviewHandler = async (
     // Detect project type
     const projectTypeConfig = await detectProjectType({
         projectDir: options.projectDir,
+        userOptions: {
+            warehouseCredentials: options.warehouseCredentials,
+            skipDbtCompile: options.skipDbtCompile,
+            skipWarehouseCatalog: options.skipWarehouseCatalog,
+        },
     });
 
     const projectName = options.name;

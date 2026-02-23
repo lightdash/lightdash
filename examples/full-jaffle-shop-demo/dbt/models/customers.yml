@@ -143,7 +143,7 @@ models:
             dimension:
               type: timestamp
             additional_dimensions:
-              - name: days_since_customer_created
+              days_since_customer_created:
                 sql: EXTRACT(DAY FROM current_timestamp - ${created})
                 type: number
             metrics:

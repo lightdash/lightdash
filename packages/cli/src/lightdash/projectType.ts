@@ -124,10 +124,15 @@ export async function detectProjectType(
     GlobalState.debug(
         '> No Lightdash YAML models found, using dbt project mode',
     );
+
+    // For dbt projects, --no-warehouse-credentials implies skip dbt compile and warehouse catalog
+    const noCredentials = options.userOptions?.warehouseCredentials === false;
+
     return {
         type: CliProjectType.Dbt,
         warehouseCredentials: options.userOptions?.warehouseCredentials,
-        skipDbtCompile: options.userOptions?.skipDbtCompile,
-        skipWarehouseCatalog: options.userOptions?.skipWarehouseCatalog,
+        skipDbtCompile: noCredentials || options.userOptions?.skipDbtCompile,
+        skipWarehouseCatalog:
+            noCredentials || options.userOptions?.skipWarehouseCatalog,
     };
 }
