@@ -376,9 +376,6 @@ export const AccessModelToggle: FC<AccessModelToggleProps> = ({
     const currentOption =
         options.find((o) => o.value === currentValue) ?? options[0];
 
-    const label =
-        currentValue === InheritanceType.INHERIT ? 'Shared' : 'Private';
-
     return (
         <Paper
             withBorder
@@ -406,7 +403,7 @@ export const AccessModelToggle: FC<AccessModelToggleProps> = ({
                     </Avatar>
                     <Stack gap={2}>
                         <Text fw={600} fz="sm">
-                            {label}
+                            {currentOption.title}
                         </Text>
                         <Text c="ldGray.6" fz="xs">
                             {currentOption.description}
