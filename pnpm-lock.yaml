@@ -110,9 +110,6 @@ importers:
       lint-staged:
         specifier: ^12.1.2
         version: 12.1.2
-      playwright:
-        specifier: ^1.55.1
-        version: 1.56.1
       pm2:
         specifier: ^6.0.14
         version: 6.0.14
