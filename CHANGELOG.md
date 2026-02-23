@@ -1,3 +1,15 @@
+# [0.2509.0](https://github.com/lightdash/lightdash/compare/0.2508.0...0.2509.0) (2026-02-23)
+
+
+### Bug Fixes
+
+* revert "chore: fix catalog.cy.ts test ([#20501](https://github.com/lightdash/lightdash/issues/20501))" ([#20540](https://github.com/lightdash/lightdash/issues/20540)) ([3f7c966](https://github.com/lightdash/lightdash/commit/3f7c96665ed0a9731f315cedf8b0e2e83ec0ab3f))
+
+
+### Features
+
+* add v2 create space modals and change wording ([#20508](https://github.com/lightdash/lightdash/issues/20508)) ([cefe1fb](https://github.com/lightdash/lightdash/commit/cefe1fb61b13dfc8e57d2dfbf8e5fac1f54355fb))
+
 # [0.2508.0](https://github.com/lightdash/lightdash/compare/0.2507.0...0.2508.0) (2026-02-23)
 
 
