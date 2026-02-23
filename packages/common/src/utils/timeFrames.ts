@@ -445,6 +445,7 @@ const warehouseConfigs: Record<SupportedDbtAdapter, WarehouseConfig> = {
     [SupportedDbtAdapter.SNOWFLAKE]: snowflakeConfig,
     [SupportedDbtAdapter.REDSHIFT]: postgresConfig,
     [SupportedDbtAdapter.POSTGRES]: postgresConfig,
+    [SupportedDbtAdapter.DUCKDB]: postgresConfig,
     [SupportedDbtAdapter.DATABRICKS]: databricksConfig,
     [SupportedDbtAdapter.TRINO]: trinoConfig,
     [SupportedDbtAdapter.ATHENA]: trinoConfig, // Athena uses Trino SQL dialect
