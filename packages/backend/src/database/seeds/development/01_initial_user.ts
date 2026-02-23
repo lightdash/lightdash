@@ -38,7 +38,7 @@ import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { ProjectParametersModel } from '../../../models/ProjectParametersModel';
 import { TagsModel } from '../../../models/TagsModel';
 import { UserAttributesModel } from '../../../models/UserAttributesModel';
-import { projectAdapterFromConfig } from '../../../projectAdapters/projectAdapter';
+import { projectAdapterFromConfigV2 as projectAdapterFromConfig } from '../../../projectAdapters/projectAdapter';
 import { EncryptionUtil } from '../../../utils/EncryptionUtil/EncryptionUtil';
 import { DbEmailIn } from '../../entities/emails';
 import { OnboardingTableName } from '../../entities/onboarding';
