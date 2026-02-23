@@ -201,6 +201,35 @@ describe('findMatch', () => {
         });
     });
 
+    it('returns hit when time dimension is separate from dimensions array', () => {
+        const explore = {
+            ...baseExplore(),
+            preAggregates: [
+                {
+                    name: 'orders_daily',
+                    dimensions: ['status'],
+                    metrics: ['order_count'],
+                    timeDimension: 'order_date',
+                    granularity: TimeFrames.DAY,
+                },
+            ],
+        };
+
+        const result = findMatch(
+            makeMetricQuery({
+                dimensions: ['orders_status', 'orders_order_date_month'],
+                metrics: ['orders_order_count'],
+            }),
+            explore,
+        );
+
+        expect(result).toStrictEqual({
+            hit: true,
+            preAggregateName: 'orders_daily',
+            miss: null,
+        });
+    });
+
     it('returns dimension_not_in_pre_aggregate when query dimensions are missing', () => {
         const explore = {
             ...baseExplore(),

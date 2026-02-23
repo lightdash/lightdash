@@ -17,6 +17,7 @@ import {
     isMsTeamsTarget,
     isSlackTarget,
     JobPriority,
+    MaterializePreAggregatePayload,
     MsTeamsBatchNotificationPayload,
     MsTeamsNotificationPayload,
     NotificationPayloadBase,
@@ -194,6 +195,7 @@ export class SchedulerClient {
         scheduledAt: Date,
         priority: JobPriority,
         maxAttempts: number = SCHEDULED_JOB_MAX_ATTEMPTS,
+        explicitJobKey?: string,
     ) {
         const messageId = nanoid();
         const jobId = await Sentry.startSpan(
@@ -224,16 +226,18 @@ export class SchedulerClient {
                 // We only define keys when there is a schedulerUuid, if it is undefined it means it was a manual run of the task (send now)
                 // Include a hash of the payload to differentiate jobs with different configurations (e.g. send email to different users)
                 const { schedulerUuid } = payload;
-                const jobKey = schedulerUuid
-                    ? (() => {
-                          // Hash the payload (excluding Sentry tracing headers) to create a stable key
-                          const payloadForHash = JSON.stringify(payload);
-                          const payloadHash = createHash('sha256')
-                              .update(payloadForHash)
-                              .digest('hex'); // Use full hash to prevent any collision risk
-                          return `scheduler:${schedulerUuid}:${scheduledAt.getTime()}:${payloadHash}`;
-                      })()
-                    : undefined;
+                const jobKey =
+                    explicitJobKey ??
+                    (schedulerUuid
+                        ? (() => {
+                              // Hash the payload (excluding Sentry tracing headers) to create a stable key
+                              const payloadForHash = JSON.stringify(payload);
+                              const payloadHash = createHash('sha256')
+                                  .update(payloadForHash)
+                                  .digest('hex'); // Use full hash to prevent any collision risk
+                              return `scheduler:${schedulerUuid}:${scheduledAt.getTime()}:${payloadHash}`;
+                          })()
+                        : undefined);
 
                 const { id } = await graphileClient.addJob(
                     identifier,
@@ -1083,6 +1087,41 @@ export class SchedulerClient {
                 requestMethod: payload.requestMethod,
                 isPreview: payload.isPreview,
                 jobUuid: payload.jobUuid,
+            },
+        });
+
+        return { jobId };
+    }
+
+    async materializePreAggregate(
+        payload: MaterializePreAggregatePayload,
+        scheduledAt: Date = new Date(),
+    ) {
+        const graphileClient = await this.graphileUtils;
+
+        const jobKey = `preagg:${payload.preAggregateDefinitionUuid}`;
+
+        const jobId = await SchedulerClient.addJob(
+            graphileClient,
+            SCHEDULER_TASKS.MATERIALIZE_PRE_AGGREGATE,
+            payload,
+            scheduledAt,
+            JobPriority.MEDIUM,
+            1,
+            jobKey,
+        );
+
+        await this.schedulerModel.logSchedulerJob({
+            task: SCHEDULER_TASKS.MATERIALIZE_PRE_AGGREGATE,
+            jobId,
+            scheduledTime: scheduledAt,
+            status: SchedulerJobStatus.SCHEDULED,
+            details: {
+                createdByUserUuid: payload.userUuid,
+                organizationUuid: payload.organizationUuid,
+                projectUuid: payload.projectUuid,
+                preAggregateDefinitionUuid: payload.preAggregateDefinitionUuid,
+                trigger: payload.trigger,
             },
         });
 

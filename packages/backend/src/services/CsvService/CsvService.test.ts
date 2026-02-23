@@ -17,6 +17,7 @@ import { GroupsModel } from '../../models/GroupsModel';
 import { JobModel } from '../../models/JobModel/JobModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { OrganizationWarehouseCredentialsModel } from '../../models/OrganizationWarehouseCredentialsModel';
+import { PreAggregateModel } from '../../models/PreAggregateModel';
 import { ProjectCompileLogModel } from '../../models/ProjectCompileLogModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { ProjectParametersModel } from '../../models/ProjectParametersModel';
@@ -53,6 +54,7 @@ describe('Csv service', () => {
             jobModel: {} as JobModel,
             onboardingModel: {} as OnboardingModel,
             projectModel: {} as ProjectModel,
+            preAggregateModel: {} as PreAggregateModel,
             s3CacheClient: {} as S3CacheClient,
             savedChartModel: {} as SavedChartModel,
             spaceModel: {} as SpaceModel,

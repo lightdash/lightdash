@@ -184,6 +184,14 @@ const getMissForDef = ({
     }
 
     const defDimensions = new Set(preAggregateDef.dimensions);
+    if (
+        preAggregateDef.timeDimension &&
+        preAggregateDef.granularity &&
+        !defDimensions.has(preAggregateDef.timeDimension)
+    ) {
+        defDimensions.add(preAggregateDef.timeDimension);
+    }
+
     const missingQueryDimensionFieldId = metricQuery.dimensions.find(
         (dimensionFieldId) =>
             !dimensionFieldIdMatchesDef(

@@ -207,6 +207,17 @@ export class SchedulerWorker extends SchedulerTask {
                     }
                 });
 
+                try {
+                    await this.generateDailyPreAggregateMaterializationJobs(
+                        currentDateStartOfDay,
+                    );
+                } catch (error) {
+                    Logger.error(
+                        'Failed to generate pre-aggregate daily materialization jobs',
+                        error,
+                    );
+                }
+
                 // Only throw if all schedulers failed
                 if (failed.length > 0 && successful.length === 0) {
                     throw new Error(
@@ -611,6 +622,45 @@ export class SchedulerWorker extends SchedulerTask {
                             helpers.job.run_at,
                             payload,
                         );
+                    },
+                );
+            },
+            [SCHEDULER_TASKS.MATERIALIZE_PRE_AGGREGATE]: async (
+                payload,
+                helpers,
+            ) => {
+                await tryJobOrTimeout(
+                    SchedulerClient.processJob(
+                        SCHEDULER_TASKS.MATERIALIZE_PRE_AGGREGATE,
+                        helpers.job.id,
+                        helpers.job.run_at,
+                        payload,
+                        async () => {
+                            await this.materializePreAggregate(
+                                helpers.job.id,
+                                helpers.job.run_at,
+                                payload,
+                            );
+                        },
+                    ),
+                    helpers.job,
+                    this.lightdashConfig.scheduler.jobTimeout,
+                    async (job, e) => {
+                        await this.schedulerService.logSchedulerJob({
+                            task: SCHEDULER_TASKS.MATERIALIZE_PRE_AGGREGATE,
+                            jobId: job.id,
+                            scheduledTime: job.run_at,
+                            status: SchedulerJobStatus.ERROR,
+                            details: {
+                                createdByUserUuid: payload.userUuid,
+                                error: getErrorMessage(e),
+                                projectUuid: payload.projectUuid,
+                                organizationUuid: payload.organizationUuid,
+                                preAggregateDefinitionUuid:
+                                    payload.preAggregateDefinitionUuid,
+                                trigger: payload.trigger,
+                            },
+                        });
                     },
                 );
             },

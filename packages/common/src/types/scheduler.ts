@@ -566,6 +566,17 @@ export type CompileProjectPayload = TraceTaskBase & {
     isPreview: boolean;
 };
 
+export type PreAggregateMaterializationTrigger =
+    | 'compile'
+    | 'cron'
+    | 'manual'
+    | 'webhook';
+
+export type MaterializePreAggregatePayload = TraceTaskBase & {
+    preAggregateDefinitionUuid: string;
+    trigger: PreAggregateMaterializationTrigger;
+};
+
 export type ReplaceCustomFieldsPayload = TraceTaskBase;
 
 export type ValidateProjectPayload = TraceTaskBase & {

@@ -24,7 +24,7 @@ import {
 import {
     getDimensionBaseName,
     getDimensionReferences,
-    getMetricReferences,
+    getMetricsByReference,
 } from './references';
 
 const isFinerGranularity = (
@@ -54,25 +54,6 @@ const getDimensionsByReference = (sourceExplore: Explore) =>
         });
         return acc;
     }, new Map<string, CompiledDimension[]>());
-
-const getMetricsByReference = (sourceExplore: Explore) =>
-    Object.values(sourceExplore.tables).reduce<
-        Map<string, { fieldId: FieldId; metric: CompiledMetric }>
-    >((acc, table) => {
-        Object.values(table.metrics).forEach((metric) => {
-            const fieldId = getItemId(metric);
-            new Set([
-                fieldId,
-                ...getMetricReferences({
-                    metric,
-                    baseTable: sourceExplore.baseTable,
-                }),
-            ]).forEach((reference) => {
-                acc.set(reference, { fieldId, metric });
-            });
-        });
-        return acc;
-    }, new Map<string, { fieldId: FieldId; metric: CompiledMetric }>());
 
 const isSupportedMetricType = (metricType: MetricType): boolean =>
     [MetricType.SUM, MetricType.COUNT, MetricType.MIN, MetricType.MAX].includes(
@@ -192,6 +173,16 @@ const getIncludedDimensions = (
     }
 
     const defDimensions = new Set(preAggregateDef.dimensions);
+
+    // Add time dimension to included references if specified separately
+    if (
+        preAggregateDef.timeDimension &&
+        preAggregateDef.granularity &&
+        !defDimensions.has(preAggregateDef.timeDimension)
+    ) {
+        defDimensions.add(preAggregateDef.timeDimension);
+    }
+
     const includedDimensions = Object.values(sourceExplore.tables).flatMap(
         (table) =>
             Object.values(table.dimensions).filter((dimension) =>
@@ -233,7 +224,10 @@ const getIncludedMetrics = (
     sourceExplore: Explore,
     preAggregateDef: PreAggregateDef,
 ): Array<{ fieldId: FieldId; metric: CompiledMetric }> => {
-    const metricsByReference = getMetricsByReference(sourceExplore);
+    const metricsByReference = getMetricsByReference({
+        tables: sourceExplore.tables,
+        baseTable: sourceExplore.baseTable,
+    });
 
     return preAggregateDef.metrics.reduce<
         Array<{ fieldId: FieldId; metric: CompiledMetric }>

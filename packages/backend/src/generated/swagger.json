@@ -6423,8 +6423,43 @@
                 "type": "string"
             },
             "ExploreType": {
-                "enum": ["virtual", "default"],
+                "enum": ["virtual", "default", "pre_aggregate"],
                 "type": "string"
+            },
+            "PreAggregateDef": {
+                "properties": {
+                    "refresh": {
+                        "properties": {
+                            "cron": {
+                                "type": "string"
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "granularity": {
+                        "$ref": "#/components/schemas/TimeFrames"
+                    },
+                    "timeDimension": {
+                        "type": "string"
+                    },
+                    "metrics": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "dimensions": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": ["metrics", "dimensions", "name"],
+                "type": "object"
             },
             "InlineErrorType": {
                 "enum": [
@@ -6456,6 +6491,12 @@
                         },
                         "type": "array",
                         "description": "Non-fatal warnings from partial compilation.\nPresent when some joins or fields failed to compile but the explore is still usable.\nOnly populated when PARTIAL_COMPILATION_ENABLED=true."
+                    },
+                    "preAggregates": {
+                        "items": {
+                            "$ref": "#/components/schemas/PreAggregateDef"
+                        },
+                        "type": "array"
                     },
                     "parameters": {
                         "$ref": "#/components/schemas/Record_string.LightdashProjectParameter_"
@@ -6677,8 +6718,190 @@
                 ],
                 "type": "object"
             },
+            "PreAggregateMissReason.NO_PRE_AGGREGATES_DEFINED": {
+                "enum": ["no_pre_aggregates_defined"],
+                "type": "string"
+            },
+            "PreAggregateMissReason.DIMENSION_NOT_IN_PRE_AGGREGATE": {
+                "enum": ["dimension_not_in_pre_aggregate"],
+                "type": "string"
+            },
+            "PreAggregateMissReason.METRIC_NOT_IN_PRE_AGGREGATE": {
+                "enum": ["metric_not_in_pre_aggregate"],
+                "type": "string"
+            },
+            "PreAggregateMissReason.NON_ADDITIVE_METRIC": {
+                "enum": ["non_additive_metric"],
+                "type": "string"
+            },
+            "PreAggregateMissReason.CUSTOM_SQL_METRIC": {
+                "enum": ["custom_sql_metric"],
+                "type": "string"
+            },
+            "PreAggregateMissReason.FILTER_DIMENSION_NOT_IN_PRE_AGGREGATE": {
+                "enum": ["filter_dimension_not_in_pre_aggregate"],
+                "type": "string"
+            },
+            "PreAggregateMissReason.GRANULARITY_TOO_FINE": {
+                "enum": ["granularity_too_fine"],
+                "type": "string"
+            },
+            "PreAggregateMissReason.CUSTOM_DIMENSION_PRESENT": {
+                "enum": ["custom_dimension_present"],
+                "type": "string"
+            },
+            "PreAggregateMissReason.CUSTOM_METRIC_PRESENT": {
+                "enum": ["custom_metric_present"],
+                "type": "string"
+            },
+            "PreAggregateMissReason.TABLE_CALCULATION_PRESENT": {
+                "enum": ["table_calculation_present"],
+                "type": "string"
+            },
+            "PreAggregateMatchMiss": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "reason": {
+                                "$ref": "#/components/schemas/PreAggregateMissReason.NO_PRE_AGGREGATES_DEFINED"
+                            }
+                        },
+                        "required": ["reason"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "fieldId": {
+                                "$ref": "#/components/schemas/FieldId"
+                            },
+                            "reason": {
+                                "$ref": "#/components/schemas/PreAggregateMissReason.DIMENSION_NOT_IN_PRE_AGGREGATE"
+                            }
+                        },
+                        "required": ["fieldId", "reason"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "fieldId": {
+                                "$ref": "#/components/schemas/FieldId"
+                            },
+                            "reason": {
+                                "$ref": "#/components/schemas/PreAggregateMissReason.METRIC_NOT_IN_PRE_AGGREGATE"
+                            }
+                        },
+                        "required": ["fieldId", "reason"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "fieldId": {
+                                "$ref": "#/components/schemas/FieldId"
+                            },
+                            "reason": {
+                                "$ref": "#/components/schemas/PreAggregateMissReason.NON_ADDITIVE_METRIC"
+                            }
+                        },
+                        "required": ["fieldId", "reason"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "fieldId": {
+                                "$ref": "#/components/schemas/FieldId"
+                            },
+                            "reason": {
+                                "$ref": "#/components/schemas/PreAggregateMissReason.CUSTOM_SQL_METRIC"
+                            }
+                        },
+                        "required": ["fieldId", "reason"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "fieldId": {
+                                "$ref": "#/components/schemas/FieldId"
+                            },
+                            "reason": {
+                                "$ref": "#/components/schemas/PreAggregateMissReason.FILTER_DIMENSION_NOT_IN_PRE_AGGREGATE"
+                            }
+                        },
+                        "required": ["fieldId", "reason"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "preAggregateTimeDimension": {
+                                "type": "string"
+                            },
+                            "preAggregateGranularity": {
+                                "$ref": "#/components/schemas/TimeFrames"
+                            },
+                            "queryGranularity": {
+                                "$ref": "#/components/schemas/TimeFrames"
+                            },
+                            "fieldId": {
+                                "$ref": "#/components/schemas/FieldId"
+                            },
+                            "reason": {
+                                "$ref": "#/components/schemas/PreAggregateMissReason.GRANULARITY_TOO_FINE"
+                            }
+                        },
+                        "required": [
+                            "preAggregateTimeDimension",
+                            "preAggregateGranularity",
+                            "queryGranularity",
+                            "fieldId",
+                            "reason"
+                        ],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "reason": {
+                                "$ref": "#/components/schemas/PreAggregateMissReason.CUSTOM_DIMENSION_PRESENT"
+                            }
+                        },
+                        "required": ["reason"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "reason": {
+                                "$ref": "#/components/schemas/PreAggregateMissReason.CUSTOM_METRIC_PRESENT"
+                            }
+                        },
+                        "required": ["reason"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "reason": {
+                                "$ref": "#/components/schemas/PreAggregateMissReason.TABLE_CALCULATION_PRESENT"
+                            }
+                        },
+                        "required": ["reason"],
+                        "type": "object"
+                    }
+                ]
+            },
             "CacheMetadata": {
                 "properties": {
+                    "preAggregate": {
+                        "properties": {
+                            "reason": {
+                                "$ref": "#/components/schemas/PreAggregateMatchMiss"
+                            },
+                            "name": {
+                                "type": "string"
+                            },
+                            "hit": {
+                                "type": "boolean"
+                            }
+                        },
+                        "required": ["hit"],
+                        "type": "object"
+                    },
                     "cacheHit": {
                         "type": "boolean"
                     },
@@ -8759,16 +8982,16 @@
                                                             "exploreSearchResults": {
                                                                 "items": {
                                                                     "properties": {
-                                                                        "searchRank": {
-                                                                            "type": "number",
-                                                                            "format": "double",
-                                                                            "nullable": true
-                                                                        },
                                                                         "joinedTables": {
                                                                             "items": {
                                                                                 "type": "string"
                                                                             },
                                                                             "type": "array",
+                                                                            "nullable": true
+                                                                        },
+                                                                        "searchRank": {
+                                                                            "type": "number",
+                                                                            "format": "double",
                                                                             "nullable": true
                                                                         },
                                                                         "label": {
@@ -16699,6 +16922,7 @@
                     "generateDailyJobs",
                     "exportCsvDashboard",
                     "renameResources",
+                    "materializePreAggregate",
                     "cleanQueryHistory",
                     "downloadAsyncQueryResults",
                     "syncSlackChannels",
@@ -20030,6 +20254,29 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "ApiSuccess__jobIds-string-Array__": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "jobIds": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["jobIds"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "CompilationSource": {
                 "type": "string",
                 "enum": ["cli_deploy", "refresh_dbt", "create_project"]
@@ -20126,6 +20373,12 @@
                     },
                     "parameters": {
                         "$ref": "#/components/schemas/Record_string.LightdashProjectParameter_"
+                    },
+                    "preAggregates": {
+                        "items": {
+                            "$ref": "#/components/schemas/PreAggregateDef"
+                        },
+                        "type": "array"
                     },
                     "warnings": {
                         "items": {
@@ -22895,6 +23148,12 @@
                             }
                         ]
                     },
+                    "preAggregates": {
+                        "items": {
+                            "$ref": "#/components/schemas/PreAggregateDef"
+                        },
+                        "type": "array"
+                    },
                     "warnings": {
                         "items": {
                             "$ref": "#/components/schemas/InlineError"
@@ -24329,36 +24588,6 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "BigqueryProject": {
-                "properties": {
-                    "friendlyName": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "projectId": {
-                        "type": "string"
-                    }
-                },
-                "required": ["friendlyName", "projectId"],
-                "type": "object"
-            },
-            "ApiBigqueryProjects": {
-                "properties": {
-                    "results": {
-                        "items": {
-                            "$ref": "#/components/schemas/BigqueryProject"
-                        },
-                        "type": "array"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
             "RoleAssignment": {
                 "properties": {
                     "updatedAt": {
@@ -24969,7 +25198,8 @@
                     "mcp",
                     "api",
                     "cli",
-                    "metricsExplorer"
+                    "metricsExplorer",
+                    "preAggregateMaterialization"
                 ],
                 "type": "string"
             },
@@ -36478,6 +36708,96 @@
                 ]
             }
         },
+        "/api/v1/projects/{projectUuid}/pre-aggregates/refresh": {
+            "post": {
+                "operationId": "refreshProjectPreAggregates",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccess__jobIds-string-Array__"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Refresh all pre-aggregates in a project",
+                "summary": "Refresh project pre-aggregates",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/pre-aggregates/{preAggExploreName}/refresh": {
+            "post": {
+                "operationId": "refreshProjectPreAggregateByName",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccess__jobIds-string-Array__"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Refresh a single pre-aggregate explore in a project",
+                "summary": "Refresh project pre-aggregate by name",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "preAggExploreName",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
         "/api/v1/projects/{projectUuid}/compile-logs": {
             "get": {
                 "operationId": "getProjectCompileLogs",
@@ -42399,41 +42719,9 @@
                 ]
             }
         },
-        "/api/v1/bigquery/sso/projects": {
-            "get": {
-                "operationId": "GetBigQueryProjects",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiBigqueryProjects"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Get BigQuery projects accessible by the user",
-                "summary": "Get BigQuery projects",
-                "tags": ["Projects"],
-                "security": [],
-                "parameters": []
-            }
-        },
         "/api/v1/bigquery/sso/is-authenticated": {
             "get": {
-                "operationId": "checkBigqueryAuthentication",
+                "operationId": "getAccessToken",
                 "responses": {
                     "200": {
                         "description": "Success",

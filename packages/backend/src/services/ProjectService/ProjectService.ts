@@ -74,6 +74,7 @@ import {
     getIntrinsicUserAttributes,
     getItemId,
     getMetrics,
+    getPreAggregateExploreName,
     getTimezoneLabel,
     hasConnectionChanges,
     hasIntersection,
@@ -193,6 +194,7 @@ import EmailClient from '../../clients/EmailClient/EmailClient';
 import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
 import { LightdashConfig } from '../../config/parseConfig';
 import { normalizeDatabricksHostLenient } from '../../controllers/authentication/strategies/databricksStrategy';
+import { type DbPreAggregateDefinitionIn } from '../../database/entities/preAggregates';
 import type { DbTagUpdate } from '../../database/entities/tags';
 import { errorHandler } from '../../errors';
 import Logger from '../../logging/logger';
@@ -208,6 +210,7 @@ import { GroupsModel } from '../../models/GroupsModel';
 import { JobModel } from '../../models/JobModel/JobModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { OrganizationWarehouseCredentialsModel } from '../../models/OrganizationWarehouseCredentialsModel';
+import { PreAggregateModel } from '../../models/PreAggregateModel';
 import { ProjectCompileLogModel } from '../../models/ProjectCompileLogModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { ProjectParametersModel } from '../../models/ProjectParametersModel';
@@ -241,6 +244,7 @@ import { applyLimitToSqlQuery } from '../../utils/QueryBuilder/utils';
 import { SubtotalsCalculator } from '../../utils/SubtotalsCalculator';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
 import { BaseService } from '../BaseService';
+import { buildMaterializationMetricQuery } from '../PreAggregateMaterializationService/buildMaterializationMetricQuery';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import {
     doesExploreMatchRequiredAttributes,
@@ -254,6 +258,7 @@ export type ProjectServiceArguments = {
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
     projectModel: ProjectModel;
+    preAggregateModel: PreAggregateModel;
     onboardingModel: OnboardingModel;
     savedChartModel: SavedChartModel;
     jobModel: JobModel;
@@ -290,6 +295,8 @@ export class ProjectService extends BaseService {
     analytics: LightdashAnalytics;
 
     projectModel: ProjectModel;
+
+    preAggregateModel: PreAggregateModel;
 
     onboardingModel: OnboardingModel;
 
@@ -353,6 +360,7 @@ export class ProjectService extends BaseService {
         lightdashConfig,
         analytics,
         projectModel,
+        preAggregateModel,
         onboardingModel,
         savedChartModel,
         jobModel,
@@ -386,6 +394,7 @@ export class ProjectService extends BaseService {
         this.lightdashConfig = lightdashConfig;
         this.analytics = analytics;
         this.projectModel = projectModel;
+        this.preAggregateModel = preAggregateModel;
         this.onboardingModel = onboardingModel;
         this.warehouseClients = {};
         this.savedChartModel = savedChartModel;
@@ -1406,6 +1415,141 @@ export class ProjectService extends BaseService {
         return { warehouseClient: client, sshTunnel };
     }
 
+    private async syncPreAggregateDefinitionsRegistry(
+        projectUuid: string,
+    ): Promise<void> {
+        const exploresByUuid =
+            await this.projectModel.getAllExploresFromCache(projectUuid);
+
+        const preAggregateExploreUuidByName = new Map<string, string>(
+            Object.entries(exploresByUuid)
+                .filter(
+                    ([, explore]) =>
+                        !isExploreError(explore) &&
+                        explore.type === ExploreType.PRE_AGGREGATE,
+                )
+                .map(([cachedExploreUuid, explore]) => [
+                    explore.name,
+                    cachedExploreUuid,
+                ]),
+        );
+
+        const definitionRows: DbPreAggregateDefinitionIn[] = [];
+
+        Object.entries(exploresByUuid).forEach(
+            ([sourceCachedExploreUuid, sourceExplore]) => {
+                if (
+                    isExploreError(sourceExplore) ||
+                    !sourceExplore.preAggregates ||
+                    sourceExplore.preAggregates.length === 0
+                ) {
+                    return;
+                }
+
+                sourceExplore.preAggregates.forEach(
+                    (preAggregateDefinition) => {
+                        const preAggregateExploreName =
+                            getPreAggregateExploreName(
+                                sourceExplore.name,
+                                preAggregateDefinition.name,
+                            );
+                        const preAggCachedExploreUuid =
+                            preAggregateExploreUuidByName.get(
+                                preAggregateExploreName,
+                            );
+
+                        if (!preAggCachedExploreUuid) {
+                            this.logger.warn(
+                                `Skipping pre-aggregate definition "${preAggregateDefinition.name}" for source explore "${sourceExplore.name}" in project ${projectUuid}: generated pre-aggregate explore "${preAggregateExploreName}" not found in cache`,
+                            );
+                            return;
+                        }
+
+                        let materializationMetricQuery = null;
+                        let materializationQueryError = null;
+
+                        try {
+                            materializationMetricQuery =
+                                buildMaterializationMetricQuery({
+                                    sourceExplore,
+                                    preAggregateDef: preAggregateDefinition,
+                                });
+                        } catch (error) {
+                            materializationQueryError = getErrorMessage(error);
+                        }
+
+                        definitionRows.push({
+                            project_uuid: projectUuid,
+                            source_cached_explore_uuid: sourceCachedExploreUuid,
+                            pre_agg_cached_explore_uuid:
+                                preAggCachedExploreUuid,
+                            pre_aggregate_definition: preAggregateDefinition,
+                            materialization_metric_query:
+                                materializationMetricQuery,
+                            materialization_query_error:
+                                materializationQueryError,
+                            refresh_cron:
+                                preAggregateDefinition.refresh?.cron ?? null,
+                        });
+                    },
+                );
+            },
+        );
+
+        await this.preAggregateModel.upsertPreAggregateDefinitions(
+            definitionRows,
+        );
+
+        const invalidDefinitionsCount = definitionRows.filter(
+            (row) => row.materialization_metric_query === null,
+        ).length;
+        this.logger.info(
+            `Upserted ${definitionRows.length} pre-aggregate definition registry row(s) for project ${projectUuid}`,
+            {
+                invalidDefinitionsCount,
+            },
+        );
+    }
+
+    private async syncAndEnqueuePreAggregateMaterializations(args: {
+        projectUuid: string;
+        organizationUuid: string;
+        userUuid: string;
+    }): Promise<void> {
+        try {
+            await this.syncPreAggregateDefinitionsRegistry(args.projectUuid);
+
+            const preAggregateDefinitions =
+                await this.preAggregateModel.getPreAggregateDefinitionsForProject(
+                    args.projectUuid,
+                );
+            const materializableDefinitions = preAggregateDefinitions.filter(
+                (definition) => definition.materializationMetricQuery !== null,
+            );
+
+            if (materializableDefinitions.length > 0) {
+                await Promise.all(
+                    materializableDefinitions.map((definition) =>
+                        this.schedulerClient.materializePreAggregate({
+                            organizationUuid: args.organizationUuid,
+                            projectUuid: args.projectUuid,
+                            userUuid: args.userUuid,
+                            preAggregateDefinitionUuid:
+                                definition.preAggregateDefinitionUuid,
+                            trigger: 'compile',
+                        }),
+                    ),
+                );
+            }
+        } catch (error) {
+            this.logger.error(
+                `Failed to sync/enqueue pre-aggregate materializations for project ${args.projectUuid}: ${getErrorMessage(
+                    error,
+                )}`,
+            );
+        }
+    }
+
     async saveExploresToCacheAndIndexCatalog(
         userUuid: string,
         projectUuid: string,
@@ -1459,7 +1603,7 @@ export class ProjectService extends BaseService {
             `Inserted compilation log for project ${projectUuid}: ${compilationReport.totalExploresCount} explores, ${compilationReport.errorExploresCount} errors`,
         );
 
-        return this.schedulerClient.indexCatalog({
+        const indexCatalogJob = await this.schedulerClient.indexCatalog({
             projectUuid,
             userUuid,
             organizationUuid,
@@ -1468,6 +1612,19 @@ export class ProjectService extends BaseService {
             prevMetricTreeEdges,
             prevMetricsTreeNodes,
         });
+
+        if (
+            process.env.ENABLE_PRE_AGGREGATES === 'true' ||
+            process.env.ENABLE_PRE_AGGREGATE_VIRTUAL_EXPLORES === 'true'
+        ) {
+            await this.syncAndEnqueuePreAggregateMaterializations({
+                projectUuid,
+                organizationUuid,
+                userUuid,
+            });
+        }
+
+        return indexCatalogJob;
     }
 
     async getProject(projectUuid: string, account: Account): Promise<Project> {
@@ -4636,6 +4793,139 @@ export class ProjectService extends BaseService {
         }
 
         return job;
+    }
+
+    private async assertCanRefreshPreAggregates(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<{ organizationUuid: string }> {
+        const { organizationUuid, type } =
+            await this.projectModel.getSummary(projectUuid);
+
+        if (
+            user.ability.cannot(
+                'create',
+                subject('Job', { organizationUuid, projectUuid }),
+            ) ||
+            user.ability.cannot(
+                'manage',
+                subject('CompileProject', {
+                    organizationUuid,
+                    projectUuid,
+                    type,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        return { organizationUuid };
+    }
+
+    async refreshPreAggregates(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<{ jobIds: string[] }> {
+        const { organizationUuid } = await this.assertCanRefreshPreAggregates(
+            user,
+            projectUuid,
+        );
+
+        const preAggregateDefinitions =
+            await this.preAggregateModel.getPreAggregateDefinitionsForProject(
+                projectUuid,
+            );
+
+        if (preAggregateDefinitions.length === 0) {
+            throw new NotFoundError(
+                'No pre-aggregate definitions found for this project. Recompile the project to populate the registry.',
+            );
+        }
+
+        const materializableDefinitions = preAggregateDefinitions.filter(
+            (definition) => definition.materializationMetricQuery !== null,
+        );
+
+        preAggregateDefinitions
+            .filter(
+                (definition) => definition.materializationMetricQuery === null,
+            )
+            .forEach((definition) => {
+                this.logger.warn(
+                    `Skipping manual refresh for pre-aggregate definition ${definition.preAggregateDefinitionUuid} in project ${projectUuid}: ${
+                        definition.materializationQueryError ||
+                        'materialization query is missing'
+                    }`,
+                );
+            });
+
+        if (materializableDefinitions.length === 0) {
+            throw new ParameterError(
+                'No valid pre-aggregate definitions are materializable. Recompile the project and fix definition errors first.',
+            );
+        }
+
+        const jobs = await Promise.all(
+            materializableDefinitions.map((definition) =>
+                this.schedulerClient.materializePreAggregate({
+                    organizationUuid,
+                    projectUuid,
+                    userUuid: user.userUuid,
+                    preAggregateDefinitionUuid:
+                        definition.preAggregateDefinitionUuid,
+                    trigger: 'manual',
+                }),
+            ),
+        );
+
+        return {
+            jobIds: jobs.map((job) => job.jobId),
+        };
+    }
+
+    async refreshPreAggregateByName(
+        user: SessionUser,
+        projectUuid: string,
+        preAggExploreName: string,
+    ): Promise<{ jobIds: string[] }> {
+        const { organizationUuid } = await this.assertCanRefreshPreAggregates(
+            user,
+            projectUuid,
+        );
+
+        const preAggregateDefinition =
+            await this.preAggregateModel.getPreAggregateDefinitionByName({
+                projectUuid,
+                preAggExploreName,
+            });
+
+        if (!preAggregateDefinition) {
+            throw new NotFoundError(
+                `Pre-aggregate explore "${preAggExploreName}" not found`,
+            );
+        }
+
+        if (!preAggregateDefinition.materializationMetricQuery) {
+            throw new ParameterError(
+                `Pre-aggregate explore "${preAggExploreName}" cannot be materialized: ${
+                    preAggregateDefinition.materializationQueryError ||
+                    'materialization query is missing'
+                }`,
+            );
+        }
+
+        const { jobId } = await this.schedulerClient.materializePreAggregate({
+            organizationUuid,
+            projectUuid,
+            userUuid: user.userUuid,
+            preAggregateDefinitionUuid:
+                preAggregateDefinition.preAggregateDefinitionUuid,
+            trigger: 'manual',
+        });
+
+        return {
+            jobIds: [jobId],
+        };
     }
 
     async scheduleCompileProject(

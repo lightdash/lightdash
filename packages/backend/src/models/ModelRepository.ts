@@ -31,6 +31,7 @@ import { OrganizationWarehouseCredentialsModel } from './OrganizationWarehouseCr
 import { PasswordResetLinkModel } from './PasswordResetLinkModel';
 import { PersistentDownloadFileModel } from './PersistentDownloadFileModel';
 import { PinnedListModel } from './PinnedListModel';
+import { PreAggregateModel } from './PreAggregateModel';
 import { ProjectCompileLogModel } from './ProjectCompileLogModel';
 import { ProjectModel } from './ProjectModel/ProjectModel';
 import { ProjectParametersModel } from './ProjectParametersModel';
@@ -115,6 +116,7 @@ export type ModelManifest = {
     featureFlagModel: FeatureFlagModel;
     spotlightTableConfigModel: SpotlightTableConfigModel;
     queryHistoryModel: QueryHistoryModel;
+    preAggregateModel: PreAggregateModel;
     projectParametersModel: ProjectParametersModel;
     changesetModel: ChangesetModel;
     /** An implementation signature for these models are not available at this stage */
@@ -678,6 +680,16 @@ export class ModelRepository
         return this.getModel(
             'queryHistoryModel',
             () => new QueryHistoryModel({ database: this.database }),
+        );
+    }
+
+    public getPreAggregateModel(): PreAggregateModel {
+        return this.getModel(
+            'preAggregateModel',
+            () =>
+                new PreAggregateModel({
+                    database: this.database,
+                }),
         );
     }
 

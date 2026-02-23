@@ -245,6 +245,22 @@ describe('buildPreAggregateExplore', () => {
         ).toThrow('references unknown dimensions');
     });
 
+    it('includes time dimension even when not in dimensions array', () => {
+        const result = buildPreAggregateExplore(sourceExplore(), {
+            name: 'time_dim_separate',
+            dimensions: ['status'],
+            metrics: ['order_count'],
+            timeDimension: 'order_date',
+            granularity: TimeFrames.DAY,
+        });
+
+        expect(result.tables.orders.dimensions.order_date_day).toBeDefined();
+        expect(result.tables.orders.dimensions.order_date_day.compiledSql).toBe(
+            'orders.order_date_day',
+        );
+        expect(result.tables.orders.dimensions.status).toBeDefined();
+    });
+
     it('supports legacy metric fieldIds in pre-aggregate definitions', () => {
         const result = buildPreAggregateExplore(sourceExplore(), {
             name: 'legacy_field_id_rollup',

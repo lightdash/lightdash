@@ -196,6 +196,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     lightdashConfig: context.lightdashConfig,
                     analytics: context.lightdashAnalytics,
                     projectModel: models.getProjectModel(),
+                    preAggregateModel: models.getPreAggregateModel(),
                     onboardingModel: models.getOnboardingModel(),
                     savedChartModel: models.getSavedChartModel(),
                     jobModel: models.getJobModel(),
@@ -264,6 +265,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     lightdashConfig: context.lightdashConfig,
                     analytics: context.lightdashAnalytics,
                     projectModel: models.getProjectModel(),
+                    preAggregateModel: models.getPreAggregateModel(),
                     onboardingModel: models.getOnboardingModel(),
                     savedChartModel: models.getSavedChartModel(),
                     jobModel: models.getJobModel(),
@@ -396,6 +398,9 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     context.serviceRepository.getFeatureFlagService(),
                 persistentDownloadFileService:
                     context.serviceRepository.getPersistentDownloadFileService(),
+                preAggregateModel: context.models.getPreAggregateModel(),
+                preAggregateMaterializationService:
+                    context.serviceRepository.getPreAggregateMaterializationService(),
             }),
         clientProviders: {
             schedulerClient: ({ context, models }) =>
