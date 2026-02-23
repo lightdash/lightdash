@@ -43,6 +43,7 @@ export const Table = <T extends IResultsRunner>({
         getTableData,
         paddingTop,
         paddingBottom,
+        totalColumnWidth,
     } = useTableDataModel({
         config: {
             columns: columnsConfig,
@@ -67,7 +68,7 @@ export const Table = <T extends IResultsRunner>({
             }}
             className="sentry-block ph-no-capture"
         >
-            <TableStyled>
+            <TableStyled $fixedLayout={totalColumnWidth || undefined}>
                 <thead>
                     <tr>
                         {headerGroups.map((headerGroup) =>
@@ -82,20 +83,15 @@ export const Table = <T extends IResultsRunner>({
                                     <th
                                         key={header.id}
                                         onClick={onClick}
-                                        style={
-                                            onClick
-                                                ? {
-                                                      cursor: 'pointer',
-                                                      backgroundColor:
-                                                          theme.colors
-                                                              .ldGray[0],
-                                                  }
-                                                : {
-                                                      backgroundColor:
-                                                          theme.colors
-                                                              .ldGray[0],
-                                                  }
-                                        }
+                                        style={{
+                                            ...header.column.columnDef.meta
+                                                ?.style,
+                                            backgroundColor:
+                                                theme.colors.ldGray[0],
+                                            ...(onClick
+                                                ? { cursor: 'pointer' }
+                                                : {}),
+                                        }}
                                     >
                                         <Group spacing="two" fz={13}>
                                             {columnsConfig[header.id]
@@ -160,6 +156,10 @@ export const Table = <T extends IResultsRunner>({
                                                 cell={cell}
                                                 isNumericItem={false}
                                                 hasData={!!cellValue}
+                                                style={
+                                                    cell.column.columnDef.meta
+                                                        ?.style
+                                                }
                                                 isLargeText={
                                                     (
                                                         cellValue?.toString() ||

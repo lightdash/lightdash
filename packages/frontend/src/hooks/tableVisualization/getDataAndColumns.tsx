@@ -200,7 +200,6 @@ const getDataAndColumns = ({
                         frozen: isColumnFrozen(itemId),
                         // For image columns with explicit width: set fixed width constraints
                         ...getImageSize(item),
-                        // Apply user-configured column width (overrides image size)
                         ...getColumnWidthMeta(getColumnWidth(itemId)),
                     },
                     // Some features work in the TanStack Table demos but not here, for unknown reasons.

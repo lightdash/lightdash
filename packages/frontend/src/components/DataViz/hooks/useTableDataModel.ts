@@ -11,7 +11,9 @@ import {
 } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useCallback, useMemo, useRef } from 'react';
+import { useAutoColumnWidths } from '../../../hooks/useAutoColumnWidths';
 import { getValueCell } from '../../../hooks/useColumns';
+import { useIsTableColumnWidthStabilizationEnabled } from '../../../hooks/useIsTableColumnWidthStabilizationEnabled';
 import { ROW_HEIGHT_PX } from '../../common/Table/constants';
 import { calculateColumnStats } from '../utils/columnStats';
 
@@ -48,17 +50,62 @@ export const useTableDataModel = ({
         return calculateColumnStats(rows, barColumns);
     }, [rows, columns, config?.columns]);
 
-    const tanstackColumns: ColumnDef<RawResultRow, any>[] = useMemo(() => {
-        return columns.map((column) => ({
-            id: column,
-            // react table has a bug with accessors that has dots in them
-            // we found the fix here -> https://github.com/TanStack/table/issues/1671
-            // do not remove the line below
-            accessorFn: TableDataModel.getColumnsAccessorFn(column),
-            header: config?.columns[column].label || column,
-            cell: getValueCell,
-        }));
+    const headerLabels = useMemo(() => {
+        if (!config?.columns) return {};
+        const labels: Record<string, string> = {};
+        for (const col of columns) {
+            labels[col] = config.columns[col]?.label || col;
+        }
+        return labels;
     }, [columns, config?.columns]);
+
+    const getCellText = useCallback(
+        (row: Record<string, unknown>, colId: string) =>
+            String(row[colId] ?? ''),
+        [],
+    );
+
+    const isTableColumnWidthStabilizationEnabled =
+        useIsTableColumnWidthStabilizationEnabled();
+
+    const autoColumnWidths = useAutoColumnWidths({
+        columnIds: columns,
+        rows,
+        getCellText,
+        headerLabels,
+        enabled: isTableColumnWidthStabilizationEnabled,
+    });
+
+    const tanstackColumns: ColumnDef<RawResultRow, any>[] = useMemo(() => {
+        return columns.map((column) => {
+            const autoWidth = autoColumnWidths[column];
+            return {
+                id: column,
+                // react table has a bug with accessors that has dots in them
+                // we found the fix here -> https://github.com/TanStack/table/issues/1671
+                // do not remove the line below
+                accessorFn: TableDataModel.getColumnsAccessorFn(column),
+                header: config?.columns[column].label || column,
+                cell: getValueCell,
+                ...(autoWidth
+                    ? {
+                          meta: {
+                              style: {
+                                  width: autoWidth,
+                                  minWidth: autoWidth,
+                                  maxWidth: autoWidth,
+                              },
+                          },
+                      }
+                    : {}),
+            };
+        });
+    }, [columns, config?.columns, autoColumnWidths]);
+
+    const totalColumnWidth = useMemo(() => {
+        if (!isTableColumnWidthStabilizationEnabled) return 0;
+        return Object.values(autoColumnWidths).reduce((sum, w) => sum + w, 0);
+    }, [autoColumnWidths, isTableColumnWidthStabilizationEnabled]);
 
     const table = useReactTable({
         data: rows,
@@ -114,5 +161,6 @@ export const useTableDataModel = ({
         getTableData,
         paddingTop,
         paddingBottom,
+        totalColumnWidth,
     };
 };

@@ -88,6 +88,11 @@ export enum FeatureFlags {
      * Enable default personal spaces for project members
      */
     DefaultUserSpaces = 'default-user-spaces',
+
+    /**
+     * Enable stabilized table column widths during virtualized scrolling
+     */
+    EnableTableColumnWidthStabilization = 'enable-table-column-width-stabilization',
 }
 
 export type FeatureFlag = {

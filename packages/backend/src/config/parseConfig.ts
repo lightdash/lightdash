@@ -827,6 +827,7 @@ export type LightdashConfig = {
         maxPageSize: number;
         useSqlPivotResults: boolean | undefined;
         showExecutionTime: boolean | undefined;
+        enableTableColumnWidthStabilization: boolean | undefined;
     };
     pivotTable: {
         maxColumnLimit: number;
@@ -1599,6 +1600,10 @@ export const parseConfig = (): LightdashConfig => {
                 : undefined,
             showExecutionTime: process.env.SHOW_EXECUTION_TIME
                 ? process.env.SHOW_EXECUTION_TIME === 'true'
+                : undefined,
+            enableTableColumnWidthStabilization: process.env
+                .ENABLE_TABLE_COLUMN_WIDTH_STABILIZATION
+                ? process.env.ENABLE_TABLE_COLUMN_WIDTH_STABILIZATION === 'true'
                 : undefined,
         },
         chart: {
