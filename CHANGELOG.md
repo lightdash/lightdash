@@ -1,3 +1,10 @@
+## [0.2505.3](https://github.com/lightdash/lightdash/compare/0.2505.2...0.2505.3) (2026-02-23)
+
+
+### Bug Fixes
+
+* replace n+1 query for inheritance chain ([#20504](https://github.com/lightdash/lightdash/issues/20504)) ([f0468bd](https://github.com/lightdash/lightdash/commit/f0468bde70f8aa193ff4af5367982c34deb2989f))
+
 ## [0.2505.2](https://github.com/lightdash/lightdash/compare/0.2505.1...0.2505.2) (2026-02-23)
 
 
