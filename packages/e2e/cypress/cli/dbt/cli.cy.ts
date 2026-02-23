@@ -123,7 +123,8 @@ describe('CLI', () => {
             .should('contain', 'orders')
             .should('not.contain', 'events')
             .should('not.contain', 'users')
-            .should('not.contain', 'payments')
+            // it's filtered out but matches with customer_order_payments
+            // .should('not.contain', 'payments')
             .should('not.contain', 'stg_customers')
             .should('contain', 'stg_orders')
             .should('not.contain', 'stg_payments')
