@@ -29,11 +29,11 @@ done
 
 ### 3. Convert commands to skills
 
-Copy each command into `.agents/skills/<name>/SKILL.md`. Commands are plain markdown without frontmatter, so prepend a YAML frontmatter block with name and description derived from the file content:
+Copy each command into `.agents/skills/<name>/SKILL.md`. Commands are plain markdown without frontmatter, so prepend a YAML frontmatter block with name and description derived from the file content. Searches recursively to handle nested command directories (e.g., `.claude/commands/group/cmd.md`):
 
-for f in .claude/commands/*.md; do
-  [ -f "$f" ] || continue
-  NAME=$(basename "$f" .md)
+find .claude/commands -name "*.md" -type f | while read f; do
+  REL="${f#.claude/commands/}"
+  NAME="${REL%.md}"
   FIRST_LINE=$(head -1 "$f")
   mkdir -p ".agents/skills/$NAME"
   SAFE_DESC=$(echo "$FIRST_LINE" | sed 's/`//g')
@@ -49,11 +49,11 @@ done
 
 ### 4. Copy skills
 
-for dir in .claude/skills/*/; do
-  SKILL_NAME=$(basename "$dir")
-  [ -f "$dir/SKILL.md" ] || continue
-  mkdir -p ".agents/skills/$SKILL_NAME"
-  cp "$dir/SKILL.md" ".agents/skills/$SKILL_NAME/SKILL.md"
+find .claude/skills -name "SKILL.md" -type f | while read f; do
+  REL_DIR="${f#.claude/skills/}"
+  SKILL_DIR=$(dirname "$REL_DIR")
+  mkdir -p ".agents/skills/$SKILL_DIR"
+  cp "$f" ".agents/skills/$SKILL_DIR/SKILL.md"
 done
 
 ### 5. Register generated skills in root AGENTS.md
