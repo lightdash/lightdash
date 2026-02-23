@@ -1,5 +1,7 @@
 import {
+    FeatureFlags,
     OrganizationMemberRole,
+    SpaceMemberRole,
     type OrganizationMemberProfile,
     type Space,
 } from '@lightdash/common';
@@ -33,6 +35,7 @@ import {
 import { useInfiniteOrganizationGroups } from '../../../hooks/useOrganizationGroups';
 import { useInfiniteOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import { useProjectAccess } from '../../../hooks/useProjectAccess';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import {
     useAddGroupSpaceShareMutation,
     useAddSpaceShareMutation,
@@ -53,6 +56,11 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
     projectUuid,
     disabled = false,
 }) => {
+    const { data: nestedSpacesPermissionsFlag } = useServerFeatureFlag(
+        FeatureFlags.NestedSpacesPermissions,
+    );
+    const isV2 = !!nestedSpacesPermissionsFlag?.enabled;
+
     const [usersSelected, setUsersSelected] = useState<string[]>([]);
     const [searchQuery, setSearchQuery] = useState<string>('');
     const [debouncedSearchQuery] = useDebouncedValue(searchQuery, 300);
@@ -162,7 +170,13 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                   )?.title ?? 'No access')
                 : 'No access';
 
-            const spaceRoleInheritanceInfo = `Access inherited from their ${spaceAccess?.inheritedFrom} role`;
+            const spaceRoleInheritanceInfo = isV2
+                ? `Access inherited from ${
+                      spaceAccess?.inheritedFrom === 'parent_space'
+                          ? 'parent space'
+                          : spaceAccess?.inheritedFrom
+                  }`
+                : `Access inherited from their ${spaceAccess?.inheritedFrom} role`;
 
             return (
                 <Group ref={ref} {...props} position={'apart'}>
@@ -204,7 +218,7 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                 </Group>
             );
         });
-    }, [allSearchedOrganizationUsers, space.access]);
+    }, [isV2, allSearchedOrganizationUsers, space.access]);
 
     const data = useMemo(() => {
         const userUuidsAndSelected = uniq([...userUuids, ...usersSelected]);
@@ -217,9 +231,16 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
 
                 if (!user) return null;
 
-                const hasDirectAccess = !!(space.access || []).find(
-                    (access) => access.userUuid === userUuid,
-                )?.hasDirectAccess;
+                const hasDirectAccess = isV2
+                    ? (space.access || []).some(
+                          (access) =>
+                              access.userUuid === userUuid &&
+                              access.hasDirectAccess &&
+                              access.inheritedFrom !== 'parent_space',
+                      )
+                    : !!(space.access || []).find(
+                          (access) => access.userUuid === userUuid,
+                      )?.hasDirectAccess;
 
                 if (hasDirectAccess) return null;
 
@@ -252,10 +273,13 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                 };
             });
 
-        return [...usersSet, ...(groupsSet ?? [])].filter(
-            (item): item is SelectItem => item !== null,
-        );
+        return (
+            isV2
+                ? [...(groupsSet ?? []), ...usersSet]
+                : [...usersSet, ...(groupsSet ?? [])]
+        ).filter((item): item is SelectItem => item !== null);
     }, [
+        isV2,
         userUuids,
         usersSelected,
         groups,
@@ -331,10 +355,10 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                 filter={(searchString, selected, item) => {
                     return Boolean(
                         item.group === 'Users' ||
-                            selected ||
-                            item.label
-                                ?.toLowerCase()
-                                .includes(searchString.toLowerCase()),
+                        selected ||
+                        item.label
+                            ?.toLowerCase()
+                            .includes(searchString.toLowerCase()),
                     );
                 }}
             />
@@ -346,10 +370,17 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                         const selectedValue = data.find(
                             (item) => item.value === uuid,
                         );
+
+                        // v2: preserve inherited role so direct access isn't a downgrade
+                        const role = isV2
+                            ? (space.access.find((a) => a.userUuid === uuid)
+                                  ?.role ?? SpaceMemberRole.VIEWER)
+                            : 'viewer';
+
                         if (selectedValue?.group === 'Users') {
-                            await shareSpaceMutation([uuid, 'viewer']);
+                            await shareSpaceMutation([uuid, role]);
                         } else {
-                            await shareGroupSpaceMutation([uuid, 'viewer']);
+                            await shareGroupSpaceMutation([uuid, role]);
                         }
                     }
                     setUsersSelected([]);

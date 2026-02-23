@@ -1,0 +1,13 @@
+.auditRow {
+    border-radius: var(--mantine-radius-sm);
+    padding: 4px 8px;
+    margin: 0 -8px;
+    transition: background-color 150ms ease;
+}
+
+.auditRow:hover {
+    background-color: light-dark(
+        var(--mantine-color-gray-0),
+        var(--mantine-color-dark-5)
+    );
+}

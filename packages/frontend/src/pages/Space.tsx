@@ -325,10 +325,15 @@ const Space: FC = () => {
                                                     space?.uuid,
                                                 )
                                             ) {
-                                                //Redirect to home if we are on the space we are deleting
-                                                void navigate(
-                                                    `/projects/${projectUuid}/home`,
-                                                );
+                                                if (space?.parentSpaceUuid) {
+                                                    void navigate(
+                                                        `/projects/${projectUuid}/spaces/${space.parentSpaceUuid}`,
+                                                    );
+                                                } else {
+                                                    void navigate(
+                                                        `/projects/${projectUuid}/home`,
+                                                    );
+                                                }
                                             }
                                         }}
                                         onClose={() => {
