@@ -5014,6 +5014,10 @@
                         "type": "boolean",
                         "description": "Show table names in column headers"
                     },
+                    "wrapColumnText": {
+                        "type": "boolean",
+                        "description": "Wrap column text in header cells"
+                    },
                     "showRowCalculation": {
                         "type": "boolean",
                         "description": "Show row totals/calculations"

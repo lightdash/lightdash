@@ -4365,6 +4365,7 @@ const models: TsoaRoute.Models = {
                 showResultsTotal: { dataType: 'boolean' },
                 hideRowNumbers: { dataType: 'boolean' },
                 showTableNames: { dataType: 'boolean' },
+                wrapColumnText: { dataType: 'boolean' },
                 showRowCalculation: { dataType: 'boolean' },
                 showColumnCalculation: { dataType: 'boolean' },
             },
