@@ -13,6 +13,7 @@ import {
     IconFolderCog,
     IconFolderPlus,
     IconFolderX,
+    IconLock,
     IconPlus,
 } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
@@ -155,32 +156,68 @@ const Space: FC = () => {
                                     to: `/projects/${projectUuid}/spaces`,
                                 },
                                 ...(space.breadcrumbs?.map(
-                                    (breadcrumb, index) => ({
-                                        title: breadcrumb.name,
-                                        active:
+                                    (breadcrumb, index) => {
+                                        const isLastBreadcrumb =
                                             index ===
                                             (space.breadcrumbs?.length ?? 0) -
-                                                1,
-                                        to: `/projects/${projectUuid}/spaces/${breadcrumb.uuid}`,
-                                        onClick: () => {
-                                            if (
-                                                user.data?.userUuid &&
-                                                user.data?.organizationUuid
-                                            ) {
-                                                track({
-                                                    name: EventName.SPACE_BREADCRUMB_CLICKED,
-                                                    properties: {
-                                                        userId: user.data
-                                                            ?.userUuid,
-                                                        organizationId:
-                                                            user.data
-                                                                ?.organizationUuid,
-                                                        projectId: projectUuid,
-                                                    },
-                                                });
-                                            }
-                                        },
-                                    }),
+                                                1;
+                                        const isAccessible =
+                                            breadcrumb.hasAccess;
+
+                                        return {
+                                            title: isAccessible ? (
+                                                breadcrumb.name
+                                            ) : (
+                                                <span
+                                                    style={{
+                                                        display: 'inline-flex',
+                                                        alignItems: 'center',
+                                                        gap: 4,
+                                                    }}
+                                                >
+                                                    <MantineIcon
+                                                        icon={IconLock}
+                                                        size={14}
+                                                        color="ldGray.5"
+                                                    />
+                                                    {breadcrumb.name}
+                                                </span>
+                                            ),
+                                            active: isLastBreadcrumb,
+                                            ...(isAccessible
+                                                ? {
+                                                      to: `/projects/${projectUuid}/spaces/${breadcrumb.uuid}`,
+                                                      onClick: () => {
+                                                          if (
+                                                              user.data
+                                                                  ?.userUuid &&
+                                                              user.data
+                                                                  ?.organizationUuid
+                                                          ) {
+                                                              track({
+                                                                  name: EventName.SPACE_BREADCRUMB_CLICKED,
+                                                                  properties: {
+                                                                      userId: user
+                                                                          .data
+                                                                          ?.userUuid,
+                                                                      organizationId:
+                                                                          user
+                                                                              .data
+                                                                              ?.organizationUuid,
+                                                                      projectId:
+                                                                          projectUuid,
+                                                                  },
+                                                              });
+                                                          }
+                                                      },
+                                                  }
+                                                : {
+                                                      tooltipProps: {
+                                                          label: 'You do not have access to this space',
+                                                      },
+                                                  }),
+                                        };
+                                    },
                                 ) ?? []),
                             ]}
                         />
