@@ -43,23 +43,23 @@ export const sqlHandler = async (
     GlobalState.debug(`> Running SQL query against project: ${projectUuid}`);
     GlobalState.debug(`> SQL: ${sql}`);
 
-    await LightdashAnalytics.track({
-        event: 'sql.started',
-        properties: {
-            executionId,
-            projectId: projectUuid,
-        },
-    });
-
     const pageSize = options.pageSize ?? DEFAULT_PAGE_SIZE;
 
     try {
+        await LightdashAnalytics.track({
+            event: 'sql.started',
+            properties: {
+                executionId,
+                projectId: projectUuid,
+            },
+        });
+
         const spinner = GlobalState.startSpinner('Submitting SQL query...');
 
         const limit = options.limit ?? DEFAULT_LIMIT;
 
-        const submitResult =
-            await lightdashApi<ApiExecuteAsyncSqlQueryResults>({
+        const submitResult = await lightdashApi<ApiExecuteAsyncSqlQueryResults>(
+            {
                 method: 'POST',
                 url: `/api/v2/projects/${projectUuid}/query/sql`,
                 body: JSON.stringify({
@@ -67,7 +67,8 @@ export const sqlHandler = async (
                     limit,
                     context: 'cli',
                 }),
-            });
+            },
+        );
 
         GlobalState.debug(`> Query UUID: ${submitResult.queryUuid}`);
         spinner.text = 'Waiting for query results...';

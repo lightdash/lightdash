@@ -1,6 +1,7 @@
 import {
     chartAsCodeSchema,
     dashboardAsCodeSchema,
+    getErrorMessage,
     modelAsCodeSchema,
 } from '@lightdash/common';
 import type { ErrorObject } from 'ajv';
@@ -10,7 +11,7 @@ import * as path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import * as YAML from 'yaml';
 import { ajv } from '../ajv';
-import { LightdashAnalytics } from '../analytics/analytics';
+import { categorizeError, LightdashAnalytics } from '../analytics/analytics';
 import { createSarifReport } from './lint/ajvToSarif';
 import { formatSarifForCli, getSarifSummary } from './lint/sarifFormatter';
 
@@ -337,26 +338,25 @@ export async function lintHandler(options: LintOptions): Promise<void> {
                 console.log(
                     chalk.green('\n✓ All Lightdash Code files are valid!\n'),
                 );
-                return;
+            } else {
+                // Show summary
+                console.log(
+                    chalk.bold(
+                        `\nValidated ${results.length} Lightdash Code files:`,
+                    ),
+                );
+                console.log(chalk.green(`  ✓ ${validCount} valid`));
+                console.log(chalk.red(`  ✗ ${summary.totalFiles} invalid`));
+
+                // Show formatted errors (starts with newline, so we don't need extra spacing)
+                console.log(formatSarifForCli(sarifLog, searchPath));
             }
-
-            // Show summary
-            console.log(
-                chalk.bold(
-                    `\nValidated ${results.length} Lightdash Code files:`,
-                ),
-            );
-            console.log(chalk.green(`  ✓ ${validCount} valid`));
-            console.log(chalk.red(`  ✗ ${summary.totalFiles} invalid`));
-
-            // Show formatted errors (starts with newline, so we don't need extra spacing)
-            console.log(formatSarifForCli(sarifLog, searchPath));
         }
 
         if (invalidResults.length > 0) {
             shouldExitWithError = true;
         }
-    } finally {
+
         const invalidCount = results.filter((r) => !r.valid).length;
 
         await LightdashAnalytics.track({
@@ -375,6 +375,16 @@ export async function lintHandler(options: LintOptions): Promise<void> {
                 durationMs: Date.now() - startTime,
             },
         });
+    } catch (e) {
+        await LightdashAnalytics.track({
+            event: 'lint.error',
+            properties: {
+                executionId,
+                error: getErrorMessage(e),
+                errorCategory: categorizeError(e),
+            },
+        });
+        throw e;
     }
 
     if (shouldExitWithError) {

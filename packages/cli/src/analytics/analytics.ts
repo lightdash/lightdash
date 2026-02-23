@@ -398,6 +398,15 @@ type CliLintCompleted = BaseTrack & {
     };
 };
 
+type CliLintError = BaseTrack & {
+    event: 'lint.error';
+    properties: {
+        executionId: string;
+        error: string;
+        errorCategory: string;
+    };
+};
+
 type CliRenameCompleted = BaseTrack & {
     event: 'rename.completed';
     properties: {
@@ -463,6 +472,7 @@ type Track =
     | CliSqlCompleted
     | CliSqlError
     | CliLintCompleted
+    | CliLintError
     | CliRenameCompleted
     | CliRenameError
     | CliCommandExecuted;
