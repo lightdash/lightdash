@@ -1,10 +1,15 @@
 import { forwardRef, type ComponentPropsWithRef, type ReactNode } from 'react';
 import styled, { css } from 'styled-components';
 import {
+    CELL_HORIZONTAL_PADDING_PX,
+    CELL_VERTICAL_PADDING_PX,
     FROZEN_COLUMN_BACKGROUND,
     FROZEN_COLUMN_BORDER_COLOR,
     FROZEN_COLUMN_BORDER_WIDTH,
+    MAX_CELL_WIDTH_PX,
     ROW_HEIGHT_PX,
+    TABLE_FONT_SIZE_PX,
+    TABLE_HEADER_FONT_WEIGHT,
 } from './constants';
 import trStyles from './Tr.module.css';
 
@@ -65,7 +70,7 @@ export const Table = styled.table<{
     $fixedLayout?: number;
 }>`
     border-spacing: 0;
-    font-size: 14px;
+    font-size: ${TABLE_FONT_SIZE_PX}px;
     border-radius: 4px;
     ${({ $fixedLayout }) =>
         $fixedLayout
@@ -79,16 +84,16 @@ export const Table = styled.table<{
 
     th,
     td {
-        padding-left: 11px;
-        padding-right: 11px;
-        padding-bottom: 6px;
-        padding-top: 6px;
+        padding-left: ${CELL_HORIZONTAL_PADDING_PX}px;
+        padding-right: ${CELL_HORIZONTAL_PADDING_PX}px;
+        padding-bottom: ${CELL_VERTICAL_PADDING_PX}px;
+        padding-top: ${CELL_VERTICAL_PADDING_PX}px;
         text-align: left;
         vertical-align: top;
     }
 
     th {
-        font-weight: 600;
+        font-weight: ${TABLE_HEADER_FONT_WEIGHT};
     }
     td {
     }
@@ -219,7 +224,7 @@ export const Td = styled.td<{
     $hasNewlines: boolean;
     $hasUrls: boolean;
 }>`
-    max-width: 300px;
+    max-width: ${MAX_CELL_WIDTH_PX}px;
     white-space: pre;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -229,7 +234,7 @@ export const Td = styled.td<{
     ${({ $isLargeText, $isSelected, $isMinimal }) =>
         $isLargeText
             ? `
-                min-width: 300px;
+                min-width: ${MAX_CELL_WIDTH_PX}px;
                 white-space: ${$isSelected || $isMinimal ? 'pre-wrap' : 'pre'};
                 :hover {
                     white-space: pre-wrap;
