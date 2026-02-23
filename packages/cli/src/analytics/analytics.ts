@@ -333,6 +333,7 @@ type CliValidateStarted = BaseTrack & {
         validationTargets: string[];
     };
 };
+/** `success` indicates whether 0 validation errors were found, not whether the process ran without crashing (crashes fire `validate.error` instead). */
 type CliValidateCompleted = BaseTrack & {
     event: 'validate.completed';
     properties: {
@@ -434,6 +435,7 @@ type CliCommandExecuted = BaseTrack & {
     properties: {
         command: string;
         durationMs: number;
+        success: boolean;
     };
 };
 

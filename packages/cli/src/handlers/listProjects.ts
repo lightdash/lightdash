@@ -10,6 +10,7 @@ type ListProjectsOptions = {
 
 export const listProjectsHandler = async (options: ListProjectsOptions) => {
     const startTime = Date.now();
+    let success = true;
     GlobalState.setVerbose(options.verbose);
 
     try {
@@ -44,12 +45,16 @@ export const listProjectsHandler = async (options: ListProjectsOptions) => {
                 console.error('');
             });
         }
+    } catch (e) {
+        success = false;
+        throw e;
     } finally {
         await LightdashAnalytics.track({
             event: 'command.executed',
             properties: {
                 command: 'list-projects',
                 durationMs: Date.now() - startTime,
+                success,
             },
         });
     }

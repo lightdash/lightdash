@@ -9,6 +9,7 @@ type GetProjectOptions = {
 
 export const getProjectHandler = async (options: GetProjectOptions) => {
     const startTime = Date.now();
+    let success = true;
     GlobalState.setVerbose(options.verbose);
 
     try {
@@ -31,12 +32,16 @@ export const getProjectHandler = async (options: GetProjectOptions) => {
             console.error(`  UUID: ${projectUuid}`);
             console.error('');
         }
+    } catch (e) {
+        success = false;
+        throw e;
     } finally {
         await LightdashAnalytics.track({
             event: 'command.executed',
             properties: {
                 command: 'get-project',
                 durationMs: Date.now() - startTime,
+                success,
             },
         });
     }

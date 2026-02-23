@@ -91,6 +91,7 @@ const runDbtDebug = async (
 
 export const diagnosticsHandler = async (options: DiagnosticsOptions) => {
     const startTime = Date.now();
+    let success = true;
     GlobalState.setVerbose(true); // Always verbose for diagnostics
 
     try {
@@ -179,12 +180,16 @@ export const diagnosticsHandler = async (options: DiagnosticsOptions) => {
             });
             console.log(debugOutput);
         }
+    } catch (e) {
+        success = false;
+        throw e;
     } finally {
         await LightdashAnalytics.track({
             event: 'command.executed',
             properties: {
                 command: 'diagnostics',
                 durationMs: Date.now() - startTime,
+                success,
             },
         });
     }
