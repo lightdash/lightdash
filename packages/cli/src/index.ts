@@ -1155,12 +1155,8 @@ program
     .option('--verbose', 'Show detailed output', false)
     .action(sqlHandler);
 
-const runProgram = program
-    .command('run')
-    .description('Run Lightdash resources');
-
-runProgram
-    .command('chart')
+program
+    .command('run-chart')
     .description('Execute a chart YAML to verify the query runs')
     .requiredOption('-p, --path <path>', 'Path to chart YAML file')
     .option('-o, --output <file>', 'Output file path for CSV results')
