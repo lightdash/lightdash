@@ -88,6 +88,8 @@ const convertTimezone = (
             // TIMESTAMP WITH TIME ZONE: stored as utc. returns in session tz. convert from session tz to target tz
             // TIMESTAMP WITHOUT TIME ZONE: no tz. assume default_source_tz. convert from default_source_tz to target_tz
             return timestampSql;
+        case SupportedDbtAdapter.DUCKDB:
+            return timestampSql;
         case SupportedDbtAdapter.DATABRICKS:
             return timestampSql;
         // Athena uses Trino SQL, timestamps return in server timezone
