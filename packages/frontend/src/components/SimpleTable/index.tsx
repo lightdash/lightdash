@@ -191,7 +191,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
         conditionalFormattings,
         minMaxMap,
         hideRowNumbers,
-        wrapColumnText,
+        wrapColumnTitles,
         pivotTableData,
         getFieldLabel,
         getField,
@@ -309,7 +309,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
                 showSubtotals={showSubtotals}
                 conditionalFormattings={conditionalFormattings}
                 minMaxMap={minMaxMap}
-                wrapColumnText={wrapColumnText}
+                wrapColumnTitles={wrapColumnTitles}
                 columnProperties={
                     visualizationConfig.chartConfig.columnProperties
                 }

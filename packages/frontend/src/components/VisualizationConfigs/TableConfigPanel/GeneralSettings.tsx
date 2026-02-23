@@ -147,10 +147,10 @@ const GeneralSettings: FC = () => {
         isPivotTableEnabled,
         canUseSubtotals,
         hideRowNumbers,
-        wrapColumnText,
+        wrapColumnTitles,
         metricsAsRows,
         setHideRowNumbers,
-        setWrapColumnText,
+        setWrapColumnTitles,
         setShowColumnCalculation,
         setShowResultsTotal,
         setShowRowCalculation,
@@ -248,10 +248,10 @@ const GeneralSettings: FC = () => {
                     }}
                 />
                 <Checkbox
-                    label="Wrap column text"
-                    checked={wrapColumnText}
+                    label="Wrap column titles"
+                    checked={wrapColumnTitles}
                     onChange={() => {
-                        setWrapColumnText(!wrapColumnText);
+                        setWrapColumnTitles(!wrapColumnTitles);
                     }}
                 />
             </Config.Section>

@@ -30,7 +30,7 @@ const TableHeader: FC<TableHeaderProps> = ({
         headerContextMenu,
         columns,
         onColumnWidthChange,
-        wrapColumnText,
+        wrapColumnTitles,
     } = useTableContext();
     const HeaderContextMenu = headerContextMenu;
     const currentColOrder = React.useRef<Array<string>>([]);
@@ -132,16 +132,16 @@ const TableHeader: FC<TableHeaderProps> = ({
                                     >
                                         {(provided, snapshot) => (
                                             <ThContainer>
-                                                <ThLabelContainer
-                                                    ref={provided.innerRef}
-                                                    {...provided.draggableProps}
-                                                    {...provided.dragHandleProps}
-                                                    $wrapColumnText={
-                                                        wrapColumnText
-                                                    }
-                                                    style={{
-                                                        ...provided
-                                                            .draggableProps
+                                                    <ThLabelContainer
+                                                        ref={provided.innerRef}
+                                                        {...provided.draggableProps}
+                                                        {...provided.dragHandleProps}
+                                                        $wrapColumnTitles={
+                                                            wrapColumnTitles
+                                                        }
+                                                        style={{
+                                                            ...provided
+                                                                .draggableProps
                                                             .style,
                                                         ...(!snapshot.isDragging && {
                                                             transform:

@@ -349,8 +349,8 @@ export type TableChart = {
     showTableNames?: boolean;
     /** Hide row number column */
     hideRowNumbers?: boolean;
-    /** Wrap column text in header cells */
-    wrapColumnText?: boolean;
+    /** Wrap column titles in header cells */
+    wrapColumnTitles?: boolean;
     /** Show total results count */
     showResultsTotal?: boolean;
     /** Show subtotal rows */
