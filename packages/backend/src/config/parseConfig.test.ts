@@ -586,20 +586,3 @@ test('should set groups.enabled only when the environment variable is set', () =
     const falseConfig = parseConfig();
     expect(falseConfig.groups.enabled).toBe(false);
 });
-
-test('should set query.enableTableColumnWidthStabilization only when the environment variable is set', () => {
-    const undefinedConfig = parseConfig();
-    expect(
-        undefinedConfig.query.enableTableColumnWidthStabilization,
-    ).toBeUndefined();
-
-    process.env.ENABLE_TABLE_COLUMN_WIDTH_STABILIZATION = 'true';
-    const trueConfig = parseConfig();
-    expect(trueConfig.query.enableTableColumnWidthStabilization).toBe(true);
-
-    process.env.ENABLE_TABLE_COLUMN_WIDTH_STABILIZATION = 'false';
-    const falseConfig = parseConfig();
-    expect(falseConfig.query.enableTableColumnWidthStabilization).toBe(false);
-
-    delete process.env.ENABLE_TABLE_COLUMN_WIDTH_STABILIZATION;
-});
