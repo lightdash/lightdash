@@ -1,3 +1,10 @@
+## [0.2505.2](https://github.com/lightdash/lightdash/compare/0.2505.1...0.2505.2) (2026-02-23)
+
+
+### Bug Fixes
+
+* change run chart command from subcommand to run-chart ([#20522](https://github.com/lightdash/lightdash/issues/20522)) ([80115ca](https://github.com/lightdash/lightdash/commit/80115cab93d90fa59967c37c4bff5608a40b3d9d))
+
 ## [0.2505.1](https://github.com/lightdash/lightdash/compare/0.2505.0...0.2505.1) (2026-02-23)
 
 
