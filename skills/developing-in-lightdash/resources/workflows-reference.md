@@ -403,10 +403,10 @@ Verify chart queries execute successfully against the warehouse before deploying
 
 ```bash
 # Validate a single chart runs
-lightdash run chart -p ./lightdash/charts/monthly-revenue.yml
+lightdash run-chart -p ./lightdash/charts/monthly-revenue.yml
 
 # Validate and inspect results
-lightdash run chart -p ./lightdash/charts/monthly-revenue.yml -o /tmp/results.csv
+lightdash run-chart -p ./lightdash/charts/monthly-revenue.yml -o /tmp/results.csv
 ```
 
 **When to use:**

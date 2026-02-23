@@ -179,19 +179,19 @@ Execute a chart YAML file's metric query against the warehouse. Only supports me
 
 ```bash
 # Verify a chart query runs successfully
-lightdash run chart -p ./lightdash/charts/monthly-revenue.yml
+lightdash run-chart -p ./lightdash/charts/monthly-revenue.yml
 
 # Run chart and save results to CSV
-lightdash run chart -p ./lightdash/charts/monthly-revenue.yml -o results.csv
+lightdash run-chart -p ./lightdash/charts/monthly-revenue.yml -o results.csv
 
 # Limit rows returned
-lightdash run chart -p ./lightdash/charts/monthly-revenue.yml -o results.csv -l 100
+lightdash run-chart -p ./lightdash/charts/monthly-revenue.yml -o results.csv -l 100
 
 # Adjust pagination for large results
-lightdash run chart -p ./lightdash/charts/monthly-revenue.yml -o results.csv --page-size 2000
+lightdash run-chart -p ./lightdash/charts/monthly-revenue.yml -o results.csv --page-size 2000
 
 # Verbose output for debugging
-lightdash run chart -p ./lightdash/charts/monthly-revenue.yml --verbose
+lightdash run-chart -p ./lightdash/charts/monthly-revenue.yml --verbose
 ```
 
 **Options:**
@@ -223,4 +223,4 @@ lightdash run chart -p ./lightdash/charts/monthly-revenue.yml --verbose
 | `lightdash lint`      | Validate YAML locally            |
 | `lightdash generate`  | Generate YAML from dbt models    |
 | `lightdash sql`       | Run SQL queries                  |
-| `lightdash run chart` | Execute chart YAML query         |
+| `lightdash run-chart` | Execute chart YAML query         |
