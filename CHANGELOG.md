@@ -1,3 +1,10 @@
+# [0.2512.0](https://github.com/lightdash/lightdash/compare/0.2511.0...0.2512.0) (2026-02-23)
+
+
+### Features
+
+* **cli:** improve analytics coverage and context enrichment ([#20471](https://github.com/lightdash/lightdash/issues/20471)) ([103575d](https://github.com/lightdash/lightdash/commit/103575db22f73f584e12b7366bd3df5c9abf031c))
+
 # [0.2511.0](https://github.com/lightdash/lightdash/compare/0.2510.0...0.2511.0) (2026-02-23)
 
 
