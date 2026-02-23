@@ -373,24 +373,32 @@ export class SpacePermissionModel {
     async getUserMetadataByUuids(
         userUuids: string[],
     ): Promise<Record<string, SpaceAccessUserMetadata>> {
-        if (userUuids.length === 0) return {};
+        return wrapSentryTransaction(
+            'SpacePermissionModel.getUserMetadataByUuids',
+            { userUuidsCount: userUuids.length },
+            async () => {
+                if (userUuids.length === 0) return {};
 
-        const rows = await this.database(UserTableName)
-            .innerJoin(
-                EmailTableName,
-                `${UserTableName}.user_id`,
-                `${EmailTableName}.user_id`,
-            )
-            .where(`${EmailTableName}.is_primary`, true)
-            .whereIn(`${UserTableName}.user_uuid`, userUuids)
-            .select<(SpaceAccessUserMetadata & { userUuid: string })[]>({
-                userUuid: `${UserTableName}.user_uuid`,
-                firstName: `${UserTableName}.first_name`,
-                lastName: `${UserTableName}.last_name`,
-                email: `${EmailTableName}.email`,
-            });
+                const rows = await this.database(UserTableName)
+                    .innerJoin(
+                        EmailTableName,
+                        `${UserTableName}.user_id`,
+                        `${EmailTableName}.user_id`,
+                    )
+                    .where(`${EmailTableName}.is_primary`, true)
+                    .whereIn(`${UserTableName}.user_uuid`, userUuids)
+                    .select<(SpaceAccessUserMetadata & { userUuid: string })[]>(
+                        {
+                            userUuid: `${UserTableName}.user_uuid`,
+                            firstName: `${UserTableName}.first_name`,
+                            lastName: `${UserTableName}.last_name`,
+                            email: `${EmailTableName}.email`,
+                        },
+                    );
 
-        return Object.fromEntries(rows.map((r) => [r.userUuid, r]));
+                return Object.fromEntries(rows.map((r) => [r.userUuid, r]));
+            },
+        );
     }
 
     /**
@@ -399,20 +407,26 @@ export class SpacePermissionModel {
      * @returns The group access entries for the space (or its root space)
      */
     async getGroupAccess(spaceUuid: string): Promise<SpaceGroup[]> {
-        const access = await this.database
-            .table(SpaceGroupAccessTableName)
-            .select({
-                groupUuid: `${SpaceGroupAccessTableName}.group_uuid`,
-                spaceRole: `${SpaceGroupAccessTableName}.space_role`,
-                groupName: `${GroupTableName}.name`,
-            })
-            .leftJoin(
-                `${GroupTableName}`,
-                `${GroupTableName}.group_uuid`,
-                `${SpaceGroupAccessTableName}.group_uuid`,
-            )
-            .where('space_uuid', spaceUuid);
-        return access;
+        return wrapSentryTransaction(
+            'SpacePermissionModel.getGroupAccess',
+            {},
+            async () => {
+                const access = await this.database
+                    .table(SpaceGroupAccessTableName)
+                    .select({
+                        groupUuid: `${SpaceGroupAccessTableName}.group_uuid`,
+                        spaceRole: `${SpaceGroupAccessTableName}.space_role`,
+                        groupName: `${GroupTableName}.name`,
+                    })
+                    .leftJoin(
+                        `${GroupTableName}`,
+                        `${GroupTableName}.group_uuid`,
+                        `${SpaceGroupAccessTableName}.group_uuid`,
+                    )
+                    .where('space_uuid', spaceUuid);
+                return access;
+            },
+        );
     }
 
     /**
