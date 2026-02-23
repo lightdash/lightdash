@@ -1,3 +1,10 @@
+# [0.2505.0](https://github.com/lightdash/lightdash/compare/0.2504.0...0.2505.0) (2026-02-23)
+
+
+### Features
+
+* improve validator styles ([#20513](https://github.com/lightdash/lightdash/issues/20513)) ([2f570d5](https://github.com/lightdash/lightdash/commit/2f570d5493eaed8a2d64958f9fe905454c7fc570))
+
 # [0.2504.0](https://github.com/lightdash/lightdash/compare/0.2503.1...0.2504.0) (2026-02-23)
 
 
