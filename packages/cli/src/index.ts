@@ -524,14 +524,12 @@ program
         false,
     )
     .option(
-        '--organization-credentials <name>',
-        'Use organization warehouse credentials with the specified name (Enterprise Edition feature)',
+        '--no-warehouse-credentials',
+        'Create preview without warehouse credentials. Copies credentials from upstream project.',
     )
     .option(
-        '--disable-timestamp-conversion [true|false]',
-        'Disable timestamp conversion to UTC for Snowflake warehouses. Only use this if your timestamp values are already in UTC.',
-        parseDisableTimestampConversionOption,
-        false,
+        '--organization-credentials <name>',
+        'Use organization warehouse credentials with the specified name (Enterprise Edition feature)',
     )
     .action(previewHandler);
 
@@ -631,6 +629,10 @@ program
         'Disable timestamp conversion to UTC for Snowflake warehouses. Only use this if your timestamp values are already in UTC.',
         parseDisableTimestampConversionOption,
         false,
+    )
+    .option(
+        '--no-warehouse-credentials',
+        'Create preview without warehouse credentials. Copies credentials from upstream project.',
     )
     .option('-y, --assume-yes', 'assume yes to prompts', false)
     .action(startPreviewHandler);
