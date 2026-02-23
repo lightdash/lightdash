@@ -8,6 +8,7 @@ import {
     ActionIcon,
     Anchor,
     Avatar,
+    Badge,
     Box,
     Button,
     Group,
@@ -54,6 +55,7 @@ import {
     UserAccessList,
 } from './ShareSpaceModalShared';
 import {
+    getAccessColor,
     sortAccessList,
     useSpaceAccessByType,
     type SortOrder,
@@ -116,6 +118,7 @@ const UserAccessAuditList: FC<UserAccessAuditListProps> = ({
         <Stack gap="sm">
             {paginatedList[page - 1]?.map((user) => {
                 const isSessionUser = user.userUuid === sessionUserUuid;
+                const [roleColor, roleShade] = getAccessColor(user.role);
 
                 return (
                     <Group
@@ -155,16 +158,17 @@ const UserAccessAuditList: FC<UserAccessAuditListProps> = ({
                             </Text>
                         </Group>
 
-                        <Text
-                            fz="xs"
-                            c="dimmed"
-                            style={{ whiteSpace: 'nowrap' }}
+                        <Badge
+                            size="sm"
+                            variant="light"
+                            color={`${roleColor}.${roleShade}`}
+                            radius="xl"
                         >
                             {user.origin} &middot;{' '}
                             {UserAccessOptions.find(
                                 (o) => o.value === user.role,
                             )?.title ?? user.role}
-                        </Text>
+                        </Badge>
                     </Group>
                 );
             })}

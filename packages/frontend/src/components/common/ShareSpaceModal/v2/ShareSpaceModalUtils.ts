@@ -4,7 +4,7 @@ import {
     type SpaceShare,
 } from '@lightdash/common';
 import { useMemo } from 'react';
-import { type AccessOption } from '../ShareSpaceSelect';
+import { UserAccessAction, type AccessOption } from '../ShareSpaceSelect';
 
 export const enum InheritanceType {
     INHERIT = 'inherit',
@@ -46,6 +46,26 @@ export const NestedInheritanceOptions: AccessOption[] = [
         value: InheritanceType.OWN_ONLY,
     },
 ];
+
+export const getAccessColor = (
+    role: SpaceMemberRole | UserAccessAction,
+): [string, number] => {
+    switch (role) {
+        case SpaceMemberRole.ADMIN:
+        case UserAccessAction.ADMIN:
+            return ['blue', 6];
+        case SpaceMemberRole.EDITOR:
+        case UserAccessAction.EDITOR:
+            return ['green', 6];
+        case SpaceMemberRole.VIEWER:
+        case UserAccessAction.VIEWER:
+            return ['yellow', 8];
+        case UserAccessAction.DELETE:
+            return ['red', 6];
+        default:
+            return ['gray', 6];
+    }
+};
 
 export type SortOrder = 'name' | 'role';
 
