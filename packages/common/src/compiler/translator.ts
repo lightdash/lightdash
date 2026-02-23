@@ -1,4 +1,5 @@
 import merge from 'lodash/merge';
+import { parseDbtPreAggregates } from '../preAggregates/definition';
 import {
     SupportedDbtAdapter,
     buildModelGraph,
@@ -42,6 +43,7 @@ import {
     parseModelRequiredFilters,
 } from '../types/filterGrammar';
 import { type LightdashProjectConfig } from '../types/lightdashProjectConfig';
+import { type PreAggregateDef } from '../types/preAggregate';
 import { OrderFieldsByStrategy, type GroupType } from '../types/table';
 import { type TimeFrames } from '../types/timeFrames';
 import { type WarehouseSqlBuilder } from '../types/warehouse';
@@ -1090,6 +1092,33 @@ export const convertExplores = async (
                 : []),
         ];
 
+        let parsedPreAggregates: PreAggregateDef[] = [];
+        try {
+            parsedPreAggregates = parseDbtPreAggregates(
+                meta.pre_aggregates,
+                model.name,
+            );
+        } catch (error) {
+            const preAggregateErrors = exploresToCreate.map(
+                (exploreToCreate) =>
+                    ({
+                        name: exploreToCreate.name,
+                        label: exploreToCreate.label,
+                        groupLabel: exploreToCreate.groupLabel,
+                        errors: [
+                            {
+                                type: InlineErrorType.METADATA_PARSE_ERROR,
+                                message:
+                                    error instanceof Error
+                                        ? error.message
+                                        : `Could not parse pre-aggregates for model "${model.name}"`,
+                            },
+                        ],
+                    }) as ExploreError,
+            );
+            return [...acc, ...preAggregateErrors];
+        }
+
         // Multiple explores can be created from a single model. The base explore + additional explores
         // Properties created from `model` are the same across all explores. e.g. all explores will have the same base table & warehouse
         // Properties created from `exploreToCreate` are specific to each explore. e.g. each explore can have a different name, label & joins
@@ -1122,6 +1151,9 @@ export const convertExplores = async (
                     spotlightConfig: lightdashProjectConfig.spotlight,
                     ...(meta.ai_hint
                         ? { aiHint: convertToAiHints(meta.ai_hint) }
+                        : {}),
+                    ...(parsedPreAggregates.length > 0
+                        ? { preAggregates: parsedPreAggregates }
                         : {}),
                     meta: {
                         ...meta,

@@ -97,6 +97,7 @@ import type {
     ApiMetricsExplorerQueryResults,
     ApiMetricsExplorerTotalResults,
 } from './metricsExplorer';
+import type { PreAggregateMatchMiss } from './preAggregate';
 import {
     type DeleteOpenIdentity,
     type OpenIdIdentitySummary,
@@ -534,6 +535,11 @@ export type CacheMetadata = {
     cacheExpiresAt?: Date;
     cacheKey?: string;
     cacheHit: boolean;
+    preAggregate?: {
+        hit: boolean;
+        name?: string;
+        reason?: PreAggregateMatchMiss;
+    };
 };
 
 export type ApiQueryResults = {
