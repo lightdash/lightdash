@@ -2113,10 +2113,8 @@ export class AsyncQueryService extends ProjectService {
             pivotConfiguration,
         });
 
-        let preAggregateMetadata: Pick<
-            CacheMetadata,
-            'preAggregate'
-        > | null = null;
+        let preAggregateMetadata: Pick<CacheMetadata, 'preAggregate'> | null =
+            null;
         if (
             process.env.ENABLE_PRE_AGGREGATE_DRY_RUN === 'true' &&
             (explore.preAggregates || []).length > 0
@@ -2599,6 +2597,23 @@ export class AsyncQueryService extends ProjectService {
             pivotConfiguration,
         });
 
+        let preAggregateMetadata: Pick<CacheMetadata, 'preAggregate'> | null =
+            null;
+        if (
+            process.env.ENABLE_PRE_AGGREGATE_DRY_RUN === 'true' &&
+            (explore.preAggregates || []).length > 0
+        ) {
+            const matchResult = findMatch(metricQueryWithLimit, explore);
+
+            preAggregateMetadata = {
+                preAggregate: {
+                    hit: matchResult.hit,
+                    name: matchResult.preAggregateName || undefined,
+                    reason: matchResult.miss || undefined,
+                },
+            };
+        }
+
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
             {
                 account,
@@ -2618,9 +2633,16 @@ export class AsyncQueryService extends ProjectService {
             requestParameters,
         );
 
+        const cacheMetadataWithPreAggregate = preAggregateMetadata
+            ? {
+                  ...cacheMetadata,
+                  ...preAggregateMetadata,
+              }
+            : cacheMetadata;
+
         return {
             queryUuid,
-            cacheMetadata,
+            cacheMetadata: cacheMetadataWithPreAggregate,
             appliedDashboardFilters,
             metricQuery: responseMetricQuery,
             fields: fieldsWithOverrides,
