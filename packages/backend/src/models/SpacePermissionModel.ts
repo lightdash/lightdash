@@ -433,21 +433,6 @@ export class SpacePermissionModel {
             async () => {
                 if (spaceUuids.length === 0) return {};
 
-                const spaces = await this.database(SpaceTableName)
-                    .select('space_uuid', 'path', 'project_id')
-                    .whereIn('space_uuid', spaceUuids);
-
-                if (spaces.length === 0) return {};
-
-                const valuesPlaceholders = spaces
-                    .map(() => '(?, ?::ltree, ?::integer)')
-                    .join(', ');
-                const valuesParams = spaces.flatMap((s) => [
-                    s.space_uuid,
-                    s.path,
-                    s.project_id,
-                ]);
-
                 const ancestorRows: {
                     requested_space_uuid: string;
                     space_uuid: string;
@@ -457,17 +442,18 @@ export class SpacePermissionModel {
                 }[] = await this.database
                     .raw(
                         `SELECT
-                        req.space_uuid AS requested_space_uuid,
+                        leaf.space_uuid AS requested_space_uuid,
                         a.space_uuid,
                         a.name,
                         a.inherit_parent_permissions,
                         a.parent_space_uuid
-                    FROM (VALUES ${valuesPlaceholders}) AS req(space_uuid, path, project_id)
+                    FROM ${SpaceTableName} leaf
                     JOIN ${SpaceTableName} a
-                        ON a.path @> req.path
-                        AND a.project_id = req.project_id
-                    ORDER BY req.space_uuid, nlevel(a.path) DESC`,
-                        valuesParams,
+                        ON a.path @> leaf.path
+                        AND a.project_id = leaf.project_id
+                    WHERE leaf.space_uuid IN (${spaceUuids.map(() => '?').join(', ')})
+                    ORDER BY leaf.space_uuid, nlevel(a.path) DESC`,
+                        spaceUuids,
                     )
                     .then(
                         (raw: { rows: unknown[] }) =>
