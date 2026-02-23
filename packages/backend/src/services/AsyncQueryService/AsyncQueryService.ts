@@ -2114,9 +2114,7 @@ export class AsyncQueryService extends ProjectService {
 
         let preAggregateMetadata: Pick<CacheMetadata, 'preAggregate'> | null =
             null;
-        const preAggregatesEnabled =
-            process.env.ENABLE_PRE_AGGREGATES === 'true' ||
-            process.env.ENABLE_PRE_AGGREGATE_DRY_RUN === 'true';
+        const preAggregatesEnabled = this.lightdashConfig.preAggregates.enabled;
         if (preAggregatesEnabled && (explore.preAggregates || []).length > 0) {
             const matchResult = findMatch(metricQuery, explore);
 

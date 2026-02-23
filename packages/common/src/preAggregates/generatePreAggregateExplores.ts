@@ -8,8 +8,7 @@ import { type PreAggregateDef } from '../types/preAggregate';
 import { buildPreAggregateExplore } from './buildPreAggregateExplore';
 
 const isPreAggregateVirtualExploreGenerationEnabled = (): boolean =>
-    process.env.ENABLE_PRE_AGGREGATES === 'true' ||
-    process.env.ENABLE_PRE_AGGREGATE_VIRTUAL_EXPLORES === 'true';
+    process.env.PRE_AGGREGATES_ENABLED === 'true';
 
 export const generatePreAggregateExplores = ({
     compiledExplores,

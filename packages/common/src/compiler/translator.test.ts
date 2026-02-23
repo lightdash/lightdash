@@ -1354,14 +1354,14 @@ describe('pre-aggregates metadata parsing', () => {
 });
 
 describe('pre-aggregate virtual explore generation', () => {
-    const previousFlagValue = process.env.ENABLE_PRE_AGGREGATE_VIRTUAL_EXPLORES;
+    const previousFlagValue = process.env.PRE_AGGREGATES_ENABLED;
 
     afterEach(() => {
-        process.env.ENABLE_PRE_AGGREGATE_VIRTUAL_EXPLORES = previousFlagValue;
+        process.env.PRE_AGGREGATES_ENABLED = previousFlagValue;
     });
 
     it('generates an internal pre-aggregate explore when enabled', async () => {
-        process.env.ENABLE_PRE_AGGREGATE_VIRTUAL_EXPLORES = 'true';
+        process.env.PRE_AGGREGATES_ENABLED = 'true';
 
         const explores = await convertExplores(
             [
@@ -1411,7 +1411,7 @@ describe('pre-aggregate virtual explore generation', () => {
     });
 
     it('keeps the base explore when pre-aggregate generation fails', async () => {
-        process.env.ENABLE_PRE_AGGREGATE_VIRTUAL_EXPLORES = 'true';
+        process.env.PRE_AGGREGATES_ENABLED = 'true';
 
         const explores = await convertExplores(
             [
