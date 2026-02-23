@@ -296,8 +296,6 @@ export class PostgresClient<
                         string,
                         { type: DimensionType }
                     > | null = null;
-                    let cachedFieldsRef: QueryResult<AnyType>['fields'] | null =
-                        null;
 
                     const writable = new Writable({
                         objectMode: true,
@@ -310,15 +308,11 @@ export class PostgresClient<
                             callback,
                         ) {
                             try {
-                                if (
-                                    cachedFields === null ||
-                                    cachedFieldsRef !== chunk.fields
-                                ) {
+                                if (cachedFields === null) {
                                     cachedFields =
                                         PostgresClient.convertQueryResultFields(
                                             chunk.fields,
                                         );
-                                    cachedFieldsRef = chunk.fields;
                                 }
                                 await streamCallback({
                                     fields: cachedFields,
