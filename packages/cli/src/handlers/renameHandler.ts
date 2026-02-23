@@ -188,19 +188,6 @@ export const renameHandler = async (options: RenameHandlerOptions) => {
                 options.list,
             );
         }
-        await LightdashAnalytics.track({
-            event: 'rename.completed',
-            properties: {
-                executionId,
-                projectId: projectUuid,
-                renameType: options.type,
-                isDryRun: options.dryRun,
-                chartsUpdated: results.charts.length,
-                dashboardsUpdated: results.dashboards.length,
-                durationMs: Date.now() - startTime,
-            },
-        });
-
         const hasResults =
             results.charts.length > 0 ||
             results.dashboards.length > 0 ||
@@ -232,8 +219,6 @@ export const renameHandler = async (options: RenameHandlerOptions) => {
         }
 
         if (options.validate && !options.dryRun) {
-            // Can't validate if tests is true, changes need to be committed first
-
             const validationJob = await requestValidation(projectUuid, [], []);
 
             const { jobId } = validationJob;
@@ -243,6 +228,19 @@ export const renameHandler = async (options: RenameHandlerOptions) => {
             const validation = await getValidation(projectUuid, jobId);
             console.info(validation);
         }
+
+        await LightdashAnalytics.track({
+            event: 'rename.completed',
+            properties: {
+                executionId,
+                projectId: projectUuid,
+                renameType: options.type,
+                isDryRun: options.dryRun,
+                chartsUpdated: results.charts.length,
+                dashboardsUpdated: results.dashboards.length,
+                durationMs: Date.now() - startTime,
+            },
+        });
     } catch (e: unknown) {
         await LightdashAnalytics.track({
             event: 'rename.error',

@@ -162,6 +162,7 @@ export const validateHandler = async (options: ValidateHandlerOptions) => {
     GlobalState.debug(`> Compiled ${explores.length} explores`);
 
     let allValidation;
+    let shouldExitWithError = false;
     try {
         const validationJob = await requestValidation(
             projectUuid,
@@ -209,7 +210,7 @@ export const validateHandler = async (options: ValidateHandlerOptions) => {
         });
 
         if (validation.length === 0) {
-            const timeInSeconds = Date.now() - startTime;
+            const elapsedMs = Date.now() - startTime;
             const hiddenMessage =
                 hiddenWarningsCount > 0
                     ? ` (${hiddenWarningsCount} chart configuration warning${
@@ -218,14 +219,14 @@ export const validateHandler = async (options: ValidateHandlerOptions) => {
                     : '';
             spinner?.succeed(
                 `  Validation finished without errors in ${Math.trunc(
-                    timeInSeconds / 1000,
+                    elapsedMs / 1000,
                 )}s${hiddenMessage}`,
             );
         } else {
-            const timeInSeconds = Date.now() - startTime;
+            const elapsedMs = Date.now() - startTime;
             spinner?.fail(
                 `  Validation finished in ${Math.trunc(
-                    timeInSeconds / 1000,
+                    elapsedMs / 1000,
                 )}s with ${validation.length} errors`,
             );
 
@@ -314,7 +315,7 @@ export const validateHandler = async (options: ValidateHandlerOptions) => {
                 );
             }
 
-            process.exit(1);
+            shouldExitWithError = true;
         }
     } catch (e) {
         await LightdashAnalytics.track({
@@ -326,5 +327,9 @@ export const validateHandler = async (options: ValidateHandlerOptions) => {
             },
         });
         throw e;
+    }
+
+    if (shouldExitWithError) {
+        process.exit(1);
     }
 };

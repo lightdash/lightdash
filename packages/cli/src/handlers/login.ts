@@ -295,11 +295,11 @@ export const login = async (
             method: loginMethod,
         },
     });
-    await LightdashAnalytics.identify({ organizationId: organizationUuid });
     await setContext({
         serverUrl: url,
         apiKey: token,
     });
+    await LightdashAnalytics.identify({ organizationId: organizationUuid });
 
     GlobalState.debug(`> Saved config on: ${configFilePath}`);
 
