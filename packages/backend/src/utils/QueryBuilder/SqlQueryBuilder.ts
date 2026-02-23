@@ -156,16 +156,33 @@ export class SqlQueryBuilder {
     }
 
     private limitToSql() {
-        if (!this.limit) {
+        // If there is this.from.sql then we removed the outer limit/offset from the from clause
+        // We need to preserve or apply the appropriate limit
+        if (this.from.sql) {
+            const limitOffset = extractOuterLimitOffsetFromSQL(this.from.sql);
+
+            if (this.limit !== undefined) {
+                // Provided limit - use min of provided and original (if exists)
+                return SqlQueryBuilder.buildLimitOffsetSql(
+                    this.limit,
+                    limitOffset,
+                );
+            }
+            if (limitOffset) {
+                // No provided limit but original SQL had limit/offset - preserve it
+                const offsetString = limitOffset.offset
+                    ? ` OFFSET ${limitOffset.offset}`
+                    : '';
+                return `LIMIT ${limitOffset.limit}${offsetString}`;
+            }
+            // No provided limit and no original limit
             return undefined;
         }
 
-        // If there is this.from.sql then we removed the outer limit/offset from the from clause, we need to append the limit to the query if it exists
-        if (this.from.sql) {
-            const limitOffset = extractOuterLimitOffsetFromSQL(this.from.sql);
-            return SqlQueryBuilder.buildLimitOffsetSql(this.limit, limitOffset);
+        // Simple table query (no from.sql)
+        if (!this.limit) {
+            return undefined;
         }
-
         return `LIMIT ${this.limit}`;
     }
 
