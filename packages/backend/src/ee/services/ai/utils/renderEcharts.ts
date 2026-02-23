@@ -4,7 +4,7 @@ import * as echarts from 'echarts';
 
 export const renderEcharts = async (eChartOptions: AnyType) => {
     const canvas = createCanvas(800, 600);
-    // @ts-ignore
+    // @ts-expect-error node-canvas Canvas is not a DOM HTMLElement but works with echarts
     const chart = echarts.init(canvas, null, {
         renderer: 'canvas',
         devicePixelRatio: 2,
