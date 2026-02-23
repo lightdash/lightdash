@@ -313,6 +313,89 @@ export const getBranches = async ({
     return branches;
 };
 
+export const getDirectoryContents = async ({
+    owner,
+    repo,
+    branch,
+    path,
+    installationId,
+    token,
+    hostDomain = DEFAULT_GITLAB_HOST_DOMAIN,
+}: GitlabApiParams & {
+    branch: string;
+    path: string;
+    installationId?: string;
+}): Promise<
+    Array<{ name: string; path: string; type: string; size: number; sha: string }>
+> => {
+    const projectId = getProjectId(owner, repo);
+    const encodedPath = path ? encodeURIComponent(path) : '';
+    const pathParam = encodedPath ? `&path=${encodedPath}` : '';
+    const url = getApiUrl(
+        hostDomain,
+        `/projects/${projectId}/repository/tree?ref=${branch}${pathParam}`,
+    );
+
+    try {
+        const items = await makeGitlabRequest(url, token);
+        return items.map(
+            (item: { name: string; path: string; type: string; id: string }) => ({
+                name: item.name,
+                path: item.path,
+                type: item.type === 'tree' ? 'dir' : 'file',
+                size: 0, // GitLab tree API doesn't return size
+                sha: item.id,
+            }),
+        );
+    } catch (error) {
+        if (error instanceof NotFoundError) {
+            throw new NotFoundError(`Directory ${path} not found in GitLab`);
+        }
+        throw error;
+    }
+};
+
+export const deleteFile = async ({
+    owner,
+    repo,
+    path,
+    sha,
+    branch,
+    message,
+    installationId,
+    token,
+    hostDomain = DEFAULT_GITLAB_HOST_DOMAIN,
+}: GitlabApiParams & {
+    path: string;
+    sha: string;
+    branch: string;
+    message: string;
+    installationId?: string;
+}) => {
+    const projectId = getProjectId(owner, repo);
+    const encodedPath = encodeURIComponent(path);
+    const url = getApiUrl(
+        hostDomain,
+        `/projects/${projectId}/repository/files/${encodedPath}`,
+    );
+
+    try {
+        return await makeGitlabRequest(url, token, {
+            method: 'DELETE',
+            body: JSON.stringify({
+                branch,
+                commit_message: message,
+                last_commit_id: sha,
+            }),
+        });
+    } catch (error) {
+        if (error instanceof NotFoundError) {
+            throw new NotFoundError(`File ${path} not found in GitLab`);
+        }
+        throw error;
+    }
+};
+
 // Simple HTTP client using fetch (available in Node.js 18+)
 const gitlabFetch = async (url: string, options: RequestInit = {}) => {
     const response = await fetch(url, {
