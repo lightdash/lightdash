@@ -1,3 +1,10 @@
+# [0.2510.0](https://github.com/lightdash/lightdash/compare/0.2509.1...0.2510.0) (2026-02-23)
+
+
+### Features
+
+* add indicator for in-accessible breadcrumbs ([#20524](https://github.com/lightdash/lightdash/issues/20524)) ([78d6093](https://github.com/lightdash/lightdash/commit/78d609362a4f3bbf312e63da80510946f774c0b7))
+
 ## [0.2509.1](https://github.com/lightdash/lightdash/compare/0.2509.0...0.2509.1) (2026-02-23)
 
 
