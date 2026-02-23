@@ -381,10 +381,7 @@ const ShareSpaceModalV2A: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
                             <Tabs.Tab
                                 value="manage"
                                 leftSection={
-                                    <MantineIcon
-                                        icon={IconSettings}
-                                        size="sm"
-                                    />
+                                    <MantineIcon icon={IconUsers} size="sm" />
                                 }
                             >
                                 Shared with ({manageCount})
@@ -392,7 +389,10 @@ const ShareSpaceModalV2A: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
                             <Tabs.Tab
                                 value="audit"
                                 leftSection={
-                                    <MantineIcon icon={IconUsers} size="sm" />
+                                    <MantineIcon
+                                        icon={IconSettings}
+                                        size="sm"
+                                    />
                                 }
                             >
                                 Who has access ({auditUsers.length})
