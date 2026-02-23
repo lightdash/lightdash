@@ -1,5 +1,6 @@
 import {
     convertFormattedValue,
+    FeatureFlags,
     getItemLabel,
     isCustomDimension,
     isDimension,
@@ -28,6 +29,7 @@ import { useAutoColumnWidths } from '../useAutoColumnWidths';
 import { useCalculateSubtotals } from '../useCalculateSubtotals';
 import { useCalculateTotal } from '../useCalculateTotal';
 import { type InfiniteQueryResults } from '../useQueryResults';
+import { useServerFeatureFlag } from '../useServerOrClientFeatureFlag';
 import getDataAndColumns from './getDataAndColumns';
 
 const createWorker = createWorkerFactory(
@@ -288,11 +290,18 @@ const useTableConfig = (
         [],
     );
 
+    const { data: tableColumnWidthStabilizationFlag } = useServerFeatureFlag(
+        FeatureFlags.EnableTableColumnWidthStabilization,
+    );
+    const isTableColumnWidthStabilizationEnabled =
+        tableColumnWidthStabilizationFlag?.enabled ?? false;
+
     const autoColumnWidths = useAutoColumnWidths({
         columnIds: columnOrder,
         rows: resultsData?.rows ?? [],
         getCellText,
         headerLabels,
+        enabled: isTableColumnWidthStabilizationEnabled,
     });
 
     const columns = useMemo(() => {
@@ -316,6 +325,7 @@ const useTableConfig = (
             totals: totalCalculations,
             groupedSubtotals,
             parameters,
+            enableAutoColumnWidths: isTableColumnWidthStabilizationEnabled,
             autoColumnWidths,
         });
     }, [
@@ -331,6 +341,7 @@ const useTableConfig = (
         totalCalculations,
         groupedSubtotals,
         parameters,
+        isTableColumnWidthStabilizationEnabled,
         autoColumnWidths,
     ]);
     const worker = useWorker(createWorker);

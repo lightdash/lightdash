@@ -69,7 +69,7 @@ async function scrollTable(
         { idx: tableIndex, top: scrollTop },
     );
     // Wait for virtualizer to re-render
-    await page.waitForTimeout(400);
+    await page.waitForTimeout(1500);
 }
 
 function assertWidthsEqual(
@@ -89,7 +89,7 @@ function assertWidthsEqual(
 
 async function main() {
     console.log('Launching browser...');
-    const browser = await chromium.launch({ headless: true });
+    const browser = await chromium.launch({ headless: false, slowMo: 500 });
     const context = await browser.newContext({
         viewport: { width: 1600, height: 900 },
     });

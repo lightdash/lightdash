@@ -20,17 +20,25 @@ export function useAutoColumnWidths({
     rows,
     getCellText,
     headerLabels,
+    enabled = false,
 }: {
     columnIds: string[];
     rows: Record<string, unknown>[];
     getCellText: (row: Record<string, unknown>, columnId: string) => string;
     headerLabels?: Record<string, string>;
+    enabled?: boolean;
 }): Record<string, number> {
     const [widths, setWidths] = useState<Record<string, number>>({});
     const computedForRef = useRef<string | null>(null);
 
     useEffect(() => {
-        if (columnIds.length === 0 || rows.length === 0) return;
+        if (!enabled || columnIds.length === 0 || rows.length === 0) {
+            if (Object.keys(widths).length > 0) {
+                setWidths({});
+            }
+            computedForRef.current = null;
+            return;
+        }
 
         const columnKey = columnIds.join('\0');
         if (computedForRef.current === columnKey) return;
@@ -62,7 +70,7 @@ export function useAutoColumnWidths({
 
         computedForRef.current = columnKey;
         setWidths(newWidths);
-    }, [columnIds, rows, getCellText, headerLabels]);
+    }, [enabled, columnIds, rows, widths, getCellText, headerLabels]);
 
     return widths;
 }

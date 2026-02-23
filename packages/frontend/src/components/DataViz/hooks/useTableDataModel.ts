@@ -1,4 +1,5 @@
 import {
+    FeatureFlags,
     TableDataModel,
     type IResultsRunner,
     type RawResultRow,
@@ -13,6 +14,7 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { useCallback, useMemo, useRef } from 'react';
 import { useAutoColumnWidths } from '../../../hooks/useAutoColumnWidths';
 import { getValueCell } from '../../../hooks/useColumns';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { ROW_HEIGHT_PX } from '../../common/Table/constants';
 import { calculateColumnStats } from '../utils/columnStats';
 
@@ -64,11 +66,18 @@ export const useTableDataModel = ({
         [],
     );
 
+    const { data: tableColumnWidthStabilizationFlag } = useServerFeatureFlag(
+        FeatureFlags.EnableTableColumnWidthStabilization,
+    );
+    const isTableColumnWidthStabilizationEnabled =
+        tableColumnWidthStabilizationFlag?.enabled ?? false;
+
     const autoColumnWidths = useAutoColumnWidths({
         columnIds: columns,
         rows,
         getCellText,
         headerLabels,
+        enabled: isTableColumnWidthStabilizationEnabled,
     });
 
     const tanstackColumns: ColumnDef<RawResultRow, any>[] = useMemo(() => {

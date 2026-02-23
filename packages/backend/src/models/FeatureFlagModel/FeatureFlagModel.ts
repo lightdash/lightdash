@@ -50,6 +50,8 @@ export class FeatureFlagModel {
                 this.getSavedMetricsTreeEnabled.bind(this),
             [FeatureFlags.DefaultUserSpaces]:
                 this.getDefaultUserSpacesEnabled.bind(this),
+            [FeatureFlags.EnableTableColumnWidthStabilization]:
+                this.getTableColumnWidthStabilizationEnabled.bind(this),
         };
     }
 
@@ -281,6 +283,32 @@ export class FeatureFlagModel {
         return {
             id: featureFlagId,
             enabled: this.lightdashConfig.defaultUserSpaces.enabled,
+        };
+    }
+
+    private async getTableColumnWidthStabilizationEnabled({
+        user,
+        featureFlagId,
+    }: FeatureFlagLogicArgs) {
+        const enabled =
+            this.lightdashConfig.query.enableTableColumnWidthStabilization ??
+            (user !== undefined
+                ? await isFeatureFlagEnabled(
+                      FeatureFlags.EnableTableColumnWidthStabilization,
+                      {
+                          userUuid: user.userUuid,
+                          organizationUuid: user.organizationUuid,
+                      },
+                      {
+                          throwOnTimeout: false,
+                          timeoutMilliseconds: 500,
+                      },
+                  )
+                : false);
+
+        return {
+            id: featureFlagId,
+            enabled,
         };
     }
 }

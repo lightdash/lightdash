@@ -209,6 +209,7 @@ export const lightdashConfigMock: LightdashConfig = {
         timezone: undefined,
         useSqlPivotResults: false,
         showExecutionTime: false,
+        enableTableColumnWidthStabilization: undefined,
     },
     ai: {
         copilot: {

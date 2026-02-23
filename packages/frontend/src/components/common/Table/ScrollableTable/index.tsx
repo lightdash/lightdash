@@ -1,4 +1,6 @@
+import { FeatureFlags } from '@lightdash/common';
 import { useMemo, useRef, type FC } from 'react';
+import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
 import { Table, TableScrollableWrapper } from '../Table.styles';
 import { useTableContext } from '../useTableContext';
 import TableBody from './TableBody';
@@ -18,21 +20,34 @@ const ScrollableTable: FC<ScrollableTableProps> = ({
 }) => {
     const { footer, columns } = useTableContext();
     const tableContainerRef = useRef<HTMLDivElement>(null);
+    const { data: tableColumnWidthStabilizationFlag } = useServerFeatureFlag(
+        FeatureFlags.EnableTableColumnWidthStabilization,
+    );
+    const isTableColumnWidthStabilizationEnabled =
+        tableColumnWidthStabilizationFlag?.enabled ?? false;
 
     const totalColumnWidth = useMemo(() => {
+        if (!isTableColumnWidthStabilizationEnabled) return 0;
         const total = columns.reduce(
             (sum, col) => sum + (col.meta?.width ?? 0),
             0,
         );
         return total > 0 ? total : 0;
-    }, [columns]);
+    }, [columns, isTableColumnWidthStabilizationEnabled]);
 
     return (
         <TableScrollableWrapper
             ref={tableContainerRef}
             $isDashboard={isDashboard}
         >
-            <Table $showFooter={!!footer?.show} $fixedLayout={totalColumnWidth}>
+            <Table
+                $showFooter={!!footer?.show}
+                $fixedLayout={
+                    isTableColumnWidthStabilizationEnabled
+                        ? totalColumnWidth
+                        : undefined
+                }
+            >
                 <TableHeader minimal={minimal} showSubtotals={showSubtotals} />
                 <TableBody
                     tableContainerRef={tableContainerRef}

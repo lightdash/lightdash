@@ -1,4 +1,5 @@
 import {
+    FeatureFlags,
     SortByDirection,
     type IResultsRunner,
     type RawResultRow,
@@ -15,6 +16,7 @@ import {
 import { IconArrowDown, IconArrowUp } from '@tabler/icons-react';
 import { flexRender } from '@tanstack/react-table';
 import { useMemo } from 'react';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { SMALL_TEXT_LENGTH } from '../../common/LightTable/constants';
 import MantineIcon from '../../common/MantineIcon';
 import BodyCell from '../../common/Table/ScrollableTable/BodyCell';
@@ -53,6 +55,11 @@ export const Table = <T extends IResultsRunner>({
 
     const columnsCount = getColumnsCount();
     const { headerGroups, virtualRows, rowModelRows } = getTableData();
+    const { data: tableColumnWidthStabilizationFlag } = useServerFeatureFlag(
+        FeatureFlags.EnableTableColumnWidthStabilization,
+    );
+    const isTableColumnWidthStabilizationEnabled =
+        tableColumnWidthStabilizationFlag?.enabled ?? false;
 
     const totalColumnWidth = useMemo(() => {
         let total = 0;
@@ -78,7 +85,13 @@ export const Table = <T extends IResultsRunner>({
             }}
             className="sentry-block ph-no-capture"
         >
-            <TableStyled $fixedLayout={totalColumnWidth}>
+            <TableStyled
+                $fixedLayout={
+                    isTableColumnWidthStabilizationEnabled
+                        ? totalColumnWidth
+                        : undefined
+                }
+            >
                 <thead>
                     <tr>
                         {headerGroups.map((headerGroup) =>

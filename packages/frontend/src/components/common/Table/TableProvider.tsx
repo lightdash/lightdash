@@ -1,3 +1,4 @@
+import { FeatureFlags } from '@lightdash/common';
 import {
     getCoreRowModel,
     getExpandedRowModel,
@@ -6,6 +7,7 @@ import {
     type GroupingState,
 } from '@tanstack/react-table';
 import React, { useEffect, useMemo, useState, type FC } from 'react';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import {
     DEFAULT_PAGE_SIZE,
     FROZEN_COLUMN_BACKGROUND,
@@ -25,12 +27,7 @@ const rowColumn: TableColumn = {
     },
     footer: 'Total',
     meta: {
-        width: 50,
-        style: {
-            width: 50,
-            minWidth: 50,
-            maxWidth: 50,
-        },
+        width: 30,
     },
     enableGrouping: false,
 };
@@ -69,6 +66,11 @@ export const TableProvider: FC<React.PropsWithChildren<ProviderProps>> = ({
     const [isInfiniteScrollEnabled, setIsInfiniteScrollEnabled] = useState(
         !pagination?.show || !!pagination?.defaultScroll,
     );
+    const { data: tableColumnWidthStabilizationFlag } = useServerFeatureFlag(
+        FeatureFlags.EnableTableColumnWidthStabilization,
+    );
+    const isTableColumnWidthStabilizationEnabled =
+        tableColumnWidthStabilizationFlag?.enabled ?? false;
 
     useEffect(() => {
         setColumnVisibility(calculateColumnVisibility(columns));
@@ -87,13 +89,16 @@ export const TableProvider: FC<React.PropsWithChildren<ProviderProps>> = ({
     const rowColumnWidth = hideRowNumbers
         ? 0
         : Math.max(withTotals, `${data.length}`.length * 10 + 20);
+    const effectiveRowColumnWidth = isTableColumnWidthStabilizationEnabled
+        ? Math.max(rowColumnWidth, 50)
+        : rowColumnWidth;
     const frozenColumns = useMemo(
         () => columns.filter((col) => col.meta?.frozen),
         [columns],
     );
     const defaultFrozenColumnWidth = 100;
     const stickyColumns = useMemo(() => {
-        let cumulativeLeft = rowColumnWidth;
+        let cumulativeLeft = effectiveRowColumnWidth;
         return frozenColumns.map((col, i) => {
             const colWidth = col.meta?.width ?? defaultFrozenColumnWidth;
             const left = cumulativeLeft;
@@ -115,29 +120,55 @@ export const TableProvider: FC<React.PropsWithChildren<ProviderProps>> = ({
                 },
             };
         });
-    }, [frozenColumns, rowColumnWidth]);
+    }, [frozenColumns, effectiveRowColumnWidth]);
 
     const otherColumns = useMemo(
         () => columns.filter((col) => !col.meta?.frozen),
         [columns],
     );
     const stickyRowColumn = useMemo(() => {
-        if (stickyColumns.length === 0) return rowColumn;
+        if (stickyColumns.length === 0) {
+            if (!isTableColumnWidthStabilizationEnabled) {
+                return rowColumn;
+            }
+
+            return {
+                ...rowColumn,
+                meta: {
+                    ...rowColumn.meta,
+                    width: effectiveRowColumnWidth,
+                    style: {
+                        width: effectiveRowColumnWidth,
+                        minWidth: effectiveRowColumnWidth,
+                        maxWidth: effectiveRowColumnWidth,
+                    },
+                },
+            };
+        }
 
         return {
             ...rowColumn,
             meta: {
                 ...rowColumn.meta,
                 className: 'sticky-column',
-                width: rowColumnWidth,
+                width: effectiveRowColumnWidth,
                 style: {
-                    maxWidth: rowColumnWidth,
-                    minWidth: rowColumnWidth,
+                    ...(isTableColumnWidthStabilizationEnabled
+                        ? {
+                              width: effectiveRowColumnWidth,
+                          }
+                        : {}),
+                    maxWidth: effectiveRowColumnWidth,
+                    minWidth: effectiveRowColumnWidth,
                     backgroundColor: FROZEN_COLUMN_BACKGROUND,
                 },
             },
         };
-    }, [stickyColumns, rowColumnWidth]);
+    }, [
+        stickyColumns,
+        effectiveRowColumnWidth,
+        isTableColumnWidthStabilizationEnabled,
+    ]);
 
     const visibleColumns = useMemo(() => {
         return hideRowNumbers

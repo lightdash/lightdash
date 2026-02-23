@@ -1,4 +1,5 @@
 import {
+    FeatureFlags,
     SortByDirection,
     type RawResultRow,
     type VizColumnsConfig,
@@ -15,6 +16,7 @@ import {
 import { IconArrowDown, IconArrowUp } from '@tabler/icons-react';
 import { flexRender } from '@tanstack/react-table';
 import { useMemo } from 'react';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { SMALL_TEXT_LENGTH } from '../../common/LightTable/constants';
 import MantineIcon from '../../common/MantineIcon';
 import BodyCell from '../../common/Table/ScrollableTable/BodyCell';
@@ -49,6 +51,11 @@ export const ChartDataTable = ({
 
     const columnsCount = useMemo(() => columnNames.length, [columnNames]);
     const { headerGroups, virtualRows, rowModelRows } = getTableData();
+    const { data: tableColumnWidthStabilizationFlag } = useServerFeatureFlag(
+        FeatureFlags.EnableTableColumnWidthStabilization,
+    );
+    const isTableColumnWidthStabilizationEnabled =
+        tableColumnWidthStabilizationFlag?.enabled ?? false;
 
     const totalColumnWidth = useMemo(() => {
         let total = 0;
@@ -75,7 +82,13 @@ export const ChartDataTable = ({
             className="sentry-block ph-no-capture"
             data-testid="chart-data-table"
         >
-            <TableStyled $fixedLayout={totalColumnWidth}>
+            <TableStyled
+                $fixedLayout={
+                    isTableColumnWidthStabilizationEnabled
+                        ? totalColumnWidth
+                        : undefined
+                }
+            >
                 <Tooltip.Group>
                     <thead>
                         <tr>
