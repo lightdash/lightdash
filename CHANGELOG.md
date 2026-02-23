@@ -1,3 +1,10 @@
+# [0.2507.0](https://github.com/lightdash/lightdash/compare/0.2506.3...0.2507.0) (2026-02-23)
+
+
+### Features
+
+* gate nested space access changes behind feature flag ([#20490](https://github.com/lightdash/lightdash/issues/20490)) ([5447294](https://github.com/lightdash/lightdash/commit/5447294ed089816b7b0fc230763faa2c3b91e726))
+
 ## [0.2506.3](https://github.com/lightdash/lightdash/compare/0.2506.2...0.2506.3) (2026-02-23)
 
 
