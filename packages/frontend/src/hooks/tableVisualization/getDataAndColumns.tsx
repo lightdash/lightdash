@@ -141,11 +141,11 @@ const getDataAndColumns = ({
             const item = itemsMap[itemId] as
                 | (typeof itemsMap)[number]
                 | undefined;
-            const headerOverride = getFieldLabelOverride(itemId);
 
             if (!selectedItemIds.includes(itemId)) {
                 return acc;
             }
+            const headerOverride = getFieldLabelOverride(itemId);
 
             const column: TableHeader | TableColumn = columnHelper.accessor(
                 (row: ResultRow) => row[itemId],
