@@ -1,3 +1,11 @@
+# [0.2506.0](https://github.com/lightdash/lightdash/compare/0.2505.3...0.2506.0) (2026-02-23)
+
+
+### Features
+
+* add toggleable table header wrap and tooltip title/description ([#20532](https://github.com/lightdash/lightdash/issues/20532)) ([369cf54](https://github.com/lightdash/lightdash/commit/369cf54f06fd61ae0c8d73f27955810051dbfa75))
+* enable AI agents button visibility for trial organizations ([#20530](https://github.com/lightdash/lightdash/issues/20530)) ([fa93ba5](https://github.com/lightdash/lightdash/commit/fa93ba5dd7f9b4456597b999f0860b567738d46f))
+
 ## [0.2505.3](https://github.com/lightdash/lightdash/compare/0.2505.2...0.2505.3) (2026-02-23)
 
 
