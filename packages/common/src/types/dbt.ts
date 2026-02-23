@@ -106,6 +106,17 @@ type ExploreConfig = {
     >;
 };
 
+export type DbtPreAggregateDef = {
+    name: string;
+    dimensions: string[];
+    metrics: string[];
+    time_dimension?: string;
+    granularity?: string;
+    refresh?: {
+        cron?: string;
+    };
+};
+
 export type SharedDbtModelLightdashConfig = {
     default_filters?: RequiredFilter[];
     /**
@@ -149,6 +160,7 @@ export type DbtModelLightdashConfig = ExploreConfig &
         parameters?: LightdashProjectConfig['parameters'];
         primary_key?: string | string[];
         owner?: string; // model owner email
+        pre_aggregates?: DbtPreAggregateDef[];
     };
 
 export type DbtModelGroup = {

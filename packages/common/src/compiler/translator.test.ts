@@ -1218,3 +1218,137 @@ describe('explore-scoped additional dimensions', () => {
         ]);
     });
 });
+
+describe('pre-aggregates metadata parsing', () => {
+    it('attaches parsed pre-aggregates to explore', async () => {
+        const explores = await convertExplores(
+            [
+                {
+                    ...model,
+                    meta: {
+                        pre_aggregates: [
+                            {
+                                name: 'orders_rollup',
+                                dimensions: ['myColumnName'],
+                                metrics: ['order_count'],
+                                time_dimension: 'myColumnName',
+                                granularity: 'day',
+                            },
+                        ],
+                    },
+                },
+            ],
+            false,
+            SupportedDbtAdapter.POSTGRES,
+            [],
+            warehouseClientMock,
+            {
+                spotlight: DEFAULT_SPOTLIGHT_CONFIG,
+            },
+        );
+
+        expect(explores).toHaveLength(1);
+        expect(explores[0]).not.toHaveProperty('errors');
+        expect((explores[0] as Explore).preAggregates).toStrictEqual([
+            {
+                name: 'orders_rollup',
+                dimensions: ['myColumnName'],
+                metrics: ['order_count'],
+                timeDimension: 'myColumnName',
+                granularity: TimeFrames.DAY,
+            },
+        ]);
+    });
+
+    it('does not attach pre-aggregates when metadata is missing', async () => {
+        const explores = await convertExplores(
+            [{ ...model, meta: {} }],
+            false,
+            SupportedDbtAdapter.POSTGRES,
+            [],
+            warehouseClientMock,
+            {
+                spotlight: DEFAULT_SPOTLIGHT_CONFIG,
+            },
+        );
+
+        expect(explores).toHaveLength(1);
+        expect((explores[0] as Explore).preAggregates).toBeUndefined();
+    });
+
+    it('uses config.meta.pre_aggregates over meta.pre_aggregates', async () => {
+        const explores = await convertExplores(
+            [
+                {
+                    ...model,
+                    meta: {
+                        pre_aggregates: [
+                            {
+                                name: 'from_meta',
+                                dimensions: ['myColumnName'],
+                                metrics: ['meta_metric'],
+                            },
+                        ],
+                    },
+                    config: {
+                        ...(model.config || { materialized: 'table' }),
+                        meta: {
+                            pre_aggregates: [
+                                {
+                                    name: 'from_config',
+                                    dimensions: ['customers.first_name'],
+                                    metrics: ['config_metric'],
+                                },
+                            ],
+                        },
+                    },
+                },
+            ],
+            false,
+            SupportedDbtAdapter.POSTGRES,
+            [],
+            warehouseClientMock,
+            {
+                spotlight: DEFAULT_SPOTLIGHT_CONFIG,
+            },
+        );
+
+        expect(explores).toHaveLength(1);
+        expect((explores[0] as Explore).preAggregates).toStrictEqual([
+            {
+                name: 'from_config',
+                dimensions: ['customers.first_name'],
+                metrics: ['config_metric'],
+            },
+        ]);
+    });
+
+    it('returns metadata parse errors when pre-aggregate shape is invalid', async () => {
+        const explores = await convertExplores(
+            [
+                {
+                    ...model,
+                    meta: {
+                        pre_aggregates: [
+                            {
+                                name: '',
+                                dimensions: ['myColumnName'],
+                                metrics: ['metric_1'],
+                            },
+                        ],
+                    },
+                },
+            ],
+            false,
+            SupportedDbtAdapter.POSTGRES,
+            [],
+            warehouseClientMock,
+            {
+                spotlight: DEFAULT_SPOTLIGHT_CONFIG,
+            },
+        );
+
+        expect(explores).toHaveLength(1);
+        expect(explores[0]).toHaveProperty('errors');
+    });
+});

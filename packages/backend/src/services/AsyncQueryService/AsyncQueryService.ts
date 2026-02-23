@@ -22,6 +22,7 @@ import {
     Explore,
     ExploreCompiler,
     FieldType,
+    findMatch,
     ForbiddenError,
     formatItemValue,
     formatRawValue,
@@ -2111,6 +2112,23 @@ export class AsyncQueryService extends ProjectService {
             pivotConfiguration,
         });
 
+        let preAggregateMetadata: Pick<CacheMetadata, 'preAggregate'> | null =
+            null;
+        if (
+            process.env.ENABLE_PRE_AGGREGATE_DRY_RUN === 'true' &&
+            (explore.preAggregates || []).length > 0
+        ) {
+            const matchResult = findMatch(metricQuery, explore);
+
+            preAggregateMetadata = {
+                preAggregate: {
+                    hit: matchResult.hit,
+                    name: matchResult.preAggregateName || undefined,
+                    reason: matchResult.miss || undefined,
+                },
+            };
+        }
+
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
             {
                 account,
@@ -2130,9 +2148,16 @@ export class AsyncQueryService extends ProjectService {
             requestParameters,
         );
 
+        const cacheMetadataWithPreAggregate = preAggregateMetadata
+            ? {
+                  ...cacheMetadata,
+                  ...preAggregateMetadata,
+              }
+            : cacheMetadata;
+
         return {
             queryUuid,
-            cacheMetadata,
+            cacheMetadata: cacheMetadataWithPreAggregate,
             metricQuery: responseMetricQuery,
             fields,
             warnings,
