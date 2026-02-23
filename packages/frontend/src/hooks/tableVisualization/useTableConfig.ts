@@ -81,11 +81,7 @@ const useTableConfig = (
     );
 
     const [wrapColumnTitles, setWrapColumnTitles] = useState<boolean>(
-        tableChartConfig?.wrapColumnTitles === undefined
-            ? tableChartConfig?.wrapColumnText === undefined
-                ? true
-                : tableChartConfig.wrapColumnText
-            : tableChartConfig.wrapColumnTitles,
+        tableChartConfig?.wrapColumnTitles ?? true,
     );
 
     const [metricsAsRows, setMetricsAsRows] = useState<boolean>(
