@@ -118,13 +118,30 @@ export class SpaceService extends BaseService implements BulkActionable<Knex> {
      * Assembles a full Space object by combining core space data with
      * access info from SpacePermissionService and user metadata.
      */
-    private async assembleFullSpace(spaceUuid: string): Promise<Space> {
+    private async assembleFullSpace(
+        spaceUuid: string,
+        user: Pick<SessionUser, 'ability' | 'userUuid'>,
+    ): Promise<Space> {
         const space = await this.spaceModel.get(spaceUuid);
-        const [ctx, groupsAccess, breadcrumbs] = await Promise.all([
+        const [ctx, groupsAccess, rawBreadcrumbs] = await Promise.all([
             this.spacePermissionService.getAllSpaceAccessContext(spaceUuid),
             this.spacePermissionService.getGroupAccess(spaceUuid),
             this.spaceModel.getSpaceBreadcrumbs(spaceUuid, space.projectUuid),
         ]);
+
+        // Enrich breadcrumbs with user access info
+        const ancestorUuids = rawBreadcrumbs.map((b) => b.uuid);
+        const accessibleUuids = new Set(
+            await this.spacePermissionService.getAccessibleSpaceUuids(
+                'view',
+                user,
+                ancestorUuids,
+            ),
+        );
+        const breadcrumbs = rawBreadcrumbs.map((b) => ({
+            ...b,
+            hasAccess: accessibleUuids.has(b.uuid),
+        }));
 
         const userInfoMap =
             await this.spacePermissionService.getUserMetadataByUuids(
@@ -164,7 +181,7 @@ export class SpaceService extends BaseService implements BulkActionable<Knex> {
             throw new ForbiddenError();
         }
 
-        return this.assembleFullSpace(spaceUuid);
+        return this.assembleFullSpace(spaceUuid, user);
     }
 
     async createSpace(
@@ -287,7 +304,7 @@ export class SpaceService extends BaseService implements BulkActionable<Knex> {
             inheritParentPermissions,
         });
 
-        const updatedSpace = await this.assembleFullSpace(spaceUuid);
+        const updatedSpace = await this.assembleFullSpace(spaceUuid, user);
         const directAccessCount = updatedSpace.access.filter(
             (a) => a.hasDirectAccess,
         ).length;

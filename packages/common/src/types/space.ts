@@ -77,6 +77,7 @@ export type Space = {
     breadcrumbs?: {
         name: string;
         uuid: string;
+        hasAccess: boolean;
     }[];
 };
 
