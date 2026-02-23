@@ -1,4 +1,4 @@
-import { useRef, type FC } from 'react';
+import { useMemo, useRef, type FC } from 'react';
 import { Table, TableScrollableWrapper } from '../Table.styles';
 import { useTableContext } from '../useTableContext';
 import TableBody from './TableBody';
@@ -16,15 +16,23 @@ const ScrollableTable: FC<ScrollableTableProps> = ({
     showSubtotals = true,
     isDashboard = false,
 }) => {
-    const { footer } = useTableContext();
+    const { footer, columns } = useTableContext();
     const tableContainerRef = useRef<HTMLDivElement>(null);
+
+    const totalColumnWidth = useMemo(() => {
+        const total = columns.reduce(
+            (sum, col) => sum + (col.meta?.width ?? 0),
+            0,
+        );
+        return total > 0 ? total : 0;
+    }, [columns]);
 
     return (
         <TableScrollableWrapper
             ref={tableContainerRef}
             $isDashboard={isDashboard}
         >
-            <Table $showFooter={!!footer?.show}>
+            <Table $showFooter={!!footer?.show} $fixedLayout={totalColumnWidth}>
                 <TableHeader minimal={minimal} showSubtotals={showSubtotals} />
                 <TableBody
                     tableContainerRef={tableContainerRef}

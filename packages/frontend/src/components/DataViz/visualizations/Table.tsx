@@ -14,6 +14,7 @@ import {
 } from '@mantine/core';
 import { IconArrowDown, IconArrowUp } from '@tabler/icons-react';
 import { flexRender } from '@tanstack/react-table';
+import { useMemo } from 'react';
 import { SMALL_TEXT_LENGTH } from '../../common/LightTable/constants';
 import MantineIcon from '../../common/MantineIcon';
 import BodyCell from '../../common/Table/ScrollableTable/BodyCell';
@@ -53,6 +54,16 @@ export const Table = <T extends IResultsRunner>({
     const columnsCount = getColumnsCount();
     const { headerGroups, virtualRows, rowModelRows } = getTableData();
 
+    const totalColumnWidth = useMemo(() => {
+        let total = 0;
+        for (const hg of headerGroups) {
+            for (const h of hg.headers) {
+                total += (h.column.columnDef.meta?.style?.width as number) ?? 0;
+            }
+        }
+        return total;
+    }, [headerGroups]);
+
     return (
         <Flex
             ref={tableWrapperRef}
@@ -67,7 +78,7 @@ export const Table = <T extends IResultsRunner>({
             }}
             className="sentry-block ph-no-capture"
         >
-            <TableStyled>
+            <TableStyled $fixedLayout={totalColumnWidth}>
                 <thead>
                     <tr>
                         {headerGroups.map((headerGroup) =>
@@ -82,20 +93,15 @@ export const Table = <T extends IResultsRunner>({
                                     <th
                                         key={header.id}
                                         onClick={onClick}
-                                        style={
-                                            onClick
-                                                ? {
-                                                      cursor: 'pointer',
-                                                      backgroundColor:
-                                                          theme.colors
-                                                              .ldGray[0],
-                                                  }
-                                                : {
-                                                      backgroundColor:
-                                                          theme.colors
-                                                              .ldGray[0],
-                                                  }
-                                        }
+                                        style={{
+                                            ...header.column.columnDef.meta
+                                                ?.style,
+                                            backgroundColor:
+                                                theme.colors.ldGray[0],
+                                            ...(onClick
+                                                ? { cursor: 'pointer' }
+                                                : {}),
+                                        }}
                                     >
                                         <Group spacing="two" fz={13}>
                                             {columnsConfig[header.id]
@@ -160,6 +166,10 @@ export const Table = <T extends IResultsRunner>({
                                                 cell={cell}
                                                 isNumericItem={false}
                                                 hasData={!!cellValue}
+                                                style={
+                                                    cell.column.columnDef.meta
+                                                        ?.style
+                                                }
                                                 isLargeText={
                                                     (
                                                         cellValue?.toString() ||

@@ -62,11 +62,20 @@ export const TableContainer = styled.div<
 
 export const Table = styled.table<{
     $showFooter?: boolean;
+    $fixedLayout?: number;
 }>`
     border-spacing: 0;
     font-size: 14px;
-    width: 100%;
     border-radius: 4px;
+    ${({ $fixedLayout }) =>
+        $fixedLayout
+            ? `
+                table-layout: fixed;
+                width: max(100%, ${$fixedLayout}px);
+            `
+            : `
+                width: 100%;
+            `}
 
     th,
     td {

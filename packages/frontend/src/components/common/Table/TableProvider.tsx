@@ -25,7 +25,12 @@ const rowColumn: TableColumn = {
     },
     footer: 'Total',
     meta: {
-        width: 30,
+        width: 50,
+        style: {
+            width: 50,
+            minWidth: 50,
+            maxWidth: 50,
+        },
     },
     enableGrouping: false,
 };

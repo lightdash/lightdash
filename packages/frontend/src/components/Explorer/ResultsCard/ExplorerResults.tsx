@@ -1,6 +1,7 @@
 import { getItemLabel, getItemMap, isField } from '@lightdash/common';
 import { Box, Loader, Text } from '@mantine/core';
 import { memo, useCallback, useMemo, useState, type FC } from 'react';
+import { useAutoColumnWidths } from '../../../hooks/useAutoColumnWidths';
 import { ResultsViewMode } from './types';
 
 import {
@@ -263,6 +264,44 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
         getFieldLabel,
     });
 
+    const getCellText = useCallback(
+        (row: Record<string, unknown>, colId: string) => {
+            const cell = row[colId] as
+                | { value?: { formatted?: string } }
+                | undefined;
+            return cell?.value?.formatted ?? '';
+        },
+        [],
+    );
+
+    const autoColumnWidths = useAutoColumnWidths({
+        columnIds: explorerColumnOrder,
+        rows: rows as Record<string, unknown>[],
+        getCellText,
+    });
+
+    const columnsWithWidths = useMemo(() => {
+        if (Object.keys(autoColumnWidths).length === 0) return columns;
+        return columns.map((col) => {
+            const colId = col.id ?? '';
+            const autoWidth = autoColumnWidths[colId];
+            if (!autoWidth) return col;
+            return {
+                ...col,
+                meta: {
+                    ...col.meta,
+                    width: autoWidth,
+                    style: {
+                        ...col.meta?.style,
+                        width: autoWidth,
+                        minWidth: autoWidth,
+                        maxWidth: autoWidth,
+                    },
+                },
+            };
+        });
+    }, [columns, autoColumnWidths]);
+
     const cellContextMenu = useCallback(
         (props: any) => (
             <CellContextMenu
@@ -401,7 +440,7 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
                         totalRowsCount={totalRows || 0}
                         isFetchingRows={isFetchingRows}
                         fetchMoreRows={fetchMoreRows}
-                        columns={columns}
+                        columns={columnsWithWidths}
                         columnOrder={explorerColumnOrder}
                         onColumnOrderChange={handleColumnOrderChange}
                         cellContextMenu={cellContextMenu}

@@ -50,6 +50,16 @@ export const ChartDataTable = ({
     const columnsCount = useMemo(() => columnNames.length, [columnNames]);
     const { headerGroups, virtualRows, rowModelRows } = getTableData();
 
+    const totalColumnWidth = useMemo(() => {
+        let total = 0;
+        for (const hg of headerGroups) {
+            for (const h of hg.headers) {
+                total += (h.column.columnDef.meta?.style?.width as number) ?? 0;
+            }
+        }
+        return total;
+    }, [headerGroups]);
+
     return (
         <Flex
             ref={tableWrapperRef}
@@ -65,7 +75,7 @@ export const ChartDataTable = ({
             className="sentry-block ph-no-capture"
             data-testid="chart-data-table"
         >
-            <TableStyled>
+            <TableStyled $fixedLayout={totalColumnWidth}>
                 <Tooltip.Group>
                     <thead>
                         <tr>
@@ -82,20 +92,15 @@ export const ChartDataTable = ({
                                         <th
                                             key={header.id}
                                             onClick={onClick}
-                                            style={
-                                                onClick
-                                                    ? {
-                                                          cursor: 'pointer',
-                                                          backgroundColor:
-                                                              theme.colors
-                                                                  .ldGray[0],
-                                                      }
-                                                    : {
-                                                          backgroundColor:
-                                                              theme.colors
-                                                                  .ldGray[0],
-                                                      }
-                                            }
+                                            style={{
+                                                ...header.column.columnDef.meta
+                                                    ?.style,
+                                                backgroundColor:
+                                                    theme.colors.ldGray[0],
+                                                ...(onClick
+                                                    ? { cursor: 'pointer' }
+                                                    : {}),
+                                            }}
                                         >
                                             <Tooltip
                                                 label="You cannot sort by a group column"
@@ -169,6 +174,10 @@ export const ChartDataTable = ({
                                                 cell={cell}
                                                 isNumericItem={false}
                                                 hasData={!!cellValue}
+                                                style={
+                                                    cell.column.columnDef.meta
+                                                        ?.style
+                                                }
                                                 isLargeText={
                                                     (
                                                         cellValue?.toString() ||

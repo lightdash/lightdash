@@ -10,6 +10,7 @@ import {
 } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useCallback, useMemo, useRef } from 'react';
+import { useAutoColumnWidths } from '../../../hooks/useAutoColumnWidths';
 import { getValueCell } from '../../../hooks/useColumns';
 import { ROW_HEIGHT_PX } from '../../common/Table/constants';
 
@@ -23,17 +24,53 @@ export const useVirtualTable = ({
     rows: RawResultRow[];
     config?: VizColumnsConfig;
 }) => {
-    const tanstackColumns: ColumnDef<RawResultRow, any>[] = useMemo(() => {
-        return columnNames.map((columnName) => ({
-            id: columnName,
-            // react table has a bug with accessors that has dots in them
-            // we found the fix here -> https://github.com/TanStack/table/issues/1671
-            // do not remove the line below
-            accessorFn: TableDataModel.getColumnsAccessorFn(columnName),
-            header: (config && config[columnName]?.label) || columnName,
-            cell: getValueCell,
-        }));
+    const headerLabels = useMemo(() => {
+        if (!config) return {};
+        const labels: Record<string, string> = {};
+        for (const col of columnNames) {
+            labels[col] = config[col]?.label || col;
+        }
+        return labels;
     }, [columnNames, config]);
+
+    const getCellText = useCallback(
+        (row: Record<string, unknown>, colId: string) =>
+            String(row[colId] ?? ''),
+        [],
+    );
+
+    const autoColumnWidths = useAutoColumnWidths({
+        columnIds: columnNames,
+        rows,
+        getCellText,
+        headerLabels,
+    });
+
+    const tanstackColumns: ColumnDef<RawResultRow, any>[] = useMemo(() => {
+        return columnNames.map((columnName) => {
+            const autoWidth = autoColumnWidths[columnName];
+            return {
+                id: columnName,
+                // react table has a bug with accessors that has dots in them
+                // we found the fix here -> https://github.com/TanStack/table/issues/1671
+                // do not remove the line below
+                accessorFn: TableDataModel.getColumnsAccessorFn(columnName),
+                header: (config && config[columnName]?.label) || columnName,
+                cell: getValueCell,
+                ...(autoWidth
+                    ? {
+                          meta: {
+                              style: {
+                                  width: autoWidth,
+                                  minWidth: autoWidth,
+                                  maxWidth: autoWidth,
+                              },
+                          },
+                      }
+                    : {}),
+            };
+        });
+    }, [columnNames, config, autoColumnWidths]);
 
     const table = useReactTable({
         data: rows,
