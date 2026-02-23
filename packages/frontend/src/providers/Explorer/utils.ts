@@ -6,7 +6,10 @@ import { type ConfigCacheMap } from './types';
 const DEFAULTS = {
     [ChartType.CARTESIAN]: () => ({ ...EMPTY_CARTESIAN_CHART_CONFIG }), // factory to avoid shared refs
     [ChartType.BIG_NUMBER]: () => ({ showTableNamesInLabel: false }),
-    [ChartType.TABLE]: () => ({ showTableNames: false, wrapColumnTitles: true }),
+    [ChartType.TABLE]: () => ({
+        showTableNames: false,
+        wrapColumnTitles: false,
+    }),
     [ChartType.PIE]: () => ({ showLegend: false, valueLabel: 'outside' }),
     [ChartType.FUNNEL]: () => ({}),
     [ChartType.TREEMAP]: () => ({}),
