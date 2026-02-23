@@ -439,32 +439,21 @@ export class SpacePermissionModel {
                     name: string;
                     inherit_parent_permissions: boolean;
                     parent_space_uuid: string | null;
-                }[] = await this.database
-                    .raw(
-                        `SELECT
-                        leaf.space_uuid AS requested_space_uuid,
-                        a.space_uuid,
-                        a.name,
-                        a.inherit_parent_permissions,
-                        a.parent_space_uuid
-                    FROM ${SpaceTableName} leaf
-                    JOIN ${SpaceTableName} a
-                        ON a.path @> leaf.path
-                        AND a.project_id = leaf.project_id
-                    WHERE leaf.space_uuid IN (${spaceUuids.map(() => '?').join(', ')})
-                    ORDER BY leaf.space_uuid, nlevel(a.path) DESC`,
-                        spaceUuids,
+                }[] = await this.database(`${SpaceTableName} as leaf`)
+                    .select({
+                        requested_space_uuid: 'leaf.space_uuid',
+                        space_uuid: 'ancestor.space_uuid',
+                        name: 'ancestor.name',
+                        inherit_parent_permissions:
+                            'ancestor.inherit_parent_permissions',
+                        parent_space_uuid: 'ancestor.parent_space_uuid',
+                    })
+                    .joinRaw(
+                        `JOIN ${SpaceTableName} ancestor ON ancestor.path @> leaf.path AND ancestor.project_id = leaf.project_id`,
                     )
-                    .then(
-                        (raw: { rows: unknown[] }) =>
-                            raw.rows as {
-                                requested_space_uuid: string;
-                                space_uuid: string;
-                                name: string;
-                                inherit_parent_permissions: boolean;
-                                parent_space_uuid: string | null;
-                            }[],
-                    );
+                    .whereIn('leaf.space_uuid', spaceUuids)
+                    .orderBy('leaf.space_uuid')
+                    .orderByRaw('nlevel(ancestor.path) DESC');
 
                 // Group ancestor rows by requested space (order is preserved)
                 const ancestorsBySpace = new Map<string, typeof ancestorRows>();
