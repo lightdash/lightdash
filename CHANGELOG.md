@@ -1,3 +1,10 @@
+## [0.2506.1](https://github.com/lightdash/lightdash/compare/0.2506.0...0.2506.1) (2026-02-23)
+
+
+### Bug Fixes
+
+* **cli:** add default 50k row limit to sql command ([#20531](https://github.com/lightdash/lightdash/issues/20531)) ([40e7bc6](https://github.com/lightdash/lightdash/commit/40e7bc622af8db2981be4cda11997faffa09dff5))
+
 # [0.2506.0](https://github.com/lightdash/lightdash/compare/0.2505.3...0.2506.0) (2026-02-23)
 
 
