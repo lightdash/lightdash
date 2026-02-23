@@ -1,3 +1,10 @@
+# [0.2511.0](https://github.com/lightdash/lightdash/compare/0.2510.0...0.2511.0) (2026-02-23)
+
+
+### Features
+
+* collapse breadcrumbs with too many items ([#20525](https://github.com/lightdash/lightdash/issues/20525)) ([838e8ff](https://github.com/lightdash/lightdash/commit/838e8ffa5a4ae1c7d92aa915b824c481af93e85b))
+
 # [0.2510.0](https://github.com/lightdash/lightdash/compare/0.2509.1...0.2510.0) (2026-02-23)
 
 
