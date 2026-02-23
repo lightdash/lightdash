@@ -294,6 +294,40 @@ describe('SqlQueryBuilder class', () => {
 
             expect(queryBuilder.toSql()).toBe(QUERY_WITH_LIMIT_ONLY_LIMIT_SQL);
         });
+
+        it('should preserve original SQL LIMIT when no limit parameter is provided', () => {
+            const queryBuilder = new SqlQueryBuilder(
+                {
+                    referenceMap: SIMPLE_REFERENCE_MAP,
+                    select: ['test_field'],
+                    from: {
+                        name: 'subquery',
+                        sql: 'SELECT * FROM source_table LIMIT 1',
+                    },
+                    limit: undefined,
+                },
+                DEFAULT_CONFIG,
+            );
+
+            expect(queryBuilder.toSql()).toContain('LIMIT 1');
+        });
+
+        it('should preserve original SQL LIMIT with OFFSET when no limit parameter is provided', () => {
+            const queryBuilder = new SqlQueryBuilder(
+                {
+                    referenceMap: SIMPLE_REFERENCE_MAP,
+                    select: ['test_field'],
+                    from: {
+                        name: 'subquery',
+                        sql: 'SELECT * FROM source_table LIMIT 10 OFFSET 5',
+                    },
+                    limit: undefined,
+                },
+                DEFAULT_CONFIG,
+            );
+
+            expect(queryBuilder.toSql()).toContain('LIMIT 10 OFFSET 5');
+        });
     });
 
     describe('error handling', () => {
