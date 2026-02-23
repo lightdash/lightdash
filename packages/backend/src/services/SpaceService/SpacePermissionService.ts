@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     FeatureFlags,
+    getHighestSpaceRole,
     NotFoundError,
     resolveSpaceAccess,
     resolveSpaceAccessWithInheritance,
@@ -459,6 +460,89 @@ export class SpacePermissionService extends BaseService {
                 directAccessMap[spaceUuid]?.map((e) => e.userUuid) ?? [],
             ]),
         );
+    }
+
+    /**
+     * Copies inherited permissions as direct access entries on a space.
+     * Called when inheritParentPermissions transitions true → false so that
+     * users who had access via parent spaces don't suddenly lose it.
+     *
+     * Returns the user/group entries to insert (caller wraps in transaction
+     * together with the space update via SpaceModel.updateWithCopiedPermissions).
+     */
+    async getInheritedPermissionsToCopy(spaceUuid: string): Promise<{
+        userAccessEntries: { userUuid: string; role: SpaceAccess['role'] }[];
+        groupAccessEntries: {
+            groupUuid: string;
+            role: SpaceGroup['spaceRole'];
+        }[];
+    }> {
+        // 1. Resolve current effective access for ALL users (pre-toggle state)
+        const ctx = await this.getAllSpaceAccessContext(spaceUuid);
+
+        // 2. Filter to users whose access comes from parent spaces in the chain.
+        //    These are the users who would lose access when inheritance is disabled.
+        const userAccessEntries = ctx.access
+            .filter((entry) => entry.inheritedFrom === 'parent_space')
+            .map((entry) => ({ userUuid: entry.userUuid, role: entry.role }));
+
+        // 3. Get group access from ancestor spaces in the chain
+        const chainMap = await this.spacePermissionModel.getInheritanceChains([
+            spaceUuid,
+        ]);
+        const chainEntry = chainMap[spaceUuid];
+        if (!chainEntry) {
+            throw new NotFoundError(`Space ${spaceUuid} not found`);
+        }
+        const { chain } = chainEntry;
+        const ancestorUuids = chain
+            .map((item) => item.spaceUuid)
+            .filter((uuid) => uuid !== spaceUuid);
+
+        // Get existing groups on this space so we only add new ones
+        const existingGroups =
+            await this.spacePermissionModel.getGroupAccess(spaceUuid);
+        const existingGroupUuids = new Set(
+            existingGroups.map((g) => g.groupUuid),
+        );
+
+        // Collect groups from all ancestors, dedup with highest role
+        const groupMap = new Map<string, SpaceGroup>();
+        if (ancestorUuids.length > 0) {
+            const ancestorGroupArrays = await Promise.all(
+                ancestorUuids.map((uuid) =>
+                    this.spacePermissionModel.getGroupAccess(uuid),
+                ),
+            );
+
+            for (const groups of ancestorGroupArrays) {
+                for (const group of groups) {
+                    if (!existingGroupUuids.has(group.groupUuid)) {
+                        const existing = groupMap.get(group.groupUuid);
+                        if (!existing) {
+                            groupMap.set(group.groupUuid, group);
+                        } else {
+                            const highest = getHighestSpaceRole([
+                                group.spaceRole,
+                                existing.spaceRole,
+                            ]);
+                            if (highest && highest !== existing.spaceRole) {
+                                groupMap.set(group.groupUuid, group);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        const groupAccessEntries = Array.from(groupMap.values()).map(
+            (group) => ({
+                groupUuid: group.groupUuid,
+                role: group.spaceRole,
+            }),
+        );
+
+        return { userAccessEntries, groupAccessEntries };
     }
 
     async getUserMetadataByUuids(

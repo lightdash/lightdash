@@ -298,11 +298,67 @@ export class SpaceService extends BaseService implements BulkActionable<Knex> {
             inheritParentPermissions = !isPrivate;
         }
 
-        await this.spaceModel.update(spaceUuid, {
-            ...updateSpace,
-            isPrivate,
-            inheritParentPermissions,
-        });
+        // When making a space private, auto-add the acting user as direct
+        // access so they don't lose their existing permissions.
+        // Note: this commits outside the copy-permissions transaction below.
+        // That's fine — addSpaceAccess is an upsert (ON CONFLICT MERGE),
+        // so if the transaction fails the row is idempotent with the user's
+        // already-effective access level.
+        if (space.isPrivate === false && isPrivate === true) {
+            const ctx = await this.spacePermissionService.getSpaceAccessContext(
+                user.userUuid,
+                spaceUuid,
+            );
+            const userAccess = ctx.access.find(
+                (a) => a.userUuid === user.userUuid,
+            );
+            if (userAccess && !userAccess.hasDirectAccess) {
+                await this.spaceModel.addSpaceAccess(
+                    spaceUuid,
+                    user.userUuid,
+                    userAccess.role,
+                );
+            }
+        }
+
+        // When switching from inherit to not-inherit, copy inherited permissions
+        // as direct access entries so users don't lose access.
+        const isInheritToggle =
+            space.inheritParentPermissions === true &&
+            inheritParentPermissions === false;
+
+        if (isInheritToggle) {
+            const { enabled: nestedSpacesEnabled } =
+                await this.featureFlagModel.get({
+                    featureFlagId: FeatureFlags.NestedSpacesPermissions,
+                });
+
+            if (nestedSpacesEnabled) {
+                const { userAccessEntries, groupAccessEntries } =
+                    await this.spacePermissionService.getInheritedPermissionsToCopy(
+                        spaceUuid,
+                    );
+
+                await this.spaceModel.updateWithCopiedPermissions(
+                    spaceUuid,
+                    { ...updateSpace, isPrivate, inheritParentPermissions },
+                    userAccessEntries,
+                    groupAccessEntries,
+                );
+            } else {
+                await this.spaceModel.update(spaceUuid, {
+                    ...updateSpace,
+                    isPrivate,
+                    inheritParentPermissions,
+                });
+            }
+        } else {
+            await this.spaceModel.update(spaceUuid, {
+                ...updateSpace,
+                isPrivate,
+                inheritParentPermissions,
+            });
+        }
 
         const updatedSpace = await this.assembleFullSpace(spaceUuid, user);
         const directAccessCount = updatedSpace.access.filter(

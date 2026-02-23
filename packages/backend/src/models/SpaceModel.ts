@@ -1229,6 +1229,54 @@ export class SpaceModel {
             .where('space_uuid', spaceUuid);
     }
 
+    /**
+     * Atomically copies inherited permissions as direct access entries and
+     * updates the space in a single transaction. Used when toggling
+     * inheritParentPermissions from true to false.
+     */
+    async updateWithCopiedPermissions(
+        spaceUuid: string,
+        space: Partial<UpdateSpace>,
+        userAccessEntries: { userUuid: string; role: SpaceMemberRole }[],
+        groupAccessEntries: { groupUuid: string; role: SpaceMemberRole }[],
+    ): Promise<void> {
+        await this.database.transaction(async (trx) => {
+            if (userAccessEntries.length > 0) {
+                await trx(SpaceUserAccessTableName)
+                    .insert(
+                        userAccessEntries.map((entry) => ({
+                            space_uuid: spaceUuid,
+                            user_uuid: entry.userUuid,
+                            space_role: entry.role,
+                        })),
+                    )
+                    .onConflict(['user_uuid', 'space_uuid'])
+                    .merge();
+            }
+
+            if (groupAccessEntries.length > 0) {
+                await trx(SpaceGroupAccessTableName)
+                    .insert(
+                        groupAccessEntries.map((entry) => ({
+                            space_uuid: spaceUuid,
+                            group_uuid: entry.groupUuid,
+                            space_role: entry.role,
+                        })),
+                    )
+                    .onConflict(['group_uuid', 'space_uuid'])
+                    .merge();
+            }
+
+            await trx(SpaceTableName)
+                .update({
+                    name: space.name,
+                    is_private: space.isPrivate,
+                    inherit_parent_permissions: space.inheritParentPermissions,
+                })
+                .where('space_uuid', spaceUuid);
+        });
+    }
+
     async moveToSpace(
         {
             projectUuid,
