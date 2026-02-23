@@ -208,7 +208,7 @@ const getSpaceRoleFromChain = (
     chainDirectAccess: ChainSpaceDirectAccess[],
     leafSpaceUuid: string,
     inheritsFromOrgOrProject: boolean,
-): { role: SpaceMemberRole; fromLeaf: boolean } | undefined => {
+): { role: SpaceMemberRole; fromParent: boolean } | undefined => {
     // Collect all direct access entries for this user across the entire chain
     const allUserEntries: { role: SpaceMemberRole; spaceUuid: string }[] = [];
     for (const chainLevel of chainDirectAccess) {
@@ -229,20 +229,20 @@ const getSpaceRoleFromChain = (
         );
         if (!highestDirectRole) return undefined;
 
-        // Check if the winning role came from the leaf space
+        // Check if the winning role came from a parent space (not the leaf)
         const winningEntry = allUserEntries.find(
             (e) => e.role === highestDirectRole,
         );
-        const fromLeaf = winningEntry?.spaceUuid === leafSpaceUuid;
+        const fromParent = winningEntry?.spaceUuid !== leafSpaceUuid;
 
-        return { role: highestDirectRole, fromLeaf };
+        return { role: highestDirectRole, fromParent };
     }
 
     // No direct access anywhere in chain — fall through to project/org inheritance
     if (inheritsFromOrgOrProject) {
         return {
             role: convertProjectRoleToSpaceRole(highestProjectRole),
-            fromLeaf: true, // not relevant — inheritedFrom comes from highestRole.type
+            fromParent: false, // not from a parent space — access is from org/project level
         };
     }
 
@@ -312,7 +312,7 @@ const resolveUserSpaceAccessWithInheritance = (
         (a) => a.userUuid === userUuid,
     );
     const inheritedFrom: SpaceAccess['inheritedFrom'] =
-        hasAccessInChain && !spaceRoleResult.fromLeaf
+        hasAccessInChain && spaceRoleResult.fromParent
             ? 'parent_space'
             : highestRole.type;
 
