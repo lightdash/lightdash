@@ -8,7 +8,6 @@ import {
     ActionIcon,
     Anchor,
     Avatar,
-    Badge,
     Box,
     Button,
     Group,
@@ -55,7 +54,6 @@ import {
     UserAccessList,
 } from './ShareSpaceModalShared';
 import {
-    getAccessColor,
     sortAccessList,
     useSpaceAccessByType,
     type SortOrder,
@@ -63,26 +61,25 @@ import {
 
 type AuditUser = SpaceShare & {
     origin: string;
-    originColor: string;
 };
 
 const getOriginInfo = (
     share: SpaceShare,
     bucket: 'direct' | 'parentSpace' | 'project' | 'organization',
-): Pick<AuditUser, 'origin' | 'originColor'> => {
+): Pick<AuditUser, 'origin'> => {
     if (bucket === 'direct') {
         if (share.inheritedFrom === 'space_group') {
-            return { origin: 'Group', originColor: 'teal' };
+            return { origin: 'Group' };
         }
-        return { origin: 'Direct', originColor: 'green' };
+        return { origin: 'Direct' };
     }
     if (bucket === 'parentSpace') {
-        return { origin: 'Parent', originColor: 'violet' };
+        return { origin: 'Parent' };
     }
     if (bucket === 'project') {
-        return { origin: 'Project', originColor: 'blue' };
+        return { origin: 'Project' };
     }
-    return { origin: 'Organization', originColor: 'gray.6' };
+    return { origin: 'Organization' };
 };
 
 type UserAccessAuditListProps = {
@@ -119,7 +116,6 @@ const UserAccessAuditList: FC<UserAccessAuditListProps> = ({
         <Stack gap="sm">
             {paginatedList[page - 1]?.map((user) => {
                 const isSessionUser = user.userUuid === sessionUserUuid;
-                const [roleColor, roleShade] = getAccessColor(user.role);
 
                 return (
                     <Group
@@ -159,25 +155,16 @@ const UserAccessAuditList: FC<UserAccessAuditListProps> = ({
                             </Text>
                         </Group>
 
-                        <Group gap="xs" wrap="nowrap">
-                            <Badge
-                                size="xs"
-                                variant="light"
-                                color={user.originColor}
-                                radius="xs"
-                            >
-                                {user.origin}
-                            </Badge>
-                            <Badge
-                                size="xs"
-                                color={`${roleColor}.${roleShade}`}
-                                radius="xs"
-                            >
-                                {UserAccessOptions.find(
-                                    (o) => o.value === user.role,
-                                )?.title ?? user.role}
-                            </Badge>
-                        </Group>
+                        <Text
+                            fz="xs"
+                            c="dimmed"
+                            style={{ whiteSpace: 'nowrap' }}
+                        >
+                            {user.origin} &middot;{' '}
+                            {UserAccessOptions.find(
+                                (o) => o.value === user.role,
+                            )?.title ?? user.role}
+                        </Text>
                     </Group>
                 );
             })}

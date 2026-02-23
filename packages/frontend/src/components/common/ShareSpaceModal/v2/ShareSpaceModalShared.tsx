@@ -8,7 +8,6 @@ import {
 } from '@lightdash/common';
 import {
     Avatar,
-    Badge,
     Group,
     Paper,
     SegmentedControl,
@@ -36,7 +35,6 @@ import {
     InheritanceType,
     NestedInheritanceOptions,
     RootInheritanceOptions,
-    getAccessColor,
     sortAccessList,
     type SortOrder,
 } from './ShareSpaceModalUtils';
@@ -139,18 +137,16 @@ export const UserAccessList: FC<UserAccessListProps> = ({
                         </Group>
 
                         {isSessionUser || !sharedUser.hasDirectAccess ? (
-                            <Badge
-                                size="xs"
-                                color={getAccessColor(sharedUser.role).join(
-                                    '.',
-                                )}
-                                radius="xs"
+                            <Text
+                                fz="xs"
+                                c="dimmed"
                                 mr="xs"
+                                style={{ whiteSpace: 'nowrap' }}
                             >
                                 {UserAccessOptions.find(
                                     (o) => o.value === sharedUser.role,
                                 )?.title ?? sharedUser.role}
-                            </Badge>
+                            </Text>
                         ) : (
                             <Tooltip
                                 disabled={!needsPromotion}
