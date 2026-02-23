@@ -77,6 +77,7 @@ import {
     SyncSlackChannelsPayload,
     ThresholdOperator,
     ThresholdOptions,
+    TimeZone,
     UnexpectedGoogleSheetsError,
     UnexpectedServerError,
     UploadMetricGsheetPayload,
@@ -88,6 +89,7 @@ import {
     type DeliveryResult,
     type DownloadAsyncQueryResultsPayload,
     type EmailBatchNotificationPayload,
+    type MaterializePreAggregatePayload,
     type MsTeamsBatchNotificationPayload,
     type MsTeamsNotificationPayload,
     type PartialFailure,
@@ -118,6 +120,7 @@ import {
 } from '../clients/Slack/SlackMessageBlocks';
 import { LightdashConfig } from '../config/parseConfig';
 import Logger from '../logging/logger';
+import type { PreAggregateModel } from '../models/PreAggregateModel';
 import { isFeatureFlagEnabled } from '../postHog';
 import { AsyncQueryService } from '../services/AsyncQueryService/AsyncQueryService';
 import type { CatalogService } from '../services/CatalogService/CatalogService';
@@ -130,6 +133,7 @@ import { DeployService } from '../services/DeployService';
 import { ExcelService } from '../services/ExcelService/ExcelService';
 import type { FeatureFlagService } from '../services/FeatureFlag/FeatureFlagService';
 import { PersistentDownloadFileService } from '../services/PersistentDownloadFileService/PersistentDownloadFileService';
+import type { PreAggregateMaterializationService } from '../services/PreAggregateMaterializationService/PreAggregateMaterializationService';
 import { getDashboardParametersValuesMap } from '../services/ProjectService/parameters';
 import { ProjectService } from '../services/ProjectService/ProjectService';
 import { RenameService } from '../services/RenameService/RenameService';
@@ -141,7 +145,7 @@ import {
 import { UserService } from '../services/UserService';
 import { ValidationService } from '../services/ValidationService/ValidationService';
 import { EncryptionUtil } from '../utils/EncryptionUtil/EncryptionUtil';
-import { SchedulerClient } from './SchedulerClient';
+import { getDailyDatesFromCron, SchedulerClient } from './SchedulerClient';
 
 export type SchedulerTaskArguments = {
     lightdashConfig: LightdashConfig;
@@ -166,6 +170,8 @@ export type SchedulerTaskArguments = {
     asyncQueryService: AsyncQueryService;
     featureFlagService: FeatureFlagService;
     persistentDownloadFileService: PersistentDownloadFileService;
+    preAggregateModel: PreAggregateModel;
+    preAggregateMaterializationService: PreAggregateMaterializationService;
 };
 
 export default class SchedulerTask {
@@ -213,6 +219,10 @@ export default class SchedulerTask {
 
     protected readonly persistentDownloadFileService: PersistentDownloadFileService;
 
+    protected readonly preAggregateMaterializationService: PreAggregateMaterializationService;
+
+    protected readonly preAggregateModel: PreAggregateModel;
+
     constructor(args: SchedulerTaskArguments) {
         this.lightdashConfig = args.lightdashConfig;
         this.analytics = args.analytics;
@@ -236,6 +246,9 @@ export default class SchedulerTask {
         this.asyncQueryService = args.asyncQueryService;
         this.featureFlagService = args.featureFlagService;
         this.persistentDownloadFileService = args.persistentDownloadFileService;
+        this.preAggregateModel = args.preAggregateModel;
+        this.preAggregateMaterializationService =
+            args.preAggregateMaterializationService;
     }
 
     private static getCsvOptions(
@@ -1655,6 +1668,159 @@ export default class SchedulerTask {
             });
             throw e;
         }
+    }
+
+    protected async materializePreAggregate(
+        jobId: string,
+        scheduledTime: Date,
+        payload: MaterializePreAggregatePayload,
+    ) {
+        const baseLog: Pick<SchedulerLog, 'task' | 'jobId' | 'scheduledTime'> =
+            {
+                task: SCHEDULER_TASKS.MATERIALIZE_PRE_AGGREGATE,
+                jobId,
+                scheduledTime,
+            };
+
+        try {
+            const sessionUser = await this.userService.getSessionByUserUuid(
+                payload.userUuid,
+            );
+            const account = Account.fromSession(sessionUser);
+
+            await this.schedulerService.logSchedulerJob({
+                ...baseLog,
+                details: {
+                    createdByUserUuid: payload.userUuid,
+                    organizationUuid: payload.organizationUuid,
+                    projectUuid: payload.projectUuid,
+                    preAggregateDefinitionUuid:
+                        payload.preAggregateDefinitionUuid,
+                    trigger: payload.trigger,
+                },
+                status: SchedulerJobStatus.STARTED,
+            });
+
+            const result =
+                await this.preAggregateMaterializationService.materializePreAggregate(
+                    {
+                        account,
+                        projectUuid: payload.projectUuid,
+                        preAggregateDefinitionUuid:
+                            payload.preAggregateDefinitionUuid,
+                        trigger: payload.trigger,
+                    },
+                );
+
+            await this.schedulerService.logSchedulerJob({
+                ...baseLog,
+                details: {
+                    createdByUserUuid: payload.userUuid,
+                    organizationUuid: payload.organizationUuid,
+                    projectUuid: payload.projectUuid,
+                    preAggregateDefinitionUuid:
+                        payload.preAggregateDefinitionUuid,
+                    trigger: payload.trigger,
+                    materializationUuid: result.materializationUuid,
+                    materializationStatus: result.status,
+                    queryUuid: result.queryUuid,
+                },
+                status: SchedulerJobStatus.COMPLETED,
+            });
+        } catch (error) {
+            await this.schedulerService.logSchedulerJob({
+                ...baseLog,
+                details: {
+                    createdByUserUuid: payload.userUuid,
+                    organizationUuid: payload.organizationUuid,
+                    projectUuid: payload.projectUuid,
+                    preAggregateDefinitionUuid:
+                        payload.preAggregateDefinitionUuid,
+                    trigger: payload.trigger,
+                    error: getErrorMessage(error),
+                },
+                status: SchedulerJobStatus.ERROR,
+            });
+
+            throw error;
+        }
+    }
+
+    protected async generateDailyPreAggregateMaterializationJobs(
+        currentDateStartOfDay: Date,
+    ): Promise<void> {
+        const preAggregateSchedulerDetails =
+            await this.preAggregateModel.getProjectSchedulerDetailsForPreAggregates();
+
+        let totalScheduledJobs = 0;
+
+        await Promise.all(
+            preAggregateSchedulerDetails.map(async (definition) => {
+                const { createdByUserUuid } = definition;
+                if (!createdByUserUuid) {
+                    return;
+                }
+
+                try {
+                    const materializationDates = getDailyDatesFromCron(
+                        {
+                            cron: definition.refreshCron,
+                            timezone:
+                                definition.schedulerTimezone || TimeZone.UTC,
+                        },
+                        currentDateStartOfDay,
+                    );
+
+                    const materializationJobs = materializationDates.map(
+                        (runAt) =>
+                            this.schedulerClient
+                                .materializePreAggregate(
+                                    {
+                                        organizationUuid:
+                                            definition.organizationUuid,
+                                        projectUuid: definition.projectUuid,
+                                        userUuid: createdByUserUuid,
+                                        preAggregateDefinitionUuid:
+                                            definition.preAggregateDefinitionUuid,
+                                        trigger: 'cron',
+                                    },
+                                    runAt,
+                                )
+                                .then(({ jobId }) => ({
+                                    jobId,
+                                    runAt,
+                                })),
+                    );
+
+                    // eslint-disable-next-line no-await-in-loop
+                    for await (const { jobId, runAt } of materializationJobs) {
+                        totalScheduledJobs += 1;
+
+                        Logger.info(
+                            `Scheduled pre-aggregate cron materialization job ${jobId}`,
+                            {
+                                projectUuid: definition.projectUuid,
+                                preAggregateDefinitionUuid:
+                                    definition.preAggregateDefinitionUuid,
+                                preAggregateExploreName:
+                                    definition.preAggExploreName,
+                                runAt,
+                            },
+                        );
+                    }
+                } catch (error) {
+                    Logger.error(
+                        `Failed scheduling pre-aggregate cron jobs for definition ${definition.preAggregateDefinitionUuid} in project ${definition.projectUuid}: ${getErrorMessage(
+                            error,
+                        )}`,
+                    );
+                }
+            }),
+        );
+
+        Logger.info(
+            `Scheduled ${totalScheduledJobs} pre-aggregate cron materialization job(s)`,
+        );
     }
 
     protected async validateProject(

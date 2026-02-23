@@ -3441,40 +3441,14 @@ export class AsyncQueryService extends ProjectService {
         maxBackoffMs?: number;
         timeoutMs?: number;
     }): Promise<void> {
-        const startTime = Date.now();
-
-        const poll = async (backoffMs: number): Promise<void> => {
-            if (Date.now() - startTime > timeoutMs) {
-                throw new Error(`Query polling timed out after ${timeoutMs}ms`);
-            }
-
-            const queryHistory = await this.queryHistoryModel.get(
-                queryUuid,
-                projectUuid,
-                account,
-            );
-
-            switch (queryHistory.status) {
-                case QueryHistoryStatus.CANCELLED:
-                    throw new Error('Query was cancelled');
-                case QueryHistoryStatus.ERROR:
-                    throw new Error(
-                        queryHistory.error ?? 'Warehouse query failed',
-                    );
-                case QueryHistoryStatus.PENDING:
-                    await sleep(backoffMs);
-                    return poll(Math.min(backoffMs * 2, maxBackoffMs));
-                case QueryHistoryStatus.READY:
-                    return undefined;
-                default:
-                    return assertUnreachable(
-                        queryHistory.status,
-                        'Unknown query status',
-                    );
-            }
-        };
-
-        await poll(initialBackoffMs);
+        await this.queryHistoryModel.pollForQueryCompletion({
+            queryUuid,
+            account,
+            projectUuid,
+            initialBackoffMs,
+            maxBackoffMs,
+            timeoutMs,
+        });
     }
 
     /**

@@ -74,6 +74,9 @@ const schedulerWorkerFactory = (context: {
         featureFlagService: context.serviceRepository.getFeatureFlagService(),
         persistentDownloadFileService:
             context.serviceRepository.getPersistentDownloadFileService(),
+        preAggregateModel: context.models.getPreAggregateModel(),
+        preAggregateMaterializationService:
+            context.serviceRepository.getPreAggregateMaterializationService(),
     });
 
 export default class SchedulerApp {

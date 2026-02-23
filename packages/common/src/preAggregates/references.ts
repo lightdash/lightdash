@@ -1,4 +1,9 @@
-import { type CompiledDimension, type CompiledMetric } from '../types/field';
+import {
+    type CompiledDimension,
+    type CompiledMetric,
+    type FieldId,
+} from '../types/field';
+import { getItemId } from '../utils/item';
 
 export const getDimensionBaseName = (
     dimension: Pick<
@@ -42,3 +47,34 @@ export const getMetricReferences = ({
 
     return references;
 };
+
+export type MetricReferenceLookup = {
+    fieldId: FieldId;
+    metric: CompiledMetric;
+};
+
+export const getMetricsByReference = ({
+    tables,
+    baseTable,
+}: {
+    tables: Record<string, { metrics: Record<string, CompiledMetric> }>;
+    baseTable: string;
+}): Map<string, MetricReferenceLookup> =>
+    Object.values(tables).reduce<Map<string, MetricReferenceLookup>>(
+        (acc, table) => {
+            Object.values(table.metrics).forEach((metric) => {
+                const fieldId = getItemId(metric);
+                new Set([
+                    fieldId,
+                    ...getMetricReferences({
+                        metric,
+                        baseTable,
+                    }),
+                ]).forEach((reference) => {
+                    acc.set(reference, { fieldId, metric });
+                });
+            });
+            return acc;
+        },
+        new Map<string, MetricReferenceLookup>(),
+    );

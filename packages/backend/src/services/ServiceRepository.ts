@@ -37,6 +37,7 @@ import { PersistentDownloadFileService } from './PersistentDownloadFileService/P
 import { PersonalAccessTokenService } from './PersonalAccessTokenService';
 import { PinningService } from './PinningService/PinningService';
 import { PivotTableService } from './PivotTableService/PivotTableService';
+import { PreAggregateMaterializationService } from './PreAggregateMaterializationService/PreAggregateMaterializationService';
 import { ProjectCompileLogService } from './ProjectCompileLogService/ProjectCompileLogService';
 import { ProjectParametersService } from './ProjectParametersService';
 import { ProjectService } from './ProjectService/ProjectService';
@@ -82,6 +83,7 @@ interface ServiceManifest {
     oauthService: OAuthService;
 
     organizationService: OrganizationService;
+    preAggregateMaterializationService: PreAggregateMaterializationService;
     persistentDownloadFileService: PersistentDownloadFileService;
     personalAccessTokenService: PersonalAccessTokenService;
     pinningService: PinningService;
@@ -538,6 +540,18 @@ export class ServiceRepository
         );
     }
 
+    public getPreAggregateMaterializationService(): PreAggregateMaterializationService {
+        return this.getService(
+            'preAggregateMaterializationService',
+            () =>
+                new PreAggregateMaterializationService({
+                    preAggregateModel: this.models.getPreAggregateModel(),
+                    queryHistoryModel: this.models.getQueryHistoryModel(),
+                    asyncQueryService: this.getAsyncQueryService(),
+                }),
+        );
+    }
+
     public getPersonalAccessTokenService(): PersonalAccessTokenService {
         return this.getService(
             'personalAccessTokenService',
@@ -590,6 +604,7 @@ export class ServiceRepository
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
                     projectModel: this.models.getProjectModel(),
+                    preAggregateModel: this.models.getPreAggregateModel(),
                     onboardingModel: this.models.getOnboardingModel(),
                     savedChartModel: this.models.getSavedChartModel(),
                     jobModel: this.models.getJobModel(),
@@ -636,6 +651,7 @@ export class ServiceRepository
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
                     projectModel: this.models.getProjectModel(),
+                    preAggregateModel: this.models.getPreAggregateModel(),
                     onboardingModel: this.models.getOnboardingModel(),
                     savedChartModel: this.models.getSavedChartModel(),
                     jobModel: this.models.getJobModel(),

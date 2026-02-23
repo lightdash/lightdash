@@ -1,5 +1,33 @@
 import { type FieldId } from './field';
+import { type MetricQuery } from './metricQuery';
+import { type ResultColumns } from './results';
+import { type PreAggregateMaterializationTrigger } from './scheduler';
 import { type TimeFrames } from './timeFrames';
+
+export type MaterializationMetricComponent = {
+    componentFieldId: string;
+    aggregation: 'sum' | 'count' | 'min' | 'max';
+};
+
+export type MaterializationMetricQueryPayload = {
+    metricQuery: MetricQuery;
+    metricComponents: Record<string, MaterializationMetricComponent[]>;
+};
+
+export type PreAggregateMaterializationStatus =
+    | 'in_progress'
+    | 'active'
+    | 'superseded'
+    | 'failed';
+
+export type ActiveMaterializationDetails = {
+    materializationUuid: string;
+    queryUuid: string;
+    resultsFileName: string;
+    format: 'jsonl';
+    columns: ResultColumns | null;
+    materializedAt: Date;
+};
 
 export type PreAggregateDef = {
     name: string;
@@ -66,3 +94,45 @@ export type PreAggregateMatchMiss =
     | {
           reason: PreAggregateMissReason.TABLE_CALCULATION_PRESENT;
       };
+
+export type PreAggregateDefinition = {
+    preAggregateDefinitionUuid: string;
+    projectUuid: string;
+    sourceCachedExploreUuid: string;
+    preAggCachedExploreUuid: string;
+    preAggregateDefinition: PreAggregateDef;
+    materializationMetricQuery: MaterializationMetricQueryPayload | null;
+    materializationQueryError: string | null;
+    refreshCron: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+};
+
+export type PreAggregateDefinitionWithExploreName = PreAggregateDefinition & {
+    preAggExploreName: string;
+};
+
+export type PreAggregateMaterialization = {
+    materializationUuid: string;
+    projectUuid: string;
+    preAggregateDefinitionUuid: string;
+    status: PreAggregateMaterializationStatus;
+    trigger: PreAggregateMaterializationTrigger;
+    queryUuid: string | null;
+    materializedAt: Date | null;
+    rowCount: number | null;
+    columns: ResultColumns | null;
+    errorMessage: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+};
+
+export type PreAggregateSchedulerDetails = {
+    projectUuid: string;
+    organizationUuid: string;
+    createdByUserUuid: string | null;
+    schedulerTimezone: string;
+    preAggregateDefinitionUuid: string;
+    preAggExploreName: string;
+    refreshCron: string;
+};
