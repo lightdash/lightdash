@@ -1,3 +1,10 @@
+## [0.2512.1](https://github.com/lightdash/lightdash/compare/0.2512.0...0.2512.1) (2026-02-23)
+
+
+### Bug Fixes
+
+* stabilize table column widths during virtualized scroll ([#20550](https://github.com/lightdash/lightdash/issues/20550)) ([eafea39](https://github.com/lightdash/lightdash/commit/eafea398d9c11a565bc10b9411c723f08f0a31f6))
+
 # [0.2512.0](https://github.com/lightdash/lightdash/compare/0.2511.0...0.2512.0) (2026-02-23)
 
 
