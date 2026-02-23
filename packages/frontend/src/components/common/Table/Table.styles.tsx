@@ -305,7 +305,8 @@ export const ThLabelContainer = styled.div`
     min-width: 0;
     flex: 1;
     text-overflow: ellipsis;
-    white-space: nowrap;
+    white-space: normal;
+    word-break: break-word;
 `;
 
 export const ThActionsContainer = styled.div`

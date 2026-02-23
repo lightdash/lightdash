@@ -141,11 +141,20 @@ const getDataAndColumns = ({
             const item = itemsMap[itemId] as
                 | (typeof itemsMap)[number]
                 | undefined;
+            const headerOverride = getFieldLabelOverride(itemId);
+            const headerLabel = headerOverride
+                ? headerOverride
+                : isField(item)
+                  ? `${showTableNames ? `${item.tableLabel} ` : ''}${item.label}`
+                  : isCustomDimension(item)
+                    ? item.name
+                    : item && 'displayName' in item
+                      ? item.displayName
+                      : 'Undefined';
 
             if (!selectedItemIds.includes(itemId)) {
                 return acc;
             }
-            const headerOverride = getFieldLabelOverride(itemId);
 
             const column: TableHeader | TableColumn = columnHelper.accessor(
                 (row: ResultRow) => row[itemId],
@@ -195,6 +204,7 @@ const getDataAndColumns = ({
                             : null,
                     meta: {
                         item,
+                        headerLabel,
                         isVisible: isColumnVisible(itemId),
                         frozen: isColumnFrozen(itemId),
                         // For image columns with explicit width: set fixed width constraints
