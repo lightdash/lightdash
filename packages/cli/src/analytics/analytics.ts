@@ -341,6 +341,7 @@ type CliValidateCompleted = BaseTrack & {
         isPreview: boolean;
         validationTargets: string[];
         durationMs: number;
+        success: boolean;
         totalErrors: number;
         tableErrors: number;
         chartErrors: number;

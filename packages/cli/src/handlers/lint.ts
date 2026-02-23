@@ -255,23 +255,25 @@ export async function lintHandler(options: LintOptions): Promise<void> {
     const searchPath = path.resolve(options.path || process.cwd());
     const outputFormat = options.format || 'cli';
 
-    // Check if path exists
-    if (!fs.existsSync(searchPath)) {
-        throw new Error(`Path does not exist: ${searchPath}`);
-    }
-
-    if (outputFormat === 'cli') {
-        console.log(
-            chalk.dim(`Searching for Lightdash Code files in: ${searchPath}\n`),
-        );
-    }
-
-    // Find all YAML/JSON files
-    const codeFiles = findLightdashCodeFiles(searchPath);
-    const results: FileValidationResult[] = [];
     let shouldExitWithError = false;
 
     try {
+        // Check if path exists
+        if (!fs.existsSync(searchPath)) {
+            throw new Error(`Path does not exist: ${searchPath}`);
+        }
+
+        if (outputFormat === 'cli') {
+            console.log(
+                chalk.dim(
+                    `Searching for Lightdash Code files in: ${searchPath}\n`,
+                ),
+            );
+        }
+
+        // Find all YAML/JSON files
+        const codeFiles = findLightdashCodeFiles(searchPath);
+
         if (codeFiles.length === 0) {
             if (outputFormat === 'cli') {
                 console.log(
@@ -280,6 +282,21 @@ export async function lintHandler(options: LintOptions): Promise<void> {
                     ),
                 );
             }
+            await LightdashAnalytics.track({
+                event: 'lint.completed',
+                properties: {
+                    executionId,
+                    filesScanned: 0,
+                    lightdashFilesFound: 0,
+                    validFiles: 0,
+                    invalidFiles: 0,
+                    chartFiles: 0,
+                    dashboardFiles: 0,
+                    modelFiles: 0,
+                    outputFormat,
+                    durationMs: Date.now() - startTime,
+                },
+            });
             return;
         }
 
@@ -290,6 +307,7 @@ export async function lintHandler(options: LintOptions): Promise<void> {
         }
 
         // Validate each file
+        const results: FileValidationResult[] = [];
         for (const file of codeFiles) {
             const result = validateFile(file);
             // Only track Lightdash Code files (models, charts, dashboards)
@@ -307,6 +325,21 @@ export async function lintHandler(options: LintOptions): Promise<void> {
                     ),
                 );
             }
+            await LightdashAnalytics.track({
+                event: 'lint.completed',
+                properties: {
+                    executionId,
+                    filesScanned: codeFiles.length,
+                    lightdashFilesFound: 0,
+                    validFiles: 0,
+                    invalidFiles: 0,
+                    chartFiles: 0,
+                    dashboardFiles: 0,
+                    modelFiles: 0,
+                    outputFormat,
+                    durationMs: Date.now() - startTime,
+                },
+            });
             return;
         }
 
@@ -357,16 +390,14 @@ export async function lintHandler(options: LintOptions): Promise<void> {
             shouldExitWithError = true;
         }
 
-        const invalidCount = results.filter((r) => !r.valid).length;
-
         await LightdashAnalytics.track({
             event: 'lint.completed',
             properties: {
                 executionId,
                 filesScanned: codeFiles.length,
                 lightdashFilesFound: results.length,
-                validFiles: results.length - invalidCount,
-                invalidFiles: invalidCount,
+                validFiles: validCount,
+                invalidFiles: invalidResults.length,
                 chartFiles: results.filter((r) => r.type === 'chart').length,
                 dashboardFiles: results.filter((r) => r.type === 'dashboard')
                     .length,

@@ -188,6 +188,7 @@ export const validateHandler = async (options: ValidateHandlerOptions) => {
                 isPreview,
                 validationTargets,
                 durationMs: Date.now() - startTime,
+                success: validation.length === 0,
                 totalErrors: validation.length,
                 tableErrors: tableErrors.length,
                 chartErrors: chartErrors.length,
