@@ -1,3 +1,11 @@
+## [0.2509.1](https://github.com/lightdash/lightdash/compare/0.2509.0...0.2509.1) (2026-02-23)
+
+
+### Bug Fixes
+
+* cache field conversion in PostgresClient query streaming ([#20514](https://github.com/lightdash/lightdash/issues/20514)) ([aeb7a72](https://github.com/lightdash/lightdash/commit/aeb7a72e239d58cb17af1e30412a63fa8bf3349f))
+* default wrapColumnTitles to false when not set ([#20547](https://github.com/lightdash/lightdash/issues/20547)) ([96e0297](https://github.com/lightdash/lightdash/commit/96e029717e490bb93bf295dde81d26d3353ea8fa))
+
 # [0.2509.0](https://github.com/lightdash/lightdash/compare/0.2508.0...0.2509.0) (2026-02-23)
 
 
