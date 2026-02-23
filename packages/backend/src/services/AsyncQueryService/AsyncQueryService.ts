@@ -5,6 +5,7 @@ import {
     ApiExecuteAsyncDashboardChartQueryResults,
     ApiExecuteAsyncDashboardSqlChartQueryResults,
     ApiExecuteAsyncSqlQueryResults,
+    ApiPreAggregateStatsResults,
     assertIsAccountWithOrg,
     assertUnreachable,
     CompiledDimension,
@@ -27,7 +28,6 @@ import {
     formatItemValue,
     formatRawValue,
     formatRow,
-    getDashboardFilterRulesForTables,
     getDashboardFilterRulesForTileAndReferences,
     getDashboardFiltersForTileAndTables,
     getDimensions,
@@ -36,10 +36,8 @@ import {
     getFieldsFromMetricQuery,
     getItemId,
     getItemMap,
-    getMetrics,
     getMetricsWithValidParameters,
     isCartesianChartConfig,
-    isCompiledCustomSqlDimension,
     isCustomBinDimension,
     isCustomDimension,
     isCustomSqlDimension,
@@ -49,6 +47,8 @@ import {
     isMetric,
     isVizTableConfig,
     ItemsMap,
+    KnexPaginateArgs,
+    KnexPaginatedData,
     MetricQuery,
     normalizeIndexColumns,
     NotFoundError,
@@ -61,7 +61,6 @@ import {
     ResultsExpiredError,
     S3Error,
     SchedulerFormat,
-    sleep,
     SqlChart,
     UnexpectedServerError,
     UserAccessControls,
@@ -75,13 +74,11 @@ import {
     type CompiledCustomSqlDimension,
     type CompiledMetric,
     type CustomDimension,
-    type DateZoom,
     type ExecuteAsyncDashboardChartRequestParams,
     type ExecuteAsyncMetricQueryRequestParams,
     type ExecuteAsyncQueryRequestParams,
     type ExecuteAsyncSavedChartRequestParams,
     type ExecuteAsyncUnderlyingDataRequestParams,
-    type Field,
     type Organization,
     type ParameterDefinitions,
     type ParametersValuesMap,
@@ -106,6 +103,7 @@ import { type FileStorageClient } from '../../clients/FileStorage/FileStorageCli
 import { S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import { measureTime } from '../../logging/measureTime';
 import { DownloadAuditModel } from '../../models/DownloadAuditModel';
+import { PreAggregateDailyStatsModel } from '../../models/PreAggregateDailyStatsModel';
 import { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import type { SavedSqlModel } from '../../models/SavedSqlModel';
 import PrometheusMetrics from '../../prometheus';
@@ -189,6 +187,7 @@ type AsyncQueryServiceArguments = ProjectServiceArguments & {
     permissionsService: PermissionsService;
     persistentDownloadFileService: PersistentDownloadFileService;
     preAggregationDuckDbClient: PreAggregationDuckDbClient;
+    preAggregateDailyStatsModel: PreAggregateDailyStatsModel;
 };
 
 export class AsyncQueryService extends ProjectService {
@@ -216,6 +215,8 @@ export class AsyncQueryService extends ProjectService {
 
     private readonly preAggregationDuckDbClient: PreAggregationDuckDbClient;
 
+    private preAggregateDailyStatsModel: PreAggregateDailyStatsModel;
+
     constructor(args: AsyncQueryServiceArguments) {
         super(args);
         this.queryHistoryModel = args.queryHistoryModel;
@@ -230,6 +231,45 @@ export class AsyncQueryService extends ProjectService {
         this.permissionsService = args.permissionsService;
         this.persistentDownloadFileService = args.persistentDownloadFileService;
         this.preAggregationDuckDbClient = args.preAggregationDuckDbClient;
+        this.preAggregateDailyStatsModel = args.preAggregateDailyStatsModel;
+    }
+
+    private recordPreAggregateStats(params: {
+        projectUuid: string;
+        exploreName: string;
+        routingDecision: PreAggregationRoutingDecision;
+        chartUuid: string | null;
+        dashboardUuid: string | null;
+        queryContext: string;
+    }): void {
+        const { preAggregateMetadata } = params.routingDecision;
+        if (!preAggregateMetadata) {
+            return;
+        }
+
+        void this.preAggregateDailyStatsModel
+            .upsert({
+                projectUuid: params.projectUuid,
+                exploreName: params.exploreName,
+                chartUuid: params.chartUuid,
+                dashboardUuid: params.dashboardUuid,
+                queryContext: params.queryContext,
+                hit: preAggregateMetadata.hit,
+                missReason: preAggregateMetadata.reason?.reason ?? null,
+                preAggregateName: preAggregateMetadata.name ?? null,
+            })
+            .catch((e) =>
+                this.logger.error(
+                    'Failed to upsert pre-aggregate daily stats',
+                    e,
+                ),
+            );
+    }
+
+    async cleanupPreAggregateDailyStats(
+        retentionDays: number,
+    ): Promise<number> {
+        return this.preAggregateDailyStatsModel.cleanup(retentionDays);
     }
 
     private async assertSavedChartAccess(
@@ -2499,6 +2539,15 @@ export class AsyncQueryService extends ProjectService {
             );
         }
 
+        this.recordPreAggregateStats({
+            projectUuid,
+            exploreName: explore.name,
+            routingDecision,
+            chartUuid: savedChart.uuid,
+            dashboardUuid: null,
+            queryContext: context,
+        });
+
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
             {
                 account,
@@ -2780,6 +2829,15 @@ export class AsyncQueryService extends ProjectService {
                 routingDecision.preAggregateMetadata.reason?.reason,
             );
         }
+
+        this.recordPreAggregateStats({
+            projectUuid,
+            exploreName: explore.name,
+            routingDecision,
+            chartUuid: savedChart.uuid,
+            dashboardUuid,
+            queryContext: context,
+        });
 
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
             {
@@ -3682,5 +3740,60 @@ export class AsyncQueryService extends ProjectService {
         });
 
         return { rows, cacheMetadata, fields };
+    }
+
+    async getPreAggregateStats(
+        account: Account,
+        projectUuid: string,
+        days: number = 3,
+        paginateArgs?: KnexPaginateArgs,
+        filters?: {
+            exploreName?: string;
+            queryType?: 'chart' | 'dashboard' | 'explorer';
+        },
+    ): Promise<KnexPaginatedData<ApiPreAggregateStatsResults>> {
+        assertIsAccountWithOrg(account);
+
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+
+        if (
+            account.user.ability.cannot(
+                'view',
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const result = await this.preAggregateDailyStatsModel.getByProject(
+            projectUuid,
+            days,
+            paginateArgs,
+            filters,
+        );
+
+        return {
+            data: {
+                stats: result.data.map((row) => ({
+                    exploreName: row.exploreName,
+                    date: row.date.toISOString(),
+                    chartUuid: row.chartUuid,
+                    chartName: row.chartName,
+                    dashboardUuid: row.dashboardUuid,
+                    dashboardName: row.dashboardName,
+                    queryContext: row.queryContext,
+                    hitCount: row.hitCount,
+                    missCount: row.missCount,
+                    missReason: row.missReason,
+                    preAggregateName: row.preAggregateName,
+                    updatedAt: row.updatedAt.toISOString(),
+                })),
+            },
+            pagination: result.pagination,
+        };
     }
 }

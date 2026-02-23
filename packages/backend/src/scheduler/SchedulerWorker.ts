@@ -942,6 +942,23 @@ export class SchedulerWorker extends SchedulerTask {
                     Logger.error('Error during query history cleanup:', error);
                     throw error;
                 }
+
+                // Also clean up pre-aggregate daily stats (3-day retention)
+                try {
+                    const preAggDeleted =
+                        await this.asyncQueryService.cleanupPreAggregateDailyStats(
+                            3,
+                        );
+                    Logger.info(
+                        `Pre-aggregate daily stats cleanup completed. Records deleted: ${preAggDeleted}`,
+                    );
+                } catch (error) {
+                    Logger.error(
+                        'Error during pre-aggregate daily stats cleanup:',
+                        error,
+                    );
+                    // Don't throw - this is secondary cleanup, don't fail the job
+                }
             },
             [SCHEDULER_TASKS.CLEAN_DEPLOY_SESSIONS]: async () => {
                 Logger.info('Starting deploy sessions cleanup job');

@@ -1,4 +1,5 @@
 import { type FieldId } from './field';
+import { type KnexPaginatedData } from './knex-paginate';
 import { type MetricQuery } from './metricQuery';
 import { type ResultColumns } from './results';
 import { type PreAggregateMaterializationTrigger } from './scheduler';
@@ -157,4 +158,28 @@ export type PreAggregateSchedulerDetails = {
     preAggregateDefinitionUuid: string;
     preAggExploreName: string;
     refreshCron: string;
+};
+
+export type PreAggregateDailyStatResult = {
+    exploreName: string;
+    date: string;
+    chartUuid: string | null;
+    chartName: string | null;
+    dashboardUuid: string | null;
+    dashboardName: string | null;
+    queryContext: string;
+    hitCount: number;
+    missCount: number;
+    missReason: string | null;
+    preAggregateName: string | null;
+    updatedAt: string;
+};
+
+export type ApiPreAggregateStatsResults = {
+    stats: PreAggregateDailyStatResult[];
+};
+
+export type ApiGetPreAggregateStatsResponse = {
+    status: 'ok';
+    results: KnexPaginatedData<ApiPreAggregateStatsResults>;
 };
