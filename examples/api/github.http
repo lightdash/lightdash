@@ -1,0 +1,32 @@
+### Login
+POST http://localhost:3000/api/v1/login
+Content-Type: application/json
+
+{
+    "email": "demo@lightdash.com",
+    "password": "demo_password!"
+}
+
+
+### List GitHub repositories
+# Returns repos with name, fullName, ownerLogin, and defaultBranch
+# Requires GitHub App to be installed for the organization
+GET http://localhost:3000/api/v1/github/repos/list
+
+
+### Create a new GitHub repository
+# Creates a private repo in the GitHub org connected to Lightdash
+# Requires manage:GitIntegration permission (org admin)
+POST http://localhost:3000/api/v1/github/repos
+Content-Type: application/json
+
+{
+    "name": "test-dbt-project",
+    "description": "Test dbt project created via Lightdash API",
+    "isPrivate": true
+}
+
+
+### Get GitHub App installation status
+# Check if GitHub App is installed for the organization
+GET http://localhost:3000/api/v1/github/config

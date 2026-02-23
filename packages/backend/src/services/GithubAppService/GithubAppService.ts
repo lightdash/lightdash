@@ -15,6 +15,7 @@ import { SessionData } from 'express-session';
 import { nanoid } from 'nanoid';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import {
+    createRepository as createGithubRepository,
     getGithubApp,
     getOctokitRestForApp,
 } from '../../clients/github/Github';
@@ -303,10 +304,74 @@ export class GithubAppService extends BaseService {
                 name: repo.name,
                 ownerLogin: repo.owner.login,
                 fullName: repo.full_name,
+                defaultBranch: repo.default_branch,
             }));
         } catch (error) {
             console.error('Github api error', error);
             throw new MissingConfigError('Invalid Github integration config');
         }
+    }
+
+    async createRepository(
+        user: SessionUser,
+        name: string,
+        description?: string,
+        isPrivate?: boolean,
+    ): Promise<{
+        owner: string;
+        repo: string;
+        fullName: string;
+        defaultBranch: string;
+    }> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('GitIntegration', {
+                    organizationUuid: user.organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        // Validate repository name according to GitHub's rules:
+        // - 1-100 characters
+        // - Only alphanumeric, hyphens, underscores, and periods
+        // - Cannot start with a period
+        // - Cannot end with .git
+        // - Cannot be . or ..
+        const repoNameRegex = /^(?!\.)(?!.*\.git$)[a-zA-Z0-9._-]{1,100}$/;
+        if (!repoNameRegex.test(name) || name === '.' || name === '..') {
+            throw new ParameterError(
+                'Invalid repository name. Names must be 1-100 characters, contain only alphanumeric characters, hyphens, underscores, and periods, cannot start with a period, and cannot end with .git',
+            );
+        }
+
+        const installationId = await this.getInstallationId(user);
+        if (!installationId) {
+            throw new NotFoundError(
+                'GitHub App is not installed for this organization',
+            );
+        }
+
+        this.analytics.track({
+            event: 'github_repo.created',
+            userId: user.userUuid,
+            properties: {
+                organizationId: user.organizationUuid,
+                repoName: name,
+            },
+        });
+
+        return createGithubRepository({
+            installationId,
+            name,
+            description,
+            isPrivate,
+        });
     }
 }

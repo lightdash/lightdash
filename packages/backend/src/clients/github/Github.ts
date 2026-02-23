@@ -433,3 +433,81 @@ export const getBranches = async ({
         throw new UnexpectedGitError(getErrorMessage(e));
     }
 };
+
+export const createRepository = async ({
+    installationId,
+    name,
+    description,
+    isPrivate = true,
+}: {
+    installationId: string;
+    name: string;
+    description?: string;
+    isPrivate?: boolean;
+}): Promise<{
+    owner: string;
+    repo: string;
+    fullName: string;
+    defaultBranch: string;
+}> => {
+    const octokit = getOctokitRestForApp(installationId);
+
+    try {
+        // Get the installation to find the account (org or user)
+        const { data: installation } = await octokit.rest.apps.getInstallation({
+            installation_id: parseInt(installationId, 10),
+        });
+
+        const { account } = installation;
+        if (!account || !('login' in account)) {
+            throw new ParameterError(
+                'Could not determine repository owner from installation',
+            );
+        }
+
+        const owner = account.login;
+
+        // Determine if the installation is for an org or user
+        // Check if the account has a 'type' property (User/Org accounts have it)
+        const accountType = 'type' in account ? account.type : undefined;
+
+        let repo;
+        if (accountType === 'Organization') {
+            // Create repo in the org account
+            const response = await octokit.rest.repos.createInOrg({
+                org: owner,
+                name,
+                description: description || 'Lightdash dbt project',
+                private: isPrivate,
+                auto_init: true, // Creates with README so it's not empty
+            });
+            repo = response.data;
+        } else {
+            // Create repo for user account
+            const response =
+                await octokit.rest.repos.createForAuthenticatedUser({
+                    name,
+                    description: description || 'Lightdash dbt project',
+                    private: isPrivate,
+                    auto_init: true,
+                });
+            repo = response.data;
+        }
+
+        return {
+            owner: repo.owner.login,
+            repo: repo.name,
+            fullName: repo.full_name,
+            defaultBranch: repo.default_branch,
+        };
+    } catch (e) {
+        if (
+            e instanceof Error &&
+            'status' in e &&
+            (e as { status: number }).status === 422
+        ) {
+            throw new AlreadyExistsError(`Repository "${name}" already exists`);
+        }
+        throw new UnexpectedGitError(getErrorMessage(e));
+    }
+};
