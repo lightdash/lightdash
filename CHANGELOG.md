@@ -1,3 +1,15 @@
+# [0.2504.0](https://github.com/lightdash/lightdash/compare/0.2503.1...0.2504.0) (2026-02-23)
+
+
+### Bug Fixes
+
+* removed eslint 9 package and update eslint from 8.40.0 to 8.57.1 ([#20503](https://github.com/lightdash/lightdash/issues/20503)) ([4a9d9c3](https://github.com/lightdash/lightdash/commit/4a9d9c31566506362eb3af081a5aece0b968201b))
+
+
+### Features
+
+* upgrade canvas to v3 and simplify system dependencies ([#20502](https://github.com/lightdash/lightdash/issues/20502)) ([e2e90b2](https://github.com/lightdash/lightdash/commit/e2e90b2b285b1e3ad6b7bcc20cd40ee352fa1c89))
+
 ## [0.2503.1](https://github.com/lightdash/lightdash/compare/0.2503.0...0.2503.1) (2026-02-21)
 
 
