@@ -170,10 +170,10 @@ export class SqlQueryBuilder {
             }
             if (limitOffset) {
                 // No provided limit but original SQL had limit/offset - preserve it
-                const offsetString = limitOffset.offset
-                    ? ` OFFSET ${limitOffset.offset}`
-                    : '';
-                return `LIMIT ${limitOffset.limit}${offsetString}`;
+                return SqlQueryBuilder.buildLimitOffsetSql(
+                    limitOffset.limit,
+                    limitOffset,
+                );
             }
             // No provided limit and no original limit
             return undefined;
