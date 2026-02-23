@@ -132,16 +132,16 @@ const TableHeader: FC<TableHeaderProps> = ({
                                     >
                                         {(provided, snapshot) => (
                                             <ThContainer>
-                                                    <ThLabelContainer
-                                                        ref={provided.innerRef}
-                                                        {...provided.draggableProps}
-                                                        {...provided.dragHandleProps}
-                                                        $wrapColumnTitles={
-                                                            wrapColumnTitles
-                                                        }
-                                                        style={{
-                                                            ...provided
-                                                                .draggableProps
+                                                <ThLabelContainer
+                                                    ref={provided.innerRef}
+                                                    {...provided.draggableProps}
+                                                    {...provided.dragHandleProps}
+                                                    $wrapColumnTitles={
+                                                        wrapColumnTitles
+                                                    }
+                                                    style={{
+                                                        ...provided
+                                                            .draggableProps
                                                             .style,
                                                         ...(!snapshot.isDragging && {
                                                             transform:
