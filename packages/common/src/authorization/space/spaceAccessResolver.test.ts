@@ -1039,7 +1039,7 @@ describe('resolveSpaceAccessWithInheritance', () => {
             expect(result).toHaveLength(0);
         });
 
-        it('admin always gets access on private chain', () => {
+        it('admin without direct access is excluded (CASL handles admin access)', () => {
             const result = resolveSpaceAccessWithInheritance(
                 makeChainInput({
                     inheritsFromOrgOrProject: false,
@@ -1055,8 +1055,7 @@ describe('resolveSpaceAccessWithInheritance', () => {
                     ],
                 }),
             );
-            expect(result).toHaveLength(1);
-            expect(result[0].role).toBe(SpaceMemberRole.ADMIN);
+            expect(result).toHaveLength(0);
         });
 
         it('direct access on parent grants access on private child', () => {
