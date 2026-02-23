@@ -1,3 +1,10 @@
+## [0.2505.1](https://github.com/lightdash/lightdash/compare/0.2505.0...0.2505.1) (2026-02-23)
+
+
+### Bug Fixes
+
+* restore table header wrapping ([#20527](https://github.com/lightdash/lightdash/issues/20527)) ([121acdc](https://github.com/lightdash/lightdash/commit/121acdc57eeb7fc6fa7b8f16ca8864da40f26f9b))
+
 # [0.2505.0](https://github.com/lightdash/lightdash/compare/0.2504.0...0.2505.0) (2026-02-23)
 
 
