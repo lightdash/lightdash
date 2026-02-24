@@ -1,74 +1,73 @@
 {
-    "name": "@lightdash/cli",
-    "version": "0.2514.0",
-    "license": "MIT",
-    "repository": {
-        "type": "git",
-        "url": "https://github.com/lightdash/lightdash.git"
-    },
-    "bin": {
-        "lightdash": "dist/index.js"
-    },
-    "files": [
-        "dist/**/*",
-        "track.sh",
-        "entitlements.plist"
-    ],
-    "dependencies": {
-        "@actions/core": "^1.11.1",
-        "@casl/ability": "^6.7.5",
-        "@lightdash/common": "workspace:*",
-        "@lightdash/warehouses": "workspace:*",
-        "@types/columnify": "^1.5.1",
-        "ajv": "^8.18.0",
-        "ajv-formats": "^2.1.1",
-        "better-ajv-errors": "^1.2.0",
-        "chalk": "4.1.2",
-        "chokidar": "^3.5.3",
-        "columnify": "^1.6.0",
-        "commander": "^9.2.0",
-        "execa": "^5",
-        "google-auth-library": "^8.5.1",
-        "inquirer": "^8.2.4",
-        "js-yaml": "^4.1.1",
-        "lodash": "^4.17.23",
-        "node-fetch": "^2.7.0",
-        "nunjucks": "^3.2.3",
-        "openid-client": "^5.6.4",
-        "ora": "5.4.1",
-        "parse-node-version": "^2.0.0",
-        "unique-names-generator": "^4.7.1",
-        "uuid": "^11.0.3",
-        "yaml": "^2.7.0"
-    },
-    "description": "Lightdash CLI tool",
-    "devDependencies": {
-        "@vercel/ncc": "^0.38.4",
-        "@yao-pkg/pkg": "^6.6.0",
-        "@types/inquirer": "^8.2.1",
-        "@types/js-yaml": "^4.0.9",
-        "@types/lodash": "^4.14.185",
-        "@types/node-fetch": "^2.6.13",
-        "@types/nunjucks": "^3.2.1",
-        "@types/parse-node-version": "^1.0.0",
-        "@types/uuid": "^10.0.0",
-        "ts-node": "^10.9.2"
-    },
-    "scripts": {
-        "test": "jest",
-        "dev": "ts-node src/index.ts",
-        "build": "tsc --build tsconfig.json",
-        "bundle": "ncc build dist/index.js -o bundle && cp ../warehouses/src/warehouseClients/ca-bundle-*.crt ../warehouses/src/warehouseClients/ca-bundle-*.pem bundle/",
-        "build:binary": "pnpm bundle && npx @yao-pkg/pkg bundle/index.js --config pkg.config.json --targets node20-macos-x64,node20-macos-arm64 --output bin/lightdash --compress Brotli",
-        "typecheck": "tsc --project tsconfig.json --noEmit",
-        "linter": "eslint -c .eslintrc.js --ignore-path ./../../.gitignore",
-        "formatter": "prettier --config .prettierrc.js --ignore-unknown --ignore-path ./../../.gitignore",
-        "lint": "pnpm run linter ./src",
-        "fix-lint": "pnpm run linter ./src --fix",
-        "format": "pnpm run formatter ./src --check",
-        "fix-format": "pnpm run formatter ./src --write",
-        "preinstall": "bash track.sh started || echo 'skipping preinstall'",
-        "postinstall": "bash track.sh completed || echo 'skipping postinstall'",
-        "release": "pnpm publish --no-git-checks --access public"
-    }
+  "name": "@lightdash/cli",
+  "version": "0.2514.0",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lightdash/lightdash.git"
+  },
+  "bin": {
+    "lightdash": "dist/index.js"
+  },
+  "files": [
+    "dist/**/*",
+    "track.sh",
+    "entitlements.plist"
+  ],
+  "scripts": {
+    "test": "jest",
+    "dev": "ts-node src/index.ts",
+    "build": "tsc --build tsconfig.json",
+    "bundle": "ncc build dist/index.js -o bundle && cp ../warehouses/src/warehouseClients/ca-bundle-*.crt ../warehouses/src/warehouseClients/ca-bundle-*.pem bundle/",
+    "build:binary": "pnpm bundle && npx @yao-pkg/pkg bundle/index.js --config pkg.config.json --targets node20-macos-x64,node20-macos-arm64 --output bin/lightdash --compress Brotli",
+    "typecheck": "tsc --project tsconfig.json --noEmit",
+    "linter": "eslint -c .eslintrc.js --ignore-path ./../../.gitignore",
+    "formatter": "oxfmt",
+    "lint": "pnpm run linter ./src",
+    "fix-lint": "pnpm run linter ./src --fix",
+    "format": "oxfmt ./src --check",
+    "fix-format": "oxfmt ./src",
+    "preinstall": "bash track.sh started || echo 'skipping preinstall'",
+    "postinstall": "bash track.sh completed || echo 'skipping postinstall'",
+    "release": "pnpm publish --no-git-checks --access public"
+  },
+  "dependencies": {
+    "@actions/core": "^1.11.1",
+    "@casl/ability": "^6.7.5",
+    "@lightdash/common": "workspace:*",
+    "@lightdash/warehouses": "workspace:*",
+    "@types/columnify": "^1.5.1",
+    "ajv": "^8.18.0",
+    "ajv-formats": "^2.1.1",
+    "better-ajv-errors": "^1.2.0",
+    "chalk": "4.1.2",
+    "chokidar": "^3.5.3",
+    "columnify": "^1.6.0",
+    "commander": "^9.2.0",
+    "execa": "^5",
+    "google-auth-library": "^8.5.1",
+    "inquirer": "^8.2.4",
+    "js-yaml": "^4.1.1",
+    "lodash": "^4.17.23",
+    "node-fetch": "^2.7.0",
+    "nunjucks": "^3.2.3",
+    "openid-client": "^5.6.4",
+    "ora": "5.4.1",
+    "parse-node-version": "^2.0.0",
+    "unique-names-generator": "^4.7.1",
+    "uuid": "^11.0.3",
+    "yaml": "^2.7.0"
+  },
+  "devDependencies": {
+    "@types/inquirer": "^8.2.1",
+    "@types/js-yaml": "^4.0.9",
+    "@types/lodash": "^4.14.185",
+    "@types/node-fetch": "^2.6.13",
+    "@types/nunjucks": "^3.2.1",
+    "@types/parse-node-version": "^1.0.0",
+    "@types/uuid": "^10.0.0",
+    "@vercel/ncc": "^0.38.4",
+    "@yao-pkg/pkg": "^6.6.0",
+    "ts-node": "^10.9.2"
+  }
 }

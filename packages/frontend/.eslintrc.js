@@ -32,7 +32,6 @@ module.exports = {
         'import',
         'json',
         'jsx-a11y',
-        'prettier',
         'react-hooks',
         'react',
         'jest-dom',

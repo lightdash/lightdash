@@ -1,7 +1,11 @@
 module.exports = {
     parser: '@typescript-eslint/parser',
-    plugins: ['@typescript-eslint'],
+    plugins: ['@typescript-eslint', 'perfectionist'],
     rules: {
+        // Import declaration ordering is handled by oxfmt's sortImports.
+        'import/order': 'off',
+        // Sorts named specifiers within a single import, with value specifiers before type specifiers.
+        'perfectionist/sort-named-imports': ['error', { type: 'natural', ignoreCase: true, groups: ['value-import', 'type-import'] }],
         // Ensures all promises have proper handling to avoid unnoticed failures.
         '@typescript-eslint/no-floating-promises': [
             'error',

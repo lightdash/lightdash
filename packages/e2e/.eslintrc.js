@@ -11,4 +11,6 @@ module.exports = {
         'airbnb-typescript/base',
         'prettier',
     ],
+    rules: {
+    },
 };

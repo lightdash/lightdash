@@ -2,8 +2,8 @@
     "name": "e2e",
     "version": "0.2514.0",
     "private": true,
-    "main": "index.js",
     "license": "MIT",
+    "main": "index.js",
     "scripts": {
         "cypress:open": "cypress open --e2e",
         "cypress:open:native": "RUNTIME=native cypress open --e2e",
@@ -11,11 +11,11 @@
         "cypress:run:experimental": "CYPRESS_RETRIES=0 cypress run --config excludeSpecPattern=[] --spec 'cypress/e2e/experimental/**/*.cy.ts'",
         "cypress:open:experimental": "CYPRESS_RETRIES=0 cypress open --e2e --config 'specPattern=cypress/e2e/experimental/**/*.cy.ts,excludeSpecPattern=[]'",
         "linter": "eslint -c .eslintrc.js --ignore-path ./../../.gitignore",
-        "formatter": "prettier --config .prettierrc.js --ignore-unknown --ignore-path ./../../.gitignore",
+        "formatter": "oxfmt",
         "lint": "pnpm run linter ./cypress",
         "fix-lint": "pnpm run linter ./cypress --fix",
-        "format": "pnpm run formatter ./cypress --check",
-        "fix-format": "pnpm run formatter ./cypress --write"
+        "format": "oxfmt ./cypress --check",
+        "fix-format": "oxfmt ./cypress"
     },
     "dependencies": {
         "@lightdash/common": "workspace:*",

@@ -160,7 +160,7 @@ We use `squash & merge` to keep the main branch history clean.
 
 #### Styleguides
 
-Our styleguides should be enforced via a pre-commit hook that runs prettier & eslint.
+Our styleguides should be enforced via a pre-commit hook that runs oxfmt & eslint.
 The reviewers can still request adhoc changes for situations that haven't been experienced before.
 
 ## Setup Development Environment
