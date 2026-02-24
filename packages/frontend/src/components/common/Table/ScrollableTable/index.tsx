@@ -1,4 +1,4 @@
-import { useMemo, useRef, type FC } from 'react';
+import { useEffect, useMemo, useRef, useState, type FC } from 'react';
 import { useIsTableColumnWidthStabilizationEnabled } from '../../../../hooks/useIsTableColumnWidthStabilizationEnabled';
 import { Table, TableScrollableWrapper } from '../Table.styles';
 import { useTableContext } from '../useTableContext';
@@ -21,6 +21,22 @@ const ScrollableTable: FC<ScrollableTableProps> = ({
     const tableContainerRef = useRef<HTMLDivElement>(null);
     const isTableColumnWidthStabilizationEnabled =
         useIsTableColumnWidthStabilizationEnabled();
+    const [containerWidth, setContainerWidth] = useState(0);
+
+    useEffect(() => {
+        const el = tableContainerRef.current;
+        if (!el || !isTableColumnWidthStabilizationEnabled) return;
+
+        const observer = new ResizeObserver((entries) => {
+            for (const entry of entries) {
+                setContainerWidth(entry.contentRect.width);
+            }
+        });
+        observer.observe(el);
+        setContainerWidth(el.clientWidth);
+
+        return () => observer.disconnect();
+    }, [isTableColumnWidthStabilizationEnabled]);
 
     const totalColumnWidth = useMemo(() => {
         if (!isTableColumnWidthStabilizationEnabled) return 0;
@@ -28,8 +44,9 @@ const ScrollableTable: FC<ScrollableTableProps> = ({
             (sum, col) => sum + (col.meta?.width ?? 0),
             0,
         );
-        return total > 0 ? total : 0;
-    }, [columns, isTableColumnWidthStabilizationEnabled]);
+        if (total <= 0) return 0;
+        return Math.max(total, containerWidth);
+    }, [columns, isTableColumnWidthStabilizationEnabled, containerWidth]);
 
     return (
         <TableScrollableWrapper

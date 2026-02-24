@@ -8,8 +8,6 @@ const PASSWORD = 'demo_password!';
 
 const WIDTH_TOLERANCE_PX = 1;
 
-const TABLE_SCOPE = '[data-testid="visualization"]';
-
 test.use({
     viewport: { width: 1920, height: 1080 },
 });
@@ -39,15 +37,16 @@ async function ensureLoggedIn(page: import('@playwright/test').Page) {
 
 async function measureColumnWidths(
     page: import('@playwright/test').Page,
+    scope: string,
 ): Promise<number[]> {
-    return page.evaluate((scope) => {
-        const container = document.querySelector(scope);
-        if (!container) throw new Error(`Container ${scope} not found`);
+    return page.evaluate((s) => {
+        const container = document.querySelector(s);
+        if (!container) throw new Error(`Container ${s} not found`);
         const ths = container.querySelectorAll(
             'thead[data-testid="table-header"] th',
         );
         return Array.from(ths).map((th) => th.getBoundingClientRect().width);
-    }, TABLE_SCOPE);
+    }, scope);
 }
 
 function printWidthTable(
@@ -71,83 +70,67 @@ function printWidthTable(
     );
 }
 
-test('Column widths remain stable during virtualized scroll', async ({
-    page,
-}) => {
-    test.setTimeout(120_000);
+async function findScrollContainer(
+    page: import('@playwright/test').Page,
+    scope: string,
+    tag: string,
+) {
+    await page.evaluate(
+        ({ scope: s, tag: t }) => {
+            const container = document.querySelector(s);
+            if (!container) throw new Error(`Container ${s} not found`);
+            const table = container.querySelector('table');
+            if (!table) throw new Error('No table found in container');
 
-    // --- Login ---
-    await ensureLoggedIn(page);
-
-    // --- Navigate to saved chart in edit mode ---
-    await page.goto(CHART_URL);
-
-    // --- Wait for the chart table to render ---
-    const vizContainer = page.locator(TABLE_SCOPE);
-    const tableHeader = vizContainer.locator(
-        'thead[data-testid="table-header"]',
+            let el: HTMLElement | null = table.parentElement;
+            while (el) {
+                const style = window.getComputedStyle(el);
+                if (style.overflow === 'auto' || style.overflowY === 'auto') {
+                    el.setAttribute(`data-test-scroll-${t}`, 'true');
+                    return;
+                }
+                el = el.parentElement;
+            }
+            throw new Error(
+                'No scroll container with overflow: auto found',
+            );
+        },
+        { scope, tag },
     );
-    await tableHeader.waitFor({ state: 'visible', timeout: 60_000 });
 
-    await vizContainer.locator('tbody tr td').first().waitFor({
-        state: 'visible',
-        timeout: 60_000,
-    });
+    return page.locator(`[data-test-scroll-${tag}="true"]`);
+}
 
-    // Give virtualizer time to settle
-    await page.waitForTimeout(2_000);
-
-    // --- Measurement 1: Initial column widths ---
-    const initialWidths = await measureColumnWidths(page);
+async function assertColumnWidthsStable(
+    page: import('@playwright/test').Page,
+    scope: string,
+    scrollTag: string,
+) {
+    const initialWidths = await measureColumnWidths(page, scope);
     printWidthTable('Initial widths', initialWidths);
     expect(initialWidths.length).toBeGreaterThan(0);
 
-    // --- Find the scroll container ---
-    await page.evaluate((scope) => {
-        const container = document.querySelector(scope);
-        if (!container) throw new Error(`Container ${scope} not found`);
-        const table = container.querySelector('table');
-        if (!table) throw new Error('No table found in container');
+    const scrollContainer = await findScrollContainer(page, scope, scrollTag);
 
-        let el: HTMLElement | null = table.parentElement;
-        while (el) {
-            const style = window.getComputedStyle(el);
-            if (style.overflow === 'auto' || style.overflowY === 'auto') {
-                el.setAttribute('data-test-scroll-container', 'true');
-                return;
-            }
-            el = el.parentElement;
-        }
-        throw new Error(
-            'No scroll container with overflow: auto found',
-        );
-    }, TABLE_SCOPE);
-
-    const scrollContainer = page.locator(
-        '[data-test-scroll-container="true"]',
-    );
-
-    // --- Scroll to bottom ---
+    // Scroll to bottom
     await scrollContainer.evaluate((el) => {
         el.scrollTop = el.scrollHeight;
     });
     await page.waitForTimeout(1_500);
 
-    // --- Measurement 2: After scrolling to bottom ---
-    const bottomWidths = await measureColumnWidths(page);
+    const bottomWidths = await measureColumnWidths(page, scope);
     printWidthTable('After scroll to bottom', bottomWidths, initialWidths);
 
-    // --- Scroll back to top ---
+    // Scroll back to top
     await scrollContainer.evaluate((el) => {
         el.scrollTop = 0;
     });
     await page.waitForTimeout(1_500);
 
-    // --- Measurement 3: After scrolling back to top ---
-    const topWidths = await measureColumnWidths(page);
+    const topWidths = await measureColumnWidths(page, scope);
     printWidthTable('After scroll back to top', topWidths, initialWidths);
 
-    // --- Assert no column shrunk beyond tolerance ---
+    // Assert no column shrunk beyond tolerance
     for (let i = 0; i < initialWidths.length; i++) {
         const colLabel = `Column ${i}`;
 
@@ -165,4 +148,61 @@ test('Column widths remain stable during virtualized scroll', async ({
     }
 
     console.log('\n✓ All columns remained stable within tolerance');
+}
+
+test.describe('Column width stability during virtualized scroll', () => {
+    test.beforeEach(async ({ page }) => {
+        test.setTimeout(120_000);
+        await ensureLoggedIn(page);
+        await page.goto(CHART_URL);
+    });
+
+    test('Chart table (visualization panel)', async ({ page }) => {
+        const scope = '[data-testid="visualization"]';
+        const vizContainer = page.locator(scope);
+
+        await vizContainer
+            .locator('thead[data-testid="table-header"]')
+            .waitFor({ state: 'visible', timeout: 60_000 });
+
+        await vizContainer.locator('tbody tr td').first().waitFor({
+            state: 'visible',
+            timeout: 60_000,
+        });
+
+        await page.waitForTimeout(2_000);
+
+        await assertColumnWidthsStable(page, scope, 'viz');
+    });
+
+    test('Results table', async ({ page }) => {
+        const scope = '[data-testid="results-table-container"]';
+
+        // Expand the Results panel if collapsed
+        const resultsHeading = page.getByRole('heading', {
+            name: 'Results',
+            exact: true,
+        });
+        await resultsHeading.click();
+
+        const resultsContainer = page.locator(scope);
+
+        await resultsContainer
+            .locator('thead[data-testid="table-header"]')
+            .waitFor({ state: 'visible', timeout: 60_000 });
+
+        await resultsContainer.locator('tbody tr td').first().waitFor({
+            state: 'visible',
+            timeout: 60_000,
+        });
+
+        // Switch from paginated to scroll mode
+        const scrollToggle = resultsContainer.getByText('Scroll', {
+            exact: true,
+        });
+        await scrollToggle.click();
+        await page.waitForTimeout(2_000);
+
+        await assertColumnWidthsStable(page, scope, 'results');
+    });
 });
