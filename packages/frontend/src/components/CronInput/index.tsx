@@ -1,4 +1,4 @@
-import { Group } from '@mantine/core';
+import { Group } from '@mantine-8/core';
 import {
     useCallback,
     useEffect,
@@ -51,7 +51,7 @@ export const CronInternalInputs: FC<
     );
 
     return (
-        <Group spacing="sm" align="flex-start">
+        <Group gap="sm" align="flex-start">
             <FrequencySelect
                 value={frequency}
                 disabled={disabled}

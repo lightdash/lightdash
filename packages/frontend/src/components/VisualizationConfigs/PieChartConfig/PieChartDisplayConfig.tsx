@@ -10,7 +10,7 @@ import {
     Stack,
     Switch,
     TextInput,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import React from 'react';
 import { isPieVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
@@ -40,14 +40,16 @@ export const Display: React.FC = () => {
             </Config>
 
             <Collapse in={showLegend}>
-                <Stack spacing="xs">
-                    <Group spacing="xs">
+                <Stack gap="xs">
+                    <Group gap="xs">
                         <Config.Label>Orientation</Config.Label>
                         <SegmentedControl
                             name="orient"
                             value={legendPosition}
-                            onChange={(val: PieChartLegendPosition) =>
-                                legendPositionChange(val)
+                            onChange={(val: string) =>
+                                legendPositionChange(
+                                    val as PieChartLegendPosition,
+                                )
                             }
                             data={Object.entries(PieChartLegendPositions).map(
                                 ([position, label]) => ({

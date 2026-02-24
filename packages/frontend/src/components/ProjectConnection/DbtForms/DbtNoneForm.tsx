@@ -1,4 +1,4 @@
-import { Alert, Anchor, Stack, Text } from '@mantine/core';
+import { Alert, Anchor, Stack, Text } from '@mantine-8/core';
 import { IconExclamationCircle } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';
@@ -13,7 +13,7 @@ const DbtNoneForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                 color="orange"
                 icon={<MantineIcon icon={IconExclamationCircle} size="lg" />}
             >
-                <Text color="orange">
+                <Text c="orange" fz="sm">
                     This project was created from the CLI. If you want to keep
                     Lightdash in sync with your dbt project, you need to either{' '}
                     <Anchor
@@ -22,6 +22,7 @@ const DbtNoneForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                         }
                         target="_blank"
                         rel="noreferrer"
+                        fz="sm"
                     >
                         change your connection type
                     </Anchor>
@@ -32,6 +33,7 @@ const DbtNoneForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                         }
                         target="_blank"
                         rel="noreferrer"
+                        fz="sm"
                     >
                         GitHub action
                     </Anchor>{' '}
@@ -42,6 +44,7 @@ const DbtNoneForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                         }
                         target="_blank"
                         rel="noreferrer"
+                        fz="sm"
                     >
                         lightdash deploy
                     </Anchor>{' '}
@@ -57,7 +60,7 @@ const DbtNoneForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                 name="dbt.hideRefreshButton"
                 label="Hide refresh dbt button in the app"
                 description={
-                    <p>
+                    <Text fz="sm">
                         This will hide the refresh dbt button from the explore
                         page. Read more about your{' '}
                         <Anchor
@@ -66,10 +69,11 @@ const DbtNoneForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                             }
                             target="_blank"
                             rel="noreferrer"
+                            fz="sm"
                         >
                             options for refreshing dbt here
                         </Anchor>
-                    </p>
+                    </Text>
                 }
             />
         </Stack>

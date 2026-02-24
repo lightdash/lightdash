@@ -5,10 +5,11 @@ import {
     Text,
     Tooltip,
     type SegmentedControlProps,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import React from 'react';
 import MantineIcon from '../MantineIcon';
+import styles from './AdminContentViewFilter.module.css';
 
 type AdminContentViewFilterProps = {
     withDivider?: boolean;
@@ -33,9 +34,7 @@ const AdminContentViewFilter: React.FC<AdminContentViewFilterProps> = ({
                     orientation="vertical"
                     w={1}
                     h={20}
-                    sx={{
-                        alignSelf: 'center',
-                    }}
+                    className={styles.divider}
                 />
             )}
 
@@ -48,7 +47,7 @@ const AdminContentViewFilter: React.FC<AdminContentViewFilterProps> = ({
                         value: 'shared',
                         label: (
                             <Center px={'xxs'}>
-                                <Text size="sm" color="ldDark.9">
+                                <Text fz="sm" c="ldDark.9">
                                     Shared with me
                                 </Text>
                             </Center>
@@ -71,7 +70,7 @@ const AdminContentViewFilter: React.FC<AdminContentViewFilterProps> = ({
                                         color="ldGray.6"
                                     />
                                 </Tooltip>
-                                <Text size="sm" color="ldDark.9" ml={'xxs'}>
+                                <Text fz="sm" c="ldDark.9" ml={'xxs'}>
                                     Admin Content View
                                 </Text>
                             </Center>

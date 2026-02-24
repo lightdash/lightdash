@@ -52,9 +52,7 @@ const YFieldsAxisConfig: FC<{
                     <Config.Section>
                         <Group spacing="xs">
                             <FieldReferenceSelect
-                                sx={{
-                                    flex: 1,
-                                }}
+                                flex={1}
                                 data={yLayoutOptions.map((y) => ({
                                     value: y.reference,
                                     label: y.reference,
@@ -144,9 +142,7 @@ const XFieldAxisConfig = ({
     return (
         <Group spacing="xs">
             <FieldReferenceSelect
-                sx={{
-                    flex: 1,
-                }}
+                flex={1}
                 data={xLayoutOptions.map((x) => ({
                     value: x.reference,
                     label: x.reference,
