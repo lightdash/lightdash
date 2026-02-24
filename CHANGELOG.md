@@ -1,3 +1,10 @@
+# [0.2520.0](https://github.com/lightdash/lightdash/compare/0.2519.0...0.2520.0) (2026-02-24)
+
+
+### Features
+
+* add analytics tracking for soft delete and restore operations ([#20565](https://github.com/lightdash/lightdash/issues/20565)) ([78765c5](https://github.com/lightdash/lightdash/commit/78765c5c9889b2d424df8356c7074c2c144db64e))
+
 # [0.2519.0](https://github.com/lightdash/lightdash/compare/0.2518.1...0.2519.0) (2026-02-24)
 
 
