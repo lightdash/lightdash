@@ -47,13 +47,14 @@ test.describe('Filter autoFocus bug reproduction', () => {
         await page.getByTestId('Filters-card-expand').click();
         await page.waitForTimeout(500);
 
-        // Find the number input in the first group ("Amount | is greater than | 200")
-        const numberInput = page
+        // Change the boolean filter ("Is completed | is | True") to False
+        const booleanSelect = page
             .getByTestId('FilterRuleForm/filter-rule')
-            .nth(1)
-            .locator('input[type="number"]');
-        await numberInput.click();
-        await numberInput.fill('300');
+            .first()
+            .locator('.mantine-Select-input')
+            .last();
+        await booleanSelect.click();
+        await page.locator('[role="option"]', { hasText: 'False' }).click();
 
         // Wait for re-render
         await page.waitForTimeout(500);
@@ -95,14 +96,14 @@ test.describe('Filter autoFocus bug reproduction', () => {
 
         console.log('Focus info:', JSON.stringify(focusInfo, null, 2));
 
-        // Focus should stay on rule 1 (the one we edited), not jump to the last rule
+        // Focus should stay on rule 0 (the one we edited), not jump to the last rule
         expect(
             focusInfo.focusFound,
             'Focus should be within a filter rule',
         ).toBe(true);
         expect(
             focusInfo.ruleIndex,
-            `Focus should stay on rule 1 (the one we edited), but jumped to rule ${focusInfo.ruleIndex}`,
-        ).toBe(1);
+            `Focus should stay on rule 0 (the one we edited), but jumped to rule ${focusInfo.ruleIndex}`,
+        ).toBe(0);
     });
 });
