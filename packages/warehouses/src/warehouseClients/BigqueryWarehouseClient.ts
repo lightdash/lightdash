@@ -14,6 +14,7 @@ import {
     AnyType,
     BigqueryAuthenticationType,
     BigqueryDataset,
+    BigqueryProject,
     CreateBigqueryCredentials,
     DimensionType,
     getErrorMessage,
@@ -745,5 +746,68 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
             datasetId: d.id!,
         }));
         return databases;
+    }
+
+    static async getProjects(
+        accessToken: string,
+    ): Promise<BigqueryProject[]> {
+        // Use BigQuery REST API directly instead of the SDK because:
+        // - The SDK requires a projectId to instantiate, but we need to list all accessible projects first
+        // - getDatabases above uses the SDK because it already has a projectId to query datasets within
+        // https://cloud.google.com/bigquery/docs/reference/rest/v2/projects/list
+
+        const fetchPage = async (
+            pageToken?: string,
+        ): Promise<BigqueryProject[]> => {
+            const url = new URL(
+                'https://bigquery.googleapis.com/bigquery/v2/projects',
+            );
+            url.searchParams.set('maxResults', '1000');
+            if (pageToken) {
+                url.searchParams.set('pageToken', pageToken);
+            }
+
+            const response = await fetch(url.toString(), {
+                headers: {
+                    Authorization: `Bearer ${accessToken}`,
+                },
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                // Log full error for debugging but return sanitized message to user
+                // eslint-disable-next-line no-console
+                console.error(
+                    `BigQuery projects API error (HTTP ${response.status}): ${errorText}`,
+                );
+                throw new WarehouseConnectionError(
+                    `Failed to list BigQuery projects (HTTP ${response.status})`,
+                );
+            }
+
+            const data = (await response.json()) as {
+                projects?: Array<{
+                    id: string;
+                    friendlyName?: string;
+                }>;
+                nextPageToken?: string;
+            };
+
+            const projects: BigqueryProject[] = (data.projects ?? []).map(
+                (p) => ({
+                    projectId: p.id,
+                    friendlyName: p.friendlyName ?? null,
+                }),
+            );
+
+            if (data.nextPageToken) {
+                const nextPageProjects = await fetchPage(data.nextPageToken);
+                return [...projects, ...nextPageProjects];
+            }
+
+            return projects;
+        };
+
+        return fetchPage();
     }
 }
