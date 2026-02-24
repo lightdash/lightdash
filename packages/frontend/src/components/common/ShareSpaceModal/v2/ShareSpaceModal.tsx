@@ -63,26 +63,25 @@ import {
 
 type AuditUser = SpaceShare & {
     origin: string;
-    originColor: string;
 };
 
 const getOriginInfo = (
     share: SpaceShare,
     bucket: 'direct' | 'parentSpace' | 'project' | 'organization',
-): Pick<AuditUser, 'origin' | 'originColor'> => {
+): Pick<AuditUser, 'origin'> => {
     if (bucket === 'direct') {
         if (share.inheritedFrom === 'space_group') {
-            return { origin: 'Group', originColor: 'teal' };
+            return { origin: 'Group' };
         }
-        return { origin: 'Direct', originColor: 'green' };
+        return { origin: 'Direct' };
     }
     if (bucket === 'parentSpace') {
-        return { origin: 'Parent', originColor: 'violet' };
+        return { origin: 'Parent' };
     }
     if (bucket === 'project') {
-        return { origin: 'Project', originColor: 'blue' };
+        return { origin: 'Project' };
     }
-    return { origin: 'Organization', originColor: 'gray.6' };
+    return { origin: 'Organization' };
 };
 
 type UserAccessAuditListProps = {
@@ -159,25 +158,17 @@ const UserAccessAuditList: FC<UserAccessAuditListProps> = ({
                             </Text>
                         </Group>
 
-                        <Group gap="xs" wrap="nowrap">
-                            <Badge
-                                size="xs"
-                                variant="light"
-                                color={user.originColor}
-                                radius="xs"
-                            >
-                                {user.origin}
-                            </Badge>
-                            <Badge
-                                size="xs"
-                                color={`${roleColor}.${roleShade}`}
-                                radius="xs"
-                            >
-                                {UserAccessOptions.find(
-                                    (o) => o.value === user.role,
-                                )?.title ?? user.role}
-                            </Badge>
-                        </Group>
+                        <Badge
+                            size="sm"
+                            variant="light"
+                            color={`${roleColor}.${roleShade}`}
+                            radius="xl"
+                        >
+                            {user.origin} &middot;{' '}
+                            {UserAccessOptions.find(
+                                (o) => o.value === user.role,
+                            )?.title ?? user.role}
+                        </Badge>
                     </Group>
                 );
             })}
@@ -390,10 +381,7 @@ const ShareSpaceModalV2A: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
                             <Tabs.Tab
                                 value="manage"
                                 leftSection={
-                                    <MantineIcon
-                                        icon={IconSettings}
-                                        size="sm"
-                                    />
+                                    <MantineIcon icon={IconUsers} size="sm" />
                                 }
                             >
                                 Shared with ({manageCount})
@@ -401,7 +389,10 @@ const ShareSpaceModalV2A: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
                             <Tabs.Tab
                                 value="audit"
                                 leftSection={
-                                    <MantineIcon icon={IconUsers} size="sm" />
+                                    <MantineIcon
+                                        icon={IconSettings}
+                                        size="sm"
+                                    />
                                 }
                             >
                                 Who has access ({auditUsers.length})

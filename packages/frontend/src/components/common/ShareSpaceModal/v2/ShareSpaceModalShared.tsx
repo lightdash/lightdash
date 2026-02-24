@@ -140,11 +140,12 @@ export const UserAccessList: FC<UserAccessListProps> = ({
 
                         {isSessionUser || !sharedUser.hasDirectAccess ? (
                             <Badge
-                                size="xs"
+                                size="sm"
+                                variant="light"
                                 color={getAccessColor(sharedUser.role).join(
                                     '.',
                                 )}
-                                radius="xs"
+                                radius="xl"
                                 mr="xs"
                             >
                                 {UserAccessOptions.find(
