@@ -82,9 +82,10 @@ export const TableProvider: FC<React.PropsWithChildren<ProviderProps>> = ({
     }, [columnOrder]);
 
     const withTotals = showColumnCalculation ? 60 : 0;
+    const maxRowCount = Math.max(data.length, totalRowsCount);
     const rowColumnWidth = hideRowNumbers
         ? 0
-        : Math.max(withTotals, `${data.length}`.length * 10 + 20);
+        : Math.max(withTotals, `${maxRowCount}`.length * 10 + 20);
     const effectiveRowColumnWidth = isTableColumnWidthStabilizationEnabled
         ? Math.max(rowColumnWidth, 50)
         : rowColumnWidth;
