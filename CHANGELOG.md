@@ -1,3 +1,10 @@
+# [0.2518.0](https://github.com/lightdash/lightdash/compare/0.2517.0...0.2518.0) (2026-02-24)
+
+
+### Features
+
+* fetch bigquery projects dynamically ([#20200](https://github.com/lightdash/lightdash/issues/20200)) ([a081639](https://github.com/lightdash/lightdash/commit/a081639bc85900291e50a283e317a976b2a13ce2))
+
 # [0.2517.0](https://github.com/lightdash/lightdash/compare/0.2516.0...0.2517.0) (2026-02-24)
 
 
