@@ -1,0 +1,15 @@
+{
+    "extends": "./../../../tsconfig.json",
+    "compilerOptions": {
+        "composite": true,
+        "target": "ES2022",
+        "module": "ES2022",
+        "moduleResolution": "bundler",
+        "lib": ["ES2022"],
+        "types": ["vitest/globals", "node"],
+        "strictNullChecks": true,
+        "esModuleInterop": true,
+        "resolveJsonModule": true
+    },
+    "include": ["**/*.ts"]
+}
