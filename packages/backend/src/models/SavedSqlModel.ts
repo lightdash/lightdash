@@ -22,6 +22,10 @@ import {
 import { DbSpace, SpaceTableName } from '../database/entities/spaces';
 import { UserTableName } from '../database/entities/users';
 import { generateUniqueSlug } from '../utils/SlugUtils';
+import {
+    deleteExpiredSoftDeletedRows,
+    type SoftDeletableModel,
+} from './SoftDeletableModel';
 
 type SelectSavedSql = Pick<
     DbSavedSql,
@@ -52,7 +56,7 @@ type SelectSavedSql = Pick<
         last_version_updated_by_user_last_name: string | null;
     };
 
-export class SavedSqlModel {
+export class SavedSqlModel implements SoftDeletableModel {
     private database: Knex;
 
     constructor(args: { database: Knex }) {
@@ -412,17 +416,15 @@ export class SavedSqlModel {
         retentionDays: number,
         limit: number,
     ): Promise<number> {
-        const subquery = this.database(SavedSqlTableName)
-            .select('saved_sql_uuid')
-            .whereNotNull('deleted_at')
-            .andWhereRaw('deleted_at < NOW() - make_interval(days => ?)', [
-                retentionDays,
-            ])
-            .orderBy('deleted_at', 'asc')
-            .limit(limit);
-        return this.database(SavedSqlTableName)
-            .whereIn('saved_sql_uuid', subquery)
-            .delete();
+        return deleteExpiredSoftDeletedRows(
+            this.database,
+            {
+                tableName: SavedSqlTableName,
+                pkColumn: 'saved_sql_uuid',
+            },
+            retentionDays,
+            limit,
+        );
     }
 
     async permanentDelete(savedSqlUuid: string): Promise<void> {

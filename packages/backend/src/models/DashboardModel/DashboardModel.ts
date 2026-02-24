@@ -74,6 +74,10 @@ import { SpaceTableName } from '../../database/entities/spaces';
 import { UserTable, UserTableName } from '../../database/entities/users';
 import { DbValidationTable } from '../../database/entities/validation';
 import { generateUniqueSlug } from '../../utils/SlugUtils';
+import {
+    deleteExpiredSoftDeletedRows,
+    type SoftDeletableModel,
+} from '../SoftDeletableModel';
 import { SpaceModel } from '../SpaceModel';
 import Transaction = Knex.Transaction;
 
@@ -128,7 +132,7 @@ type DashboardModelArguments = {
     };
 };
 
-export class DashboardModel {
+export class DashboardModel implements SoftDeletableModel<DashboardDAO> {
     private readonly database: Knex;
 
     private readonly lightdashConfig?: DashboardModelArguments['lightdashConfig'];
@@ -1273,23 +1277,6 @@ export class DashboardModel {
         );
     }
 
-    async permanentlyDeleteExpiredBatch(
-        retentionDays: number,
-        limit: number,
-    ): Promise<number> {
-        const subquery = this.database(DashboardsTableName)
-            .select('dashboard_id')
-            .whereNotNull('deleted_at')
-            .andWhereRaw('deleted_at < NOW() - make_interval(days => ?)', [
-                retentionDays,
-            ])
-            .orderBy('deleted_at', 'asc')
-            .limit(limit);
-        return this.database(DashboardsTableName)
-            .whereIn('dashboard_id', subquery)
-            .delete();
-    }
-
     async permanentDelete(dashboardUuid: string): Promise<DashboardDAO> {
         const dashboard = await this.getByIdOrSlug(dashboardUuid);
         await this.database(DashboardsTableName)
@@ -1357,6 +1344,21 @@ export class DashboardModel {
                     dashboardRow.deleted_by_user_uuid,
                 );
         }
+    }
+
+    async permanentlyDeleteExpiredBatch(
+        retentionDays: number,
+        limit: number,
+    ): Promise<number> {
+        return deleteExpiredSoftDeletedRows(
+            this.database,
+            {
+                tableName: DashboardsTableName,
+                pkColumn: 'dashboard_id',
+            },
+            retentionDays,
+            limit,
+        );
     }
 
     async addVersion(
