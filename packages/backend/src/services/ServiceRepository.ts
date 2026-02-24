@@ -514,6 +514,7 @@ export class ServiceRepository
             'persistentDownloadFileService',
             () =>
                 new PersistentDownloadFileService({
+                    analytics: this.context.lightdashAnalytics,
                     lightdashConfig: this.context.lightdashConfig,
                     persistentDownloadFileModel:
                         this.models.getPersistentDownloadFileModel(),
