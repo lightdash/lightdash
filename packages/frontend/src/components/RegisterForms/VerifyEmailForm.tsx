@@ -9,7 +9,7 @@ import {
 } from '../../hooks/useEmailVerification';
 import useApp from '../../providers/App/useApp';
 import Callout from '../common/Callout';
-import LoadingState from '../common/LoadingState';
+import EmptyStateLoader from '../common/EmptyStateLoader';
 
 const VerifyEmailForm: FC<{
     isLoading?: boolean;
@@ -53,7 +53,7 @@ const VerifyEmailForm: FC<{
     }, [data, setFieldError, clearFieldError]);
 
     if (loadingState) {
-        return <LoadingState title="" />;
+        return <EmptyStateLoader my="xl" />;
     }
 
     return (

@@ -1,5 +1,5 @@
 import { type ApiErrorDetail } from '@lightdash/common';
-import { Anchor, createStyles, keyframes, Loader, Text } from '@mantine/core';
+import { Anchor, createStyles, keyframes, Text } from '@mantine/core';
 import { IconTableOff } from '@tabler/icons-react';
 import { Fragment, type FC } from 'react';
 import { LD_FIELD_COLORS } from '../../../mantineTheme';
@@ -7,6 +7,7 @@ import { TrackSection } from '../../../providers/Tracking/TrackingProvider';
 import NoTableIcon from '../../../svgs/emptystate-no-table.svg?react';
 import { SectionName } from '../../../types/Events';
 import { EmptyState } from '../../common/EmptyState';
+import EmptyStateLoader from '../../common/EmptyStateLoader';
 import MantineIcon from '../../common/MantineIcon';
 import DocumentationHelpButton from '../../DocumentationHelpButton';
 import { RefreshButton } from '../../RefreshButton';
@@ -197,9 +198,7 @@ export const NoTableSelected = () => (
 );
 
 export const EmptyStateExploreLoading = () => (
-    <EmptyState title="Loading tables...">
-        <Loader color="gray" />
-    </EmptyState>
+    <EmptyStateLoader title="Loading tables..." />
 );
 
 export const ExploreIdleState = () => (
@@ -214,9 +213,10 @@ export const ExploreEmptyQueryState = () => (
 );
 
 export const ExploreLoadingState = () => (
-    <EmptyState title="Loading results">
-        <Loader color="gray" data-testid="results-table-loading" />
-    </EmptyState>
+    <EmptyStateLoader
+        title="Loading results"
+        data-testid="results-table-loading"
+    />
 );
 
 export const ExploreErrorState = ({

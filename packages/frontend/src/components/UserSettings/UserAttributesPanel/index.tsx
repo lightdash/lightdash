@@ -27,7 +27,7 @@ import {
     useUserAttributesDeleteMutation,
 } from '../../../hooks/useUserAttributes';
 import useApp from '../../../providers/App/useApp';
-import LoadingState from '../../common/LoadingState';
+import EmptyStateLoader from '../../common/EmptyStateLoader';
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
 import { SettingsCard } from '../../common/Settings/SettingsCard';
@@ -139,7 +139,7 @@ const UserAttributesPanel: FC = () => {
     }
 
     if (isInitialLoading) {
-        return <LoadingState title="Loading user attributes" />;
+        return <EmptyStateLoader my="xl" title="Loading user attributes" />;
     }
 
     if (userGroupsFeatureFlagQuery.isError) {
@@ -203,7 +203,7 @@ const UserAttributesPanel: FC = () => {
             </Group>
 
             {isInitialLoading ? (
-                <LoadingState title="Loading user attributes" />
+                <EmptyStateLoader title="Loading user attributes" />
             ) : orgUserAttributes?.length === 0 ? (
                 <SettingsCard shadow="none">
                     You don't have any attributes defined
