@@ -13,6 +13,7 @@ declare module '@tanstack/react-table' {
         width?: number;
         draggable?: boolean;
         item?: ItemsMap[string];
+        labelOverride?: string;
         pivotReference?: PivotReference;
         bgColor?: string;
         sort?: Sort;
