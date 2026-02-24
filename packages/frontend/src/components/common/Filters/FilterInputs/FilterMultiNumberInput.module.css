@@ -1,0 +1,12 @@
+.tagInputContainer {
+    max-height: 350px;
+    overflow-y: auto;
+}
+
+.moreValuesPill {
+    cursor: pointer;
+}
+
+.summaryInput {
+    cursor: pointer;
+}
