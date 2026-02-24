@@ -18,8 +18,6 @@ import { expect, test, type Page } from 'playwright/test';
 const BASE_URL = 'http://localhost:3000';
 const CHART_EDIT_URL = `${BASE_URL}/projects/3675b69e-8324-4110-bdca-059031aa8da3/saved/02f7317b-7c6f-407f-911c-4e8bc14745e6/edit`;
 
-test.use({ headless: false, launchOptions: { slowMo: 500 } });
-
 async function getFocusedRuleIndex(page: Page) {
     return page.evaluate(() => {
         const focused = document.activeElement;
@@ -82,7 +80,6 @@ test.describe('Filter autoFocus bug reproduction', () => {
         await page.getByTestId('Filters-card-expand').click();
         await page.waitForTimeout(500);
 
-        // Change the boolean filter ("Is completed | is | True") to False
         const booleanSelect = page
             .getByTestId('FilterRuleForm/filter-rule')
             .first()
@@ -93,7 +90,6 @@ test.describe('Filter autoFocus bug reproduction', () => {
         await page.waitForTimeout(500);
 
         const focusInfo = await getFocusedRuleIndex(page);
-        console.log('Focus info:', JSON.stringify(focusInfo, null, 2));
 
         expect(
             focusInfo.focusFound,
@@ -119,7 +115,6 @@ test.describe('Filter autoFocus bug reproduction', () => {
             .getByTestId('FilterRuleForm/filter-rule')
             .count();
 
-        // Click "Add filter" and select a field
         await page.getByTestId('FiltersForm/add-filter-button').click();
         await page.waitForTimeout(500);
         await page.locator('[role="option"]').first().click();
@@ -131,10 +126,6 @@ test.describe('Filter autoFocus bug reproduction', () => {
         expect(newCount).toBe(initialCount + 1);
 
         const focusInfo = await getFocusedRuleIndex(page);
-        console.log(
-            'Focus info (add filter):',
-            JSON.stringify(focusInfo, null, 2),
-        );
 
         expect(
             focusInfo.focusFound,
@@ -160,7 +151,6 @@ test.describe('Filter autoFocus bug reproduction', () => {
             .getByTestId('FilterRuleForm/filter-rule')
             .count();
 
-        // Click "Add group rule" on the first group
         await page.getByText('Add group rule').first().click();
         await page.waitForTimeout(1000);
 
@@ -170,18 +160,11 @@ test.describe('Filter autoFocus bug reproduction', () => {
         expect(newCount).toBe(initialCount + 1);
 
         const focusInfo = await getFocusedRuleIndex(page);
-        console.log(
-            'Focus info (add group rule):',
-            JSON.stringify(focusInfo, null, 2),
-        );
 
-        // The new rule was added inside the first group (after rule 1),
-        // so it should be at index 2. Rules after it (the second group) shift down.
         expect(
             focusInfo.focusFound,
             `Focus should be within a filter rule, but was on <${focusInfo.activeTag}>`,
         ).toBe(true);
-        // The new rule is inserted at index 2 (after the 2 existing rules in the first group)
         expect(
             focusInfo.ruleIndex,
             `Focus should be on the newly added group rule (rule 2), but was on rule ${focusInfo.ruleIndex}`,
