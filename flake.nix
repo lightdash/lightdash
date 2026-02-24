@@ -48,7 +48,7 @@
 
             buildInputs = with pkgs; [
               nodejs_20
-              corepack
+              pnpm_9
 
               # for dbt
               python312
@@ -64,6 +64,19 @@
               okteto
 
               graphite-cli
+
+              # for canvas native module
+              expat
+              zlib
+              util-linux # libuuid
+              xz # liblzma
+            ];
+
+            env.LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath [
+              pkgs.expat
+              pkgs.zlib
+              pkgs.util-linux
+              pkgs.xz
             ];
 
             shellHook = ''
