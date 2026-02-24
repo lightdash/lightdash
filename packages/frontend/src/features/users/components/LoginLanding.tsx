@@ -1,5 +1,3 @@
-import { useCallback, useEffect, useState, type FC } from 'react';
-
 import {
     getEmailSchema,
     isOpenIdIdentityIssuerType,
@@ -10,7 +8,6 @@ import {
     SEED_ORG_1_ADMIN_PASSWORD,
     type OpenIdIdentityIssuerType,
 } from '@lightdash/common';
-
 import {
     ActionIcon,
     Anchor,
@@ -27,6 +24,7 @@ import {
 import { useForm, zodResolver } from '@mantine/form';
 import { useTimeout } from '@mantine/hooks';
 import { IconX } from '@tabler/icons-react';
+import { useCallback, useEffect, useState, type FC } from 'react';
 import { Navigate, useLocation } from 'react-router';
 import { z } from 'zod';
 import MantineIcon from '../../../components/common/MantineIcon';

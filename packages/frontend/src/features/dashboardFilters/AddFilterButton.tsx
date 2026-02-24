@@ -9,7 +9,7 @@ import {
 } from '@mantine-8/core';
 import { useDisclosure, useId } from '@mantine-8/hooks';
 import { IconRotate2 } from '@tabler/icons-react';
-import { type FC, useCallback, useMemo } from 'react';
+import { useCallback, useMemo, type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import FilterConfiguration from './FilterConfiguration';

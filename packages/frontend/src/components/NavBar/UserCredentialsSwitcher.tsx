@@ -11,9 +11,9 @@ import {
 } from '../../hooks/userWarehouseCredentials/useProjectUserWarehouseCredentialsPreference';
 import { useProjectUserWarehouseCredentials } from '../../hooks/userWarehouseCredentials/useUserWarehouseCredentials';
 import useApp from '../../providers/App/useApp';
+import MantineIcon from '../common/MantineIcon';
 import { getWarehouseLabel } from '../ProjectConnection/ProjectConnectFlow/utils';
 import { CreateCredentialsModal } from '../UserSettings/MyWarehouseConnectionsPanel/CreateCredentialsModal';
-import MantineIcon from '../common/MantineIcon';
 
 const routesThatNeedWarehouseCredentials = [
     '/projects/:projectUuid/tables/:tableId',

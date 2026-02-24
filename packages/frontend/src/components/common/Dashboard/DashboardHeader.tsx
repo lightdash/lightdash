@@ -1,9 +1,9 @@
 import { subject } from '@casl/ability';
 import {
     ContentType,
+    ResourceViewItemType,
     type Dashboard,
     type FeatureFlags,
-    ResourceViewItemType,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -61,18 +61,18 @@ import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import AddTileButton from '../../DashboardTiles/AddTileButton';
 import MantineIcon from '../MantineIcon';
+import DashboardUpdateModal from '../modal/DashboardUpdateModal';
 import PageHeader from '../Page/PageHeader';
 import DashboardInfoOverlay from '../PageHeader/DashboardInfoOverlay';
 import { ShareLinkButton } from '../ShareLinkButton';
 import SpaceActionModal from '../SpaceActionModal';
 import { ActionType } from '../SpaceActionModal/types';
 import TransferItemsModal from '../TransferItemsModal/TransferItemsModal';
-import DashboardUpdateModal from '../modal/DashboardUpdateModal';
-import { DashboardRefreshButton } from './DashboardRefreshButton';
 import {
     DASHBOARD_HEADER_HEIGHT,
     DASHBOARD_HEADER_ZINDEX,
 } from './dashboard.constants';
+import { DashboardRefreshButton } from './DashboardRefreshButton';
 
 type DashboardHeaderProps = {
     dashboard: Dashboard;

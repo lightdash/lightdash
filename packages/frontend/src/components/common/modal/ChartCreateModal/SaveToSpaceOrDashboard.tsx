@@ -1,8 +1,8 @@
 import { subject } from '@casl/ability';
 import {
+    assertUnreachable,
     ChartType,
     DashboardTileTypes,
-    assertUnreachable,
     getDefaultChartTileSize,
     hasUnusedDimensions,
     type CreateSavedChartVersion,
@@ -17,8 +17,8 @@ import {
     Radio,
     Stack,
     Text,
-    TextInput,
     Textarea,
+    TextInput,
 } from '@mantine-8/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { IconPlus } from '@tabler/icons-react';

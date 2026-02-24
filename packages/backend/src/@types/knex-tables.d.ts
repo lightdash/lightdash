@@ -1,9 +1,37 @@
 import {
+    AiAgentReasoningTable,
+    AiAgentReasoningTableName,
+} from '../database/entities/aiAgentReasoning';
+import {
+    AnalyticsChartViews,
+    AnalyticsChartViewsTableName,
+    AnalyticsDashboardViews,
+    AnalyticsDashboardViewsTableName,
+} from '../database/entities/analytics';
+import {
+    CatalogTable,
+    CatalogTableName,
+    CatalogTagsTable,
+    CatalogTagsTableName,
+    MetricsTreeEdgesTableName,
+    MetricsTreeLocksTableName,
+    MetricsTreeNodesTableName,
+    MetricsTreesTableName,
+    type MetricsTreeEdgesTable,
+    type MetricsTreeLocksTable,
+    type MetricsTreeNodesTable,
+    type MetricsTreesTable,
+} from '../database/entities/catalog';
+import {
     ChangesetsTable,
     ChangesetsTableName,
     ChangesTable,
     ChangesTableName,
 } from '../database/entities/changesets';
+import {
+    DashboardTileCommentsTable,
+    DashboardTileCommentsTableName,
+} from '../database/entities/comments';
 import {
     DashboardsTableName,
     DashboardTable,
@@ -25,7 +53,32 @@ import {
     DashboardViewsTableName,
     DashboardViewTable,
 } from '../database/entities/dashboards';
+import {
+    DownloadAuditTable,
+    DownloadAuditTableName,
+} from '../database/entities/downloadAudit';
+import {
+    DownloadFileTable,
+    DownloadFileTableName,
+} from '../database/entities/downloadFile';
+import {
+    EmailOneTimePasscodesTableName,
+    EmailOneTimePasscodeTable,
+} from '../database/entities/emailOneTimePasscodes';
 import { EmailTable, EmailTableName } from '../database/entities/emails';
+import {
+    GithubAppInstallationTable,
+    GithubAppInstallationTableName,
+} from '../database/entities/githubAppInstallation';
+import {
+    GitlabAppInstallationTable,
+    GitlabAppInstallationTableName,
+} from '../database/entities/gitlabAppInstallation';
+import {
+    GroupMembershipTable,
+    GroupMembershipTableName,
+} from '../database/entities/groupMemberships';
+import { GroupTable, GroupTableName } from '../database/entities/groups';
 import {
     InviteLinkTable,
     InviteLinkTableName,
@@ -37,6 +90,10 @@ import {
     JobStepsTableName,
 } from '../database/entities/jobs';
 import {
+    NotificationsTable,
+    NotificationsTableName,
+} from '../database/entities/notifications';
+import {
     OnboardingTable,
     OnboardingTableName,
 } from '../database/entities/onboarding';
@@ -44,6 +101,10 @@ import {
     OpenIdIdentitiesTable,
     OpenIdIdentitiesTableName,
 } from '../database/entities/openIdIdentities';
+import {
+    OrganizationColorPaletteTable,
+    OrganizationColorPaletteTableName,
+} from '../database/entities/organizationColorPalettes';
 import {
     OrganizationMembershipsTable,
     OrganizationMembershipsTableName,
@@ -53,6 +114,16 @@ import {
     OrganizationTableName,
 } from '../database/entities/organizations';
 import {
+    OrganizationAllowedEmailDomainProjectsTable,
+    OrganizationAllowedEmailDomainProjectsTableName,
+    OrganizationAllowedEmailDomainsTable,
+    OrganizationAllowedEmailDomainsTableName,
+} from '../database/entities/organizationsAllowedEmailDomains';
+import {
+    OrganizationWarehouseCredentialsTable,
+    OrganizationWarehouseCredentialsTableName,
+} from '../database/entities/organizationWarehouseCredentials';
+import {
     PasswordLoginTable,
     PasswordLoginTableName,
 } from '../database/entities/passwordLogins';
@@ -60,6 +131,10 @@ import {
     PasswordResetTable,
     PasswordResetTableName,
 } from '../database/entities/passwordResetLinks';
+import {
+    PersistentDownloadFileTable,
+    PersistentDownloadFileTableName,
+} from '../database/entities/persistentDownloadFile';
 import {
     PersonalAccessTokenTable,
     PersonalAccessTokenTableName,
@@ -75,9 +150,17 @@ import {
     PinnedSpaceTableName,
 } from '../database/entities/pinnedList';
 import {
+    ProjectGroupAccessTable,
+    ProjectGroupAccessTableName,
+} from '../database/entities/projectGroupAccess';
+import {
     ProjectMembershipsTable,
     ProjectMembershipsTableName,
 } from '../database/entities/projectMemberships';
+import {
+    ProjectParametersTable,
+    ProjectParametersTableName,
+} from '../database/entities/projectParameters';
 import {
     CachedExploresTable,
     CachedExploresTableName,
@@ -88,6 +171,16 @@ import {
     ProjectTable,
     ProjectTableName,
 } from '../database/entities/projects';
+import {
+    QueryHistoryTable,
+    QueryHistoryTableName,
+} from '../database/entities/queryHistory';
+import {
+    RolesTableName,
+    RoleTable,
+    ScopedRolesTableName,
+    ScopedRoleTable,
+} from '../database/entities/roles';
 import {
     SavedChartAdditionalMetricTable,
     SavedChartAdditionalMetricTableName,
@@ -106,121 +199,6 @@ import {
     SavedChartVersionsTable,
     SavedChartVersionsTableName,
 } from '../database/entities/savedCharts';
-import { SessionTable, SessionTableName } from '../database/entities/sessions';
-import { ShareTable, ShareTableName } from '../database/entities/share';
-import {
-    SlackAuthTokensTable,
-    SlackAuthTokensTableName,
-} from '../database/entities/slackAuthentication';
-import {
-    SlackChannelsTable,
-    SlackChannelsTableName,
-} from '../database/entities/slackChannels';
-import {
-    SpaceTable,
-    SpaceTableName,
-    SpaceUserAccessTable,
-    SpaceUserAccessTableName,
-} from '../database/entities/spaces';
-import { UserTable, UserTableName } from '../database/entities/users';
-import {
-    WarehouseCredentialTable,
-    WarehouseCredentialTableName,
-} from '../database/entities/warehouseCredentials';
-
-import {
-    AiAgentReasoningTable,
-    AiAgentReasoningTableName,
-} from '../database/entities/aiAgentReasoning';
-import {
-    AnalyticsChartViews,
-    AnalyticsChartViewsTableName,
-    AnalyticsDashboardViews,
-    AnalyticsDashboardViewsTableName,
-} from '../database/entities/analytics';
-import {
-    CatalogTable,
-    CatalogTableName,
-    CatalogTagsTable,
-    CatalogTagsTableName,
-    type MetricsTreeEdgesTable,
-    MetricsTreeEdgesTableName,
-    type MetricsTreeLocksTable,
-    MetricsTreeLocksTableName,
-    type MetricsTreeNodesTable,
-    MetricsTreeNodesTableName,
-    type MetricsTreesTable,
-    MetricsTreesTableName,
-} from '../database/entities/catalog';
-import {
-    DashboardTileCommentsTable,
-    DashboardTileCommentsTableName,
-} from '../database/entities/comments';
-import {
-    DownloadAuditTable,
-    DownloadAuditTableName,
-} from '../database/entities/downloadAudit';
-import {
-    DownloadFileTable,
-    DownloadFileTableName,
-} from '../database/entities/downloadFile';
-import {
-    EmailOneTimePasscodesTableName,
-    EmailOneTimePasscodeTable,
-} from '../database/entities/emailOneTimePasscodes';
-import {
-    GithubAppInstallationTable,
-    GithubAppInstallationTableName,
-} from '../database/entities/githubAppInstallation';
-import {
-    GitlabAppInstallationTable,
-    GitlabAppInstallationTableName,
-} from '../database/entities/gitlabAppInstallation';
-import {
-    GroupMembershipTable,
-    GroupMembershipTableName,
-} from '../database/entities/groupMemberships';
-import { GroupTable, GroupTableName } from '../database/entities/groups';
-import {
-    NotificationsTable,
-    NotificationsTableName,
-} from '../database/entities/notifications';
-import {
-    OrganizationColorPaletteTable,
-    OrganizationColorPaletteTableName,
-} from '../database/entities/organizationColorPalettes';
-import {
-    OrganizationWarehouseCredentialsTable,
-    OrganizationWarehouseCredentialsTableName,
-} from '../database/entities/organizationWarehouseCredentials';
-import {
-    OrganizationAllowedEmailDomainProjectsTable,
-    OrganizationAllowedEmailDomainProjectsTableName,
-    OrganizationAllowedEmailDomainsTable,
-    OrganizationAllowedEmailDomainsTableName,
-} from '../database/entities/organizationsAllowedEmailDomains';
-import {
-    PersistentDownloadFileTable,
-    PersistentDownloadFileTableName,
-} from '../database/entities/persistentDownloadFile';
-import {
-    ProjectGroupAccessTable,
-    ProjectGroupAccessTableName,
-} from '../database/entities/projectGroupAccess';
-import {
-    ProjectParametersTable,
-    ProjectParametersTableName,
-} from '../database/entities/projectParameters';
-import {
-    QueryHistoryTable,
-    QueryHistoryTableName,
-} from '../database/entities/queryHistory';
-import {
-    RolesTableName,
-    RoleTable,
-    ScopedRolesTableName,
-    ScopedRoleTable,
-} from '../database/entities/roles';
 import {
     SavedSqlTable,
     SavedSqlTableName,
@@ -239,6 +217,22 @@ import {
     SchedulerTable,
     SchedulerTableName,
 } from '../database/entities/scheduler';
+import { SessionTable, SessionTableName } from '../database/entities/sessions';
+import { ShareTable, ShareTableName } from '../database/entities/share';
+import {
+    SlackAuthTokensTable,
+    SlackAuthTokensTableName,
+} from '../database/entities/slackAuthentication';
+import {
+    SlackChannelsTable,
+    SlackChannelsTableName,
+} from '../database/entities/slackChannels';
+import {
+    SpaceTable,
+    SpaceTableName,
+    SpaceUserAccessTable,
+    SpaceUserAccessTableName,
+} from '../database/entities/spaces';
 import {
     SpotlightTableConfigTable,
     SpotlightTableConfigTableName,
@@ -260,6 +254,7 @@ import {
     UserFavoritesTable,
     UserFavoritesTableName,
 } from '../database/entities/userFavorites';
+import { UserTable, UserTableName } from '../database/entities/users';
 import {
     ProjectUserWarehouseCredentialPreferenceTable,
     ProjectUserWarehouseCredentialPreferenceTableName,
@@ -274,6 +269,10 @@ import {
     WarehouseAvailableTablesTable,
     WarehouseAvailableTablesTableName,
 } from '../database/entities/warehouseAvailableTables';
+import {
+    WarehouseCredentialTable,
+    WarehouseCredentialTableName,
+} from '../database/entities/warehouseCredentials';
 import {
     AiAgentToolCallTable,
     AiAgentToolCallTableName,

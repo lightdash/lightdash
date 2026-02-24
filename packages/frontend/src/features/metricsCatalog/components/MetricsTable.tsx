@@ -1,7 +1,7 @@
 import {
+    assertUnreachable,
     FeatureFlags,
     SpotlightTableColumns,
-    assertUnreachable,
     type CatalogCategoryFilterMode,
     type CatalogItem,
 } from '@lightdash/common';
@@ -19,8 +19,8 @@ import {
 } from '@mantine/core';
 import {
     IconArrowDown,
-    IconArrowUp,
     IconArrowsSort,
+    IconArrowUp,
 } from '@tabler/icons-react';
 import { useIsMutating } from '@tanstack/react-query';
 import { ReactFlowProvider } from '@xyflow/react';

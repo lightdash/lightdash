@@ -10,9 +10,9 @@ import useFullscreen from '../../providers/Fullscreen/useFullscreen';
 import Mantine8Provider from '../../providers/Mantine8Provider';
 import { BANNER_HEIGHT, NAVBAR_HEIGHT } from '../common/Page/constants';
 import { DashboardExplorerBanner } from './DashboardExplorerBanner';
+import classes from './index.module.css';
 import { MainNavBarContent } from './MainNavBarContent';
 import { PreviewBanner } from './PreviewBanner';
-import classes from './index.module.css';
 
 enum NavBarMode {
     DEFAULT = 'default',

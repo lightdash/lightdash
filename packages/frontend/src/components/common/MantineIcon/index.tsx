@@ -1,7 +1,7 @@
 import type { MantineColor, MantineSpacing } from '@mantine-8/core';
 import {
-    type Icon as TablerIconType,
     type TablerIconsProps,
+    type Icon as TablerIconType,
 } from '@tabler/icons-react';
 import { forwardRef } from 'react';
 

@@ -4,10 +4,10 @@ import clamp from 'lodash/clamp';
 import { memo, useEffect, useMemo, useRef, useState, type FC } from 'react';
 import { DEFAULT_ROW_HEIGHT } from '../../features/dashboardTabs/gridUtils';
 import useEchartsGaugeConfig from '../../hooks/echarts/useEchartsGaugeConfig';
-import EChartsReact from '../EChartsReactWrapper';
-import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
 import LoadingChart from '../common/LoadingChart';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
+import EChartsReact from '../EChartsReactWrapper';
+import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
 
 const EmptyChart = () => (
     <div style={{ height: '100%', width: '100%', padding: '50px 0' }}>

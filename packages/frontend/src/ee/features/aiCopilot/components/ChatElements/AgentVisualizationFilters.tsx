@@ -15,7 +15,6 @@ import {
 import { Button, Flex, Text } from '@mantine-8/core';
 import { useMemo, type FC } from 'react';
 import { getConditionalRuleLabel } from '../../../../../components/common/Filters/FilterInputs/utils';
-
 import classes from './AgentVisualizationFilters.module.css';
 
 const FilterRuleDisplay: FC<{

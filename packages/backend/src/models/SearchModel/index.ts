@@ -7,6 +7,9 @@ import {
     ExploreError,
     ExploreType,
     FieldSearchResult,
+    hasIntersection,
+    isDimension,
+    isExploreError,
     NotFoundError,
     SavedChartSearchResult,
     SearchFilters,
@@ -17,15 +20,12 @@ import {
     TableErrorSearchResult,
     TableSearchResult,
     TableSelectionType,
-    hasIntersection,
-    isDimension,
-    isExploreError,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import {
+    DashboardsTableName,
     DashboardTabsTableName,
     DashboardVersionsTableName,
-    DashboardsTableName,
 } from '../../database/entities/dashboards';
 import {
     CachedExploresTableName,

@@ -33,9 +33,9 @@ import {
     type FilterGroupInput,
     type FilterGroupItem,
     type FilterGroupItemInput,
-    type FiltersInput,
     type FilterRule,
     type Filters,
+    type FiltersInput,
     type SpaceSummaryBase,
 } from '@lightdash/common';
 import { v4 as uuidv4 } from 'uuid';
@@ -257,30 +257,26 @@ export class CoderService extends BaseService {
     ): Required<NonNullable<DashboardAsCode['filters']>> {
         const dimensionFiltersWithoutUuids: NonNullable<
             DashboardAsCode['filters']
-        >['dimensions'] =
-            dashboard.filters.dimensions.map((filter) => {
-                const tileTargets = Object.entries(
-                    filter.tileTargets ?? {},
-                ).reduce<Record<string, DashboardTileTarget>>(
-                    (acc, [tileUuid, target]) => {
-                        const tileSlug = CoderService.getChartSlugForTileUuid(
-                            dashboard,
-                            tileUuid,
-                        );
-                        if (!tileSlug) return acc;
-                        return {
-                            ...acc,
-                            [tileSlug]: target,
-                        };
-                    },
-                    {},
+        >['dimensions'] = dashboard.filters.dimensions.map((filter) => {
+            const tileTargets = Object.entries(filter.tileTargets ?? {}).reduce<
+                Record<string, DashboardTileTarget>
+            >((acc, [tileUuid, target]) => {
+                const tileSlug = CoderService.getChartSlugForTileUuid(
+                    dashboard,
+                    tileUuid,
                 );
+                if (!tileSlug) return acc;
                 return {
-                    ...filter,
-                    id: undefined,
-                    tileTargets,
+                    ...acc,
+                    [tileSlug]: target,
                 };
-            });
+            }, {});
+            return {
+                ...filter,
+                id: undefined,
+                tileTargets,
+            };
+        });
 
         return {
             ...dashboard.filters,
@@ -329,8 +325,7 @@ export class CoderService extends BaseService {
             });
         return {
             metrics: dashboardAsCode.filters?.metrics ?? [],
-            tableCalculations:
-                dashboardAsCode.filters?.tableCalculations ?? [],
+            tableCalculations: dashboardAsCode.filters?.tableCalculations ?? [],
             dimensions: dimensionFiltersWithUuids,
         };
     }

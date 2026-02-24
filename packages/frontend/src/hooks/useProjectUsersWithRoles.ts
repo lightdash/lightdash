@@ -1,10 +1,10 @@
 import {
-    FeatureFlags,
-    ProjectMemberRole,
     convertOrganizationRoleToProjectRole,
     convertProjectRoleToOrganizationRole,
+    FeatureFlags,
     getHighestProjectRole,
     isGroupWithMembers,
+    ProjectMemberRole,
     type InheritedRoles,
     type KnexPaginateArgs,
     type OrganizationMemberProfile,

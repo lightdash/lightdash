@@ -34,10 +34,8 @@ if (typeof Node !== 'undefined' && Node.prototype) {
 }
 
 import '@mantine-8/core/styles.css';
-
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-
 import App from './App';
 
 const container = document.getElementById('root');

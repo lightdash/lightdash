@@ -33,10 +33,10 @@ import { UserAccessAction, UserAccessOptions } from '../ShareSpaceSelect';
 import { getInitials, getUserNameOrEmail } from '../Utils';
 import classes from './ShareSpaceModalShared.module.css';
 import {
+    getAccessColor,
     InheritanceType,
     NestedInheritanceOptions,
     RootInheritanceOptions,
-    getAccessColor,
     sortAccessList,
     type SortOrder,
 } from './ShareSpaceModalUtils';

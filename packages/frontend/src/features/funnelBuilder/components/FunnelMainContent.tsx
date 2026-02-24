@@ -1,5 +1,5 @@
 import { Group, Loader, Stack, Text } from '@mantine-8/core';
-import { type FC, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type FC } from 'react';
 import { useAppSelector } from '../store';
 import { selectQueryLoading, selectResults } from '../store/funnelBuilderSlice';
 import { FunnelBarChart } from './FunnelBarChart';

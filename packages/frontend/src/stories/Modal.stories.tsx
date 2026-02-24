@@ -1,5 +1,3 @@
-import type { Meta, StoryObj } from '@storybook/react';
-
 import {
     Button,
     Divider,
@@ -9,10 +7,11 @@ import {
     Stack,
     Table,
     Text,
-    TextInput,
     Textarea,
+    TextInput,
 } from '@mantine-8/core';
 import { useForm } from '@mantine/form';
+import type { Meta, StoryObj } from '@storybook/react';
 import {
     IconExternalLink,
     IconFolderShare,

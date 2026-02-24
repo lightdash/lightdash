@@ -1,7 +1,7 @@
 import { type ApiErrorDetail } from '@lightdash/common';
 import { Badge, Group, Title } from '@mantine-8/core';
 import { IconFlask2Filled } from '@tabler/icons-react';
-import { type FC, useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, type FC } from 'react';
 import { Provider } from 'react-redux';
 import { Navigate, useParams } from 'react-router';
 import Page from '../../components/common/Page/Page';

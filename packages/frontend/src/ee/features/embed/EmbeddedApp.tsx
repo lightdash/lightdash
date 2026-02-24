@@ -1,5 +1,5 @@
 import { type SavedChart } from '@lightdash/common';
-import { type FC, useState } from 'react';
+import { useState, type FC } from 'react';
 import { Outlet, useNavigate, useParams } from 'react-router';
 import EmbedProvider from '../../providers/Embed/EmbedProvider';
 

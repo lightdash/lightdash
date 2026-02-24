@@ -15,8 +15,8 @@ import { useClientFeatureFlag } from '../../../../../hooks/useServerOrClientFeat
 import useApp from '../../../../../providers/App/useApp';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
-import DocumentationHelpButton from '../../../../DocumentationHelpButton';
 import MantineIcon from '../../../../common/MantineIcon';
+import DocumentationHelpButton from '../../../../DocumentationHelpButton';
 import { TreeSection, type SectionHeaderItem } from './types';
 
 interface VirtualSectionHeaderProps {

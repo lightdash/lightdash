@@ -40,10 +40,10 @@ import {
     useDeleteAccessToken,
     useRotateAccessToken,
 } from '../../../hooks/useAccessToken';
-import DocumentationHelpButton from '../../DocumentationHelpButton';
 import Callout from '../../common/Callout';
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
+import DocumentationHelpButton from '../../DocumentationHelpButton';
 import { useExpireOptions } from './useExpireOptions';
 
 const TokenItem: FC<{

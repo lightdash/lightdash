@@ -1,20 +1,20 @@
 import {
     Avatar,
     Combobox,
-    type ComboboxProps,
     Group,
     Tooltip,
     UnstyledButton,
     useCombobox,
+    type ComboboxProps,
 } from '@mantine-8/core';
 import { IconChevronDown } from '@tabler/icons-react';
 import { LightdashUserAvatar } from '../../../../../components/Avatar';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import Logo from '../../../../../svgs/logo-icon-round.svg?react';
 import {
-    type Agent,
     getAgentOptions,
     renderSelectOption,
+    type Agent,
 } from './AgentSelectorUtils';
 
 type Props = ComboboxProps & {

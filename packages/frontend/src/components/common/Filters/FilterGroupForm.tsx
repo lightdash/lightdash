@@ -1,6 +1,6 @@
 import {
-    FilterGroupOperator,
     createFilterRuleFromField,
+    FilterGroupOperator,
     getFilterGroupItemsPropertyName,
     getFiltersFromGroup,
     getItemsFromFilterGroup,
@@ -11,10 +11,10 @@ import {
     isMetric,
     isTableCalculation,
     type CustomSqlDimension,
-    type FilterGroup,
-    type FilterRule,
     type FilterableDimension,
     type FilterableField,
+    type FilterGroup,
+    type FilterRule,
     type Metric,
     type TableCalculation,
 } from '@lightdash/common';
@@ -31,8 +31,8 @@ import { IconPlus } from '@tabler/icons-react';
 import React, { memo, useCallback, useMemo, useState, type FC } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import MantineIcon from '../MantineIcon';
-import FilterRuleForm from './FilterRuleForm';
 import { FILTER_SELECT_LIMIT } from './constants';
+import FilterRuleForm from './FilterRuleForm';
 
 type Props = {
     hideButtons?: boolean;

@@ -10,7 +10,7 @@ import { IconCheck, IconCirclePlus, IconSelector } from '@tabler/icons-react';
 import { useNavigate } from 'react-router';
 import { LightdashUserAvatar } from '../../../../../components/Avatar';
 import MantineIcon from '../../../../../components/common/MantineIcon';
-import { type Agent, getAgentOptions } from './AgentSelectorUtils';
+import { getAgentOptions, type Agent } from './AgentSelectorUtils';
 
 type Props = {
     agents: Agent[];

@@ -1,8 +1,8 @@
 import {
+    parseAccount,
     type Account,
     type AccountWithoutHelpers,
     type ApiError,
-    parseAccount,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { lightdashApi } from '../../api';

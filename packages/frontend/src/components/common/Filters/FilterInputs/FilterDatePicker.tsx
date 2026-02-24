@@ -1,11 +1,10 @@
 import { DateInput, type DateInputProps, type DayOfWeek } from '@mantine/dates';
 import { type FC } from 'react';
 
-interface Props
-    extends Omit<
-        DateInputProps,
-        'firstDayOfWeek' | 'getDayProps' | 'value' | 'onChange'
-    > {
+interface Props extends Omit<
+    DateInputProps,
+    'firstDayOfWeek' | 'getDayProps' | 'value' | 'onChange'
+> {
     value: Date | null;
     onChange: (value: Date) => void;
     firstDayOfWeek: DayOfWeek;

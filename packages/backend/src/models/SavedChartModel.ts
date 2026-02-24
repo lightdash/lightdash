@@ -562,9 +562,14 @@ export class SavedChartModel {
                 `${UserTableName}.user_uuid`,
             )
             .whereNull(`${SavedChartsTableName}.deleted_at`)
-            .select<
-                VersionSummaryRow[]
-            >(`${SavedChartsTableName}.saved_query_uuid`, `${SavedChartVersionsTableName}.saved_queries_version_uuid`, `${SavedChartVersionsTableName}.created_at`, `${UserTableName}.user_uuid`, `${UserTableName}.first_name`, `${UserTableName}.last_name`)
+            .select<VersionSummaryRow[]>(
+                `${SavedChartsTableName}.saved_query_uuid`,
+                `${SavedChartVersionsTableName}.saved_queries_version_uuid`,
+                `${SavedChartVersionsTableName}.created_at`,
+                `${UserTableName}.user_uuid`,
+                `${UserTableName}.first_name`,
+                `${UserTableName}.last_name`,
+            )
             .orderBy(`${SavedChartVersionsTableName}.created_at`, 'desc');
     }
 

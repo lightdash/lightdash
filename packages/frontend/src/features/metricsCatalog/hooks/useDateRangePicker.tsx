@@ -1,6 +1,6 @@
 import {
-    TimeFrames,
     assertUnimplementedTimeframe,
+    TimeFrames,
     type MetricExplorerDateRange,
     type MetricExplorerPartialDateRange,
 } from '@lightdash/common';
@@ -379,16 +379,16 @@ export const useDateRangePicker = ({
 
                             const isSelected = Boolean(
                                 tempDateRange[0] &&
-                                    tempDateRange[1] &&
-                                    date >=
-                                        dayjs(tempDateRange[0])
-                                            .startOf('isoWeek')
-                                            .toDate() &&
-                                    date <=
-                                        dayjs(tempDateRange[1])
-                                            .endOf('isoWeek')
-                                            .toDate() &&
-                                    !isInFuture, // Don't highlight future dates
+                                tempDateRange[1] &&
+                                date >=
+                                    dayjs(tempDateRange[0])
+                                        .startOf('isoWeek')
+                                        .toDate() &&
+                                date <=
+                                    dayjs(tempDateRange[1])
+                                        .endOf('isoWeek')
+                                        .toDate() &&
+                                !isInFuture, // Don't highlight future dates
                             );
 
                             return {

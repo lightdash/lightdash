@@ -8,8 +8,8 @@ import { useSpace } from '../../../hooks/useSpaces';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import { type SuggestionsItem } from '../types';
 import { getNameInitials } from '../utils';
-import { LazyCommentWithMentions } from './CommentWithMentions/LazyCommentWithMentions';
 import styles from './CommentForm.module.css';
+import { LazyCommentWithMentions } from './CommentWithMentions/LazyCommentWithMentions';
 
 type Props = {
     userName: string;

@@ -1,7 +1,7 @@
 import { TimeFrames, type CatalogMetricsTreeEdge } from '@lightdash/common';
 import {
-    MarkerType,
     addEdge,
+    MarkerType,
     useEdgesState,
     useNodesInitialized,
     useNodesState,

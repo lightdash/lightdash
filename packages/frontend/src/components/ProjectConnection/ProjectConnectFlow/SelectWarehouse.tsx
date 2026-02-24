@@ -7,12 +7,12 @@ import { useOrganization } from '../../../hooks/organization/useOrganization';
 import useApp from '../../../providers/App/useApp';
 import MantineIcon from '../../common/MantineIcon';
 import { ProjectCreationCard } from '../../common/Settings/SettingsCard';
-import InviteExpertFooter from './InviteExpertFooter';
 import OnboardingButton from './common/OnboardingButton';
 import { OnboardingConnectTitle } from './common/OnboardingTitle';
 import OnboardingWrapper from './common/OnboardingWrapper';
+import InviteExpertFooter from './InviteExpertFooter';
 import { type SelectedWarehouse } from './types';
-import { WarehouseTypeLabels, getWarehouseIcon } from './utils';
+import { getWarehouseIcon, WarehouseTypeLabels } from './utils';
 
 interface SelectWarehouseProps {
     isCreatingFirstProject: boolean;

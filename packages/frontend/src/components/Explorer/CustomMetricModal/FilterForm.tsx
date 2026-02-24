@@ -3,9 +3,9 @@ import {
     getFieldRef,
     isDimension,
     type FieldTarget,
+    type FilterableDimension,
     type FilterOperator,
     type FilterRule,
-    type FilterableDimension,
 } from '@lightdash/common';
 import { Button, Stack } from '@mantine/core';
 import {
@@ -22,8 +22,10 @@ import FilterRuleForm from '../../common/Filters/FilterRuleForm';
 import useFiltersContext from '../../common/Filters/useFiltersContext';
 import { addFieldRefToFilterRule } from './utils';
 
-export interface MetricFilterRuleWithFieldId
-    extends FilterRule<FilterOperator, FieldTarget & { fieldRef: string }> {}
+export interface MetricFilterRuleWithFieldId extends FilterRule<
+    FilterOperator,
+    FieldTarget & { fieldRef: string }
+> {}
 
 export const FilterForm: FC<{
     defaultFilterRuleFieldId: string | undefined;

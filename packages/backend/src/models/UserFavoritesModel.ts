@@ -1,8 +1,8 @@
 import {
     ContentType,
+    ResourceViewItemType,
     type ResourceViewChartItem,
     type ResourceViewDashboardItem,
-    ResourceViewItemType,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
 import { DashboardsTableName } from '../database/entities/dashboards';
@@ -11,8 +11,8 @@ import { ProjectTableName } from '../database/entities/projects';
 import { SavedChartsTableName } from '../database/entities/savedCharts';
 import { SpaceTableName } from '../database/entities/spaces';
 import {
-    type CreateDbUserFavorite,
     UserFavoritesTableName,
+    type CreateDbUserFavorite,
 } from '../database/entities/userFavorites';
 import { type ResourceViewSpaceItemBase } from './ResourceViewItemModel';
 import { getRootSpaceIsPrivateQuery } from './SpacePermissionModel';

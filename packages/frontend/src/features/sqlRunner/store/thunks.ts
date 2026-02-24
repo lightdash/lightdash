@@ -1,13 +1,12 @@
-// FIXES ts2742 issue with configureStore
-// eslint-disable-next-line @typescript-eslint/no-unused-vars, no-unused-vars
-import type * as rtk from '@reduxjs/toolkit';
-
 import {
     ChartKind,
     isApiError,
     type ApiErrorDetail,
     type ParametersValuesMap,
 } from '@lightdash/common';
+// FIXES ts2742 issue with configureStore
+// eslint-disable-next-line @typescript-eslint/no-unused-vars, no-unused-vars
+import type * as rtk from '@reduxjs/toolkit';
 import { createAsyncThunk } from '@reduxjs/toolkit';
 import { type RootState } from '.';
 import {

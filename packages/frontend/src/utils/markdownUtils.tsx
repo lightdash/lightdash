@@ -1,9 +1,9 @@
 import {
     Divider,
-    type MantineStyleProp,
     rem,
     Title,
     useMantineTheme,
+    type MantineStyleProp,
 } from '@mantine-8/core';
 import type MarkdownPreview from '@uiw/react-markdown-preview';
 import type MDEditor from '@uiw/react-md-editor';

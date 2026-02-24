@@ -599,10 +599,7 @@ describe('UserService', () => {
             };
         };
 
-        const callOnLogin = async (
-            service: UserService,
-            user: SessionUser,
-        ) => {
+        const callOnLogin = async (service: UserService, user: SessionUser) => {
             (
                 userModel.getSessionUserFromCacheOrDB as jest.Mock
             ).mockResolvedValueOnce({

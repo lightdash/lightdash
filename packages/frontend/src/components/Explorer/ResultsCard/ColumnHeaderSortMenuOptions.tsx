@@ -14,9 +14,9 @@ import {
     useExplorerDispatch,
 } from '../../../features/explorer/store';
 import {
-    SortDirection,
     getSortDirectionOrder,
     getSortLabel,
+    SortDirection,
 } from '../../../utils/sortUtils';
 import MantineIcon from '../../common/MantineIcon';
 

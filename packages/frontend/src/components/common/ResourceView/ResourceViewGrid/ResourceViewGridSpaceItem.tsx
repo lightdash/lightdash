@@ -1,18 +1,8 @@
 import { type ResourceViewSpaceItem } from '@lightdash/common';
-import {
-    Box,
-    Flex,
-    Group,
-    Paper,
-    Stack,
-    Text,
-    Tooltip,
-} from '@mantine-8/core';
+import { Box, Flex, Group, Paper, Stack, Text, Tooltip } from '@mantine-8/core';
 import { useDisclosure, useHover } from '@mantine/hooks';
-import classes from './ResourceViewGridSpaceItem.module.css';
 import { IconChartBar, IconLayoutDashboard } from '@tabler/icons-react';
 import { useMemo, type FC, type ReactNode } from 'react';
-
 import { ResourceIcon } from '../../ResourceIcon';
 import AccessInfo from '../ResourceAccessInfo';
 import ResourceViewActionMenu, {
@@ -20,6 +10,7 @@ import ResourceViewActionMenu, {
 } from '../ResourceActionMenu';
 import AttributeCount from '../ResourceAttributeCount';
 import { getResourceAccessLabel } from '../utils';
+import classes from './ResourceViewGridSpaceItem.module.css';
 
 interface ResourceViewGridSpaceItemProps extends Pick<
     ResourceViewActionMenuCommonProps,
@@ -103,9 +94,7 @@ const ResourceViewGridSpaceItem: FC<ResourceViewGridSpaceItemProps> = ({
                         e.preventDefault();
                     }}
                 >
-                    <Box
-                        display={hovered || opened ? 'block' : 'none'}
-                    >
+                    <Box display={hovered || opened ? 'block' : 'none'}>
                         <ResourceViewActionMenu
                             item={item}
                             allowDelete={allowDelete}

@@ -1,9 +1,9 @@
 import {
     ECHARTS_DEFAULT_COLORS,
-    MetricExplorerComparison,
     getDefaultDateRangeFromInterval,
     getFilterDimensionsForMetric,
     getSegmentDimensionsForMetric,
+    MetricExplorerComparison,
     type CatalogField,
     type FilterRule,
     type MetricExplorerDateRange,

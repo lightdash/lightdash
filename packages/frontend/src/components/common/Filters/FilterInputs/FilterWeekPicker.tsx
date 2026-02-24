@@ -7,11 +7,10 @@ import {
     startOfWeek,
 } from '../utils/filterDateUtils';
 
-interface Props
-    extends Omit<
-        DateInputProps,
-        'getDayProps' | 'firstDayOfWeek' | 'value' | 'onChange'
-    > {
+interface Props extends Omit<
+    DateInputProps,
+    'getDayProps' | 'firstDayOfWeek' | 'value' | 'onChange'
+> {
     value: Date | null;
     onChange: (value: Date) => void;
     firstDayOfWeek: DayOfWeek;

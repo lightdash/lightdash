@@ -6,7 +6,7 @@ import {
 } from '@lightdash/common';
 import { ScimPatch } from 'scim-patch';
 import { ScimService } from './ScimService';
-import { ScimServiceArgumentsMock, mockUser } from './ScimService.mock';
+import { mockUser, ScimServiceArgumentsMock } from './ScimService.mock';
 
 describe('ScimService', () => {
     const service = new ScimService(ScimServiceArgumentsMock);

@@ -14,8 +14,8 @@ import {
     OrganizationMemberRole,
     SessionUser,
     SupportedDbtAdapter,
-    TableSelectionType,
     TablesConfiguration,
+    TableSelectionType,
     type DashboardFilters,
 } from '@lightdash/common';
 import { LightdashConfig } from '../../config/parseConfig';

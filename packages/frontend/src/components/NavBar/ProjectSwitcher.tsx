@@ -1,7 +1,7 @@
 import { subject } from '@casl/ability';
 import {
-    ProjectType,
     assertUnreachable,
+    ProjectType,
     type OrganizationProject,
 } from '@lightdash/common';
 import {
@@ -10,6 +10,7 @@ import {
     Box,
     Button,
     Collapse,
+    getDefaultZIndex,
     Group,
     Highlight,
     Menu,
@@ -18,7 +19,6 @@ import {
     Text,
     TextInput,
     Tooltip,
-    getDefaultZIndex,
 } from '@mantine-8/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import {

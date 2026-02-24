@@ -1,3 +1,4 @@
+import { subject } from '@casl/ability';
 import {
     Account,
     AnyType,
@@ -9,8 +10,6 @@ import {
     UnusedContent,
     UserActivity,
 } from '@lightdash/common';
-
-import { subject } from '@casl/ability';
 import { stringify } from 'csv-stringify/sync';
 import { nanoid } from 'nanoid';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';

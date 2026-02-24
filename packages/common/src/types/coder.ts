@@ -72,7 +72,6 @@ export type ChartAsCode = Omit<
     downloadedAt?: Date;
 };
 
-
 // SQL Charts are stored separately from regular saved charts
 // They have SQL queries instead of metricQuery/tableName
 export type SqlChartAsCode = Pick<

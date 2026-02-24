@@ -1,18 +1,18 @@
 import {
     AlreadyExistsError,
     CreateGroup,
+    getErrorMessage,
     Group,
     GroupMember,
     GroupMembership,
     GroupWithMembers,
+    isSystemRole,
     NotFoundError,
     ParameterError,
     ProjectGroupAccess,
     ProjectMemberRole,
     UnexpectedDatabaseError,
     UpdateGroupWithMembers,
-    getErrorMessage,
-    isSystemRole,
     type KnexPaginateArgs,
     type KnexPaginatedData,
 } from '@lightdash/common';
@@ -117,9 +117,10 @@ export class GroupsModel {
                 'groups.organization_id',
                 'organizations.organization_id',
             )
-            .select<
-                (DbGroup & Pick<DbOrganization, 'organization_uuid'>)[]
-            >('groups.*', 'organizations.organization_uuid');
+            .select<(DbGroup & Pick<DbOrganization, 'organization_uuid'>)[]>(
+                'groups.*',
+                'organizations.organization_uuid',
+            );
 
         // Exact match for organization UUID
         if (filters.organizationUuid) {
@@ -188,7 +189,13 @@ export class GroupsModel {
                         Pick<DbUser, 'user_uuid' | 'first_name' | 'last_name'> &
                         Pick<DbEmail, 'email'>
                 >
-            >(`${GroupMembershipTableName}.group_uuid`, `${UserTableName}.user_uuid`, `${UserTableName}.first_name`, `${UserTableName}.last_name`, `${EmailTableName}.email`);
+            >(
+                `${GroupMembershipTableName}.group_uuid`,
+                `${UserTableName}.user_uuid`,
+                `${UserTableName}.first_name`,
+                `${UserTableName}.last_name`,
+                `${EmailTableName}.email`,
+            );
 
         if (filters.organizationUuid) {
             void membersQuery
@@ -324,9 +331,10 @@ export class GroupsModel {
                 'organizations.organization_id',
             )
             .where('group_uuid', groupUuid)
-            .select<
-                (DbGroup & Pick<DbOrganization, 'organization_uuid'>)[]
-            >('groups.*', 'organizations.organization_uuid');
+            .select<(DbGroup & Pick<DbOrganization, 'organization_uuid'>)[]>(
+                'groups.*',
+                'organizations.organization_uuid',
+            );
         if (group === undefined) {
             throw new NotFoundError(`No group found`);
         }

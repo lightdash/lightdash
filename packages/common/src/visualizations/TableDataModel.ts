@@ -2,7 +2,6 @@ import { type AnyType } from '../types/any';
 import { type RawResultRow } from '../types/results';
 import { type ChartKind } from '../types/savedCharts';
 import { type SqlRunnerQuery, type SqlRunnerSortBy } from '../types/sqlRunner';
-
 import {
     type PivotChartData,
     type VizTableConfig,

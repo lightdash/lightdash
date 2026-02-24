@@ -1,7 +1,7 @@
 import {
     AiResultType,
-    type Explore,
     SupportedDbtAdapter,
+    type Explore,
 } from '@lightdash/common';
 import { translateToolProposeChangeArgs } from './proposeChange';
 

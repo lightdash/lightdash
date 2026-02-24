@@ -9,9 +9,9 @@ import { isDateFilterRule, type DateFilterSettings } from '../types/filter';
 import { type AdditionalMetric } from '../types/metricQuery';
 import type { ParametersValuesMap } from '../types/parameters';
 import {
-    type ReplaceCustomFields,
     type ReplaceableCustomFields,
     type ReplaceableFieldMatchMap,
+    type ReplaceCustomFields,
 } from '../types/savedCharts';
 import { getFormatExpression } from './formatting';
 import { getItemId } from './item';

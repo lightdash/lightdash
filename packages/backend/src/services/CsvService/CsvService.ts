@@ -47,12 +47,11 @@ import {
     validateSelectedTabs,
     type RunQueryTags,
 } from '@lightdash/common';
+import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import archiver from 'archiver';
 import { stringify } from 'csv-stringify';
 import * as fs from 'fs';
 import * as fsPromise from 'fs/promises';
-
-import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import isNil from 'lodash/isNil';
 import moment from 'moment';
 import { nanoid } from 'nanoid';

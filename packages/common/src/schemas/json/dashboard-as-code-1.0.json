@@ -5,14 +5,7 @@
     "description": "Schema for defining Lightdash dashboards in YAML format for version control",
     "type": "object",
     "additionalProperties": false,
-    "required": [
-        "name",
-        "slug",
-        "spaceSlug",
-        "version",
-        "tiles",
-        "tabs"
-    ],
+    "required": ["name", "slug", "spaceSlug", "version", "tiles", "tabs"],
     "properties": {
         "version": {
             "type": "number",

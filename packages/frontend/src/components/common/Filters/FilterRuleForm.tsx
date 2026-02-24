@@ -1,12 +1,12 @@
 import {
-    FilterType,
     createFilterRuleFromField,
+    FilterType,
     getFilterRuleFromFieldWithDefaultValue,
     getFilterTypeFromItem,
     getItemId,
     isDateItem,
-    type FilterRule,
     type FilterableField,
+    type FilterRule,
 } from '@lightdash/common';
 import { Menu } from '@mantine-8/core';
 import { ActionIcon, Box, Group, Select, Tooltip } from '@mantine/core';

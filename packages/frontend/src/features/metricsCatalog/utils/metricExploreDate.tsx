@@ -1,7 +1,7 @@
 import {
-    TimeFrames,
     assertUnimplementedTimeframe,
     getDefaultDateRangeFromInterval,
+    TimeFrames,
     type MetricExplorerPartialDateRange,
 } from '@lightdash/common';
 import dayjs from 'dayjs';
@@ -291,4 +291,3 @@ export const getMatchingPresetLabel = (
     });
     return matchingPreset?.controlLabel;
 };
-

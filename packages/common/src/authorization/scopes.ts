@@ -1,9 +1,9 @@
 import flow from 'lodash/flow';
 import { ProjectType } from '../types/projects';
 import {
+    ScopeGroup,
     type Scope,
     type ScopeContext,
-    ScopeGroup,
     type ScopeName,
 } from '../types/scopes';
 import { SpaceMemberRole } from '../types/space';

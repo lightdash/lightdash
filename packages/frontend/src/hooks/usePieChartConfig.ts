@@ -1,11 +1,11 @@
 import {
-    PieChartLegendLabelMaxLengthDefault,
-    PieChartLegendPositionDefault,
     formatItemValue,
     isField,
     isHexCodeColor,
     isMetric,
     isTableCalculation,
+    PieChartLegendLabelMaxLengthDefault,
+    PieChartLegendPositionDefault,
     type CustomDimension,
     type Dimension,
     type ItemsMap,

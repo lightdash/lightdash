@@ -9,7 +9,6 @@ import {
 } from '@lightdash/common';
 import OAuth2Server from '@node-oauth/oauth2-server';
 import { ErrorRequestHandler, Request, RequestHandler } from 'express';
-
 import passport from 'passport';
 import { URL } from 'url';
 import { fromApiKey, fromOauth } from '../../auth/account/account';

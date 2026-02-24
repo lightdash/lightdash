@@ -21,9 +21,9 @@ import {
     Space,
     SpaceAccess,
     SpaceGroup,
-    type SpaceSummaryBase,
     UnexpectedServerError,
     UpdateSqlChart,
+    type SpaceSummaryBase,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';

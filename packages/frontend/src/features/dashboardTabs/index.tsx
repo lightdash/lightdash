@@ -15,12 +15,12 @@ import { useCallback, useMemo, useRef, useState, type FC } from 'react';
 import { Responsive, WidthProvider, type Layout } from 'react-grid-layout';
 import { useLocation, useNavigate } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
-import EmptyStateNoTiles from '../../components/DashboardTiles/EmptyStateNoTiles';
 import { DASHBOARD_HEADER_HEIGHT } from '../../components/common/Dashboard/dashboard.constants';
 import MantineIcon from '../../components/common/MantineIcon';
+import { LockedDashboardModal } from '../../components/common/modal/LockedDashboardModal';
 import { ScrollToTop } from '../../components/common/ScrollToTop';
 import { StickyWithDetection } from '../../components/common/StickyWithDetection';
-import { LockedDashboardModal } from '../../components/common/modal/LockedDashboardModal';
+import EmptyStateNoTiles from '../../components/DashboardTiles/EmptyStateNoTiles';
 import useToaster from '../../hooks/toaster/useToaster';
 import useApp from '../../providers/App/useApp';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
@@ -35,13 +35,13 @@ import { TabDeleteModal } from './DeleteTabModal';
 import DuplicateTabModal from './DuplicateTabModal';
 import { TabEditModal } from './EditTabModal';
 import GridTile from './GridTile';
-import DraggableTab from './Tab';
 import {
     convertLayoutToBaseCoordinates,
     getReactGridLayoutConfig,
     getResponsiveGridLayoutProps,
     GRID_CONTAINER_PADDING,
 } from './gridUtils';
+import DraggableTab from './Tab';
 import styles from './tabs.module.css';
 import { useGridStyles } from './useGridStyles';
 

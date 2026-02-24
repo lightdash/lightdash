@@ -3,8 +3,8 @@ import {
     Select,
     Stack,
     Switch,
-    TextInput,
     Textarea,
+    TextInput,
 } from '@mantine-8/core';
 import { type UseFormReturnType } from '@mantine/form';
 import { type FC } from 'react';

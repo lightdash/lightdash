@@ -4,7 +4,6 @@ import {
     DatabricksAuthenticationType,
     WarehouseTypes,
 } from '@lightdash/common';
-
 import type {
     CreateAthenaCredentials,
     CreateBigqueryCredentials,

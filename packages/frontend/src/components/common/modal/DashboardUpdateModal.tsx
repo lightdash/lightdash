@@ -2,8 +2,8 @@ import { type Dashboard } from '@lightdash/common';
 import {
     Button,
     Stack,
-    TextInput,
     Textarea,
+    TextInput,
     type ModalProps,
 } from '@mantine-8/core';
 import { useForm } from '@mantine/form';

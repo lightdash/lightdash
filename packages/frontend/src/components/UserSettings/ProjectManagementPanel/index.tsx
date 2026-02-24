@@ -1,7 +1,7 @@
 import { subject } from '@casl/ability';
 import {
-    ProjectType,
     assertUnreachable,
+    ProjectType,
     type OrganizationProject,
 } from '@lightdash/common';
 import {

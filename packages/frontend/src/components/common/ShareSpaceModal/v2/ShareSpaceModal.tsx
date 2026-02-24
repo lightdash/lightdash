@@ -39,7 +39,6 @@ import {
     useDeleteSpaceShareMutation,
 } from '../../../../hooks/useSpaces';
 import useApp from '../../../../providers/App/useApp';
-
 import MantineIcon from '../../MantineIcon';
 import MantineModal from '../../MantineModal';
 import PaginateControl from '../../PaginateControl';

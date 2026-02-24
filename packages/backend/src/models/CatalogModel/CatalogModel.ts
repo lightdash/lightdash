@@ -1,5 +1,6 @@
 import {
     AlreadyExistsError,
+    assertUnreachable,
     CatalogCategoryFilterMode,
     CatalogFilter,
     CatalogItemIcon,
@@ -10,16 +11,15 @@ import {
     CompiledDimension,
     CompiledMetric,
     CompiledTable,
+    convertToAiHints,
     Explore,
     FieldType,
+    isExploreError,
     NotFoundError,
     TableSelectionType,
     UNASSIGNED_OWNER,
     UNCATEGORIZED_TAG_UUID,
     UnexpectedServerError,
-    assertUnreachable,
-    convertToAiHints,
-    isExploreError,
     type ApiCatalogSearch,
     type ApiSort,
     type CatalogFieldMap,
@@ -50,11 +50,11 @@ import {
     CatalogTableName,
     CatalogTagsTableName,
     DbCatalogTagIn,
+    getDbCatalogColumnFromCatalogProperty,
     MetricsTreeEdgesTableName,
     MetricsTreeLocksTableName,
     MetricsTreeNodesTableName,
     MetricsTreesTableName,
-    getDbCatalogColumnFromCatalogProperty,
     type DbCatalog,
     type DbCatalogTagsMigrateIn,
     type DbMetricsTree,
@@ -77,9 +77,9 @@ import {
     getWebSearchRankCalcSql,
 } from '../SearchModel/utils/search';
 import {
-    MetricTreeEdge,
     buildYamlMetricTreeEdges,
     convertExploresToCatalog,
+    MetricTreeEdge,
 } from './utils';
 import { parseCatalog } from './utils/parser';
 

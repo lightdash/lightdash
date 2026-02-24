@@ -2,19 +2,17 @@ import {
     Box,
     Tree as MantineTree,
     rem,
-    type TreeNodeData,
     useTree,
+    type TreeNodeData,
 } from '@mantine-8/core';
 import isEqual from 'lodash/isEqual';
 import React, { useCallback, useEffect, useMemo, useRef } from 'react';
-
 import { type FuzzyMatches } from '../../../hooks/useFuzzySearch';
+import classes from './Tree.module.css';
 import TreeItem from './TreeItem';
 import { type NestableItem } from './types';
 import { type FuzzyFilteredItem } from './useFuzzyTreeSearch';
 import { convertNestableListToTree, getAllParentPaths } from './utils';
-
-import classes from './Tree.module.css';
 
 type Data<T> = T | FuzzyFilteredItem<T> | FuzzyFilteredItem<FuzzyMatches<T>>;
 

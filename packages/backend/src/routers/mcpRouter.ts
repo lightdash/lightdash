@@ -1,10 +1,3 @@
-// eslint-disable-next-line import/extensions
-import { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
-// eslint-disable-next-line import/extensions
-import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import express, { type Router } from 'express';
-import { IncomingMessage } from 'http';
-
 import {
     ApiKeyAccount,
     ForbiddenError,
@@ -15,6 +8,12 @@ import {
     ServiceAcctAccount,
     UserAttributeValueMap,
 } from '@lightdash/common';
+// eslint-disable-next-line import/extensions
+import { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
+// eslint-disable-next-line import/extensions
+import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import express, { type Router } from 'express';
+import { IncomingMessage } from 'http';
 import {
     allowApiKeyAuthentication,
     allowOauthAuthentication,

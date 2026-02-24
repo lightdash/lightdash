@@ -24,11 +24,11 @@ import {
 } from '../../../hooks/useDatabricks';
 import MantineIcon from '../../common/MantineIcon';
 import FormCollapseButton from '../FormCollapseButton';
+import { useFormContext } from '../formContext';
 import BooleanSwitch from '../Inputs/BooleanSwitch';
 import FormSection from '../Inputs/FormSection';
 import StartOfWeekSelect from '../Inputs/StartOfWeekSelect';
 import { getWarehouseIcon } from '../ProjectConnectFlow/utils';
-import { useFormContext } from '../formContext';
 import { useProjectFormContext } from '../useProjectFormContext';
 import { DatabricksDefaultValues } from './defaultValues';
 import { getSsoLabel, PERSONAL_ACCESS_TOKEN_LABEL } from './util';

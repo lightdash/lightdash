@@ -1,5 +1,5 @@
 import { subject } from '@casl/ability';
-import { type SummaryExplore, ExploreType } from '@lightdash/common';
+import { ExploreType, type SummaryExplore } from '@lightdash/common';
 import { ActionIcon, Stack, TextInput } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import {

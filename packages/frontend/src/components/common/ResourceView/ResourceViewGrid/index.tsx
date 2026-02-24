@@ -1,25 +1,25 @@
 import {
+    closestCenter,
     DndContext,
     DragOverlay,
     KeyboardSensor,
     PointerSensor,
-    closestCenter,
     useSensor,
     useSensors,
     type DragEndEvent,
     type DragStartEvent,
 } from '@dnd-kit/core';
 import {
-    SortableContext,
     arrayMove,
     rectSortingStrategy,
+    SortableContext,
     sortableKeyboardCoordinates,
     useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import {
-    ResourceViewItemType,
     assertUnreachable,
+    ResourceViewItemType,
     type ResourceViewItem,
 } from '@lightdash/common';
 import { Box, SimpleGrid, Stack, Text } from '@mantine-8/core';

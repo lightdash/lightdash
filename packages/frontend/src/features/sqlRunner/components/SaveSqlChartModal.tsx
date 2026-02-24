@@ -1,16 +1,16 @@
 import { ChartKind } from '@lightdash/common';
-import { Button, Stack, TextInput, Textarea } from '@mantine-8/core';
+import { Button, Stack, Textarea, TextInput } from '@mantine-8/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { IconChartBar, IconPlus } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, type FC } from 'react';
 import { z } from 'zod';
-import { selectCompleteConfigByKind } from '../../../components/DataViz/store/selectors';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal, {
     type MantineModalProps,
 } from '../../../components/common/MantineModal';
 import SaveToSpaceForm from '../../../components/common/modal/ChartCreateModal/SaveToSpaceForm';
 import { saveToSpaceSchema } from '../../../components/common/modal/ChartCreateModal/types';
+import { selectCompleteConfigByKind } from '../../../components/DataViz/store/selectors';
 import { useModalSteps } from '../../../hooks/useModalSteps';
 import { useSpaceManagement } from '../../../hooks/useSpaceManagement';
 import { useSpaceSummaries } from '../../../hooks/useSpaces';

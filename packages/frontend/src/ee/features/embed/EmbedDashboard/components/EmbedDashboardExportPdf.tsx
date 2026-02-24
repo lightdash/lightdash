@@ -5,7 +5,6 @@ import { type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { type EventData } from '../../../../../providers/Tracking/types';
 import useTracking from '../../../../../providers/Tracking/useTracking';
-
 import '../styles/print.css';
 
 type Props = {

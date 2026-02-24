@@ -3,11 +3,11 @@ import {
     AiAgentMessageAssistantArtifact,
     AiAgentToolResult,
     AiArtifact,
-    type Explore,
     FollowUpTools,
     followUpToolsText,
     parseVizConfig,
     SlackPrompt,
+    type Explore,
 } from '@lightdash/common';
 import { Block, KnownBlock } from '@slack/bolt';
 import { partition } from 'lodash';

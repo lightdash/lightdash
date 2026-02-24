@@ -26,14 +26,13 @@ import {
 import type { editor } from 'monaco-editor';
 import { configureMonacoYaml } from 'monaco-yaml';
 import {
-    type FC,
     useCallback,
     useEffect,
     useMemo,
     useRef,
     useState,
+    type FC,
 } from 'react';
-
 import {
     getLightdashMonacoTheme,
     MONACO_DEFAULT_OPTIONS,

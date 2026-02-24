@@ -1,5 +1,5 @@
 import { MantineProvider, Tabs, useMantineColorScheme } from '@mantine/core';
-import { type FC, memo, useMemo } from 'react';
+import { memo, useMemo, type FC } from 'react';
 import { getVizConfigThemeOverride } from '../mantineTheme';
 import { Comparison } from './BigNumberComparison';
 import { BigNumberConditionalFormatting } from './BigNumberConditionalFormatting';

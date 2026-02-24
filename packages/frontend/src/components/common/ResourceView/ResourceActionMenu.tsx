@@ -5,7 +5,7 @@ import {
     ResourceViewItemType,
     type ResourceViewItem,
 } from '@lightdash/common';
-import { Menu , ActionIcon, Box, Tooltip } from '@mantine-8/core';
+import { ActionIcon, Box, Menu, Tooltip } from '@mantine-8/core';
 import {
     IconCopy,
     IconDatabaseExport,
@@ -21,7 +21,6 @@ import {
 } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useLocation, useParams } from 'react-router';
-import useFavoritesContext from '../../../providers/Favorites/useFavoritesContext';
 import { PromotionConfirmDialog } from '../../../features/promotion/components/PromotionConfirmDialog';
 import {
     usePromoteChartDiffMutation,
@@ -34,6 +33,7 @@ import {
 import { useProject } from '../../../hooks/useProject';
 import { useSpaceSummaries } from '../../../hooks/useSpaces';
 import useApp from '../../../providers/App/useApp';
+import useFavoritesContext from '../../../providers/Favorites/useFavoritesContext';
 import MantineIcon from '../MantineIcon';
 import {
     ResourceViewItemAction,
@@ -99,8 +99,7 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
         item.data.source === ChartSourceType.SQL;
 
     const favoritesContext = useFavoritesContext();
-    const isFavorited =
-        favoritesContext?.isFavorited(item.data.uuid) ?? false;
+    const isFavorited = favoritesContext?.isFavorited(item.data.uuid) ?? false;
 
     let userCanManage = false;
     switch (item.type) {
@@ -218,10 +217,7 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                             role="menuitem"
                             leftSection={
                                 isFavorited ? (
-                                    <IconStarFilled
-                                        size={18}
-                                        color="orange"
-                                    />
+                                    <IconStarFilled size={18} color="orange" />
                                 ) : (
                                     <IconStar size={18} />
                                 )
@@ -253,9 +249,7 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                                         item,
                                     });
                                 }}
-                                style={
-                                    isSqlChart ? { display: 'none' } : {}
-                                }
+                                style={isSqlChart ? { display: 'none' } : {}}
                             >
                                 Rename
                             </Menu.Item>
@@ -273,9 +267,7 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                                         });
                                     }}
                                     style={
-                                        isSqlChart
-                                            ? { display: 'none' }
-                                            : {}
+                                        isSqlChart ? { display: 'none' } : {}
                                     }
                                 >
                                     Duplicate
@@ -372,9 +364,7 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                                         });
                                     }}
                                     style={
-                                        isSqlChart
-                                            ? { display: 'none' }
-                                            : {}
+                                        isSqlChart ? { display: 'none' } : {}
                                     }
                                 >
                                     {isPinned
@@ -390,9 +380,7 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                             <Menu.Item
                                 component="button"
                                 role="menuitem"
-                                leftSection={
-                                    <IconFolderSymlink size={18} />
-                                }
+                                leftSection={<IconFolderSymlink size={18} />}
                                 onClick={() => {
                                     onAction({
                                         type: ResourceViewItemAction.TRANSFER_TO_SPACE,

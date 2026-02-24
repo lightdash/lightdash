@@ -2,12 +2,12 @@ import {
     DbtModelNode,
     DbtRawModelNode,
     ExploreError,
+    friendlyName,
     InlineError,
     InlineErrorType,
     ManifestValidator,
-    SupportedDbtAdapter,
-    friendlyName,
     normaliseModelDatabase,
+    SupportedDbtAdapter,
     type DbtManifestVersion,
 } from '@lightdash/common';
 import GlobalState from '../globalState';

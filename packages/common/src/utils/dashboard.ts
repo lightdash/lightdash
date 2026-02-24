@@ -1,5 +1,5 @@
 import { ChartSourceType } from '../types/content';
-import { type DashboardTile, DashboardTileTypes } from '../types/dashboard';
+import { DashboardTileTypes, type DashboardTile } from '../types/dashboard';
 import { ParameterError } from '../types/errors';
 import assertUnreachable from './assertUnreachable';
 

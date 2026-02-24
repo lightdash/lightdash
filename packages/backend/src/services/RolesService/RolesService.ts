@@ -364,7 +364,7 @@ export class RolesService extends BaseService {
     // UNIFIED ORGANIZATION ROLE ASSIGNMENTS
     // =====================================
 
-    /* 
+    /*
     At the organization level, we only support system role assignments
     */
     async getOrganizationRoleAssignments(

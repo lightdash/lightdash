@@ -1,9 +1,9 @@
 import {
+    assertUnreachable,
     DimensionType,
     FieldType,
     QueryExecutionContext,
     SqlRunnerFieldType,
-    assertUnreachable,
     type ParametersValuesMap,
     type PivotChartData,
     type RawResultRow,

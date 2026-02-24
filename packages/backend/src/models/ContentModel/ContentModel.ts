@@ -14,7 +14,6 @@ import { dashboardContentConfiguration } from './ContentConfigurations/Dashboard
 import { dbtExploreChartContentConfiguration } from './ContentConfigurations/DbtExploreChartContentConfiguration';
 import { spaceContentConfiguration } from './ContentConfigurations/SpaceContentConfiguration';
 import { sqlChartContentConfiguration } from './ContentConfigurations/SqlChartContentConfiguration';
-
 import {
     ContentArgs,
     ContentFilters,

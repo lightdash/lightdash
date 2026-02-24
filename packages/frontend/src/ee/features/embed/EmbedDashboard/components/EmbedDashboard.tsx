@@ -8,15 +8,19 @@ import { IconUnlink } from '@tabler/icons-react';
 import { useEffect, useMemo, type FC } from 'react';
 import { Responsive, WidthProvider, type Layout } from 'react-grid-layout';
 import { useLocation, useNavigate } from 'react-router';
+// eslint-disable-next-line css-modules/no-unused-class
+import { dashboardCSSVars } from '../../../../../components/common/Dashboard/dashboard.constants';
+import { LockedDashboardModal } from '../../../../../components/common/modal/LockedDashboardModal';
+import SuboptimalState from '../../../../../components/common/SuboptimalState/SuboptimalState';
 import LoomTile from '../../../../../components/DashboardTiles/DashboardLoomTile';
 import SqlChartTile from '../../../../../components/DashboardTiles/DashboardSqlChartTile';
-import SuboptimalState from '../../../../../components/common/SuboptimalState/SuboptimalState';
-import { LockedDashboardModal } from '../../../../../components/common/modal/LockedDashboardModal';
 import {
     getReactGridLayoutConfig,
     getResponsiveGridLayoutProps,
     type ResponsiveGridLayoutProps,
 } from '../../../../../features/dashboardTabs/gridUtils';
+// eslint-disable-next-line css-modules/no-unused-class
+import tabStyles from '../../../../../features/dashboardTabs/tabs.module.css';
 import useDashboardContext from '../../../../../providers/Dashboard/useDashboardContext';
 import useEmbed from '../../../../providers/Embed/useEmbed';
 import { useEmbedDashboard } from '../hooks';
@@ -24,11 +28,6 @@ import EmbedDashboardChartTile from './EmbedDashboardChartTile';
 import EmbedDashboardHeader from './EmbedDashboardHeader';
 import { EmbedHeadingTile } from './EmbedHeadingTile';
 import { EmbedMarkdownTile } from './EmbedMarkdownTile';
-
-// eslint-disable-next-line css-modules/no-unused-class
-import { dashboardCSSVars } from '../../../../../components/common/Dashboard/dashboard.constants';
-// eslint-disable-next-line css-modules/no-unused-class
-import tabStyles from '../../../../../features/dashboardTabs/tabs.module.css';
 import '../../../../../styles/react-grid.css';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);

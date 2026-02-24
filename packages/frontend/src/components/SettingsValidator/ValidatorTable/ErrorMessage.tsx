@@ -12,13 +12,7 @@ import { type FC } from 'react';
 import classes from './ErrorMessage.module.css';
 
 const CustomMark: FC<React.PropsWithChildren<{}>> = ({ children }) => (
-    <Mark
-        color="gray"
-        px={2}
-        fw={500}
-        fz="xs"
-        className={classes.mark}
-    >
+    <Mark color="gray" px={2} fw={500} fz="xs" className={classes.mark}>
         {children}
     </Mark>
 );

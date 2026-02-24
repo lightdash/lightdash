@@ -7,6 +7,7 @@ import {
     ChartKind,
     ChartType,
     DbtProjectType,
+    getRequestMethod,
     LightdashInstallType,
     LightdashMode,
     LightdashPage,
@@ -23,7 +24,6 @@ import {
     TableSelectionType,
     ValidateProjectPayload,
     WarehouseTypes,
-    getRequestMethod,
 } from '@lightdash/common';
 import Analytics, {
     Track as AnalyticsTrack,

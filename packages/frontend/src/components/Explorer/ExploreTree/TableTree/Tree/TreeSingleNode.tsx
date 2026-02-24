@@ -36,7 +36,6 @@ import {
     useExplorerSelector,
     type ExplorerStoreState,
 } from '../../../../../features/explorer/store';
-
 import { useAddFilter } from '../../../../../hooks/useFilters';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';

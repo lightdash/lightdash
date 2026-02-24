@@ -4,8 +4,8 @@ import {
     getFilterRuleWithDefaultValue,
     supportsSingleValue,
     type DashboardFilterRule,
-    type FilterRule,
     type FilterableDimension,
+    type FilterRule,
 } from '@lightdash/common';
 import {
     ActionIcon,

@@ -25,8 +25,8 @@ import {
     useValidationMutation,
 } from '../../hooks/validation/useValidation';
 import useApp from '../../providers/App/useApp';
-import { formatTime } from '../SchedulersView/SchedulersViewUtils';
 import MantineIcon from '../common/MantineIcon';
+import { formatTime } from '../SchedulersView/SchedulersViewUtils';
 import { ValidatorTable } from './ValidatorTable';
 import { ChartConfigurationErrorModal } from './ValidatorTable/ChartConfigurationErrorModal';
 import { FixValidationErrorModal } from './ValidatorTable/FixValidationErrorModal';

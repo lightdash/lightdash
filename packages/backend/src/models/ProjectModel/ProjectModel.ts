@@ -8,14 +8,17 @@ import {
     CreateProject,
     CreateProjectOptionalCredentials,
     CreateSnowflakeCredentials,
+    createVirtualView,
     CreateVirtualViewPayload,
     CreateWarehouseCredentials,
-    DEFAULT_USER_SPACES_PARENT_NAME,
     DbtProjectConfig,
+    DEFAULT_USER_SPACES_PARENT_NAME,
     Explore,
     ExploreError,
     ExploreType,
+    getLtreePathFromSlug,
     IdContentMapping,
+    isExploreError,
     NotFoundError,
     OrganizationProject,
     ParameterError,
@@ -26,6 +29,8 @@ import {
     ProjectMemberRole,
     ProjectSummary,
     ProjectType,
+    sensitiveCredentialsFieldNames,
+    sensitiveDbtCredentialsFieldNames,
     SnowflakeAuthenticationType,
     SpaceMemberRole,
     SpaceSummary,
@@ -38,11 +43,6 @@ import {
     WarehouseClient,
     WarehouseCredentials,
     WarehouseTypes,
-    createVirtualView,
-    getLtreePathFromSlug,
-    isExploreError,
-    sensitiveCredentialsFieldNames,
-    sensitiveDbtCredentialsFieldNames,
     type SummaryExplore,
 } from '@lightdash/common';
 import {
@@ -55,9 +55,9 @@ import { DatabaseError } from 'pg';
 import { v4 as uuidv4 } from 'uuid';
 import { LightdashConfig } from '../../config/parseConfig';
 import {
+    DashboardsTableName,
     DashboardTabsTableName,
     DashboardViewsTableName,
-    DashboardsTableName,
     DbDashboard,
     DbDashboardTabs,
 } from '../../database/entities/dashboards';
@@ -74,8 +74,8 @@ import {
     ProjectMembershipsTableName,
 } from '../../database/entities/projectMemberships';
 import {
-    CachedExploreTableName,
     CachedExploresTableName,
+    CachedExploreTableName,
     CachedWarehouseTableName,
     DbCachedWarehouse,
     DbProject,

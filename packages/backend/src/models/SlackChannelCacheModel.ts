@@ -171,7 +171,13 @@ export class SlackChannelCacheModel {
                     | 'channels_sync_error'
                     | 'channels_count'
                 >[]
-            >('channels_last_sync_at', 'channels_sync_started_at', 'channels_sync_status', 'channels_sync_error', 'channels_count')
+            >(
+                'channels_last_sync_at',
+                'channels_sync_started_at',
+                'channels_sync_status',
+                'channels_sync_error',
+                'channels_count',
+            )
             .where('organization_id', organizationId);
 
         return row ?? null;

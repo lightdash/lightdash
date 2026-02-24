@@ -1,8 +1,8 @@
 import { Button, Group } from '@mantine-8/core';
 import { IconTableExport } from '@tabler/icons-react';
 import { type FC } from 'react';
-import ExportResults, { type ExportResultsProps } from '../ExportResults';
 import MantineModal from '../common/MantineModal';
+import ExportResults, { type ExportResultsProps } from '../ExportResults';
 
 interface ExportDataModalProps extends ExportResultsProps {
     isOpen: boolean;

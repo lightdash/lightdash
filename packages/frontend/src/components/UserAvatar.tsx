@@ -1,6 +1,5 @@
 import { Avatar, useMantineTheme, type AvatarProps } from '@mantine-8/core';
 import { forwardRef } from 'react';
-
 import useApp from '../providers/App/useApp';
 import classes from './UserAvatar.module.css';
 

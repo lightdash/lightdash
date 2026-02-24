@@ -21,7 +21,7 @@ import {
     IconSettings,
     IconSparkles,
 } from '@tabler/icons-react';
-import { type FC, useState } from 'react';
+import { useState, type FC } from 'react';
 import { Link, Navigate, Outlet, useParams } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { AgentSelector } from '../../features/aiCopilot/components/AgentSelector';

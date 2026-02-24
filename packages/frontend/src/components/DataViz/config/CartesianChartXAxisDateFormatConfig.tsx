@@ -25,9 +25,7 @@ const DateFormatItem = forwardRef<
     return (
         <Box ref={ref} {...others}>
             <Group noWrap spacing="xs">
-                <DateFormatIcon
-                    format={value === 'none' ? undefined : value}
-                />
+                <DateFormatIcon format={value === 'none' ? undefined : value} />
                 <Text>{option?.label ?? value}</Text>
             </Group>
         </Box>
@@ -48,9 +46,7 @@ export const CartesianChartXAxisDateFormatConfig: FC<Props> = ({
             radius="md"
             data={DATE_FORMAT_OPTIONS}
             itemComponent={DateFormatItem}
-            icon={
-                <DateFormatIcon format={dateFormat} />
-            }
+            icon={<DateFormatIcon format={dateFormat} />}
             value={dateFormat ?? 'none'}
             onChange={(value) => {
                 onChangeDateFormat(

@@ -10,11 +10,11 @@ import {
     type Table,
 } from '../types/explore';
 import {
-    MetricType,
     friendlyName,
     isCustomBinDimension,
     isNonAggregateMetric,
     isPostCalculationMetric,
+    MetricType,
     type CompiledCustomDimension,
     type CompiledCustomSqlDimension,
     type CompiledDimension,

@@ -12,7 +12,6 @@ import {
     SessionUser,
     UnexpectedDatabaseError,
 } from '@lightdash/common';
-
 import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../../config/parseConfig';
 import { BaseService } from '../../../services/BaseService';

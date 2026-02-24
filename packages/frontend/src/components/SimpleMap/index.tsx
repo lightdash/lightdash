@@ -35,10 +35,10 @@ import useLeafletMapConfig, {
 } from '../../hooks/leaflet/useLeafletMapConfig';
 import { useContextMenuPermissions } from '../../hooks/useContextMenuPermissions';
 import { createMultiColorScale } from '../../utils/colorUtils';
-import { isMapVisualizationConfig } from '../LightdashVisualization/types';
-import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
 import LoadingChart from '../common/LoadingChart';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
+import { isMapVisualizationConfig } from '../LightdashVisualization/types';
+import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
 import HeatmapLayer from './HeatmapLayer';
 import MapContextMenu from './MapContextMenu';
 import MapLegend from './MapLegend';
@@ -85,9 +85,9 @@ interface LeafletAugmentedContainer extends HTMLElement {
         return result;
     };
 })();
+import { MAP_FILL_NO_BASE_MAP_OPACITY } from './constants';
 // eslint-disable-next-line css-modules/no-unused-class
 import classes from './SimpleMap.module.css';
-import { MAP_FILL_NO_BASE_MAP_OPACITY } from './constants';
 
 // Helper to get formatted value from row data
 const getFormattedValue = (
