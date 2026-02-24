@@ -1,3 +1,10 @@
+## [0.2520.2](https://github.com/lightdash/lightdash/compare/0.2520.1...0.2520.2) (2026-02-24)
+
+
+### Bug Fixes
+
+* stop filter autoFocus from stealing focus to last filter ([#20564](https://github.com/lightdash/lightdash/issues/20564)) ([f394daa](https://github.com/lightdash/lightdash/commit/f394daaf0bd302d793afa3f96255509804c9cefb))
+
 ## [0.2520.1](https://github.com/lightdash/lightdash/compare/0.2520.0...0.2520.1) (2026-02-24)
 
 
