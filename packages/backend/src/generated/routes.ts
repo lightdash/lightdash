@@ -4322,7 +4322,6 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                width: { dataType: 'double' },
                 color: { dataType: 'string' },
                 displayStyle: {
                     dataType: 'union',
@@ -4365,7 +4364,6 @@ const models: TsoaRoute.Models = {
                 columns: { ref: 'Record_string.ColumnProperties_' },
                 showSubtotals: { dataType: 'boolean' },
                 showResultsTotal: { dataType: 'boolean' },
-                wrapColumnTitles: { dataType: 'boolean' },
                 hideRowNumbers: { dataType: 'boolean' },
                 showTableNames: { dataType: 'boolean' },
                 showRowCalculation: { dataType: 'boolean' },

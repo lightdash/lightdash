@@ -304,9 +304,7 @@ export const FooterCell = styled.th<{ $isNaN: boolean }>`
     background-color: var(--mantine-color-ldGray-0);
 `;
 
-export const Th = styled.th`
-    position: relative;
-`;
+export const Th = styled.th``;
 
 export const ThContainer = styled.div`
     display: flex;
@@ -314,25 +312,10 @@ export const ThContainer = styled.div`
     align-items: flex-start;
 `;
 
-export const ThLabelContainer = styled.div<{ $wrapColumnTitles?: boolean }>`
-    overflow: hidden;
-    min-width: 0;
-    flex: 1;
-    text-overflow: ellipsis;
-    ${({ $wrapColumnTitles }) =>
-        $wrapColumnTitles
-            ? `
-                white-space: normal;
-                word-break: break-word;
-            `
-            : `
-                white-space: nowrap;
-                word-break: normal;
-            `}
-`;
+export const ThLabelContainer = styled.div``;
 
 export const ThActionsContainer = styled.div`
-    flex-shrink: 0;
+    flex: 1;
     display: flex;
     flex-direction: row;
     justify-content: flex-end;

@@ -291,7 +291,6 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
                 containerWidth={containerWidth}
                 containerHeight={containerHeight}
                 isDashboard={false}
-                isEditMode={isEditMode}
             >
                 <CollapsableCard
                     title="Chart"

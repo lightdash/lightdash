@@ -92,31 +92,23 @@ export const TableProvider: FC<React.PropsWithChildren<ProviderProps>> = ({
         () => columns.filter((col) => col.meta?.frozen),
         [columns],
     );
-    const defaultFrozenColumnWidth = 100;
+    const frozenColumnWidth = 100; // TODO this should be dynamic
     const stickyColumns = useMemo(() => {
-        let cumulativeLeft = effectiveRowColumnWidth;
-        return frozenColumns.map((col, i) => {
-            const colWidth = col.meta?.width ?? defaultFrozenColumnWidth;
-            const left = cumulativeLeft;
-            cumulativeLeft += colWidth;
-            return {
-                ...col,
-                meta: {
-                    ...col.meta,
-                    className: `sticky-column ${
-                        i === frozenColumns.length - 1
-                            ? 'last-sticky-column'
-                            : ''
-                    }`,
-                    style: {
-                        maxWidth: colWidth,
-                        minWidth: colWidth,
-                        left,
-                    },
+        return frozenColumns.map((col, i) => ({
+            ...col,
+            meta: {
+                ...col.meta,
+                className: `sticky-column ${
+                    i === frozenColumns.length - 1 ? 'last-sticky-column' : ''
+                }`,
+                style: {
+                    maxWidth: frozenColumnWidth,
+                    minWidth: frozenColumnWidth,
+                    left: effectiveRowColumnWidth + i * frozenColumnWidth,
                 },
-            };
-        });
-    }, [frozenColumns, effectiveRowColumnWidth]);
+            },
+        }));
+    }, [frozenColumns, frozenColumnWidth, effectiveRowColumnWidth]);
 
     const otherColumns = useMemo(
         () => columns.filter((col) => !col.meta?.frozen),

@@ -39,7 +39,6 @@ export type TableColumn = ColumnDef<ResultRow, ResultRow[0]> & {
         width?: number;
         draggable?: boolean;
         item?: Field | TableCalculation | CustomDimension;
-        labelOverride?: string;
         pivotReference?: PivotReference;
         bgColor?: string;
         sort?: Sort;
@@ -72,13 +71,11 @@ export type ProviderProps = {
     conditionalFormattings?: ConditionalFormattingConfig[];
     minMaxMap?: ConditionalFormattingMinMaxMap;
     columnProperties?: Record<string, ColumnProperties>;
-    wrapColumnTitles?: boolean;
     footer?: {
         show?: boolean;
     };
     columnOrder?: string[];
     onColumnOrderChange?: (value: string[]) => void;
-    onColumnWidthChange?: (fieldId: string, width: number) => void;
 };
 
 export type TableContext = ProviderProps & {

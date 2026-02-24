@@ -4952,10 +4952,6 @@
             },
             "ColumnProperties": {
                 "properties": {
-                    "width": {
-                        "type": "number",
-                        "format": "double"
-                    },
                     "color": {
                         "type": "string",
                         "description": "Color for bar display style (hex code)"
@@ -5012,10 +5008,6 @@
                     "showResultsTotal": {
                         "type": "boolean",
                         "description": "Show total results count"
-                    },
-                    "wrapColumnTitles": {
-                        "type": "boolean",
-                        "description": "Wrap column titles in header cells"
                     },
                     "hideRowNumbers": {
                         "type": "boolean",

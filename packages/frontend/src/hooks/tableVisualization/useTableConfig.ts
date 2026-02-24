@@ -80,10 +80,6 @@ const useTableConfig = (
             : tableChartConfig.hideRowNumbers,
     );
 
-    const [wrapColumnTitles, setWrapColumnTitles] = useState<boolean>(
-        tableChartConfig?.wrapColumnTitles ?? false,
-    );
-
     const [metricsAsRows, setMetricsAsRows] = useState<boolean>(
         tableChartConfig?.metricsAsRows || false,
     );
@@ -173,11 +169,6 @@ const useTableConfig = (
     );
     const isColumnFrozen = useCallback(
         (fieldId: string) => columnProperties[fieldId]?.frozen === true,
-        [columnProperties],
-    );
-
-    const getColumnWidth = useCallback(
-        (fieldId: string) => columnProperties[fieldId]?.width,
         [columnProperties],
     );
 
@@ -276,7 +267,6 @@ const useTableConfig = (
             showTableNames,
             getFieldLabelOverride,
             isColumnFrozen,
-            getColumnWidth,
             columnOrder,
             totals: totalCalculations,
             groupedSubtotals,
@@ -290,7 +280,6 @@ const useTableConfig = (
         isColumnVisible,
         showTableNames,
         isColumnFrozen,
-        getColumnWidth,
         getFieldLabelOverride,
         totalCalculations,
         groupedSubtotals,
@@ -620,7 +609,6 @@ const useTableConfig = (
             showSubtotals,
             columns: columnProperties,
             hideRowNumbers,
-            wrapColumnTitles,
             conditionalFormattings,
             metricsAsRows,
         }),
@@ -634,7 +622,6 @@ const useTableConfig = (
             columnProperties,
             conditionalFormattings,
             metricsAsRows,
-            wrapColumnTitles,
         ],
     );
 
@@ -655,8 +642,6 @@ const useTableConfig = (
             setShowResultsTotal,
             showSubtotals,
             setShowSubtotals,
-            wrapColumnTitles,
-            setWrapColumnTitles,
             columnProperties,
             setColumnProperties,
             updateColumnProperty,
@@ -695,8 +680,6 @@ const useTableConfig = (
             setShowSubtotals,
             columnProperties,
             setColumnProperties,
-            wrapColumnTitles,
-            setWrapColumnTitles,
             updateColumnProperty,
             columns,
             getFieldLabelOverride,

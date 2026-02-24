@@ -405,10 +405,6 @@
                 "visible": {
                     "description": "Whether the column is visible",
                     "type": "boolean"
-                },
-                "width": {
-                    "format": "double",
-                    "type": "number"
                 }
             },
             "type": "object"
@@ -2604,10 +2600,6 @@
                 },
                 "showTableNames": {
                     "description": "Show table names in column headers",
-                    "type": "boolean"
-                },
-                "wrapColumnTitles": {
-                    "description": "Wrap column titles in header cells",
                     "type": "boolean"
                 }
             },
