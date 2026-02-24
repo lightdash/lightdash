@@ -18,7 +18,7 @@ import { expect, test } from 'playwright/test';
 const BASE_URL = 'http://localhost:3000';
 const CHART_EDIT_URL = `${BASE_URL}/projects/3675b69e-8324-4110-bdca-059031aa8da3/saved/02f7317b-7c6f-407f-911c-4e8bc14745e6/edit`;
 
-test.use({ headless: false });
+test.use({ headless: false, launchOptions: { slowMo: 500 } });
 
 test.describe('Filter autoFocus bug reproduction', () => {
     test.setTimeout(90000);
