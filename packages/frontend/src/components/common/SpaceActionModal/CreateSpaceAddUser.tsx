@@ -117,7 +117,7 @@ export const CreateSpaceAddUser: FC<CreateSpaceAddUserProps> = ({
             clearable
             clearSearchOnChange
             clearSearchOnBlur
-            placeholder="Select users to share this space with"
+            placeholder="Select groups or users to share this space with"
             nothingFound="No users found"
             itemComponent={UserItemComponent}
             data={data}

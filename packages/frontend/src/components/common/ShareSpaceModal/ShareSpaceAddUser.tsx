@@ -303,7 +303,7 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                 clearable
                 clearSearchOnChange
                 clearSearchOnBlur
-                placeholder="Select users to share this space with"
+                placeholder="Select groups or users to share this space with"
                 nothingFound="No users found"
                 searchValue={searchQuery}
                 onSearchChange={setSearchQuery}
