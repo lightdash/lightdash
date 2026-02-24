@@ -5715,82 +5715,57 @@ export class ProjectService extends BaseService {
             allowedSpaceUuidsSet.has(space.uuid),
         );
 
-        const mostPopular = await this.getMostPopular(allowedSpaces);
-        const recentlyUpdated = await this.getRecentlyUpdated(allowedSpaces);
+        const spaceUuids = allowedSpaces.map(({ uuid }) => uuid);
+        const [
+            popularCharts,
+            popularSqlCharts,
+            popularDashboards,
+            recentCharts,
+            recentSqlCharts,
+            recentDashboards,
+        ] = await Promise.all([
+            this.spaceModel.getSpaceQueries(spaceUuids, {
+                mostPopular: true,
+            }),
+            this.spaceModel.getSpaceSqlCharts(spaceUuids, {
+                mostPopular: true,
+            }),
+            this.spaceModel.getSpaceDashboards(spaceUuids, {
+                mostPopular: true,
+            }),
+            this.spaceModel.getSpaceQueries(spaceUuids, {
+                recentlyUpdated: true,
+            }),
+            this.spaceModel.getSpaceSqlCharts(spaceUuids, {
+                recentlyUpdated: true,
+            }),
+            this.spaceModel.getSpaceDashboards(spaceUuids, {
+                recentlyUpdated: true,
+            }),
+        ]);
 
         return {
-            mostPopular: mostPopular
+            mostPopular: [
+                ...popularCharts,
+                ...popularSqlCharts,
+                ...popularDashboards,
+            ]
                 .sort((a, b) => b.views - a.views)
                 .slice(
                     0,
                     this.spaceModel.MOST_POPULAR_OR_RECENTLY_UPDATED_LIMIT,
                 ),
-            recentlyUpdated: recentlyUpdated
+            recentlyUpdated: [
+                ...recentCharts,
+                ...recentSqlCharts,
+                ...recentDashboards,
+            ]
                 .sort((a, b) => +new Date(b.updatedAt) - +new Date(a.updatedAt))
                 .slice(
                     0,
                     this.spaceModel.MOST_POPULAR_OR_RECENTLY_UPDATED_LIMIT,
                 ),
         };
-    }
-
-    async getMostPopular(
-        allowedSpaces: Pick<SpaceSummaryBase, 'uuid'>[],
-    ): Promise<(SpaceQuery | DashboardBasicDetails)[]> {
-        const mostPopularCharts = await this.spaceModel.getSpaceQueries(
-            allowedSpaces.map(({ uuid }) => uuid),
-            {
-                mostPopular: true,
-            },
-        );
-        const mostPopularSqlCharts = await this.spaceModel.getSpaceSqlCharts(
-            allowedSpaces.map(({ uuid }) => uuid),
-            {
-                mostPopular: true,
-            },
-        );
-        const mostPopularDashboards = await this.spaceModel.getSpaceDashboards(
-            allowedSpaces.map(({ uuid }) => uuid),
-            {
-                mostPopular: true,
-            },
-        );
-
-        return [
-            ...mostPopularCharts,
-            ...mostPopularSqlCharts,
-            ...mostPopularDashboards,
-        ];
-    }
-
-    async getRecentlyUpdated(
-        allowedSpaces: Pick<SpaceSummaryBase, 'uuid'>[],
-    ): Promise<(SpaceQuery | DashboardBasicDetails)[]> {
-        const recentlyUpdatedCharts = await this.spaceModel.getSpaceQueries(
-            allowedSpaces.map(({ uuid }) => uuid),
-            {
-                recentlyUpdated: true,
-            },
-        );
-        const recentlyUpdatedSqlCharts =
-            await this.spaceModel.getSpaceSqlCharts(
-                allowedSpaces.map(({ uuid }) => uuid),
-                {
-                    recentlyUpdated: true,
-                },
-            );
-        const recentlyUpdatedDashboards =
-            await this.spaceModel.getSpaceDashboards(
-                allowedSpaces.map(({ uuid }) => uuid),
-                {
-                    recentlyUpdated: true,
-                },
-            );
-        return [
-            ...recentlyUpdatedCharts,
-            ...recentlyUpdatedSqlCharts,
-            ...recentlyUpdatedDashboards,
-        ];
     }
 
     async getSpaces(
