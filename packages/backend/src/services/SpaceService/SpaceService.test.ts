@@ -2,8 +2,8 @@ import {
     AbilityAction,
     OrganizationMemberRole,
     ProjectMemberRole,
-    type SessionUser,
     SpaceMemberRole,
+    type SessionUser,
 } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
