@@ -156,15 +156,6 @@ export class FavoritesService extends BaseService {
             throw new ForbiddenError();
         }
 
-        const spaces = await this.spaceModel.find({ projectUuid });
-        const spaceUuids = spaces.map((s) => s.uuid);
-        const allowedSpaceUuids =
-            await this.spacePermissionService.getAccessibleSpaceUuids(
-                'view',
-                user,
-                spaceUuids,
-            );
-
         const favoriteRows = await this.userFavoritesModel.getFavoriteUuids(
             user.userUuid,
             projectUuid,
@@ -183,6 +174,22 @@ export class FavoritesService extends BaseService {
         const favoriteSpaceUuids = favoriteRows
             .filter((r) => r.contentType === ContentType.SPACE)
             .map((r) => r.contentUuid);
+
+        const contentSpaceUuids =
+            await this.userFavoritesModel.getSpaceUuidsForFavorites(
+                chartUuids,
+                dashboardUuids,
+            );
+        const allRelevantSpaceUuids = [
+            ...new Set([...favoriteSpaceUuids, ...contentSpaceUuids]),
+        ];
+
+        const allowedSpaceUuids =
+            await this.spacePermissionService.getAccessibleSpaceUuids(
+                'view',
+                user,
+                allRelevantSpaceUuids,
+            );
 
         const [charts, dashboards, favSpaceBases] = await Promise.all([
             this.userFavoritesModel.getFavoriteCharts(

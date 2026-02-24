@@ -232,6 +232,66 @@ export class UserFavoritesModel {
         }));
     }
 
+    /**
+     * Lightweight query that returns only the distinct space UUIDs
+     * for a set of favorite chart and dashboard UUIDs.
+     * Used to narrow permission checks to only relevant spaces.
+     */
+    async getSpaceUuidsForFavorites(
+        chartUuids: string[],
+        dashboardUuids: string[],
+    ): Promise<string[]> {
+        const queries = [];
+
+        if (chartUuids.length > 0) {
+            queries.push(
+                this.database(SavedChartsTableName)
+                    .innerJoin(
+                        SpaceTableName,
+                        `${SavedChartsTableName}.space_id`,
+                        `${SpaceTableName}.space_id`,
+                    )
+                    .whereIn(
+                        `${SavedChartsTableName}.saved_query_uuid`,
+                        chartUuids,
+                    )
+                    .whereNull(`${SavedChartsTableName}.deleted_at`)
+                    .whereNull(`${SpaceTableName}.deleted_at`)
+                    .select(`${SpaceTableName}.space_uuid`),
+            );
+        }
+
+        if (dashboardUuids.length > 0) {
+            queries.push(
+                this.database(DashboardsTableName)
+                    .innerJoin(
+                        SpaceTableName,
+                        `${DashboardsTableName}.space_id`,
+                        `${SpaceTableName}.space_id`,
+                    )
+                    .whereIn(
+                        `${DashboardsTableName}.dashboard_uuid`,
+                        dashboardUuids,
+                    )
+                    .whereNull(`${DashboardsTableName}.deleted_at`)
+                    .whereNull(`${SpaceTableName}.deleted_at`)
+                    .select(`${SpaceTableName}.space_uuid`),
+            );
+        }
+
+        if (queries.length === 0) {
+            return [];
+        }
+
+        const rows = await this.database
+            .unionAll(queries, true)
+            .then((results: { space_uuid: string }[]) => [
+                ...new Set(results.map((r) => r.space_uuid)),
+            ]);
+
+        return rows;
+    }
+
     async getFavoriteSpaces(
         projectUuid: string,
         spaceUuids: string[],

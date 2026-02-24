@@ -351,4 +351,68 @@ export class ResourceViewItemModel {
     ): Promise<ResourceViewSpaceItemBase[]> {
         return getAllSpaces(this.database, projectUuid, pinnedListUuid);
     }
+
+    /**
+     * Lightweight query that returns only the distinct space UUIDs
+     * referenced by pinned charts and dashboards (not the full item data).
+     * Used to narrow permission checks to only relevant spaces.
+     */
+    async getSpaceUuidsForPinnedItems(
+        projectUuid: string,
+        pinnedListUuid: string,
+    ): Promise<string[]> {
+        const chartSpaces = this.database('pinned_list')
+            .innerJoin(
+                'pinned_chart',
+                'pinned_list.pinned_list_uuid',
+                'pinned_chart.pinned_list_uuid',
+            )
+            .innerJoin(SavedChartsTableName, function nonDeletedChartJoin() {
+                this.on(
+                    'pinned_chart.saved_chart_uuid',
+                    '=',
+                    `${SavedChartsTableName}.saved_query_uuid`,
+                ).andOnNull(`${SavedChartsTableName}.deleted_at`);
+            })
+            .innerJoin(
+                SpaceTableName,
+                `${SavedChartsTableName}.space_id`,
+                `${SpaceTableName}.space_id`,
+            )
+            .whereNull(`${SpaceTableName}.deleted_at`)
+            .where('pinned_list.pinned_list_uuid', pinnedListUuid)
+            .where('pinned_list.project_uuid', projectUuid)
+            .select(`${SpaceTableName}.space_uuid`);
+
+        const dashboardSpaces = this.database('pinned_list')
+            .innerJoin(
+                'pinned_dashboard',
+                'pinned_list.pinned_list_uuid',
+                'pinned_dashboard.pinned_list_uuid',
+            )
+            .innerJoin(DashboardsTableName, function nonDeletedDashboardJoin() {
+                this.on(
+                    'pinned_dashboard.dashboard_uuid',
+                    '=',
+                    `${DashboardsTableName}.dashboard_uuid`,
+                ).andOnNull(`${DashboardsTableName}.deleted_at`);
+            })
+            .innerJoin(
+                SpaceTableName,
+                `${DashboardsTableName}.space_id`,
+                `${SpaceTableName}.space_id`,
+            )
+            .whereNull(`${SpaceTableName}.deleted_at`)
+            .where('pinned_list.pinned_list_uuid', pinnedListUuid)
+            .where('pinned_list.project_uuid', projectUuid)
+            .select(`${SpaceTableName}.space_uuid`);
+
+        const rows = await this.database
+            .unionAll([chartSpaces, dashboardSpaces], true)
+            .then((results: { space_uuid: string }[]) => [
+                ...new Set(results.map((r) => r.space_uuid)),
+            ]);
+
+        return rows;
+    }
 }

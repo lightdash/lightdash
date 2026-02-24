@@ -73,37 +73,60 @@ export class PinningService extends BaseService {
             throw new ForbiddenError();
         }
 
-        const spaces = await this.spaceModel.find({ projectUuid });
-        const spaceUuids = spaces.map((s) => s.uuid);
+        const [allPinnedSpaceBases, pinnedItemSpaceUuids] = await Promise.all([
+            this.resourceViewItemModel.getAllSpacesByPinnedListUuid(
+                projectUuid,
+                pinnedListUuid,
+            ),
+            this.resourceViewItemModel.getSpaceUuidsForPinnedItems(
+                projectUuid,
+                pinnedListUuid,
+            ),
+        ]);
+
+        const pinnedSpaceUuids = allPinnedSpaceBases.map((s) => s.data.uuid);
+        const allRelevantSpaceUuids = [
+            ...new Set([...pinnedSpaceUuids, ...pinnedItemSpaceUuids]),
+        ];
+
+        if (allRelevantSpaceUuids.length === 0) {
+            return [];
+        }
+
         const allowedSpaceUuids =
             await this.spacePermissionService.getAccessibleSpaceUuids(
                 'view',
                 user,
-                spaceUuids,
+                allRelevantSpaceUuids,
             );
 
         if (allowedSpaceUuids.length === 0) {
             return [];
         }
 
-        const allPinnedSpaceBases =
-            await this.resourceViewItemModel.getAllSpacesByPinnedListUuid(
-                projectUuid,
-                pinnedListUuid,
-            );
+        const allowedSpaceUuidsSet = new Set(allowedSpaceUuids);
 
         const allowedPinnedSpaceBases = allPinnedSpaceBases.filter(
-            ({ data: { uuid } }) => allowedSpaceUuids.includes(uuid),
+            ({ data: { uuid } }) => allowedSpaceUuidsSet.has(uuid),
         );
 
-        // Enrich pinned spaces with access data from SpacePermissionService
-        const pinnedSpaceUuids = allowedPinnedSpaceBases.map(
+        const allowedPinnedSpaceUuids = allowedPinnedSpaceBases.map(
             (s) => s.data.uuid,
         );
-        const directAccessMap =
-            await this.spacePermissionService.getDirectAccessUserUuids(
-                pinnedSpaceUuids,
-            );
+        const [
+            directAccessMap,
+            { charts: allowedCharts, dashboards: allowedDashboards },
+        ] = await Promise.all([
+            this.spacePermissionService.getDirectAccessUserUuids(
+                allowedPinnedSpaceUuids,
+            ),
+            this.resourceViewItemModel.getAllowedChartsAndDashboards(
+                projectUuid,
+                pinnedListUuid,
+                allowedSpaceUuids,
+            ),
+        ]);
+
         const allowedPinnedSpaces: ResourceViewSpaceItem[] =
             allowedPinnedSpaceBases.map((item) => {
                 const directAccessUuids = directAccessMap[item.data.uuid] ?? [];
@@ -116,13 +139,6 @@ export class PinningService extends BaseService {
                     },
                 };
             });
-
-        const { charts: allowedCharts, dashboards: allowedDashboards } =
-            await this.resourceViewItemModel.getAllowedChartsAndDashboards(
-                projectUuid,
-                pinnedListUuid,
-                allowedSpaceUuids,
-            );
 
         return [...allowedPinnedSpaces, ...allowedCharts, ...allowedDashboards];
     }
