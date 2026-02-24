@@ -59,9 +59,14 @@ import MantineIcon from '../MantineIcon';
 import { ROW_NUMBER_COLUMN_ID } from '../Table/constants';
 import { getGroupedRowModelLightdash } from '../Table/getGroupedRowModelLightdash';
 import { columnHelper, type TableColumn } from '../Table/types';
+import { useColumnResize } from '../Table/useColumnResize';
 import { countSubRows } from '../Table/utils';
+import pivotStyles from './PivotTable.module.css';
 import TotalCellMenu from './TotalCellMenu';
 import ValueCellMenu from './ValueCellMenu';
+
+const ROW_NUMBER_COL_WIDTH = 50;
+const MIN_AUTO_COL_WIDTH = 50;
 
 type MenuCallbackProps = {
     isOpen: boolean;
@@ -120,6 +125,7 @@ type PivotTableProps = BoxProps & // TODO: remove this
         columnProperties?: ColumnProperties;
         isMinimal: boolean;
         isDashboard?: boolean;
+        onColumnWidthChange?: (fieldId: string, width: number) => void;
     };
 
 const PivotTable: FC<PivotTableProps> = ({
@@ -134,17 +140,41 @@ const PivotTable: FC<PivotTableProps> = ({
     columnProperties = {},
     isMinimal = false,
     isDashboard = false,
+    onColumnWidthChange,
     ...tableProps
 }) => {
     const { colorScheme } = useMantineColorScheme();
     const containerRef = useRef<HTMLDivElement>(null);
     const [grouping, setGrouping] = React.useState<GroupingState>([]);
 
+    const { handleResizeStart, resizeHandleClassName } = useColumnResize({
+        onColumnWidthChange,
+    });
+
+    // Count label/index columns to compute offset from headerColIndex to pivotColumnInfo
+    const numLabelCols = useMemo(
+        () =>
+            data.retrofitData.pivotColumnInfo.filter(
+                (col) =>
+                    col.columnType === 'label' ||
+                    col.columnType === 'indexValue',
+            ).length,
+        [data],
+    );
+
     const hasColumnTotals = data.pivotConfig.columnTotals;
 
     const hasRowTotals = data.pivotConfig.rowTotals;
 
-    const { columns, columnOrder } = useMemo(() => {
+    const hasCustomWidths = useMemo(
+        () =>
+            Object.values(columnProperties).some(
+                (prop) => prop?.width !== undefined,
+            ),
+        [columnProperties],
+    );
+
+    const { columns, columnOrder, colWidths } = useMemo(() => {
         // Pivoting all dimensions requires a spacer column under the pivoted headers.
         const allDimensionsPivoted =
             data.indexValueTypes.length === 0 &&
@@ -177,9 +207,15 @@ const PivotTable: FC<PivotTableProps> = ({
         ];
 
         const newColumnOrder: string[] = [];
-        if (!hideRowNumbers) newColumnOrder.push(ROW_NUMBER_COLUMN_ID);
-        if (allDimensionsPivoted)
+        const newColWidths: (number | undefined)[] = [];
+        if (!hideRowNumbers) {
+            newColumnOrder.push(ROW_NUMBER_COLUMN_ID);
+            newColWidths.push(ROW_NUMBER_COL_WIDTH);
+        }
+        if (allDimensionsPivoted) {
             newColumnOrder.push(allPivotedSpacerColumn.id);
+            newColWidths.push(undefined);
+        }
 
         let newColumns = data.retrofitData.pivotColumnInfo.map(
             (col, colIndex) => {
@@ -187,6 +223,17 @@ const PivotTable: FC<PivotTableProps> = ({
 
                 const itemId = col.underlyingId || col.baseId || col.fieldId;
                 const item = itemId ? getField(itemId) : undefined;
+                // For indexValue columns, use fieldId (actual dimension ID).
+                // For data columns, use underlyingId (metric) or baseId (last pivot dim).
+                const widthKey =
+                    col.columnType === 'indexValue' ||
+                    col.columnType === 'label'
+                        ? col.fieldId
+                        : col.underlyingId || col.baseId;
+                const colWidth = widthKey
+                    ? columnProperties[widthKey]?.width
+                    : undefined;
+                newColWidths.push(colWidth);
                 const column: TableColumn = columnHelper.accessor(
                     (row: ResultRow) => {
                         return row[col.fieldId];
@@ -196,6 +243,7 @@ const PivotTable: FC<PivotTableProps> = ({
                         cell: getFormattedValueCell,
                         meta: {
                             item: item,
+                            width: colWidth,
                             type: col.columnType,
                             headerInfo:
                                 colIndex < finalHeaderInfoForColumns.length
@@ -276,8 +324,21 @@ const PivotTable: FC<PivotTableProps> = ({
             newColumns = [allPivotedSpacerColumn, ...newColumns];
         if (!hideRowNumbers) newColumns = [rowColumn, ...newColumns];
 
-        return { columns: newColumns, columnOrder: newColumnOrder };
-    }, [data, hideRowNumbers, getField]);
+        return {
+            columns: newColumns,
+            columnOrder: newColumnOrder,
+            colWidths: newColWidths,
+        };
+    }, [data, hideRowNumbers, getField, columnProperties]);
+
+    // Minimum table width so auto columns don't get squeezed to zero
+    const minTableWidth = useMemo(() => {
+        if (!hasCustomWidths) return undefined;
+        return colWidths.reduce<number>(
+            (sum, w) => sum + (w ?? MIN_AUTO_COL_WIDTH),
+            0,
+        );
+    }, [hasCustomWidths, colWidths]);
 
     const table = useReactTable({
         data: data.retrofitData.allCombinedData,
@@ -608,12 +669,31 @@ const PivotTable: FC<PivotTableProps> = ({
 
     return (
         <Table
-            miw="100%"
-            className={className}
+            miw={minTableWidth ? `max(100%, ${minTableWidth}px)` : '100%'}
+            w={hasCustomWidths ? '100%' : undefined}
+            className={
+                hasCustomWidths
+                    ? `${pivotStyles.fixedLayout}${className ? ` ${className}` : ''}`
+                    : className
+            }
             {...tableProps}
             containerRef={containerRef}
             isDashboard={isDashboard}
         >
+            {hasCustomWidths && (
+                <colgroup>
+                    {colWidths.map((cw, i) => (
+                        <col
+                            key={i}
+                            style={
+                                cw !== undefined
+                                    ? { width: `${cw}px` }
+                                    : undefined
+                            }
+                        />
+                    ))}
+                </colgroup>
+            )}
             <Table.Head withSticky>
                 {data.headerValues.map((headerValues, headerRowIndex) => (
                     <Table.Row
@@ -625,12 +705,12 @@ const PivotTable: FC<PivotTableProps> = ({
                           data.headerValues.length - 1 ? (
                             <Table.Cell
                                 isMinimal={isMinimal}
-                                withMinimalWidth
+                                withMinimalWidth={!hasCustomWidths}
                             />
                         ) : (
                             <Table.CellHead
                                 isMinimal={isMinimal}
-                                withMinimalWidth
+                                withMinimalWidth={!hasCustomWidths}
                                 withBoldFont
                             >
                                 #
@@ -648,28 +728,77 @@ const PivotTable: FC<PivotTableProps> = ({
                                 const isHeaderTitle =
                                     titleField?.direction === 'header';
 
+                                const isLastHeaderRow =
+                                    headerRowIndex ===
+                                    data.headerValues.length - 1;
+
+                                const titleWidthKey = titleField?.fieldId;
+                                const titleWidth = titleWidthKey
+                                    ? columnProperties[titleWidthKey]?.width
+                                    : undefined;
+                                const canResizeTitle =
+                                    isLastHeaderRow &&
+                                    onColumnWidthChange &&
+                                    !isMinimal &&
+                                    titleWidthKey;
+
                                 return isEmpty ? (
                                     <Table.Cell
                                         key={`title-${headerRowIndex}-${titleFieldIndex}`}
                                         isMinimal={isMinimal}
-                                        withMinimalWidth
+                                        withMinimalWidth={
+                                            !hasCustomWidths && !titleWidth
+                                        }
                                     />
                                 ) : (
                                     <Table.CellHead
                                         key={`title-${headerRowIndex}-${titleFieldIndex}`}
                                         withAlignRight={isHeaderTitle}
                                         isMinimal={isMinimal}
-                                        withMinimalWidth
+                                        withMinimalWidth={
+                                            !hasCustomWidths &&
+                                            (!isLastHeaderRow || !titleWidth)
+                                        }
                                         withBoldFont
                                         withTooltip={
                                             isField(field)
                                                 ? field.description
                                                 : undefined
                                         }
+                                        w={
+                                            isLastHeaderRow
+                                                ? titleWidth
+                                                : undefined
+                                        }
+                                        miw={
+                                            isLastHeaderRow
+                                                ? titleWidth
+                                                : undefined
+                                        }
+                                        maw={
+                                            isLastHeaderRow
+                                                ? titleWidth
+                                                : undefined
+                                        }
                                     >
                                         {titleField?.fieldId
                                             ? getFieldLabel(titleField?.fieldId)
                                             : undefined}
+                                        {canResizeTitle && (
+                                            <div
+                                                className={
+                                                    resizeHandleClassName
+                                                }
+                                                role="separator"
+                                                aria-orientation="vertical"
+                                                onMouseDown={(e) =>
+                                                    handleResizeStart(
+                                                        e,
+                                                        titleWidthKey,
+                                                    )
+                                                }
+                                            />
+                                        )}
                                     </Table.CellHead>
                                 );
                             },
@@ -684,6 +813,34 @@ const PivotTable: FC<PivotTableProps> = ({
                                     ? field.description
                                     : undefined;
 
+                            const isLastHeaderRow =
+                                headerRowIndex === data.headerValues.length - 1;
+
+                            // Look up saved width for this data column
+                            const colInfo =
+                                data.retrofitData.pivotColumnInfo[
+                                    numLabelCols + headerColIndex
+                                ];
+                            const widthKey =
+                                colInfo?.underlyingId || colInfo?.baseId;
+                            const colWidth = widthKey
+                                ? columnProperties[widthKey]?.width
+                                : undefined;
+
+                            const canResize =
+                                isLastHeaderRow &&
+                                onColumnWidthChange &&
+                                !isMinimal &&
+                                widthKey;
+
+                            // Apply width on the last header row, or on parent rows
+                            // when the cell spans exactly 1 column (single metric)
+                            const effectiveWidth =
+                                isLastHeaderRow ||
+                                (!isLabel && headerValue.colSpan === 1)
+                                    ? colWidth
+                                    : undefined;
+
                             return isLabel || headerValue.colSpan > 0 ? (
                                 <Table.CellHead
                                     key={`header-${headerRowIndex}-${headerColIndex}`}
@@ -695,10 +852,23 @@ const PivotTable: FC<PivotTableProps> = ({
                                             ? undefined
                                             : headerValue.colSpan
                                     }
+                                    w={effectiveWidth}
+                                    miw={effectiveWidth}
+                                    maw={effectiveWidth}
                                 >
                                     {isLabel
                                         ? getFieldLabel(headerValue.fieldId)
                                         : formatCellContent(headerValue)}
+                                    {canResize && (
+                                        <div
+                                            className={resizeHandleClassName}
+                                            role="separator"
+                                            aria-orientation="vertical"
+                                            onMouseDown={(e) =>
+                                                handleResizeStart(e, widthKey)
+                                            }
+                                        />
+                                    )}
                                 </Table.CellHead>
                             ) : null;
                         })}
@@ -711,7 +881,9 @@ const PivotTable: FC<PivotTableProps> = ({
                                               key={`header-total-${headerRowIndex}-${headerColIndex}`}
                                               isMinimal={isMinimal}
                                               withBoldFont
-                                              withMinimalWidth
+                                              withMinimalWidth={
+                                                  !hasCustomWidths
+                                              }
                                           >
                                               {totalLabel.fieldId
                                                   ? `Total ${getFieldLabel(
@@ -723,7 +895,9 @@ const PivotTable: FC<PivotTableProps> = ({
                                           <Table.Cell
                                               key={`header-total-${headerRowIndex}-${headerColIndex}`}
                                               isMinimal={isMinimal}
-                                              withMinimalWidth
+                                              withMinimalWidth={
+                                                  !hasCustomWidths
+                                              }
                                           />
                                       ),
                               )
@@ -912,6 +1086,8 @@ const PivotTable: FC<PivotTableProps> = ({
                                     ? undefined
                                     : !!value?.formatted;
 
+                                const cellWidth = meta?.width;
+
                                 const TableCellComponent = isRowTotal
                                     ? Table.CellHead
                                     : Table.Cell;
@@ -920,6 +1096,9 @@ const PivotTable: FC<PivotTableProps> = ({
                                         key={`value-${rowIndex}-${colIndex}-${data.pivotConfig.metricsAsRows}`}
                                         isMinimal={isMinimal}
                                         withAlignRight={isNumericItem(item)}
+                                        w={cellWidth}
+                                        miw={cellWidth}
+                                        maw={cellWidth}
                                         withColor={conditionalFormatting?.color}
                                         withBoldFont={meta?.type === 'label'}
                                         withBackground={
