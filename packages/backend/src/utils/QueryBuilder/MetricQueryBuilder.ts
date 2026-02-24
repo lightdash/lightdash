@@ -2106,7 +2106,7 @@ export class MetricQueryBuilder {
                 // Outer CTE: aggregate with CASE WHEN on ROW_NUMBER
                 const outerSelects = [
                     ...dimensionAlias,
-                    `  SUM(CASE WHEN __sd_rn = 1 THEN __sd_val ELSE 0 END) AS ${fieldQuoteChar}${metricId}${fieldQuoteChar}`,
+                    `  SUM(CASE WHEN __sd_rn = 1 THEN __sd_val ELSE NULL END) AS ${fieldQuoteChar}${metricId}${fieldQuoteChar}`,
                 ];
 
                 const cteSql = `${sdCteName} AS (\nSELECT\n${outerSelects.join(',\n')}\nFROM (\n${innerSubquery}\n) __sd_sub\n${sdGroupBy ?? ''}\n)`;
