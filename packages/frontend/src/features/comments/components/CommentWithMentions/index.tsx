@@ -1,4 +1,4 @@
-import { useMantineTheme } from '@mantine/core';
+import { useMantineTheme } from '@mantine-8/core';
 import { RichTextEditor } from '@mantine/tiptap';
 import Mention from '@tiptap/extension-mention';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -6,6 +6,7 @@ import { useEditor, type Editor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { useEffect, type FC } from 'react';
 import { type SuggestionsItem } from '../../types';
+import styles from './CommentWithMentions.module.css';
 import { generateSuggestionWrapper } from './generateSuggestionWrapper';
 
 type Props = {
@@ -56,15 +57,7 @@ export const CommentWithMentions: FC<Props> = ({
     return (
         <RichTextEditor
             editor={editor}
-            styles={{
-                content: {
-                    maxHeight: 100,
-                    overflowY: 'auto',
-                    '& > .tiptap': {
-                        padding: 6,
-                    },
-                },
-            }}
+            className={styles.editor}
         >
             <RichTextEditor.Content fz="xs" />
         </RichTextEditor>

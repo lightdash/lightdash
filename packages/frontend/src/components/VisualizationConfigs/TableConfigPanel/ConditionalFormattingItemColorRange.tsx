@@ -85,7 +85,7 @@ const ConditionalFormattingItemColorRange: FC<Props> = ({
                     {/* FIXME: remove this and use NumberInput from @mantine/core once we upgrade to mantine v7 */}
                     {/* INFO: mantine v6 NumberInput does not handle decimal values properly */}
                     <FilterNumberInput
-                        sx={{ flexShrink: 1 }}
+                        flex="0 1 auto"
                         disabled={config.rule[minMaxName] === 'auto'}
                         placeholder={
                             config.rule[minMaxName] === 'auto'
@@ -97,7 +97,7 @@ const ConditionalFormattingItemColorRange: FC<Props> = ({
                                 {capitalize(minMaxName)} value
                             </Config.Label>
                         }
-                        icon={
+                        leftSection={
                             hasPercentageFormat(field) ? (
                                 <MantineIcon icon={IconPercentage} />
                             ) : null

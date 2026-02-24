@@ -1,7 +1,8 @@
-import { Box, Group, Select, Text } from '@mantine/core';
+import { Group, Select, Text } from '@mantine-8/core';
 import { IconCalendar, IconClearAll } from '@tabler/icons-react';
-import { forwardRef, type ComponentPropsWithoutRef, type FC } from 'react';
+import { type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';
+import styles from './CartesianChartXAxisDateFormatConfig.module.css';
 
 const DATE_FORMAT_OPTIONS = [
     { value: 'none', label: 'None' },
@@ -17,21 +18,6 @@ const DateFormatIcon: FC<{ format: string | undefined }> = ({ format }) => {
     return <MantineIcon color={format ? 'indigo.4' : 'ldGray.4'} icon={icon} />;
 };
 
-const DateFormatItem = forwardRef<
-    HTMLDivElement,
-    ComponentPropsWithoutRef<'div'> & { value: string; selected: boolean }
->(({ value, ...others }, ref) => {
-    const option = DATE_FORMAT_OPTIONS.find((o) => o.value === value);
-    return (
-        <Box ref={ref} {...others}>
-            <Group noWrap spacing="xs">
-                <DateFormatIcon format={value === 'none' ? undefined : value} />
-                <Text>{option?.label ?? value}</Text>
-            </Group>
-        </Box>
-    );
-});
-
 type Props = {
     dateFormat: string | undefined;
     onChangeDateFormat: (value: string | undefined) => void;
@@ -45,33 +31,34 @@ export const CartesianChartXAxisDateFormatConfig: FC<Props> = ({
         <Select
             radius="md"
             data={DATE_FORMAT_OPTIONS}
-            itemComponent={DateFormatItem}
-            icon={<DateFormatIcon format={dateFormat} />}
+            renderOption={({ option }) => {
+                const opt = DATE_FORMAT_OPTIONS.find(
+                    (o) => o.value === option.value,
+                );
+                return (
+                    <Group wrap="nowrap" gap="xs">
+                        <DateFormatIcon
+                            format={
+                                option.value === 'none'
+                                    ? undefined
+                                    : option.value
+                            }
+                        />
+                        <Text>{opt?.label ?? option.value}</Text>
+                    </Group>
+                );
+            }}
+            leftSection={<DateFormatIcon format={dateFormat} />}
             value={dateFormat ?? 'none'}
             onChange={(value) => {
                 onChangeDateFormat(
                     value === 'none' || value === null ? undefined : value,
                 );
             }}
-            styles={(theme) => ({
-                input: {
-                    width: '130px',
-                    fontWeight: 500,
-                },
-                item: {
-                    '&[data-selected="true"]': {
-                        color: theme.colors.ldGray[7],
-                        fontWeight: 500,
-                        backgroundColor: theme.colors.ldGray[2],
-                    },
-                    '&[data-selected="true"]:hover': {
-                        backgroundColor: theme.colors.ldGray[3],
-                    },
-                    '&:hover': {
-                        backgroundColor: theme.colors.ldGray[1],
-                    },
-                },
-            })}
+            classNames={{
+                input: styles.input,
+                option: styles.option,
+            }}
         />
     );
 };

@@ -83,9 +83,7 @@ const SpaceSelector = ({
                     onChange={setSelectedAdminContentType}
                     withDivider={false}
                     segmentedControlProps={{
-                        sx: {
-                            flexShrink: 0,
-                        },
+                        flex: '0 0 auto',
                     }}
                 />
             ) : null}

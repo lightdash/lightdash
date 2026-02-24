@@ -12,7 +12,7 @@ const DbtLocalForm: FC<{ disabled: boolean }> = ({ disabled }) => (
             color="orange"
             icon={<MantineIcon icon={IconExclamationCircle} size="lg" />}
         >
-            <Text c="orange">
+            <Text c="orange" fz="sm">
                 This connection type should only be used for local development.
             </Text>
         </Alert>
@@ -22,14 +22,14 @@ const DbtLocalForm: FC<{ disabled: boolean }> = ({ disabled }) => (
             icon={<MantineIcon icon={IconInfoCircle} size="lg" />}
         >
             <Stack gap="xs">
-                <Text c="blue">
+                <Text c="blue" fz="sm">
                     When using the install script, when you&apos;re asked{' '}
                     <b>How do you want to setup Lightdash ?</b>, select the
                     option <b>with local dbt</b> and then provide the absolute
                     path to your dbt project.
                 </Text>
 
-                <Text c="blue">
+                <Text c="blue" fz="sm">
                     When using the install script, set the env var{' '}
                     <b>DBT_PROJECT_DIR</b> with the absolute path to your dbt
                     project.

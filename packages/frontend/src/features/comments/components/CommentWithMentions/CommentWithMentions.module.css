@@ -1,0 +1,12 @@
+.editor {
+    /* scoping class for RichTextEditor */
+}
+
+.editor :global(.mantine-RichTextEditor-content) {
+    max-height: 100px;
+    overflow-y: auto;
+}
+
+.editor :global(.mantine-RichTextEditor-content) > :global(.tiptap) {
+    padding: 6px;
+}

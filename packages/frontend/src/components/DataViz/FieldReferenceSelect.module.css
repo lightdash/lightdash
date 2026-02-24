@@ -1,0 +1,21 @@
+.input {
+    height: 32px;
+    font-weight: 500;
+    border-color: var(--mantine-color-ldGray-2);
+    border-radius: var(--mantine-radius-md);
+    box-shadow: 0px 1px 2px 0px rgba(228, 229, 231, 0.24);
+}
+
+.option[data-combobox-selected] {
+    color: var(--mantine-color-ldGray-7);
+    font-weight: 500;
+    background-color: var(--mantine-color-ldGray-2);
+}
+
+.option[data-combobox-selected]:hover {
+    background-color: var(--mantine-color-ldGray-3);
+}
+
+.option:hover {
+    background-color: var(--mantine-color-ldGray-1);
+}
