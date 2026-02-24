@@ -107,6 +107,14 @@ export class SchedulerWorker extends SchedulerTask {
                         maxAttempts: 3,
                     },
                 },
+                {
+                    task: SCHEDULER_TASKS.CLEAN_DEPLOY_SESSIONS,
+                    pattern: '0 * * * *', // Every hour
+                    options: {
+                        backfillPeriod: 2 * 3600 * 1000, // 2 hours in ms
+                        maxAttempts: 3,
+                    },
+                },
             ]),
             taskList: traceTasks(this.getTaskList()),
             events: schedulerWorkerEventEmitter,
@@ -882,6 +890,21 @@ export class SchedulerWorker extends SchedulerTask {
                     );
                 } catch (error) {
                     Logger.error('Error during query history cleanup:', error);
+                    throw error;
+                }
+            },
+            [SCHEDULER_TASKS.CLEAN_DEPLOY_SESSIONS]: async () => {
+                Logger.info('Starting deploy sessions cleanup job');
+
+                try {
+                    await this.deployService.cleanupOldSessions();
+
+                    Logger.info(`Deploy sessions cleanup completed.`);
+                } catch (error) {
+                    Logger.error(
+                        'Error during deploy sessions cleanup:',
+                        error,
+                    );
                     throw error;
                 }
             },

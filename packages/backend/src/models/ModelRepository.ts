@@ -8,6 +8,7 @@ import { CommentModel } from './CommentModel/CommentModel';
 import { ContentModel } from './ContentModel/ContentModel';
 import { DashboardModel } from './DashboardModel/DashboardModel';
 import { PersonalAccessTokenModel } from './DashboardModel/PersonalAccessTokenModel';
+import { DeploySessionModel } from './DeploySessionModel';
 import { DownloadAuditModel } from './DownloadAuditModel';
 import { DownloadFileModel } from './DownloadFileModel';
 import { EmailModel } from './EmailModel';
@@ -64,6 +65,7 @@ export type ModelManifest = {
     analyticsModel: AnalyticsModel;
     commentModel: CommentModel;
     dashboardModel: DashboardModel;
+    deploySessionModel: DeploySessionModel;
     downloadFileModel: DownloadFileModel;
     downloadAuditModel: DownloadAuditModel;
     persistentDownloadFileModel: PersistentDownloadFileModel;
@@ -239,6 +241,13 @@ export class ModelRepository
                     database: this.database,
                     lightdashConfig: this.lightdashConfig,
                 }),
+        );
+    }
+
+    public getDeploySessionModel(): DeploySessionModel {
+        return this.getModel(
+            'deploySessionModel',
+            () => new DeploySessionModel(this.database),
         );
     }
 

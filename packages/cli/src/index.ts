@@ -825,6 +825,21 @@ program
         false,
     )
     .option('-y, --assume-yes', 'assume yes to prompts', false)
+    .option(
+        '--use-batched-deploy',
+        'Use batched deploy for large projects (sends explores in batches)',
+        false,
+    )
+    .option(
+        '--batch-size <number>',
+        'Number of explores per batch (default: 50)',
+        '50',
+    )
+    .option(
+        '--parallel-batches <number>',
+        'Number of batches to send in parallel (default: 1)',
+        '1',
+    )
     .action(deployHandler);
 
 program

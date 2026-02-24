@@ -172,6 +172,7 @@ const getTagsForTask: {
     }),
     [SCHEDULER_TASKS.GENERATE_SLACK_CHANNEL_SYNC_JOBS]: () => ({}),
     [SCHEDULER_TASKS.CHECK_FOR_STUCK_JOBS]: () => ({}),
+    [SCHEDULER_TASKS.CLEAN_DEPLOY_SESSIONS]: () => ({}),
 } as const;
 
 // Generic accessor function
