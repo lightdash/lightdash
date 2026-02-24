@@ -1,3 +1,10 @@
+# [0.2517.0](https://github.com/lightdash/lightdash/compare/0.2516.0...0.2517.0) (2026-02-24)
+
+
+### Features
+
+* add development seed for personal access tokens ([#20559](https://github.com/lightdash/lightdash/issues/20559)) ([1e76664](https://github.com/lightdash/lightdash/commit/1e76664a0dcd45ede8946b5230db5a8c0e57a482))
+
 # [0.2516.0](https://github.com/lightdash/lightdash/compare/0.2515.0...0.2516.0) (2026-02-24)
 
 
