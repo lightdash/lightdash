@@ -8713,19 +8713,6 @@
                                             },
                                             {
                                                 "properties": {
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": [
-                                                            "error",
-                                                            "success"
-                                                        ]
-                                                    }
-                                                },
-                                                "required": ["status"],
-                                                "type": "object"
-                                            },
-                                            {
-                                                "properties": {
                                                     "ranking": {
                                                         "properties": {
                                                             "topMatchingFields": {
@@ -8767,16 +8754,16 @@
                                                             "exploreSearchResults": {
                                                                 "items": {
                                                                     "properties": {
+                                                                        "searchRank": {
+                                                                            "type": "number",
+                                                                            "format": "double",
+                                                                            "nullable": true
+                                                                        },
                                                                         "joinedTables": {
                                                                             "items": {
                                                                                 "type": "string"
                                                                             },
                                                                             "type": "array",
-                                                                            "nullable": true
-                                                                        },
-                                                                        "searchRank": {
-                                                                            "type": "number",
-                                                                            "format": "double",
                                                                             "nullable": true
                                                                         },
                                                                         "label": {
@@ -8806,8 +8793,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "error",
-                                                            "success"
+                                                            "success",
+                                                            "error"
                                                         ]
                                                     }
                                                 },
@@ -8905,8 +8892,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "error",
-                                                            "success"
+                                                            "success",
+                                                            "error"
                                                         ]
                                                     }
                                                 },
@@ -24059,6 +24046,36 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "BigqueryProject": {
+                "properties": {
+                    "friendlyName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "projectId": {
+                        "type": "string"
+                    }
+                },
+                "required": ["friendlyName", "projectId"],
+                "type": "object"
+            },
+            "ApiBigqueryProjects": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/BigqueryProject"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "RoleAssignment": {
                 "properties": {
                     "updatedAt": {
@@ -26433,7 +26450,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2512.0",
+        "version": "0.2513.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -41534,9 +41551,41 @@
                 ]
             }
         },
+        "/api/v1/bigquery/sso/projects": {
+            "get": {
+                "operationId": "GetBigQueryProjects",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiBigqueryProjects"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get BigQuery projects accessible by the user",
+                "summary": "Get BigQuery projects",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": []
+            }
+        },
         "/api/v1/bigquery/sso/is-authenticated": {
             "get": {
-                "operationId": "getAccessToken",
+                "operationId": "checkBigqueryAuthentication",
                 "responses": {
                     "200": {
                         "description": "Success",
