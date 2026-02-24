@@ -1,4 +1,6 @@
 import {
+    BinType,
+    CustomDimensionType,
     DimensionType,
     FieldType,
     ParameterError,
@@ -9,6 +11,7 @@ import {
     VizIndexType,
     WeekDay,
     type CompiledDimension,
+    type CustomBinDimension,
     type ItemsMap,
     type WarehouseSqlBuilder,
 } from '@lightdash/common';
@@ -2081,6 +2084,222 @@ SELECT * FROM group_by_query LIMIT 50`);
             // For simple queries (no groupBy), NULLS FIRST is appended after the sort expression
             expect(result).toContain('NULLS FIRST');
             expect(result).toContain('ORDER BY');
+        });
+    });
+
+    describe('Custom bin dimension _order column handling', () => {
+        const binDimension: CustomBinDimension = {
+            id: 'amount_binned_amount',
+            name: 'binned_amount',
+            table: 'orders',
+            type: CustomDimensionType.BIN,
+            dimensionId: 'orders_amount',
+            binType: BinType.FIXED_WIDTH,
+            binWidth: 10,
+        };
+
+        const categoryDimension: CompiledDimension = {
+            type: DimensionType.STRING,
+            name: 'category',
+            label: 'Category',
+            table: 'orders',
+            tableLabel: 'Orders',
+            fieldType: FieldType.DIMENSION,
+            sql: '${TABLE}.category',
+            compiledSql: '"orders".category',
+            tablesReferences: ['orders'],
+            hidden: false,
+        };
+
+        test('Should include _order column in group_by_query and row_index when sorted bin dimension is an index', () => {
+            const itemsMap: ItemsMap = {
+                amount_binned_amount: binDimension,
+            };
+
+            const pivotConfiguration = {
+                indexColumn: [
+                    {
+                        reference: 'amount_binned_amount',
+                        type: VizIndexType.CATEGORY,
+                    },
+                ],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'event_type' }],
+                sortBy: [
+                    {
+                        reference: 'amount_binned_amount',
+                        direction: SortByDirection.ASC,
+                    },
+                ],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                itemsMap,
+            );
+
+            const result = builder.toSql();
+
+            // _order column should be in group_by_query SELECT and GROUP BY
+            expect(result).toContain('"amount_binned_amount_order"');
+            expect(replaceWhitespace(result)).toContain(
+                'group by "event_type", "amount_binned_amount", "amount_binned_amount_order"',
+            );
+
+            // row_index should use _order column for sorting
+            expect(result.toLowerCase()).toContain(
+                'dense_rank() over (order by g."amount_binned_amount_order" asc) as "row_index"',
+            );
+        });
+
+        test('Should include _order column in group_by_query and column_index when sorted bin dimension is a groupBy', () => {
+            const itemsMap: ItemsMap = {
+                amount_binned_amount: binDimension,
+            };
+
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'amount_binned_amount' }],
+                sortBy: [
+                    {
+                        reference: 'amount_binned_amount',
+                        direction: SortByDirection.DESC,
+                    },
+                ],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                itemsMap,
+            );
+
+            const result = builder.toSql();
+
+            // _order column should be in group_by_query
+            expect(result).toContain('"amount_binned_amount_order"');
+            expect(replaceWhitespace(result)).toContain(
+                'group by "amount_binned_amount", "date", "amount_binned_amount_order"',
+            );
+
+            // column_index should use _order column for sorting
+            expect(result.toLowerCase()).toContain(
+                'dense_rank() over (order by g."amount_binned_amount_order" desc) as "column_index"',
+            );
+        });
+
+        test('Should NOT include _order column when bin dimension is not sorted', () => {
+            const itemsMap: ItemsMap = {
+                amount_binned_amount: binDimension,
+            };
+
+            const pivotConfiguration = {
+                indexColumn: [
+                    {
+                        reference: 'amount_binned_amount',
+                        type: VizIndexType.CATEGORY,
+                    },
+                ],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'event_type' }],
+                sortBy: [
+                    {
+                        reference: 'event_type',
+                        direction: SortByDirection.ASC,
+                    },
+                ],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                itemsMap,
+            );
+
+            const result = builder.toSql();
+
+            // _order column should NOT be present — MetricQueryBuilder only generates it
+            // when the bin dimension has an explicit sort entry
+            expect(result).not.toContain('amount_binned_amount_order');
+        });
+
+        test('Should handle mixed sorted bin dimension + regular dimension', () => {
+            const itemsMap: ItemsMap = {
+                amount_binned_amount: binDimension,
+                orders_category: categoryDimension,
+            };
+
+            const pivotConfiguration = {
+                indexColumn: [
+                    {
+                        reference: 'amount_binned_amount',
+                        type: VizIndexType.CATEGORY,
+                    },
+                    {
+                        reference: 'orders_category',
+                        type: VizIndexType.CATEGORY,
+                    },
+                ],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'event_type' }],
+                sortBy: [
+                    {
+                        reference: 'amount_binned_amount',
+                        direction: SortByDirection.ASC,
+                    },
+                    {
+                        reference: 'orders_category',
+                        direction: SortByDirection.DESC,
+                    },
+                ],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                itemsMap,
+            );
+
+            const result = builder.toSql();
+
+            // _order column should be present for the bin dimension only
+            expect(result).toContain('"amount_binned_amount_order"');
+            expect(result).not.toContain('"orders_category_order"');
+
+            // row_index should use _order for bin dim and regular ref for category
+            expect(result.toLowerCase()).toContain(
+                'dense_rank() over (order by g."amount_binned_amount_order" asc, g."orders_category" desc)',
+            );
         });
     });
 });
