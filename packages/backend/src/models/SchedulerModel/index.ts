@@ -880,21 +880,22 @@ export class SchedulerModel {
     async softDeleteByChartUuid(
         chartUuid: string,
         userUuid: string,
-    ): Promise<void> {
-        await this.database(SchedulerTableName)
+    ): Promise<SchedulerDb[]> {
+        return this.database(SchedulerTableName)
             .update({
                 deleted_at: new Date(),
                 deleted_by_user_uuid: userUuid,
             })
             .where('saved_chart_uuid', chartUuid)
-            .whereNull('deleted_at');
+            .whereNull('deleted_at')
+            .returning('*');
     }
 
     async softDeleteByDashboardUuid(
         dashboardUuid: string,
         userUuid: string,
-    ): Promise<SchedulerDb> {
-        const [scheduler] = await this.database(SchedulerTableName)
+    ): Promise<SchedulerDb[]> {
+        return this.database(SchedulerTableName)
             .update({
                 deleted_at: new Date(),
                 deleted_by_user_uuid: userUuid,
@@ -902,28 +903,30 @@ export class SchedulerModel {
             .where('dashboard_uuid', dashboardUuid)
             .whereNull('deleted_at')
             .returning('*');
-
-        return scheduler;
     }
 
-    async restoreByChartUuid(chartUuid: string): Promise<void> {
-        await this.database(SchedulerTableName)
+    async restoreByChartUuid(chartUuid: string): Promise<SchedulerDb[]> {
+        return this.database(SchedulerTableName)
             .update({
                 deleted_at: null,
                 deleted_by_user_uuid: null,
             })
             .where('saved_chart_uuid', chartUuid)
-            .whereNotNull('deleted_at');
+            .whereNotNull('deleted_at')
+            .returning('*');
     }
 
-    async restoreByDashboardUuid(dashboardUuid: string): Promise<void> {
-        await this.database(SchedulerTableName)
+    async restoreByDashboardUuid(
+        dashboardUuid: string,
+    ): Promise<SchedulerDb[]> {
+        return this.database(SchedulerTableName)
             .update({
                 deleted_at: null,
                 deleted_by_user_uuid: null,
             })
             .where('dashboard_uuid', dashboardUuid)
-            .whereNotNull('deleted_at');
+            .whereNotNull('deleted_at')
+            .returning('*');
     }
 
     static parseSchedulerLog(logDb: SchedulerLogDb): SchedulerLog {

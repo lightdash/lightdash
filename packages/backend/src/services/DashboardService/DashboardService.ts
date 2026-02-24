@@ -41,6 +41,7 @@ import {
     type Explore,
     type ExploreError,
 } from '@lightdash/common';
+import * as Sentry from '@sentry/node';
 import cronstrue from 'cronstrue';
 import { type Knex } from 'knex';
 import { uniq } from 'lodash';
@@ -68,6 +69,7 @@ import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { createTwoColumnTiles } from '../../utils/dashboardTileUtils';
 import { BaseService } from '../BaseService';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
+import type { SchedulerService } from '../SchedulerService/SchedulerService';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { hasDirectAccessToSpace } from '../SpaceService/SpaceService';
 
@@ -79,6 +81,7 @@ type DashboardServiceArguments = {
     analyticsModel: AnalyticsModel;
     pinnedListModel: PinnedListModel;
     schedulerModel: SchedulerModel;
+    schedulerService: SchedulerService;
     savedChartModel: SavedChartModel;
     savedChartService: SavedChartService;
     schedulerClient: SchedulerClient;
@@ -106,6 +109,8 @@ export class DashboardService
 
     schedulerModel: SchedulerModel;
 
+    schedulerService: SchedulerService;
+
     savedChartModel: SavedChartModel;
 
     savedChartService: SavedChartService;
@@ -128,6 +133,7 @@ export class DashboardService
         analyticsModel,
         pinnedListModel,
         schedulerModel,
+        schedulerService,
         savedChartModel,
         savedChartService,
         schedulerClient,
@@ -144,6 +150,7 @@ export class DashboardService
         this.analyticsModel = analyticsModel;
         this.pinnedListModel = pinnedListModel;
         this.schedulerModel = schedulerModel;
+        this.schedulerService = schedulerService;
         this.savedChartModel = savedChartModel;
         this.savedChartService = savedChartService;
         this.projectModel = projectModel;
@@ -202,6 +209,7 @@ export class DashboardService
                     properties: {
                         savedQueryId: deletedChart.uuid,
                         projectId: deletedChart.projectUuid,
+                        softDelete: false,
                     },
                 });
             }),
@@ -1015,17 +1023,26 @@ export class DashboardService
         }
 
         let deletedDashboard: DashboardDAO;
+        let wasSoftDeleted = false;
         if (this.lightdashConfig.softDelete.enabled) {
             deletedDashboard = await this.dashboardModel.softDelete(
                 dashboardUuid,
                 user.userUuid,
             );
+            wasSoftDeleted = true;
 
             // Cascade: soft-delete associated schedulers
-            if (this.lightdashConfig.softDelete.enabled) {
-                await this.schedulerModel.softDeleteByDashboardUuid(
+            try {
+                await this.schedulerService.softDeleteByDashboardUuid(
+                    user,
                     dashboardUuid,
-                    user.userUuid,
+                    { projectUuid, organizationUuid },
+                );
+            } catch (e) {
+                Sentry.captureException(e);
+                this.logger.error(
+                    `Failed to cascade soft-delete schedulers for dashboard ${dashboardUuid}`,
+                    e,
                 );
             }
         } else {
@@ -1039,6 +1056,7 @@ export class DashboardService
             properties: {
                 dashboardId: deletedDashboard.uuid,
                 projectId: deletedDashboard.projectUuid,
+                softDelete: wasSoftDeleted,
             },
         });
     }
@@ -1067,7 +1085,31 @@ export class DashboardService
         await this.dashboardModel.restore(dashboardUuid);
 
         // Cascade: restore associated schedulers
-        await this.schedulerModel.restoreByDashboardUuid(dashboardUuid);
+        try {
+            await this.schedulerService.restoreByDashboardUuid(
+                user,
+                dashboardUuid,
+                {
+                    projectUuid: dashboard.projectUuid,
+                    organizationUuid: dashboard.organizationUuid,
+                },
+            );
+        } catch (e) {
+            Sentry.captureException(e);
+            this.logger.error(
+                `Failed to cascade restore schedulers for dashboard ${dashboardUuid}`,
+                e,
+            );
+        }
+
+        this.analytics.track({
+            event: 'dashboard.restored',
+            userId: user.userUuid,
+            properties: {
+                dashboardId: dashboardUuid,
+                projectId: dashboard.projectUuid,
+            },
+        });
     }
 
     async permanentlyDeleteDashboard(
@@ -1092,6 +1134,16 @@ export class DashboardService
         }
 
         await this.dashboardModel.permanentDelete(dashboardUuid);
+
+        this.analytics.track({
+            event: 'dashboard.deleted',
+            userId: user.userUuid,
+            properties: {
+                dashboardId: dashboardUuid,
+                projectId: dashboard.projectUuid,
+                softDelete: false,
+            },
+        });
     }
 
     async getSchedulers(

@@ -778,8 +778,179 @@ export class SchedulerService extends BaseService {
                 resourceId: isChartScheduler(scheduler)
                     ? scheduler.savedChartUuid
                     : scheduler.dashboardUuid,
+                softDelete: false,
             },
         });
+    }
+
+    /**
+     * Cascade soft-delete schedulers belonging to a chart.
+     * Called from SavedChartService.delete() which already checked
+     * the user can delete the parent chart.
+     */
+    async softDeleteByChartUuid(
+        user: SessionUser,
+        chartUuid: string,
+        context: { projectUuid: string; organizationUuid: string },
+    ): Promise<void> {
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('ScheduledDeliveries', {
+                    organizationUuid: context.organizationUuid,
+                    projectUuid: context.projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                `User ${user.userUuid} cannot manage scheduled deliveries for cascade soft-delete on chart ${chartUuid}`,
+            );
+        }
+
+        const deletedSchedulers =
+            await this.schedulerModel.softDeleteByChartUuid(
+                chartUuid,
+                user.userUuid,
+            );
+        for (const s of deletedSchedulers) {
+            this.analytics.track({
+                userId: user.userUuid,
+                event: 'scheduler.deleted',
+                properties: {
+                    projectId: context.projectUuid,
+                    organizationId: context.organizationUuid,
+                    schedulerId: s.scheduler_uuid,
+                    resourceType: 'chart',
+                    resourceId: chartUuid,
+                    softDelete: true,
+                },
+            });
+        }
+    }
+
+    /**
+     * Cascade soft-delete schedulers belonging to a dashboard.
+     * Called from DashboardService.delete() which already checked
+     * the user can delete the parent dashboard.
+     */
+    async softDeleteByDashboardUuid(
+        user: SessionUser,
+        dashboardUuid: string,
+        context: { projectUuid: string; organizationUuid: string },
+    ): Promise<void> {
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('ScheduledDeliveries', {
+                    organizationUuid: context.organizationUuid,
+                    projectUuid: context.projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                `User ${user.userUuid} cannot manage scheduled deliveries for cascade soft-delete on dashboard ${dashboardUuid}`,
+            );
+        }
+
+        const deletedSchedulers =
+            await this.schedulerModel.softDeleteByDashboardUuid(
+                dashboardUuid,
+                user.userUuid,
+            );
+        for (const s of deletedSchedulers) {
+            this.analytics.track({
+                userId: user.userUuid,
+                event: 'scheduler.deleted',
+                properties: {
+                    projectId: context.projectUuid,
+                    organizationId: context.organizationUuid,
+                    schedulerId: s.scheduler_uuid,
+                    resourceType: 'dashboard',
+                    resourceId: dashboardUuid,
+                    softDelete: true,
+                },
+            });
+        }
+    }
+
+    /**
+     * Cascade restore schedulers belonging to a chart.
+     * Called from SavedChartService.restoreChart().
+     */
+    async restoreByChartUuid(
+        user: SessionUser,
+        chartUuid: string,
+        context: { projectUuid: string; organizationUuid: string },
+    ): Promise<void> {
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('ScheduledDeliveries', {
+                    organizationUuid: context.organizationUuid,
+                    projectUuid: context.projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                `User ${user.userUuid} cannot manage scheduled deliveries for cascade restore on chart ${chartUuid}`,
+            );
+        }
+
+        const restoredSchedulers =
+            await this.schedulerModel.restoreByChartUuid(chartUuid);
+        for (const s of restoredSchedulers) {
+            this.analytics.track({
+                userId: user.userUuid,
+                event: 'scheduler.restored',
+                properties: {
+                    projectId: context.projectUuid,
+                    organizationId: context.organizationUuid,
+                    schedulerId: s.scheduler_uuid,
+                    resourceType: 'chart',
+                    resourceId: chartUuid,
+                },
+            });
+        }
+    }
+
+    /**
+     * Cascade restore schedulers belonging to a dashboard.
+     * Called from DashboardService.restoreDashboard().
+     */
+    async restoreByDashboardUuid(
+        user: SessionUser,
+        dashboardUuid: string,
+        context: { projectUuid: string; organizationUuid: string },
+    ): Promise<void> {
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('ScheduledDeliveries', {
+                    organizationUuid: context.organizationUuid,
+                    projectUuid: context.projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                `User ${user.userUuid} cannot manage scheduled deliveries for cascade restore on dashboard ${dashboardUuid}`,
+            );
+        }
+
+        const restoredSchedulers =
+            await this.schedulerModel.restoreByDashboardUuid(dashboardUuid);
+        for (const s of restoredSchedulers) {
+            this.analytics.track({
+                userId: user.userUuid,
+                event: 'scheduler.restored',
+                properties: {
+                    projectId: context.projectUuid,
+                    organizationId: context.organizationUuid,
+                    schedulerId: s.scheduler_uuid,
+                    resourceType: 'dashboard',
+                    resourceId: dashboardUuid,
+                },
+            });
+        }
     }
 
     async getScheduledJobs(
