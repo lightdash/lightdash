@@ -1,3 +1,10 @@
+# [0.2516.0](https://github.com/lightdash/lightdash/compare/0.2515.0...0.2516.0) (2026-02-24)
+
+
+### Features
+
+* encourage group sharing over user in spaces ([#20562](https://github.com/lightdash/lightdash/issues/20562)) ([bda083a](https://github.com/lightdash/lightdash/commit/bda083a1ec2a2fa4a0049a8f44fbbd4733bf77f7))
+
 # [0.2515.0](https://github.com/lightdash/lightdash/compare/0.2514.0...0.2515.0) (2026-02-24)
 
 
