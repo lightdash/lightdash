@@ -1,3 +1,10 @@
+# [0.2513.0](https://github.com/lightdash/lightdash/compare/0.2512.1...0.2513.0) (2026-02-23)
+
+
+### Features
+
+* api to create new repos ([#20199](https://github.com/lightdash/lightdash/issues/20199)) ([727ec96](https://github.com/lightdash/lightdash/commit/727ec9613eccad56907fd455383f6a1a0954a8b3))
+
 ## [0.2512.1](https://github.com/lightdash/lightdash/compare/0.2512.0...0.2512.1) (2026-02-23)
 
 
