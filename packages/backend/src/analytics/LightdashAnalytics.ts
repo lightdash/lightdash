@@ -31,6 +31,7 @@ import Analytics, {
 import { Request } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { LightdashConfig } from '../config/parseConfig';
+import { type PersistentDownloadFileSource } from '../services/PersistentDownloadFileService/PersistentDownloadFileService';
 import { VERSION } from '../version';
 
 type Identify = {
@@ -1114,17 +1115,6 @@ export type DownloadCsv = BaseTrack & {
     };
 };
 
-type PersistentFileDownloadSource =
-    | 'chart'
-    | 'dashboard'
-    | 'sql_chart'
-    | 'pivot'
-    | 'analytics'
-    | 'async_query'
-    | 'scheduler'
-    | 'api'
-    | 'other';
-
 export type PersistentFileGenerationRequestedEvent = BaseTrack & {
     event: 'persistent_file.generation_requested';
     userId?: string;
@@ -1134,7 +1124,7 @@ export type PersistentFileGenerationRequestedEvent = BaseTrack & {
         projectId: string | null;
         createdByUserUuid: string | null;
         fileType: string;
-        source: PersistentFileDownloadSource;
+        source: PersistentDownloadFileSource;
         expirationSeconds: number;
     };
 };
@@ -1148,7 +1138,7 @@ export type PersistentFileGenerationCompletedEvent = BaseTrack & {
         projectId: string | null;
         createdByUserUuid: string | null;
         fileType: string;
-        source: PersistentFileDownloadSource;
+        source: PersistentDownloadFileSource;
         expirationSeconds: number;
         durationMs: number;
     };
@@ -1163,7 +1153,7 @@ export type PersistentFileGenerationFailedEvent = BaseTrack & {
         projectId: string | null;
         createdByUserUuid: string | null;
         fileType: string;
-        source: PersistentFileDownloadSource;
+        source: PersistentDownloadFileSource;
         errorName: string;
         errorMessage: string;
         durationMs?: number;
@@ -1179,7 +1169,7 @@ export type PersistentFileUrlRequestedEvent = BaseTrack & {
         projectId: string | null;
         createdByUserUuid: string | null;
         requestedByUserUuid: string | null;
-        source: PersistentFileDownloadSource | 'unknown';
+        source: PersistentDownloadFileSource | 'unknown';
         hasUserAgent: boolean;
         hasIpAddress: boolean;
     };
@@ -1194,7 +1184,7 @@ export type PersistentFileUrlRespondedEvent = BaseTrack & {
         projectId: string | null;
         createdByUserUuid: string | null;
         requestedByUserUuid: string | null;
-        source: PersistentFileDownloadSource | 'unknown';
+        source: PersistentDownloadFileSource | 'unknown';
         statusCode: number;
         responseMs: number;
     };
