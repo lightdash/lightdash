@@ -1,0 +1,27 @@
+.drawerContent {
+    display: flex;
+    flex-direction: column;
+}
+
+.drawerBody {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.headerBorder {
+    border-bottom: 1px solid var(--mantine-color-ldGray-3);
+
+    @mixin dark {
+        border-color: var(--mantine-color-ldDark-4);
+    }
+}
+
+.footerBorder {
+    border-top: 1px solid var(--mantine-color-ldGray-3);
+
+    @mixin dark {
+        border-color: var(--mantine-color-ldDark-4);
+    }
+}

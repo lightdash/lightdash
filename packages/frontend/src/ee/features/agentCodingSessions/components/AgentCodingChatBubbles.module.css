@@ -1,0 +1,87 @@
+.markdown {
+    background-color: transparent;
+}
+
+.thinkingDots {
+    display: flex;
+    gap: 4px;
+    padding: 8px 0;
+}
+
+.dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: var(--mantine-color-gray-4);
+    animation: dotShimmer 1.4s ease-in-out infinite;
+}
+
+.dot:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.dot:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
+@keyframes dotShimmer {
+    0%,
+    100% {
+        opacity: 0.3;
+    }
+    50% {
+        opacity: 1;
+    }
+}
+
+.toolIndicator {
+    margin-top: 8px;
+    padding: 4px 0;
+}
+
+.toolIndicatorComplete {
+    margin-top: 8px;
+    padding: 4px 0;
+}
+
+.toolNameShimmer {
+    background: linear-gradient(
+        90deg,
+        var(--mantine-color-dimmed) 0%,
+        var(--mantine-color-gray-4) 50%,
+        var(--mantine-color-dimmed) 100%
+    );
+    background-size: 200% 100%;
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+    animation: textShimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes textShimmer {
+    0% {
+        background-position: 200% 0;
+    }
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+.toolName {
+    font-family: var(--mantine-font-family-monospace);
+}
+
+.toolSpinner {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    border: 1.5px solid var(--mantine-color-violet-3);
+    border-top-color: var(--mantine-color-violet-6);
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}

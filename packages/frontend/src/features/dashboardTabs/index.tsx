@@ -21,7 +21,7 @@ import MantineIcon from '../../components/common/MantineIcon';
 import { ScrollToTop } from '../../components/common/ScrollToTop';
 import { StickyWithDetection } from '../../components/common/StickyWithDetection';
 import { LockedDashboardModal } from '../../components/common/modal/LockedDashboardModal';
-import useToaster from '../../hooks/toaster/useToaster';
+import { useToasterWithAiFix } from '../../ee/hooks/useFixWithAi';
 import useApp from '../../providers/App/useApp';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { TrackSection } from '../../providers/Tracking/TrackingProvider';
@@ -99,7 +99,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
 }) => {
     const gridProps = useMemo(() => getResponsiveGridLayoutProps(), []);
     const [currentCols, setCurrentCols] = useState(gridProps.cols.lg);
-    const { showToastError } = useToaster();
+    const { showToastError } = useToasterWithAiFix();
     const { health } = useApp();
 
     const gridWrapperRef = useRef<HTMLDivElement>(null);

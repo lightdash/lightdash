@@ -79,6 +79,7 @@ const Home: FC = () => {
                         userName={user.data?.firstName}
                     />
                 ) : (
+<<<<<<< Updated upstream
                     <FavoritesProvider
                         projectUuid={project.data.projectUuid}
                     >
@@ -86,6 +87,10 @@ const Home: FC = () => {
                             userName={user.data?.firstName}
                             projectUuid={project.data.projectUuid}
                         />
+=======
+                    <>
+                        <LandingPanel userName={user.data?.firstName} />
+>>>>>>> Stashed changes
                         {isAiAgentsEnabled && (
                             <AiSearchBox
                                 projectUuid={project.data.projectUuid}

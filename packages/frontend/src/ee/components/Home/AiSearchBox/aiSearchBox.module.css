@@ -1,92 +1,33 @@
-.askAiSection {
-    --saturation-mix: 0%;
-    --gradient-from: color-mix(
-        in oklch,
-        var(--mantine-color-violet-0),
-        var(--mantine-color-violet-1) var(--saturation-mix)
-    );
-    --gradient-to: color-mix(
-        in oklch,
-        var(--mantine-color-indigo-0),
-        var(--mantine-color-indigo-1) var(--saturation-mix)
-    );
-
-    background: linear-gradient(
-        90deg,
-        var(--gradient-from) 0%,
-        var(--gradient-to) 100%
-    );
-
-    width: 100%;
-    cursor: pointer;
-
-    @mixin dark {
-        --gradient-from: color-mix(
-            in oklch,
-            var(--mantine-color-violet-light),
-            var(--mantine-color-violet-light-hover)
-        );
-        --gradient-to: color-mix(
-            in oklch,
-            var(--mantine-color-indigo-light),
-            var(--mantine-color-indigo-light-hover)
-        );
-    }
-}
-
-[data-combobox-selected='true'] .askAiSection {
-    --saturation-mix: 30%;
-}
-
-.askAiSectionArrow {
-    visibility: hidden;
-    background-color: var(--mantine-color-white);
-    border-radius: var(--mantine-radius-sm);
-    border: 1px solid var(--mantine-color-ldGray-2);
-    flex-shrink: 0;
-
-    @mixin dark {
-        background-color: var(--mantine-color-violet-light);
-        border-color: var(--mantine-color-violet-light);
-    }
-}
-
-[data-combobox-selected='true'] .askAiSectionArrow {
-    visibility: visible;
-}
-
-.actionIcon {
-    background-color: var(--mantine-color-ldDark-7);
-    &:hover {
-        background-color: var(--mantine-color-ldDark-6);
-    }
-    &:disabled {
-        background-color: var(--mantine-color-ldDark-3);
-    }
-
-    box-sizing: content-box;
-    width: 36px;
-    height: 36px;
-    border-radius: var(--mantine-radius-xl);
-    &:where([data-disabled]) {
-        background-color: #9e9e9e;
-    }
-}
-
-.actionIconIcon {
-    color: var(--mantine-color-ldGray-4);
-}
-
 .paperRoot {
     overflow: hidden;
+    margin-top: var(--mantine-spacing-xl);
+    margin-bottom: var(--mantine-spacing-xl);
 }
 
-.adminSettingsButtonLabel {
-    color: var(--mantine-color-ldGray-7);
-}
+.textareaInput {
+    border: none;
+    background: transparent;
+    resize: none;
+    font-size: var(--mantine-font-size-md);
 
-.adminSettingsButtonSection {
-    &:where([data-position='left']) {
-        margin-right: 4px !important;
+    &:focus {
+        outline: none;
     }
 }
+
+.modeButton {
+    font-weight: 500;
+}
+
+.startIconWrapper {
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.logoIcon {
+    width: 14px;
+    height: 14px;
+}
+

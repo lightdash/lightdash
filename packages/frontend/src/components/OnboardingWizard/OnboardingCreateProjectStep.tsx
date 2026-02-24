@@ -7,16 +7,16 @@ import {
     SupportedDbtVersions,
     WarehouseTypes,
 } from '@lightdash/common';
-import { Alert, Button, Stack, Text, TextInput } from '@mantine/core';
-import { IconCheck, IconRocket } from '@tabler/icons-react';
+import { Alert, Button, Stack, Text, TextInput } from '@mantine-8/core';
+import { IconRocket } from '@tabler/icons-react';
+import MantineIcon from '../common/MantineIcon';
 import { useMutation } from '@tanstack/react-query';
 import { type FC, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router';
-import MantineIcon from '../common/MantineIcon';
 
 type Props = {
     selectedRepo: { owner: string; repo: string; branch: string } | null;
     gcpProjectId: string;
+    onProjectCreated: (projectUuid: string) => void;
 };
 
 // Create project without compile/test - just creates the record
@@ -71,8 +71,8 @@ const createProjectWithoutCompile = async (data: {
 export const OnboardingCreateProjectStep: FC<Props> = ({
     selectedRepo,
     gcpProjectId,
+    onProjectCreated,
 }) => {
-    const navigate = useNavigate();
     // Prefill project name with repo name
     const [projectName, setProjectName] = useState(selectedRepo?.repo || '');
 
@@ -90,8 +90,7 @@ export const OnboardingCreateProjectStep: FC<Props> = ({
     >({
         mutationFn: createProjectWithoutCompile,
         onSuccess: (data) => {
-            // Navigate to the new project
-            void navigate(`/projects/${data.project.projectUuid}/home`);
+            onProjectCreated(data.project.projectUuid);
         },
     });
 
@@ -126,20 +125,8 @@ export const OnboardingCreateProjectStep: FC<Props> = ({
         });
     };
 
-    if (createProjectMutation.isSuccess) {
-        return (
-            <Stack spacing="md" align="center" py="xl">
-                <MantineIcon icon={IconCheck} color="green" size={60} />
-                <Text fw={500} size="lg">
-                    Project created!
-                </Text>
-                <Text color="dimmed">Redirecting to your new project...</Text>
-            </Stack>
-        );
-    }
-
     return (
-        <Stack spacing="md">
+        <Stack gap="md">
             <Text>Almost there! Confirm your Lightdash project name.</Text>
 
             {selectedRepo && (
@@ -167,7 +154,7 @@ export const OnboardingCreateProjectStep: FC<Props> = ({
             />
 
             <Button
-                leftIcon={<IconRocket size={18} />}
+                leftSection={<MantineIcon icon={IconRocket} />}
                 onClick={handleCreateProject}
                 disabled={!projectName.trim() || !selectedRepo}
                 loading={createProjectMutation.isLoading}
@@ -176,10 +163,9 @@ export const OnboardingCreateProjectStep: FC<Props> = ({
                 Create Project
             </Button>
 
-            <Text size="xs" color="dimmed">
+            <Text size="xs" c="dimmed">
                 Your project will be created with BigQuery as the data warehouse
-                and connected to your GitHub repository. You can add dbt models
-                to your repository to start exploring your data.
+                and connected to your GitHub repository.
             </Text>
         </Stack>
     );

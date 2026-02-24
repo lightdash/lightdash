@@ -1,0 +1,120 @@
+### =============================================================================
+### AGENT CODING SESSIONS (E2B Sandbox Integration)
+### =============================================================================
+###
+### This feature allows AI-powered changes to dbt projects using Claude Code
+### running in E2B sandboxes. The workflow is:
+### 1. Create a session with a prompt and target branch
+### 2. Connect to the SSE stream to watch Claude work
+### 3. Optionally send follow-up messages
+### 4. Claude commits changes to the specified GitHub branch
+###
+### Variables: Set projectUuid in http-client.private.env.json
+###            Set sessionUuid after creating a session
+###
+### =============================================================================
+
+@sessionUuid = cd23f79a-a412-49aa-bd3e-eac5c966f12f
+@projectUuid = f23e2800-b9a4-46fb-8c59-dbe19865ba7a
+
+### Login
+// @no-log
+POST http://localhost:8080/api/v1/login
+Content-Type: application/json
+
+{
+    "email": "demo@lightdash.com",
+    "password": "demo_password!"
+}
+
+### List all agent coding sessions for a project
+###
+GET http://localhost:8080/api/v1/projects/{{projectUuid}}/agent-coding-sessions
+Content-Type: application/json
+
+### Create a new agent coding session
+### This creates a session and stores the initial prompt, but doesn't start processing yet.
+### Connect to the /stream endpoint to start Claude and watch it work.
+POST http://localhost:8080/api/v1/projects/{{projectUuid}}/agent-coding-sessions
+Content-Type: application/json
+
+{
+    "prompt": "Add a new metric called 'total_customers' that counts the number of unique customers in the customers model",
+    "githubBranch": "lightdash/ai/add-total-customers-metric"
+}
+
+### Get a specific session by UUID
+GET http://localhost:8080/api/v1/projects/{{projectUuid}}/agent-coding-sessions/{{sessionUuid}}
+Content-Type: application/json
+
+### Get all messages for a session
+### Returns the conversation history between user and assistant
+GET http://localhost:8080/api/v1/projects/{{projectUuid}}/agent-coding-sessions/{{sessionUuid}}/messages
+Content-Type: application/json
+
+### Delete a session
+### This also kills the E2B sandbox if it's still running
+DELETE http://localhost:8080/api/v1/projects/{{projectUuid}}/agent-coding-sessions/{{sessionUuid}}
+Content-Type: application/json
+
+### Stream response
+### This endpoint starts Claude in the E2B sandbox and streams tokens back.
+###
+### Events emitted:
+### - token: { type: "token", text: "..." } - Claude's response tokens
+### - status: { type: "status", status: "running|finished" } - Status changes
+### - status: { type: "status", sessionId: "..." } - Claude session ID for resume
+### - error: { type: "error", error: "..." } - Error messages
+### - complete: { type: "complete" } - Stream finished
+### - heartbeat: {} - Keep-alive every 30s
+###
+SSE http://localhost:8080/api/v1/projects/{{projectUuid}}/agent-coding-sessions/{{sessionUuid}}/stream
+Event: message
+
+{{@streaming
+  async function writeStream(){
+    await sleep(10000);
+  }
+  exports.waitPromise = writeStream();
+}}
+
+### =============================================================================
+### FOLLOW-UP MESSAGES
+### =============================================================================
+
+### Send a follow-up message to continue the conversation
+### After sending, connect to /stream again to get Claude's response
+POST http://localhost:8080/api/v1/projects/{{projectUuid}}/agent-coding-sessions/{{sessionUuid}}/messages
+Content-Type: application/json
+
+{
+    "prompt": "Try running a bigquery query again with the lightdash CLI, can you search the schemas?"
+}
+
+### =============================================================================
+### EXAMPLE WORKFLOW
+### =============================================================================
+###
+### 1. Create session:
+###    POST /agent-coding-sessions
+###    Body: { "prompt": "...", "githubBranch": "feature/my-changes" }
+###
+### 2. Start streaming (in terminal with curl for SSE support):
+###    curl -N -H "Cookie: ..." /agent-coding-sessions/SESSION_UUID/stream
+###
+### 3. Watch Claude:
+###    - Clone repo
+###    - Checkout/create branch
+###    - Run claude code with your prompt
+###    - Commit and push changes
+###
+### 4. Session becomes "finished" when complete
+###
+### 5. To continue the conversation:
+###    POST /agent-coding-sessions/SESSION_UUID/messages
+###    Body: { "prompt": "Make additional changes..." }
+###    Then connect to /stream again
+###
+### 6. Claude resumes with full context and makes more changes
+###
+### =============================================================================

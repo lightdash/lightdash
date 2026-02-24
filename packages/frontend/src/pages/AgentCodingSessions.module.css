@@ -1,0 +1,32 @@
+.sidebar {
+    border-right: 1px solid var(--mantine-color-ldGray-3);
+
+    @mixin dark {
+        border-color: var(--mantine-color-ldDark-4);
+    }
+}
+
+.headerBorder {
+    border-top: 1px solid var(--mantine-color-ldGray-3);
+
+    @mixin dark {
+        border-color: var(--mantine-color-ldDark-4);
+    }
+}
+
+.inputFooter {
+    composes: headerBorder;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background-color: var(--mantine-color-body);
+}
+
+.errorBox {
+    background-color: var(--mantine-color-red-0);
+
+    @mixin dark {
+        background-color: var(--mantine-color-red-9);
+    }
+}

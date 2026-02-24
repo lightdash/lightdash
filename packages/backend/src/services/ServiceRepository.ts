@@ -115,6 +115,7 @@ interface ServiceManifest {
     /** An implementation signature for these services are not available at this stage */
     embedService: unknown;
     aiService: unknown;
+    agentCodingSessionService: unknown;
     aiAgentService: unknown;
     aiAgentAdminService: unknown;
     aiOrganizationSettingsService: unknown;
@@ -1149,6 +1150,12 @@ export class ServiceRepository
         InstanceConfigurationServiceImplT,
     >(): InstanceConfigurationServiceImplT {
         return this.getService('instanceConfigurationService');
+    }
+
+    public getAgentCodingSessionService<
+        AgentCodingSessionServiceImplT,
+    >(): AgentCodingSessionServiceImplT {
+        return this.getService('agentCodingSessionService');
     }
 
     public getProjectParametersService(): ProjectParametersService {

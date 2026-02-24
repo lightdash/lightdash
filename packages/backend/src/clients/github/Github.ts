@@ -234,6 +234,49 @@ export const getInstallationToken = async (
     }
 };
 
+/**
+ * Generate an installation token scoped to a specific repository.
+ * This limits the token's access to only the specified repository,
+ * even if the installation has access to more repos.
+ *
+ * @param installationId - GitHub App installation ID
+ * @param repository - Full repository name in "owner/repo" format
+ * @returns Short-lived token (1 hour) with access only to the specified repo
+ */
+export const getInstallationTokenForRepository = async (
+    installationId: string,
+    repository: string,
+): Promise<string> => {
+    try {
+        const octokit = getOctokitRestForApp(installationId);
+        const repoName = repository.split('/')[1];
+        if (!repoName) {
+            throw new ParameterError(
+                `Invalid repository format: ${repository}. Expected "owner/repo"`,
+            );
+        }
+        const response = await octokit.rest.apps.createInstallationAccessToken({
+            installation_id: parseInt(installationId, 10),
+            repositories: [repoName],
+        });
+        return response.data.token;
+    } catch (error) {
+        if (
+            error instanceof Error &&
+            'status' in error &&
+            (error as { status: number }).status === 422
+        ) {
+            throw new ForbiddenError(
+                `GitHub App does not have access to repository: ${repository}`,
+            );
+        }
+        if (error instanceof LightdashError) {
+            throw error;
+        }
+        throw new UnexpectedGitError(getErrorMessage(error));
+    }
+};
+
 export const updateFile = async ({
     owner,
     repo,

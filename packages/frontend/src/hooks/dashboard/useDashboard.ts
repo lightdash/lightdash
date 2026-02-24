@@ -22,10 +22,14 @@ import {
 } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router';
 import { lightdashApi } from '../../api';
+import { useToasterWithAiFix } from '../../ee/hooks/useFixWithAi';
 import { pollJobStatus } from '../../features/scheduler/hooks/useScheduler';
 import useApp from '../../providers/App/useApp';
+<<<<<<< Updated upstream
 import useToaster from '../toaster/useToaster';
 import { invalidateContent } from '../useContent';
+=======
+>>>>>>> Stashed changes
 import useQueryError from '../useQueryError';
 import useDashboardStorage from './useDashboardStorage';
 
@@ -191,7 +195,7 @@ export const useDashboardVersionRefresh = (dashboardUuid: string) => {
 };
 
 export const useExportDashboard = () => {
-    const { showToastSuccess, showToastApiError, showToastInfo } = useToaster();
+    const { showToastSuccess, showToastApiError, showToastInfo } = useToasterWithAiFix();
     return useMutation<
         string,
         ApiError,
@@ -263,7 +267,7 @@ export const useExportCsvDashboard = () => {
         showToastError,
         showToastApiError,
         showToastInfo,
-    } = useToaster();
+    } = useToasterWithAiFix();
 
     return useMutation<
         ApiJobScheduledResponse['results'],
@@ -345,7 +349,7 @@ export const useUpdateDashboard = (
     const navigate = useNavigate();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const queryClient = useQueryClient();
-    const { showToastSuccess, showToastApiError } = useToaster();
+    const { showToastSuccess, showToastApiError } = useToasterWithAiFix();
     const { clearDashboardStorage } = useDashboardStorage();
     return useMutation<Dashboard, ApiError, UpdateDashboard>(
         (data) => {
@@ -425,7 +429,7 @@ export const useCreateMutation = (
     { showToastOnSuccess = true }: { showToastOnSuccess?: boolean } = {},
 ) => {
     const navigate = useNavigate();
-    const { showToastSuccess, showToastApiError } = useToaster();
+    const { showToastSuccess, showToastApiError } = useToasterWithAiFix();
     const queryClient = useQueryClient();
     return useMutation<Dashboard, ApiError, CreateDashboard>(
         (data) =>
@@ -473,7 +477,7 @@ export const useCreateDashboardWithChartsMutation = (
     { showToastOnSuccess = true }: { showToastOnSuccess?: boolean } = {},
 ) => {
     const navigate = useNavigate();
-    const { showToastSuccess, showToastApiError } = useToaster();
+    const { showToastSuccess, showToastApiError } = useToasterWithAiFix();
     const queryClient = useQueryClient();
     return useMutation<Dashboard, ApiError, CreateDashboardWithCharts>(
         (data) =>
@@ -525,7 +529,7 @@ export const useDuplicateDashboardMutation = (
     const navigate = useNavigate();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const queryClient = useQueryClient();
-    const { showToastSuccess, showToastApiError } = useToaster();
+    const { showToastSuccess, showToastApiError } = useToasterWithAiFix();
     return useMutation<
         Dashboard,
         ApiError,
@@ -580,7 +584,7 @@ export const useDashboardDeleteMutation = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { health } = useApp();
     const isSoftDeleteEnabled = health.data?.softDelete.enabled ?? false;
-    const { showToastSuccess, showToastApiError } = useToaster();
+    const { showToastSuccess, showToastApiError } = useToasterWithAiFix();
     return useMutation<null, ApiError, string>(deleteDashboard, {
         onSuccess: async () => {
             await invalidateContent(queryClient, projectUuid!);
@@ -643,7 +647,7 @@ export const useDashboardVersionRollbackMutation = (
     dashboardUuid: string | undefined,
 ) => {
     const queryClient = useQueryClient();
-    const { showToastSuccess, showToastApiError } = useToaster();
+    const { showToastSuccess, showToastApiError } = useToasterWithAiFix();
     return useMutation<null, ApiError, string>(
         (versionUuid: string) =>
             dashboardUuid && versionUuid

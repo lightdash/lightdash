@@ -8,6 +8,7 @@ import NavBar from './components/NavBar';
 import PrivateRoute from './components/PrivateRoute';
 import ProjectRoute from './components/ProjectRoute';
 import UserCompletionModal from './components/UserCompletionModal';
+import AgentCodingSessions from './pages/AgentCodingSessions';
 import FunnelBuilder from './features/funnelBuilder/FunnelBuilderPage';
 import { MetricCatalogView } from './features/metricsCatalog/types';
 import AuthPopupResult from './pages/AuthPopupResult';
@@ -429,6 +430,15 @@ const APP_ROUTES: RouteObject[] = [
                                 <TrackPage name={PageName.FUNNEL_BUILDER}>
                                     <FunnelBuilder />
                                 </TrackPage>
+                            </>
+                        ),
+                    },
+                    {
+                        path: '/projects/:projectUuid/agent-coding-sessions',
+                        element: (
+                            <>
+                                <NavBar />
+                                <AgentCodingSessions />
                             </>
                         ),
                     },

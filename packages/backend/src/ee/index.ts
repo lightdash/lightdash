@@ -12,6 +12,7 @@ import { EncryptionUtil } from '../utils/EncryptionUtil/EncryptionUtil';
 import LicenseClient from './clients/License/LicenseClient';
 import OpenAi from './clients/OpenAi';
 import { CommercialSlackClient } from './clients/Slack/SlackClient';
+import { AgentCodingSessionModel } from './models/AgentCodingSessionModel';
 import { AiAgentModel } from './models/AiAgentModel';
 import { AiOrganizationSettingsModel } from './models/AiOrganizationSettingsModel';
 import { CommercialFeatureFlagModel } from './models/CommercialFeatureFlagModel';
@@ -21,6 +22,7 @@ import { EmbedModel } from './models/EmbedModel';
 import { ServiceAccountModel } from './models/ServiceAccountModel';
 import { CommercialSchedulerClient } from './scheduler/SchedulerClient';
 import { CommercialSchedulerWorker } from './scheduler/SchedulerWorker';
+import { AgentCodingSessionService } from './services/AgentCodingSessionService/AgentCodingSessionService';
 import { AiAgentAdminService } from './services/AiAgentAdminService';
 import { AiAgentService } from './services/AiAgentService/AiAgentService';
 import { AiOrganizationSettingsService } from './services/AiOrganizationSettingsService';
@@ -337,8 +339,20 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     unfurlService: repository.getUnfurlService(),
                     aiAgentService: repository.getAiAgentService(),
                 }),
+            agentCodingSessionService: ({ models, context }) =>
+                new AgentCodingSessionService({
+                    lightdashConfig: context.lightdashConfig,
+                    agentCodingSessionModel: models.getAgentCodingSessionModel(),
+                    githubAppInstallationsModel:
+                        models.getGithubAppInstallationsModel(),
+                    projectModel: models.getProjectModel(),
+                    personalAccessTokenModel:
+                        models.getPersonalAccessTokenModel(),
+                }),
         },
         modelProviders: {
+            agentCodingSessionModel: ({ database }) =>
+                new AgentCodingSessionModel({ database }),
             aiAgentModel: ({ database }) =>
                 new AiAgentModel({ database, lightdashConfig }),
             aiOrganizationSettingsModel: ({ database }) =>

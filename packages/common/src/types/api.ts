@@ -1,3 +1,7 @@
+import {
+    type AgentCodingSession,
+    type AgentCodingSessionMessage,
+} from './agentCodingSessions';
 import { type AnyType } from './any';
 import { type ApiFavoriteItems, type ApiToggleFavorite } from './favorites';
 import { type ApiTogglePinnedItem, type PinnedItems } from './pinning';
@@ -871,8 +875,15 @@ type ApiResults =
     | ApiProjectCompileLogsResponse['results']
     | ApiProjectCompileLogResponse['results']
     | ApiSingleValidationResponse['results']
+<<<<<<< Updated upstream
     | ApiFavoriteItems['results']
     | ApiToggleFavorite['results'];
+=======
+    | AgentCodingSession
+    | AgentCodingSession[]
+    | AgentCodingSessionMessage
+    | AgentCodingSessionMessage[];
+>>>>>>> Stashed changes
 // Note: EE API types removed from ApiResults to avoid circular imports
 // They can still be used with ApiResponse<T> by importing from '@lightdash/common'
 
