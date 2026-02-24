@@ -136,6 +136,7 @@ Review each result. If it's a SELECT, JOIN, or subquery returning data, it needs
 - **Slug generation**: Slugs must be unique across all records including deleted ones. Deleted content can be restored, so slug uniqueness checks must include soft-deleted rows.
 - **Soft delete feature itself**: Queries that list deleted content (`whereNotNull('deleted_at')`), restore deleted content, or permanently delete content should obviously not exclude deleted records.
 
+
 <links>
 - Database entities: @/packages/backend/src/database/entities
 - Common types: @/packages/common/src/types
