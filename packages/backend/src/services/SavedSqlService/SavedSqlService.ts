@@ -31,9 +31,12 @@ import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedSqlModel } from '../../models/SavedSqlModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { BaseService } from '../BaseService';
-import type {
-    SoftDeletableService,
-    SoftDeleteOptions,
+import {
+    batchDeleteExpired,
+    type CleanupConfig,
+    type CleanupResult,
+    type SoftDeletableService,
+    type SoftDeleteOptions,
 } from '../SoftDeletableService';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 
@@ -505,6 +508,13 @@ export class SavedSqlService
         }
 
         await this.savedSqlModel.permanentDelete(savedSqlUuid);
+    }
+
+    async permanentDeleteExpired(
+        retentionDays: number,
+        config: CleanupConfig,
+    ): Promise<CleanupResult> {
+        return batchDeleteExpired(this.savedSqlModel, retentionDays, config);
     }
 
     async getResultJobFromSql(

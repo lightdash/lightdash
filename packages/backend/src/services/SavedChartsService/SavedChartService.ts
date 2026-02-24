@@ -77,9 +77,12 @@ import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { BaseService } from '../BaseService';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
 import type { SchedulerService } from '../SchedulerService/SchedulerService';
-import type {
-    SoftDeletableService,
-    SoftDeleteOptions,
+import {
+    batchDeleteExpired,
+    type CleanupConfig,
+    type CleanupResult,
+    type SoftDeletableService,
+    type SoftDeleteOptions,
 } from '../SoftDeletableService';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { UserService } from '../UserService';
@@ -1763,5 +1766,12 @@ export class SavedChartService
         }
 
         await this.savedChartModel.permanentDelete(chartUuid);
+    }
+
+    async permanentDeleteExpired(
+        retentionDays: number,
+        config: CleanupConfig,
+    ): Promise<CleanupResult> {
+        return batchDeleteExpired(this.savedChartModel, retentionDays, config);
     }
 }
