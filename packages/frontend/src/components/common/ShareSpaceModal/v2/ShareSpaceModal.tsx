@@ -40,6 +40,7 @@ import {
 } from '../../../../hooks/useSpaces';
 import useApp from '../../../../providers/App/useApp';
 
+import Callout from '../../Callout';
 import MantineIcon from '../../MantineIcon';
 import MantineModal from '../../MantineModal';
 import PaginateControl from '../../PaginateControl';
@@ -197,6 +198,7 @@ const ShareSpaceModalV2A: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
     const [sortOrder, setSortOrder] = useState<SortOrder>('name');
     const [auditSortOrder, setAuditSortOrder] = useState<SortOrder>('name');
     const [auditSearch, setAuditSearch] = useState('');
+    const [isGroupsHintDismissed, setIsGroupsHintDismissed] = useState(false);
 
     const isNestedSpace = !!space.parentSpaceUuid;
 
@@ -405,6 +407,34 @@ const ShareSpaceModalV2A: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
                                     space={space}
                                     projectUuid={projectUuid}
                                 />
+
+                                {accessByType.direct.length >= 5 &&
+                                    space.groupsAccess.length === 0 &&
+                                    !isGroupsHintDismissed && (
+                                        <Callout
+                                            variant="info"
+                                            title="Tip: Use groups for easier management"
+                                            withCloseButton
+                                            onClose={() =>
+                                                setIsGroupsHintDismissed(true)
+                                            }
+                                        >
+                                            <Text fz="sm">
+                                                This space is shared with
+                                                several individual users.
+                                                Consider using{' '}
+                                                <Anchor
+                                                    href="/generalSettings/userManagement"
+                                                    target="_blank"
+                                                    fz="sm"
+                                                >
+                                                    groups
+                                                </Anchor>{' '}
+                                                to manage access more
+                                                efficiently.
+                                            </Text>
+                                        </Callout>
+                                    )}
 
                                 {space.groupsAccess.length > 0 && (
                                     <Stack gap="xs">
