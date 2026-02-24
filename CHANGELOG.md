@@ -1,3 +1,10 @@
+## [0.2520.1](https://github.com/lightdash/lightdash/compare/0.2520.0...0.2520.1) (2026-02-24)
+
+
+### Bug Fixes
+
+* stabilize column widths in chart table and fix viewport slack ([#20585](https://github.com/lightdash/lightdash/issues/20585)) ([52abceb](https://github.com/lightdash/lightdash/commit/52abceb83df2bc0d90a093687f2c95a5c661e067))
+
 # [0.2520.0](https://github.com/lightdash/lightdash/compare/0.2519.0...0.2520.0) (2026-02-24)
 
 
