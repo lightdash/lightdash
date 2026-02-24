@@ -198,6 +198,7 @@ const ShareSpaceModalV2A: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
     const [sortOrder, setSortOrder] = useState<SortOrder>('name');
     const [auditSortOrder, setAuditSortOrder] = useState<SortOrder>('name');
     const [auditSearch, setAuditSearch] = useState('');
+    const [isGroupsHintDismissed, setIsGroupsHintDismissed] = useState(false);
 
     const isNestedSpace = !!space.parentSpaceUuid;
 
@@ -408,10 +409,15 @@ const ShareSpaceModalV2A: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
                                 />
 
                                 {accessByType.direct.length >= 5 &&
-                                    space.groupsAccess.length === 0 && (
+                                    space.groupsAccess.length === 0 &&
+                                    !isGroupsHintDismissed && (
                                         <Callout
                                             variant="info"
                                             title="Tip: Use groups for easier management"
+                                            withCloseButton
+                                            onClose={() =>
+                                                setIsGroupsHintDismissed(true)
+                                            }
                                         >
                                             <Text fz="sm">
                                                 This space is shared with
