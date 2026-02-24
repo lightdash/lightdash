@@ -1,8 +1,9 @@
-import { Flex, Text } from '@mantine/core';
+import { Flex, Text } from '@mantine-8/core';
 import { type DateInputProps, type DayOfWeek } from '@mantine/dates';
 import dayjs from 'dayjs';
 import { useState, type FC } from 'react';
 import FilterDatePicker from './FilterDatePicker';
+import styles from './FilterDateRangePicker.module.css';
 
 interface Props extends Omit<
     DateInputProps,
@@ -44,7 +45,7 @@ const FilterDateRangePicker: FC<Props> = ({
                 }}
             />
 
-            <Text color="dimmed" sx={{ whiteSpace: 'nowrap' }} size="xs">
+            <Text c="dimmed" className={styles.noWrap} fz="xs">
                 –
             </Text>
 

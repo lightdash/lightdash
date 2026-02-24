@@ -1,5 +1,5 @@
 import { TooltipSortByOptions, type TooltipSortBy } from '@lightdash/common';
-import { Group, Select } from '@mantine/core';
+import { Group, Select } from '@mantine-8/core';
 import { type FC } from 'react';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
@@ -31,13 +31,14 @@ export const TooltipSortConfig: FC = () => {
     };
 
     return (
-        <Group spacing="xs">
+        <Group gap="xs">
             <Config.Label>Sort by</Config.Label>
             <Select
                 data={TOOLTIP_SORT_OPTIONS}
                 value={tooltipSort ?? TooltipSortByOptions.DEFAULT}
                 onChange={handleChange}
                 w={160}
+                size="xs"
             />
         </Group>
     );

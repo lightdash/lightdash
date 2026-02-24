@@ -1,4 +1,4 @@
-import { Paper, Skeleton, Stack } from '@mantine/core';
+import { Paper, Skeleton, Stack } from '@mantine-8/core';
 import { type FC } from 'react';
 import { useAppSelector } from '../../store/hooks';
 import { HeaderCreate } from './HeaderCreate';
@@ -27,7 +27,7 @@ export const Header: FC<{
 
     return (
         <Paper shadow="none" radius={0} px="md" py="xs" withBorder={false}>
-            <Stack spacing="xs">
+            <Stack gap="xs">
                 <Skeleton height={20} width={'15%'} radius="sm" />
                 <Skeleton height={10} width={'20%'} radius="sm" />
             </Stack>

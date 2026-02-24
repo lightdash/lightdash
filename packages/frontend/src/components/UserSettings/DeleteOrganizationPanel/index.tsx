@@ -1,4 +1,4 @@
-import { Button, Group } from '@mantine/core';
+import { Button, Group } from '@mantine-8/core';
 import { IconTrash } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
@@ -15,11 +15,11 @@ export const DeleteOrganizationPanel: FC = () => {
     if (isOrganizationLoading || organization === undefined) return null;
 
     return (
-        <Group position="right">
+        <Group justify="flex-end">
             <Button
                 variant="outline"
                 color="red"
-                leftIcon={<MantineIcon icon={IconTrash} />}
+                leftSection={<MantineIcon icon={IconTrash} />}
                 onClick={() => setShowDeleteOrganizationModal(true)}
             >
                 Delete '{organization.name}'

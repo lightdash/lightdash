@@ -1,5 +1,6 @@
-import { Group, Text, Tooltip } from '@mantine/core';
+import { Group, Text, Tooltip } from '@mantine-8/core';
 import { type FC, type SVGProps } from 'react';
+import styles from './MetricCatalogColumnHeaderCell.module.css';
 
 export const MetricCatalogColumnHeaderCell = ({
     children,
@@ -19,15 +20,13 @@ export const MetricCatalogColumnHeaderCell = ({
             maw={250}
             fz="xs"
         >
-            <Group spacing={6} mr={6} h="100%" noWrap>
+            <Group gap={6} mr={6} h="100%" wrap="nowrap">
                 <Icon />
                 <Text
                     fz="xs"
                     fw={600}
-                    color="ldGray.7"
-                    sx={{
-                        userSelect: 'none',
-                    }}
+                    c="ldGray.7"
+                    className={styles.noSelect}
                 >
                     {children}
                 </Text>

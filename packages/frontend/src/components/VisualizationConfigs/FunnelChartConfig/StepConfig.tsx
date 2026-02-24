@@ -1,7 +1,7 @@
 // TODO: This could be combined with the pie chart or cartesian
 // chart series configs if they have more similar options in the future.
 
-import { Box, Group, Stack } from '@mantine/core';
+import { Box, Group, Stack } from '@mantine-8/core';
 import { type FC } from 'react';
 import ColorSelector from '../ColorSelector';
 import { EditableText } from '../common/EditableText';
@@ -33,8 +33,8 @@ export const StepConfig: FC<StepConfigProps> = ({
 }) => {
     const stepId = id ?? defaultLabel;
     return (
-        <Stack spacing="xs" {...rest}>
-            <Group spacing="xs">
+        <Stack gap="xs" {...rest}>
+            <Group gap="xs">
                 <ColorSelector
                     color={color}
                     defaultColor={defaultColor}
@@ -43,7 +43,7 @@ export const StepConfig: FC<StepConfigProps> = ({
                         onColorChange(stepId, newColor)
                     }
                 />
-                <Box style={{ flexGrow: 1 }}>
+                <Box flex={1}>
                     <EditableText
                         placeholder={defaultLabel}
                         value={label}

@@ -1,5 +1,5 @@
 import { type FilterableField, type FilterRule } from '@lightdash/common';
-import { Stack, Text, Tooltip } from '@mantine/core';
+import { Stack, Text, Tooltip } from '@mantine-8/core';
 import { memo, useCallback, type FC } from 'react';
 import FilterRuleForm from './FilterRuleForm';
 
@@ -34,18 +34,18 @@ const SimplifiedFilterGroupForm: FC<Props> = memo(
         );
 
         return (
-            <Stack style={{ flexGrow: 1 }}>
+            <Stack flex={1}>
                 <Tooltip
                     label="You can only use the 'and' operator when combining metrics & dimensions"
                     disabled={filterRules.length > 1}
                     arrowPosition="center"
                 >
-                    <Text color="dimmed" size="xs">
+                    <Text c="dimmed" fz="xs">
                         All of the following conditions match:
                     </Text>
                 </Tooltip>
 
-                <Stack spacing="sm">
+                <Stack gap="sm">
                     {filterRules.map((item, index) => (
                         <FilterRuleForm
                             isEditMode={isEditMode}

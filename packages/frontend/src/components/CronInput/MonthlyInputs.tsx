@@ -1,4 +1,4 @@
-import { Group, Input, NumberInput } from '@mantine/core';
+import { Group, Input, NumberInput } from '@mantine-8/core';
 import React, { type FC } from 'react';
 import {
     getMonthlyCronExpression,
@@ -13,8 +13,8 @@ const MonthlyInputs: FC<{
 }> = ({ disabled, cronExpression, onChange }) => {
     const { minutes, hours, day } = parseCronExpression(cronExpression);
 
-    const onDayChange = (newDay: number) => {
-        if (newDay >= 1 && newDay <= 31) {
+    const onDayChange = (newDay: string | number) => {
+        if (typeof newDay === 'number' && newDay >= 1 && newDay <= 31) {
             onChange(getMonthlyCronExpression(minutes, hours, newDay));
         }
     };
@@ -24,7 +24,7 @@ const MonthlyInputs: FC<{
     };
 
     return (
-        <Group spacing="sm">
+        <Group gap="sm">
             <Input.Label>on day</Input.Label>
             <NumberInput
                 value={day}
