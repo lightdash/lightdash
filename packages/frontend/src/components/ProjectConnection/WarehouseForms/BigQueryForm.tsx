@@ -1,12 +1,13 @@
 import { BigqueryAuthenticationType, WarehouseTypes } from '@lightdash/common';
-import classes from './BigQueryForm.module.css';
 import type { SelectItem } from '@mantine/core';
 import {
     Anchor,
+    Autocomplete,
     Button,
     FileInput,
     Group,
     Image,
+    Loader,
     NumberInput,
     Select,
     Stack,
@@ -15,7 +16,7 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
-import { IconCheck } from '@tabler/icons-react';
+import { IconCheck, IconExclamationCircle } from '@tabler/icons-react';
 import { useState, type ChangeEvent, type FC } from 'react';
 import { useToggle } from 'react-use';
 import { useGoogleLoginPopup } from '../../../hooks/gdrive/useGdrive';
@@ -33,6 +34,7 @@ import BooleanSwitch from '../Inputs/BooleanSwitch';
 import FormSection from '../Inputs/FormSection';
 import StartOfWeekSelect from '../Inputs/StartOfWeekSelect';
 import { useProjectFormContext } from '../useProjectFormContext';
+import classes from './BigQueryForm.module.css';
 import { BigQueryDefaultValues } from './defaultValues';
 
 export const BigQuerySchemaInput: FC<{
@@ -129,8 +131,11 @@ const BigQueryForm: FC<{
         refetch: refetchDatasets,
         error: datasetsError,
     } = useBigqueryDatasets(isAuthenticated && isSso, debouncedProject);
-    const { data: gcpProjects, isLoading: isLoadingProjects } =
-        useBigqueryProjects(isAuthenticated && isSso);
+    const {
+        data: gcpProjects,
+        isLoading: isLoadingProjects,
+        error: projectsError,
+    } = useBigqueryProjects(isAuthenticated && isSso);
     const [isOpen, toggleOpen] = useToggle(false);
     const [temporaryFile, setTemporaryFile] = useState<File | null>(null);
     const { savedProject } = useProjectFormContext();
@@ -235,8 +240,8 @@ const BigQueryForm: FC<{
                     />
                 )}
                 <Group spacing="sm">
-                    {isSso && isAuthenticated && gcpProjects ? (
-                        <Select
+                    {isSso && isAuthenticated ? (
+                        <Autocomplete
                             name="warehouse.project"
                             label="Project"
                             description={
@@ -251,26 +256,39 @@ const BigQueryForm: FC<{
                                     .
                                 </p>
                             }
+                            placeholder={
+                                isLoadingProjects
+                                    ? 'Loading projects...'
+                                    : 'Type or select a project'
+                            }
                             required
                             {...form.getInputProps('warehouse.project')}
                             disabled={disabled}
                             labelProps={{ style: { marginTop: '8px' } }}
                             w={hasDatasets ? '90%' : '100%'}
-                            searchable
-                            nothingFound={
-                                isLoadingProjects
-                                    ? 'Loading projects...'
-                                    : 'No projects found'
+                            data={
+                                gcpProjects?.map((p) => ({
+                                    value: p.projectId,
+                                    label: p.friendlyName
+                                        ? `${p.friendlyName} (${p.projectId})`
+                                        : p.projectId,
+                                })) ?? []
                             }
-                            data={gcpProjects.map((p) => ({
-                                value: p.projectId,
-                                label: p.friendlyName
-                                    ? `${p.friendlyName} (${p.projectId})`
-                                    : p.projectId,
-                            }))}
+                            rightSection={
+                                isLoadingProjects ? (
+                                    <Loader size="xs" />
+                                ) : projectsError ? (
+                                    <Tooltip label="Failed to load projects. You can type manually.">
+                                        <MantineIcon
+                                            icon={IconExclamationCircle}
+                                            color="yellow"
+                                        />
+                                    </Tooltip>
+                                ) : undefined
+                            }
                             error={
                                 datasetsError ? (
-                                    <Text color="red">
+                                    <Text c="red">
                                         {datasetsError.error.message}
                                     </Text>
                                 ) : undefined
@@ -299,7 +317,7 @@ const BigQueryForm: FC<{
                             w={hasDatasets ? '90%' : '100%'}
                             error={
                                 datasetsError ? (
-                                    <Text color="red">
+                                    <Text c="red">
                                         {datasetsError.error.message}
                                     </Text>
                                 ) : undefined
