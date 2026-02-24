@@ -70,6 +70,7 @@ export class SpacePermissionModel {
                         .select({
                             userUuid: `${SpaceUserAccessTableName}.user_uuid`,
                             spaceUuid: `${SpaceUserAccessTableName}.space_uuid`,
+                            groupUuid: this.database.raw(`NULL`),
                             role: `${SpaceUserAccessTableName}.space_role`,
                             from: this.database.raw(
                                 `'${DirectSpaceAccessOrigin.USER_ACCESS}'`,
@@ -92,6 +93,7 @@ export class SpacePermissionModel {
                                 .select({
                                     userUuid: `${UserTableName}.user_uuid`,
                                     spaceUuid: `${SpaceGroupAccessTableName}.space_uuid`,
+                                    groupUuid: `${SpaceGroupAccessTableName}.group_uuid`,
                                     role: `${SpaceGroupAccessTableName}.space_role`,
                                     from: this.database.raw(
                                         `'${DirectSpaceAccessOrigin.GROUP_ACCESS}'`,

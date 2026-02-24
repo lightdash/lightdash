@@ -885,6 +885,7 @@ describe('SpaceService.updateSpace - permission copy on inherit toggle', () => {
     };
     const mockSpacePermissionService = {
         can: jest.fn(),
+        getAccessibleSpaceUuids: jest.fn(),
         getSpaceAccessContext: jest.fn(),
         getAllSpaceAccessContext: jest.fn(),
         getGroupAccess: jest.fn(),
@@ -916,6 +917,11 @@ describe('SpaceService.updateSpace - permission copy on inherit toggle', () => {
 
         // Default mocks
         mockSpacePermissionService.can.mockResolvedValue(true);
+        // Return all requested UUIDs as accessible (admin user)
+        mockSpacePermissionService.getAccessibleSpaceUuids.mockImplementation(
+            (_action: string, _actor: unknown, uuids: string[]) =>
+                Promise.resolve(uuids),
+        );
         // Default: user has direct access (so auto-add doesn't fire)
         mockSpacePermissionService.getSpaceAccessContext.mockResolvedValue({
             organizationUuid: 'org-uuid',
@@ -1091,7 +1097,7 @@ describe('SpaceService.updateSpace - permission copy on inherit toggle', () => {
         expect(mockSpaceModel.update).toHaveBeenCalled();
     });
 
-    test('auto-adds acting user as direct access when making space private', async () => {
+    test('auto-adds acting user to copied permissions when making space private', async () => {
         mockSpaceModel.getSpaceSummary.mockResolvedValue({
             uuid: 'space-uuid',
             name: 'Test Space',
@@ -1101,7 +1107,7 @@ describe('SpaceService.updateSpace - permission copy on inherit toggle', () => {
             inheritParentPermissions: true,
         });
         mockSpaceModel.isRootSpace.mockResolvedValue(true);
-        mockFeatureFlagModel.get.mockResolvedValue({ enabled: false });
+        mockFeatureFlagModel.get.mockResolvedValue({ enabled: true });
 
         // User has EDITOR access inherited from project (no direct access)
         mockSpacePermissionService.getSpaceAccessContext.mockResolvedValue({
@@ -1117,6 +1123,9 @@ describe('SpaceService.updateSpace - permission copy on inherit toggle', () => {
                 },
             ],
         });
+        mockSpacePermissionService.getInheritedPermissionsToCopy.mockResolvedValue(
+            { userAccessEntries: [], groupAccessEntries: [] },
+        );
 
         await service.updateSpace(
             mockUser as unknown as SessionUser,
@@ -1124,14 +1133,21 @@ describe('SpaceService.updateSpace - permission copy on inherit toggle', () => {
             { name: 'Test Space', isPrivate: true },
         );
 
-        expect(mockSpaceModel.addSpaceAccess).toHaveBeenCalledWith(
+        // Acting user should be added to the copied permissions entries
+        expect(mockSpaceModel.updateWithCopiedPermissions).toHaveBeenCalledWith(
             'space-uuid',
-            mockUser.userUuid,
-            SpaceMemberRole.EDITOR,
+            expect.anything(),
+            expect.arrayContaining([
+                {
+                    userUuid: mockUser.userUuid,
+                    role: SpaceMemberRole.EDITOR,
+                },
+            ]),
+            [],
         );
     });
 
-    test('does NOT add acting user if they already have direct access', async () => {
+    test('does NOT add acting user to copied permissions if they already have direct access', async () => {
         mockSpaceModel.getSpaceSummary.mockResolvedValue({
             uuid: 'space-uuid',
             name: 'Test Space',
@@ -1141,7 +1157,7 @@ describe('SpaceService.updateSpace - permission copy on inherit toggle', () => {
             inheritParentPermissions: true,
         });
         mockSpaceModel.isRootSpace.mockResolvedValue(true);
-        mockFeatureFlagModel.get.mockResolvedValue({ enabled: false });
+        mockFeatureFlagModel.get.mockResolvedValue({ enabled: true });
 
         // User already has direct access
         mockSpacePermissionService.getSpaceAccessContext.mockResolvedValue({
@@ -1157,6 +1173,9 @@ describe('SpaceService.updateSpace - permission copy on inherit toggle', () => {
                 },
             ],
         });
+        mockSpacePermissionService.getInheritedPermissionsToCopy.mockResolvedValue(
+            { userAccessEntries: [], groupAccessEntries: [] },
+        );
 
         await service.updateSpace(
             mockUser as unknown as SessionUser,
@@ -1164,10 +1183,16 @@ describe('SpaceService.updateSpace - permission copy on inherit toggle', () => {
             { name: 'Test Space', isPrivate: true },
         );
 
-        expect(mockSpaceModel.addSpaceAccess).not.toHaveBeenCalled();
+        // User should NOT appear in copied permissions (already has direct access)
+        expect(mockSpaceModel.updateWithCopiedPermissions).toHaveBeenCalledWith(
+            'space-uuid',
+            expect.anything(),
+            [],
+            [],
+        );
     });
 
-    test('does NOT add acting user when making space public', async () => {
+    test('does NOT copy permissions when making space public', async () => {
         mockSpaceModel.getSpaceSummary.mockResolvedValue({
             uuid: 'space-uuid',
             name: 'Test Space',
@@ -1177,7 +1202,7 @@ describe('SpaceService.updateSpace - permission copy on inherit toggle', () => {
             inheritParentPermissions: false,
         });
         mockSpaceModel.isRootSpace.mockResolvedValue(true);
-        mockFeatureFlagModel.get.mockResolvedValue({ enabled: false });
+        mockFeatureFlagModel.get.mockResolvedValue({ enabled: true });
 
         await service.updateSpace(
             mockUser as unknown as SessionUser,
@@ -1185,9 +1210,12 @@ describe('SpaceService.updateSpace - permission copy on inherit toggle', () => {
             { name: 'Test Space', isPrivate: false },
         );
 
+        // turnInheritOff is false (going public), so no copy or auto-add
         expect(
             mockSpacePermissionService.getSpaceAccessContext,
         ).not.toHaveBeenCalled();
-        expect(mockSpaceModel.addSpaceAccess).not.toHaveBeenCalled();
+        expect(
+            mockSpaceModel.updateWithCopiedPermissions,
+        ).not.toHaveBeenCalled();
     });
 });
