@@ -35,11 +35,11 @@ import {
 } from 'react';
 import { useToggle } from 'react-use';
 import { v4 as uuidv4 } from 'uuid';
+import { useIsFilterAutofocusEnabled } from '../../../hooks/useIsFilterAutofocusEnabled';
 import {
     type FieldsWithSuggestions,
     type FieldWithSuggestions,
 } from '../../Explorer/FiltersCard/useFieldsWithSuggestions';
-import { useIsFilterAutofocusEnabled } from '../../hooks/useIsFilterAutofocusEnabled';
 import FieldSelect from '../FieldSelect';
 import MantineIcon from '../MantineIcon';
 import { FILTER_SELECT_LIMIT } from './constants';
@@ -85,19 +85,27 @@ const FiltersForm: FC<Props> = memo(({ filters, setFilters, isEditMode }) => {
         }
     }, [isFilterAutofocusEnabled]);
 
-    const handleFocusCapture = useCallback((e: React.FocusEvent) => {
-        if (!isFilterAutofocusEnabled) return;
-        const ruleEl = (e.target as HTMLElement).closest?.('[data-rule-id]');
-        if (ruleEl) {
-            lastFocusedRuleIdRef.current =
-                ruleEl.getAttribute('data-rule-id') || undefined;
-        }
-    }, [isFilterAutofocusEnabled]);
+    const handleFocusCapture = useCallback(
+        (e: React.FocusEvent) => {
+            if (!isFilterAutofocusEnabled) return;
+            const ruleEl = (e.target as HTMLElement).closest?.(
+                '[data-rule-id]',
+            );
+            if (ruleEl) {
+                lastFocusedRuleIdRef.current =
+                    ruleEl.getAttribute('data-rule-id') || undefined;
+            }
+        },
+        [isFilterAutofocusEnabled],
+    );
 
-    const setAutoFocusRuleId = useCallback((ruleId: string) => {
-        if (!isFilterAutofocusEnabled) return;
-        autoFocusRuleIdRef.current = ruleId;
-    }, [isFilterAutofocusEnabled]);
+    const setAutoFocusRuleId = useCallback(
+        (ruleId: string) => {
+            if (!isFilterAutofocusEnabled) return;
+            autoFocusRuleIdRef.current = ruleId;
+        },
+        [isFilterAutofocusEnabled],
+    );
 
     useEffect(() => {
         if (!isFilterAutofocusEnabled) return;
