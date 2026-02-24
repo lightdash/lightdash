@@ -1114,6 +1114,92 @@ export type DownloadCsv = BaseTrack & {
     };
 };
 
+type PersistentFileDownloadSource =
+    | 'chart'
+    | 'dashboard'
+    | 'sql_chart'
+    | 'pivot'
+    | 'analytics'
+    | 'async_query'
+    | 'scheduler'
+    | 'api'
+    | 'other';
+
+export type PersistentFileGenerationRequestedEvent = BaseTrack & {
+    event: 'persistent_file.generation_requested';
+    userId?: string;
+    properties: {
+        fileUuid: string;
+        organizationId: string;
+        projectId: string | null;
+        createdByUserUuid: string | null;
+        fileType: string;
+        source: PersistentFileDownloadSource;
+        expirationSeconds: number;
+    };
+};
+
+export type PersistentFileGenerationCompletedEvent = BaseTrack & {
+    event: 'persistent_file.generation_completed';
+    userId?: string;
+    properties: {
+        fileUuid: string;
+        organizationId: string;
+        projectId: string | null;
+        createdByUserUuid: string | null;
+        fileType: string;
+        source: PersistentFileDownloadSource;
+        expirationSeconds: number;
+        durationMs: number;
+    };
+};
+
+export type PersistentFileGenerationFailedEvent = BaseTrack & {
+    event: 'persistent_file.generation_failed';
+    userId?: string;
+    properties: {
+        fileUuid: string;
+        organizationId: string;
+        projectId: string | null;
+        createdByUserUuid: string | null;
+        fileType: string;
+        source: PersistentFileDownloadSource;
+        errorName: string;
+        errorMessage: string;
+        durationMs?: number;
+    };
+};
+
+export type PersistentFileUrlRequestedEvent = BaseTrack & {
+    event: 'persistent_file.url_requested';
+    userId?: string;
+    properties: {
+        fileUuid: string;
+        organizationId: string;
+        projectId: string | null;
+        createdByUserUuid: string | null;
+        requestedByUserUuid: string | null;
+        source: PersistentFileDownloadSource | 'unknown';
+        hasUserAgent: boolean;
+        hasIpAddress: boolean;
+    };
+};
+
+export type PersistentFileUrlRespondedEvent = BaseTrack & {
+    event: 'persistent_file.url_responded';
+    userId?: string;
+    properties: {
+        fileUuid: string;
+        organizationId: string;
+        projectId: string | null;
+        createdByUserUuid: string | null;
+        requestedByUserUuid: string | null;
+        source: PersistentFileDownloadSource | 'unknown';
+        statusCode: number;
+        responseMs: number;
+    };
+};
+
 export type Validation = BaseTrack & {
     event:
         | 'validation.page_viewed'
@@ -1618,7 +1704,12 @@ type TypedEvent =
     | AiAgentToolCallEvent
     | AiAgentArtifactVersionVerifiedEvent
     | AiAgentArtifactsRetrievedEvent
-    | SchedulerOwnershipReassignedEvent;
+    | SchedulerOwnershipReassignedEvent
+    | PersistentFileGenerationRequestedEvent
+    | PersistentFileGenerationCompletedEvent
+    | PersistentFileGenerationFailedEvent
+    | PersistentFileUrlRequestedEvent
+    | PersistentFileUrlRespondedEvent;
 
 type UntypedEvent<T extends BaseTrack> = Omit<BaseTrack, 'event'> &
     T & {
