@@ -15,6 +15,7 @@ export type FilterInputsProps<T extends BaseFilterRule> = {
     rule: T;
     onChange: (value: T) => void;
     disabled?: boolean;
+    autoFocus?: boolean;
     popoverProps?: Omit<PopoverProps, 'children'>;
 };
 
