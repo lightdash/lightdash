@@ -15,7 +15,6 @@ import {
     UpdateSpace,
     type SpaceAccess,
 } from '@lightdash/common';
-import * as Sentry from '@sentry/node';
 import { Knex } from 'knex';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -26,6 +25,10 @@ import { SpaceModel } from '../../models/SpaceModel';
 import { BaseService } from '../BaseService';
 import type { DashboardService } from '../DashboardService/DashboardService';
 import type { SavedChartService } from '../SavedChartsService/SavedChartService';
+import type {
+    SoftDeletableService,
+    SoftDeleteOptions,
+} from '../SoftDeletableService';
 import { SpacePermissionService } from './SpacePermissionService';
 
 type SpaceServiceArguments = {
@@ -68,7 +71,10 @@ export const hasDirectAccessToSpace = (
     return hasAccess;
 };
 
-export class SpaceService extends BaseService implements BulkActionable<Knex> {
+export class SpaceService
+    extends BaseService
+    implements BulkActionable<Knex>, SoftDeletableService
+{
     private readonly analytics: LightdashAnalytics;
 
     private readonly lightdashConfig: LightdashConfig;
@@ -472,72 +478,33 @@ export class SpaceService extends BaseService implements BulkActionable<Knex> {
         }
     }
 
-    async deleteSpace(user: SessionUser, spaceUuid: string): Promise<void> {
-        if (
-            !(await this.spacePermissionService.can('delete', user, spaceUuid))
-        ) {
-            throw new ForbiddenError();
+    async delete(
+        user: SessionUser,
+        spaceUuid: string,
+        options?: SoftDeleteOptions,
+    ): Promise<void> {
+        if (!options?.bypassPermissions) {
+            if (
+                !(await this.spacePermissionService.can(
+                    'delete',
+                    user,
+                    spaceUuid,
+                ))
+            ) {
+                throw new ForbiddenError();
+            }
         }
 
         const space = await this.spaceModel.getSpaceSummary(spaceUuid);
 
-        let wasSoftDeleted = false;
         if (this.lightdashConfig.softDelete.enabled) {
-            // Get all content UUIDs BEFORE soft-deleting
-            const chartUuids =
-                await this.spaceModel.getChartUuidsInSpace(spaceUuid);
-            const dashboardUuids =
-                await this.spaceModel.getDashboardUuidsInSpace(spaceUuid);
-            const childSpaceUuids =
-                await this.spaceModel.getChildSpaceUuids(spaceUuid);
-
-            // Soft-delete charts (this cascades to schedulers via SavedChartService)
-            for (const chartUuid of chartUuids) {
-                try {
-                    // eslint-disable-next-line no-await-in-loop
-                    await this.savedChartService.delete(user, chartUuid);
-                } catch (e) {
-                    Sentry.captureException(e);
-                    this.logger.error(
-                        `Failed to cascade soft-delete chart ${chartUuid} in space ${spaceUuid}`,
-                        e,
-                    );
-                }
-            }
-
-            // Soft-delete dashboards (this cascades to dashboard-scoped charts and schedulers)
-            for (const dashboardUuid of dashboardUuids) {
-                try {
-                    // eslint-disable-next-line no-await-in-loop
-                    await this.dashboardService.delete(user, dashboardUuid);
-                } catch (e) {
-                    Sentry.captureException(e);
-                    this.logger.error(
-                        `Failed to cascade soft-delete dashboard ${dashboardUuid} in space ${spaceUuid}`,
-                        e,
-                    );
-                }
-            }
-
-            // Recursively soft-delete child spaces (calling deleteSpace recursively)
-            for (const childSpaceUuid of childSpaceUuids) {
-                try {
-                    // eslint-disable-next-line no-await-in-loop
-                    await this.deleteSpace(user, childSpaceUuid);
-                } catch (e) {
-                    Sentry.captureException(e);
-                    this.logger.error(
-                        `Failed to cascade soft-delete child space ${childSpaceUuid} in space ${spaceUuid}`,
-                        e,
-                    );
-                }
-            }
-
-            // Finally soft-delete the space itself
-            await this.spaceModel.softDelete(spaceUuid, user.userUuid);
-            wasSoftDeleted = true;
+            await this.softDelete(user, spaceUuid, {
+                bypassPermissions: true, // perms checked above
+            });
         } else {
-            await this.spaceModel.permanentDelete(spaceUuid);
+            await this.permanentDelete(user, spaceUuid, {
+                bypassPermissions: true, // perms checked above
+            });
         }
 
         this.analytics.track({
@@ -548,35 +515,86 @@ export class SpaceService extends BaseService implements BulkActionable<Knex> {
                 spaceId: spaceUuid,
                 projectId: space.projectUuid,
                 isNested: !!space.parentSpaceUuid,
-                softDelete: wasSoftDeleted,
+                softDelete: this.lightdashConfig.softDelete.enabled,
             },
         });
     }
 
-    async restoreSpace(user: SessionUser, spaceUuid: string): Promise<void> {
+    async softDelete(
+        user: SessionUser,
+        spaceUuid: string,
+        options?: SoftDeleteOptions,
+    ): Promise<void> {
+        if (!options?.bypassPermissions) {
+            if (
+                !(await this.spacePermissionService.can(
+                    'delete',
+                    user,
+                    spaceUuid,
+                ))
+            ) {
+                throw new ForbiddenError();
+            }
+        }
+
+        // Get all content UUIDs BEFORE soft-deleting
+        const chartUuids =
+            await this.spaceModel.getChartUuidsInSpace(spaceUuid);
+        const dashboardUuids =
+            await this.spaceModel.getDashboardUuidsInSpace(spaceUuid);
+        const childSpaceUuids =
+            await this.spaceModel.getChildSpaceUuids(spaceUuid);
+
+        for (const chartUuid of chartUuids) {
+            // eslint-disable-next-line no-await-in-loop
+            await this.savedChartService.delete(user, chartUuid, {
+                bypassPermissions: true, // space delete authorized above
+            });
+        }
+        for (const dashboardUuid of dashboardUuids) {
+            // eslint-disable-next-line no-await-in-loop
+            await this.dashboardService.delete(user, dashboardUuid, {
+                bypassPermissions: true, // space delete authorized above
+            });
+        }
+        for (const childSpaceUuid of childSpaceUuids) {
+            // eslint-disable-next-line no-await-in-loop
+            await this.delete(user, childSpaceUuid, {
+                bypassPermissions: true, // space delete authorized above
+            });
+        }
+
+        await this.spaceModel.softDelete(spaceUuid, user.userUuid);
+    }
+
+    async restore(
+        user: SessionUser,
+        spaceUuid: string,
+        options?: SoftDeleteOptions,
+    ): Promise<void> {
         const space = await this.spaceModel.getSpaceSummary(spaceUuid, {
             deleted: true,
         });
 
-        // Permission check
-        const isAdmin = user.ability.can(
-            'manage',
-            subject('DeletedContent', {
-                organizationUuid: space.organizationUuid,
-                projectUuid: space.projectUuid,
-            }),
-        );
-
-        if (!isAdmin && space.deletedBy?.userUuid !== user.userUuid) {
-            throw new ForbiddenError(
-                'You can only restore content you deleted',
+        if (!options?.bypassPermissions) {
+            const isAdmin = user.ability.can(
+                'manage',
+                subject('DeletedContent', {
+                    organizationUuid: space.organizationUuid,
+                    projectUuid: space.projectUuid,
+                }),
             );
+
+            if (!isAdmin && space.deletedBy?.userUuid !== user.userUuid) {
+                throw new ForbiddenError(
+                    'You can only restore content you deleted',
+                );
+            }
         }
 
-        // Restore the space first
         await this.spaceModel.restore(spaceUuid);
 
-        // Get and restore charts that were cascade-deleted (same user)
+        // Cascade: restore children that were cascade-deleted by the same user
         if (space.deletedBy?.userUuid) {
             const deletedChartUuids =
                 await this.spaceModel.getChartUuidsInSpace(spaceUuid, {
@@ -584,57 +602,34 @@ export class SpaceService extends BaseService implements BulkActionable<Knex> {
                     deletedByUserUuid: space.deletedBy.userUuid,
                 });
             for (const chartUuid of deletedChartUuids) {
-                try {
-                    // eslint-disable-next-line no-await-in-loop
-                    await this.savedChartService.restoreChart(user, chartUuid);
-                } catch (e) {
-                    Sentry.captureException(e);
-                    this.logger.error(
-                        `Failed to cascade restore chart ${chartUuid} in space ${spaceUuid}`,
-                        e,
-                    );
-                }
+                // eslint-disable-next-line no-await-in-loop
+                await this.savedChartService.restore(user, chartUuid, {
+                    bypassPermissions: true, // space restore authorized above
+                });
             }
 
-            // Get and restore dashboards that were cascade-deleted (same user)
             const deletedDashboardUuids =
                 await this.spaceModel.getDashboardUuidsInSpace(spaceUuid, {
                     deleted: true,
                     deletedByUserUuid: space.deletedBy.userUuid,
                 });
             for (const dashboardUuid of deletedDashboardUuids) {
-                try {
-                    // eslint-disable-next-line no-await-in-loop
-                    await this.dashboardService.restoreDashboard(
-                        user,
-                        dashboardUuid,
-                    );
-                } catch (e) {
-                    Sentry.captureException(e);
-                    this.logger.error(
-                        `Failed to cascade restore dashboard ${dashboardUuid} in space ${spaceUuid}`,
-                        e,
-                    );
-                }
+                // eslint-disable-next-line no-await-in-loop
+                await this.dashboardService.restore(user, dashboardUuid, {
+                    bypassPermissions: true, // space restore authorized above
+                });
             }
 
-            // Restore child spaces that were cascade-deleted (same user)
             const deletedChildSpaceUuids =
                 await this.spaceModel.getChildSpaceUuids(spaceUuid, {
                     deleted: true,
                     deletedByUserUuid: space.deletedBy.userUuid,
                 });
             for (const childSpaceUuid of deletedChildSpaceUuids) {
-                try {
-                    // eslint-disable-next-line no-await-in-loop
-                    await this.restoreSpace(user, childSpaceUuid);
-                } catch (e) {
-                    Sentry.captureException(e);
-                    this.logger.error(
-                        `Failed to cascade restore child space ${childSpaceUuid} in space ${spaceUuid}`,
-                        e,
-                    );
-                }
+                // eslint-disable-next-line no-await-in-loop
+                await this.restore(user, childSpaceUuid, {
+                    bypassPermissions: true, // space restore authorized above
+                });
             }
         }
 
@@ -649,39 +644,29 @@ export class SpaceService extends BaseService implements BulkActionable<Knex> {
         });
     }
 
-    async permanentlyDeleteSpace(
+    async permanentDelete(
         user: SessionUser,
         spaceUuid: string,
+        options?: SoftDeleteOptions,
     ): Promise<void> {
-        const space = await this.spaceModel.getSpaceSummary(spaceUuid, {
-            deleted: true,
-        });
-
-        if (
-            user.ability.cannot(
-                'manage',
-                subject('DeletedContent', {
-                    organizationUuid: space.organizationUuid,
-                    projectUuid: space.projectUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
+        if (!options?.bypassPermissions) {
+            const space = await this.spaceModel.getSpaceSummary(spaceUuid, {
+                deleted: true,
+            });
+            if (
+                user.ability.cannot(
+                    'manage',
+                    subject('DeletedContent', {
+                        organizationUuid: space.organizationUuid,
+                        projectUuid: space.projectUuid,
+                    }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
         }
 
         await this.spaceModel.permanentDelete(spaceUuid);
-
-        this.analytics.track({
-            event: 'space.deleted',
-            userId: user.userUuid,
-            properties: {
-                name: space.name,
-                spaceId: spaceUuid,
-                projectId: space.projectUuid,
-                isNested: !!space.parentSpaceUuid,
-                softDelete: false,
-            },
-        });
     }
 
     private async assertSpacePermissionChangeAllowed(

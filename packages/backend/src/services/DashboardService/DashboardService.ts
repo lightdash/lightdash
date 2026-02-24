@@ -41,7 +41,6 @@ import {
     type Explore,
     type ExploreError,
 } from '@lightdash/common';
-import * as Sentry from '@sentry/node';
 import cronstrue from 'cronstrue';
 import { type Knex } from 'knex';
 import { uniq } from 'lodash';
@@ -70,6 +69,10 @@ import { createTwoColumnTiles } from '../../utils/dashboardTileUtils';
 import { BaseService } from '../BaseService';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
 import type { SchedulerService } from '../SchedulerService/SchedulerService';
+import type {
+    SoftDeletableService,
+    SoftDeleteOptions,
+} from '../SoftDeletableService';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { hasDirectAccessToSpace } from '../SpaceService/SpaceService';
 
@@ -93,7 +96,7 @@ type DashboardServiceArguments = {
 
 export class DashboardService
     extends BaseService
-    implements BulkActionable<Knex>
+    implements BulkActionable<Knex>, SoftDeletableService
 {
     private lightdashConfig: LightdashConfig;
 
@@ -947,30 +950,37 @@ export class DashboardService
         return Promise.all(updatedDashboardsWithSpacesAccess);
     }
 
-    async delete(user: SessionUser, dashboardUuid: string): Promise<void> {
+    async delete(
+        user: SessionUser,
+        dashboardUuid: string,
+        options?: SoftDeleteOptions,
+    ): Promise<void> {
         const dashboardToDelete =
             await this.dashboardModel.getByIdOrSlug(dashboardUuid);
         const { organizationUuid, projectUuid, spaceUuid, tiles } =
             dashboardToDelete;
-        const { isPrivate, access } =
-            await this.spacePermissionService.getSpaceAccessContext(
-                user.userUuid,
-                spaceUuid,
-            );
-        if (
-            user.ability.cannot(
-                'delete',
-                subject('Dashboard', {
-                    organizationUuid,
-                    projectUuid,
-                    isPrivate,
-                    access,
-                }),
-            )
-        ) {
-            throw new ForbiddenError(
-                "You don't have access to the space this dashboard belongs to",
-            );
+
+        if (!options?.bypassPermissions) {
+            const { isPrivate, access } =
+                await this.spacePermissionService.getSpaceAccessContext(
+                    user.userUuid,
+                    spaceUuid,
+                );
+            if (
+                user.ability.cannot(
+                    'delete',
+                    subject('Dashboard', {
+                        organizationUuid,
+                        projectUuid,
+                        isPrivate,
+                        access,
+                    }),
+                )
+            ) {
+                throw new ForbiddenError(
+                    "You don't have access to the space this dashboard belongs to",
+                );
+            }
         }
 
         if (hasChartsInDashboard(dashboardToDelete)) {
@@ -1022,85 +1032,108 @@ export class DashboardService
             }
         }
 
-        let deletedDashboard: DashboardDAO;
-        let wasSoftDeleted = false;
         if (this.lightdashConfig.softDelete.enabled) {
-            deletedDashboard = await this.dashboardModel.softDelete(
-                dashboardUuid,
-                user.userUuid,
-            );
-            wasSoftDeleted = true;
-
-            // Cascade: soft-delete associated schedulers
-            try {
-                await this.schedulerService.softDeleteByDashboardUuid(
-                    user,
-                    dashboardUuid,
-                    { projectUuid, organizationUuid },
-                );
-            } catch (e) {
-                Sentry.captureException(e);
-                this.logger.error(
-                    `Failed to cascade soft-delete schedulers for dashboard ${dashboardUuid}`,
-                    e,
-                );
-            }
+            await this.softDelete(user, dashboardUuid, {
+                bypassPermissions: true, // perms checked above
+            });
         } else {
-            deletedDashboard =
-                await this.dashboardModel.permanentDelete(dashboardUuid);
+            await this.permanentDelete(user, dashboardUuid, {
+                bypassPermissions: true, // perms checked above
+            });
         }
 
         this.analytics.track({
             event: 'dashboard.deleted',
             userId: user.userUuid,
             properties: {
-                dashboardId: deletedDashboard.uuid,
-                projectId: deletedDashboard.projectUuid,
-                softDelete: wasSoftDeleted,
+                dashboardId: dashboardToDelete.uuid,
+                projectId: dashboardToDelete.projectUuid,
+                softDelete: this.lightdashConfig.softDelete.enabled,
             },
         });
     }
 
-    async restoreDashboard(
+    async softDelete(
         user: SessionUser,
         dashboardUuid: string,
+        options?: SoftDeleteOptions,
+    ): Promise<void> {
+        if (!options?.bypassPermissions) {
+            const dashboard =
+                await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+            const { isPrivate, access } =
+                await this.spacePermissionService.getSpaceAccessContext(
+                    user.userUuid,
+                    dashboard.spaceUuid,
+                );
+            if (
+                user.ability.cannot(
+                    'delete',
+                    subject('Dashboard', {
+                        organizationUuid: dashboard.organizationUuid,
+                        projectUuid: dashboard.projectUuid,
+                        isPrivate,
+                        access,
+                    }),
+                )
+            ) {
+                throw new ForbiddenError(
+                    "You don't have access to the space this dashboard belongs to",
+                );
+            }
+        }
+
+        const deletedDashboard = await this.dashboardModel.softDelete(
+            dashboardUuid,
+            user.userUuid,
+        );
+
+        await this.schedulerService.softDeleteByDashboardUuid(
+            user,
+            dashboardUuid,
+            {
+                projectUuid: deletedDashboard.projectUuid,
+                organizationUuid: deletedDashboard.organizationUuid,
+            },
+            { bypassPermissions: true }, // dashboard delete authorized above
+        );
+    }
+
+    async restore(
+        user: SessionUser,
+        dashboardUuid: string,
+        options?: SoftDeleteOptions,
     ): Promise<void> {
         const dashboard = await this.dashboardModel.getByIdOrSlug(
             dashboardUuid,
             { deleted: true },
         );
 
-        if (
-            user.ability.cannot(
-                'manage',
-                subject('DeletedContent', {
-                    organizationUuid: dashboard.organizationUuid,
-                    projectUuid: dashboard.projectUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
+        if (!options?.bypassPermissions) {
+            if (
+                user.ability.cannot(
+                    'manage',
+                    subject('DeletedContent', {
+                        organizationUuid: dashboard.organizationUuid,
+                        projectUuid: dashboard.projectUuid,
+                    }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
         }
 
         await this.dashboardModel.restore(dashboardUuid);
 
-        // Cascade: restore associated schedulers
-        try {
-            await this.schedulerService.restoreByDashboardUuid(
-                user,
-                dashboardUuid,
-                {
-                    projectUuid: dashboard.projectUuid,
-                    organizationUuid: dashboard.organizationUuid,
-                },
-            );
-        } catch (e) {
-            Sentry.captureException(e);
-            this.logger.error(
-                `Failed to cascade restore schedulers for dashboard ${dashboardUuid}`,
-                e,
-            );
-        }
+        await this.schedulerService.restoreByDashboardUuid(
+            user,
+            dashboardUuid,
+            {
+                projectUuid: dashboard.projectUuid,
+                organizationUuid: dashboard.organizationUuid,
+            },
+            { bypassPermissions: true }, // dashboard restore authorized above
+        );
 
         this.analytics.track({
             event: 'dashboard.restored',
@@ -1112,38 +1145,30 @@ export class DashboardService
         });
     }
 
-    async permanentlyDeleteDashboard(
+    async permanentDelete(
         user: SessionUser,
         dashboardUuid: string,
+        options?: SoftDeleteOptions,
     ): Promise<void> {
-        const dashboard = await this.dashboardModel.getByIdOrSlug(
-            dashboardUuid,
-            { deleted: true },
-        );
-
-        if (
-            user.ability.cannot(
-                'manage',
-                subject('DeletedContent', {
-                    organizationUuid: dashboard.organizationUuid,
-                    projectUuid: dashboard.projectUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
+        if (!options?.bypassPermissions) {
+            const dashboard = await this.dashboardModel.getByIdOrSlug(
+                dashboardUuid,
+                { deleted: true },
+            );
+            if (
+                user.ability.cannot(
+                    'manage',
+                    subject('DeletedContent', {
+                        organizationUuid: dashboard.organizationUuid,
+                        projectUuid: dashboard.projectUuid,
+                    }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
         }
 
         await this.dashboardModel.permanentDelete(dashboardUuid);
-
-        this.analytics.track({
-            event: 'dashboard.deleted',
-            userId: user.userUuid,
-            properties: {
-                dashboardId: dashboardUuid,
-                projectId: dashboard.projectUuid,
-                softDelete: false,
-            },
-        });
     }
 
     async getSchedulers(

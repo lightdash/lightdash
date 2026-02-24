@@ -52,7 +52,6 @@ import {
     type SpaceAccess,
     type SpaceSummaryBase,
 } from '@lightdash/common';
-import * as Sentry from '@sentry/node';
 import cronstrue from 'cronstrue';
 import { Knex } from 'knex';
 import {
@@ -78,6 +77,10 @@ import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { BaseService } from '../BaseService';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
 import type { SchedulerService } from '../SchedulerService/SchedulerService';
+import type {
+    SoftDeletableService,
+    SoftDeleteOptions,
+} from '../SoftDeletableService';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { UserService } from '../UserService';
 
@@ -103,7 +106,7 @@ type SavedChartServiceArguments = {
 
 export class SavedChartService
     extends BaseService
-    implements BulkActionable<Knex>
+    implements BulkActionable<Knex>, SoftDeletableService
 {
     private readonly analytics: LightdashAnalytics;
 
@@ -704,7 +707,11 @@ export class SavedChartService
         return savedCharts;
     }
 
-    async delete(user: SessionUser, savedChartUuid: string): Promise<void> {
+    async delete(
+        user: SessionUser,
+        savedChartUuid: string,
+        options?: SoftDeleteOptions,
+    ): Promise<void> {
         const {
             organizationUuid,
             projectUuid,
@@ -712,51 +719,36 @@ export class SavedChartService
             metricQuery: { metrics, dimensions },
             tableName,
         } = await this.savedChartModel.get(savedChartUuid);
-        const { isPrivate, access } =
-            await this.spacePermissionService.getSpaceAccessContext(
-                user.userUuid,
-                spaceUuid,
-            );
 
-        if (
-            user.ability.cannot(
-                'delete',
-                subject('SavedChart', {
-                    organizationUuid,
-                    projectUuid,
-                    isPrivate,
-                    access,
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
+        if (!options?.bypassPermissions) {
+            const { isPrivate, access } =
+                await this.spacePermissionService.getSpaceAccessContext(
+                    user.userUuid,
+                    spaceUuid,
+                );
+            if (
+                user.ability.cannot(
+                    'delete',
+                    subject('SavedChart', {
+                        organizationUuid,
+                        projectUuid,
+                        isPrivate,
+                        access,
+                    }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
         }
 
-        let deletedChart: SavedChartDAO;
-        let wasSoftDeleted = false;
         if (this.lightdashConfig.softDelete.enabled) {
-            deletedChart = await this.savedChartModel.softDelete(
-                savedChartUuid,
-                user.userUuid,
-            );
-            wasSoftDeleted = true;
-
-            try {
-                await this.schedulerService.softDeleteByChartUuid(
-                    user,
-                    savedChartUuid,
-                    { projectUuid, organizationUuid },
-                );
-            } catch (e) {
-                Sentry.captureException(e);
-                this.logger.error(
-                    `Failed to cascade soft-delete schedulers for chart ${savedChartUuid}`,
-                    e,
-                );
-            }
+            await this.softDelete(user, savedChartUuid, {
+                bypassPermissions: true, // perms checked above
+            });
         } else {
-            deletedChart =
-                await this.savedChartModel.permanentDelete(savedChartUuid);
+            await this.permanentDelete(user, savedChartUuid, {
+                bypassPermissions: true, // perms checked above
+            });
         }
 
         try {
@@ -786,11 +778,54 @@ export class SavedChartService
             event: 'saved_chart.deleted',
             userId: user.userUuid,
             properties: {
-                savedQueryId: deletedChart.uuid,
-                projectId: deletedChart.projectUuid,
-                softDelete: wasSoftDeleted,
+                savedQueryId: savedChartUuid,
+                projectId: projectUuid,
+                softDelete: this.lightdashConfig.softDelete.enabled,
             },
         });
+    }
+
+    async softDelete(
+        user: SessionUser,
+        savedChartUuid: string,
+        options?: SoftDeleteOptions,
+    ): Promise<void> {
+        if (!options?.bypassPermissions) {
+            const chart = await this.savedChartModel.get(savedChartUuid);
+            const { isPrivate, access } =
+                await this.spacePermissionService.getSpaceAccessContext(
+                    user.userUuid,
+                    chart.spaceUuid,
+                );
+            if (
+                user.ability.cannot(
+                    'delete',
+                    subject('SavedChart', {
+                        organizationUuid: chart.organizationUuid,
+                        projectUuid: chart.projectUuid,
+                        isPrivate,
+                        access,
+                    }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
+        }
+
+        const deletedChart = await this.savedChartModel.softDelete(
+            savedChartUuid,
+            user.userUuid,
+        );
+
+        await this.schedulerService.softDeleteByChartUuid(
+            user,
+            savedChartUuid,
+            {
+                projectUuid: deletedChart.projectUuid,
+                organizationUuid: deletedChart.organizationUuid,
+            },
+            { bypassPermissions: true }, // chart delete authorized above
+        );
     }
 
     async getViewStats(
@@ -1627,7 +1662,11 @@ export class SavedChartService
      * Restore a soft-deleted chart
      * Admins can restore any, non-admins can only restore their own
      */
-    async restoreChart(user: SessionUser, chartUuid: string): Promise<void> {
+    async restore(
+        user: SessionUser,
+        chartUuid: string,
+        options?: SoftDeleteOptions,
+    ): Promise<void> {
         const deletedChart = await this.savedChartModel.get(
             chartUuid,
             undefined,
@@ -1635,44 +1674,42 @@ export class SavedChartService
         );
         const { organizationUuid, projectUuid } = deletedChart;
 
-        // Check if user can view the project
-        if (
-            user.ability.cannot(
-                'view',
-                subject('Project', { organizationUuid, projectUuid }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
+        if (!options?.bypassPermissions) {
+            if (
+                user.ability.cannot(
+                    'view',
+                    subject('Project', { organizationUuid, projectUuid }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
 
-        // Check if user is admin
-        const isAdmin = user.ability.can(
-            'manage',
-            subject('DeletedContent', { organizationUuid, projectUuid }),
-        );
-
-        // Non-admins can only restore their own items
-        if (!isAdmin && deletedChart.deletedBy?.userUuid !== user.userUuid) {
-            throw new ForbiddenError(
-                'You can only restore content you deleted',
+            const isAdmin = user.ability.can(
+                'manage',
+                subject('DeletedContent', { organizationUuid, projectUuid }),
             );
+
+            if (
+                !isAdmin &&
+                deletedChart.deletedBy?.userUuid !== user.userUuid
+            ) {
+                throw new ForbiddenError(
+                    'You can only restore content you deleted',
+                );
+            }
         }
 
         await this.savedChartModel.restore(chartUuid);
 
-        // Cascade: restore associated schedulers
-        try {
-            await this.schedulerService.restoreByChartUuid(user, chartUuid, {
+        await this.schedulerService.restoreByChartUuid(
+            user,
+            chartUuid,
+            {
                 projectUuid,
                 organizationUuid,
-            });
-        } catch (e) {
-            Sentry.captureException(e);
-            this.logger.error(
-                `Failed to cascade restore schedulers for chart ${chartUuid}`,
-                e,
-            );
-        }
+            },
+            { bypassPermissions: true }, // chart restore authorized above
+        );
 
         this.analytics.track({
             event: 'saved_chart.restored',
@@ -1688,50 +1725,43 @@ export class SavedChartService
      * Permanently delete a soft-deleted chart
      * Admins can delete any, non-admins can only delete their own
      */
-    async permanentlyDeleteChart(
+    async permanentDelete(
         user: SessionUser,
         chartUuid: string,
+        options?: SoftDeleteOptions,
     ): Promise<void> {
-        const deletedChart = await this.savedChartModel.get(
-            chartUuid,
-            undefined,
-            { deleted: true },
-        );
-        const { organizationUuid, projectUuid } = deletedChart;
-
-        // Check if user can view the project
-        if (
-            user.ability.cannot(
-                'view',
-                subject('Project', { organizationUuid, projectUuid }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
-
-        // Check if user is admin
-        const isAdmin = user.ability.can(
-            'manage',
-            subject('DeletedContent', { organizationUuid, projectUuid }),
-        );
-
-        // Non-admins can only permanently delete their own items
-        if (!isAdmin && deletedChart.deletedBy?.userUuid !== user.userUuid) {
-            throw new ForbiddenError(
-                'You can only permanently delete content you deleted',
+        if (!options?.bypassPermissions) {
+            const deletedChart = await this.savedChartModel.get(
+                chartUuid,
+                undefined,
+                { deleted: true },
             );
+            const { organizationUuid, projectUuid } = deletedChart;
+
+            if (
+                user.ability.cannot(
+                    'view',
+                    subject('Project', { organizationUuid, projectUuid }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
+
+            const isAdmin = user.ability.can(
+                'manage',
+                subject('DeletedContent', { organizationUuid, projectUuid }),
+            );
+
+            if (
+                !isAdmin &&
+                deletedChart.deletedBy?.userUuid !== user.userUuid
+            ) {
+                throw new ForbiddenError(
+                    'You can only permanently delete content you deleted',
+                );
+            }
         }
 
         await this.savedChartModel.permanentDelete(chartUuid);
-
-        this.analytics.track({
-            event: 'saved_chart.deleted',
-            userId: user.userUuid,
-            properties: {
-                savedQueryId: chartUuid,
-                projectId: projectUuid,
-                softDelete: false,
-            },
-        });
     }
 }
