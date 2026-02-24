@@ -37,6 +37,7 @@ export class FileController extends BaseController {
             .getSignedUrl(fileId, {
                 ip: req.ip,
                 userAgent: req.headers['user-agent'],
+                requestedByUserUuid: req.user?.userUuid,
             });
 
         this.setStatus(302);

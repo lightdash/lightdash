@@ -1,3 +1,25 @@
+# [0.2517.0](https://github.com/lightdash/lightdash/compare/0.2516.0...0.2517.0) (2026-02-24)
+
+
+### Features
+
+* add development seed for personal access tokens ([#20559](https://github.com/lightdash/lightdash/issues/20559)) ([1e76664](https://github.com/lightdash/lightdash/commit/1e76664a0dcd45ede8946b5230db5a8c0e57a482))
+
+# [0.2516.0](https://github.com/lightdash/lightdash/compare/0.2515.0...0.2516.0) (2026-02-24)
+
+
+### Features
+
+* encourage group sharing over user in spaces ([#20562](https://github.com/lightdash/lightdash/issues/20562)) ([bda083a](https://github.com/lightdash/lightdash/commit/bda083a1ec2a2fa4a0049a8f44fbbd4733bf77f7))
+
+# [0.2515.0](https://github.com/lightdash/lightdash/compare/0.2514.0...0.2515.0) (2026-02-24)
+
+
+### Features
+
+* add BigQuery SSO API for fetching projects ([#20555](https://github.com/lightdash/lightdash/issues/20555)) ([6e3649c](https://github.com/lightdash/lightdash/commit/6e3649ccb89615b2153951cfea5ea4c63fba0e7e))
+* add persistent file analytics events ([#20556](https://github.com/lightdash/lightdash/issues/20556)) ([a2e1dd6](https://github.com/lightdash/lightdash/commit/a2e1dd64fb160904036e8b92ba10c0389be52597))
+
 # [0.2514.0](https://github.com/lightdash/lightdash/compare/0.2513.0...0.2514.0) (2026-02-24)
 
 

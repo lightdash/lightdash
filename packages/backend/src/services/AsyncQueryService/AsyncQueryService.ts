@@ -1016,6 +1016,7 @@ export class AsyncQueryService extends ProjectService {
                                 ? null
                                 : account.user.userUuid,
                             expirationSeconds: expirationSecondsOverride,
+                            source: 'async_query',
                         },
                     );
                 return {
@@ -1068,6 +1069,7 @@ export class AsyncQueryService extends ProjectService {
             createdByUserUuid: string | null;
             fileType: DownloadFileType;
             expirationSecondsOverride?: number;
+            source?: 'async_query';
         },
     ): Promise<{ fileUrl: string; truncated: boolean }> {
         // Generate a unique filename
@@ -1140,6 +1142,7 @@ export class AsyncQueryService extends ProjectService {
                     createdByUserUuid: persistentUrlContext.createdByUserUuid,
                     expirationSeconds:
                         persistentUrlContext.expirationSecondsOverride,
+                    source: persistentUrlContext.source || 'async_query',
                 });
             return { fileUrl: persistentUrl, truncated: result.truncated };
         }
