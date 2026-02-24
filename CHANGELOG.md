@@ -1,3 +1,15 @@
+# [0.2519.0](https://github.com/lightdash/lightdash/compare/0.2518.1...0.2519.0) (2026-02-24)
+
+
+### Features
+
+* add Okteto database connection script with multiple modes ([#20591](https://github.com/lightdash/lightdash/issues/20591)) ([29c456a](https://github.com/lightdash/lightdash/commit/29c456a393828ead28ed538f18cf71aac95fa118))
+
+
+### Reverts
+
+* remove column width customization and header wrap features ([#20576](https://github.com/lightdash/lightdash/issues/20576)) ([19bd5b7](https://github.com/lightdash/lightdash/commit/19bd5b7b5229fc35c16ed50444bc8fa726a7876b)), closes [#20359](https://github.com/lightdash/lightdash/issues/20359) [#20527](https://github.com/lightdash/lightdash/issues/20527) [#20532](https://github.com/lightdash/lightdash/issues/20532) [#20547](https://github.com/lightdash/lightdash/issues/20547)
+
 ## [0.2518.1](https://github.com/lightdash/lightdash/compare/0.2518.0...0.2518.1) (2026-02-24)
 
 
