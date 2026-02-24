@@ -1,28 +1,19 @@
 import { isDimension } from '@lightdash/common';
-import {
-    ActionIcon,
-    Box,
-    Group,
-    Text,
-    TextInput,
-    Tooltip,
-} from '@mantine/core';
+import { ActionIcon, Box, Group, TextInput, Tooltip } from '@mantine/core';
 import { useDebouncedState } from '@mantine/hooks';
 import {
     IconEye,
     IconEyeOff,
     IconLock,
     IconLockOpen,
-    IconX,
 } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
-import MantineIcon from '../../common/MantineIcon';
 import {
     isTableVisualizationConfig,
     type VisualizationConfigTable,
 } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
-import styles from './ColumnConfiguration.module.css';
+import MantineIcon from '../../common/MantineIcon';
 
 type ColumnConfigurationInputProps = Pick<
     ColumnConfigurationProps,
@@ -74,16 +65,10 @@ const ColumnConfiguration: FC<ColumnConfigurationProps> = ({ fieldId }) => {
 
     if (!isTableVisualizationConfig(visualizationConfig)) return null;
 
-    const {
-        updateColumnProperty,
-        isColumnVisible,
-        isColumnFrozen,
-        getField,
-        columnProperties,
-    } = visualizationConfig.chartConfig;
+    const { updateColumnProperty, isColumnVisible, isColumnFrozen, getField } =
+        visualizationConfig.chartConfig;
 
     const field = getField(fieldId);
-    const columnWidth = columnProperties[fieldId]?.width;
     const isPivotingDimension = pivotDimensions?.includes(fieldId);
     const disableHidingDimensions = !!(pivotDimensions && isDimension(field));
 
@@ -184,35 +169,6 @@ const ColumnConfiguration: FC<ColumnConfigurationProps> = ({ fieldId }) => {
                             />
                         </ActionIcon>
                     </Box>
-                </Tooltip>
-            ) : null}
-
-            {columnWidth !== undefined ? (
-                <Tooltip
-                    position="top"
-                    withinPortal
-                    label="Reset column width to auto"
-                >
-                    <Group
-                        spacing={2}
-                        noWrap
-                        className={styles.widthBadge}
-                        bg="ldGray.1"
-                        px={4}
-                        py={2}
-                        onClick={() => {
-                            updateColumnProperty(fieldId, {
-                                width: undefined,
-                            });
-                        }}
-                    >
-                        <Text size="xs" c="dimmed">
-                            {Math.round(columnWidth)}px
-                        </Text>
-                        <ActionIcon size="xs" variant="transparent">
-                            <IconX size={12} />
-                        </ActionIcon>
-                    </Group>
                 </Tooltip>
             ) : null}
         </Group>

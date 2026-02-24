@@ -48,7 +48,6 @@ const SimpleTable: FC<SimpleTableProps> = ({
         visualizationConfig,
         resultsData,
         isLoading,
-        isEditMode,
     } = useVisualizationContext();
 
     const hasSignaledScreenshotReady = useRef(false);
@@ -56,10 +55,10 @@ const SimpleTable: FC<SimpleTableProps> = ({
     const shouldPaginateResults = useMemo(() => {
         return Boolean(
             !resultsData ||
-            !isTableVisualizationConfig(visualizationConfig) ||
-            // When subtotals are disable and there is no pivot table data, we don't need to load all the rows
-            (!visualizationConfig.chartConfig.showSubtotals &&
-                !visualizationConfig.chartConfig.pivotTableData?.data),
+                !isTableVisualizationConfig(visualizationConfig) ||
+                // When subtotals are disable and there is no pivot table data, we don't need to load all the rows
+                (!visualizationConfig.chartConfig.showSubtotals &&
+                    !visualizationConfig.chartConfig.pivotTableData?.data),
         );
     }, [resultsData, visualizationConfig]);
 
@@ -191,21 +190,12 @@ const SimpleTable: FC<SimpleTableProps> = ({
         conditionalFormattings,
         minMaxMap,
         hideRowNumbers,
-        wrapColumnTitles,
         pivotTableData,
         getFieldLabel,
         getField,
         showResultsTotal,
         showSubtotals,
-        updateColumnProperty,
     } = visualizationConfig.chartConfig;
-
-    const onColumnWidthChange =
-        isDashboard || isEditMode === false
-            ? undefined
-            : (fieldId: string, width: number) => {
-                  updateColumnProperty(fieldId, { width });
-              };
 
     if (pivotTableData.error) {
         const isWorkerFetchError = isChunkLoadError(pivotTableData.error);
@@ -270,7 +260,6 @@ const SimpleTable: FC<SimpleTableProps> = ({
                             columnProperties={
                                 visualizationConfig.chartConfig.columnProperties
                             }
-                            onColumnWidthChange={onColumnWidthChange}
                             {...rest}
                         />
                         {showResultsTotal && (
@@ -309,14 +298,12 @@ const SimpleTable: FC<SimpleTableProps> = ({
                 showSubtotals={showSubtotals}
                 conditionalFormattings={conditionalFormattings}
                 minMaxMap={minMaxMap}
-                wrapColumnTitles={wrapColumnTitles}
                 columnProperties={
                     visualizationConfig.chartConfig.columnProperties
                 }
                 footer={pagination}
                 headerContextMenu={headerContextMenu}
                 cellContextMenu={cellContextMenu}
-                onColumnWidthChange={onColumnWidthChange}
                 pagination={{ showResultsTotal }}
                 {...rest}
             />

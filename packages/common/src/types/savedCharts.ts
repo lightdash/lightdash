@@ -337,7 +337,6 @@ export type ColumnProperties = {
     displayStyle?: 'text' | 'bar';
     /** Color for bar display style (hex code) */
     color?: string;
-    width?: number;
 };
 
 export type TableChart = {
@@ -349,8 +348,6 @@ export type TableChart = {
     showTableNames?: boolean;
     /** Hide row number column */
     hideRowNumbers?: boolean;
-    /** Wrap column titles in header cells */
-    wrapColumnTitles?: boolean;
     /** Show total results count */
     showResultsTotal?: boolean;
     /** Show subtotal rows */
