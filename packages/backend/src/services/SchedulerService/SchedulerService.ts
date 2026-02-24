@@ -67,6 +67,7 @@ import { UserModel } from '../../models/UserModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { getAdjustedCronByOffset } from '../../utils/cronUtils';
 import { BaseService } from '../BaseService';
+import type { SoftDeleteOptions } from '../SoftDeletableService';
 import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { UserService } from '../UserService';
 
@@ -792,19 +793,22 @@ export class SchedulerService extends BaseService {
         user: SessionUser,
         chartUuid: string,
         context: { projectUuid: string; organizationUuid: string },
+        options?: SoftDeleteOptions,
     ): Promise<void> {
-        if (
-            user.ability.cannot(
-                'manage',
-                subject('ScheduledDeliveries', {
-                    organizationUuid: context.organizationUuid,
-                    projectUuid: context.projectUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError(
-                `User ${user.userUuid} cannot manage scheduled deliveries for cascade soft-delete on chart ${chartUuid}`,
-            );
+        if (!options?.bypassPermissions) {
+            if (
+                user.ability.cannot(
+                    'manage',
+                    subject('ScheduledDeliveries', {
+                        organizationUuid: context.organizationUuid,
+                        projectUuid: context.projectUuid,
+                    }),
+                )
+            ) {
+                throw new ForbiddenError(
+                    `User ${user.userUuid} cannot manage scheduled deliveries for cascade soft-delete on chart ${chartUuid}`,
+                );
+            }
         }
 
         const deletedSchedulers =
@@ -837,19 +841,22 @@ export class SchedulerService extends BaseService {
         user: SessionUser,
         dashboardUuid: string,
         context: { projectUuid: string; organizationUuid: string },
+        options?: SoftDeleteOptions,
     ): Promise<void> {
-        if (
-            user.ability.cannot(
-                'manage',
-                subject('ScheduledDeliveries', {
-                    organizationUuid: context.organizationUuid,
-                    projectUuid: context.projectUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError(
-                `User ${user.userUuid} cannot manage scheduled deliveries for cascade soft-delete on dashboard ${dashboardUuid}`,
-            );
+        if (!options?.bypassPermissions) {
+            if (
+                user.ability.cannot(
+                    'manage',
+                    subject('ScheduledDeliveries', {
+                        organizationUuid: context.organizationUuid,
+                        projectUuid: context.projectUuid,
+                    }),
+                )
+            ) {
+                throw new ForbiddenError(
+                    `User ${user.userUuid} cannot manage scheduled deliveries for cascade soft-delete on dashboard ${dashboardUuid}`,
+                );
+            }
         }
 
         const deletedSchedulers =
@@ -875,25 +882,28 @@ export class SchedulerService extends BaseService {
 
     /**
      * Cascade restore schedulers belonging to a chart.
-     * Called from SavedChartService.restoreChart().
+     * Called from SavedChartService.restore().
      */
     async restoreByChartUuid(
         user: SessionUser,
         chartUuid: string,
         context: { projectUuid: string; organizationUuid: string },
+        options?: SoftDeleteOptions,
     ): Promise<void> {
-        if (
-            user.ability.cannot(
-                'manage',
-                subject('ScheduledDeliveries', {
-                    organizationUuid: context.organizationUuid,
-                    projectUuid: context.projectUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError(
-                `User ${user.userUuid} cannot manage scheduled deliveries for cascade restore on chart ${chartUuid}`,
-            );
+        if (!options?.bypassPermissions) {
+            if (
+                user.ability.cannot(
+                    'manage',
+                    subject('ScheduledDeliveries', {
+                        organizationUuid: context.organizationUuid,
+                        projectUuid: context.projectUuid,
+                    }),
+                )
+            ) {
+                throw new ForbiddenError(
+                    `User ${user.userUuid} cannot manage scheduled deliveries for cascade restore on chart ${chartUuid}`,
+                );
+            }
         }
 
         const restoredSchedulers =
@@ -915,25 +925,28 @@ export class SchedulerService extends BaseService {
 
     /**
      * Cascade restore schedulers belonging to a dashboard.
-     * Called from DashboardService.restoreDashboard().
+     * Called from DashboardService.restore().
      */
     async restoreByDashboardUuid(
         user: SessionUser,
         dashboardUuid: string,
         context: { projectUuid: string; organizationUuid: string },
+        options?: SoftDeleteOptions,
     ): Promise<void> {
-        if (
-            user.ability.cannot(
-                'manage',
-                subject('ScheduledDeliveries', {
-                    organizationUuid: context.organizationUuid,
-                    projectUuid: context.projectUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError(
-                `User ${user.userUuid} cannot manage scheduled deliveries for cascade restore on dashboard ${dashboardUuid}`,
-            );
+        if (!options?.bypassPermissions) {
+            if (
+                user.ability.cannot(
+                    'manage',
+                    subject('ScheduledDeliveries', {
+                        organizationUuid: context.organizationUuid,
+                        projectUuid: context.projectUuid,
+                    }),
+                )
+            ) {
+                throw new ForbiddenError(
+                    `User ${user.userUuid} cannot manage scheduled deliveries for cascade restore on dashboard ${dashboardUuid}`,
+                );
+            }
         }
 
         const restoredSchedulers =

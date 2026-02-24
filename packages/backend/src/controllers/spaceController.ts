@@ -112,7 +112,7 @@ export class SpaceController extends BaseController {
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
         this.setStatus(200);
-        await this.services.getSpaceService().deleteSpace(req.user!, spaceUuid);
+        await this.services.getSpaceService().delete(req.user!, spaceUuid);
         return {
             status: 'ok',
             results: undefined,

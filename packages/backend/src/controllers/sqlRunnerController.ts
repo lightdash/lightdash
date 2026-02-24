@@ -400,9 +400,7 @@ export class SqlRunnerController extends BaseController {
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
         this.setStatus(200);
-        await this.services
-            .getSavedSqlService()
-            .deleteSqlChart(req.user!, projectUuid, uuid);
+        await this.services.getSavedSqlService().delete(req.user!, uuid);
         return {
             status: 'ok',
             results: undefined,

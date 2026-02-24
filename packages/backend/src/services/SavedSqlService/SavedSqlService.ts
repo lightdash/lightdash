@@ -31,6 +31,10 @@ import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedSqlModel } from '../../models/SavedSqlModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { BaseService } from '../BaseService';
+import type {
+    SoftDeletableService,
+    SoftDeleteOptions,
+} from '../SoftDeletableService';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 
 type SavedSqlServiceArguments = {
@@ -47,7 +51,7 @@ type SavedSqlServiceArguments = {
 
 export class SavedSqlService
     extends BaseService
-    implements BulkActionable<Knex>
+    implements BulkActionable<Knex>, SoftDeletableService
 {
     private readonly lightdashConfig: LightdashConfig;
 
@@ -362,26 +366,30 @@ export class SavedSqlService
         return updatedChart;
     }
 
-    async deleteSqlChart(
+    async delete(
         user: SessionUser,
-        projectUuid: string,
         savedSqlUuid: string,
+        options?: SoftDeleteOptions,
     ): Promise<void> {
-        const savedChart = await this.savedSqlModel.getByUuid(savedSqlUuid, {
-            projectUuid,
-        });
-        await this.hasAccess(
-            'delete',
-            { user, projectUuid },
-            { savedSqlUuid: savedChart.savedSqlUuid },
-        );
+        const savedChart = await this.savedSqlModel.getByUuid(savedSqlUuid, {});
+        const { projectUuid } = savedChart.project;
 
-        let wasSoftDeleted = false;
+        if (!options?.bypassPermissions) {
+            await this.hasAccess(
+                'delete',
+                { user, projectUuid },
+                { savedSqlUuid: savedChart.savedSqlUuid },
+            );
+        }
+
         if (this.lightdashConfig.softDelete.enabled) {
-            await this.savedSqlModel.softDelete(savedSqlUuid, user.userUuid);
-            wasSoftDeleted = true;
+            await this.softDelete(user, savedSqlUuid, {
+                bypassPermissions: true, // perms checked above
+            });
         } else {
-            await this.savedSqlModel.delete(savedSqlUuid);
+            await this.permanentDelete(user, savedSqlUuid, {
+                bypassPermissions: true, // perms checked above
+            });
         }
 
         this.analytics.track({
@@ -391,14 +399,35 @@ export class SavedSqlService
                 chartId: savedChart.savedSqlUuid,
                 projectId: savedChart.project.projectUuid,
                 organizationId: savedChart.organization.organizationUuid,
-                softDelete: wasSoftDeleted,
+                softDelete: this.lightdashConfig.softDelete.enabled,
             },
         });
     }
 
-    async restoreSqlChart(
+    async softDelete(
         user: SessionUser,
         savedSqlUuid: string,
+        options?: SoftDeleteOptions,
+    ): Promise<void> {
+        if (!options?.bypassPermissions) {
+            const savedChart = await this.savedSqlModel.getByUuid(
+                savedSqlUuid,
+                {},
+            );
+            await this.hasAccess(
+                'delete',
+                { user, projectUuid: savedChart.project.projectUuid },
+                { savedSqlUuid: savedChart.savedSqlUuid },
+            );
+        }
+
+        await this.savedSqlModel.softDelete(savedSqlUuid, user.userUuid);
+    }
+
+    async restore(
+        user: SessionUser,
+        savedSqlUuid: string,
+        options?: SoftDeleteOptions,
     ): Promise<void> {
         const savedChart = await this.savedSqlModel.getByUuid(savedSqlUuid, {
             deleted: true,
@@ -406,24 +435,26 @@ export class SavedSqlService
         const { projectUuid } = savedChart.project;
         const { organizationUuid } = savedChart.organization;
 
-        if (
-            user.ability.cannot(
-                'view',
-                subject('Project', { organizationUuid, projectUuid }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
+        if (!options?.bypassPermissions) {
+            if (
+                user.ability.cannot(
+                    'view',
+                    subject('Project', { organizationUuid, projectUuid }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
 
-        const isAdmin = user.ability.can(
-            'manage',
-            subject('DeletedContent', { organizationUuid, projectUuid }),
-        );
-
-        if (!isAdmin && savedChart.createdBy?.userUuid !== user.userUuid) {
-            throw new ForbiddenError(
-                'You can only restore content you deleted',
+            const isAdmin = user.ability.can(
+                'manage',
+                subject('DeletedContent', { organizationUuid, projectUuid }),
             );
+
+            if (!isAdmin && savedChart.createdBy?.userUuid !== user.userUuid) {
+                throw new ForbiddenError(
+                    'You can only restore content you deleted',
+                );
+            }
         }
 
         await this.savedSqlModel.restore(savedSqlUuid);
@@ -439,48 +470,41 @@ export class SavedSqlService
         });
     }
 
-    async permanentlyDeleteSqlChart(
+    async permanentDelete(
         user: SessionUser,
         savedSqlUuid: string,
+        options?: SoftDeleteOptions,
     ): Promise<void> {
-        const savedChart = await this.savedSqlModel.getByUuid(savedSqlUuid, {
-            deleted: true,
-        });
-        const { projectUuid } = savedChart.project;
-        const { organizationUuid } = savedChart.organization;
-
-        if (
-            user.ability.cannot(
-                'view',
-                subject('Project', { organizationUuid, projectUuid }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
-
-        const isAdmin = user.ability.can(
-            'manage',
-            subject('DeletedContent', { organizationUuid, projectUuid }),
-        );
-
-        if (!isAdmin && savedChart.createdBy?.userUuid !== user.userUuid) {
-            throw new ForbiddenError(
-                'You can only permanently delete content you deleted',
+        if (!options?.bypassPermissions) {
+            const savedChart = await this.savedSqlModel.getByUuid(
+                savedSqlUuid,
+                { deleted: true },
             );
+            const { projectUuid } = savedChart.project;
+            const { organizationUuid } = savedChart.organization;
+
+            if (
+                user.ability.cannot(
+                    'view',
+                    subject('Project', { organizationUuid, projectUuid }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
+
+            const isAdmin = user.ability.can(
+                'manage',
+                subject('DeletedContent', { organizationUuid, projectUuid }),
+            );
+
+            if (!isAdmin && savedChart.createdBy?.userUuid !== user.userUuid) {
+                throw new ForbiddenError(
+                    'You can only permanently delete content you deleted',
+                );
+            }
         }
 
         await this.savedSqlModel.permanentDelete(savedSqlUuid);
-
-        this.analytics.track({
-            event: 'sql_chart.deleted',
-            userId: user.userUuid,
-            properties: {
-                chartId: savedChart.savedSqlUuid,
-                projectId: projectUuid,
-                organizationId: organizationUuid,
-                softDelete: false,
-            },
-        });
     }
 
     async getResultJobFromSql(

@@ -411,15 +411,9 @@ export class ContentService extends BaseService {
             case ContentType.CHART:
                 switch (item.source) {
                     case ChartSourceType.DBT_EXPLORE:
-                        return this.savedChartService.restoreChart(
-                            user,
-                            item.uuid,
-                        );
+                        return this.savedChartService.restore(user, item.uuid);
                     case ChartSourceType.SQL:
-                        return this.savedSqlService.restoreSqlChart(
-                            user,
-                            item.uuid,
-                        );
+                        return this.savedSqlService.restore(user, item.uuid);
                     default:
                         return assertUnreachable(
                             item.source,
@@ -427,9 +421,9 @@ export class ContentService extends BaseService {
                         );
                 }
             case ContentType.DASHBOARD:
-                return this.dashboardService.restoreDashboard(user, item.uuid);
+                return this.dashboardService.restore(user, item.uuid);
             case ContentType.SPACE:
-                return this.spaceService.restoreSpace(user, item.uuid);
+                return this.spaceService.restore(user, item.uuid);
             default:
                 return assertUnreachable(item, 'Unknown content type');
         }
@@ -462,12 +456,12 @@ export class ContentService extends BaseService {
             case ContentType.CHART:
                 switch (item.source) {
                     case ChartSourceType.DBT_EXPLORE:
-                        return this.savedChartService.permanentlyDeleteChart(
+                        return this.savedChartService.permanentDelete(
                             user,
                             item.uuid,
                         );
                     case ChartSourceType.SQL:
-                        return this.savedSqlService.permanentlyDeleteSqlChart(
+                        return this.savedSqlService.permanentDelete(
                             user,
                             item.uuid,
                         );
@@ -478,15 +472,9 @@ export class ContentService extends BaseService {
                         );
                 }
             case ContentType.DASHBOARD:
-                return this.dashboardService.permanentlyDeleteDashboard(
-                    user,
-                    item.uuid,
-                );
+                return this.dashboardService.permanentDelete(user, item.uuid);
             case ContentType.SPACE:
-                return this.spaceService.permanentlyDeleteSpace(
-                    user,
-                    item.uuid,
-                );
+                return this.spaceService.permanentDelete(user, item.uuid);
             default:
                 return assertUnreachable(item, 'Unknown content type');
         }
