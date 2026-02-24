@@ -1,3 +1,10 @@
+## [0.2518.1](https://github.com/lightdash/lightdash/compare/0.2518.0...0.2518.1) (2026-02-24)
+
+
+### Bug Fixes
+
+* carry custom bin dimension _order column through PivotQueryBuilder ([#20567](https://github.com/lightdash/lightdash/issues/20567)) ([92f06d0](https://github.com/lightdash/lightdash/commit/92f06d0eb68dbde84ab15569c86e4c834b463a42))
+
 # [0.2518.0](https://github.com/lightdash/lightdash/compare/0.2517.0...0.2518.0) (2026-02-24)
 
 
