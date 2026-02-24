@@ -422,6 +422,15 @@ type DeleteSavedChartEvent = BaseTrack & {
     properties: {
         projectId: string;
         savedQueryId: string;
+        softDelete: boolean;
+    };
+};
+
+type RestoredSavedChartEvent = BaseTrack & {
+    event: 'saved_chart.restored';
+    properties: {
+        projectId: string;
+        savedQueryId: string;
     };
 };
 
@@ -639,6 +648,16 @@ type DeletedDashboardEvent = BaseTrack & {
     properties: {
         projectId: string;
         dashboardId: string;
+        softDelete: boolean;
+    };
+};
+
+type RestoredDashboardEvent = BaseTrack & {
+    event: 'dashboard.restored';
+    userId: string;
+    properties: {
+        projectId: string;
+        dashboardId: string;
     };
 };
 
@@ -724,6 +743,16 @@ type SpaceDeleted = BaseTrack & {
         spaceId: string;
         projectId: string;
         isNested: boolean;
+        softDelete: boolean;
+    };
+};
+
+type SpaceRestored = BaseTrack & {
+    event: 'space.restored';
+    properties: {
+        name: string;
+        spaceId: string;
+        projectId: string;
     };
 };
 
@@ -872,6 +901,17 @@ type DeleteSqlChartEvent = BaseTrack & {
         chartId: string;
         projectId: string;
         organizationId: string;
+        softDelete: boolean;
+    };
+};
+
+type RestoredSqlChartEvent = BaseTrack & {
+    event: 'sql_chart.restored';
+    userId: string;
+    properties: {
+        chartId: string;
+        projectId: string;
+        organizationId: string;
     };
 };
 
@@ -999,6 +1039,18 @@ export type SchedulerDashboardUpsertEvent = SchedulerUpsertEvent & {
 export type SchedulerDeleteEvent = BaseTrack & {
     event: 'scheduler.deleted';
     userId: string;
+    properties: {
+        projectId: string;
+        organizationId: string;
+        schedulerId: string;
+        resourceType: 'dashboard' | 'chart';
+        resourceId: string;
+        softDelete: boolean;
+    };
+};
+
+export type SchedulerRestoredEvent = BaseTrack & {
+    event: 'scheduler.restored';
     properties: {
         projectId: string;
         organizationId: string;
@@ -1607,6 +1659,7 @@ type TypedEvent =
     | ModeDashboardChartEvent
     | UpdateSavedChartEvent
     | DeleteSavedChartEvent
+    | RestoredSavedChartEvent
     | CreateSavedChartEvent
     | ChartHistoryEvent
     | ViewChartVersionEvent
@@ -1621,6 +1674,7 @@ type TypedEvent =
     | ProjectCompiledEvent
     | UpdatedDashboardEvent
     | DeletedDashboardEvent
+    | RestoredDashboardEvent
     | CreateDashboardOrVersionEvent
     | ProjectTablesConfigurationEvent
     | CreateOrganizationEvent
@@ -1638,6 +1692,7 @@ type TypedEvent =
     | ProjectSearch
     | SpaceEvent
     | SpaceDeleted
+    | SpaceRestored
     | DashboardUpdateMultiple
     | SavedChartUpdateMultiple
     | FieldValueSearch
@@ -1650,6 +1705,7 @@ type TypedEvent =
     | AnalyticsDashboardView
     | SchedulerUpsertEvent
     | SchedulerDeleteEvent
+    | SchedulerRestoredEvent
     | SchedulerJobEvent
     | SchedulerNotificationJobEvent
     | PinnedListUpdated
@@ -1669,6 +1725,7 @@ type TypedEvent =
     | CreateSqlChartEvent
     | UpdateSqlChartEvent
     | DeleteSqlChartEvent
+    | RestoredSqlChartEvent
     | CreateSqlChartVersionEvent
     | CommentsEvent
     | VirtualViewEvent

@@ -20,6 +20,7 @@ import { SchedulerModel } from '../../models/SchedulerModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
+import type { SchedulerService } from '../SchedulerService/SchedulerService';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { DashboardService } from './DashboardService';
 import {
@@ -121,6 +122,7 @@ describe('DashboardService', () => {
         analyticsModel: analyticsModel as unknown as AnalyticsModel,
         pinnedListModel: {} as PinnedListModel,
         schedulerModel: {} as SchedulerModel,
+        schedulerService: {} as SchedulerService,
         savedChartModel: savedChartModel as unknown as SavedChartModel,
         savedChartService: {} as SavedChartService, // Mock for test
         projectModel: {} as ProjectModel,

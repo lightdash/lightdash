@@ -52,6 +52,7 @@ import {
     type SpaceAccess,
     type SpaceSummaryBase,
 } from '@lightdash/common';
+import * as Sentry from '@sentry/node';
 import cronstrue from 'cronstrue';
 import { Knex } from 'knex';
 import {
@@ -76,6 +77,7 @@ import { SpaceModel } from '../../models/SpaceModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { BaseService } from '../BaseService';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
+import type { SchedulerService } from '../SchedulerService/SchedulerService';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { UserService } from '../UserService';
 
@@ -88,6 +90,7 @@ type SavedChartServiceArguments = {
     analyticsModel: AnalyticsModel;
     pinnedListModel: PinnedListModel;
     schedulerModel: SchedulerModel;
+    schedulerService: SchedulerService;
     schedulerClient: SchedulerClient;
     slackClient: SlackClient;
     dashboardModel: DashboardModel;
@@ -118,6 +121,8 @@ export class SavedChartService
 
     private readonly schedulerModel: SchedulerModel;
 
+    private readonly schedulerService: SchedulerService;
+
     private readonly schedulerClient: SchedulerClient;
 
     private readonly slackClient: SlackClient;
@@ -144,6 +149,7 @@ export class SavedChartService
         this.analyticsModel = args.analyticsModel;
         this.pinnedListModel = args.pinnedListModel;
         this.schedulerModel = args.schedulerModel;
+        this.schedulerService = args.schedulerService;
         this.schedulerClient = args.schedulerClient;
         this.slackClient = args.slackClient;
         this.dashboardModel = args.dashboardModel;
@@ -727,16 +733,27 @@ export class SavedChartService
         }
 
         let deletedChart: SavedChartDAO;
+        let wasSoftDeleted = false;
         if (this.lightdashConfig.softDelete.enabled) {
             deletedChart = await this.savedChartModel.softDelete(
                 savedChartUuid,
                 user.userUuid,
             );
+            wasSoftDeleted = true;
 
-            await this.schedulerModel.softDeleteByChartUuid(
-                savedChartUuid,
-                user.userUuid,
-            );
+            try {
+                await this.schedulerService.softDeleteByChartUuid(
+                    user,
+                    savedChartUuid,
+                    { projectUuid, organizationUuid },
+                );
+            } catch (e) {
+                Sentry.captureException(e);
+                this.logger.error(
+                    `Failed to cascade soft-delete schedulers for chart ${savedChartUuid}`,
+                    e,
+                );
+            }
         } else {
             deletedChart =
                 await this.savedChartModel.permanentDelete(savedChartUuid);
@@ -771,6 +788,7 @@ export class SavedChartService
             properties: {
                 savedQueryId: deletedChart.uuid,
                 projectId: deletedChart.projectUuid,
+                softDelete: wasSoftDeleted,
             },
         });
     }
@@ -1643,7 +1661,18 @@ export class SavedChartService
         await this.savedChartModel.restore(chartUuid);
 
         // Cascade: restore associated schedulers
-        await this.schedulerModel.restoreByChartUuid(chartUuid);
+        try {
+            await this.schedulerService.restoreByChartUuid(user, chartUuid, {
+                projectUuid,
+                organizationUuid,
+            });
+        } catch (e) {
+            Sentry.captureException(e);
+            this.logger.error(
+                `Failed to cascade restore schedulers for chart ${chartUuid}`,
+                e,
+            );
+        }
 
         this.analytics.track({
             event: 'saved_chart.restored',
@@ -1696,11 +1725,12 @@ export class SavedChartService
         await this.savedChartModel.permanentDelete(chartUuid);
 
         this.analytics.track({
-            event: 'saved_chart.permanently_deleted',
+            event: 'saved_chart.deleted',
             userId: user.userUuid,
             properties: {
                 savedQueryId: chartUuid,
                 projectId: projectUuid,
+                softDelete: false,
             },
         });
     }

@@ -376,8 +376,10 @@ export class SavedSqlService
             { savedSqlUuid: savedChart.savedSqlUuid },
         );
 
+        let wasSoftDeleted = false;
         if (this.lightdashConfig.softDelete.enabled) {
             await this.savedSqlModel.softDelete(savedSqlUuid, user.userUuid);
+            wasSoftDeleted = true;
         } else {
             await this.savedSqlModel.delete(savedSqlUuid);
         }
@@ -389,6 +391,7 @@ export class SavedSqlService
                 chartId: savedChart.savedSqlUuid,
                 projectId: savedChart.project.projectUuid,
                 organizationId: savedChart.organization.organizationUuid,
+                softDelete: wasSoftDeleted,
             },
         });
     }
@@ -469,12 +472,13 @@ export class SavedSqlService
         await this.savedSqlModel.permanentDelete(savedSqlUuid);
 
         this.analytics.track({
-            event: 'sql_chart.permanently_deleted',
+            event: 'sql_chart.deleted',
             userId: user.userUuid,
             properties: {
                 chartId: savedChart.savedSqlUuid,
                 projectId: projectUuid,
                 organizationId: organizationUuid,
+                softDelete: false,
             },
         });
     }
