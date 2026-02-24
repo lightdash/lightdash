@@ -7,6 +7,7 @@ import {
     type PreAggregateMaterializationTrigger,
 } from '@lightdash/common';
 import { PreAggregateModel } from '../../models/PreAggregateModel';
+import type PrometheusMetrics from '../../prometheus';
 import { type QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import { type AsyncQueryService } from '../AsyncQueryService/AsyncQueryService';
 
@@ -20,14 +21,18 @@ export class PreAggregateMaterializationService {
 
     private readonly asyncQueryService: AsyncQueryService;
 
+    private readonly prometheusMetrics: PrometheusMetrics | undefined;
+
     constructor(args: {
         preAggregateModel: PreAggregateModel;
         queryHistoryModel: QueryHistoryModel;
         asyncQueryService: AsyncQueryService;
+        prometheusMetrics?: PrometheusMetrics;
     }) {
         this.preAggregateModel = args.preAggregateModel;
         this.queryHistoryModel = args.queryHistoryModel;
         this.asyncQueryService = args.asyncQueryService;
+        this.prometheusMetrics = args.prometheusMetrics;
     }
 
     async materializePreAggregate(args: {
@@ -41,6 +46,7 @@ export class PreAggregateMaterializationService {
         queryUuid?: string;
     }> {
         let materializationUuid: string | undefined;
+        const startTime = Date.now();
 
         try {
             const definition =
@@ -116,6 +122,15 @@ export class PreAggregateMaterializationService {
                     errorMessage,
                 });
 
+                const durationMs = Date.now() - startTime;
+                this.prometheusMetrics?.preAggregateMaterializationCounter?.inc(
+                    { status: 'failed', trigger: args.trigger },
+                );
+                this.prometheusMetrics?.preAggregateMaterializationDurationHistogram?.observe(
+                    { status: 'failed', trigger: args.trigger },
+                    durationMs,
+                );
+
                 return {
                     materializationUuid,
                     status: 'failed',
@@ -131,12 +146,32 @@ export class PreAggregateMaterializationService {
                 columns: queryHistory.columns,
             });
 
+            const durationMs = Date.now() - startTime;
+            this.prometheusMetrics?.preAggregateMaterializationCounter?.inc({
+                status,
+                trigger: args.trigger,
+            });
+            this.prometheusMetrics?.preAggregateMaterializationDurationHistogram?.observe(
+                { status, trigger: args.trigger },
+                durationMs,
+            );
+
             return {
                 materializationUuid,
                 status,
                 queryUuid,
             };
         } catch (error) {
+            const durationMs = Date.now() - startTime;
+            this.prometheusMetrics?.preAggregateMaterializationCounter?.inc({
+                status: 'failed',
+                trigger: args.trigger,
+            });
+            this.prometheusMetrics?.preAggregateMaterializationDurationHistogram?.observe(
+                { status: 'failed', trigger: args.trigger },
+                durationMs,
+            );
+
             if (materializationUuid) {
                 await this.preAggregateModel.markFailed({
                     materializationUuid,

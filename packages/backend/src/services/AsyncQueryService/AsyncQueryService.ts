@@ -2266,6 +2266,13 @@ export class AsyncQueryService extends ProjectService {
             context,
         });
 
+        if (routingDecision.preAggregateMetadata) {
+            this.prometheusMetrics?.incrementPreAggregateMatch(
+                routingDecision.preAggregateMetadata.hit,
+                routingDecision.preAggregateMetadata.reason?.reason,
+            );
+        }
+
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
             {
                 account,
@@ -2484,6 +2491,13 @@ export class AsyncQueryService extends ProjectService {
             explore,
             context,
         });
+
+        if (routingDecision.preAggregateMetadata) {
+            this.prometheusMetrics?.incrementPreAggregateMatch(
+                routingDecision.preAggregateMetadata.hit,
+                routingDecision.preAggregateMetadata.reason?.reason,
+            );
+        }
 
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
             {
@@ -2759,6 +2773,13 @@ export class AsyncQueryService extends ProjectService {
             explore,
             context,
         });
+
+        if (routingDecision.preAggregateMetadata) {
+            this.prometheusMetrics?.incrementPreAggregateMatch(
+                routingDecision.preAggregateMetadata.hit,
+                routingDecision.preAggregateMetadata.reason?.reason,
+            );
+        }
 
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
             {

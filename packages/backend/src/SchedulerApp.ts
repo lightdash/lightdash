@@ -179,6 +179,7 @@ export default class SchedulerApp {
 
         this.prometheusMetrics.start();
         this.prometheusMetrics.monitorDatabase(this.database);
+        this.prometheusMetrics.monitorPreAggregates(this.database);
         // @ts-ignore
         // eslint-disable-next-line no-extend-native, func-names
         BigInt.prototype.toJSON = function () {
