@@ -392,6 +392,13 @@ export const SEED_ORG_2_ADMIN_PASSWORD = {
 export const SEED_ORG_2_ADMIN_ROLE = OrganizationMemberRole.ADMIN;
 export const SEED_EMBED_SECRET = 'zU3h50saDOO20czNFNRok';
 
+// Deterministic PAT for dev environment
+// Use with: Authorization: ApiKey ldpat_deadbeefdeadbeefdeadbeefdeadbeef
+export const SEED_PAT = {
+    token: 'ldpat_deadbeefdeadbeefdeadbeefdeadbeef',
+    description: 'Dev seed PAT',
+};
+
 export const SEED_PROJECT = {
     project_uuid: '3675b69e-8324-4110-bdca-059031aa8da3',
     name: 'Jaffle shop',
