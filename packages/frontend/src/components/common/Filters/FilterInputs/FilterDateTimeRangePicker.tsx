@@ -1,8 +1,9 @@
-import { Group, Text } from '@mantine/core';
+import { Group, Text } from '@mantine-8/core';
 import { type DateTimePickerProps, type DayOfWeek } from '@mantine/dates';
 import dayjs from 'dayjs';
 import { useState, type FC } from 'react';
 import FilterDateTimePicker from './FilterDateTimePicker';
+import styles from './FilterDateTimeRangePicker.module.css';
 
 interface Props extends Omit<
     DateTimePickerProps,
@@ -24,7 +25,7 @@ const FilterDateTimeRangePicker: FC<Props> = ({
     const [date2, setDate2] = useState(value?.[1] ?? null);
 
     return (
-        <Group noWrap align="start" w="100%" spacing="xs">
+        <Group wrap="nowrap" align="start" w="100%" gap="xs">
             <FilterDateTimePicker
                 size="xs"
                 withSeconds
@@ -52,7 +53,7 @@ const FilterDateTimeRangePicker: FC<Props> = ({
                 }}
             />
 
-            <Text color="dimmed" mt={7} sx={{ whiteSpace: 'nowrap' }} size="xs">
+            <Text c="dimmed" mt={7} className={styles.noWrap} fz="xs">
                 –
             </Text>
 

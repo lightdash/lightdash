@@ -5,6 +5,7 @@ import {
     Loader,
     Modal,
     MultiSelect,
+    NumberInput,
     Paper,
     PasswordInput,
     Pill,
@@ -245,6 +246,12 @@ export const getMantine8ThemeOverride = (
                     if (props.variant === 'subtle')
                         return subtleInputStyles(theme);
                     return {};
+                },
+            }),
+
+            NumberInput: NumberInput.extend({
+                defaultProps: {
+                    radius: 'md',
                 },
             }),
 
