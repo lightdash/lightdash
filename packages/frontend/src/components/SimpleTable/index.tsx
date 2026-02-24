@@ -6,6 +6,8 @@ import {
     isChunkLoadError,
     triggerChunkErrorReload,
 } from '../../features/chunkErrorHandler';
+import { useAutoColumnWidths } from '../../hooks/useAutoColumnWidths';
+import { useIsTableColumnWidthStabilizationEnabled } from '../../hooks/useIsTableColumnWidthStabilizationEnabled';
 import LoadingChart from '../common/LoadingChart';
 import PivotTable from '../common/PivotTable';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
@@ -51,6 +53,26 @@ const SimpleTable: FC<SimpleTableProps> = ({
     } = useVisualizationContext();
 
     const hasSignaledScreenshotReady = useRef(false);
+
+    const getCellText = useCallback(
+        (row: Record<string, unknown>, colId: string) => {
+            const cell = row[colId] as
+                | { value?: { formatted?: string } }
+                | undefined;
+            return cell?.value?.formatted ?? '';
+        },
+        [],
+    );
+
+    const isTableColumnWidthStabilizationEnabled =
+        useIsTableColumnWidthStabilizationEnabled();
+
+    const autoColumnWidths = useAutoColumnWidths({
+        columnIds: columnOrder,
+        rows: (resultsData?.rows ?? []) as Record<string, unknown>[],
+        getCellText,
+        enabled: isTableColumnWidthStabilizationEnabled,
+    });
 
     const shouldPaginateResults = useMemo(() => {
         return Boolean(
@@ -183,10 +205,34 @@ const SimpleTable: FC<SimpleTableProps> = ({
         resultsData?.setFetchAll(true);
     }, [shouldPaginateResults, resultsData]);
 
+    const columnsWithWidths = useMemo(() => {
+        const rawColumns = isTableVisualizationConfig(visualizationConfig)
+            ? visualizationConfig.chartConfig.columns
+            : [];
+        if (Object.keys(autoColumnWidths).length === 0) return rawColumns;
+        return rawColumns.map((col) => {
+            const colId = col.id ?? '';
+            const autoWidth = autoColumnWidths[colId];
+            if (!autoWidth) return col;
+            return {
+                ...col,
+                meta: {
+                    ...col.meta,
+                    width: autoWidth,
+                    style: {
+                        ...col.meta?.style,
+                        width: autoWidth,
+                        minWidth: autoWidth,
+                        maxWidth: autoWidth,
+                    },
+                },
+            };
+        });
+    }, [visualizationConfig, autoColumnWidths]);
+
     if (!isTableVisualizationConfig(visualizationConfig)) return null;
 
     const {
-        columns,
         conditionalFormattings,
         minMaxMap,
         hideRowNumbers,
@@ -291,7 +337,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
                 loadingState={() => <LoadingChart />}
                 emptyState={isDashboard ? DashboardEmptyState : undefined}
                 fetchMoreRows={resultsData?.fetchMoreRows || noop}
-                columns={columns}
+                columns={columnsWithWidths}
                 columnOrder={columnOrder}
                 hideRowNumbers={hideRowNumbers}
                 showColumnCalculation={showColumnCalculation}
