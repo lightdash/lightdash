@@ -1,3 +1,10 @@
+# [0.2514.0](https://github.com/lightdash/lightdash/compare/0.2513.0...0.2514.0) (2026-02-24)
+
+
+### Features
+
+* clickhouse log comment on query ([#20553](https://github.com/lightdash/lightdash/issues/20553)) ([f1a5215](https://github.com/lightdash/lightdash/commit/f1a5215ac9e819b1349f84e716dbc881a0ec93ab))
+
 # [0.2513.0](https://github.com/lightdash/lightdash/compare/0.2512.1...0.2513.0) (2026-02-23)
 
 
