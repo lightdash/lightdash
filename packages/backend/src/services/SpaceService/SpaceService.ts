@@ -9,6 +9,7 @@ import {
     ParameterError,
     SessionUser,
     Space,
+    SpaceDeleteImpact,
     SpaceMemberRole,
     SpaceShare,
     SpaceSummary,
@@ -565,6 +566,40 @@ export class SpaceService
         }
 
         await this.spaceModel.softDelete(spaceUuid, user.userUuid);
+    }
+
+    async getDeleteImpact(
+        user: SessionUser,
+        spaceUuid: string,
+    ): Promise<SpaceDeleteImpact> {
+        if (
+            !(await this.spacePermissionService.can('delete', user, spaceUuid))
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const descendantUuids =
+            await this.spaceModel.getDescendantSpaceUuids(spaceUuid);
+        const allUuids = [spaceUuid, ...descendantUuids];
+
+        const spaces = await this.spaceModel.find({ spaceUuids: allUuids });
+
+        return {
+            spaces: spaces.map((s) => ({
+                uuid: s.uuid,
+                name: s.name,
+                chartCount: Number(s.chartCount),
+                dashboardCount: Number(s.dashboardCount),
+            })),
+            chartCount: spaces.reduce(
+                (sum, s) => sum + Number(s.chartCount),
+                0,
+            ),
+            dashboardCount: spaces.reduce(
+                (sum, s) => sum + Number(s.dashboardCount),
+                0,
+            ),
+        };
     }
 
     async restore(

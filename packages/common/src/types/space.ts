@@ -187,6 +187,22 @@ export type ApiSpaceResponse = {
     results: Space;
 };
 
+export type SpaceDeleteImpact = {
+    spaces: {
+        uuid: string;
+        name: string;
+        chartCount: number;
+        dashboardCount: number;
+    }[];
+    chartCount: number;
+    dashboardCount: number;
+};
+
+export type ApiSpaceDeleteImpactResponse = {
+    status: 'ok';
+    results: SpaceDeleteImpact;
+};
+
 export type AddSpaceUserAccess = {
     userUuid: string;
     spaceRole: SpaceMemberRole;

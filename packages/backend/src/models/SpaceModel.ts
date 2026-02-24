@@ -1134,6 +1134,16 @@ export class SpaceModel {
         }
     }
 
+    async getDescendantSpaceUuids(spaceUuid: string): Promise<string[]> {
+        const space = await this.get(spaceUuid);
+        const rows = await this.database(SpaceTableName)
+            .select('space_uuid')
+            .whereRaw('path <@ ?::ltree', [space.path])
+            .andWhereNot('space_uuid', spaceUuid)
+            .whereNull('deleted_at');
+        return rows.map((r: { space_uuid: string }) => r.space_uuid);
+    }
+
     async getChildSpaceUuids(
         spaceUuid: string,
         options?: { deleted?: boolean; deletedByUserUuid?: string },
