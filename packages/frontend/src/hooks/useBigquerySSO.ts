@@ -1,5 +1,6 @@
 import {
     type ApiBigqueryDatasets,
+    type ApiBigqueryProjects,
     type ApiError,
     type ApiSuccessEmpty,
 } from '@lightdash/common';
@@ -17,6 +18,21 @@ export const useIsBigQueryAuthenticated = () => {
     return useQuery<ApiSuccessEmpty['results'], ApiError>({
         queryKey: [],
         queryFn: getIsAuthenticated,
+    });
+};
+
+const getProjects = async () =>
+    lightdashApi<ApiBigqueryProjects['results']>({
+        url: `/bigquery/sso/projects`,
+        method: 'GET',
+        body: undefined,
+    });
+
+export const useBigqueryProjects = (isAuthenticated: boolean) => {
+    return useQuery<ApiBigqueryProjects['results'], ApiError>({
+        queryKey: ['bigquery-projects'],
+        queryFn: getProjects,
+        enabled: isAuthenticated,
     });
 };
 

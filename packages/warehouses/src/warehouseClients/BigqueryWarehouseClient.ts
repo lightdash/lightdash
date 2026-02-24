@@ -753,7 +753,6 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
         // - The SDK requires a projectId to instantiate, but we need to list all accessible projects first
         // - getDatabases above uses the SDK because it already has a projectId to query datasets within
         // https://cloud.google.com/bigquery/docs/reference/rest/v2/projects/list
-
         const fetchPage = async (
             pageToken?: string,
         ): Promise<BigqueryProject[]> => {
