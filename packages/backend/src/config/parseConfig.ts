@@ -827,6 +827,7 @@ export type LightdashConfig = {
         maxPageSize: number;
         useSqlPivotResults: boolean | undefined;
         showExecutionTime: boolean | undefined;
+        enableFilterAutofocusFix: boolean | undefined;
         enableTableColumnWidthStabilization: boolean | undefined;
     };
     pivotTable: {
@@ -1600,6 +1601,9 @@ export const parseConfig = (): LightdashConfig => {
                 : undefined,
             showExecutionTime: process.env.SHOW_EXECUTION_TIME
                 ? process.env.SHOW_EXECUTION_TIME === 'true'
+                : undefined,
+            enableFilterAutofocusFix: process.env.ENABLE_FILTER_AUTOFOCUS_FIX
+                ? process.env.ENABLE_FILTER_AUTOFOCUS_FIX === 'true'
                 : undefined,
             enableTableColumnWidthStabilization: process.env
                 .ENABLE_TABLE_COLUMN_WIDTH_STABILIZATION

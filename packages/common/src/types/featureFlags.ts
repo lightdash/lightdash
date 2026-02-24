@@ -90,6 +90,11 @@ export enum FeatureFlags {
     DefaultUserSpaces = 'default-user-spaces',
 
     /**
+     * Enable the filter autofocus fix for form inputs
+     */
+    EnableFilterAutofocusFix = 'enable-filter-autofocus-fix',
+
+    /**
      * Enable stabilized table column widths during virtualized scrolling
      */
     EnableTableColumnWidthStabilization = 'enable-table-column-width-stabilization',

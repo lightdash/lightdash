@@ -209,6 +209,7 @@ export const lightdashConfigMock: LightdashConfig = {
         timezone: undefined,
         useSqlPivotResults: false,
         showExecutionTime: false,
+        enableFilterAutofocusFix: undefined,
         enableTableColumnWidthStabilization: undefined,
     },
     ai: {

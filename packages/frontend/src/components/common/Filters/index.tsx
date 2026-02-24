@@ -39,6 +39,7 @@ import {
     type FieldsWithSuggestions,
     type FieldWithSuggestions,
 } from '../../Explorer/FiltersCard/useFieldsWithSuggestions';
+import { useIsFilterAutofocusEnabled } from '../../hooks/useIsFilterAutofocusEnabled';
 import FieldSelect from '../FieldSelect';
 import MantineIcon from '../MantineIcon';
 import { FILTER_SELECT_LIMIT } from './constants';
@@ -72,29 +73,34 @@ const FiltersForm: FC<Props> = memo(({ filters, setFilters, isEditMode }) => {
     // const theme = useMantineTheme();
     const { itemsMap, baseTable } = useFiltersContext<FieldsWithSuggestions>();
     const [isOpen, toggleFieldInput] = useToggle(false);
+    const isFilterAutofocusEnabled = useIsFilterAutofocusEnabled();
     const autoFocusRuleIdRef = useRef<string | undefined>(undefined);
     const lastFocusedRuleIdRef = useRef<string | undefined>(undefined);
     const formRef = useRef<HTMLDivElement>(null);
 
     useLayoutEffect(() => {
+        if (!isFilterAutofocusEnabled) return;
         if (autoFocusRuleIdRef.current) {
             autoFocusRuleIdRef.current = undefined;
         }
-    });
+    }, [isFilterAutofocusEnabled]);
 
     const handleFocusCapture = useCallback((e: React.FocusEvent) => {
+        if (!isFilterAutofocusEnabled) return;
         const ruleEl = (e.target as HTMLElement).closest?.('[data-rule-id]');
         if (ruleEl) {
             lastFocusedRuleIdRef.current =
                 ruleEl.getAttribute('data-rule-id') || undefined;
         }
-    }, []);
+    }, [isFilterAutofocusEnabled]);
 
     const setAutoFocusRuleId = useCallback((ruleId: string) => {
+        if (!isFilterAutofocusEnabled) return;
         autoFocusRuleIdRef.current = ruleId;
-    }, []);
+    }, [isFilterAutofocusEnabled]);
 
     useEffect(() => {
+        if (!isFilterAutofocusEnabled) return;
         const ruleId = lastFocusedRuleIdRef.current;
         if (!ruleId) return;
         if (document.activeElement && document.activeElement !== document.body)
@@ -109,7 +115,7 @@ const FiltersForm: FC<Props> = memo(({ filters, setFilters, isEditMode }) => {
             );
             input?.focus();
         }
-    }, [filters]);
+    }, [filters, isFilterAutofocusEnabled]);
     const fields = useMemo<FieldWithSuggestions[]>(() => {
         return Object.values(itemsMap);
     }, [itemsMap]);
@@ -130,14 +136,20 @@ const FiltersForm: FC<Props> = memo(({ filters, setFilters, isEditMode }) => {
                 const newFilters = addFilterRule({ filters, field });
                 const newRules = getTotalFilterRules(newFilters);
                 const lastRule = newRules[newRules.length - 1];
-                if (lastRule) {
+                if (isFilterAutofocusEnabled && lastRule) {
                     setAutoFocusRuleId(lastRule.id);
                 }
                 setFilters(newFilters);
                 toggleFieldInput(false);
             }
         },
-        [filters, setAutoFocusRuleId, setFilters, toggleFieldInput],
+        [
+            filters,
+            isFilterAutofocusEnabled,
+            setAutoFocusRuleId,
+            setFilters,
+            toggleFieldInput,
+        ],
     );
 
     const updateFiltersFromGroup = useCallback(
@@ -231,7 +243,11 @@ const FiltersForm: FC<Props> = memo(({ filters, setFilters, isEditMode }) => {
                     <SimplifiedFilterGroupForm
                         fields={fields}
                         isEditMode={isEditMode}
-                        autoFocusRuleId={autoFocusRuleIdRef.current}
+                        autoFocusRuleId={
+                            isFilterAutofocusEnabled
+                                ? autoFocusRuleIdRef.current
+                                : undefined
+                        }
                         filterRules={getTotalFilterRules(filters)}
                         onChange={(filterRules) => {
                             // This is a simplified form that only shows up with 1 filter rule, so we can just create a new root group
@@ -256,8 +272,16 @@ const FiltersForm: FC<Props> = memo(({ filters, setFilters, isEditMode }) => {
                             <FilterGroupForm
                                 hideLine
                                 hideButtons
-                                autoFocusRuleId={autoFocusRuleIdRef.current}
-                                onAutoFocusRule={setAutoFocusRuleId}
+                                autoFocusRuleId={
+                                    isFilterAutofocusEnabled
+                                        ? autoFocusRuleIdRef.current
+                                        : undefined
+                                }
+                                onAutoFocusRule={
+                                    isFilterAutofocusEnabled
+                                        ? setAutoFocusRuleId
+                                        : undefined
+                                }
                                 filterGroup={rootFilterGroup}
                                 fields={fields}
                                 isEditMode={isEditMode}
