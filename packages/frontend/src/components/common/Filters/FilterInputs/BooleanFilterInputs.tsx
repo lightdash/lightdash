@@ -11,7 +11,8 @@ import DefaultFilterInputs from './DefaultFilterInputs';
 const BooleanFilterInputs = <T extends BaseFilterRule>(
     props: FilterInputsProps<T>,
 ) => {
-    const { rule, onChange, disabled, filterType, popoverProps } = props;
+    const { rule, onChange, disabled, autoFocus, filterType, popoverProps } =
+        props;
 
     const isFilterRuleDisabled = isFilterRule(rule) && rule.disabled;
 
@@ -34,7 +35,7 @@ const BooleanFilterInputs = <T extends BaseFilterRule>(
                     onDropdownOpen={popoverProps?.onOpen}
                     onDropdownClose={popoverProps?.onClose}
                     disabled={disabled}
-                    autoFocus={true}
+                    autoFocus={autoFocus}
                     initiallyOpened={currentValue === null && !disabled}
                     placeholder={placeholder}
                     data={[

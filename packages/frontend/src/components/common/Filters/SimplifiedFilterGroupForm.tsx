@@ -7,11 +7,12 @@ type Props = {
     fields: FilterableField[];
     filterRules: FilterRule[];
     isEditMode: boolean;
+    autoFocusRuleId?: string;
     onChange: (value: FilterRule[]) => void;
 };
 
 const SimplifiedFilterGroupForm: FC<Props> = memo(
-    ({ isEditMode, fields, filterRules, onChange }) => {
+    ({ isEditMode, fields, filterRules, autoFocusRuleId, onChange }) => {
         const onDeleteItem = useCallback(
             (index: number) => {
                 onChange([
@@ -52,6 +53,7 @@ const SimplifiedFilterGroupForm: FC<Props> = memo(
                             key={item.id}
                             filterRule={item}
                             fields={fields}
+                            autoFocus={autoFocusRuleId === item.id}
                             onChange={(value) => onChangeItem(index, value)}
                             onDelete={() => onDeleteItem(index)}
                         />
