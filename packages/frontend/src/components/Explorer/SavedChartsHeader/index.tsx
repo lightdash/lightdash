@@ -90,20 +90,20 @@ import {
 import { ExplorerSection } from '../../../providers/Explorer/types';
 import { TrackSection } from '../../../providers/Tracking/TrackingProvider';
 import { SectionName } from '../../../types/Events';
-import ExploreFromHereButton from '../../ExploreFromHereButton';
-import AddTilesToDashboardModal from '../../SavedDashboards/AddTilesToDashboardModal';
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
-import PageHeader from '../../common/Page/PageHeader';
-import { UpdatedInfo } from '../../common/PageHeader/UpdatedInfo';
-import { ResourceInfoPopup } from '../../common/ResourceInfoPopup/ResourceInfoPopup';
-import ShareShortLinkButton from '../../common/ShareShortLinkButton';
-import TransferItemsModal from '../../common/TransferItemsModal/TransferItemsModal';
 import ChartCreateModal from '../../common/modal/ChartCreateModal';
 import ChartDeleteModal from '../../common/modal/ChartDeleteModal';
 import ChartDuplicateModal from '../../common/modal/ChartDuplicateModal';
 import ChartUpdateModal from '../../common/modal/ChartUpdateModal';
 import MoveChartThatBelongsToDashboardModal from '../../common/modal/MoveChartThatBelongsToDashboardModal';
+import PageHeader from '../../common/Page/PageHeader';
+import { UpdatedInfo } from '../../common/PageHeader/UpdatedInfo';
+import { ResourceInfoPopup } from '../../common/ResourceInfoPopup/ResourceInfoPopup';
+import ShareShortLinkButton from '../../common/ShareShortLinkButton';
+import TransferItemsModal from '../../common/TransferItemsModal/TransferItemsModal';
+import ExploreFromHereButton from '../../ExploreFromHereButton';
+import AddTilesToDashboardModal from '../../SavedDashboards/AddTilesToDashboardModal';
 import SaveChartButton from '../SaveChartButton';
 import { TitleBreadCrumbs } from './TitleBreadcrumbs';
 
@@ -156,8 +156,7 @@ const SavedChartsHeader: FC = () => {
     const { data: favorites } = useFavorites(projectUuid);
     const { mutate: toggleFavorite } = useFavoriteMutation(projectUuid);
     const isChartFavorited = useMemo(
-        () =>
-            favorites?.some((f) => f.data.uuid === savedChart?.uuid) ?? false,
+        () => favorites?.some((f) => f.data.uuid === savedChart?.uuid) ?? false,
         [favorites, savedChart?.uuid],
     );
 
@@ -440,9 +439,7 @@ const SavedChartsHeader: FC = () => {
                                     size="xs"
                                     variant="transparent"
                                     color={
-                                        isChartFavorited
-                                            ? 'orange'
-                                            : 'ldGray.6'
+                                        isChartFavorited ? 'orange' : 'ldGray.6'
                                     }
                                     onClick={() => {
                                         toggleFavorite({

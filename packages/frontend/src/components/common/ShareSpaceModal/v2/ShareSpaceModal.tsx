@@ -39,7 +39,6 @@ import {
     useDeleteSpaceShareMutation,
 } from '../../../../hooks/useSpaces';
 import useApp from '../../../../providers/App/useApp';
-
 import Callout from '../../Callout';
 import MantineIcon from '../../MantineIcon';
 import MantineModal from '../../MantineModal';

@@ -27,8 +27,8 @@ import {
     useMemo,
     useRef,
 } from 'react';
-import FieldIcon from '../Filters/FieldIcon';
 import { FILTER_SELECT_LIMIT } from '../Filters/constants';
+import FieldIcon from '../Filters/FieldIcon';
 
 interface ItemComponentProps extends React.ComponentPropsWithoutRef<'div'> {
     item: Item;

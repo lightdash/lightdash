@@ -1,8 +1,8 @@
 import {
+    assertUnreachable,
     CustomFormatType,
     MetricType,
     TableCalculationTemplateType,
-    assertUnreachable,
     type CustomFormat,
     type Metric,
     type TableCalculation,

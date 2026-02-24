@@ -1,6 +1,6 @@
 import {
-    SupportedDbtAdapter,
     isSupportedDbtAdapterType,
+    SupportedDbtAdapter,
 } from '@lightdash/common';
 import { AthenaSqlBuilder } from './warehouseClients/AthenaWarehouseClient';
 import { BigquerySqlBuilder } from './warehouseClients/BigqueryWarehouseClient';

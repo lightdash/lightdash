@@ -1,9 +1,9 @@
 import { type Role, type RoleWithScopes } from '@lightdash/common';
-import { Button, Select, Stack, TextInput, Textarea } from '@mantine-8/core';
+import { Button, Select, Stack, Textarea, TextInput } from '@mantine-8/core';
 import { useForm } from '@mantine/form';
 import { IconCopy } from '@tabler/icons-react';
 import startCase from 'lodash/startCase';
-import { type FC, useMemo } from 'react';
+import { useMemo, type FC } from 'react';
 import MantineModal from '../../../components/common/MantineModal';
 import { validateRoleName } from './utils/roleValidation';
 

@@ -444,8 +444,8 @@ export const SchedulerModalCreateOrEdit: FC<Props> = ({
                                                 form.values.msTeamsTargets
                                                     ?.length ||
                                                 0) &&
-                                                requiredFiltersWithoutValues.length ===
-                                                    0,
+                                            requiredFiltersWithoutValues.length ===
+                                                0,
                                         )
                                     }
                                 >

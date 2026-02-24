@@ -12,18 +12,18 @@ import {
     CompactConfigMap,
     CustomFormatType,
     DimensionType,
+    findCompactConfig,
     Format,
     IECByteCompacts,
-    MetricType,
-    NumberSeparator,
-    TableCalculationType,
-    findCompactConfig,
     isCustomSqlDimension,
     isDimension,
     isField,
     isFormat,
     isMetric,
     isTableCalculation,
+    MetricType,
+    NumberSeparator,
+    TableCalculationType,
     type CompactOrAlias,
     type CustomDimension,
     type CustomFormat,
@@ -179,7 +179,7 @@ export const formatDateWithPattern = (
     const m = moment(value).utc();
     if (!m.isValid()) return String(value);
     return m.format(pattern);
-}
+};
 
 export const parseDate = (
     str: string,

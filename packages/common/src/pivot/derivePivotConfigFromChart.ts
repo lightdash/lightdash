@@ -14,7 +14,6 @@ import {
 } from '../types/field';
 import type { MetricQuery } from '../types/metricQuery';
 import type { PivotConfiguration } from '../types/pivot';
-
 import {
     ChartType,
     isCartesianChartConfig,

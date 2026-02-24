@@ -28,7 +28,6 @@ import { IconExclamationCircle } from '@tabler/icons-react';
 import { type CellContext } from '@tanstack/react-table';
 import omit from 'lodash/omit';
 import { useMemo } from 'react';
-import { formatRowValueFromWarehouse } from '../components/DataViz/formatters/formatRowValueFromWarehouse';
 import MantineIcon from '../components/common/MantineIcon';
 import {
     BrokenImageCell,
@@ -43,6 +42,7 @@ import {
     columnHelper,
     type TableColumn,
 } from '../components/common/Table/types';
+import { formatRowValueFromWarehouse } from '../components/DataViz/formatters/formatRowValueFromWarehouse';
 import useEmbed from '../ee/providers/Embed/useEmbed';
 import {
     selectAdditionalMetrics,
@@ -199,26 +199,27 @@ const formatImageCell = (
     const row = needsRowContext
         ? info.row
               .getAllCells()
-              .reduce<
-                  Record<string, Record<string, ResultValue>>
-              >((acc, rowCell) => {
-                  const cellItem = rowCell.column.columnDef.meta?.item;
-                  const rowCellValue = rowCell.getValue();
+              .reduce<Record<string, Record<string, ResultValue>>>(
+                  (acc, rowCell) => {
+                      const cellItem = rowCell.column.columnDef.meta?.item;
+                      const rowCellValue = rowCell.getValue();
 
-                  // Handle both ResultRow and RawResultRow formats
-                  const cellResultValue = isResultValue(rowCellValue)
-                      ? (rowCellValue as { value: ResultValue }).value
-                      : {
-                            raw: rowCellValue,
-                            formatted: String(rowCellValue),
-                        };
+                      // Handle both ResultRow and RawResultRow formats
+                      const cellResultValue = isResultValue(rowCellValue)
+                          ? (rowCellValue as { value: ResultValue }).value
+                          : {
+                                raw: rowCellValue,
+                                formatted: String(rowCellValue),
+                            };
 
-                  if (cellItem && isField(cellItem) && cellResultValue) {
-                      acc[cellItem.table] = acc[cellItem.table] || {};
-                      acc[cellItem.table][cellItem.name] = cellResultValue;
-                  }
-                  return acc;
-              }, {})
+                      if (cellItem && isField(cellItem) && cellResultValue) {
+                          acc[cellItem.table] = acc[cellItem.table] || {};
+                          acc[cellItem.table][cellItem.name] = cellResultValue;
+                      }
+                      return acc;
+                  },
+                  {},
+              )
         : {};
 
     try {

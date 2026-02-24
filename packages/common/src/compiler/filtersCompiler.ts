@@ -4,19 +4,19 @@ import { CompileError } from '../types/errors';
 import {
     CustomFormatType,
     DimensionType,
-    MetricType,
-    TableCalculationType,
     isCompiledCustomSqlDimension,
     isMetric,
+    MetricType,
+    TableCalculationType,
     type CompiledCustomSqlDimension,
     type CompiledField,
     type TableCalculation,
 } from '../types/field';
 import {
     FilterOperator,
-    UnitOfTime,
     isFilterTarget,
     isMetricFilterTarget,
+    UnitOfTime,
     unitOfTimeFormat,
     type DateFilterRule,
     type FilterRule,

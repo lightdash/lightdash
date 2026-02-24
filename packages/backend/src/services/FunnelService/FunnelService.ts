@@ -1,6 +1,5 @@
 import { subject } from '@casl/ability';
 import {
-    type AdditionalMetric,
     CompiledDimension,
     CompiledField,
     Explore,
@@ -17,6 +16,7 @@ import {
     resolveFunnelDateRange,
     SessionUser,
     TimeIntervalUnit,
+    type AdditionalMetric,
     type WarehouseSqlBuilder,
 } from '@lightdash/common';
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';

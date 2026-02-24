@@ -15,7 +15,10 @@ const resultsStorage = clientRepository.getS3ResultsFileStorageClient(); // Quer
 
 // Upload user-facing files to general bucket
 const csvUrl = await fileStorageClient.uploadCsv(csvBuffer, 'report.csv');
-const excelUrl = await fileStorageClient.uploadExcel(fileStream, 'dashboard.xlsx');
+const excelUrl = await fileStorageClient.uploadExcel(
+    fileStream,
+    'dashboard.xlsx',
+);
 
 // Store query results in JSONL format
 const { write, close } = resultsStorage.createUploadStream(
@@ -52,7 +55,10 @@ const { fileUrl, truncated } = await transformAndExportResults(
 ```typescript
 // Upload a CSV export for user download
 const fileStorageClient = clientRepository.getFileStorageClient();
-const csvUrl = await fileStorageClient.uploadCsv(csvContent, 'sales-report-2025.csv');
+const csvUrl = await fileStorageClient.uploadCsv(
+    csvContent,
+    'sales-report-2025.csv',
+);
 // Returns pre-signed URL valid for 3 days (default config)
 
 // Stream query results to cache bucket

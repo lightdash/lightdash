@@ -1,6 +1,6 @@
 import { type ItemsMap } from '../../../../../types/field';
 import { type MetricQuery } from '../../../../../types/metricQuery';
-import { type ChartConfig, ChartType } from '../../../../../types/savedCharts';
+import { ChartType, type ChartConfig } from '../../../../../types/savedCharts';
 import { type ToolRunQueryArgsTransformed } from '../../../schemas';
 import { canRenderAsChart } from '../shared/canRenderAsChart';
 import { type AiAgentChartTypeOption } from '../types';

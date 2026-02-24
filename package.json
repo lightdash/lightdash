@@ -53,16 +53,15 @@
         "eslint-plugin-jest": "^27.4.2",
         "eslint-plugin-json": "^3.1.0",
         "eslint-plugin-jsx-a11y": "^6.6.1",
-        "eslint-plugin-prettier": "^4.2.1",
+        "eslint-plugin-perfectionist": "^5.6.0",
         "eslint-plugin-react-hooks": "^4.6.0",
         "eslint-plugin-testing-library": "^5.6.3",
         "husky": "^9.0.0",
         "jest": "^29.7.0",
         "jest-watch-typeahead": "^2.2.2",
         "lint-staged": "^12.1.2",
+        "oxfmt": "^0.35.0",
         "pm2": "^6.0.14",
-        "prettier": "3.7.4",
-        "prettier-plugin-organize-imports": "^4.3.0",
         "ts-jest": "^29.1.1",
         "tsx": "^4.19.2",
         "turbo": "^2.6.2",
@@ -164,27 +163,27 @@
     "lint-staged": {
         "packages/frontend/src/**/*.(ts|tsx|json|css)": [
             "pnpm -F frontend run linter --fix",
-            "pnpm -F frontend run formatter --write"
+            "pnpm -F frontend run formatter"
         ],
         "packages/backend/src/**/*.(ts|tsx|json)": [
             "pnpm -F backend run linter --fix",
-            "pnpm -F backend run formatter --write"
+            "pnpm -F backend run formatter"
         ],
         "packages/common/src/**/*.(ts|tsx|json)": [
             "pnpm -F common run linter --fix",
-            "pnpm -F common run formatter --write"
+            "pnpm -F common run formatter"
         ],
         "packages/e2e/cypress/**/*.(ts|json)": [
             "pnpm -F e2e run linter --fix",
-            "pnpm -F e2e run formatter --write"
+            "pnpm -F e2e run formatter"
         ],
         "packages/cli/src/**/*.(ts|tsx|json)": [
             "pnpm -F cli run linter --fix",
-            "pnpm -F cli run formatter --write"
+            "pnpm -F cli run formatter"
         ],
         "packages/warehouses/src/**/*.(ts|tsx|json)": [
             "pnpm -F warehouses run linter --fix",
-            "pnpm -F warehouses run formatter --write"
+            "pnpm -F warehouses run formatter"
         ]
     },
     "packageManager": "pnpm@9.15.5+sha512.845196026aab1cc3f098a0474b64dfbab2afe7a1b4e91dd86895d8e4aa32a7a6d03049e2d0ad770bbe4de023a7122fb68c1a1d6e0d033c7076085f9d5d4800d4"

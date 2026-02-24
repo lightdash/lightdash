@@ -1,6 +1,6 @@
 import {
-    DashboardTileTypes,
     assertUnreachable,
+    DashboardTileTypes,
     getDefaultChartTileSize,
     type DashboardTile,
 } from '@lightdash/common';
@@ -10,8 +10,8 @@ import {
     Group,
     Select,
     Stack,
-    TextInput,
     Textarea,
+    TextInput,
 } from '@mantine-8/core';
 import { useForm } from '@mantine/form';
 import {

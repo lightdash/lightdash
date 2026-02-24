@@ -1,7 +1,7 @@
 import {
     CompleteUserSchema,
-    LightdashMode,
     getEmailDomain,
+    LightdashMode,
     validateOrganizationEmailDomains,
     type CompleteUserArgs,
 } from '@lightdash/common';

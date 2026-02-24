@@ -1,7 +1,6 @@
+import { type RoleWithScopes } from '@lightdash/common';
 import { Text } from '@mantine-8/core';
 import { type FC } from 'react';
-
-import { type RoleWithScopes } from '@lightdash/common';
 import MantineModal from '../../../components/common/MantineModal';
 
 type DeleteModalProps = {

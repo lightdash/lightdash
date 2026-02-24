@@ -12,11 +12,11 @@ import {
     TextInput,
 } from '@mantine-8/core';
 import { useEffect, useRef, useState } from 'react';
-import classes from './BigNumberComparison.module.css';
+import FieldSelect from '../../common/FieldSelect';
 import { isBigNumberVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
-import FieldSelect from '../../common/FieldSelect';
 import { Config } from '../common/Config';
+import classes from './BigNumberComparison.module.css';
 import { StyleOptions } from './common';
 
 type CompareTarget = 'previous_row' | 'another_field';

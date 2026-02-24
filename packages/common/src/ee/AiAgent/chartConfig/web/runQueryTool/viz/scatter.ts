@@ -1,9 +1,9 @@
 import { type ItemsMap } from '../../../../../../types/field';
 import { type MetricQuery } from '../../../../../../types/metricQuery';
 import {
-    type CartesianChartConfig,
     CartesianSeriesType,
     ChartType,
+    type CartesianChartConfig,
 } from '../../../../../../types/savedCharts';
 import { type ToolRunQueryArgsTransformed } from '../../../../schemas';
 import { formatFieldLabel } from '../../../shared/formatFieldLabel';

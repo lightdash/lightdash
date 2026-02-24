@@ -16,12 +16,12 @@ import {
     IconX,
 } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
+import MantineIcon from '../../common/MantineIcon';
 import {
     isTableVisualizationConfig,
     type VisualizationConfigTable,
 } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
-import MantineIcon from '../../common/MantineIcon';
 import styles from './ColumnConfiguration.module.css';
 
 type ColumnConfigurationInputProps = Pick<

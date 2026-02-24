@@ -1,13 +1,13 @@
 import { Anchor, Text, useMantineColorScheme } from '@mantine/core';
 import { IconGraphOff } from '@tabler/icons-react';
-import { Suspense, lazy, useEffect, useMemo, useRef, type FC } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, type FC } from 'react';
 // @ts-expect-error - vega-themes ESM export not resolved by TS moduleResolution
 import { dark as vegaDarkTheme } from 'vega-themes';
 import { type CustomVisualizationConfigAndData } from '../../hooks/useCustomVisualizationConfig';
-import { isCustomVisualizationConfig } from '../LightdashVisualization/types';
-import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
 import LoadingChart from '../common/LoadingChart';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
+import { isCustomVisualizationConfig } from '../LightdashVisualization/types';
+import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
 import { vegaStyleConfig } from './vegaConfig';
 
 const VegaEmbed = lazy(async () => {

@@ -17,8 +17,10 @@ import { CategoryName, PageName, PageType } from '../../../types/Events';
 type RoleItem = { value: string; label: string };
 type GroupedRoles = { group: string; items: RoleItem[] }[];
 
-interface AddProjectGroupAccessModalProps
-    extends Pick<MantineModalProps, 'onClose'> {
+interface AddProjectGroupAccessModalProps extends Pick<
+    MantineModalProps,
+    'onClose'
+> {
     projectUuid: string;
     isSubmitting: boolean;
     totalNumberOfGroups: number;

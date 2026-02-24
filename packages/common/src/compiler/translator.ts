@@ -1,12 +1,12 @@
 import merge from 'lodash/merge';
 import {
-    SupportedDbtAdapter,
     buildModelGraph,
     convertColumnMetric,
     convertModelMetric,
     convertToAiHints,
     convertToGroups,
     isV9MetricRef,
+    SupportedDbtAdapter,
     type DbtColumnLightdashDimension,
     type DbtColumnMetadata,
     type DbtExploreLightdashAdditionalDimension,
@@ -27,11 +27,11 @@ import {
     type Table,
 } from '../types/explore';
 import {
+    defaultSql,
     DimensionType,
     FieldType,
-    MetricType,
-    defaultSql,
     friendlyName,
+    MetricType,
     parseMetricType,
     type Dimension,
     type Metric,

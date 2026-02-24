@@ -2,12 +2,12 @@ import { type DbtColumnLightdashAdditionalDimension } from '../types/dbt';
 import { NotImplementedError } from '../types/errors';
 import {
     BinType,
-    type CustomBinDimension,
-    type CustomDimension,
-    type CustomSqlDimension,
     DimensionType,
     friendlyName,
     isCustomBinDimension,
+    type CustomBinDimension,
+    type CustomDimension,
+    type CustomSqlDimension,
 } from '../types/field';
 import { type CreateWarehouseCredentials } from '../types/projects';
 import {

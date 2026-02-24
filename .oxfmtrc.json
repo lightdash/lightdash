@@ -1,0 +1,25 @@
+{
+    "$schema": "./node_modules/oxfmt/configuration_schema.json",
+    "singleQuote": true,
+    "trailingComma": "all",
+    "tabWidth": 4,
+    "printWidth": 80,
+    "ignorePatterns": ["node_modules", "dist", "coverage", "**/*.html", "**/*.geojson"],
+    "sortImports": {
+        "newlinesBetween": false,
+        "groups": [
+            ["builtin", "external"],
+            ["parent", "sibling", "index"],
+            "unknown"
+        ]
+    },
+    "overrides": [
+        {
+            "files": ["docs/**/*.md", "docs/**/*.mdx", "docs/**/*.yaml", "docs/**/*.yml"],
+            "options": {
+                "useTabs": false,
+                "tabWidth": 2
+            }
+        }
+    ]
+}

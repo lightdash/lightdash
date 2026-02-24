@@ -2,8 +2,6 @@ import { ParameterError } from '../types/errors';
 import { type Explore } from '../types/explore';
 import {
     DimensionType,
-    MetricType,
-    TableCalculationType,
     isCustomBinDimension,
     isCustomDimension,
     isCustomSqlDimension,
@@ -11,6 +9,8 @@ import {
     isField,
     isMetric,
     isTableCalculation,
+    MetricType,
+    TableCalculationType,
     type CompiledDimension,
     type CustomDimension,
     type CustomSqlDimension,

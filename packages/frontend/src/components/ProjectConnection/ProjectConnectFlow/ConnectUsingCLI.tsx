@@ -1,6 +1,6 @@
 import {
-    TimeFrames,
     getDateFormat,
+    TimeFrames,
     type OrganizationProject,
 } from '@lightdash/common';
 import { Avatar, Button, LoadingOverlay, Stack, Text } from '@mantine/core';

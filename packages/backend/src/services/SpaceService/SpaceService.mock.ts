@@ -4,8 +4,8 @@ import {
     getHighestSpaceRole,
     OrganizationMemberRole,
     ProjectMemberRole,
-    type SpaceAccess,
     SpaceMemberRole,
+    type SpaceAccess,
 } from '@lightdash/common';
 
 type TestUserParams = {

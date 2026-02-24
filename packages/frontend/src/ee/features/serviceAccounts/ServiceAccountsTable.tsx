@@ -1,4 +1,9 @@
 import {
+    formatDate,
+    formatTimestamp,
+    type ServiceAccount,
+} from '@lightdash/common';
+import {
     Badge,
     Button,
     Group,
@@ -12,15 +17,8 @@ import {
 import { useDisclosure } from '@mantine/hooks';
 import { IconInfoCircle, IconTrash } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
-
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useTableStyles } from '../../../hooks/styles/useTableStyles';
-
-import {
-    formatDate,
-    formatTimestamp,
-    type ServiceAccount,
-} from '@lightdash/common';
 import { ServiceAccountsDeleteModal } from './ServiceAccountsDeleteModal';
 
 const TableRow: FC<{

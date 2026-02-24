@@ -1,10 +1,6 @@
 import { getItemLabel, getItemMap, isField } from '@lightdash/common';
 import { Box, Loader, Text } from '@mantine/core';
 import { memo, useCallback, useMemo, useState, type FC } from 'react';
-import { useAutoColumnWidths } from '../../../hooks/useAutoColumnWidths';
-import { useIsTableColumnWidthStabilizationEnabled } from '../../../hooks/useIsTableColumnWidthStabilizationEnabled';
-import { ResultsViewMode } from './types';
-
 import {
     explorerActions,
     selectAdditionalMetrics,
@@ -17,9 +13,11 @@ import {
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
+import { useAutoColumnWidths } from '../../../hooks/useAutoColumnWidths';
 import { useColumns } from '../../../hooks/useColumns';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
+import { useIsTableColumnWidthStabilizationEnabled } from '../../../hooks/useIsTableColumnWidthStabilizationEnabled';
 import type {
     useGetReadyQueryResults,
     useInfiniteQueryResults,
@@ -38,6 +36,7 @@ import {
     MissingRequiredParameters,
     NoTableSelected,
 } from './ExplorerResultsNonIdealStates';
+import { ResultsViewMode } from './types';
 import { useGroupedResultsAvailability } from './useGroupedResultsAvailability';
 import { usePivotTableData } from './usePivotTableData';
 

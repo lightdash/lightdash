@@ -1,8 +1,8 @@
 import {
     DimensionType,
     FieldType,
-    ItemsMap,
     getFormatExpression,
+    ItemsMap,
 } from '@lightdash/common';
 import moment from 'moment';
 import { ExcelService } from './ExcelService';

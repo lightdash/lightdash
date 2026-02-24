@@ -14,13 +14,13 @@ import {
     WarehouseTypes,
 } from '@lightdash/common';
 import knex from 'knex';
-import { MockClient, RawQuery, Tracker, getTracker } from 'knex-mock-client';
+import { getTracker, MockClient, RawQuery, Tracker } from 'knex-mock-client';
 import { FunctionQueryMatcher } from 'knex-mock-client/types/mock-client';
 import isEqual from 'lodash/isEqual';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import {
-    CachedExploreTableName,
     CachedExploresTableName,
+    CachedExploreTableName,
     ProjectTableName,
 } from '../../database/entities/projects';
 import {
@@ -31,12 +31,12 @@ import { ChangesetModel } from '../ChangesetModel';
 import { ProjectModel } from './ProjectModel';
 import {
     CompletePostgresCredentials,
-    IncompletePostgresCredentialsWithoutSecrets,
     encryptionUtilMock,
     expectedProject,
     expectedTablesConfiguration,
-    exploreWithMetricFilters,
     exploresWithSameName,
+    exploreWithMetricFilters,
+    IncompletePostgresCredentialsWithoutSecrets,
     mockExploreWithOutdatedMetricFilters,
     projectMock,
     projectUuid,

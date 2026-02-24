@@ -1,32 +1,35 @@
-import { type AnyType } from './any';
-import { type ApiFavoriteItems, type ApiToggleFavorite } from './favorites';
-import { type ApiTogglePinnedItem, type PinnedItems } from './pinning';
-import { type ProjectGroupAccess } from './projectGroupAccess';
-import { type MostPopularAndRecentlyUpdated } from './resourceViewItem';
-import {
-    type ApiJobScheduledResponse,
-    type ApiJobStatusResponse,
-    type ApiReassignUserSchedulersResponse,
-    type ApiSchedulersResponse,
-    type ApiUserSchedulersSummaryResponse,
-    type SchedulerAndTargets,
-    type SchedulerJobStatus,
-} from './scheduler';
-import { type ApiSlackChannelsResponse } from './slack';
-import { type Space } from './space';
-import { type ApiSshKeyPairResponse } from './SshKeyPair';
-import {
-    type LightdashUser,
-    type LoginOptions,
-    type UserAllowedOrganization,
-} from './user';
-import { type UserWarehouseCredentials } from './userWarehouseCredentials';
-import {
-    type ApiPaginatedValidateResponse,
-    type ApiSingleValidationResponse,
-    type ValidationResponse,
-} from './validation';
-
+// Note: EE types removed from direct import to avoid circular module resolution
+// They are still available via the re-export below: export * from './ee';
+import type {
+    ApiAiAgentAdminConversationsResponse,
+    ApiAiAgentArtifactResponse,
+    ApiAiAgentEvaluationResponse,
+    ApiAiAgentEvaluationRunResponse,
+    ApiAiAgentEvaluationRunResultsResponse,
+    ApiAiAgentEvaluationRunSummaryListResponse,
+    ApiAiAgentEvaluationSummaryListResponse,
+    ApiAiAgentThreadCreateResponse,
+    ApiAiAgentThreadGenerateTitleResponse,
+    ApiAiAgentThreadMessageCreateResponse,
+    ApiAiAgentThreadMessageVizQueryResponse,
+    ApiAiAgentThreadMessageVizResponse,
+    ApiAiAgentThreadResponse,
+    ApiAiAgentThreadSummaryListResponse,
+    ApiAiAgentVerifiedArtifactsResponse,
+    ApiAiDashboardSummaryResponse,
+    ApiAiGenerateChartMetadataResponse,
+    ApiAiGenerateTableCalculationResponse,
+    ApiAiGetDashboardSummaryResponse,
+    ApiAiOrganizationSettingsResponse,
+    ApiAppendInstructionResponse,
+    ApiCreateEvaluationResponse,
+    ApiGetUserAgentPreferencesResponse,
+    ApiUpdateAiOrganizationSettingsResponse,
+    ApiUpdateUserAgentPreferencesResponse,
+    DecodedEmbed,
+    EmbedUrl,
+} from '../ee';
+import type { PivotValuesColumn } from '../visualizations/types';
 import {
     type ApiUnusedContent,
     type ApiUserActivityDownloadCsv,
@@ -35,6 +38,7 @@ import {
     type UserActivity,
     type ViewStatistics,
 } from './analytics';
+import { type AnyType } from './any';
 import {
     type ApiCreateComment,
     type ApiDeleteComment,
@@ -78,6 +82,7 @@ import {
 import { type DbtExposure } from './dbt';
 import { type EmailStatusExpiring } from './email';
 import { type Explore, type SummaryExplore } from './explore';
+import { type ApiFavoriteItems, type ApiToggleFavorite } from './favorites';
 import {
     type DimensionType,
     type FilterableField,
@@ -113,16 +118,19 @@ import {
     type OrganizationMemberProfile,
     type OrganizationMemberRole,
 } from './organizationMemberProfile';
+import type { ResultsPaginationMetadata } from './paginateResults';
 import type { ParametersValuesMap } from './parameters';
 import {
     type CreatePersonalAccessToken,
     type PersonalAccessToken,
 } from './personalAccessToken';
-
+import { type ApiTogglePinnedItem, type PinnedItems } from './pinning';
+import { type PivotConfiguration } from './pivot';
 import {
     type ApiProjectCompileLogResponse,
     type ApiProjectCompileLogsResponse,
 } from './projectCompileLogs';
+import { type ProjectGroupAccess } from './projectGroupAccess';
 import { type ProjectMemberProfile } from './projectMemberProfile';
 import { type ProjectMemberRole } from './projectMemberRole';
 import {
@@ -133,7 +141,9 @@ import {
     type WarehouseCredentials,
 } from './projects';
 import { type ApiPromotionChangesResponse } from './promotion';
+import { type QueryHistoryStatus } from './queryHistory';
 import { type ApiRenameFieldsResponse } from './rename';
+import { type MostPopularAndRecentlyUpdated } from './resourceViewItem';
 import { type ResultColumns, type ResultRow } from './results';
 import {
     type ApiCalculateSubtotalsResponse,
@@ -142,10 +152,21 @@ import {
     type ChartVersion,
     type SavedChart,
 } from './savedCharts';
+import {
+    type ApiJobScheduledResponse,
+    type ApiJobStatusResponse,
+    type ApiReassignUserSchedulersResponse,
+    type ApiSchedulersResponse,
+    type ApiUserSchedulersSummaryResponse,
+    type SchedulerAndTargets,
+    type SchedulerJobStatus,
+} from './scheduler';
 import { type SchedulerWithLogs } from './schedulerLog';
 import { type SearchResults } from './search';
 import { type ShareUrl } from './share';
+import { type ApiSlackChannelsResponse } from './slack';
 import { type SlackSettings } from './slackSettings';
+import { type Space } from './space';
 import {
     type ApiCreateSqlChart,
     type ApiCreateVirtualView,
@@ -156,45 +177,21 @@ import {
     type GroupByColumn,
     type SortBy,
 } from './sqlRunner';
+import { type ApiSshKeyPairResponse } from './SshKeyPair';
 import { type TableBase } from './table';
 import { type ApiCreateTagResponse } from './tags';
+import {
+    type LightdashUser,
+    type LoginOptions,
+    type UserAllowedOrganization,
+} from './user';
+import { type UserWarehouseCredentials } from './userWarehouseCredentials';
+import {
+    type ApiPaginatedValidateResponse,
+    type ApiSingleValidationResponse,
+    type ValidationResponse,
+} from './validation';
 import { type ApiWarehouseTableFields } from './warehouse';
-
-// Note: EE types removed from direct import to avoid circular module resolution
-// They are still available via the re-export below: export * from './ee';
-import type {
-    ApiAiAgentAdminConversationsResponse,
-    ApiAiAgentArtifactResponse,
-    ApiAiAgentEvaluationResponse,
-    ApiAiAgentEvaluationRunResponse,
-    ApiAiAgentEvaluationRunResultsResponse,
-    ApiAiAgentEvaluationRunSummaryListResponse,
-    ApiAiAgentEvaluationSummaryListResponse,
-    ApiAiAgentThreadCreateResponse,
-    ApiAiAgentThreadGenerateTitleResponse,
-    ApiAiAgentThreadMessageCreateResponse,
-    ApiAiAgentThreadMessageVizQueryResponse,
-    ApiAiAgentThreadMessageVizResponse,
-    ApiAiAgentThreadResponse,
-    ApiAiAgentThreadSummaryListResponse,
-    ApiAiAgentVerifiedArtifactsResponse,
-    ApiAiDashboardSummaryResponse,
-    ApiAiGenerateChartMetadataResponse,
-    ApiAiGenerateTableCalculationResponse,
-    ApiAiGetDashboardSummaryResponse,
-    ApiAiOrganizationSettingsResponse,
-    ApiAppendInstructionResponse,
-    ApiCreateEvaluationResponse,
-    ApiGetUserAgentPreferencesResponse,
-    ApiUpdateAiOrganizationSettingsResponse,
-    ApiUpdateUserAgentPreferencesResponse,
-    DecodedEmbed,
-    EmbedUrl,
-} from '../ee';
-import type { PivotValuesColumn } from '../visualizations/types';
-import type { ResultsPaginationMetadata } from './paginateResults';
-import { type PivotConfiguration } from './pivot';
-import { type QueryHistoryStatus } from './queryHistory';
 
 export enum RequestMethod {
     CLI = 'CLI',

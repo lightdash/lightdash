@@ -748,9 +748,7 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
         return databases;
     }
 
-    static async getProjects(
-        accessToken: string,
-    ): Promise<BigqueryProject[]> {
+    static async getProjects(accessToken: string): Promise<BigqueryProject[]> {
         // Use BigQuery REST API directly instead of the SDK because:
         // - The SDK requires a projectId to instantiate, but we need to list all accessible projects first
         // - getDatabases above uses the SDK because it already has a projectId to query datasets within

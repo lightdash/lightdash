@@ -1,10 +1,10 @@
 import {
-    NotificationFrequency,
-    SchedulerFormat,
-    ThresholdOperator,
     formatMinutesOffset,
     getItemId,
     getTzMinutesOffset,
+    NotificationFrequency,
+    SchedulerFormat,
+    ThresholdOperator,
     validateEmail,
     type CustomDimension,
     type Dashboard,
@@ -43,21 +43,21 @@ import {
 } from '@tabler/icons-react';
 import isEqual from 'lodash/isEqual';
 import { useMemo, useState, type FC } from 'react';
-import { CronInternalInputs } from '../../../../components/CronInput';
 import FieldSelect from '../../../../components/common/FieldSelect';
 import FilterNumberInput from '../../../../components/common/Filters/FilterInputs/FilterNumberInput';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { SlackChannelSelect } from '../../../../components/common/SlackChannelSelect';
 import TimeZonePicker from '../../../../components/common/TimeZonePicker';
+import { CronInternalInputs } from '../../../../components/CronInput';
 import useHealth from '../../../../hooks/health/useHealth';
 import { useGetSlack } from '../../../../hooks/slack/useSlack';
 import { useActiveProjectUuid } from '../../../../hooks/useActiveProject';
 import { useProject } from '../../../../hooks/useProject';
 import SlackSvg from '../../../../svgs/slack.svg?react';
 import { Limit, SlackStates, Values } from '../types';
+import { useSchedulerFormContext } from './schedulerFormContext';
 import { SchedulerFormMicrosoftTeamsInput } from './SchedulerFormMicrosoftTeamsInput';
 import { SchedulerFormSlackError } from './SchedulerFormSlackError';
-import { useSchedulerFormContext } from './schedulerFormContext';
 
 const thresholdOperatorOptions = [
     { label: 'is greater than', value: ThresholdOperator.GREATER_THAN },

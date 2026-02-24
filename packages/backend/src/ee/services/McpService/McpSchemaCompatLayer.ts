@@ -1,7 +1,6 @@
 /* eslint-disable class-methods-use-this */
 import { AnyType } from '@lightdash/common';
 import {
-    type AllZodType,
     isArr,
     isNumber,
     isObj,
@@ -9,6 +8,7 @@ import {
     isString,
     isUnion,
     SchemaCompatLayer,
+    type AllZodType,
 } from '@mastra/schema-compat';
 import { z, ZodDefault, ZodNullable, ZodType, type ZodTypeAny } from 'zod';
 

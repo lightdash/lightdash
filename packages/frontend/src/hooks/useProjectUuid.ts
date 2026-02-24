@@ -1,5 +1,4 @@
 import { useParams } from 'react-router';
-
 import useEmbed from '../ee/providers/Embed/useEmbed';
 
 /**

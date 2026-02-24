@@ -4,13 +4,13 @@ import { Tooltip, useMantineTheme } from '@mantine/core';
 import { flexRender } from '@tanstack/react-table';
 import isEqual from 'lodash/isEqual';
 import React, { useEffect, type FC } from 'react';
+import { ROW_NUMBER_COLUMN_ID } from '../constants';
 import {
     Th,
     ThActionsContainer,
     ThContainer,
     ThLabelContainer,
 } from '../Table.styles';
-import { ROW_NUMBER_COLUMN_ID } from '../constants';
 import { useColumnResize } from '../useColumnResize';
 import { useTableContext } from '../useTableContext';
 import { HeaderDndContext, HeaderDroppable } from './HeaderDnD';

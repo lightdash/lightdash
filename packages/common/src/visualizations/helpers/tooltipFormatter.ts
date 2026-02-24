@@ -6,21 +6,21 @@ import {
     type TooltipComponentFormatterCallback,
 } from 'echarts';
 import { toNumber } from 'lodash';
-import { type ItemsMap, isField, isTableCalculation } from '../../types/field';
+import { isField, isTableCalculation, type ItemsMap } from '../../types/field';
 import { type ParametersValuesMap } from '../../types/parameters';
 import { type ResultRow } from '../../types/results';
 import {
-    type TooltipSortBy,
     hashFieldReference,
     TooltipSortByOptions,
+    type TooltipSortBy,
 } from '../../types/savedCharts';
 import { TimeFrames } from '../../types/timeFrames';
 import { formatDateWithPattern, formatItemValue } from '../../utils/formatting';
 import { sanitizeHtml } from '../../utils/sanitizeHtml';
 import {
+    StackType,
     type EChartsSeries,
     type PivotValuesColumn,
-    StackType,
 } from '../types';
 import {
     formatCartesianTooltipRow,

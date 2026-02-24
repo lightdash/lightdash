@@ -1,50 +1,50 @@
 {
-    "name": "@lightdash/warehouses",
-    "version": "0.2517.0",
-    "license": "MIT",
-    "repository": {
-        "type": "git",
-        "url": "https://github.com/lightdash/lightdash.git"
-    },
-    "main": "dist/index.js",
-    "types": "dist/index.d.ts",
-    "files": [
-        "dist/**/*"
-    ],
-    "dependencies": {
-        "@aws-sdk/client-athena": "^3.972.0",
-        "@clickhouse/client": "^1.12.1",
-        "@databricks/sql": "1.8.4",
-        "@google-cloud/bigquery": "^7.9.2",
-        "@lightdash/common": "workspace:*",
-        "lodash": "^4.17.23",
-        "pg": "^8.13.1",
-        "pg-cursor": "^2.10.0",
-        "node-fetch": "^2.7.0",
-        "snowflake-sdk": "~2.3.4",
-        "ssh2": "^1.14.0",
-        "trino-client": "0.2.9"
-    },
-    "devDependencies": {
-        "@types/pg": "^8.11.10",
-        "@types/pg-cursor": "^2.7.0",
-        "@types/ssh2": "^1.11.15",
-        "@types/node-fetch": "^2.6.13",
-        "copyfiles": "^2.4.1"
-    },
-    "description": "Warehouse connectors for Lightdash",
-    "scripts": {
-        "linter": "eslint -c .eslintrc.js --ignore-path ./../../.gitignore",
-        "formatter": "prettier --config .prettierrc.js --ignore-unknown --ignore-path ./../../.gitignore",
-        "lint": "pnpm run linter ./src",
-        "fix-lint": "pnpm run linter ./src --fix",
-        "format": "pnpm run formatter ./src --check",
-        "fix-format": "pnpm run formatter ./src --write",
-        "test": "jest",
-        "typecheck": "tsc --project tsconfig.json --noEmit",
-        "copy-files": "copyfiles -u 1 src/warehouseClients/ca-bundle-aws-redshift.crt src/warehouseClients/ca-bundle-aws-rds-global.pem dist/",
-        "build": "pnpm run copy-files && tsc --build tsconfig.json",
-        "dev": "pnpm run copy-files && tsc --build --watch --preserveWatchOutput tsconfig.json",
-        "release": "pnpm publish --no-git-checks --access public"
-    }
+  "name": "@lightdash/warehouses",
+  "version": "0.2517.0",
+  "description": "Warehouse connectors for Lightdash",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lightdash/lightdash.git"
+  },
+  "files": [
+    "dist/**/*"
+  ],
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "linter": "eslint -c .eslintrc.js --ignore-path ./../../.gitignore",
+    "formatter": "oxfmt",
+    "lint": "pnpm run linter ./src",
+    "fix-lint": "pnpm run linter ./src --fix",
+    "format": "oxfmt ./src --check",
+    "fix-format": "oxfmt ./src",
+    "test": "jest",
+    "typecheck": "tsc --project tsconfig.json --noEmit",
+    "copy-files": "copyfiles -u 1 src/warehouseClients/ca-bundle-aws-redshift.crt src/warehouseClients/ca-bundle-aws-rds-global.pem dist/",
+    "build": "pnpm run copy-files && tsc --build tsconfig.json",
+    "dev": "pnpm run copy-files && tsc --build --watch --preserveWatchOutput tsconfig.json",
+    "release": "pnpm publish --no-git-checks --access public"
+  },
+  "dependencies": {
+    "@aws-sdk/client-athena": "^3.972.0",
+    "@clickhouse/client": "^1.12.1",
+    "@databricks/sql": "1.8.4",
+    "@google-cloud/bigquery": "^7.9.2",
+    "@lightdash/common": "workspace:*",
+    "lodash": "^4.17.23",
+    "node-fetch": "^2.7.0",
+    "pg": "^8.13.1",
+    "pg-cursor": "^2.10.0",
+    "snowflake-sdk": "~2.3.4",
+    "ssh2": "^1.14.0",
+    "trino-client": "0.2.9"
+  },
+  "devDependencies": {
+    "@types/node-fetch": "^2.6.13",
+    "@types/pg": "^8.11.10",
+    "@types/pg-cursor": "^2.7.0",
+    "@types/ssh2": "^1.11.15",
+    "copyfiles": "^2.4.1"
+  }
 }

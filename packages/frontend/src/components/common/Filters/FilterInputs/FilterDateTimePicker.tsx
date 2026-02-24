@@ -6,16 +6,14 @@ import {
 } from '@mantine/dates';
 import dayjs from 'dayjs';
 import timezone from 'dayjs/plugin/timezone';
-
 import { type FC } from 'react';
 
 dayjs.extend(timezone);
 
-interface Props
-    extends Omit<
-        DateTimePickerProps,
-        'firstDayOfWeek' | 'getDayProps' | 'value' | 'onChange'
-    > {
+interface Props extends Omit<
+    DateTimePickerProps,
+    'firstDayOfWeek' | 'getDayProps' | 'value' | 'onChange'
+> {
     value: Date | null;
     onChange: (value: Date) => void;
     firstDayOfWeek: DayOfWeek;

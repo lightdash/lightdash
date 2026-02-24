@@ -5,7 +5,6 @@ import {
     type TableCalcsSchema,
     type TableCalculation,
 } from '@lightdash/common';
-
 import { mockUsersOrdersExplore } from './validationExplore.mock';
 import { validateSelectedFieldsExistence } from './validators';
 

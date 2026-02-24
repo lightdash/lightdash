@@ -1,8 +1,8 @@
 import { ContentType, DashboardContent } from '@lightdash/common';
 import { Knex } from 'knex';
 import {
-    DashboardVersionsTableName,
     DashboardsTableName,
+    DashboardVersionsTableName,
 } from '../../../database/entities/dashboards';
 import { OrganizationTableName } from '../../../database/entities/organizations';
 import { PinnedDashboardTableName } from '../../../database/entities/pinnedList';

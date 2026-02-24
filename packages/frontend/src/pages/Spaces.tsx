@@ -4,16 +4,13 @@ import { Button, Group, Stack } from '@mantine/core';
 import { IconFolderPlus, IconPlus } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { useParams } from 'react-router';
-
-import ForbiddenPanel from '../components/ForbiddenPanel';
 import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import InfiniteResourceTable from '../components/common/ResourceView/InfiniteResourceTable';
 import { ColumnVisibility } from '../components/common/ResourceView/types';
-
 import SpaceActionModal from '../components/common/SpaceActionModal';
 import { ActionType } from '../components/common/SpaceActionModal/types';
-
+import ForbiddenPanel from '../components/ForbiddenPanel';
 import useApp from '../providers/App/useApp';
 import { FavoritesProvider } from '../providers/Favorites/FavoritesProvider';
 

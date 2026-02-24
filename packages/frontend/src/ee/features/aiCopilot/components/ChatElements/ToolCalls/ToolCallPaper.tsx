@@ -1,10 +1,10 @@
 import {
     Collapse,
     Group,
-    type MantineStyleProp,
     Paper,
     Title,
     UnstyledButton,
+    type MantineStyleProp,
 } from '@mantine-8/core';
 import { useDisclosure } from '@mantine-8/hooks';
 import { IconExclamationCircle, IconSelector } from '@tabler/icons-react';

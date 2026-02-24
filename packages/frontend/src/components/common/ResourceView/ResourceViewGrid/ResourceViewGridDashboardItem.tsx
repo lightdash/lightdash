@@ -1,7 +1,6 @@
 import { type ResourceViewDashboardItem } from '@lightdash/common';
 import { Box, Flex, Group, Paper, Text, Tooltip } from '@mantine-8/core';
 import { useDisclosure, useHover } from '@mantine/hooks';
-import classes from './ResourceViewGridItem.module.css';
 import { IconEye } from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
 import { ResourceIcon } from '../../ResourceIcon';
@@ -9,6 +8,7 @@ import ResourceViewActionMenu, {
     type ResourceViewActionMenuCommonProps,
 } from '../ResourceActionMenu';
 import { getResourceViewsSinceWhenDescription } from '../resourceUtils';
+import classes from './ResourceViewGridItem.module.css';
 
 interface ResourceViewGridDashboardItemProps extends Pick<
     ResourceViewActionMenuCommonProps,

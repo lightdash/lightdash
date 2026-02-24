@@ -7,7 +7,6 @@ import {
     ProjectMemberRole,
     SessionUser,
 } from '@lightdash/common';
-
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { SlackClient } from '../../clients/Slack/SlackClient';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';

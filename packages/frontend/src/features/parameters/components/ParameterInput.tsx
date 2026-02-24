@@ -1,32 +1,32 @@
 import {
     DimensionType,
     FieldType,
-    type FilterableItem,
     formatDate,
     getItemId,
+    parseDate,
+    TimeFrames,
+    type FilterableItem,
     type LightdashProjectParameter,
     type ParametersValuesMap,
     type ParameterValue,
-    parseDate,
-    TimeFrames,
 } from '@lightdash/common';
 import {
     Box,
-    type ComboboxItemGroup,
     Group,
     MultiSelect,
     Select,
+    type ComboboxItemGroup,
 } from '@mantine-8/core';
 import { DatePickerInput } from '@mantine/dates';
 import { IconPlus } from '@tabler/icons-react';
 import uniq from 'lodash/uniq';
 import React, {
-    type FC,
     useCallback,
     useEffect,
     useMemo,
     useRef,
     useState,
+    type FC,
 } from 'react';
 import { formatDisplayValue } from '../../../components/common/Filters/FilterInputs/utils';
 import MantineIcon from '../../../components/common/MantineIcon';

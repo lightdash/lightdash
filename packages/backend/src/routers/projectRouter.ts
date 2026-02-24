@@ -7,7 +7,6 @@ import {
     TablesConfiguration,
 } from '@lightdash/common';
 import express, { type Router } from 'express';
-
 import path from 'path';
 import {
     allowApiKeyAuthentication,

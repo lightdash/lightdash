@@ -2,17 +2,17 @@ import {
     Box,
     Button,
     Flex,
-    type FlexProps,
     Group,
     Modal,
-    type ModalBodyProps,
-    type ModalContentProps,
-    type ModalHeaderProps,
-    type ModalRootProps,
     Paper,
     ScrollArea,
     Stack,
     Text,
+    type FlexProps,
+    type ModalBodyProps,
+    type ModalContentProps,
+    type ModalHeaderProps,
+    type ModalRootProps,
 } from '@mantine-8/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconTrash, type Icon as IconType } from '@tabler/icons-react';

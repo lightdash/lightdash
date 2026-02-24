@@ -6,13 +6,13 @@ import { type AnyType } from '../types/any';
 import { DashboardTileTypes, type DashboardTile } from '../types/dashboard';
 import { type Explore } from '../types/explore';
 import {
-    DimensionType,
-    MetricType,
-    TableCalculationType,
     convertFieldRefToFieldId,
+    DimensionType,
     isCustomSqlDimension,
     isDimension,
     isTableCalculation,
+    MetricType,
+    TableCalculationType,
     type CompiledField,
     type CustomSqlDimension,
     type Dimension,
@@ -27,12 +27,12 @@ import {
 import {
     FilterOperator,
     FilterType,
-    UnitOfTime,
     isAndFilterGroup,
     isFilterGroup,
     isFilterRule,
     isFilterRuleDefinedForFieldId,
     isJoinModelRequiredFilter,
+    UnitOfTime,
     type AndFilterGroup,
     type DashboardFieldTarget,
     type DashboardFilterRule,

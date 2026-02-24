@@ -6,17 +6,26 @@ import {
     DownloadCsvPayload,
     EmailBatchNotificationPayload,
     EmailNotificationPayload,
+    getSchedulerTargetUuid,
+    getSchedulerUuid,
     GsheetsNotificationPayload,
+    hasSchedulerUuid,
+    isCreateScheduler,
+    isCreateSchedulerMsTeamsTarget,
+    isCreateSchedulerSlackTarget,
+    isEmailTarget,
+    isMsTeamsTarget,
+    isSlackTarget,
     JobPriority,
     MsTeamsBatchNotificationPayload,
     MsTeamsNotificationPayload,
     NotificationPayloadBase,
     QueueTraceProperties,
     ReplaceCustomFieldsPayload,
-    SCHEDULER_TASKS,
     ScheduledDeliveryPayload,
     ScheduledJobs,
     Scheduler,
+    SCHEDULER_TASKS,
     SchedulerAndTargets,
     SchedulerEmailTarget,
     SchedulerFormat,
@@ -33,15 +42,6 @@ import {
     TraceTaskBase,
     UploadMetricGsheetPayload,
     ValidateProjectPayload,
-    getSchedulerTargetUuid,
-    getSchedulerUuid,
-    hasSchedulerUuid,
-    isCreateScheduler,
-    isCreateSchedulerMsTeamsTarget,
-    isCreateSchedulerSlackTarget,
-    isEmailTarget,
-    isMsTeamsTarget,
-    isSlackTarget,
     type DownloadAsyncQueryResultsPayload,
     type SchedulerCreateProjectWithCompilePayload,
     type SchedulerIndexCatalogJobPayload,
@@ -49,7 +49,7 @@ import {
 import * as Sentry from '@sentry/node';
 import { getSchedule, stringToArray } from 'cron-converter';
 import { createHash } from 'crypto';
-import { WorkerUtils, makeWorkerUtils } from 'graphile-worker';
+import { makeWorkerUtils, WorkerUtils } from 'graphile-worker';
 import moment from 'moment';
 import { nanoid } from 'nanoid';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';

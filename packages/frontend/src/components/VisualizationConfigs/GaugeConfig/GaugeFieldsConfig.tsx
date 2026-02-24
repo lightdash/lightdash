@@ -1,8 +1,8 @@
 import { getItemId } from '@lightdash/common';
 import { memo, type FC } from 'react';
+import FieldSelect from '../../common/FieldSelect';
 import { isGaugeVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
-import FieldSelect from '../../common/FieldSelect';
 import { Config } from '../common/Config';
 
 export const GaugeFieldsConfig: FC = memo(() => {

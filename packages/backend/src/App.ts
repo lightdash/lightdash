@@ -1,5 +1,3 @@
-// organize-imports-ignore
-// eslint-disable-next-line import/order
 import './sentry'; // Sentry has to be initialized before anything else
 import {
     Account,
@@ -19,10 +17,12 @@ import {
 import * as Sentry from '@sentry/node';
 import flash from 'connect-flash';
 import connectSessionKnex from 'connect-session-knex';
+import cors from 'cors';
 import express, { Express, NextFunction, Request, Response } from 'express';
 import expressSession from 'express-session';
 import expressStaticGzip from 'express-static-gzip';
 import helmet from 'helmet';
+import { produce } from 'immer';
 import knex, { Knex } from 'knex';
 import passport from 'passport';
 import refresh from 'passport-oauth2-refresh';
@@ -30,13 +30,12 @@ import path from 'path';
 import qs from 'qs';
 import reDoc from 'redoc-express';
 import { URL } from 'url';
-import cors from 'cors';
-import { produce } from 'immer';
 import { LightdashAnalytics } from './analytics/LightdashAnalytics';
 import {
     ClientProviderMap,
     ClientRepository,
 } from './clients/ClientRepository';
+import { SlackClient } from './clients/Slack/SlackClient';
 import { LightdashConfig } from './config/parseConfig';
 import {
     apiKeyPassportStrategy,
@@ -51,6 +50,9 @@ import {
     oneLoginPassportStrategy,
     OpenIDClientOktaStrategy,
 } from './controllers/authentication';
+import { databricksPassportStrategy } from './controllers/authentication/strategies/databricksStrategy';
+import { slackPassportStrategy } from './controllers/authentication/strategies/slackStrategy';
+import { snowflakePassportStrategy } from './controllers/authentication/strategies/snowflakeStrategy';
 import { errorHandler, scimErrorHandler } from './errors';
 import { RegisterRoutes } from './generated/routes';
 import apiSpec from './generated/swagger.json';
@@ -59,14 +61,18 @@ import {
     expressWinstonMiddleware,
     expressWinstonPreResponseMiddleware,
 } from './logging/winston';
+import { sessionAccountMiddleware } from './middlewares/accountMiddleware';
+import { jwtAuthMiddleware } from './middlewares/jwtAuthMiddleware';
 import { ModelProviderMap, ModelRepository } from './models/ModelRepository';
 import { postHogClient } from './postHog';
+import PrometheusMetrics from './prometheus';
 import { apiV1Router } from './routers/apiV1Router';
 import {
     oauthAuthorizationServerHandler,
     oauthProtectedResourceHandler,
 } from './routers/oauthRouter';
 import { SchedulerWorker } from './scheduler/SchedulerWorker';
+import { InstanceConfigurationService } from './services/InstanceConfigurationService/InstanceConfigurationService';
 import {
     OperationContext,
     ServiceProviderMap,
@@ -74,14 +80,6 @@ import {
 } from './services/ServiceRepository';
 import { UtilProviderMap, UtilRepository } from './utils/UtilRepository';
 import { VERSION } from './version';
-import PrometheusMetrics from './prometheus';
-import { snowflakePassportStrategy } from './controllers/authentication/strategies/snowflakeStrategy';
-import { databricksPassportStrategy } from './controllers/authentication/strategies/databricksStrategy';
-import { jwtAuthMiddleware } from './middlewares/jwtAuthMiddleware';
-import { InstanceConfigurationService } from './services/InstanceConfigurationService/InstanceConfigurationService';
-import { slackPassportStrategy } from './controllers/authentication/strategies/slackStrategy';
-import { SlackClient } from './clients/Slack/SlackClient';
-import { sessionAccountMiddleware } from './middlewares/accountMiddleware';
 
 // We need to override this interface to have our user typing
 declare global {

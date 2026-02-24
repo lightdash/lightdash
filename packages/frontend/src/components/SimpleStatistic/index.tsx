@@ -21,13 +21,13 @@ import {
 } from 'react';
 import { DEFAULT_ROW_HEIGHT } from '../../features/dashboardTabs/gridUtils';
 import { useContextMenuPermissions } from '../../hooks/useContextMenuPermissions';
-import { useResizeObserver } from '../../hooks/useResizeObserver';
 import { useAccount } from '../../hooks/user/useAccount';
+import { useResizeObserver } from '../../hooks/useResizeObserver';
+import LoadingChart from '../common/LoadingChart';
+import MantineIcon from '../common/MantineIcon';
 import { isBigNumberVisualizationConfig } from '../LightdashVisualization/types';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
 import { EmptyChart } from '../SimpleChart';
-import LoadingChart from '../common/LoadingChart';
-import MantineIcon from '../common/MantineIcon';
 import BigNumberContextMenu from './BigNumberContextMenu';
 import styles from './SimpleStatistic.module.css';
 

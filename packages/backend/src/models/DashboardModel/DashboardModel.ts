@@ -1,4 +1,5 @@
 import {
+    assertUnreachable,
     CreateDashboard,
     CreateDashboardChartTile,
     CreateDashboardHeadingTile,
@@ -16,19 +17,18 @@ import {
     DashboardUnversionedFields,
     DashboardVersionedFields,
     HTML_SANITIZE_MARKDOWN_TILE_RULES,
-    LightdashUser,
-    NotFoundError,
-    SavedChart,
-    SessionUser,
-    UnexpectedServerError,
-    UpdateMultipleDashboards,
-    assertUnreachable,
     isDashboardChartTileType,
     isDashboardHeadingTileType,
     isDashboardLoomTileType,
     isDashboardMarkdownTileType,
     isDashboardSqlChartTile,
+    LightdashUser,
+    NotFoundError,
     sanitizeHtml,
+    SavedChart,
+    SessionUser,
+    UnexpectedServerError,
+    UpdateMultipleDashboards,
     type DashboardBasicDetailsWithTileTypes,
     type DashboardFilters,
     type DashboardParameters,
@@ -36,8 +36,8 @@ import {
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { validate as isValidUuid, v4 as uuidv4 } from 'uuid';
-
 import {
+    DashboardsTableName,
     DashboardTable,
     DashboardTabsTableName,
     DashboardTileChartTable,
@@ -47,10 +47,9 @@ import {
     DashboardTileMarkdownsTableName,
     DashboardTileSqlChartTableName,
     DashboardTilesTableName,
-    DashboardVersionTable,
     DashboardVersionsTableName,
+    DashboardVersionTable,
     DashboardViewsTableName,
-    DashboardsTableName,
 } from '../../database/entities/dashboards';
 import {
     OrganizationTable,
@@ -67,8 +66,8 @@ import {
     ProjectTableName,
 } from '../../database/entities/projects';
 import {
-    SavedChartTable,
     SavedChartsTableName,
+    SavedChartTable,
 } from '../../database/entities/savedCharts';
 import { SavedSqlTableName } from '../../database/entities/savedSql';
 import { SpaceTableName } from '../../database/entities/spaces';
@@ -975,9 +974,11 @@ export class DashboardModel {
             ]);
 
         const tabs = await this.database(DashboardTabsTableName)
-            .select<
-                DashboardTab[]
-            >(`${DashboardTabsTableName}.name`, `${DashboardTabsTableName}.uuid`, `${DashboardTabsTableName}.order`)
+            .select<DashboardTab[]>(
+                `${DashboardTabsTableName}.name`,
+                `${DashboardTabsTableName}.uuid`,
+                `${DashboardTabsTableName}.order`,
+            )
             .where(
                 `${DashboardTabsTableName}.dashboard_version_id`,
                 dashboard.dashboard_version_id,
@@ -1617,9 +1618,14 @@ export class DashboardModel {
                     `${UserTableName}.user_uuid`,
                     `${DashboardVersionsTableName}.updated_by_user_uuid`,
                 )
-                .select<
-                    VersionSummaryRow[]
-                >(`${DashboardsTableName}.dashboard_uuid`, `${DashboardVersionsTableName}.dashboard_version_uuid`, `${DashboardVersionsTableName}.created_at`, `${UserTableName}.user_uuid`, `${UserTableName}.first_name`, `${UserTableName}.last_name`)
+                .select<VersionSummaryRow[]>(
+                    `${DashboardsTableName}.dashboard_uuid`,
+                    `${DashboardVersionsTableName}.dashboard_version_uuid`,
+                    `${DashboardVersionsTableName}.created_at`,
+                    `${UserTableName}.user_uuid`,
+                    `${UserTableName}.first_name`,
+                    `${UserTableName}.last_name`,
+                )
                 .where(`${DashboardsTableName}.dashboard_uuid`, dashboardUuid)
                 .andWhereNot(
                     `${DashboardVersionsTableName}.dashboard_version_uuid`,
@@ -1872,9 +1878,11 @@ export class DashboardModel {
             ]);
 
         const tabs = await this.database(DashboardTabsTableName)
-            .select<
-                DashboardTab[]
-            >(`${DashboardTabsTableName}.name`, `${DashboardTabsTableName}.uuid`, `${DashboardTabsTableName}.order`)
+            .select<DashboardTab[]>(
+                `${DashboardTabsTableName}.name`,
+                `${DashboardTabsTableName}.uuid`,
+                `${DashboardTabsTableName}.order`,
+            )
             .where(
                 `${DashboardTabsTableName}.dashboard_version_id`,
                 dashboard.dashboard_version_id,

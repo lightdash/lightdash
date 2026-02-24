@@ -1,24 +1,4 @@
 import {
-    ChartType,
-    type CartesianChartConfig,
-    type SavedChartDAO,
-} from '../types/savedCharts';
-import {
-    SortByDirection,
-    VizAggregationOptions,
-    VizIndexType,
-} from '../visualizations/types';
-import { derivePivotConfigurationFromChart } from './derivePivotConfigFromChart';
-import {
-    mockCartesianChartConfig,
-    mockItems,
-    mockMetricQuery,
-    mockMetricQueryWithMultipleIndexColumns,
-} from './derivePivotConfigFromChart.mock';
-
-// Jest provides describe/it/expect globals
-
-import {
     BinType,
     CustomDimensionType,
     DimensionType,
@@ -28,6 +8,24 @@ import {
     type TableCalculation,
 } from '../types/field';
 import type { MetricQuery } from '../types/metricQuery';
+import {
+    ChartType,
+    type CartesianChartConfig,
+    type SavedChartDAO,
+} from '../types/savedCharts';
+import {
+    SortByDirection,
+    VizAggregationOptions,
+    VizIndexType,
+} from '../visualizations/types';
+// Jest provides describe/it/expect globals
+import { derivePivotConfigurationFromChart } from './derivePivotConfigFromChart';
+import {
+    mockCartesianChartConfig,
+    mockItems,
+    mockMetricQuery,
+    mockMetricQueryWithMultipleIndexColumns,
+} from './derivePivotConfigFromChart.mock';
 
 describe('derivePivotConfigurationFromChart', () => {
     it('derives pivot configuration for Cartesian charts with pivot config', () => {

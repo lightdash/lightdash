@@ -7,13 +7,13 @@ import {
     toolFindExploresArgsSchemaV3,
     toolFindFieldsArgsSchema,
     toolImproveContextArgsSchema,
-    type ToolName,
     toolProposeChangeArgsSchema,
     toolRunQueryArgsSchema,
     toolSearchFieldValuesArgsSchema,
     toolTableVizArgsSchema,
     toolTimeSeriesArgsSchema,
     toolVerticalBarArgsSchema,
+    type ToolName,
 } from '@lightdash/common';
 import { generateObject } from 'ai';
 import { JSONDiff } from 'autoevals';

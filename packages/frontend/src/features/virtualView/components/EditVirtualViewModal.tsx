@@ -2,8 +2,8 @@ import { type Explore } from '@lightdash/common';
 import { Button, Center, Loader, Modal, Stack, Text } from '@mantine-8/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import {
-    Suspense,
     lazy,
+    Suspense,
     useCallback,
     useState,
     useTransition,

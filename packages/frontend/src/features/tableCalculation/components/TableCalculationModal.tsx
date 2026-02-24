@@ -45,8 +45,8 @@ import {
 } from 'react';
 import { useToggle } from 'react-use';
 import { type ValueOf } from 'type-fest';
-import { FormatForm } from '../../../components/Explorer/FormatForm';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { FormatForm } from '../../../components/Explorer/FormatForm';
 import {
     selectCustomDimensions,
     selectTableCalculations,

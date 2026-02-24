@@ -16,9 +16,9 @@ import {
 import { IconBell, IconSearch, IconSend, IconX } from '@tabler/icons-react';
 import { type UseInfiniteQueryResult } from '@tanstack/react-query';
 import React, { useState, type FC } from 'react';
-import DocumentationHelpButton from '../../../components/DocumentationHelpButton';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
+import DocumentationHelpButton from '../../../components/DocumentationHelpButton';
 import { States } from '../utils';
 import { SchedulerModalCreateOrEdit } from './SchedulerModalCreateOrEdit';
 import SchedulersList from './SchedulersList';

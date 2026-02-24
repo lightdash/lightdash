@@ -1,6 +1,6 @@
 import {
-    DashboardTileTypes,
     assertUnreachable,
+    DashboardTileTypes,
     type DashboardTab,
     type Dashboard as IDashboard,
 } from '@lightdash/common';

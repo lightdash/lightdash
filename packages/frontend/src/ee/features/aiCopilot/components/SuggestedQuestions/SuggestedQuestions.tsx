@@ -1,9 +1,9 @@
 import { SimpleGrid, Stack, Text } from '@mantine-8/core';
 import shuffle from 'lodash/shuffle';
-import { type FC, useMemo } from 'react';
+import { useMemo, type FC } from 'react';
 import { PolymorphicPaperButton } from '../../../../../components/common/PolymorphicPaperButton';
-import classes from './SuggestedQuestions.module.css';
 import { getLeastSimilar } from './getLeastSimilar';
+import classes from './SuggestedQuestions.module.css';
 
 type SuggestedQuestion = {
     question: string;

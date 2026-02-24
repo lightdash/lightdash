@@ -1,6 +1,6 @@
 import { FeatureFlags } from '@lightdash/common';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { type UserWithAbility } from '../../../hooks/user/useUser';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 
 export const useDashboardCommentsCheck = (
     user: UserWithAbility | undefined,

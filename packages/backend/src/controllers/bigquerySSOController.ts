@@ -79,7 +79,9 @@ export class BigquerySSOController extends BaseController {
     async get(@Request() req: express.Request): Promise<ApiSuccessEmpty> {
         this.setStatus(200);
         // This will throw an error if the user is not authenticated with bigquery scopes
-        await this.services.getUserService().getAccessToken(req.user!, 'bigquery');
+        await this.services
+            .getUserService()
+            .getAccessToken(req.user!, 'bigquery');
         return {
             status: 'ok',
             results: undefined,

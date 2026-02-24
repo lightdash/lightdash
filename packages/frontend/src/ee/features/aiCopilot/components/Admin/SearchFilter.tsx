@@ -1,8 +1,8 @@
 import {
     ActionIcon,
     TextInput,
-    type TextInputProps,
     Tooltip,
+    type TextInputProps,
 } from '@mantine-8/core';
 import { IconSearch, IconX } from '@tabler/icons-react';
 import MantineIcon from '../../../../../components/common/MantineIcon';

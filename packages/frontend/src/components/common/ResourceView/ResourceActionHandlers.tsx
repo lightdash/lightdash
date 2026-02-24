@@ -20,15 +20,15 @@ import { useDashboardPinningMutation } from '../../../hooks/pinning/useDashboard
 import { useSpacePinningMutation } from '../../../hooks/pinning/useSpaceMutation';
 import { useContentAction } from '../../../hooks/useContent';
 import AddTilesToDashboardModal from '../../SavedDashboards/AddTilesToDashboardModal';
-import SpaceActionModal from '../SpaceActionModal';
-import { ActionType } from '../SpaceActionModal/types';
-import TransferItemsModal from '../TransferItemsModal/TransferItemsModal';
 import ChartDeleteModal from '../modal/ChartDeleteModal';
 import ChartDuplicateModal from '../modal/ChartDuplicateModal';
 import ChartUpdateModal from '../modal/ChartUpdateModal';
 import DashboardDeleteModal from '../modal/DashboardDeleteModal';
 import DashboardDuplicateModal from '../modal/DashboardDuplicateModal';
 import DashboardUpdateModal from '../modal/DashboardUpdateModal';
+import SpaceActionModal from '../SpaceActionModal';
+import { ActionType } from '../SpaceActionModal/types';
+import TransferItemsModal from '../TransferItemsModal/TransferItemsModal';
 import {
     ResourceViewItemAction,
     type ResourceViewItemActionState,

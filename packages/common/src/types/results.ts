@@ -2,9 +2,9 @@ import assertUnreachable from '../utils/assertUnreachable';
 import { getItemType } from '../utils/item';
 import {
     DimensionType,
-    type Item,
     MetricType,
     TableCalculationType,
+    type Item,
 } from './field';
 
 export type ResultValue = {

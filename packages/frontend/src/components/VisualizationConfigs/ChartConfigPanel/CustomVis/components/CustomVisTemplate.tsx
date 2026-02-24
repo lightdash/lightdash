@@ -1,7 +1,7 @@
 import {
-    type ItemsMap,
     sortedItemsForXAxis,
     sortedItemsForYAxis,
+    type ItemsMap,
 } from '@lightdash/common';
 import { Menu } from '@mantine-8/core';
 import { Button } from '@mantine/core';

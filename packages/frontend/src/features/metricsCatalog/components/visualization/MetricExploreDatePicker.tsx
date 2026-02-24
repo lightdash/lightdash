@@ -1,6 +1,6 @@
 import {
-    TimeFrames,
     formatDate,
+    TimeFrames,
     type MetricExplorerDateRange,
     type TimeDimensionConfig,
 } from '@lightdash/common';

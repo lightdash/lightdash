@@ -23,7 +23,7 @@ export interface AccessWarningParams {
     userGroupAccesses?: UserGroupAccess[] | null;
 }
 
-/* 
+/*
   The accessWarning shows alerts when role conflicts or inheritance may cause permission issues:
 
   1. No Warning: If user has no organization role OR no project role → return

@@ -21,22 +21,21 @@ type Scheduler = {
     name: string;
 };
 
-interface LogsTopToolbarProps
-    extends Pick<
-        ReturnType<typeof useLogsFilters>,
-        | 'search'
-        | 'setSearch'
-        | 'selectedStatuses'
-        | 'setSelectedStatuses'
-        | 'selectedCreatedByUserUuids'
-        | 'setSelectedCreatedByUserUuids'
-        | 'selectedDestinations'
-        | 'setSelectedDestinations'
-        | 'selectedSchedulerUuid'
-        | 'setSelectedSchedulerUuid'
-        | 'hasActiveFilters'
-        | 'resetFilters'
-    > {
+interface LogsTopToolbarProps extends Pick<
+    ReturnType<typeof useLogsFilters>,
+    | 'search'
+    | 'setSearch'
+    | 'selectedStatuses'
+    | 'setSelectedStatuses'
+    | 'selectedCreatedByUserUuids'
+    | 'setSelectedCreatedByUserUuids'
+    | 'selectedDestinations'
+    | 'setSelectedDestinations'
+    | 'selectedSchedulerUuid'
+    | 'setSelectedSchedulerUuid'
+    | 'hasActiveFilters'
+    | 'resetFilters'
+> {
     isFetching: boolean;
     currentResultsCount: number;
     availableSchedulers: Scheduler[];

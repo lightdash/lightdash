@@ -106,16 +106,21 @@ import {
     useInfiniteQueryResults,
     type InfiniteQueryResults,
 } from '../../hooks/useQueryResults';
+import { useAccount } from '../../hooks/user/useAccount';
 import { useDuplicateChartMutation } from '../../hooks/useSavedQuery';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import { useCreateShareMutation } from '../../hooks/useShare';
-import { useAccount } from '../../hooks/user/useAccount';
 import { Can } from '../../providers/Ability';
 import { useAbilityContext } from '../../providers/Ability/useAbilityContext';
 import useApp from '../../providers/App/useApp';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
+import { CHART_TYPES_WITHOUT_IMAGE_EXPORT } from '../common/ChartDownload/chartDownloadUtils';
+import { getConditionalRuleLabelFromItem } from '../common/Filters/FilterInputs/utils';
+import MantineIcon from '../common/MantineIcon';
+import MoveChartThatBelongsToDashboardModal from '../common/modal/MoveChartThatBelongsToDashboardModal';
+import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import LightdashVisualization from '../LightdashVisualization';
 import VisualizationProvider from '../LightdashVisualization/VisualizationProvider';
 import DrillDownMenuItem from '../MetricQueryData/DrillDownMenuItem';
@@ -125,11 +130,6 @@ import UnderlyingDataModal from '../MetricQueryData/UnderlyingDataModal';
 import { useMetricQueryDataContext } from '../MetricQueryData/useMetricQueryDataContext';
 import { getDataFromChartClick } from '../MetricQueryData/utils';
 import { type EchartsSeriesClickEvent } from '../SimpleChart';
-import { CHART_TYPES_WITHOUT_IMAGE_EXPORT } from '../common/ChartDownload/chartDownloadUtils';
-import { getConditionalRuleLabelFromItem } from '../common/Filters/FilterInputs/utils';
-import MantineIcon from '../common/MantineIcon';
-import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
-import MoveChartThatBelongsToDashboardModal from '../common/modal/MoveChartThatBelongsToDashboardModal';
 import { DashboardExportImage } from './DashboardExportImage';
 import EditChartMenuItem from './EditChartMenuItem';
 import ExportDataModal from './ExportDataModal';

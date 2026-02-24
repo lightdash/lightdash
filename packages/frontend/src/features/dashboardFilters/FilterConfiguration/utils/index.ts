@@ -1,6 +1,6 @@
 import {
-    FilterOperator,
     assertUnreachable,
+    FilterOperator,
     getItemId,
     isDashboardFieldTarget,
     type DashboardFieldTarget,

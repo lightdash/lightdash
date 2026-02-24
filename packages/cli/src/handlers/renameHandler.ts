@@ -11,10 +11,9 @@ import inquirer from 'inquirer';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { categorizeError, LightdashAnalytics } from '../analytics/analytics';
-import * as styles from '../styles';
-
 import { getConfig } from '../config';
 import GlobalState from '../globalState';
+import * as styles from '../styles';
 import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
 import { getProject } from './dbt/refresh';
 import {

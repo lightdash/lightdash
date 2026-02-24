@@ -1,6 +1,6 @@
 import {
-    SearchItemType,
     assertUnreachable,
+    SearchItemType,
     type OrganizationMemberProfile,
     type SearchFilters,
 } from '@lightdash/common';

@@ -321,9 +321,9 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
                     filter={(searchString, selected, item) => {
                         return Boolean(
                             selected ||
-                                item.label
-                                    ?.toLowerCase()
-                                    .includes(searchString.toLowerCase()),
+                            item.label
+                                ?.toLowerCase()
+                                .includes(searchString.toLowerCase()),
                         );
                     }}
                     {...form.getInputProps('savedChartsUuids')}

@@ -4,7 +4,6 @@ import {
 } from '@mantine-8/core';
 import { useMantineColorScheme } from '@mantine/core';
 import { useMemo, type FC } from 'react';
-
 import { getMantine8ThemeOverride } from '../mantine8Theme';
 
 type Props = {

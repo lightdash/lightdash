@@ -23,10 +23,10 @@ import {
 } from '../../hooks/useMetricsTree';
 import { CanvasTimeFramePicker } from '../visualization/CanvasTimeFramePicker';
 import styles from './Canvas.module.css';
+import { type CanvasMetric } from './canvasLayoutUtils';
 import MetricsSidebar from './MetricsSidebar';
 import DefaultEdge from './TreeComponents/edges/DefaultEdge';
 import ExpandedNode from './TreeComponents/nodes/ExpandedNode';
-import { type CanvasMetric } from './canvasLayoutUtils';
 import { useCanvasFlow } from './useCanvasFlow';
 
 const edgeTypes: EdgeTypes = { yaml: DefaultEdge, ui: DefaultEdge };

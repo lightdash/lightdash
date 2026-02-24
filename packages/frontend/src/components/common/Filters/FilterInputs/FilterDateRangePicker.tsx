@@ -4,11 +4,10 @@ import dayjs from 'dayjs';
 import { useState, type FC } from 'react';
 import FilterDatePicker from './FilterDatePicker';
 
-interface Props
-    extends Omit<
-        DateInputProps,
-        'firstDayOfWeek' | 'getDayProps' | 'value' | 'onChange'
-    > {
+interface Props extends Omit<
+    DateInputProps,
+    'firstDayOfWeek' | 'getDayProps' | 'value' | 'onChange'
+> {
     value: [Date, Date] | null;
     onChange: (value: [Date, Date] | null) => void;
     firstDayOfWeek: DayOfWeek;

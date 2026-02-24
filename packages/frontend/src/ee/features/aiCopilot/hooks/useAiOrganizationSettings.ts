@@ -6,9 +6,9 @@ import {
 } from '@lightdash/common';
 import {
     useMutation,
-    type UseMutationOptions,
     useQuery,
     useQueryClient,
+    type UseMutationOptions,
     type UseQueryOptions,
 } from '@tanstack/react-query';
 import { lightdashApi } from '../../../../api';

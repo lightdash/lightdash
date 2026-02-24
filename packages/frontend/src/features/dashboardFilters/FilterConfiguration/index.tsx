@@ -38,11 +38,11 @@ import FieldIcon from '../../../components/common/Filters/FieldIcon';
 import FieldLabel from '../../../components/common/Filters/FieldLabel';
 import MantineIcon from '../../../components/common/MantineIcon';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
+import { DEFAULT_TAB, FilterActions, FilterTabs } from './constants';
 import FilterCoverageSummary from './FilterCoverageSummary';
 import FilterFieldSelect from './FilterFieldSelect';
 import FilterSettings from './FilterSettings';
 import TileFilterConfiguration from './TileFilterConfiguration';
-import { DEFAULT_TAB, FilterActions, FilterTabs } from './constants';
 import {
     getFilterRuleRevertableObject,
     hasFilterValueSet,

@@ -2,7 +2,6 @@ import {
     type TableCalcsSchema,
     type ToolRunQueryArgsTransformed,
 } from '@lightdash/common';
-
 import { mockOrdersExplore } from './validationExplore.mock';
 import { validateAxisFields } from './validators';
 

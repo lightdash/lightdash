@@ -1,7 +1,7 @@
 import {
     formatItemValue,
-    type GaugeSection,
     getItemLabelWithoutTableName,
+    type GaugeSection,
 } from '@lightdash/common';
 import { useMantineTheme } from '@mantine/core';
 import { type EChartsOption, type GaugeSeriesOption } from 'echarts';

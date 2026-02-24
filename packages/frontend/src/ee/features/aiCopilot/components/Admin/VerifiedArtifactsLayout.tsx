@@ -1,7 +1,7 @@
 import { type AiAgentVerifiedArtifact } from '@lightdash/common';
 import { Box, Stack, Text, useMantineTheme } from '@mantine-8/core';
 import { IconGripVertical } from '@tabler/icons-react';
-import { type FC, useEffect } from 'react';
+import { useEffect, type FC } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { useParams } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';

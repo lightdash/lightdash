@@ -11,8 +11,8 @@ import {
     IconFilter,
 } from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
-import PinnedParameters from '../../components/PinnedParameters';
 import MantineIcon from '../../components/common/MantineIcon';
+import PinnedParameters from '../../components/PinnedParameters';
 import { DateZoom } from '../dateZoom';
 import { Parameters } from '../parameters';
 import FilterGroupSeparator from './FilterGroupSeparator';

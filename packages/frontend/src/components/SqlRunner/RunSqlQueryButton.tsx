@@ -3,8 +3,8 @@ import { useOs } from '@mantine-8/hooks';
 import { IconPlayerPlay } from '@tabler/icons-react';
 import { type FC } from 'react';
 import useHealth from '../../hooks/health/useHealth';
-import RunQuerySettings from '../RunQuerySettings';
 import MantineIcon from '../common/MantineIcon';
+import RunQuerySettings from '../RunQuerySettings';
 
 const RunSqlQueryButton: FC<{
     isLoading: boolean;

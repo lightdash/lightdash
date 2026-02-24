@@ -12,8 +12,8 @@ import {
     columnHelper,
     type TableColumn,
 } from '../components/common/Table/types';
-import useColumnTotals from './useColumnTotals';
 import { getFormattedValueCell } from './useColumns';
+import useColumnTotals from './useColumnTotals';
 
 type Args = {
     resultsData: ApiQueryResults | undefined;

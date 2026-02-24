@@ -2,9 +2,9 @@ import { type AiVizMetadata } from '..';
 import { type ItemsMap } from '../../../../../types/field';
 import { type MetricQuery } from '../../../../../types/metricQuery';
 import {
-    type CartesianChartConfig,
     CartesianSeriesType,
     ChartType,
+    type CartesianChartConfig,
 } from '../../../../../types/savedCharts';
 import { type VerticalBarMetricVizConfigSchemaType } from '../../../schemas';
 import { formatFieldLabel } from '../../shared/formatFieldLabel';

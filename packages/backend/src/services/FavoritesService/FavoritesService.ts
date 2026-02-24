@@ -2,9 +2,9 @@ import { subject } from '@casl/ability';
 import {
     assertUnreachable,
     ContentType,
-    type FavoriteItems,
     ForbiddenError,
     ResourceViewItemType,
+    type FavoriteItems,
     type ResourceViewSpaceItem,
     type SessionUser,
     type ToggleFavoriteResponse,

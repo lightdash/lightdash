@@ -38,13 +38,7 @@ export const EmptyState: FC<React.PropsWithChildren<EmptyStateProps>> = ({
         ) : null}
 
         {description ? (
-            <Text
-                span
-                ta="center"
-                c="dimmed"
-                maw={maw}
-                {...descriptionProps}
-            >
+            <Text span ta="center" c="dimmed" maw={maw} {...descriptionProps}>
                 {description}
             </Text>
         ) : null}

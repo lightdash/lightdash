@@ -146,8 +146,9 @@ describe('FileDownloadUtils', () => {
         );
 
         it('handles ASCII fallback scenarios', () => {
-            const result1 =
-                createContentDispositionHeader('美しいチャート Report.csv');
+            const result1 = createContentDispositionHeader(
+                '美しいチャート Report.csv',
+            );
             expect(result1).toContain('filename="Report.csv"'); // Japanese removed, space normalized
             expect(result1).toContain(
                 "filename*=UTF-8''%E7%BE%8E%E3%81%97%E3%81%84%E3%83%81%E3%83%A3%E3%83%BC%E3%83%88%20Report.csv",

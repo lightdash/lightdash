@@ -1,6 +1,5 @@
 // eslint-disable @typescript-eslint/dot-notation
 import { AnyType } from '@lightdash/common';
-
 import OAuth2Server from '@node-oauth/oauth2-server';
 import { LightdashConfig } from '../../config/parseConfig';
 import { OAuth2Model } from '../../models/OAuth2Model';

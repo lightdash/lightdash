@@ -1,8 +1,8 @@
 import {
-    NotImplementedError,
-    TableCalculationTemplateType,
     assertUnreachable,
     getItemId,
+    NotImplementedError,
+    TableCalculationTemplateType,
     type Field,
     type SortField,
     type TableCalculationTemplate,

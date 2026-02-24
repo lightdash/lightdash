@@ -1,5 +1,4 @@
 import { type AbilityBuilder } from '@casl/ability';
-
 import { ServiceAccountScope } from '../ee/serviceAccounts/types';
 import { ProjectType } from '../types/projects';
 import { type MemberAbility } from './types';

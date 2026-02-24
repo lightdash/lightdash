@@ -10,14 +10,13 @@ import {
     Tooltip,
 } from '@mantine-8/core';
 import { IconCheck, IconCopy, IconDownload } from '@tabler/icons-react';
+import { type PieSeriesOption } from 'echarts';
 import React, { useCallback, useState } from 'react';
+import { copyImageToClipboard } from '../../../utils/copyImageToClipboard';
 import {
     type EChartsInstance,
     type EChartsOption,
 } from '../../EChartsReactWrapper';
-
-import { type PieSeriesOption } from 'echarts';
-import { copyImageToClipboard } from '../../../utils/copyImageToClipboard';
 import MantineIcon from '../MantineIcon';
 import {
     base64SvgToBase64Image,

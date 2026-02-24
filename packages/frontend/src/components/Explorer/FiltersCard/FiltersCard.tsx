@@ -1,6 +1,6 @@
 import {
-    FilterOperator,
     countTotalFilterRules,
+    FilterOperator,
     getItemId,
     getTotalFilterRules,
     getVisibleFields,

@@ -4,8 +4,6 @@ import {
     type PromotionChanges,
 } from '@lightdash/common';
 import { Accordion, Button, Flex, Loader, Stack, Text } from '@mantine-8/core';
-import { useMemo, type FC } from 'react';
-
 import {
     IconChartAreaLine,
     IconDatabase,
@@ -13,6 +11,7 @@ import {
     IconLayoutDashboard,
     IconRocket,
 } from '@tabler/icons-react';
+import { useMemo, type FC } from 'react';
 import Callout from '../../../components/common/Callout';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal, {

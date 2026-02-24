@@ -45,7 +45,11 @@ export class UserAttributesModel {
                         'name' | 'attribute_default' | 'user_attribute_uuid'
                     >
                 >
-            >(`${UserAttributesTable}.user_attribute_uuid`, `${UserAttributesTable}.name`, `${UserAttributesTable}.attribute_default`)
+            >(
+                `${UserAttributesTable}.user_attribute_uuid`,
+                `${UserAttributesTable}.name`,
+                `${UserAttributesTable}.attribute_default`,
+            )
             .where(
                 `${OrganizationTableName}.organization_uuid`,
                 filters.organizationUuid,

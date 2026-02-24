@@ -8,10 +8,10 @@ import useEchartsPieConfig, {
 } from '../../hooks/echarts/useEchartsPieConfig';
 import { useLegendDoubleClickSelection } from '../../hooks/echarts/useLegendDoubleClickSelection';
 import { useContextMenuPermissions } from '../../hooks/useContextMenuPermissions';
-import EChartsReact from '../EChartsReactWrapper';
-import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
 import LoadingChart from '../common/LoadingChart';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
+import EChartsReact from '../EChartsReactWrapper';
+import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
 import PieChartContextMenu, {
     type PieChartContextMenuProps,
 } from './PieChartContextMenu';

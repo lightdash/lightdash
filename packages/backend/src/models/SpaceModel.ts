@@ -11,13 +11,12 @@ import {
     SpaceGroup,
     SpaceMemberRole,
     SpaceQuery,
-    type SpaceSummaryBase,
     UpdateSpace,
+    type SpaceSummaryBase,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { Knex } from 'knex';
 import NodeCache from 'node-cache';
-
 import {
     DashboardsTableName,
     DashboardVersionsTableName,
@@ -874,9 +873,11 @@ export class SpaceModel {
                 space.path,
                 space.path,
             ])
-            .select<
-                DbSpace[]
-            >(`${SpaceTableName}.name`, `${SpaceTableName}.space_uuid`, this.database.raw('nlevel(path) as level'))
+            .select<DbSpace[]>(
+                `${SpaceTableName}.name`,
+                `${SpaceTableName}.space_uuid`,
+                this.database.raw('nlevel(path) as level'),
+            )
             .orderBy('level', 'asc');
 
         const breadcrumbs = ancestorsNamesOrderByLevel

@@ -1,9 +1,9 @@
 import { NotFoundError } from '@lightdash/common';
 import { nanoid } from 'nanoid';
+import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
 import { LightdashConfig } from '../../config/parseConfig';
 import { PersistentDownloadFileModel } from '../../models/PersistentDownloadFileModel';
-import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { BaseService } from '../BaseService';
 
 export type PersistentDownloadFileSource =
@@ -86,13 +86,13 @@ export class PersistentDownloadFileService extends BaseService {
         });
         try {
             await this.persistentDownloadFileModel.create({
-            nanoid: fileNanoid,
-            s3Key: data.s3Key,
-            fileType: data.fileType,
-            organizationUuid: data.organizationUuid,
-            projectUuid: data.projectUuid,
-            createdByUserUuid: data.createdByUserUuid,
-            expiresAt,
+                nanoid: fileNanoid,
+                s3Key: data.s3Key,
+                fileType: data.fileType,
+                organizationUuid: data.organizationUuid,
+                projectUuid: data.projectUuid,
+                createdByUserUuid: data.createdByUserUuid,
+                expiresAt,
             });
             this.analytics?.track({
                 event: 'persistent_file.generation_completed',
@@ -120,9 +120,7 @@ export class PersistentDownloadFileService extends BaseService {
                     fileType: data.fileType,
                     source,
                     errorName:
-                        error instanceof Error
-                            ? error.name
-                            : 'UnknownError',
+                        error instanceof Error ? error.name : 'UnknownError',
                     errorMessage:
                         error instanceof Error
                             ? `${error.message}`

@@ -1,4 +1,9 @@
 import {
+    assertUnreachable,
+    ResourceViewItemType,
+    type ResourceViewItem,
+} from '@lightdash/common';
+import {
     Box,
     Button,
     Center,
@@ -18,13 +23,8 @@ import {
     IconFolders,
     IconLayoutDashboard,
 } from '@tabler/icons-react';
-import { type FC, useState } from 'react';
+import { useState, type FC } from 'react';
 import { Link } from 'react-router';
-import {
-    ResourceViewItemType,
-    assertUnreachable,
-    type ResourceViewItem,
-} from '@lightdash/common';
 import { useHasMetricsInCatalog } from '../../features/metricsCatalog/hooks/useMetricsCatalog';
 import { useFavorites } from '../../hooks/favorites/useFavorites';
 import { useSpaceSummaries } from '../../hooks/useSpaces';
@@ -186,9 +186,7 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                             py={6}
                             gap="xs"
                             justify="space-between"
-                            onClick={() =>
-                                setSpacesExpanded((prev) => !prev)
-                            }
+                            onClick={() => setSpacesExpanded((prev) => !prev)}
                         >
                             <Text fz="xs" fw={500} c="dimmed">
                                 Spaces
@@ -232,7 +230,9 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                                                         />
                                                     }
                                                 >
-                                                    <TruncatedText maxWidth={200}>
+                                                    <TruncatedText
+                                                        maxWidth={200}
+                                                    >
                                                         {space.name}
                                                     </TruncatedText>
                                                 </Menu.Item>

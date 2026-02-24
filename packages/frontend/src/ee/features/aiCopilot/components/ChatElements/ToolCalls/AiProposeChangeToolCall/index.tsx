@@ -5,9 +5,9 @@ import type {
 import {
     Badge,
     Button,
-    type DefaultMantineColor,
     Group,
     Stack,
+    type DefaultMantineColor,
 } from '@mantine-8/core';
 import { IconExternalLink, IconGitBranch, IconX } from '@tabler/icons-react';
 import MantineIcon from '../../../../../../../components/common/MantineIcon';
@@ -16,8 +16,10 @@ import { useRevertChangeMutation } from '../../../../hooks/useProjectAiAgents';
 import { ToolCallPaper } from '../ToolCallPaper';
 import { ChangeRenderer } from './ChangeRenderer';
 
-interface Props
-    extends Pick<ToolProposeChangeArgs, 'change' | 'entityTableName'> {
+interface Props extends Pick<
+    ToolProposeChangeArgs,
+    'change' | 'entityTableName'
+> {
     defaultOpened?: boolean;
     projectUuid: string;
     agentUuid: string;

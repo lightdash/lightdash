@@ -1,18 +1,17 @@
+import { subject } from '@casl/ability';
+import { Stack } from '@mantine-8/core';
 import { type FC } from 'react';
 import { useParams } from 'react-router';
 import { useUnmount } from 'react-use';
+import ErrorState from '../components/common/ErrorState';
+import Page from '../components/common/Page/Page';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import LandingPanel from '../components/Home/LandingPanel';
 import { MostPopularAndRecentlyUpdatedPanel } from '../components/Home/MostPopularAndRecentlyUpdatedPanel';
 import OnboardingPanel from '../components/Home/OnboardingPanel/index';
 import PageSpinner from '../components/PageSpinner';
 import PinnedAndFavoritesSection from '../components/PinnedAndFavoritesSection';
-import ErrorState from '../components/common/ErrorState';
-import Page from '../components/common/Page/Page';
 import AiSearchBox from '../ee/components/Home/AiSearchBox';
-
-import { subject } from '@casl/ability';
-import { Stack } from '@mantine-8/core';
 import { useAiAgentButtonVisibility } from '../ee/features/aiCopilot/hooks/useAiAgentsButtonVisibility';
 import { useFavorites } from '../hooks/favorites/useFavorites';
 import { usePinnedItems } from '../hooks/pinning/usePinnedItems';
@@ -79,9 +78,7 @@ const Home: FC = () => {
                         userName={user.data?.firstName}
                     />
                 ) : (
-                    <FavoritesProvider
-                        projectUuid={project.data.projectUuid}
-                    >
+                    <FavoritesProvider projectUuid={project.data.projectUuid}>
                         <LandingPanel
                             userName={user.data?.firstName}
                             projectUuid={project.data.projectUuid}
@@ -94,19 +91,17 @@ const Home: FC = () => {
                         <PinnedItemsProvider
                             organizationUuid={project.data.organizationUuid}
                             projectUuid={project.data.projectUuid}
-                            pinnedListUuid={
-                                project.data.pinnedListUuid || ''
-                            }
+                            pinnedListUuid={project.data.pinnedListUuid || ''}
                             allowDelete={false}
                         >
                             <PinnedAndFavoritesSection
                                 pinnedItems={pinnedItems.data ?? []}
                                 favoriteItems={favorites.data ?? []}
                                 pinnedIsEnabled={Boolean(
+                                    mostPopularAndRecentlyUpdated?.mostPopular
+                                        .length ||
                                     mostPopularAndRecentlyUpdated
-                                        ?.mostPopular.length ||
-                                        mostPopularAndRecentlyUpdated
-                                            ?.recentlyUpdated.length,
+                                        ?.recentlyUpdated.length,
                                 )}
                             />
                         </PinnedItemsProvider>

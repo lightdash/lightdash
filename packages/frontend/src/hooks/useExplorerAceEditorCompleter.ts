@@ -1,21 +1,21 @@
-// organize-imports-ignore
-import { type Ace } from 'ace-builds';
-import 'react-ace'; // Note: we need this import before the langTools import
-import langTools from 'ace-builds/src-noconflict/ext-language_tools';
 import {
     convertAdditionalMetric,
-    type Field,
     getDimensions,
     getFieldRef,
     getItemId,
+    type Field,
     type Metric,
 } from '@lightdash/common';
+import 'react-ace'; // Note: we need this import before the langTools import
+// organize-imports-ignore
+import { type Ace } from 'ace-builds';
+import langTools from 'ace-builds/src-noconflict/ext-language_tools';
 import {
-    type Dispatch,
-    type SetStateAction,
     useEffect,
     useMemo,
     useState,
+    type Dispatch,
+    type SetStateAction,
 } from 'react';
 import {
     selectActiveFields,

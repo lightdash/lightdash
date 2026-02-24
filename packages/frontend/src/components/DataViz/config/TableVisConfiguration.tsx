@@ -6,8 +6,8 @@ import {
     useAppDispatch as useVizDispatch,
     useAppSelector as useVizSelector,
 } from '../../../features/sqlRunner/store/hooks';
-import { Config } from '../../VisualizationConfigs/common/Config';
 import MantineIcon from '../../common/MantineIcon';
+import { Config } from '../../VisualizationConfigs/common/Config';
 import { TableFieldIcon } from '../Icons';
 import {
     updateColumnVisibility,
