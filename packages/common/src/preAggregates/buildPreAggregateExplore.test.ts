@@ -209,14 +209,14 @@ describe('buildPreAggregateExplore', () => {
         expect(result.tables.orders.metrics.custom_sql).toBeUndefined();
     });
 
-    it('maps joined dimensions to flattened ldj columns', () => {
+    it('maps joined dimensions to materialized field-id columns', () => {
         const result = buildPreAggregateExplore(
             sourceExplore(),
             sourceExplore().preAggregates![0],
         );
 
         expect(result.tables.customers.dimensions.first_name.compiledSql).toBe(
-            'orders.ldj__customers__first_name',
+            'orders.customers_first_name',
         );
     });
 
@@ -227,12 +227,28 @@ describe('buildPreAggregateExplore', () => {
         );
 
         expect(result.tables.orders.dimensions.order_date_day.compiledSql).toBe(
-            'orders.order_date_day',
+            'CAST(orders.orders_order_date_day AS TIMESTAMP)',
         );
         expect(
             result.tables.orders.dimensions.order_date_month.compiledSql,
-        ).toContain('orders.order_date_day');
+        ).toContain('CAST(orders.orders_order_date_day AS TIMESTAMP)');
         expect(result.tables.orders.dimensions.order_date_hour).toBeUndefined();
+    });
+
+    it('uses DuckDB-compatible date truncation SQL regardless of source warehouse adapter', () => {
+        const result = buildPreAggregateExplore(
+            {
+                ...sourceExplore(),
+                targetDatabase: SupportedDbtAdapter.BIGQUERY, // doesn't matter what's the warehouse type
+            },
+            sourceExplore().preAggregates![0],
+        );
+
+        expect(
+            result.tables.orders.dimensions.order_date_month.compiledSql,
+        ).toContain(
+            "DATE_TRUNC('MONTH', CAST(orders.orders_order_date_day AS TIMESTAMP))",
+        );
     });
 
     it('throws when pre-aggregate references unknown fields', () => {
@@ -256,7 +272,7 @@ describe('buildPreAggregateExplore', () => {
 
         expect(result.tables.orders.dimensions.order_date_day).toBeDefined();
         expect(result.tables.orders.dimensions.order_date_day.compiledSql).toBe(
-            'orders.order_date_day',
+            'CAST(orders.orders_order_date_day AS TIMESTAMP)',
         );
         expect(result.tables.orders.dimensions.status).toBeDefined();
     });

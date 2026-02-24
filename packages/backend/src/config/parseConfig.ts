@@ -1316,11 +1316,13 @@ export const parseConfig = (): LightdashConfig => {
         copilotConfig = copilotConfigParse.data;
     }
 
+    const licenseKey = process.env.LIGHTDASH_LICENSE_KEY || null;
+
     return {
         mode,
         cookieSameSite: iframeEmbeddingEnabled ? 'none' : 'lax',
         license: {
-            licenseKey: process.env.LIGHTDASH_LICENSE_KEY || null,
+            licenseKey,
         },
         security: {
             contentSecurityPolicy: {
@@ -1915,8 +1917,12 @@ export const parseConfig = (): LightdashConfig => {
                 ) ?? 30,
         },
         preAggregates: {
-            enabled: process.env.PRE_AGGREGATES_ENABLED === 'true',
-            debug: process.env.DEBUG_PRE_AGGREGATES === 'true',
+            enabled:
+                licenseKey !== null &&
+                process.env.PRE_AGGREGATES_ENABLED === 'true',
+            debug:
+                licenseKey !== null &&
+                process.env.DEBUG_PRE_AGGREGATES === 'true',
         },
     };
 };
