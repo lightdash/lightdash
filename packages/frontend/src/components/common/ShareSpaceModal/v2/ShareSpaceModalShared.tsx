@@ -1,4 +1,5 @@
 import {
+    OrganizationMemberRole,
     ProjectMemberRole,
     SpaceMemberRole,
     type LightdashUser,
@@ -17,6 +18,7 @@ import {
     Text,
     Tooltip,
 } from '@mantine-8/core';
+import { useDisclosure } from '@mantine-8/hooks';
 import {
     IconAlertCircle,
     IconLock,
@@ -26,7 +28,10 @@ import {
 import chunk from 'lodash/chunk';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { useUpdateMutation } from '../../../../hooks/useSpaces';
+import useApp from '../../../../providers/App/useApp';
+import Callout from '../../Callout';
 import MantineIcon from '../../MantineIcon';
+import MantineModal from '../../MantineModal';
 import PaginateControl from '../../PaginateControl';
 import { DEFAULT_PAGE_SIZE } from '../../Table/constants';
 import { UserAccessAction, UserAccessOptions } from '../ShareSpaceSelect';
@@ -361,10 +366,22 @@ export const AccessModelToggle: FC<AccessModelToggleProps> = ({
     projectUuid,
     isNestedSpace,
 }) => {
-    const { mutate: spaceMutation } = useUpdateMutation(
+    const { user: sessionUser } = useApp();
+    const { mutate: spaceMutation, isLoading: isMutating } = useUpdateMutation(
         projectUuid,
         space.uuid,
     );
+    const [confirmOpened, { open: openConfirm, close: closeConfirm }] =
+        useDisclosure(false);
+
+    const showLockoutWarning = useMemo(() => {
+        const userAccess = space.access.find(
+            (a) => a.userUuid === sessionUser.data?.userUuid,
+        );
+        const hasDirectAccess = userAccess?.hasDirectAccess ?? false;
+        const isAdmin = sessionUser.data?.role === OrganizationMemberRole.ADMIN;
+        return !hasDirectAccess && !isAdmin;
+    }, [space.access, sessionUser.data?.userUuid, sessionUser.data?.role]);
 
     const options = isNestedSpace
         ? NestedInheritanceOptions
@@ -378,69 +395,107 @@ export const AccessModelToggle: FC<AccessModelToggleProps> = ({
         options.find((o) => o.value === currentValue) ?? options[0];
 
     return (
-        <Paper
-            withBorder
-            p="md"
-            radius="md"
-            className={classes.accessModelCard}
-        >
-            <Group justify="space-between" wrap="nowrap">
-                <Group gap="sm" wrap="nowrap">
-                    <Avatar
-                        radius="xl"
-                        color={
-                            currentValue === InheritanceType.INHERIT
-                                ? 'green'
-                                : 'orange'
-                        }
-                    >
-                        <MantineIcon
-                            icon={
+        <>
+            <Paper
+                withBorder
+                p="md"
+                radius="md"
+                className={classes.accessModelCard}
+            >
+                <Group justify="space-between" wrap="nowrap">
+                    <Group gap="sm" wrap="nowrap">
+                        <Avatar
+                            radius="xl"
+                            color={
                                 currentValue === InheritanceType.INHERIT
-                                    ? IconUsersGroup
-                                    : IconLock
+                                    ? 'green'
+                                    : 'orange'
                             }
-                        />
-                    </Avatar>
-                    <Stack gap={2}>
-                        <Text fw={600} fz="sm">
-                            {currentOption.title}
-                        </Text>
-                        <Text c="ldGray.6" fz="xs">
-                            {currentOption.description}
-                        </Text>
-                    </Stack>
+                        >
+                            <MantineIcon
+                                icon={
+                                    currentValue === InheritanceType.INHERIT
+                                        ? IconUsersGroup
+                                        : IconLock
+                                }
+                            />
+                        </Avatar>
+                        <Stack gap={2}>
+                            <Text fw={600} fz="sm">
+                                {currentOption.title}
+                            </Text>
+                            <Text c="ldGray.6" fz="xs">
+                                {currentOption.description}
+                            </Text>
+                        </Stack>
+                    </Group>
+
+                    <SegmentedControl
+                        size="xs"
+                        radius="md"
+                        value={currentValue}
+                        classNames={{
+                            root: classes.segmentedControl,
+                        }}
+                        onChange={(value) => {
+                            const option = options.find(
+                                (o) => o.value === value,
+                            );
+                            const inheritParentPermissions =
+                                option?.value === InheritanceType.INHERIT;
+
+                            if (
+                                option &&
+                                inheritParentPermissions !==
+                                    space.inheritParentPermissions
+                            ) {
+                                if (!inheritParentPermissions) {
+                                    openConfirm();
+                                } else {
+                                    spaceMutation({
+                                        name: space.name,
+                                        inheritParentPermissions,
+                                    });
+                                }
+                            }
+                        }}
+                        data={options.map((o) => ({
+                            value: o.value,
+                            label: o.title,
+                        }))}
+                    />
                 </Group>
+            </Paper>
 
-                <SegmentedControl
-                    size="xs"
-                    radius="md"
-                    value={currentValue}
-                    classNames={{
-                        root: classes.segmentedControl,
-                    }}
-                    onChange={(value) => {
-                        const option = options.find((o) => o.value === value);
-                        const inheritParentPermissions =
-                            option?.value === InheritanceType.INHERIT;
-
-                        if (
-                            option &&
-                            inheritParentPermissions !==
-                                space.inheritParentPermissions
-                        ) {
-                            spaceMutation({
-                                name: space.name,
-                                inheritParentPermissions,
-                            });
-                        }
-                    }}
-                    data={options.map((o) => ({
-                        value: o.value,
-                        label: o.title,
-                    }))}
-                />
-            </Group>
-        </Paper>
+            <MantineModal
+                opened={confirmOpened}
+                onClose={closeConfirm}
+                title="Make space private?"
+                onConfirm={() => {
+                    spaceMutation({
+                        name: space.name,
+                        inheritParentPermissions: false,
+                    });
+                    closeConfirm();
+                }}
+                confirmLabel="Make private"
+                confirmLoading={isMutating}
+            >
+                <Stack gap="sm">
+                    <Text fz="sm">
+                        Users with direct access will keep their access. Org and
+                        project members who haven't been explicitly invited will
+                        lose access to this space.
+                    </Text>
+                    {showLockoutWarning && (
+                        <Callout variant="warning">
+                            You don't have direct access to this space. Once
+                            it's private, you won't be able to change this
+                            setting again.
+                        </Callout>
+                    )}
+                </Stack>
+            </MantineModal>
+        </>
     );
 };
