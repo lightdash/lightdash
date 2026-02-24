@@ -7,12 +7,11 @@ FROM node:20-bookworm-slim AS pnpm-base
 
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
-RUN npm i -g corepack@latest
-RUN corepack enable
-RUN corepack prepare pnpm@9.15.5 --activate
-RUN pnpm config set store-dir /pnpm/store
-
 WORKDIR /usr/app
+COPY package.json .
+RUN corepack enable
+RUN corepack install
+RUN pnpm config set store-dir /pnpm/store
 
 # -----------------------------
 # Stage 1: system dependencies base
