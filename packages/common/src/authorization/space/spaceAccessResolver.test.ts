@@ -131,6 +131,7 @@ describe('resolveSpaceAccess', () => {
                             userUuid: 'user-1',
                             spaceUuid: 'space-1',
                             role: SpaceMemberRole.EDITOR,
+                            groupUuid: null,
                             from: DirectSpaceAccessOrigin.USER_ACCESS,
                         },
                     ],
@@ -156,6 +157,7 @@ describe('resolveSpaceAccess', () => {
                             userUuid: 'user-1',
                             spaceUuid: 'space-1',
                             role: SpaceMemberRole.EDITOR,
+                            groupUuid: 'group-1',
                             from: DirectSpaceAccessOrigin.GROUP_ACCESS,
                         },
                     ],
@@ -181,12 +183,14 @@ describe('resolveSpaceAccess', () => {
                             userUuid: 'user-1',
                             spaceUuid: 'space-1',
                             role: SpaceMemberRole.EDITOR,
+                            groupUuid: null,
                             from: DirectSpaceAccessOrigin.USER_ACCESS,
                         },
                         {
                             userUuid: 'user-1',
                             spaceUuid: 'space-1',
                             role: SpaceMemberRole.VIEWER,
+                            groupUuid: 'group-1',
                             from: DirectSpaceAccessOrigin.GROUP_ACCESS,
                         },
                     ],
@@ -303,6 +307,7 @@ describe('resolveSpaceAccess', () => {
                             userUuid: 'user-1',
                             spaceUuid: 'space-1',
                             role: SpaceMemberRole.EDITOR,
+                            groupUuid: null,
                             from: DirectSpaceAccessOrigin.USER_ACCESS,
                         },
                     ],
@@ -467,12 +472,41 @@ describe('resolveSpaceAccess', () => {
                             userUuid: 'user-1',
                             spaceUuid: 'space-1',
                             role: SpaceMemberRole.EDITOR,
+                            groupUuid: 'group-1',
                             from: DirectSpaceAccessOrigin.GROUP_ACCESS,
                         },
                     ],
                 }),
             );
             expect(result[0].inheritedFrom).toBe('space_group');
+        });
+
+        it('reports org access when org access is highest', () => {
+            const result = resolveSpaceAccess(
+                makeInput({
+                    organizationAccess: [
+                        {
+                            userUuid: 'user-1',
+                            spaceUuid: 'space-1',
+                            role: OrganizationMemberRole.DEVELOPER,
+                        },
+                    ],
+                    directAccess: [
+                        {
+                            userUuid: 'user-1',
+                            spaceUuid: 'space-1',
+                            role: SpaceMemberRole.VIEWER,
+                            groupUuid: null,
+                            from: DirectSpaceAccessOrigin.USER_ACCESS,
+                        },
+                    ],
+                }),
+            );
+            expect(result[0].inheritedFrom).toBe('organization');
+            // Direct user access takes precedence over inherited org role
+            // for the space role, even if the org role is higher.
+            // The org source is reflected in inheritedFrom/inheritedRole.
+            expect(result[0].role).toBe(SpaceMemberRole.VIEWER);
         });
     });
 
@@ -544,6 +578,7 @@ describe('resolveSpaceAccess', () => {
                     userUuid: 'user-2',
                     spaceUuid: 'space-1',
                     role: SpaceMemberRole.ADMIN,
+                    groupUuid: null,
                     from: DirectSpaceAccessOrigin.USER_ACCESS,
                 },
             ];
@@ -621,6 +656,7 @@ describe('resolveSpaceAccessWithInheritance', () => {
                                     userUuid: 'user-1',
                                     spaceUuid: 'child-space',
                                     role: SpaceMemberRole.EDITOR,
+                                    groupUuid: null,
                                     from: DirectSpaceAccessOrigin.USER_ACCESS,
                                 },
                             ],
@@ -653,6 +689,7 @@ describe('resolveSpaceAccessWithInheritance', () => {
                                     userUuid: 'user-1',
                                     spaceUuid: 'child-space',
                                     role: SpaceMemberRole.VIEWER,
+                                    groupUuid: null,
                                     from: DirectSpaceAccessOrigin.USER_ACCESS,
                                 },
                             ],
@@ -664,6 +701,7 @@ describe('resolveSpaceAccessWithInheritance', () => {
                                     userUuid: 'user-1',
                                     spaceUuid: 'parent-space',
                                     role: SpaceMemberRole.EDITOR,
+                                    groupUuid: null,
                                     from: DirectSpaceAccessOrigin.USER_ACCESS,
                                 },
                             ],
@@ -694,6 +732,7 @@ describe('resolveSpaceAccessWithInheritance', () => {
                                     userUuid: 'user-1',
                                     spaceUuid: 'child-space',
                                     role: SpaceMemberRole.VIEWER,
+                                    groupUuid: null,
                                     from: DirectSpaceAccessOrigin.USER_ACCESS,
                                 },
                             ],
@@ -705,6 +744,7 @@ describe('resolveSpaceAccessWithInheritance', () => {
                                     userUuid: 'user-1',
                                     spaceUuid: 'parent-space',
                                     role: SpaceMemberRole.EDITOR,
+                                    groupUuid: 'group-1',
                                     from: DirectSpaceAccessOrigin.GROUP_ACCESS,
                                 },
                             ],
@@ -734,6 +774,7 @@ describe('resolveSpaceAccessWithInheritance', () => {
                                     userUuid: 'user-1',
                                     spaceUuid: 'child-space',
                                     role: SpaceMemberRole.EDITOR,
+                                    groupUuid: null,
                                     from: DirectSpaceAccessOrigin.USER_ACCESS,
                                 },
                             ],
@@ -745,6 +786,7 @@ describe('resolveSpaceAccessWithInheritance', () => {
                                     userUuid: 'user-1',
                                     spaceUuid: 'parent-space',
                                     role: SpaceMemberRole.VIEWER,
+                                    groupUuid: null,
                                     from: DirectSpaceAccessOrigin.USER_ACCESS,
                                 },
                             ],
@@ -774,6 +816,7 @@ describe('resolveSpaceAccessWithInheritance', () => {
                                     userUuid: 'user-1',
                                     spaceUuid: 'child-space',
                                     role: SpaceMemberRole.VIEWER,
+                                    groupUuid: null,
                                     from: DirectSpaceAccessOrigin.USER_ACCESS,
                                 },
                             ],
@@ -789,6 +832,7 @@ describe('resolveSpaceAccessWithInheritance', () => {
                                     userUuid: 'user-1',
                                     spaceUuid: 'grandparent-space',
                                     role: SpaceMemberRole.ADMIN,
+                                    groupUuid: 'group-1',
                                     from: DirectSpaceAccessOrigin.GROUP_ACCESS,
                                 },
                             ],
@@ -821,6 +865,7 @@ describe('resolveSpaceAccessWithInheritance', () => {
                                     userUuid: 'user-1',
                                     spaceUuid: 'parent-space',
                                     role: SpaceMemberRole.EDITOR,
+                                    groupUuid: null,
                                     from: DirectSpaceAccessOrigin.USER_ACCESS,
                                 },
                             ],
@@ -850,6 +895,7 @@ describe('resolveSpaceAccessWithInheritance', () => {
                                     userUuid: 'user-1',
                                     spaceUuid: 'child-space',
                                     role: SpaceMemberRole.VIEWER,
+                                    groupUuid: null,
                                     from: DirectSpaceAccessOrigin.USER_ACCESS,
                                 },
                             ],
@@ -880,6 +926,7 @@ describe('resolveSpaceAccessWithInheritance', () => {
                                     userUuid: 'user-1',
                                     spaceUuid: 'parent-space',
                                     role: SpaceMemberRole.EDITOR,
+                                    groupUuid: 'group-1',
                                     from: DirectSpaceAccessOrigin.GROUP_ACCESS,
                                 },
                             ],
@@ -932,6 +979,7 @@ describe('resolveSpaceAccessWithInheritance', () => {
                                     userUuid: 'user-1',
                                     spaceUuid: 'parent-space',
                                     role: SpaceMemberRole.EDITOR,
+                                    groupUuid: null,
                                     from: DirectSpaceAccessOrigin.USER_ACCESS,
                                 },
                             ],
@@ -962,6 +1010,7 @@ describe('resolveSpaceAccessWithInheritance', () => {
                                     userUuid: 'user-1',
                                     spaceUuid: 'parent-space',
                                     role: SpaceMemberRole.EDITOR,
+                                    groupUuid: 'group-1',
                                     from: DirectSpaceAccessOrigin.GROUP_ACCESS,
                                 },
                             ],
@@ -992,6 +1041,7 @@ describe('resolveSpaceAccessWithInheritance', () => {
                                     userUuid: 'user-1',
                                     spaceUuid: 'child-space',
                                     role: SpaceMemberRole.EDITOR,
+                                    groupUuid: null,
                                     from: DirectSpaceAccessOrigin.USER_ACCESS,
                                 },
                             ],
@@ -1071,6 +1121,7 @@ describe('resolveSpaceAccessWithInheritance', () => {
                                     userUuid: 'user-1',
                                     spaceUuid: 'parent-space',
                                     role: SpaceMemberRole.EDITOR,
+                                    groupUuid: null,
                                     from: DirectSpaceAccessOrigin.USER_ACCESS,
                                 },
                             ],
@@ -1102,6 +1153,7 @@ describe('resolveSpaceAccessWithInheritance', () => {
                                     userUuid: 'user-1',
                                     spaceUuid: 'child-space',
                                     role: SpaceMemberRole.VIEWER,
+                                    groupUuid: null,
                                     from: DirectSpaceAccessOrigin.USER_ACCESS,
                                 },
                             ],
@@ -1113,6 +1165,7 @@ describe('resolveSpaceAccessWithInheritance', () => {
                                     userUuid: 'user-2',
                                     spaceUuid: 'parent-space',
                                     role: SpaceMemberRole.EDITOR,
+                                    groupUuid: null,
                                     from: DirectSpaceAccessOrigin.USER_ACCESS,
                                 },
                             ],

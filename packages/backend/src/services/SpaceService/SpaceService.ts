@@ -298,11 +298,50 @@ export class SpaceService extends BaseService implements BulkActionable<Knex> {
             inheritParentPermissions = !isPrivate;
         }
 
-        await this.spaceModel.update(spaceUuid, {
-            ...updateSpace,
-            isPrivate,
-            inheritParentPermissions,
-        });
+        // When switching from inherit to not-inherit, copy inherited permissions
+        // as direct access entries so users don't lose access.
+        const turnInheritOff =
+            space.inheritParentPermissions === true &&
+            inheritParentPermissions === false;
+
+        const { enabled: nestedSpacesEnabled } =
+            await this.featureFlagModel.get({
+                featureFlagId: FeatureFlags.NestedSpacesPermissions,
+            });
+
+        if (turnInheritOff && nestedSpacesEnabled) {
+            const ctx = await this.spacePermissionService.getSpaceAccessContext(
+                user.userUuid,
+                spaceUuid,
+            );
+            const userAccess = ctx.access.find(
+                (a) => a.userUuid === user.userUuid,
+            );
+
+            const { userAccessEntries, groupAccessEntries } =
+                await this.spacePermissionService.getInheritedPermissionsToCopy(
+                    spaceUuid,
+                );
+
+            if (userAccess && !userAccess.hasDirectAccess) {
+                userAccessEntries.push({
+                    userUuid: user.userUuid,
+                    role: userAccess.role,
+                });
+            }
+            await this.spaceModel.updateWithCopiedPermissions(
+                spaceUuid,
+                { ...updateSpace, isPrivate, inheritParentPermissions },
+                userAccessEntries,
+                groupAccessEntries,
+            );
+        } else {
+            await this.spaceModel.update(spaceUuid, {
+                ...updateSpace,
+                isPrivate,
+                inheritParentPermissions,
+            });
+        }
 
         const updatedSpace = await this.assembleFullSpace(spaceUuid, user);
         const directAccessCount = updatedSpace.access.filter(

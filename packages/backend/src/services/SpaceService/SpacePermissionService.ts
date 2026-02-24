@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     FeatureFlags,
+    getHighestSpaceRole,
     NotFoundError,
     resolveSpaceAccess,
     resolveSpaceAccessWithInheritance,
@@ -459,6 +460,74 @@ export class SpacePermissionService extends BaseService {
                 directAccessMap[spaceUuid]?.map((e) => e.userUuid) ?? [],
             ]),
         );
+    }
+
+    /**
+     * Copies inherited permissions as direct access entries on a space.
+     * Called when inheritParentPermissions transitions true → false so that
+     * users who had access via parent spaces don't suddenly lose it.
+     *
+     * Returns the user/group entries to insert (caller wraps in transaction
+     * together with the space update via SpaceModel.updateWithCopiedPermissions).
+     */
+    async getInheritedPermissionsToCopy(spaceUuid: string): Promise<{
+        userAccessEntries: { userUuid: string; role: SpaceAccess['role'] }[];
+        groupAccessEntries: {
+            groupUuid: string;
+            role: SpaceGroup['spaceRole'];
+        }[];
+    }> {
+        const chainEntry = await this.spacePermissionModel.getInheritanceChains(
+            [spaceUuid],
+        );
+
+        if (!chainEntry) {
+            throw new NotFoundError(`Space ${spaceUuid} not found`);
+        }
+        const { chain } = chainEntry[spaceUuid];
+        const ancestorUuids = chain
+            .map((item) => item.spaceUuid)
+            .filter((uuid) => uuid !== spaceUuid);
+
+        const ancestorDirectAccess =
+            await this.spacePermissionModel.getDirectSpaceAccess(ancestorUuids);
+
+        // Reducer to split ancestorDirectAccess entries into user and group access arrays
+        const { userAccessEntries, groupAccessEntries } = Object.values(
+            ancestorDirectAccess,
+        )
+            .flat()
+            .reduce<{
+                userAccessEntries: {
+                    userUuid: string;
+                    role: SpaceAccess['role'];
+                }[];
+                groupAccessEntries: {
+                    groupUuid: string;
+                    role: SpaceGroup['spaceRole'];
+                }[];
+            }>(
+                (acc, access) => {
+                    if (access.from === 'user_access') {
+                        acc.userAccessEntries.push({
+                            userUuid: access.userUuid,
+                            role: access.role,
+                        });
+                    } else if (
+                        access.from === 'group_access' &&
+                        access.groupUuid !== null
+                    ) {
+                        acc.groupAccessEntries.push({
+                            groupUuid: access.groupUuid,
+                            role: access.role,
+                        });
+                    }
+                    return acc;
+                },
+                { userAccessEntries: [], groupAccessEntries: [] },
+            );
+
+        return { userAccessEntries, groupAccessEntries };
     }
 
     async getUserMetadataByUuids(
