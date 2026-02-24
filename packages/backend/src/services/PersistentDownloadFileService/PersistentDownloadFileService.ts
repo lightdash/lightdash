@@ -1,8 +1,10 @@
 import { NotFoundError } from '@lightdash/common';
 import { nanoid } from 'nanoid';
+import { type Readable } from 'stream';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
 import { LightdashConfig } from '../../config/parseConfig';
+import { type DbPersistentDownloadFile } from '../../database/entities/persistentDownloadFile';
 import { PersistentDownloadFileModel } from '../../models/PersistentDownloadFileModel';
 import { BaseService } from '../BaseService';
 
@@ -143,6 +145,78 @@ export class PersistentDownloadFileService extends BaseService {
         return url;
     }
 
+    private async getValidatedFile(
+        fileNanoid: string,
+    ): Promise<DbPersistentDownloadFile> {
+        const file = await this.persistentDownloadFileModel.get(fileNanoid);
+
+        if (file.expires_at < new Date()) {
+            this.logger.debug(
+                `Persistent download link expired: nanoid=${fileNanoid}, expiredAt=${file.expires_at.toISOString()}`,
+            );
+            throw new NotFoundError('This download link has expired');
+        }
+
+        return file;
+    }
+
+    async getFileType(fileNanoid: string): Promise<string> {
+        const file = await this.getValidatedFile(fileNanoid);
+        return file.file_type;
+    }
+
+    async getFileStream(
+        fileNanoid: string,
+        requestContext?: {
+            ip: string | undefined;
+            userAgent: string | undefined;
+            requestedByUserUuid?: string;
+        },
+    ): Promise<{ stream: Readable; fileType: string }> {
+        const requestStartedAt = Date.now();
+        const file = await this.getValidatedFile(fileNanoid);
+
+        this.analytics?.track({
+            event: 'persistent_file.url_requested',
+            userId: requestContext?.requestedByUserUuid || undefined,
+            properties: {
+                fileUuid: fileNanoid,
+                organizationId: file.organization_uuid,
+                projectId: file.project_uuid,
+                createdByUserUuid: file.created_by_user_uuid,
+                requestedByUserUuid:
+                    requestContext?.requestedByUserUuid || null,
+                source: 'api',
+                hasIpAddress: Boolean(requestContext?.ip),
+                hasUserAgent: Boolean(requestContext?.userAgent),
+            },
+        });
+
+        const stream = await this.fileStorageClient.getFileStream(file.s3_key);
+
+        this.analytics?.track({
+            event: 'persistent_file.url_responded',
+            userId: requestContext?.requestedByUserUuid || undefined,
+            properties: {
+                fileUuid: fileNanoid,
+                organizationId: file.organization_uuid,
+                projectId: file.project_uuid,
+                createdByUserUuid: file.created_by_user_uuid,
+                requestedByUserUuid:
+                    requestContext?.requestedByUserUuid || null,
+                source: 'api',
+                statusCode: 200,
+                responseMs: Date.now() - requestStartedAt,
+            },
+        });
+
+        this.logger.info(
+            `Streaming persistent download: nanoid=${fileNanoid}, ip=${requestContext?.ip}, userAgent=${requestContext?.userAgent}`,
+        );
+
+        return { stream, fileType: file.file_type };
+    }
+
     async getSignedUrl(
         fileNanoid: string,
         requestContext?: {
@@ -152,14 +226,7 @@ export class PersistentDownloadFileService extends BaseService {
         },
     ): Promise<string> {
         const requestStartedAt = Date.now();
-        const file = await this.persistentDownloadFileModel.get(fileNanoid);
-
-        if (file.expires_at < new Date()) {
-            this.logger.debug(
-                `Persistent download link expired: nanoid=${fileNanoid}, expiredAt=${file.expires_at.toISOString()}`,
-            );
-            throw new NotFoundError('This download link has expired');
-        }
+        const file = await this.getValidatedFile(fileNanoid);
 
         this.analytics?.track({
             event: 'persistent_file.url_requested',
