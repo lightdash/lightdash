@@ -1,4 +1,4 @@
-import { Flex } from '@mantine/core';
+import { Flex } from '@mantine-8/core';
 import { type FC } from 'react';
 
 const OnboardingWrapper: FC<React.PropsWithChildren<{}>> = ({ children }) => {
@@ -7,7 +7,7 @@ const OnboardingWrapper: FC<React.PropsWithChildren<{}>> = ({ children }) => {
             pos="relative"
             direction="column"
             w={420}
-            sx={{ flexGrow: 1 }}
+            flex={1}
             mt="6xl"
             mx="auto"
         >

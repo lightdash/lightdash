@@ -22,15 +22,15 @@ When creating/updating components:
 - [ ] Use inline-style component props for styling when available (and follow <=3 props rule)
 - [ ] Use CSS modules when component props aren't available or when more than 3 inline-style props are needed
 - [ ] Theme values ('md', 'lg', 'xl', or 'ldGray.1', 'ldGray.2', 'ldDark.1', 'ldDark.2', etc) instead of magic numbers
-- [ ] When using mantine colors in css modules, always use the theme awared variables: 
-  - `--mantine-color-${color}-text`: for text on filled background
-  - `--mantine-color-${color}-filled`: for filled background (strong color)
-  - `--mantine-color-${color}-filled-hover`: for filled background on hover
-  - `--mantine-color-${color}-light`: for light background 
-  - `--mantine-color-${color}-light-hover`: for light background on hover (light color)
-  - `--mantine-color-${color}-light-color`: for text on light background
-  - `--mantine-color-${color}-outline`: for outlines
-  - `--mantine-color-${color}-outline-hover`: for outlines on hover
+- [ ] When using mantine colors in css modules, always use the theme awared variables:
+    - `--mantine-color-${color}-text`: for text on filled background
+    - `--mantine-color-${color}-filled`: for filled background (strong color)
+    - `--mantine-color-${color}-filled-hover`: for filled background on hover
+    - `--mantine-color-${color}-light`: for light background
+    - `--mantine-color-${color}-light-hover`: for light background on hover (light color)
+    - `--mantine-color-${color}-light-color`: for text on light background
+    - `--mantine-color-${color}-outline`: for outlines
+    - `--mantine-color-${color}-outline-hover`: for outlines on hover
 
 ## Quick Migration Guide
 
@@ -238,6 +238,18 @@ const MyComponent = () => {
     const { colorScheme } = useMantineColorScheme();
     const iconColor = colorScheme === 'dark' ? 'blue.4' : 'blue.6';
     // ...
+};
+```
+
+## Keep using mantine/core's clsx utility until we migrate to Mantine 8 fully
+
+```tsx
+import { clsx } from '@mantine/core';
+
+const MyComponent = () => {
+    return (
+        <div className={clsx('my-class', 'my-other-class')}>My Component</div>
+    );
 };
 ```
 
