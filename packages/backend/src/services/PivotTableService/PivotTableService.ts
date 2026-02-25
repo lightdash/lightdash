@@ -264,7 +264,6 @@ export class PivotTableService extends BaseService {
             organizationUuid,
             createdByUserUuid,
             expirationSecondsOverride,
-            persistentFileSource: 'pivot',
         });
     }
 
@@ -279,7 +278,6 @@ export class PivotTableService extends BaseService {
         organizationUuid,
         createdByUserUuid,
         expirationSecondsOverride,
-        persistentFileSource = 'pivot',
     }: {
         csvContent: string;
         fileName: string;
@@ -288,7 +286,6 @@ export class PivotTableService extends BaseService {
         organizationUuid: string;
         createdByUserUuid: string | null;
         expirationSecondsOverride?: number;
-        persistentFileSource?: 'pivot';
     }): Promise<AttachmentUrl> {
         const fileId = PivotTableService.generateFileId(fileName, truncated);
         const filePath = `/tmp/${fileId}`;
@@ -323,7 +320,6 @@ export class PivotTableService extends BaseService {
                     projectUuid,
                     createdByUserUuid,
                     expirationSeconds: expirationSecondsOverride,
-                    source: persistentFileSource,
                 });
             return {
                 filename: fileName,

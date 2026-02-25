@@ -569,7 +569,6 @@ export class CsvService extends BaseService {
         truncated = false,
         organizationUuid,
         createdByUserUuid,
-        persistentFileSource = 'other',
     }: {
         csvContent: string;
         fileName: string;
@@ -577,7 +576,6 @@ export class CsvService extends BaseService {
         truncated?: boolean;
         organizationUuid: string;
         createdByUserUuid: string | null;
-        persistentFileSource?: 'chart' | 'sql_chart' | 'analytics' | 'other';
     }): Promise<AttachmentUrl> {
         const fileId = CsvService.generateFileId(fileName, truncated);
         const filePath = `/tmp/${fileId}`;
@@ -611,7 +609,6 @@ export class CsvService extends BaseService {
                     organizationUuid,
                     projectUuid,
                     createdByUserUuid,
-                    source: persistentFileSource,
                 });
             return {
                 filename: fileName,
@@ -832,7 +829,6 @@ export class CsvService extends BaseService {
             truncated,
             organizationUuid: chart.organizationUuid,
             createdByUserUuid: user.userUuid,
-            persistentFileSource: 'chart',
         });
     }
 
@@ -939,7 +935,6 @@ export class CsvService extends BaseService {
             projectUuid,
             organizationUuid: sqlChart.organization_uuid,
             createdByUserUuid: user.userUuid,
-            persistentFileSource: 'sql_chart',
         });
     }
 
@@ -1328,7 +1323,6 @@ export class CsvService extends BaseService {
                             organizationUuid: projectSummary.organizationUuid,
                             projectUuid,
                             createdByUserUuid: user.userUuid ?? null,
-                            source: 'chart',
                         },
                     );
             } else {
@@ -1520,7 +1514,6 @@ export class CsvService extends BaseService {
             organizationUuid,
             projectUuid: dashboard.projectUuid,
             createdByUserUuid: userUuid,
-            source: 'dashboard',
         });
     }
 }

@@ -128,7 +128,6 @@ export class AnalyticsService extends BaseService {
             projectUuid,
             organizationUuid,
             createdByUserUuid: user.userUuid,
-            persistentFileSource: 'analytics',
         });
         return upload.path;
     }
