@@ -470,7 +470,7 @@ export const AccessModelToggle: FC<AccessModelToggleProps> = ({
             <MantineModal
                 opened={confirmOpened}
                 onClose={closeConfirm}
-                title="Make space private?"
+                title="Restrict access?"
                 onConfirm={() => {
                     spaceMutation({
                         name: space.name,
@@ -478,19 +478,18 @@ export const AccessModelToggle: FC<AccessModelToggleProps> = ({
                     });
                     closeConfirm();
                 }}
-                confirmLabel="Make private"
+                confirmLabel="Restrict access"
                 confirmLoading={isMutating}
             >
                 <Stack gap="sm">
                     <Text fz="sm">
-                        Users with direct access will keep their access. Org and
-                        project members who haven't been explicitly invited will
-                        lose access to this space.
+                        Users with direct access will keep their access. Project
+                        members will lose access unless specifically invited.
                     </Text>
                     {showLockoutWarning && (
                         <Callout variant="warning">
                             You don't have direct access to this space. Once
-                            it's private, you won't be able to change this
+                            it's restricted, you won't be able to change this
                             setting again.
                         </Callout>
                     )}
