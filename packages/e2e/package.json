@@ -8,8 +8,6 @@
         "cypress:open": "cypress open --e2e",
         "cypress:open:native": "RUNTIME=native cypress open --e2e",
         "cypress:run": "cypress run",
-        "cypress:run:experimental": "CYPRESS_RETRIES=0 cypress run --config excludeSpecPattern=[] --spec 'cypress/e2e/experimental/**/*.cy.ts'",
-        "cypress:open:experimental": "CYPRESS_RETRIES=0 cypress open --e2e --config 'specPattern=cypress/e2e/experimental/**/*.cy.ts,excludeSpecPattern=[]'",
         "linter": "eslint -c .eslintrc.js --ignore-path ./../../.gitignore",
         "formatter": "oxfmt",
         "lint": "pnpm run linter ./cypress ./api-tests",
