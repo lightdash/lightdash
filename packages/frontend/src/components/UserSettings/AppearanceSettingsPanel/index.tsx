@@ -138,6 +138,8 @@ const AppearanceSettingsPanel: FC = () => {
                         target="_blank"
                         rel="noreferrer"
                         size="xs"
+                        color="gray"
+                        variant="subtle"
                     >
                         <MantineIcon icon={IconInfoCircle} />
                     </ActionIcon>

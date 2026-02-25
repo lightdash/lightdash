@@ -246,6 +246,7 @@ const FieldSelectComponent = <T extends Item = Item>({
                         <FieldIcon style={{ flexShrink: 0 }} item={fieldItem} />
                         <Text
                             span
+                            fz="xs"
                             size={rest.size}
                             style={{ wordBreak: 'normal' }}
                         >

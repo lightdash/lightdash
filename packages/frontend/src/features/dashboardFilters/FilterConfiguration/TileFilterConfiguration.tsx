@@ -527,9 +527,10 @@ const TileFilterConfiguration: FC<Props> = ({
                                             items={
                                                 value.sortedFilters as Field[]
                                             }
-                                            withinPortal={
-                                                popoverProps?.withinPortal
-                                            }
+                                            comboboxProps={{
+                                                withinPortal:
+                                                    popoverProps?.withinPortal,
+                                            }}
                                             onDropdownOpen={
                                                 popoverProps?.onOpen
                                             }

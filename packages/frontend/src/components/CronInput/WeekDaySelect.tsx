@@ -47,7 +47,6 @@ const WeekDaySelect: FC<{
             data={Options}
             value={String(value)}
             disabled={disabled}
-            withinPortal
             w={140}
             onChange={(val) => {
                 onChange(Number(val));

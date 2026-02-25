@@ -144,7 +144,7 @@ export const SchedulerFormSetupTab: FC<Props> = ({
                         label="Alert field"
                         required
                         disabled={isThresholdAlertWithNoFields}
-                        withinPortal
+                        comboboxProps={{ withinPortal: true }}
                         hasGrouping
                         items={Object.values(numericMetrics)}
                         data-testid="Alert/FieldSelect"

@@ -103,13 +103,9 @@ export const TitleBreadCrumbs: FC<Props> = ({
                             fz="md"
                             component={Link}
                             to={`/projects/${projectUuid}/dashboards/${dashboardUuid}`}
-                            sx={{
-                                maxWidth: `${MAX_WIDTH_TITLE_PX}px`,
-                                whiteSpace: 'nowrap',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                display: 'inline-block',
-                            }}
+                            truncate
+                            display="inline-block"
+                            maw={MAX_WIDTH_TITLE_PX}
                         >
                             {dashboardName}
                         </Anchor>
