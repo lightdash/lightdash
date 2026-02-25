@@ -220,7 +220,7 @@ export const getMantine8ThemeOverride = (
                 },
                 styles: (theme, props) => ({
                     root: {
-                        borderColor: theme.colors.ldGray[2],
+                        borderColor: `var(--mantine-color-ldGray-2)`,
                         ...(props.variant === 'dotted' &&
                             paperDottedStyles(theme)),
                     },
