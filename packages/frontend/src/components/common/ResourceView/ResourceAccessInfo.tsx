@@ -3,7 +3,6 @@ import { Group, Text, Tooltip } from '@mantine-8/core';
 import { IconLock, IconUser, IconUsers } from '@tabler/icons-react';
 import React, { useMemo } from 'react';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
-import useApp from '../../../providers/App/useApp';
 import MantineIcon from '../MantineIcon';
 import { ResourceAccess } from './types';
 import { getResourceAccessLabel, getResourceAccessType } from './utils';
@@ -23,17 +22,11 @@ const ResourceAccessInfoData = {
     },
 } as const;
 
-const getV2AccessType = (
-    item: ResourceViewSpaceItem,
-    currentUserUuid: string | undefined,
-): ResourceAccess => {
+const getV2AccessType = (item: ResourceViewSpaceItem): ResourceAccess => {
     if (item.data.inheritParentPermissions) {
         return ResourceAccess.Public;
     }
-    const othersWithAccess = item.data.access.filter(
-        (uuid) => uuid !== currentUserUuid,
-    );
-    if (othersWithAccess.length > 0) {
+    if (item.data.access.length > 1) {
         return ResourceAccess.Shared;
     }
     return ResourceAccess.Private;
@@ -83,14 +76,13 @@ const ResourceAccessInfo: React.FC<ResourceAccessInfoProps> = ({
     type = 'secondary',
     withTooltip = false,
 }) => {
-    const { user } = useApp();
     const { data: nestedSpacesPermissionsFlag } = useServerFeatureFlag(
         FeatureFlags.NestedSpacesPermissions,
     );
     const isV2 = !!nestedSpacesPermissionsFlag?.enabled;
 
     const accessType = isV2
-        ? getV2AccessType(item, user.data?.userUuid)
+        ? getV2AccessType(item)
         : getResourceAccessType(item);
     const isNestedSpace = !!item.data.parentSpaceUuid;
     const { Icon } = ResourceAccessInfoData[accessType];
