@@ -100,6 +100,7 @@ export type SpaceSummaryBase = Pick<
 > & {
     chartCount: number;
     dashboardCount: number;
+    childSpaceCount: number;
     deletedAt?: Date;
     deletedBy?: {
         userUuid: string;

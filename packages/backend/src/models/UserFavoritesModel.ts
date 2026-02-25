@@ -258,6 +258,9 @@ export class UserFavoritesModel {
                         chart_count: this.database.countDistinct(
                             `${SavedChartsTableName}.saved_query_id`,
                         ),
+                        child_space_count: this.database.raw(
+                            `(SELECT count(*) FROM ${SpaceTableName} cs WHERE cs.parent_space_uuid = ${SpaceTableName}.space_uuid AND cs.deleted_at IS NULL)`,
+                        ),
                     })
                     .from(SpaceTableName)
                     .leftJoin(
@@ -312,6 +315,9 @@ export class UserFavoritesModel {
                     'COALESCE(sc.dashboard_count, 0)',
                 ),
                 chart_count: this.database.raw('COALESCE(sc.chart_count, 0)'),
+                child_space_count: this.database.raw(
+                    'COALESCE(sc.child_space_count, 0)',
+                ),
             })
             .whereIn(`${SpaceTableName}.space_uuid`, filteredUuids)
             .whereNull(`${SpaceTableName}.deleted_at`)
@@ -330,6 +336,7 @@ export class UserFavoritesModel {
                 inheritParentPermissions: row.inherit_parent_permissions,
                 dashboardCount: Number(row.dashboard_count),
                 chartCount: Number(row.chart_count),
+                childSpaceCount: Number(row.child_space_count),
                 parentSpaceUuid: row.parent_space_uuid,
                 path: row.path,
             },

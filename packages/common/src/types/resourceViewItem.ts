@@ -77,6 +77,7 @@ export type ResourceViewSpaceItem = {
         accessListLength: number;
         dashboardCount: number;
         chartCount: number;
+        childSpaceCount: number;
     };
 };
 
@@ -139,6 +140,7 @@ export const spaceToResourceViewItem = (
     accessListLength: space.access.length,
     dashboardCount: space.dashboardCount,
     chartCount: space.chartCount,
+    childSpaceCount: space.childSpaceCount,
     access: space.access,
     parentSpaceUuid: space.parentSpaceUuid,
     path: space.path,

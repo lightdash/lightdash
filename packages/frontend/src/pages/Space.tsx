@@ -453,6 +453,7 @@ const Space: FC = () => {
                                         accessListLength: 0,
                                         dashboardCount: 0,
                                         chartCount: 0,
+                                        childSpaceCount: 0,
                                     },
                                     type: ResourceViewItemType.SPACE,
                                 } satisfies ResourceViewSpaceItem,

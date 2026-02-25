@@ -80,6 +80,7 @@ export interface SpaceContentBase extends Content {
     inheritParentPermissions: boolean;
     dashboardCount: number;
     chartCount: number;
+    childSpaceCount: number;
     pinnedList: {
         uuid: string;
         order: number;

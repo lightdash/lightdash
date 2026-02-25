@@ -20,6 +20,7 @@ import {
 type SpaceContentRow = SummaryContentRow<{
     dashboardCount: number;
     chartCount: number;
+    childSpaceCount: number;
     nestedSpaceCount: number;
     schedulerCount: number;
     parentSpaceUuid: string | null;
@@ -139,6 +140,12 @@ export const spaceContentConfiguration: ContentConfiguration<SpaceContentRow> =
                                     WHERE ${SavedChartsTableName}.space_id = ${SpaceTableName}.space_id
                                     AND ${SavedChartsTableName}.deleted_at IS NULL`
                         }),
+                        'childSpaceCount', (
+                            SELECT count(*)
+                            FROM ${SpaceTableName} child_space
+                            WHERE child_space.parent_space_uuid = ${SpaceTableName}.space_uuid
+                            AND child_space.deleted_at IS NULL
+                        ),
                         'parentSpaceUuid', ${SpaceTableName}.parent_space_uuid,
                         'path', ${SpaceTableName}.path,
                         'isPrivate', (${getRootSpaceIsPrivateQuery()}),
@@ -279,6 +286,7 @@ export const spaceContentConfiguration: ContentConfiguration<SpaceContentRow> =
                     value.metadata.inheritParentPermissions,
                 dashboardCount: value.metadata.dashboardCount,
                 chartCount: value.metadata.chartCount,
+                childSpaceCount: value.metadata.childSpaceCount,
             };
         },
     };
