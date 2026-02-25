@@ -42,8 +42,6 @@ type Props = {
     fields: FilterableField[];
     filterGroup: FilterGroup;
     isEditMode: boolean;
-    autoFocusRuleId?: string;
-    onAutoFocusRule?: (ruleId: string) => void;
     onChange: (value: FilterGroup) => void;
     onDelete: () => void;
 };
@@ -80,8 +78,6 @@ const FilterGroupForm: FC<Props> = memo(
         fields,
         filterGroup,
         isEditMode,
-        autoFocusRuleId,
-        onAutoFocusRule,
         onChange,
         onDelete,
     }) => {
@@ -164,25 +160,17 @@ const FilterGroupForm: FC<Props> = memo(
 
         const onAddFilterRule = useCallback(() => {
             if (availableFieldsForGroupRules.length > 0) {
-                const newRule = createFilterRuleFromField(
-                    availableFieldsForGroupRules[0],
-                );
-                onAutoFocusRule?.(newRule.id);
                 onChange({
                     ...filterGroup,
                     [getFilterGroupItemsPropertyName(filterGroup)]: [
                         ...items,
-                        newRule,
+                        createFilterRuleFromField(
+                            availableFieldsForGroupRules[0],
+                        ),
                     ],
                 });
             }
-        }, [
-            availableFieldsForGroupRules,
-            filterGroup,
-            items,
-            onChange,
-            onAutoFocusRule,
-        ]);
+        }, [availableFieldsForGroupRules, filterGroup, items, onChange]);
 
         const onChangeOperator = useCallback(
             (value: FilterGroupOperator) => {
@@ -255,7 +243,6 @@ const FilterGroupForm: FC<Props> = memo(
                                     filterRule={item}
                                     fields={availableFieldsForGroupRules}
                                     isEditMode={isEditMode}
-                                    autoFocus={autoFocusRuleId === item.id}
                                     onChange={(value) =>
                                         onChangeItem(index, value)
                                     }
@@ -286,8 +273,6 @@ const FilterGroupForm: FC<Props> = memo(
                                 <FilterGroupForm
                                     groupDepth={groupDepth + 1}
                                     isEditMode={isEditMode}
-                                    autoFocusRuleId={autoFocusRuleId}
-                                    onAutoFocusRule={onAutoFocusRule}
                                     filterGroup={item}
                                     fields={availableFieldsForGroupRules}
                                     onChange={(value) =>

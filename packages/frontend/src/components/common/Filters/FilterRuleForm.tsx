@@ -22,7 +22,6 @@ type Props = {
     fields: FilterableField[];
     filterRule: FilterRule;
     isEditMode: boolean;
-    autoFocus?: boolean;
     onChange: (value: FilterRule) => void;
     onDelete: () => void;
     onConvertToGroup?: () => void;
@@ -33,7 +32,6 @@ const FilterRuleForm: FC<Props> = memo(
         fields,
         filterRule,
         isEditMode,
-        autoFocus,
         onChange,
         onDelete,
         onConvertToGroup,
@@ -101,7 +99,6 @@ const FilterRuleForm: FC<Props> = memo(
                 align="start"
                 gap="xs"
                 data-testid="FilterRuleForm/filter-rule"
-                data-rule-id={filterRule.id}
             >
                 <Tooltip
                     label={isRequiredLabel}
@@ -159,7 +156,6 @@ const FilterRuleForm: FC<Props> = memo(
                     filterType={filterType}
                     field={activeField}
                     rule={filterRule}
-                    autoFocus={autoFocus}
                     onChange={onChange}
                     disabled={!isEditMode}
                     popoverProps={popoverProps}

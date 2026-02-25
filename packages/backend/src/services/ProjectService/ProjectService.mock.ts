@@ -464,7 +464,6 @@ export const lightdashConfigWithNoSMTP: Pick<
         timezone: undefined,
         useSqlPivotResults: false,
         showExecutionTime: false,
-        enableFilterAutofocusFix: undefined,
     },
 };
 
