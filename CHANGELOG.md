@@ -1,3 +1,15 @@
+# [0.2523.0](https://github.com/lightdash/lightdash/compare/0.2522.0...0.2523.0) (2026-02-25)
+
+
+### Bug Fixes
+
+* add correct border color on paper default mantine 8 ([#20605](https://github.com/lightdash/lightdash/issues/20605)) ([23f8956](https://github.com/lightdash/lightdash/commit/23f8956c547be76d7901477e9b4430def9d00ee2))
+
+
+### Features
+
+* add project-scoped Databricks OAuth with dynamic strategy registration ([#20602](https://github.com/lightdash/lightdash/issues/20602)) ([e333075](https://github.com/lightdash/lightdash/commit/e333075a4af1dcff555af7aa44015c6f7f9253df))
+
 # [0.2522.0](https://github.com/lightdash/lightdash/compare/0.2521.0...0.2522.0) (2026-02-25)
 
 
