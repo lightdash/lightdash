@@ -527,7 +527,13 @@ export const getDirectoryContents = async ({
     installationId?: string;
     token?: string;
 }): Promise<
-    Array<{ name: string; path: string; type: string; size: number; sha: string }>
+    Array<{
+        name: string;
+        path: string;
+        type: string;
+        size: number;
+        sha: string;
+    }>
 > => {
     const { octokit, headers } = getOctokit(installationId, token);
     try {
@@ -583,7 +589,9 @@ export const deleteFile = async ({
     message: string;
     installationId?: string;
     token?: string;
-}) => {
+}): Promise<
+    Awaited<ReturnType<OctokitRest['rest']['repos']['deleteFile']>>
+> => {
     const { octokit, headers } = getOctokit(installationId, token);
     try {
         const response = await octokit.rest.repos.deleteFile({
