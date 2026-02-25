@@ -37,6 +37,7 @@ type Props = {
     values: string[];
     onChange: (values: string[]) => void;
     title?: string;
+    validateValue?: (value: string) => boolean;
 };
 
 export const ManageFilterValuesModal: FC<Props> = ({
@@ -45,6 +46,7 @@ export const ManageFilterValuesModal: FC<Props> = ({
     values,
     onChange,
     title = 'Manage values',
+    validateValue,
 }) => {
     const scrollRef = useRef<HTMLDivElement | null>(null);
     const originalValuesRef = useRef<string[]>([]);
@@ -110,16 +112,22 @@ export const ManageFilterValuesModal: FC<Props> = ({
         onClose();
     }, [onChange, onClose, selected, workingValues]);
 
-    const handleCsvFileChange = useCallback(async (file: File | null) => {
-        if (!file) return;
+    const handleCsvFileChange = useCallback(
+        async (file: File | null) => {
+            if (!file) return;
 
-        const text = await file.text();
-        const parsedUnique = uniq(parseDelimitedValues(text));
-        if (parsedUnique.length === 0) return;
+            const text = await file.text();
+            let parsedUnique = uniq(parseDelimitedValues(text));
+            if (validateValue) {
+                parsedUnique = parsedUnique.filter(validateValue);
+            }
+            if (parsedUnique.length === 0) return;
 
-        // Append to the current draft by default
-        setDraftValues((prev) => uniq([...prev, ...parsedUnique]));
-    }, []);
+            // Append to the current draft by default
+            setDraftValues((prev) => uniq([...prev, ...parsedUnique]));
+        },
+        [validateValue],
+    );
 
     const toggleSelected = useCallback((value: string) => {
         setSelected((prev) => {
