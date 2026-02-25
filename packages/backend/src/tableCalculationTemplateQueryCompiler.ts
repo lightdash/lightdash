@@ -15,6 +15,7 @@ const compileWindowFunctionTemplate = (
         { type: TableCalculationTemplateType.WINDOW_FUNCTION }
     >,
     quoteChar: string,
+    customBinDimensionIds: Set<string>,
 ): string => {
     // Build the window function name and determine if it needs a field argument
     let functionName: string;
@@ -89,7 +90,12 @@ const compileWindowFunctionTemplate = (
     if (template.orderBy.length > 0) {
         const orderByFields = template.orderBy
             .map(({ fieldId: orderFieldId, order }) => {
-                const quotedOrderFieldId = `${quoteChar}${orderFieldId}${quoteChar}`;
+                const orderFieldReference = customBinDimensionIds.has(
+                    orderFieldId,
+                )
+                    ? `${orderFieldId}_order`
+                    : orderFieldId;
+                const quotedOrderFieldId = `${quoteChar}${orderFieldReference}${quoteChar}`;
                 const orderDirection = order === 'desc' ? 'DESC' : 'ASC';
                 return `${quotedOrderFieldId} ${orderDirection}`;
             })
@@ -149,6 +155,7 @@ export const compileTableCalculationFromTemplate = (
     template: TableCalculationTemplate,
     warehouseSqlBuilder: WarehouseSqlBuilder,
     sortFields: MetricQuery['sorts'],
+    customBinDimensionIds: Set<string> = new Set(),
 ): string => {
     const quoteChar = warehouseSqlBuilder.getFieldQuoteChar();
     const floatType = warehouseSqlBuilder.getFloatingType();
@@ -170,9 +177,15 @@ export const compileTableCalculationFromTemplate = (
             .map((ob) =>
                 ob.order
                     ? `${quoteChar}${
-                          ob.fieldId
+                          customBinDimensionIds.has(ob.fieldId)
+                              ? `${ob.fieldId}_order`
+                              : ob.fieldId
                       }${quoteChar} ${ob.order.toUpperCase()}`
-                    : `${quoteChar}${ob.fieldId}${quoteChar}`,
+                    : `${quoteChar}${
+                          customBinDimensionIds.has(ob.fieldId)
+                              ? `${ob.fieldId}_order`
+                              : ob.fieldId
+                      }${quoteChar}`,
             )
             .join(', ');
 
@@ -224,12 +237,16 @@ export const compileTableCalculationFromTemplate = (
 
         case TableCalculationTemplateType.RUNNING_TOTAL: {
             const orderByArgumentsSql = (sortFields || [])
-                .map(
-                    (sort) =>
-                        `${quoteChar}${sort.fieldId}${quoteChar} ${
-                            sort.descending ? 'DESC' : 'ASC'
-                        }`,
-                )
+                .map((sort) => {
+                    const sortFieldReference = customBinDimensionIds.has(
+                        sort.fieldId,
+                    )
+                        ? `${sort.fieldId}_order`
+                        : sort.fieldId;
+                    return `${quoteChar}${sortFieldReference}${quoteChar} ${
+                        sort.descending ? 'DESC' : 'ASC'
+                    }`;
+                })
                 .join(', ');
             const orderByClauseSql =
                 orderByArgumentsSql && `ORDER BY ${orderByArgumentsSql} `; // trailing space intentional
@@ -237,7 +254,11 @@ export const compileTableCalculationFromTemplate = (
         }
 
         case TableCalculationTemplateType.WINDOW_FUNCTION:
-            return compileWindowFunctionTemplate(template, quoteChar);
+            return compileWindowFunctionTemplate(
+                template,
+                quoteChar,
+                customBinDimensionIds,
+            );
 
         default:
             return assertUnreachable(
