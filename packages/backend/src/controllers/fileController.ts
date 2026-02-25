@@ -38,18 +38,10 @@ export class FileController extends BaseController {
 
         const service = this.services.getPersistentDownloadFileService();
         const file = await service.getFile(fileId);
-        const requestContext = {
-            ip: req.ip,
-            userAgent: req.headers['user-agent'],
-            requestedByUserUuid: req.user?.userUuid,
-        };
 
         if (service.inlineImages && file.fileType === DownloadFileType.IMAGE) {
             try {
-                const { stream } = await service.getFileStream(
-                    file,
-                    requestContext,
-                );
+                const { stream } = await service.getFileStream(file);
 
                 // Set headers directly on Express response before piping.
                 // TSOA's this.setHeader() stores headers on the controller
@@ -80,7 +72,7 @@ export class FileController extends BaseController {
             }
         }
 
-        const signedUrl = await service.getSignedUrl(file, requestContext);
+        const signedUrl = await service.getSignedUrl(file);
 
         this.setStatus(302);
         this.setHeader('Location', signedUrl);

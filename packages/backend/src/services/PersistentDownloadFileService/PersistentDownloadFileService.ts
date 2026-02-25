@@ -1,7 +1,7 @@
 import { NotFoundError } from '@lightdash/common';
 import { nanoid } from 'nanoid';
 import { type Readable } from 'stream';
-import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
+import { type LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
 import { LightdashConfig } from '../../config/parseConfig';
 import { type DbPersistentDownloadFile } from '../../database/entities/persistentDownloadFile';
@@ -187,116 +187,15 @@ export class PersistentDownloadFileService extends BaseService {
 
     async getFileStream(
         file: PersistentFile,
-        requestContext?: {
-            ip: string | undefined;
-            userAgent: string | undefined;
-            requestedByUserUuid?: string;
-        },
     ): Promise<{ stream: Readable; fileType: string }> {
-        const requestStartedAt = Date.now();
-
-        this.analytics?.track({
-            event: 'persistent_file.url_requested',
-            userId:
-                requestContext?.requestedByUserUuid ||
-                file.createdByUserUuid ||
-                undefined,
-            properties: {
-                fileUuid: file.nanoid,
-                organizationId: file.organizationUuid,
-                projectId: file.projectUuid,
-                createdByUserUuid: file.createdByUserUuid,
-                requestedByUserUuid:
-                    requestContext?.requestedByUserUuid || null,
-                source: 'api',
-                hasIpAddress: Boolean(requestContext?.ip),
-                hasUserAgent: Boolean(requestContext?.userAgent),
-            },
-        });
-
         const stream = await this.fileStorageClient.getFileStream(file.s3Key);
-
-        this.analytics?.track({
-            event: 'persistent_file.url_responded',
-            userId:
-                requestContext?.requestedByUserUuid ||
-                file.createdByUserUuid ||
-                undefined,
-            properties: {
-                fileUuid: file.nanoid,
-                organizationId: file.organizationUuid,
-                projectId: file.projectUuid,
-                createdByUserUuid: file.createdByUserUuid,
-                requestedByUserUuid:
-                    requestContext?.requestedByUserUuid || null,
-                source: 'api',
-                statusCode: 200,
-                responseMs: Date.now() - requestStartedAt,
-            },
-        });
-
-        this.logger.info(
-            `Streaming persistent download: nanoid=${file.nanoid}, ip=${requestContext?.ip}, userAgent=${requestContext?.userAgent}`,
-        );
-
         return { stream, fileType: file.fileType };
     }
 
-    async getSignedUrl(
-        file: PersistentFile,
-        requestContext?: {
-            ip: string | undefined;
-            userAgent: string | undefined;
-            requestedByUserUuid?: string;
-        },
-    ): Promise<string> {
-        const requestStartedAt = Date.now();
-
-        this.analytics?.track({
-            event: 'persistent_file.url_requested',
-            userId:
-                requestContext?.requestedByUserUuid ||
-                file.createdByUserUuid ||
-                undefined,
-            properties: {
-                fileUuid: file.nanoid,
-                organizationId: file.organizationUuid,
-                projectId: file.projectUuid,
-                createdByUserUuid: file.createdByUserUuid,
-                requestedByUserUuid:
-                    requestContext?.requestedByUserUuid || null,
-                source: 'api',
-                hasIpAddress: Boolean(requestContext?.ip),
-                hasUserAgent: Boolean(requestContext?.userAgent),
-            },
-        });
-
-        const signedUrl = await this.fileStorageClient.getFileUrl(
+    async getSignedUrl(file: PersistentFile): Promise<string> {
+        return this.fileStorageClient.getFileUrl(
             file.s3Key,
             PERSISTENT_URL_S3_EXPIRY_SECONDS,
         );
-
-        this.analytics?.track({
-            event: 'persistent_file.url_responded',
-            userId:
-                requestContext?.requestedByUserUuid ||
-                file.createdByUserUuid ||
-                undefined,
-            properties: {
-                fileUuid: file.nanoid,
-                organizationId: file.organizationUuid,
-                projectId: file.projectUuid,
-                createdByUserUuid: file.createdByUserUuid,
-                requestedByUserUuid:
-                    requestContext?.requestedByUserUuid || null,
-                source: 'api',
-                statusCode: 302,
-                responseMs: Date.now() - requestStartedAt,
-            },
-        });
-        this.logger.info(
-            `Serving persistent download: nanoid=${file.nanoid}, ip=${requestContext?.ip}, userAgent=${requestContext?.userAgent}`,
-        );
-        return signedUrl;
     }
 }
