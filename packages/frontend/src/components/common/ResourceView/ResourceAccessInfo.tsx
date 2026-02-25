@@ -7,18 +7,19 @@ import MantineIcon from '../MantineIcon';
 import { ResourceAccess } from './types';
 import { getResourceAccessLabel, getResourceAccessType } from './utils';
 
+// TODO: these are the old statuses, we need to update them to the new ones
 const ResourceAccessInfoData = {
     [ResourceAccess.Private]: {
         Icon: IconLock,
-        status: 'Restricted access',
+        status: 'Private',
     },
     [ResourceAccess.Public]: {
         Icon: IconUsers,
-        status: 'Inherited access',
+        status: 'Public',
     },
     [ResourceAccess.Shared]: {
         Icon: IconUser,
-        status: 'Restricted access',
+        status: 'Shared',
     },
 } as const;
 
