@@ -72,7 +72,10 @@ export type UserWarehouseCredentialsWithSecrets = Pick<
               Partial<
                   Pick<
                       CreateDatabricksCredentials,
-                      'database' | 'serverHostName' | 'httpPath'
+                      | 'database'
+                      | 'serverHostName'
+                      | 'httpPath'
+                      | 'oauthClientId'
                   >
               >)
         | Pick<
@@ -105,6 +108,7 @@ export const databricksOauthU2mUserCredentialsSchema = z
         type: z.literal(WarehouseTypes.DATABRICKS),
         authenticationType: z.literal(DatabricksAuthenticationType.OAUTH_U2M),
         refreshToken: z.string(),
+        oauthClientId: z.string().optional(),
         personalAccessToken: z.string().optional(),
         database: z.string().optional(),
         serverHostName: z.string().optional(),

@@ -617,6 +617,20 @@ export class SnowflakeTokenError extends LightdashError {
     }
 }
 
+/* This specific error will be used in the frontend
+to show a "reauthenticate" button in the UI
+*/
+export class DatabricksTokenError extends LightdashError {
+    constructor(message: string) {
+        super({
+            message,
+            name: 'DatabricksTokenError',
+            statusCode: 401,
+            data: {},
+        });
+    }
+}
+
 export class CustomSqlQueryForbiddenError extends LightdashError {
     constructor(
         message: string = 'User cannot run queries with custom SQL dimensions',

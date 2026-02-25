@@ -8695,19 +8695,6 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "success",
-                                                            "error"
-                                                        ]
-                                                    }
-                                                },
-                                                "required": ["status"],
-                                                "type": "object"
-                                            },
-                                            {
-                                                "properties": {
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": [
                                                             "error",
                                                             "success"
                                                         ]
@@ -12739,8 +12726,11 @@
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
-            "Partial_Pick_CreateDatabricksCredentials.database-or-serverHostName-or-httpPath__": {
+            "Partial_Pick_CreateDatabricksCredentials.database-or-serverHostName-or-httpPath-or-oauthClientId__": {
                 "properties": {
+                    "oauthClientId": {
+                        "type": "string"
+                    },
                     "database": {
                         "type": "string"
                     },
@@ -12798,7 +12788,7 @@
                                         "$ref": "#/components/schemas/Pick_CreateDatabricksCredentials.type-or-personalAccessToken-or-authenticationType-or-refreshToken_"
                                     },
                                     {
-                                        "$ref": "#/components/schemas/Partial_Pick_CreateDatabricksCredentials.database-or-serverHostName-or-httpPath__"
+                                        "$ref": "#/components/schemas/Partial_Pick_CreateDatabricksCredentials.database-or-serverHostName-or-httpPath-or-oauthClientId__"
                                     }
                                 ]
                             },
@@ -26552,7 +26542,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2518.1",
+        "version": "0.2521.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
