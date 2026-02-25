@@ -96,7 +96,7 @@ const deployBatched = async (
             'batchSize must be a positive integer between 1 and 1000',
         );
     }
-    const parallelBatches = parseInt(options.parallelBatches || '5', 10);
+    const parallelBatches = parseInt(options.parallelBatches || '1', 10);
     if (
         Number.isNaN(parallelBatches) ||
         parallelBatches < 1 ||
@@ -278,19 +278,49 @@ export const deploy = async (
     } else {
         const deployStartTime = Date.now();
         const deployPayload = JSON.stringify(explores);
-        await lightdashApi<null>({
-            method: 'PUT',
-            url: `/api/v1/projects/${options.projectUuid}/explores`,
-            body: deployPayload,
-        });
-        await LightdashAnalytics.track({
-            event: 'deploy.triggered',
-            properties: {
-                projectId: options.projectUuid,
-                durationMs: Date.now() - deployStartTime,
-                payloadSizeBytes: Buffer.byteLength(deployPayload),
-            },
-        });
+        try {
+            await lightdashApi<null>({
+                method: 'PUT',
+                url: `/api/v1/projects/${options.projectUuid}/explores`,
+                body: deployPayload,
+            });
+            await LightdashAnalytics.track({
+                event: 'deploy.triggered',
+                properties: {
+                    projectId: options.projectUuid,
+                    durationMs: Date.now() - deployStartTime,
+                    payloadSizeBytes: Buffer.byteLength(deployPayload),
+                },
+            });
+        } catch (error: unknown) {
+            // Check if it's a payload too large error (413) or similar size-related errors
+            const errorStatus = (error as { status?: number }).status;
+            const errorMessage = (error as { message?: string }).message;
+            if (
+                errorStatus === 413 ||
+                errorMessage?.includes('too large') ||
+                errorMessage?.includes('payload') ||
+                errorMessage?.includes('Request Entity Too Large') ||
+                errorMessage?.includes('413')
+            ) {
+                console.error(
+                    styles.error('\n❌ Deploy failed: Payload too large\n'),
+                );
+                console.error(
+                    styles.warning(
+                        'Your project is too large to deploy in a single request.\n' +
+                            'Please use the batched deploy feature:\n\n' +
+                            `  ${styles.bold('lightdash deploy --use-batched-deploy')}\n\n` +
+                            'You can also customize batch size and parallelism:\n' +
+                            `  ${styles.bold('--batch-size <number>')}      Number of explores per batch (default: 50)\n` +
+                            `  ${styles.bold('--parallel-batches <number>')} Number of parallel batches (default: 1)\n`,
+                    ),
+                );
+                process.exit(1);
+            }
+            // Re-throw other errors to be handled by the caller
+            throw error;
+        }
     }
 };
 

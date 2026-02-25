@@ -531,6 +531,21 @@ program
         '--organization-credentials <name>',
         'Use organization warehouse credentials with the specified name (Enterprise Edition feature)',
     )
+    .option(
+        '--use-batched-deploy',
+        'Use the new batched deploy feature to upload explores in batches',
+        false,
+    )
+    .option(
+        '--batch-size <number>',
+        'Number of explores to deploy in each batch (default: 50)',
+        '50',
+    )
+    .option(
+        '--parallel-batches <number>',
+        'Number of batches to send in parallel (default: 1, use higher values with caution)',
+        '1',
+    )
     .action(previewHandler);
 
 program
@@ -635,6 +650,21 @@ program
         'Create preview without warehouse credentials. Copies credentials from upstream project.',
     )
     .option('-y, --assume-yes', 'assume yes to prompts', false)
+    .option(
+        '--use-batched-deploy',
+        'Use the new batched deploy feature to upload explores in batches',
+        false,
+    )
+    .option(
+        '--batch-size <number>',
+        'Number of explores to deploy in each batch (default: 50)',
+        '50',
+    )
+    .option(
+        '--parallel-batches <number>',
+        'Number of batches to send in parallel (default: 1, use higher values with caution)',
+        '1',
+    )
     .action(startPreviewHandler);
 
 program
@@ -837,7 +867,7 @@ program
     )
     .option(
         '--parallel-batches <number>',
-        'Number of batches to send in parallel (default: 1)',
+        'Number of batches to send in parallel (default: 1, use higher values with caution)',
         '1',
     )
     .action(deployHandler);
