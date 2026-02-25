@@ -45,39 +45,45 @@ export class FileController extends BaseController {
         };
 
         if (service.inlineImages && file.fileType === DownloadFileType.IMAGE) {
-            const { stream } = await service.getFileStream(
-                file,
-                requestContext,
-            );
-
-            // Set headers directly on Express response before piping.
-            // TSOA's this.setHeader() stores headers on the controller and
-            // applies them in returnHandler(), but returnHandler() runs AFTER
-            // the stream has been piped — by then headersSent is true and
-            // TSOA bails out, so the headers never reach the response.
-            const { res } = req;
-            if (res) {
-                res.status(200);
-                res.setHeader('Content-Type', 'image/png');
-                res.setHeader(
-                    'Cache-Control',
-                    'public, max-age=31536000, immutable',
+            try {
+                const { stream } = await service.getFileStream(
+                    file,
+                    requestContext,
                 );
-                res.setHeader('X-Robots-Tag', 'noindex, nofollow');
-                stream.pipe(res);
-                await new Promise<void>((resolve) => {
-                    stream.on('end', () => {
-                        res.end();
-                        resolve();
-                    });
-                });
-            }
-        } else {
-            const signedUrl = await service.getSignedUrl(file, requestContext);
 
-            this.setStatus(302);
-            this.setHeader('Location', signedUrl);
-            this.setHeader('X-Robots-Tag', 'noindex, nofollow');
+                // Set headers directly on Express response before piping.
+                // TSOA's this.setHeader() stores headers on the controller
+                // and applies them in returnHandler(), but returnHandler()
+                // runs AFTER the stream has been piped — by then
+                // headersSent is true and TSOA bails out, so the headers
+                // never reach the response.
+                const { res } = req;
+                if (res) {
+                    res.status(200);
+                    res.setHeader('Content-Type', 'image/png');
+                    res.setHeader(
+                        'Cache-Control',
+                        'public, max-age=31536000, immutable',
+                    );
+                    res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+                    stream.pipe(res);
+                    await new Promise<void>((resolve) => {
+                        stream.on('end', () => {
+                            res.end();
+                            resolve();
+                        });
+                    });
+                    return;
+                }
+            } catch {
+                // Fall through to redirect if streaming fails
+            }
         }
+
+        const signedUrl = await service.getSignedUrl(file, requestContext);
+
+        this.setStatus(302);
+        this.setHeader('Location', signedUrl);
+        this.setHeader('X-Robots-Tag', 'noindex, nofollow');
     }
 }

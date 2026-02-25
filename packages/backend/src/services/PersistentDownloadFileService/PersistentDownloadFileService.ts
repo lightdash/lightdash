@@ -197,7 +197,10 @@ export class PersistentDownloadFileService extends BaseService {
 
         this.analytics?.track({
             event: 'persistent_file.url_requested',
-            userId: requestContext?.requestedByUserUuid || undefined,
+            userId:
+                requestContext?.requestedByUserUuid ||
+                file.createdByUserUuid ||
+                undefined,
             properties: {
                 fileUuid: file.nanoid,
                 organizationId: file.organizationUuid,
@@ -215,7 +218,10 @@ export class PersistentDownloadFileService extends BaseService {
 
         this.analytics?.track({
             event: 'persistent_file.url_responded',
-            userId: requestContext?.requestedByUserUuid || undefined,
+            userId:
+                requestContext?.requestedByUserUuid ||
+                file.createdByUserUuid ||
+                undefined,
             properties: {
                 fileUuid: file.nanoid,
                 organizationId: file.organizationUuid,
@@ -248,7 +254,10 @@ export class PersistentDownloadFileService extends BaseService {
 
         this.analytics?.track({
             event: 'persistent_file.url_requested',
-            userId: requestContext?.requestedByUserUuid || undefined,
+            userId:
+                requestContext?.requestedByUserUuid ||
+                file.createdByUserUuid ||
+                undefined,
             properties: {
                 fileUuid: file.nanoid,
                 organizationId: file.organizationUuid,
@@ -269,7 +278,10 @@ export class PersistentDownloadFileService extends BaseService {
 
         this.analytics?.track({
             event: 'persistent_file.url_responded',
-            userId: requestContext?.requestedByUserUuid || undefined,
+            userId:
+                requestContext?.requestedByUserUuid ||
+                file.createdByUserUuid ||
+                undefined,
             properties: {
                 fileUuid: file.nanoid,
                 organizationId: file.organizationUuid,
