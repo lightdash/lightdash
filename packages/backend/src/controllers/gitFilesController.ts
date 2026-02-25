@@ -1,9 +1,13 @@
 import {
     ApiErrorPayload,
+    ApiGitBranchCreatedResponse,
     ApiGitBranchesResponse,
     ApiGitFileDeletedResponse,
     ApiGitFileOrDirectoryResponse,
     ApiGitFileSavedResponse,
+    ApiGitPullRequestCreatedResponse,
+    CreateGitBranchRequest,
+    CreateGitPullRequestRequest,
 } from '@lightdash/common';
 import {
     Body,
@@ -12,6 +16,7 @@ import {
     Middlewares,
     OperationId,
     Path,
+    Post,
     Put,
     Query,
     Request,
@@ -154,6 +159,70 @@ export class GitFilesController extends BaseController {
         return {
             status: 'ok',
             results: { deleted: true },
+        };
+    }
+
+    /**
+     * Create a new branch from a source branch
+     * @summary Create branch
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('201', 'Created')
+    @Post('/branches')
+    @OperationId('createGitBranch')
+    async createBranch(
+        @Path() projectUuid: string,
+        @Body() body: CreateGitBranchRequest,
+        @Request() req: express.Request,
+    ): Promise<ApiGitBranchCreatedResponse> {
+        this.setStatus(201);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getGitIntegrationService()
+                .createBranchFromSource(
+                    req.user!,
+                    projectUuid,
+                    body.name,
+                    body.sourceBranch,
+                ),
+        };
+    }
+
+    /**
+     * Create a pull request from a branch to the default branch
+     * @summary Create pull request
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('201', 'Created')
+    @Post('/branches/{branch}/pull-request')
+    @OperationId('createGitPullRequest')
+    async createPullRequest(
+        @Path() projectUuid: string,
+        @Path() branch: string,
+        @Body() body: CreateGitPullRequestRequest,
+        @Request() req: express.Request,
+    ): Promise<ApiGitPullRequestCreatedResponse> {
+        this.setStatus(201);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getGitIntegrationService()
+                .createPullRequestFromBranch(
+                    req.user!,
+                    projectUuid,
+                    branch,
+                    body.title,
+                    body.description,
+                ),
         };
     }
 }

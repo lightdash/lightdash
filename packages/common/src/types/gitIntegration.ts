@@ -53,3 +53,27 @@ export type ApiGitFileDeletedResponse = {
     status: 'ok';
     results: { deleted: true };
 };
+
+// Request body for creating a new branch
+export type CreateGitBranchRequest = {
+    name: string;
+    sourceBranch: string;
+};
+
+// Response for created branch
+export type ApiGitBranchCreatedResponse = {
+    status: 'ok';
+    results: GitBranch;
+};
+
+// Request body for creating a pull request
+export type CreateGitPullRequestRequest = {
+    title: string;
+    description: string;
+};
+
+// Response for created pull request
+export type ApiGitPullRequestCreatedResponse = {
+    status: 'ok';
+    results: PullRequestCreated;
+};

@@ -1002,6 +1002,47 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
     }
 
     /**
+     * Get the file path for an explore's YAML file (without fetching content)
+     * Used for deep-linking to the source code editor
+     */
+    async getFilePathForExplore(
+        user: SessionUser,
+        projectUuid: string,
+        exploreName: string,
+    ): Promise<{ filePath: string }> {
+        if (
+            user.ability.cannot(
+                'view',
+                subject('SourceCode', {
+                    organizationUuid: user.organizationUuid!,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const explore = await this.projectModel.getExploreFromCache(
+            projectUuid,
+            exploreName,
+        );
+
+        if (!explore.ymlPath) {
+            throw new ParameterError(
+                'Your project needs to be compiled before accessing model files. Please refresh your project to fix this issue.',
+            );
+        }
+
+        const { path } = await this.getProjectRepo(projectUuid);
+
+        const fullPath = GitIntegrationService.removeExtraSlashes(
+            `${path}/${explore.ymlPath}`,
+        );
+
+        return { filePath: fullPath };
+    }
+
+    /**
      * Create a pull request with arbitrary file changes
      */
     async createPullRequestWithFileChange(
@@ -1454,5 +1495,151 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
         Logger.debug(
             `Successfully deleted file ${path} in ${creds.owner}/${creds.repo} (branch: ${branch})`,
         );
+    }
+
+    /**
+     * Create a new branch from a source branch
+     */
+    async createBranchFromSource(
+        user: SessionUser,
+        projectUuid: string,
+        branchName: string,
+        sourceBranch: string,
+    ): Promise<GitBranch> {
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('SourceCode', {
+                    organizationUuid: user.organizationUuid!,
+                    projectUuid,
+                    isProtectedBranch: false,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const creds = await this.getGitCredentials(user, projectUuid);
+
+        // Get the latest commit from the source branch
+        const getLastCommit =
+            creds.type === DbtProjectType.GITHUB
+                ? GithubClient.getLastCommit
+                : GitlabClient.getLastCommit;
+
+        const { sha: commitSha } = await getLastCommit({
+            owner: creds.owner,
+            repo: creds.repo,
+            branch: sourceBranch,
+            installationId: creds.installationId,
+            token: creds.token,
+            hostDomain: creds.hostDomain,
+        });
+
+        Logger.debug(
+            `Creating branch ${branchName} from ${sourceBranch} (commit: ${commitSha}) in ${creds.owner}/${creds.repo}`,
+        );
+
+        // Create the new branch
+        const createBranch =
+            creds.type === DbtProjectType.GITHUB
+                ? GithubClient.createBranch
+                : GitlabClient.createBranch;
+
+        await createBranch({
+            branch: branchName,
+            owner: creds.owner,
+            repo: creds.repo,
+            sha: commitSha,
+            installationId: creds.installationId,
+            token: creds.token,
+            hostDomain: creds.hostDomain,
+        });
+
+        Logger.debug(
+            `Successfully created branch ${branchName} in ${creds.owner}/${creds.repo}`,
+        );
+
+        const protectedBranch = await this.getProtectedBranch(projectUuid);
+
+        return {
+            name: branchName,
+            protected: false,
+            isDefault: branchName === protectedBranch,
+        };
+    }
+
+    /**
+     * Create a pull request from a branch to the default branch
+     */
+    async createPullRequestFromBranch(
+        user: SessionUser,
+        projectUuid: string,
+        branch: string,
+        title: string,
+        description: string,
+    ): Promise<PullRequestCreated> {
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('SourceCode', {
+                    organizationUuid: user.organizationUuid!,
+                    projectUuid,
+                    isProtectedBranch: false,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const creds = await this.getGitCredentials(user, projectUuid);
+        const protectedBranch = await this.getProtectedBranch(projectUuid);
+
+        Logger.debug(
+            `Creating pull request from branch ${branch} to ${protectedBranch} in ${creds.owner}/${creds.repo}`,
+        );
+
+        const createPullRequest =
+            creds.type === DbtProjectType.GITHUB
+                ? GithubClient.createPullRequest
+                : GitlabClient.createPullRequest;
+
+        const fullDescription = `${description}
+
+Triggered by user ${user.firstName} ${user.lastName} (${user.email})
+
+🤖 Created with Lightdash`;
+
+        const pullRequest = await createPullRequest({
+            owner: creds.owner,
+            repo: creds.repo,
+            title,
+            body: fullDescription,
+            head: branch,
+            base: protectedBranch,
+            installationId: creds.installationId,
+            token: creds.token,
+        });
+
+        Logger.debug(
+            `Successfully created pull request #${pullRequest.number} in ${creds.owner}/${creds.repo}`,
+        );
+
+        this.analytics.track({
+            event: 'source_code.branch_pull_request_created',
+            userId: user.userUuid,
+            properties: {
+                organizationId: user.organizationUuid!,
+                projectId: projectUuid,
+                branch,
+                baseBranch: protectedBranch,
+                gitProvider: creds.type,
+            },
+        });
+
+        return {
+            prTitle: pullRequest.title,
+            prUrl: pullRequest.html_url,
+        };
     }
 }
