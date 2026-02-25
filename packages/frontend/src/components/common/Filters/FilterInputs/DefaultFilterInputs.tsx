@@ -5,17 +5,18 @@ import {
     isFilterRule,
     isTableCalculation,
     type BaseFilterRule,
-} from '@lightdash/common';
-import isString from 'lodash/isString';
-import { type FilterInputsProps } from '.';
-import { TagInput } from '../../TagInput/TagInput';
-import { FILTER_SELECT_LIMIT } from '../constants';
-import useFiltersContext from '../useFiltersContext';
-import { getPlaceholderByFilterTypeAndOperator } from '../utils/getPlaceholderByFilterTypeAndOperator';
-import FilterMultiStringInput from './FilterMultiStringInput';
-import FilterNumberInput from './FilterNumberInput';
-import FilterNumberRangeInput from './FilterNumberRangeInput';
-import FilterStringAutoComplete from './FilterStringAutoComplete';
+} from "@lightdash/common";
+import isString from "lodash/isString";
+import { type FilterInputsProps } from ".";
+import { TagInput } from "../../TagInput/TagInput";
+import { FILTER_SELECT_LIMIT } from "../constants";
+import useFiltersContext from "../useFiltersContext";
+import { getPlaceholderByFilterTypeAndOperator } from "../utils/getPlaceholderByFilterTypeAndOperator";
+import FilterMultiNumberInput from "./FilterMultiNumberInput";
+import FilterMultiStringInput from "./FilterMultiStringInput";
+import FilterNumberInput from "./FilterNumberInput";
+import FilterNumberRangeInput from "./FilterNumberRangeInput";
+import FilterStringAutoComplete from "./FilterStringAutoComplete";
 
 const DefaultFilterInputs = <T extends BaseFilterRule>({
     field,
@@ -35,7 +36,7 @@ const DefaultFilterInputs = <T extends BaseFilterRule>({
 
     // Check if the filter should only allow a single value
     const isSingleValue =
-        isFilterRule(rule) && 'singleValue' in rule && !!rule.singleValue;
+        isFilterRule(rule) && "singleValue" in rule && !!rule.singleValue;
 
     const placeholder = getPlaceholderByFilterTypeAndOperator({
         type: filterType,
@@ -47,7 +48,7 @@ const DefaultFilterInputs = <T extends BaseFilterRule>({
     switch (rule.operator) {
         case FilterOperator.NULL:
         case FilterOperator.NOT_NULL:
-            return <span style={{ width: '100%' }} />;
+            return <span style={{ width: "100%" }} />;
         case FilterOperator.STARTS_WITH:
         case FilterOperator.ENDS_WITH:
         case FilterOperator.INCLUDE:
@@ -121,16 +122,11 @@ const DefaultFilterInputs = <T extends BaseFilterRule>({
                         );
                     } else {
                         return (
-                            <TagInput
-                                w="100%"
-                                clearable
+                            <FilterMultiNumberInput
                                 autoFocus={autoFocus}
-                                size="xs"
                                 disabled={disabled}
                                 placeholder={placeholder}
-                                allowDuplicates={false}
-                                validationRegex={/^-?\d+(\.\d+)?$/}
-                                value={rule.values?.map(String)}
+                                values={rule.values?.map(String) ?? []}
                                 onChange={(values) =>
                                     onChange({ ...rule, values })
                                 }
