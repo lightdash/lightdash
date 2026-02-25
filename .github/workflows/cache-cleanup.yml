@@ -17,7 +17,7 @@ jobs:
           REPO: ${{ github.repository }}
         run: |
           echo "Fetching cache usage..."
-          TOTAL_SIZE=$(gh cache list --repo "$REPO" --json sizeInBytes --jq '[.[].sizeInBytes] | add // 0')
+          TOTAL_SIZE=$(gh api repos/$REPO/actions/cache/usage --jq '.active_caches_size_in_bytes')
           TOTAL_GB=$(echo "scale=2; $TOTAL_SIZE / 1000000000" | bc)
           echo "Current cache size: ${TOTAL_GB}GB"
 
@@ -33,29 +33,40 @@ jobs:
           BYTES_TO_DELETE=$((TOTAL_SIZE - TARGET))
           DELETED=0
 
-          # Write caches to a temp file to avoid subshell issues with pipes
-          gh cache list --repo "$REPO" --sort last_accessed_at --order asc --limit 200 --json id,key,sizeInBytes,lastAccessedAt > /tmp/caches.json
+          # Use the REST API to list caches across all branches, sorted by last accessed (oldest first)
+          PAGE=1
+          while [ "$DELETED" -lt "$BYTES_TO_DELETE" ]; do
+            gh api "repos/$REPO/actions/caches?per_page=100&page=$PAGE&sort=last_accessed_at&direction=asc" > /tmp/caches.json
 
-          CACHE_COUNT=$(jq length /tmp/caches.json)
-          for i in $(seq 0 $((CACHE_COUNT - 1))); do
-            if [ "$DELETED" -ge "$BYTES_TO_DELETE" ]; then
+            CACHE_COUNT=$(jq '.actions_caches | length' /tmp/caches.json)
+            if [ "$CACHE_COUNT" -eq 0 ]; then
+              echo "No more caches to delete."
               break
             fi
 
-            CACHE_ID=$(jq -r ".[$i].id" /tmp/caches.json)
-            CACHE_KEY=$(jq -r ".[$i].key" /tmp/caches.json)
-            CACHE_SIZE=$(jq -r ".[$i].sizeInBytes" /tmp/caches.json)
-            CACHE_ACCESSED=$(jq -r ".[$i].lastAccessedAt" /tmp/caches.json)
+            for i in $(seq 0 $((CACHE_COUNT - 1))); do
+              if [ "$DELETED" -ge "$BYTES_TO_DELETE" ]; then
+                break
+              fi
 
-            SIZE_MB=$(echo "scale=1; $CACHE_SIZE / 1000000" | bc)
-            echo "Deleting: $CACHE_KEY (${SIZE_MB}MB, last accessed: $CACHE_ACCESSED)"
-            gh cache delete "$CACHE_ID" --repo "$REPO" || true
-            DELETED=$((DELETED + CACHE_SIZE))
+              CACHE_ID=$(jq -r ".actions_caches[$i].id" /tmp/caches.json)
+              CACHE_KEY=$(jq -r ".actions_caches[$i].key" /tmp/caches.json)
+              CACHE_SIZE=$(jq -r ".actions_caches[$i].size_in_bytes" /tmp/caches.json)
+              CACHE_ACCESSED=$(jq -r ".actions_caches[$i].last_accessed_at" /tmp/caches.json)
+              CACHE_REF=$(jq -r ".actions_caches[$i].ref" /tmp/caches.json)
+
+              SIZE_MB=$(echo "scale=1; $CACHE_SIZE / 1000000" | bc)
+              echo "Deleting: $CACHE_KEY (${SIZE_MB}MB, ref: $CACHE_REF, last accessed: $CACHE_ACCESSED)"
+              gh api --method DELETE "repos/$REPO/actions/caches/$CACHE_ID" || true
+              DELETED=$((DELETED + CACHE_SIZE))
+            done
+
+            PAGE=$((PAGE + 1))
           done
 
           DELETED_GB=$(echo "scale=2; $DELETED / 1000000000" | bc)
           echo "Deleted ${DELETED_GB}GB of cache."
 
-          NEW_SIZE=$(gh cache list --repo "$REPO" --json sizeInBytes --jq '[.[].sizeInBytes] | add // 0')
+          NEW_SIZE=$(gh api repos/$REPO/actions/cache/usage --jq '.active_caches_size_in_bytes')
           NEW_GB=$(echo "scale=2; $NEW_SIZE / 1000000000" | bc)
           echo "New cache size: ${NEW_GB}GB"
