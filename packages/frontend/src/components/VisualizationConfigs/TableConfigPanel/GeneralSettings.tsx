@@ -147,8 +147,10 @@ const GeneralSettings: FC = () => {
         isPivotTableEnabled,
         canUseSubtotals,
         hideRowNumbers,
+        enableColumnResize,
         isColumnCustomizationEnabled,
         metricsAsRows,
+        setEnableColumnResize,
         setHideRowNumbers,
         setShowColumnCalculation,
         setShowResultsTotal,
@@ -249,13 +251,25 @@ const GeneralSettings: FC = () => {
                     }}
                 />
                 {isColumnCustomizationEnabled && (
-                    <Checkbox
-                        label="Wrap column titles"
-                        checked={wrapColumnTitles}
-                        onChange={() => {
-                            setWrapColumnTitles(!wrapColumnTitles);
-                        }}
-                    />
+                    <>
+                        <Checkbox
+                            label="Drag to resize columns"
+                            checked={enableColumnResize}
+                            onChange={() => {
+                                setEnableColumnResize(!enableColumnResize);
+                            }}
+                        />
+                        {enableColumnResize && (
+                            <Checkbox
+                                label="Wrap column titles"
+                                checked={wrapColumnTitles}
+                                ml="lg"
+                                onChange={() => {
+                                    setWrapColumnTitles(!wrapColumnTitles);
+                                }}
+                            />
+                        )}
+                    </>
                 )}
             </Config.Section>
 
