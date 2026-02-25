@@ -40,6 +40,9 @@ const MANTINE_KEYWORD_COLORS = new Set([
     'anchor',
 ]);
 
+/** CSS color keywords that should pass through as-is, not be converted to Mantine vars. */
+const CSS_COLOR_KEYWORDS = new Set(['transparent', 'currentColor', 'inherit']);
+
 /** Mantine tokens are bare words ("red", "dimmed") or word.shade ("ldGray.6"). */
 const MANTINE_TOKEN_RE = /^[a-zA-Z]\w*(\.\d+)?$/;
 
@@ -50,6 +53,7 @@ const MANTINE_TOKEN_RE = /^[a-zA-Z]\w*(\.\d+)?$/;
 function toColorVar(color: MantineColor): string {
     const str = String(color);
     if (!MANTINE_TOKEN_RE.test(str)) return str;
+    if (CSS_COLOR_KEYWORDS.has(str)) return str;
     // "ldGray.6" → var(--mantine-color-ldGray-6)
     if (str.includes('.')) {
         return `var(--mantine-color-${str.replace('.', '-')})`;
