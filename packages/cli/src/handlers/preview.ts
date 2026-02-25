@@ -37,6 +37,9 @@ type PreviewHandlerOptions = DbtCompileOptions & {
     organizationCredentials?: string;
     assumeYes?: boolean;
     warehouseCredentials?: boolean;
+    useBatchedDeploy?: boolean;
+    batchSize?: string;
+    parallelBatches?: string;
 };
 
 type StopPreviewHandlerOptions = {
