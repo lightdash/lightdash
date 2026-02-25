@@ -1066,7 +1066,10 @@ export class MetricQueryBuilder {
         return sort.nullsFirst ? ' NULLS FIRST' : ' NULLS LAST';
     }
 
-    private getSortSQL(excludePostCalculationMetrics: boolean = false) {
+    private getSortSQL(
+        excludePostCalculationMetrics: boolean = false,
+        tablePrefix?: string,
+    ) {
         const { explore, compiledMetricQuery, warehouseSqlBuilder } = this.args;
         const { sorts, metrics, compiledCustomDimensions } =
             compiledMetricQuery;
@@ -1074,11 +1077,13 @@ export class MetricQueryBuilder {
         const startOfWeek = warehouseSqlBuilder.getStartOfWeek();
         const compiledDimensions = getDimensions(explore);
         let requiresQueryInCTE = false;
+        const fieldRef = (fieldId: string) =>
+            tablePrefix
+                ? `${tablePrefix}.${fieldQuoteChar}${fieldId}${fieldQuoteChar}`
+                : `${fieldQuoteChar}${fieldId}${fieldQuoteChar}`;
         const fieldOrders = sorts.reduce<string[]>((acc, sort) => {
             // Default sort
-            let fieldSort: string = `${fieldQuoteChar}${
-                sort.fieldId
-            }${fieldQuoteChar}${
+            let fieldSort: string = `${fieldRef(sort.fieldId)}${
                 sort.descending ? ' DESC' : ''
             }${MetricQueryBuilder.getNullsFirstLast(sort)}`;
 
@@ -1097,9 +1102,7 @@ export class MetricQueryBuilder {
                 // Custom dimensions will have a separate `select` for ordering,
                 // that returns the min value (int) of the bin, rather than a string,
                 // so we can use it for sorting
-                fieldSort = `${fieldQuoteChar}${
-                    sort.fieldId
-                }_order${fieldQuoteChar}${
+                fieldSort = `${fieldRef(`${sort.fieldId}_order`)}${
                     sort.descending ? ' DESC' : ''
                 }${MetricQueryBuilder.getNullsFirstLast(sort)}`;
             } else if (
@@ -1439,6 +1442,7 @@ export class MetricQueryBuilder {
             };
         }> = [];
         let finalSelectParts: Array<string | undefined> | undefined;
+        let joinedBaseCteName: string | undefined;
 
         // We can't handle deduplication for joins without relationship type
         joinWithoutRelationship.forEach((tableName) => {
@@ -1958,6 +1962,7 @@ export class MetricQueryBuilder {
              *   - when there are dimensions, use INNER JOIN on all dimensions (+ or null)
              */
             if (hasUnaffectedCte) {
+                joinedBaseCteName = unaffectedMetricsCteName;
                 finalSelectParts = [
                     `SELECT`,
                     [
@@ -2025,6 +2030,7 @@ export class MetricQueryBuilder {
             ctes,
             finalSelectParts,
             warnings,
+            baseCteName: joinedBaseCteName,
         };
     }
 
@@ -2496,7 +2502,9 @@ export class MetricQueryBuilder {
         ].join(',\n')}`;
         const sqlFrom = this.getBaseTableFromSQL();
         const sqlLimit = this.getLimitSQL();
-        const { sqlOrderBy, requiresQueryInCTE } = this.getSortSQL();
+        const sortResult = this.getSortSQL();
+        let { sqlOrderBy } = sortResult;
+        const { requiresQueryInCTE } = sortResult;
         const ctes = [...dimensionsSQL.ctes];
         let finalSelectParts: Array<string | undefined> = [
             sqlSelect,
@@ -2506,6 +2514,10 @@ export class MetricQueryBuilder {
             dimensionsSQL.filtersSQL,
             dimensionsSQL.groupBySQL,
         ];
+
+        // Tracks the base CTE name for qualifying ORDER BY columns
+        // when the final SELECT joins multiple CTEs (avoids ambiguous references in DuckDB)
+        let orderByPrefix: string | undefined;
 
         const warnings: QueryWarning[] = [];
         const experimentalMetricsCteSQL = this.getExperimentalMetricsCteSQL({
@@ -2519,6 +2531,7 @@ export class MetricQueryBuilder {
         if (experimentalMetricsCteSQL.finalSelectParts) {
             finalSelectParts = experimentalMetricsCteSQL.finalSelectParts;
             ctes.push(...experimentalMetricsCteSQL.ctes);
+            orderByPrefix = experimentalMetricsCteSQL.baseCteName;
         } else if (this.popComparisonConfigs.length > 0) {
             // Support multiple PoP configs (e.g. Previous month + 2 months ago) in the same query
             const fieldQuoteChar =
@@ -2654,6 +2667,7 @@ export class MetricQueryBuilder {
                     `FROM ${baseCteName}`,
                     ...popJoins,
                 ];
+                orderByPrefix = baseCteName;
             }
         }
         warnings.push(...experimentalMetricsCteSQL.warnings);
@@ -2707,6 +2721,7 @@ export class MetricQueryBuilder {
                     `FROM ${sdBaseCteName}`,
                     ...sdJoins,
                 ];
+                orderByPrefix = sdBaseCteName;
             } else {
                 // Only sum_distinct metrics, no dimensions or regular metrics
                 // Select directly from the first sd CTE (no base needed)
@@ -2740,6 +2755,8 @@ export class MetricQueryBuilder {
             interdependentTableCalcs.length > 0 && !!metricsSQL.filtersSQL;
 
         if (needsPostAgg) {
+            // Post-agg wraps everything into a single CTE, so ORDER BY is unambiguous
+            orderByPrefix = undefined;
             const ctesToAdd: string[] = [];
 
             // base metrics CTE = dimensions + metrics only (no filters, no table calcs)
@@ -2848,6 +2865,12 @@ export class MetricQueryBuilder {
                 whereClause,
             ];
             ctes.push(...ctesToAdd);
+        }
+
+        // When the final SELECT joins multiple CTEs, qualify ORDER BY columns
+        // with the base CTE name to avoid ambiguous column references (DuckDB)
+        if (orderByPrefix) {
+            ({ sqlOrderBy } = this.getSortSQL(false, orderByPrefix));
         }
 
         const query = MetricQueryBuilder.assembleSqlParts([

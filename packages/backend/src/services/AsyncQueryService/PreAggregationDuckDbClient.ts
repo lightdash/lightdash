@@ -78,7 +78,8 @@ export class PreAggregationDuckDbClient {
         this.projectModel = args.projectModel;
         this.createDuckdbWarehouseClient =
             args.createDuckdbWarehouseClient ??
-            ((warehouseArgs) => new DuckdbWarehouseClient(warehouseArgs));
+            ((warehouseArgs) =>
+                DuckdbWarehouseClient.createForPreAggregate(warehouseArgs));
     }
 
     async resolve(

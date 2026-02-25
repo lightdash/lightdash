@@ -24,6 +24,7 @@ import { AthenaSchemaInput } from './WarehouseForms/AthenaForm';
 import { BigQuerySchemaInput } from './WarehouseForms/BigQueryForm';
 import { ClickhouseSchemaInput } from './WarehouseForms/ClickhouseForm';
 import { DatabricksSchemaInput } from './WarehouseForms/DatabricksForm';
+import { DuckdbSchemaInput } from './WarehouseForms/DuckdbForm';
 import { PostgresSchemaInput } from './WarehouseForms/PostgresForm';
 import { RedshiftSchemaInput } from './WarehouseForms/RedshiftForm';
 import { SnowflakeSchemaInput } from './WarehouseForms/SnowflakeForm';
@@ -148,6 +149,8 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
                 return ClickhouseSchemaInput;
             case WarehouseTypes.ATHENA:
                 return AthenaSchemaInput;
+            case WarehouseTypes.DUCKDB:
+                return DuckdbSchemaInput;
             default: {
                 return assertUnreachable(
                     warehouseType,

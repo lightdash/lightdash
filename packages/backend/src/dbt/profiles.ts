@@ -243,6 +243,28 @@ const credentialsTarget = (
                     [envVar('password')]: credentials.password,
                 },
             };
+        case WarehouseTypes.DUCKDB:
+            return {
+                target: {
+                    type: 'duckdb',
+                    path: credentials.token
+                        ? `md:${credentials.database}`
+                        : credentials.database,
+                    schema: credentials.schema,
+                    threads: credentials.threads || DEFAULT_THREADS,
+                    ...(credentials.token
+                        ? {
+                              extensions: ['motherduck'],
+                              settings: {
+                                  motherduck_token: envVarReference('token'),
+                              },
+                          }
+                        : {}),
+                },
+                environment: credentials.token
+                    ? { [envVar('token')]: credentials.token }
+                    : {},
+            };
         case WarehouseTypes.ATHENA:
             const athenaAuthenticationType =
                 credentials.authenticationType ??

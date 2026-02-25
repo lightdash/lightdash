@@ -11,6 +11,7 @@ import { convertAthenaSchema } from './targets/athena';
 import { convertBigquerySchema } from './targets/Bigquery';
 import { convertClickhouseSchema } from './targets/clickhouse';
 import { convertDatabricksSchema } from './targets/databricks';
+import { convertDuckdbSchema } from './targets/duckdb';
 import { convertPostgresSchema } from './targets/postgres';
 import { convertRedshiftSchema } from './targets/redshift';
 import { convertSnowflakeSchema } from './targets/snowflake';
@@ -74,6 +75,8 @@ export const warehouseCredentialsFromDbtTarget = async (
             return convertClickhouseSchema(target);
         case 'athena':
             return convertAthenaSchema(target);
+        case 'duckdb':
+            return convertDuckdbSchema(target);
         default:
             throw new ParseError(
                 `Sorry! Lightdash doesn't yet support ${target.type} dbt targets`,
