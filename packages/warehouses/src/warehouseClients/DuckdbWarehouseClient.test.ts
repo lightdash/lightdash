@@ -1,4 +1,4 @@
-import { DimensionType } from '@lightdash/common';
+import { DimensionType, WarehouseTypes } from '@lightdash/common';
 import {
     DuckdbWarehouseClient,
     mapFieldTypeFromTypeId,
@@ -188,7 +188,7 @@ describe('DuckdbWarehouseClient', () => {
 
         createInstanceMock.mockResolvedValue(createMockConnection(streamMock));
 
-        const client = new DuckdbWarehouseClient({
+        const client = DuckdbWarehouseClient.createForPreAggregate({
             s3Config: {
                 endpoint: 'localhost:9000',
                 region: 'us-east-1',
@@ -216,7 +216,7 @@ describe('DuckdbWarehouseClient', () => {
 
         createInstanceMock.mockResolvedValue(createMockConnection(streamMock));
 
-        const client = new DuckdbWarehouseClient();
+        const client = DuckdbWarehouseClient.createForPreAggregate();
         const streamCallback = jest.fn();
         const result = await client.executeAsyncQuery(
             {
@@ -243,7 +243,7 @@ describe('DuckdbWarehouseClient', () => {
 
         createInstanceMock.mockResolvedValue(createMockConnection(streamMock));
 
-        const client = new DuckdbWarehouseClient();
+        const client = DuckdbWarehouseClient.createForPreAggregate();
         const result = await client.runQuery('SELECT id FROM empty_table');
 
         expect(result.rows).toEqual([]);
@@ -260,7 +260,7 @@ describe('DuckdbWarehouseClient', () => {
             createMockConnection(streamMock, runMock),
         );
 
-        const client = new DuckdbWarehouseClient({
+        const client = DuckdbWarehouseClient.createForPreAggregate({
             s3Config: {
                 endpoint: 'localhost:9000',
                 region: 'us-east-1',
@@ -278,5 +278,44 @@ describe('DuckdbWarehouseClient', () => {
         expect(runCalls).toContain("SET s3_region = 'us-east-1';");
         expect(runCalls).toContain("SET TimeZone = 'UTC';");
         expect(streamMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('should pass token in connection string for MotherDuck', async () => {
+        const streamMock = jest.fn(async () =>
+            getMockStreamResult([[{ id: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
+        );
+
+        createInstanceMock.mockResolvedValue(createMockConnection(streamMock));
+
+        const client = new DuckdbWarehouseClient({
+            type: WarehouseTypes.DUCKDB,
+            database: 'my_database',
+            schema: 'main',
+            token: 'my_motherduck_token',
+        });
+
+        await client.runQuery('SELECT 1 AS id');
+
+        expect(createInstanceMock).toHaveBeenCalledWith(
+            'md:my_database?motherduck_token=my_motherduck_token',
+        );
+    });
+
+    it('should use local path when no token is provided', async () => {
+        const streamMock = jest.fn(async () =>
+            getMockStreamResult([[{ id: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
+        );
+
+        createInstanceMock.mockResolvedValue(createMockConnection(streamMock));
+
+        const client = new DuckdbWarehouseClient({
+            type: WarehouseTypes.DUCKDB,
+            database: 'my_local.db',
+            schema: 'main',
+        });
+
+        await client.runQuery('SELECT 1 AS id');
+
+        expect(createInstanceMock).toHaveBeenCalledWith('my_local.db');
     });
 });
