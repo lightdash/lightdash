@@ -1,3 +1,10 @@
+# [0.2525.0](https://github.com/lightdash/lightdash/compare/0.2524.0...0.2525.0) (2026-02-25)
+
+
+### Features
+
+* add validateValue prop to ManageFilterValuesModal ([#20579](https://github.com/lightdash/lightdash/issues/20579)) ([02a7702](https://github.com/lightdash/lightdash/commit/02a7702b78ec9d4c6c5ce84287691ebd5c921681))
+
 # [0.2524.0](https://github.com/lightdash/lightdash/compare/0.2523.5...0.2524.0) (2026-02-25)
 
 
