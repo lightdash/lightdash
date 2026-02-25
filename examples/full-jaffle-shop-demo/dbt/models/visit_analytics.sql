@@ -55,9 +55,11 @@ visit_metrics as (
         extract(year from v.visit_date) as visit_year,
         extract(quarter from v.visit_date) as visit_quarter,
         extract(month from v.visit_date) as visit_month,
-        -- Athena/Trino: no to_char, use date_format instead
+        -- Athena/Trino: no to_char, use date_format; DuckDB: use strftime
         {% if target.type == 'trino' or target.type == 'athena' %}
         date_format(v.visit_date, '%W') as visit_day_of_week,
+        {% elif target.type == 'duckdb' %}
+        strftime(v.visit_date, '%A') as visit_day_of_week,
         {% else %}
         to_char(v.visit_date, 'Day') as visit_day_of_week,
         {% endif %}
