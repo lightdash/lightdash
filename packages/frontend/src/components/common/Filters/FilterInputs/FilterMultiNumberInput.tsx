@@ -3,7 +3,10 @@ import { useDisclosure, useHover } from '@mantine-8/hooks';
 import { IconListDetails } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
 import MantineIcon from '../../MantineIcon';
-import { DefaultValue } from '../../TagInput/DefaultValue/DefaultValue';
+import {
+    DefaultValue,
+    type TagInputValueProps,
+} from '../../TagInput/DefaultValue/DefaultValue';
 import { TagInput } from '../../TagInput/TagInput';
 import classes from './FilterMultiNumberInput.module.css';
 import {
@@ -42,8 +45,7 @@ const FilterMultiNumberInput: FC<Props> = ({
     const displayValues = useMemo(() => computeDisplayValues(values), [values]);
 
     const TruncatedValue = useCallback(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (props: any) => {
+        (props: TagInputValueProps & { value: string }) => {
             if (props.value === MORE_VALUES_TOKEN) {
                 return (
                     <DefaultValue
