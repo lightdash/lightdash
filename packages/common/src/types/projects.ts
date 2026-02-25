@@ -27,6 +27,7 @@ export enum WarehouseTypes {
     TRINO = 'trino',
     CLICKHOUSE = 'clickhouse',
     ATHENA = 'athena',
+    DUCKDB = 'duckdb',
 }
 
 export type SshTunnelConfiguration = {
@@ -209,6 +210,20 @@ export type AthenaCredentials = Omit<
     SensitiveCredentialsFieldNames
 >;
 
+export type CreateDuckdbCredentials = {
+    type: WarehouseTypes.DUCKDB;
+    database: string;
+    schema: string;
+    token?: string;
+    threads?: number;
+    requireUserCredentials?: boolean;
+    startOfWeek?: WeekDay | null;
+};
+export type DuckdbCredentials = Omit<
+    CreateDuckdbCredentials,
+    SensitiveCredentialsFieldNames
+>;
+
 export type CreateRedshiftCredentials = SshTunnelConfiguration & {
     type: WarehouseTypes.REDSHIFT;
     host: string;
@@ -277,7 +292,8 @@ export type CreateWarehouseCredentials =
     | CreateDatabricksCredentials
     | CreateTrinoCredentials
     | CreateClickhouseCredentials
-    | CreateAthenaCredentials;
+    | CreateAthenaCredentials
+    | CreateDuckdbCredentials;
 export type WarehouseCredentials =
     | SnowflakeCredentials
     | RedshiftCredentials
@@ -286,7 +302,8 @@ export type WarehouseCredentials =
     | DatabricksCredentials
     | TrinoCredentials
     | ClickhouseCredentials
-    | AthenaCredentials;
+    | AthenaCredentials
+    | DuckdbCredentials;
 
 export type CreatePostgresLikeCredentials =
     | CreateRedshiftCredentials

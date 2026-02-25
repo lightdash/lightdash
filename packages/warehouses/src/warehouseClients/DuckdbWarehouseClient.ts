@@ -1,7 +1,7 @@
 import { DuckDBInstance, DuckDBTypeId } from '@duckdb/node-api';
 import {
     AnyType,
-    CreatePostgresCredentials,
+    CreateDuckdbCredentials,
     DimensionType,
     formatMilliseconds,
     getErrorMessage,
@@ -26,21 +26,15 @@ type DuckdbStreamResult = {
     yieldRowObjectJson: () => AsyncIterableIterator<Record<string, AnyType>[]>;
 };
 
-type DuckdbPreparedStatement = {
-    statementType: number;
-    destroySync: () => void;
-};
-
-type DuckdbExtractedStatements = {
-    count: number;
-    prepare: (index: number) => Promise<DuckdbPreparedStatement>;
+type DuckdbRunResult = {
+    getRowObjects: () => Promise<Record<string, AnyType>[]>;
 };
 
 type DuckdbConnection = {
     run: (
         sql: string,
         values?: AnyType[] | Record<string, AnyType>,
-    ) => Promise<unknown>;
+    ) => Promise<DuckdbRunResult>;
     stream: (
         sql: string,
         values?: AnyType[] | Record<string, AnyType>,
@@ -128,16 +122,6 @@ export type DuckdbWarehouseClientOptions = {
     onQueryProfile?: (profile: DuckdbQueryProfileMetrics) => void;
 };
 
-const DUCKDB_INTERNAL_CREDENTIALS: CreatePostgresCredentials = {
-    type: WarehouseTypes.POSTGRES,
-    host: 'localhost',
-    port: 5432,
-    dbname: 'duckdb',
-    schema: 'main',
-    user: 'duckdb',
-    password: 'duckdb',
-};
-
 export const mapFieldTypeFromTypeId = (typeId: number): DimensionType => {
     switch (typeId) {
         case DuckDBTypeId.DATE:
@@ -171,6 +155,31 @@ export const mapFieldTypeFromTypeId = (typeId: number): DimensionType => {
     }
 };
 
+const mapFieldTypeFromString = (typeName: string): DimensionType => {
+    const upper = typeName.toUpperCase();
+    if (upper === 'DATE') return DimensionType.DATE;
+    if (
+        upper.includes('TIMESTAMP') ||
+        upper === 'TIME' ||
+        upper === 'TIMETZ' ||
+        upper === 'TIME WITH TIME ZONE'
+    )
+        return DimensionType.TIMESTAMP;
+    if (upper === 'BOOLEAN') return DimensionType.BOOLEAN;
+    if (
+        upper.includes('INT') ||
+        upper === 'FLOAT' ||
+        upper === 'DOUBLE' ||
+        upper === 'REAL' ||
+        upper.startsWith('DECIMAL') ||
+        upper.startsWith('NUMERIC') ||
+        upper === 'HUGEINT' ||
+        upper === 'UHUGEINT'
+    )
+        return DimensionType.NUMBER;
+    return DimensionType.STRING;
+};
+
 export class DuckdbSqlBuilder extends WarehouseBaseSqlBuilder {
     getAdapterType(): SupportedDbtAdapter {
         return SupportedDbtAdapter.DUCKDB;
@@ -196,119 +205,37 @@ export class DuckdbSqlBuilder extends WarehouseBaseSqlBuilder {
     }
 }
 
-/**
- * Simple single-permit semaphore (mutex) for async code.
- * Ensures only one caller at a time enters the critical section,
- * while others await their turn.
- */
-class AsyncSemaphore {
-    private queue: Array<() => void> = [];
-
-    private held = false;
-
-    acquire(): Promise<void> {
-        if (!this.held) {
-            this.held = true;
-            return Promise.resolve();
-        }
-        return new Promise<void>((resolve) => {
-            this.queue.push(resolve);
-        });
-    }
-
-    release(): void {
-        const next = this.queue.shift();
-        if (next) {
-            next();
-        } else {
-            this.held = false;
-        }
-    }
-}
-
-// DuckDB StatementType values — see duckdb/common/enums/statement_type.hpp
-const ALLOWED_STATEMENT_TYPES_USER_SQL = new Set([1 /* SELECT */]);
-
-const BLOCKED_STATEMENT_TYPES_INTERNAL_SQL = new Set([
-    12, // VARIABLE_SET
-    20, // SET
-    21, // LOAD
-    23, // EXTENSION (INSTALL)
-    25, // ATTACH
-    26, // DETACH
-]);
-
-const BLOCKED_FUNCTION_PATTERN =
-    /\b(current_setting|duckdb_settings|duckdb_secrets)\s*\(/i;
-
-export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCredentials> {
-    private static readonly sharedInstances = new Map<string, DuckdbInstance>();
-
-    private static readonly sharedInstanceSemaphores = new Map<
-        string,
-        AsyncSemaphore
-    >();
-
-    private static readonly sqlBuilder = new DuckdbSqlBuilder();
+export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbCredentials> {
+    private readonly databasePath: string;
 
     private readonly s3Config?: DuckdbS3SessionConfig;
 
-    private readonly resourceLimits?: DuckdbResourceLimits;
-
-    private readonly sharedResourceLimits?: DuckdbResourceLimits;
-
-    private readonly instanceCacheKey?: string;
-
-    private readonly logger?: DuckdbLogger;
-
-    private readonly onQueryProfile?: (
-        profile: DuckdbQueryProfileMetrics,
-    ) => void;
-
     constructor(
-        credentials?: DuckdbConnectionCredentials,
-        options?: DuckdbWarehouseClientOptions,
+        credentials: CreateDuckdbCredentials,
+        overrides?: DuckdbWarehouseClientArgs,
     ) {
-        super(DUCKDB_INTERNAL_CREDENTIALS, new DuckdbSqlBuilder());
-        this.s3Config =
-            credentials?.type === 'duckdb_s3'
-                ? credentials.s3Config
-                : undefined;
-        this.resourceLimits = options?.resourceLimits;
-        this.sharedResourceLimits = options?.sharedResourceLimits;
-        this.instanceCacheKey = options?.instanceCacheKey;
-        this.logger = options?.logger;
-        this.onQueryProfile = options?.onQueryProfile;
+        super(credentials, new DuckdbSqlBuilder());
+        if (overrides?.databasePath !== undefined) {
+            this.databasePath = overrides.databasePath;
+        } else if (credentials.token) {
+            this.databasePath = `md:${credentials.database}?motherduck_token=${credentials.token}`;
+        } else {
+            this.databasePath = credentials.database || ':memory:';
+        }
+        this.s3Config = overrides?.s3Config;
     }
 
-    private static getSharedInstanceSemaphore(
-        instanceCacheKey: string,
-    ): AsyncSemaphore {
-        const existingSemaphore =
-            DuckdbWarehouseClient.sharedInstanceSemaphores.get(
-                instanceCacheKey,
-            );
-
-        if (existingSemaphore) {
-            return existingSemaphore;
-        }
-
-        const semaphore = new AsyncSemaphore();
-        DuckdbWarehouseClient.sharedInstanceSemaphores.set(
-            instanceCacheKey,
-            semaphore,
+    static createForPreAggregate(
+        args: DuckdbWarehouseClientArgs = {},
+    ): DuckdbWarehouseClient {
+        return new DuckdbWarehouseClient(
+            {
+                type: WarehouseTypes.DUCKDB,
+                database: args.databasePath ?? ':memory:',
+                schema: 'main',
+            },
+            args,
         );
-        return semaphore;
-    }
-
-    private getRequiredInstanceCacheKey(): string {
-        if (!this.instanceCacheKey) {
-            throw new Error(
-                'DuckDB instanceCacheKey is required for shared instances',
-            );
-        }
-
-        return this.instanceCacheKey;
     }
 
     private getSQLWithMetadata(sql: string, tags?: Record<string, string>) {
@@ -745,53 +672,40 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
     ): Promise<T> {
         const sessionStart = performance.now();
 
-        const sharedConnection = await this.connectWithRetry();
-
-        try {
-            const queryStart = performance.now();
-            const result = await callback(sharedConnection.connection);
-            const queryMs = performance.now() - queryStart;
-
-            const totalMs = performance.now() - sessionStart;
-            this.logger?.info(
-                `DuckDB shared session complete: cacheKey=${this.instanceCacheKey ?? 'none'} cache_hit=${sharedConnection.cacheHit ? 'true' : 'false'} semaphore_wait=${formatMilliseconds(sharedConnection.semaphoreWaitMs)}ms instance_create=${formatMilliseconds(sharedConnection.instanceCreateMs)}ms bootstrap=${formatMilliseconds(sharedConnection.bootstrapMs)}ms connect=${formatMilliseconds(sharedConnection.connectMs)}ms query=${formatMilliseconds(queryMs)}ms total=${formatMilliseconds(totalMs)}ms`,
-                {
-                    instanceCacheKey: this.instanceCacheKey,
-                    cacheHit: sharedConnection.cacheHit,
-                    semaphoreWaitMs: sharedConnection.semaphoreWaitMs,
-                    instanceCreateMs: sharedConnection.instanceCreateMs,
-                    bootstrapMs: sharedConnection.bootstrapMs,
-                    connectMs: sharedConnection.connectMs,
-                    queryMs,
-                    totalMs,
-                },
+        if (this.s3Config) {
+            await db.run(
+                `SET s3_endpoint = '${this.escapeString(this.s3Config.endpoint)}';`,
             );
 
-            return result;
-        } finally {
-            sharedConnection.connection.closeSync?.();
-            sharedConnection.connection.disconnectSync?.();
+            if (this.s3Config.region) {
+                await db.run(
+                    `SET s3_region = '${this.escapeString(this.s3Config.region)}';`,
+                );
+            }
+
+            if (this.s3Config.accessKey) {
+                await db.run(
+                    `SET s3_access_key_id = '${this.escapeString(
+                        this.s3Config.accessKey,
+                    )}';`,
+                );
+            }
+
+            if (this.s3Config.secretKey) {
+                await db.run(
+                    `SET s3_secret_access_key = '${this.escapeString(
+                        this.s3Config.secretKey,
+                    )}';`,
+                );
+            }
+
+            await db.run(`SET s3_use_ssl = ${this.s3Config.useSsl};`);
+            await db.run(
+                `SET s3_url_style = '${
+                    this.s3Config.forcePathStyle ? 'path' : 'vhost'
+                }';`,
+            );
         }
-    }
-
-    private hasResourceLimits(): boolean {
-        return (
-            !!this.resourceLimits && Object.keys(this.resourceLimits).length > 0
-        );
-    }
-
-    private async withSession<T>(
-        callback: (db: DuckdbConnection) => Promise<T>,
-    ): Promise<T> {
-        if (this.hasResourceLimits()) {
-            return this.withIsolatedSession(callback);
-        }
-
-        if (this.instanceCacheKey) {
-            return this.withSharedSession(callback);
-        }
-
-        return this.withEphemeralQuerySession(callback);
     }
 
     private getBindValues(options?: {
@@ -1057,93 +971,50 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
         });
     }
 
-    async executeAsyncQuery(
-        ...args: Parameters<
-            WarehouseBaseClient<CreatePostgresCredentials>['executeAsyncQuery']
-        >
-    ) {
-        const [queryArgs, resultsStreamCallback] = args;
-        const startTime = performance.now();
-        let callbackTimeMs = 0;
-
-        const result = await super.executeAsyncQuery(
-            queryArgs,
-            resultsStreamCallback
-                ? async (rows, fields) => {
-                      const callbackStartTime = performance.now();
-                      try {
-                          await resultsStreamCallback(rows, fields);
-                      } finally {
-                          callbackTimeMs +=
-                              performance.now() - callbackStartTime;
-                      }
-                  }
-                : undefined,
-        );
-
-        return {
-            ...result,
-            durationMs: Math.max(
-                0,
-                performance.now() - startTime - callbackTimeMs,
-            ),
-        };
-    }
-
-    async runSql(sql: string): Promise<void> {
-        await this.withSession(async (db) => {
-            await this.validateInternalSql(db, sql);
-            await db.run(sql);
-        });
-    }
-
-    async runSqlWithMetrics(sql: string): Promise<{
-        bootstrapMs: number;
-        queryMs: number;
-        totalMs: number;
-    }> {
-        const totalStart = performance.now();
-        let bootstrapMs = 0;
-        let queryMs = 0;
-
-        await this.withSession(async (db) => {
-            await this.validateInternalSql(db, sql);
-            bootstrapMs = performance.now() - totalStart;
-            const queryStart = performance.now();
-            await db.run(sql);
-            queryMs = performance.now() - queryStart;
-        });
-
-        return {
-            bootstrapMs,
-            queryMs,
-            totalMs: performance.now() - totalStart,
-        };
-    }
-
-    async runQuery(
-        ...args: Parameters<
-            WarehouseBaseClient<CreatePostgresCredentials>['runQuery']
-        >
-    ) {
-        return super.runQuery(...args);
-    }
-
-    async test(): Promise<void> {
-        await super.test();
-    }
-
     async getCatalog(
-        _config: { database: string; schema: string; table: string }[],
+        config: { database: string; schema: string; table: string }[],
     ): Promise<WarehouseCatalog> {
-        throw new NotImplementedError(
-            'DuckDB catalog discovery is not implemented yet',
-        );
+        return this.withSession(async (db) => {
+            const catalog: WarehouseCatalog = {};
+
+            /* eslint-disable no-await-in-loop */
+            // eslint-disable-next-line no-restricted-syntax
+            for (const ref of config) {
+                const result = await db.run(
+                    `SELECT column_name, data_type
+                     FROM information_schema.columns
+                     WHERE table_catalog = '${this.escapeString(ref.database)}'
+                       AND table_schema = '${this.escapeString(ref.schema)}'
+                       AND table_name = '${this.escapeString(ref.table)}'`,
+                );
+                const rows = await result.getRowObjects();
+
+                if (rows.length > 0) {
+                    if (!catalog[ref.database]) {
+                        catalog[ref.database] = {};
+                    }
+                    if (!catalog[ref.database][ref.schema]) {
+                        catalog[ref.database][ref.schema] = {};
+                    }
+                    catalog[ref.database][ref.schema][ref.table] = rows.reduce<
+                        Record<string, DimensionType>
+                    >((acc, row) => {
+                        const colName = row.column_name as string;
+                        const colType = row.data_type as string;
+                        acc[colName] = mapFieldTypeFromString(colType);
+                        return acc;
+                    }, {});
+                }
+            }
+            /* eslint-enable no-await-in-loop */
+
+            return catalog;
+        });
     }
 
     async getAllTables(
-        _schema?: string,
-        _tags?: Record<string, string>,
+        schema?: string,
+        tags?: Record<string, string>,
     ): Promise<
         {
             database: string;
@@ -1151,19 +1022,41 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
             table: string;
         }[]
     > {
-        throw new NotImplementedError(
-            'DuckDB table discovery is not implemented yet',
-        );
+        return this.withSession(async (db) => {
+            let sql = `SELECT table_catalog AS database, table_schema AS schema, table_name AS table
+                        FROM information_schema.tables
+                        WHERE table_type IN ('BASE TABLE', 'VIEW')`;
+
+            if (schema) {
+                sql += ` AND table_schema = '${this.escapeString(schema)}'`;
+            }
+
+            const result = await db.run(
+                tags ? this.getSQLWithMetadata(sql, tags) : sql,
+            );
+            const rows = await result.getRowObjects();
+
+            return rows.map((row) => ({
+                database: row.database as string,
+                schema: row.schema as string,
+                table: row.table as string,
+            }));
+        });
     }
 
     async getFields(
-        _tableName: string,
-        _schema?: string,
-        _database?: string,
+        tableName: string,
+        schema?: string,
+        database?: string,
         _tags?: Record<string, string>,
     ): Promise<WarehouseCatalog> {
-        throw new NotImplementedError(
-            'DuckDB field discovery is not implemented yet',
-        );
+        const refs = [
+            {
+                database: database ?? '',
+                schema: schema ?? this.credentials.schema,
+                table: tableName,
+            },
+        ];
+        return this.getCatalog(refs);
     }
 }
