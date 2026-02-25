@@ -222,14 +222,14 @@ apiV1Router.get('/debug/heap-snapshot', async (req, res) => {
             return;
         }
 
-        const stats = fs.statSync(snapshotPath);
+        const stats = await fs.promises.stat(snapshotPath);
         const fileSizeMB = (stats.size / 1024 / 1024).toFixed(1);
         const mem = process.memoryUsage();
 
         res.json({
             status: 'ok',
             results: {
-                snapshotPath,
+                snapshotFile: path.basename(snapshotPath),
                 fileSizeMB: `${fileSizeMB}MB`,
                 memory: {
                     rss: `${(mem.rss / 1024 / 1024).toFixed(1)}MB`,
