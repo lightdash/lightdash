@@ -1,3 +1,10 @@
+## [0.2523.1](https://github.com/lightdash/lightdash/compare/0.2523.0...0.2523.1) (2026-02-25)
+
+
+### Bug Fixes
+
+* fix typos in CONTRIBUTING.md ([#20608](https://github.com/lightdash/lightdash/issues/20608)) ([e906127](https://github.com/lightdash/lightdash/commit/e90612736e058aa609b6a060ef103fc1edc95d59))
+
 # [0.2523.0](https://github.com/lightdash/lightdash/compare/0.2522.0...0.2523.0) (2026-02-25)
 
 
