@@ -12,10 +12,12 @@
         "cypress:open:experimental": "CYPRESS_RETRIES=0 cypress open --e2e --config 'specPattern=cypress/e2e/experimental/**/*.cy.ts,excludeSpecPattern=[]'",
         "linter": "eslint -c .eslintrc.js --ignore-path ./../../.gitignore",
         "formatter": "oxfmt",
-        "lint": "pnpm run linter ./cypress",
-        "fix-lint": "pnpm run linter ./cypress --fix",
-        "format": "oxfmt ./cypress --check",
-        "fix-format": "oxfmt ./cypress"
+        "lint": "pnpm run linter ./cypress ./api-tests",
+        "fix-lint": "pnpm run linter ./cypress ./api-tests --fix",
+        "format": "oxfmt ./cypress ./api-tests --check",
+        "fix-format": "oxfmt ./cypress ./api-tests",
+        "test:api": "vitest run --config vitest.config.ts",
+        "test:api:watch": "vitest watch --config vitest.config.ts"
     },
     "dependencies": {
         "@lightdash/common": "workspace:*",
@@ -24,7 +26,9 @@
         "cypress-file-upload": "^5.0.8",
         "cypress-split": "^1.24.19",
         "dayjs": "^1.11.10",
-        "js-yaml": "^4.1.1",
-        "node-fetch": "^2.7.0"
+        "js-yaml": "^4.1.1"
+    },
+    "devDependencies": {
+        "vitest": "^3.0.5"
     }
 }
