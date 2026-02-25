@@ -60,7 +60,8 @@ export const OmnibarItemIconWithIndicator: FC<
                                 pathname: `/generalSettings/projectManagement/${projectUuid}/validator`,
                                 search: `?validationId=${item.item.validationErrors[0].validationId}`,
                             }}
-                            color="blue.4"
+                            c="blue.4"
+                            fz="xs"
                         >
                             here
                         </Anchor>
