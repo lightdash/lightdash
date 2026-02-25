@@ -50,16 +50,20 @@ export class FileController extends BaseController {
                 requestContext,
             );
 
-            this.setStatus(200);
-            this.setHeader('Content-Type', 'image/png');
-            this.setHeader(
-                'Cache-Control',
-                'public, max-age=31536000, immutable',
-            );
-            this.setHeader('X-Robots-Tag', 'noindex, nofollow');
-
+            // Set headers directly on Express response before piping.
+            // TSOA's this.setHeader() stores headers on the controller and
+            // applies them in returnHandler(), but returnHandler() runs AFTER
+            // the stream has been piped — by then headersSent is true and
+            // TSOA bails out, so the headers never reach the response.
             const { res } = req;
             if (res) {
+                res.status(200);
+                res.setHeader('Content-Type', 'image/png');
+                res.setHeader(
+                    'Cache-Control',
+                    'public, max-age=31536000, immutable',
+                );
+                res.setHeader('X-Robots-Tag', 'noindex, nofollow');
                 stream.pipe(res);
                 await new Promise<void>((resolve) => {
                     stream.on('end', () => {
