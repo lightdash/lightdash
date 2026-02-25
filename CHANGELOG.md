@@ -1,3 +1,10 @@
+## [0.2523.2](https://github.com/lightdash/lightdash/compare/0.2523.1...0.2523.2) (2026-02-25)
+
+
+### Bug Fixes
+
+* admin can't see child spaces after being explicitly added to parent space ([#20612](https://github.com/lightdash/lightdash/issues/20612)) ([dd1b8a9](https://github.com/lightdash/lightdash/commit/dd1b8a971955ed4ad00b2180979d532758b63ba1))
+
 ## [0.2523.1](https://github.com/lightdash/lightdash/compare/0.2523.0...0.2523.1) (2026-02-25)
 
 
