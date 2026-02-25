@@ -1008,7 +1008,7 @@ describe('Query builder', () => {
         );
     });
 
-    it('buildQuery with row() table calculation should order by custom bin _order column', () => {
+    it("buildQuery with row() table calculation should order by custom bin _order column", () => {
         const { query } = buildQuery({
             explore: EXPLORE,
             compiledMetricQuery: {
