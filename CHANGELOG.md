@@ -1,3 +1,18 @@
+# [0.2526.0](https://github.com/lightdash/lightdash/compare/0.2525.0...0.2526.0) (2026-02-25)
+
+
+### Bug Fixes
+
+* normalize quotes and add FilterMultiNumberInput tests ([#20635](https://github.com/lightdash/lightdash/issues/20635)) ([0a72308](https://github.com/lightdash/lightdash/commit/0a723088fb96cfac73d22892ad412fc948d5a391))
+* preserve CSS color keywords in MantineIcon color conversion ([#20631](https://github.com/lightdash/lightdash/issues/20631)) ([8284589](https://github.com/lightdash/lightdash/commit/82845894300dbe4923221493728d55677f760a3c))
+
+
+### Features
+
+* add CSV import to multi-number filter inputs ([#20580](https://github.com/lightdash/lightdash/issues/20580)) ([079f2c6](https://github.com/lightdash/lightdash/commit/079f2c6b534b6a57b50fe7ffe0758e42a3cefbce))
+* add debug heap snapshot endpoint to API v1 router ([#20629](https://github.com/lightdash/lightdash/issues/20629)) ([b594d66](https://github.com/lightdash/lightdash/commit/b594d66b42191478f3f08521827785f21d32fd8c))
+* add investigate-pylon skill for AE support workflow ([#20637](https://github.com/lightdash/lightdash/issues/20637)) ([41653dc](https://github.com/lightdash/lightdash/commit/41653dc66b21c6d421409ed0ef7e23b15c94d0c1))
+
 # [0.2525.0](https://github.com/lightdash/lightdash/compare/0.2524.0...0.2525.0) (2026-02-25)
 
 
