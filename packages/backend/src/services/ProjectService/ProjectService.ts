@@ -1198,6 +1198,12 @@ export class ProjectService extends BaseService {
                     secretAccessKey: '',
                 };
             }
+            case WarehouseTypes.DUCKDB: {
+                return {
+                    ...credentials,
+                    token: undefined,
+                };
+            }
 
             default:
                 return assertUnreachable(
@@ -1418,6 +1424,7 @@ export class ProjectService extends BaseService {
             case WarehouseTypes.TRINO:
             case WarehouseTypes.CLICKHOUSE:
             case WarehouseTypes.ATHENA:
+            case WarehouseTypes.DUCKDB:
                 credentialsWithOverrides = warehouseSshCredentials;
                 break;
             default:
@@ -1821,6 +1828,7 @@ export class ProjectService extends BaseService {
                     case WarehouseTypes.TRINO:
                     case WarehouseTypes.CLICKHOUSE:
                     case WarehouseTypes.ATHENA:
+                    case WarehouseTypes.DUCKDB:
                         break;
                     default:
                         assertUnreachable(
@@ -5502,6 +5510,8 @@ export class ProjectService extends BaseService {
                 return credentials.catalog;
             case WarehouseTypes.ATHENA:
                 return credentials.database; // Athena uses database as catalog name
+            case WarehouseTypes.DUCKDB:
+                return credentials.database;
             default:
                 return assertUnreachable(credentials, 'Unknown warehouse type');
         }

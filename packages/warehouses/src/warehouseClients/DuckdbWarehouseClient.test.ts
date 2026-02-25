@@ -1,4 +1,8 @@
-import { DimensionType, WarehouseTypes, QueryExecutionContext } from '@lightdash/common';
+import {
+    DimensionType,
+    QueryExecutionContext,
+    WarehouseTypes,
+} from '@lightdash/common';
 import fs from 'fs/promises';
 import {
     DuckdbWarehouseClient,
@@ -210,6 +214,7 @@ describe('DuckdbWarehouseClient', () => {
         createInstanceMock.mockResolvedValue(createMockConnection(streamMock));
 
         const client = DuckdbWarehouseClient.createForPreAggregate({
+            type: 'duckdb_s3',
             s3Config: {
                 endpoint: 'localhost:9000',
                 region: 'us-east-1',
@@ -281,7 +286,8 @@ describe('DuckdbWarehouseClient', () => {
             createMockConnection(streamMock, runMock),
         );
 
-        const client = DuckdbWarehouseClient.createForPreAggregate({
+        const config = {
+            type: 'duckdb_s3' as const,
             s3Config: {
                 endpoint: 'localhost:9000',
                 region: 'us-east-1',
