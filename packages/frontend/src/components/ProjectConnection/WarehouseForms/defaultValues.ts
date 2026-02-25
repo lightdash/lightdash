@@ -9,6 +9,7 @@ import type {
     CreateBigqueryCredentials,
     CreateClickhouseCredentials,
     CreateDatabricksCredentials,
+    CreateDuckdbCredentials,
     CreatePostgresCredentials,
     CreateRedshiftCredentials,
     CreateSnowflakeCredentials,
@@ -166,6 +167,14 @@ export const AthenaDefaultValues: CreateAthenaCredentials = {
     dataTimezone: undefined,
 };
 
+const DuckdbDefaultValues: CreateDuckdbCredentials = {
+    type: WarehouseTypes.DUCKDB,
+    database: '',
+    schema: 'main',
+    threads: 1,
+    startOfWeek: undefined,
+};
+
 export const warehouseDefaultValues = {
     [WarehouseTypes.BIGQUERY]: BigQueryDefaultValues,
     [WarehouseTypes.POSTGRES]: PostgresDefaultValues,
@@ -175,4 +184,5 @@ export const warehouseDefaultValues = {
     [WarehouseTypes.TRINO]: TrinoDefaultValues,
     [WarehouseTypes.CLICKHOUSE]: ClickhouseDefaultValues,
     [WarehouseTypes.ATHENA]: AthenaDefaultValues,
+    [WarehouseTypes.DUCKDB]: DuckdbDefaultValues,
 };
