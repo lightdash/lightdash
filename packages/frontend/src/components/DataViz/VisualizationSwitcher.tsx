@@ -2,15 +2,17 @@ import { ChartKind } from '@lightdash/common';
 import {
     ActionIcon,
     Box,
-    Center,
     Group,
     Paper,
     Tooltip,
+    useMantineColorScheme,
     useMantineTheme,
-} from '@mantine/core';
+} from '@mantine-8/core';
+import { clsx } from '@mantine/core';
 import { memo, type FC } from 'react';
 import MantineIcon from '../common/MantineIcon';
 import { getChartIcon } from '../common/ResourceIcon/utils';
+import classes from './VisualizationSwitcher.module.css';
 
 type VisualizationActionIconProps = {
     chartKind: ChartKind;
@@ -21,7 +23,8 @@ type VisualizationActionIconProps = {
 
 const VisualizationActionIcon: FC<VisualizationActionIconProps> = memo(
     ({ chartKind, label, onClick, selected }) => {
-        const { colors, colorScheme } = useMantineTheme();
+        const { colors } = useMantineTheme();
+        const { colorScheme } = useMantineColorScheme();
         const ICON_SELECTED_COLOR =
             colorScheme === 'light' ? colors.violet[6] : colors.violet[2];
         const ICON_SELECTED_BG_COLOR =
@@ -36,25 +39,26 @@ const VisualizationActionIcon: FC<VisualizationActionIconProps> = memo(
                         w={32}
                         h={32}
                         data-testid={`visualization-${chartKind}`}
+                        color={selected ? 'violet' : 'ldGray.5'}
                     >
                         <Paper
-                            display="flex"
                             w={32}
                             h={32}
-                            component={Center}
                             withBorder
                             radius="sm"
-                            shadow={selected ? 'sm' : 'none'}
-                            sx={(theme) => ({
-                                backgroundColor: selected
-                                    ? ICON_SELECTED_BG_COLOR
-                                    : theme.colors.ldGray[0],
-                                '&[data-with-border]': {
-                                    borderColor: selected
-                                        ? ICON_SELECTED_COLOR
-                                        : 'none',
-                                },
-                            })}
+                            shadow={selected ? 'sm' : undefined}
+                            className={clsx(
+                                classes.actionPaper,
+                                selected && classes.actionPaperSelected,
+                            )}
+                            style={
+                                {
+                                    '--action-paper-bg-selected':
+                                        ICON_SELECTED_BG_COLOR,
+                                    '--action-paper-border-selected':
+                                        ICON_SELECTED_COLOR,
+                                } as React.CSSProperties
+                            }
                         >
                             <MantineIcon
                                 icon={getChartIcon(chartKind)}
@@ -99,7 +103,7 @@ export const VisualizationSwitcher = ({
     ];
 
     return (
-        <Group spacing="xs">
+        <Group gap="xs">
             {AVAILABLE_VISUALIZATIONS.map((vis) => (
                 <VisualizationActionIcon
                     key={vis.label}

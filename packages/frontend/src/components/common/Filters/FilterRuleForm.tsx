@@ -8,8 +8,7 @@ import {
     type FilterableField,
     type FilterRule,
 } from '@lightdash/common';
-import { Menu } from '@mantine-8/core';
-import { ActionIcon, Box, Group, Select, Tooltip } from '@mantine/core';
+import { ActionIcon, Box, Group, Menu, Select, Tooltip } from '@mantine-8/core';
 import { IconDots, IconX } from '@tabler/icons-react';
 import { memo, useCallback, useMemo, type FC } from 'react';
 import FieldSelect from '../FieldSelect';
@@ -98,9 +97,9 @@ const FilterRuleForm: FC<Props> = memo(
 
         return (
             <Group
-                noWrap
+                wrap="nowrap"
                 align="start"
-                spacing="xs"
+                gap="xs"
                 data-testid="FilterRuleForm/filter-rule"
                 data-rule-id={filterRule.id}
             >
@@ -115,7 +114,9 @@ const FilterRuleForm: FC<Props> = memo(
                         <FieldSelect
                             size="xs"
                             disabled={!isEditMode || isRequired}
-                            withinPortal={popoverProps?.withinPortal}
+                            comboboxProps={{
+                                withinPortal: popoverProps?.withinPortal,
+                            }}
                             onDropdownOpen={popoverProps?.onOpen}
                             onDropdownClose={popoverProps?.onClose}
                             hasGrouping
@@ -133,8 +134,7 @@ const FilterRuleForm: FC<Props> = memo(
                     limit={FILTER_SELECT_LIMIT}
                     size="xs"
                     w="175px"
-                    sx={{ flexShrink: 0 }}
-                    withinPortal={popoverProps?.withinPortal}
+                    style={{ flexShrink: 0 }}
                     onDropdownOpen={popoverProps?.onOpen}
                     onDropdownClose={popoverProps?.onClose}
                     disabled={!isEditMode}
@@ -176,6 +176,8 @@ const FilterRuleForm: FC<Props> = memo(
                         >
                             <span>
                                 <ActionIcon
+                                    variant="subtle"
+                                    color="gray"
                                     onClick={onDelete}
                                     disabled={isRequired}
                                     data-testid="delete-filter-rule-button"

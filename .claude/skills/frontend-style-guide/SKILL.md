@@ -253,6 +253,19 @@ const MyComponent = () => {
 };
 ```
 
+## Select/MultiSelect grouping has a different structure on Mantine 8
+
+```tsx
+<Select
+    label="Your favorite library"
+    placeholder="Pick value"
+    data={[
+        { group: 'Frontend', items: ['React', 'Angular'] },
+        { group: 'Backend', items: ['Express', 'Django'] },
+    ]}
+/>
+```
+
 ## Reusable Components
 
 ### Modals

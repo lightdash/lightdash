@@ -1,5 +1,5 @@
 import { type ApiErrorDetail } from '@lightdash/common';
-import { Anchor, createStyles, keyframes, Text } from '@mantine/core';
+import { Anchor, Text } from '@mantine-8/core';
 import { IconTableOff } from '@tabler/icons-react';
 import { Fragment, type FC } from 'react';
 import { LD_FIELD_COLORS } from '../../../mantineTheme';
@@ -11,71 +11,12 @@ import EmptyStateLoader from '../../common/EmptyStateLoader';
 import MantineIcon from '../../common/MantineIcon';
 import DocumentationHelpButton from '../../DocumentationHelpButton';
 import { RefreshButton } from '../../RefreshButton';
-
-const animationKeyframes = keyframes`
-    0% {
-        opacity: 0;
-    }
-    5% {
-        opacity: 0;
-        transform: translateY(-10px);
-    }
-    10% {
-        opacity: 1;
-        transform: translateY(0px);
-    }
-    25% {
-        opacity: 1;
-        transform: translateY(0px);
-    }
-    30% {
-        opacity: 0;
-        transform: translateY(10px);
-    }
-    80% {
-        opacity: 0;
-    }
-    100% {
-        opacity: 0;
-    }
-`;
-
-const useAnimatedTextStyles = createStyles((theme) => ({
-    root: {
-        position: 'relative',
-        height: theme.spacing.lg,
-        textAlign: 'center',
-        width: '100%',
-
-        '& > span': {
-            animation: `${animationKeyframes} 16s linear infinite 0s`,
-            opacity: 0,
-            overflow: 'hidden',
-            position: 'absolute',
-            width: '100%',
-            left: 0,
-        },
-
-        '& span:nth-of-type(2)': {
-            animationDelay: '4s',
-        },
-
-        '& span:nth-of-type(3)': {
-            animationDelay: '8s',
-        },
-
-        '& span:nth-of-type(4)': {
-            animationDelay: '12s',
-        },
-    },
-}));
+import classes from './ExplorerResultsNonIdealStates.module.css';
 
 const ExploreDocumentationUrl =
     'https://docs.lightdash.com/get-started/exploring-data/using-explores/';
 
 export const EmptyStateNoColumns = () => {
-    const { classes } = useAnimatedTextStyles();
-
     return (
         <EmptyState
             title={
@@ -91,26 +32,26 @@ export const EmptyStateNoColumns = () => {
             }
             description={
                 <>
-                    What’s your data question? Select the{' '}
-                    <Text span color={LD_FIELD_COLORS.metric.color}>
+                    What's your data question? Select the{' '}
+                    <Text span c={LD_FIELD_COLORS.metric.color}>
                         metric
                     </Text>{' '}
                     you want to calculate and the{' '}
-                    <Text span color={LD_FIELD_COLORS.dimension.color}>
+                    <Text span c={LD_FIELD_COLORS.dimension.color}>
                         dimension(s)
                     </Text>{' '}
                     you want to split it by.
                 </>
             }
         >
-            <Text className={classes.root} color="dimmed">
+            <Text className={classes.animatedTextRoot} c="dimmed">
                 <Text span>
                     eg. How many{' '}
-                    <Text span color={LD_FIELD_COLORS.metric.color}>
+                    <Text span c={LD_FIELD_COLORS.metric.color}>
                         total signups
                     </Text>{' '}
                     per{' '}
-                    <Text span color={LD_FIELD_COLORS.dimension.color}>
+                    <Text span c={LD_FIELD_COLORS.dimension.color}>
                         day
                     </Text>
                     ?
@@ -118,11 +59,11 @@ export const EmptyStateNoColumns = () => {
 
                 <Text span>
                     eg. What is the{' '}
-                    <Text span color={LD_FIELD_COLORS.metric.color}>
+                    <Text span c={LD_FIELD_COLORS.metric.color}>
                         total order count
                     </Text>{' '}
                     by{' '}
-                    <Text span color={LD_FIELD_COLORS.dimension.color}>
+                    <Text span c={LD_FIELD_COLORS.dimension.color}>
                         location
                     </Text>
                     ?
@@ -130,11 +71,11 @@ export const EmptyStateNoColumns = () => {
 
                 <Text span>
                     eg. How many{' '}
-                    <Text span color={LD_FIELD_COLORS.metric.color}>
+                    <Text span c={LD_FIELD_COLORS.metric.color}>
                         new followers
                     </Text>{' '}
                     every{' '}
-                    <Text span color={LD_FIELD_COLORS.dimension.color}>
+                    <Text span c={LD_FIELD_COLORS.dimension.color}>
                         week
                     </Text>
                     ?
@@ -142,11 +83,11 @@ export const EmptyStateNoColumns = () => {
 
                 <Text span>
                     eg. What is the{' '}
-                    <Text span color={LD_FIELD_COLORS.metric.color}>
+                    <Text span c={LD_FIELD_COLORS.metric.color}>
                         total order count
                     </Text>{' '}
                     split by{' '}
-                    <Text span color={LD_FIELD_COLORS.dimension.color}>
+                    <Text span c={LD_FIELD_COLORS.dimension.color}>
                         status
                     </Text>
                     ?
@@ -241,7 +182,7 @@ export const ExploreErrorState = ({
                             target="_blank"
                             rel="noreferrer"
                         >
-                            Learn how to resolve this in our documentation →
+                            Learn how to resolve this in our documentation
                         </Anchor>
                     </Fragment>
                 )}

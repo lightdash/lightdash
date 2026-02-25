@@ -1,4 +1,4 @@
-import { Anchor, Text, useMantineColorScheme } from '@mantine/core';
+import { Anchor, Text, useMantineColorScheme } from '@mantine-8/core';
 import { IconGraphOff } from '@tabler/icons-react';
 import { lazy, Suspense, useEffect, useMemo, useRef, type FC } from 'react';
 // @ts-expect-error - vega-themes ESM export not resolved by TS moduleResolution
