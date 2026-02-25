@@ -465,7 +465,6 @@ export const lightdashConfigWithNoSMTP: Pick<
         useSqlPivotResults: false,
         showExecutionTime: false,
         enableFilterAutofocusFix: undefined,
-        enableTableColumnWidthStabilization: undefined,
     },
 };
 

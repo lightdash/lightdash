@@ -6,7 +6,6 @@ import {
     type GroupingState,
 } from '@tanstack/react-table';
 import React, { useEffect, useMemo, useState, type FC } from 'react';
-import { useIsTableColumnWidthStabilizationEnabled } from '../../../hooks/useIsTableColumnWidthStabilizationEnabled';
 import {
     DEFAULT_PAGE_SIZE,
     FROZEN_COLUMN_BACKGROUND,
@@ -65,8 +64,6 @@ export const TableProvider: FC<React.PropsWithChildren<ProviderProps>> = ({
     const [isInfiniteScrollEnabled, setIsInfiniteScrollEnabled] = useState(
         !pagination?.show || !!pagination?.defaultScroll,
     );
-    const isTableColumnWidthStabilizationEnabled =
-        useIsTableColumnWidthStabilizationEnabled();
 
     useEffect(() => {
         setColumnVisibility(calculateColumnVisibility(columns));
@@ -85,78 +82,57 @@ export const TableProvider: FC<React.PropsWithChildren<ProviderProps>> = ({
     const rowColumnWidth = hideRowNumbers
         ? 0
         : Math.max(withTotals, `${data.length}`.length * 10 + 20);
-    const effectiveRowColumnWidth = isTableColumnWidthStabilizationEnabled
-        ? Math.max(rowColumnWidth, 50)
-        : rowColumnWidth;
     const frozenColumns = useMemo(
         () => columns.filter((col) => col.meta?.frozen),
         [columns],
     );
-    const frozenColumnWidth = 100; // TODO this should be dynamic
+    const defaultFrozenColumnWidth = 100;
     const stickyColumns = useMemo(() => {
-        return frozenColumns.map((col, i) => ({
-            ...col,
-            meta: {
-                ...col.meta,
-                className: `sticky-column ${
-                    i === frozenColumns.length - 1 ? 'last-sticky-column' : ''
-                }`,
-                style: {
-                    maxWidth: frozenColumnWidth,
-                    minWidth: frozenColumnWidth,
-                    left: effectiveRowColumnWidth + i * frozenColumnWidth,
+        let cumulativeLeft = rowColumnWidth;
+        return frozenColumns.map((col, i) => {
+            const colWidth = col.meta?.width ?? defaultFrozenColumnWidth;
+            const left = cumulativeLeft;
+            cumulativeLeft += colWidth;
+            return {
+                ...col,
+                meta: {
+                    ...col.meta,
+                    className: `sticky-column ${
+                        i === frozenColumns.length - 1
+                            ? 'last-sticky-column'
+                            : ''
+                    }`,
+                    style: {
+                        maxWidth: colWidth,
+                        minWidth: colWidth,
+                        left,
+                    },
                 },
-            },
-        }));
-    }, [frozenColumns, frozenColumnWidth, effectiveRowColumnWidth]);
+            };
+        });
+    }, [frozenColumns, rowColumnWidth]);
 
     const otherColumns = useMemo(
         () => columns.filter((col) => !col.meta?.frozen),
         [columns],
     );
     const stickyRowColumn = useMemo(() => {
-        if (stickyColumns.length === 0) {
-            if (!isTableColumnWidthStabilizationEnabled) {
-                return rowColumn;
-            }
-
-            return {
-                ...rowColumn,
-                meta: {
-                    ...rowColumn.meta,
-                    width: effectiveRowColumnWidth,
-                    style: {
-                        width: effectiveRowColumnWidth,
-                        minWidth: effectiveRowColumnWidth,
-                        maxWidth: effectiveRowColumnWidth,
-                    },
-                },
-            };
-        }
+        if (stickyColumns.length === 0) return rowColumn;
 
         return {
             ...rowColumn,
             meta: {
                 ...rowColumn.meta,
                 className: 'sticky-column',
-                width: effectiveRowColumnWidth,
+                width: rowColumnWidth,
                 style: {
-                    ...(isTableColumnWidthStabilizationEnabled
-                        ? {
-                              width: effectiveRowColumnWidth,
-                          }
-                        : {}),
-                    maxWidth: effectiveRowColumnWidth,
-                    minWidth: effectiveRowColumnWidth,
+                    maxWidth: rowColumnWidth,
+                    minWidth: rowColumnWidth,
                     backgroundColor: FROZEN_COLUMN_BACKGROUND,
                 },
             },
         };
-    }, [
-        stickyColumns,
-        effectiveRowColumnWidth,
-        isTableColumnWidthStabilizationEnabled,
-    ]);
+    }, [stickyColumns, rowColumnWidth]);
 
     const visibleColumns = useMemo(() => {
         return hideRowNumbers

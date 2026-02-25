@@ -13,11 +13,9 @@ import {
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
-import { useAutoColumnWidths } from '../../../hooks/useAutoColumnWidths';
 import { useColumns } from '../../../hooks/useColumns';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
-import { useIsTableColumnWidthStabilizationEnabled } from '../../../hooks/useIsTableColumnWidthStabilizationEnabled';
 import type {
     useGetReadyQueryResults,
     useInfiniteQueryResults,
@@ -264,48 +262,6 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
         getFieldLabel,
     });
 
-    const getCellText = useCallback(
-        (row: Record<string, unknown>, colId: string) => {
-            const cell = row[colId] as
-                | { value?: { formatted?: string } }
-                | undefined;
-            return cell?.value?.formatted ?? '';
-        },
-        [],
-    );
-
-    const isTableColumnWidthStabilizationEnabled =
-        useIsTableColumnWidthStabilizationEnabled();
-
-    const autoColumnWidths = useAutoColumnWidths({
-        columnIds: explorerColumnOrder,
-        rows: rows as Record<string, unknown>[],
-        getCellText,
-        enabled: isTableColumnWidthStabilizationEnabled,
-    });
-
-    const columnsWithWidths = useMemo(() => {
-        if (Object.keys(autoColumnWidths).length === 0) return columns;
-        return columns.map((col) => {
-            const colId = col.id ?? '';
-            const autoWidth = autoColumnWidths[colId];
-            if (!autoWidth) return col;
-            return {
-                ...col,
-                meta: {
-                    ...col.meta,
-                    width: autoWidth,
-                    style: {
-                        ...col.meta?.style,
-                        width: autoWidth,
-                        minWidth: autoWidth,
-                        maxWidth: autoWidth,
-                    },
-                },
-            };
-        });
-    }, [columns, autoColumnWidths]);
-
     const cellContextMenu = useCallback(
         (props: any) => (
             <CellContextMenu
@@ -444,7 +400,7 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
                         totalRowsCount={totalRows || 0}
                         isFetchingRows={isFetchingRows}
                         fetchMoreRows={fetchMoreRows}
-                        columns={columnsWithWidths}
+                        columns={columns}
                         columnOrder={explorerColumnOrder}
                         onColumnOrderChange={handleColumnOrderChange}
                         cellContextMenu={cellContextMenu}

@@ -14,6 +14,7 @@ import {
 } from '@mantine/core';
 import { IconArrowDown, IconArrowUp } from '@tabler/icons-react';
 import { flexRender } from '@tanstack/react-table';
+import { useMemo } from 'react';
 import { SMALL_TEXT_LENGTH } from '../../common/LightTable/constants';
 import MantineIcon from '../../common/MantineIcon';
 import BodyCell from '../../common/Table/ScrollableTable/BodyCell';
@@ -43,15 +44,10 @@ export const ChartDataTable = ({
     onTHClick,
 }: TableProps) => {
     const theme = useMantineTheme();
-    const {
-        tableWrapperRef,
-        getTableData,
-        paddingTop,
-        paddingBottom,
-        totalColumnWidth,
-    } = useVirtualTable({ columnNames, rows, config: columnsConfig });
+    const { tableWrapperRef, getTableData, paddingTop, paddingBottom } =
+        useVirtualTable({ columnNames, rows, config: columnsConfig });
 
-    const columnsCount = columnNames.length;
+    const columnsCount = useMemo(() => columnNames.length, [columnNames]);
     const { headerGroups, virtualRows, rowModelRows } = getTableData();
 
     return (
@@ -69,7 +65,7 @@ export const ChartDataTable = ({
             className="sentry-block ph-no-capture"
             data-testid="chart-data-table"
         >
-            <TableStyled $fixedLayout={totalColumnWidth || undefined}>
+            <TableStyled>
                 <Tooltip.Group>
                     <thead>
                         <tr>
@@ -86,15 +82,20 @@ export const ChartDataTable = ({
                                         <th
                                             key={header.id}
                                             onClick={onClick}
-                                            style={{
-                                                ...header.column.columnDef.meta
-                                                    ?.style,
-                                                backgroundColor:
-                                                    theme.colors.ldGray[0],
-                                                ...(onClick
-                                                    ? { cursor: 'pointer' }
-                                                    : {}),
-                                            }}
+                                            style={
+                                                onClick
+                                                    ? {
+                                                          cursor: 'pointer',
+                                                          backgroundColor:
+                                                              theme.colors
+                                                                  .ldGray[0],
+                                                      }
+                                                    : {
+                                                          backgroundColor:
+                                                              theme.colors
+                                                                  .ldGray[0],
+                                                      }
+                                            }
                                         >
                                             <Tooltip
                                                 label="You cannot sort by a group column"
@@ -168,10 +169,6 @@ export const ChartDataTable = ({
                                                 cell={cell}
                                                 isNumericItem={false}
                                                 hasData={!!cellValue}
-                                                style={
-                                                    cell.column.columnDef.meta
-                                                        ?.style
-                                                }
                                                 isLargeText={
                                                     (
                                                         cellValue?.toString() ||

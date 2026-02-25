@@ -93,11 +93,6 @@ export enum FeatureFlags {
      * Enable the filter autofocus fix for form inputs
      */
     EnableFilterAutofocusFix = 'enable-filter-autofocus-fix',
-
-    /**
-     * Enable stabilized table column widths during virtualized scrolling
-     */
-    EnableTableColumnWidthStabilization = 'enable-table-column-width-stabilization',
 }
 
 export type FeatureFlag = {
