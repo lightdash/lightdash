@@ -76,6 +76,21 @@ export type FindContentFn = (args: {
     content: (AllChartsSearchResult | DashboardSearchResult)[];
 }>;
 
+export type GetDashboardChartsFn = (args: {
+    dashboardUuid: string;
+    page: number;
+    pageSize: number;
+}) => Promise<{
+    dashboardName: string;
+    charts: DashboardSearchResult['charts'];
+    pagination: {
+        page: number;
+        pageSize: number;
+        totalResults: number;
+        totalPageCount: number;
+    };
+}>;
+
 export type UpdateProgressFn = (progress: string) => Promise<void>;
 
 export type GetPromptFn = () => Promise<SlackPrompt | AiWebAppPrompt>;

@@ -134,6 +134,7 @@ import {
     FindContentFn,
     FindExploresFn,
     FindFieldFn,
+    GetDashboardChartsFn,
     GetExploreFn,
     GetPromptFn,
     ListExploresFn,
@@ -2791,6 +2792,15 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                 };
             });
 
+        const getDashboardCharts: GetDashboardChartsFn = async (args) =>
+            wrapSentryTransaction('AiAgent.getDashboardCharts', args, () =>
+                this.searchModel.getDashboardCharts(
+                    args.dashboardUuid,
+                    args.page,
+                    args.pageSize,
+                ),
+            );
+
         const searchFieldValues: SearchFieldValuesFn = async (args) =>
             wrapSentryTransaction(
                 'AiAgent.searchFieldValues',
@@ -2864,6 +2874,7 @@ Use them as a reference, but do all the due dilligence and follow the instructio
             listExplores,
             getExplore,
             findContent,
+            getDashboardCharts,
             findFields,
             findExplores,
             updateProgress,
@@ -2939,6 +2950,7 @@ Use them as a reference, but do all the due dilligence and follow the instructio
             listExplores,
             getExplore,
             findContent,
+            getDashboardCharts,
             findFields,
             findExplores,
             updateProgress,
@@ -2981,8 +2993,7 @@ Use them as a reference, but do all the due dilligence and follow the instructio
 
             findExploresFieldSearchSize: 200,
             findFieldsPageSize: 30,
-            findDashboardsPageSize: 5,
-            findChartsPageSize: 5,
+            getDashboardChartsPageSize: 20,
             maxQueryLimit: this.lightdashConfig.ai.copilot.maxQueryLimit,
             siteUrl: this.lightdashConfig.siteUrl,
             canManageAgent: options.canManageAgent,
@@ -2992,6 +3003,7 @@ Use them as a reference, but do all the due dilligence and follow the instructio
             listExplores,
             getExplore,
             findContent,
+            getDashboardCharts,
             findFields,
             findExplores,
             runAsyncQuery,
