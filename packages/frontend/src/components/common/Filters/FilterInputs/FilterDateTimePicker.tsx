@@ -55,12 +55,7 @@ const FilterDateTimePicker: FC<Props> = ({
                 }
             />
             {showTimezone && (
-                <Text
-                    fz="xs"
-                    c="dimmed"
-                    mt={7}
-                    className={styles.noWrap}
-                >
+                <Text fz="xs" c="dimmed" mt={7} className={styles.noWrap}>
                     {dayjs.tz.guess()}
                 </Text>
             )}

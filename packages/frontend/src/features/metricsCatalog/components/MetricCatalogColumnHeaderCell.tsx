@@ -22,12 +22,7 @@ export const MetricCatalogColumnHeaderCell = ({
         >
             <Group gap={6} mr={6} h="100%" wrap="nowrap">
                 <Icon />
-                <Text
-                    fz="xs"
-                    fw={600}
-                    c="ldGray.7"
-                    className={styles.noSelect}
-                >
+                <Text fz="xs" fw={600} c="ldGray.7" className={styles.noSelect}>
                     {children}
                 </Text>
             </Group>

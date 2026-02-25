@@ -41,9 +41,7 @@ export const CartesianChartFormatConfig: FC<Props> = ({
                 <Group wrap="nowrap" gap="xs">
                     <FormatIcon
                         format={
-                            option.value === 'none'
-                                ? undefined
-                                : option.value
+                            option.value === 'none' ? undefined : option.value
                         }
                     />
                     <Text>{capitalize(option.value)}</Text>
