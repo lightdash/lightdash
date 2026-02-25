@@ -39,7 +39,7 @@ export class FileController extends BaseController {
         const service = this.services.getPersistentDownloadFileService();
         const fileType = await service.getFileType(fileId);
 
-        if (fileType === DownloadFileType.IMAGE) {
+        if (service.inlineImages && fileType === DownloadFileType.IMAGE) {
             const { stream } = await service.getFileStream(fileId, {
                 ip: req.ip,
                 userAgent: req.headers['user-agent'],

@@ -160,6 +160,10 @@ export class PersistentDownloadFileService extends BaseService {
         return file;
     }
 
+    get inlineImages(): boolean {
+        return this.lightdashConfig.persistentDownloadUrls.enabled;
+    }
+
     async getFileType(fileNanoid: string): Promise<string> {
         const file = await this.getValidatedFile(fileNanoid);
         return file.file_type;
