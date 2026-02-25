@@ -76,6 +76,7 @@ const FiltersForm: FC<Props> = memo(({ filters, setFilters, isEditMode }) => {
     const isFilterAutofocusEnabled = useIsFilterAutofocusEnabled();
     const autoFocusRuleIdRef = useRef<string | undefined>(undefined);
     const lastFocusedRuleIdRef = useRef<string | undefined>(undefined);
+    const lastFocusedInputIndexRef = useRef<number>(0);
     const formRef = useRef<HTMLDivElement>(null);
 
     useLayoutEffect(() => {
@@ -88,12 +89,18 @@ const FiltersForm: FC<Props> = memo(({ filters, setFilters, isEditMode }) => {
     const handleFocusCapture = useCallback(
         (e: React.FocusEvent) => {
             if (!isFilterAutofocusEnabled) return;
-            const ruleEl = (e.target as HTMLElement).closest?.(
-                '[data-rule-id]',
-            );
+            const target = e.target as HTMLElement;
+            const ruleEl = target.closest?.('[data-rule-id]');
             if (ruleEl) {
                 lastFocusedRuleIdRef.current =
                     ruleEl.getAttribute('data-rule-id') || undefined;
+                const inputs = Array.from(
+                    ruleEl.querySelectorAll<HTMLInputElement>(
+                        'input:not([type="hidden"])',
+                    ),
+                );
+                const idx = inputs.indexOf(target as HTMLInputElement);
+                lastFocusedInputIndexRef.current = idx >= 0 ? idx : 0;
             }
         },
         [isFilterAutofocusEnabled],
@@ -124,10 +131,14 @@ const FiltersForm: FC<Props> = memo(({ filters, setFilters, isEditMode }) => {
             `[data-rule-id="${CSS.escape(ruleId)}"]`,
         );
         if (ruleEl) {
-            const input = ruleEl.querySelector<HTMLInputElement>(
+            const inputs = ruleEl.querySelectorAll<HTMLInputElement>(
                 'input:not([type="hidden"])',
             );
-            input?.focus();
+            const targetIndex = Math.min(
+                lastFocusedInputIndexRef.current,
+                inputs.length - 1,
+            );
+            inputs[targetIndex]?.focus();
         }
     }, [filters, isFilterAutofocusEnabled]);
     const fields = useMemo<FieldWithSuggestions[]>(() => {
