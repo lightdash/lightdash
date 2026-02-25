@@ -298,6 +298,13 @@ jobs:
         run: pnpm install --frozen-lockfile --prefer-offline
       - name: Build packages/common module
         run: pnpm common-build
+      - name: Create BigQuery credentials file
+        id: create-json
+        uses: jsdaniell/create-json@v1.2.2
+        with:
+          name: "credentials.json"
+          json: ${{ secrets.GCP_CREDENTIALS }}
+          dir: "./packages/e2e/cypress/fixtures/"
       - name: Run API tests
         run: pnpm -F e2e test:api
         env:

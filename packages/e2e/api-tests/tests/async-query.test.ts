@@ -3,6 +3,8 @@ import {
     SEED_PROJECT,
     WarehouseTypes,
 } from '@lightdash/common';
+import fs from 'fs';
+import path from 'path';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { ApiClient, Body } from '../helpers/api-client';
 import { login } from '../helpers/auth';
@@ -376,6 +378,72 @@ describe('Async Query API', () => {
                 projectName,
                 postgresConfig,
             );
+            await runAsyncQueryTest(admin, projectUuid);
+        }, 120_000);
+    });
+
+    describe.skipIf(!process.env.SNOWFLAKE_ACCOUNT)('Snowflake', () => {
+        let projectUuid: string | undefined;
+        const projectName = 'snowflakeSQL query test';
+
+        afterAll(async () => {
+            if (projectUuid) {
+                await deleteProjectsByName(admin, [projectName]);
+            }
+        });
+
+        it('should execute async query and get all results paged', async () => {
+            projectUuid = await createAndRefreshProject(admin, projectName, {
+                account: process.env.SNOWFLAKE_ACCOUNT,
+                user: process.env.SNOWFLAKE_USER,
+                password: process.env.SNOWFLAKE_PASSWORD,
+                role: 'SYSADMIN',
+                database: 'SNOWFLAKE_DATABASE_STAGING',
+                warehouse: 'TESTING',
+                schema: 'JAFFLE',
+                type: WarehouseTypes.SNOWFLAKE,
+            });
+            await runAsyncQueryTest(admin, projectUuid);
+        }, 120_000);
+    });
+
+    describe.skipIf(
+        (() => {
+            const credPath = path.resolve(
+                __dirname,
+                '../../cypress/fixtures/credentials.json',
+            );
+            if (!fs.existsSync(credPath)) return true;
+            const creds = JSON.parse(fs.readFileSync(credPath, 'utf-8'));
+            return !creds.private_key;
+        })(),
+    )('BigQuery', () => {
+        let projectUuid: string | undefined;
+        const projectName = 'bigQuerySQL query test';
+
+        afterAll(async () => {
+            if (projectUuid) {
+                await deleteProjectsByName(admin, [projectName]);
+            }
+        });
+
+        it('should execute async query and get all results paged', async () => {
+            const keyfileContents = JSON.parse(
+                fs.readFileSync(
+                    path.resolve(
+                        __dirname,
+                        '../../cypress/fixtures/credentials.json',
+                    ),
+                    'utf-8',
+                ),
+            );
+            projectUuid = await createAndRefreshProject(admin, projectName, {
+                project: 'lightdash-database-staging',
+                location: 'europe-west1',
+                dataset: 'e2e_jaffle_shop',
+                keyfileContents,
+                type: WarehouseTypes.BIGQUERY,
+            });
             await runAsyncQueryTest(admin, projectUuid);
         }, 120_000);
     });

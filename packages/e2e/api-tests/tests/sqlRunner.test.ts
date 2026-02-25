@@ -5,6 +5,8 @@ import {
     UpdateSqlChart,
     WarehouseTypes,
 } from '@lightdash/common';
+import fs from 'fs';
+import path from 'path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ApiClient, SITE_URL } from '../helpers/api-client';
 import { login } from '../helpers/auth';
@@ -95,6 +97,13 @@ const postgresConfig = {
 
 const warehouseEntries: [string, Record<string, unknown>][] = [
     ['postgres', postgresConfig],
+    [
+        'redshift',
+        {
+            ...postgresConfig,
+            type: WarehouseTypes.REDSHIFT,
+        },
+    ],
 ];
 
 // Add snowflake if env vars are set
@@ -116,6 +125,29 @@ if (
             type: WarehouseTypes.SNOWFLAKE,
         },
     ]);
+}
+
+// Add bigQuery if credentials file exists and contains a valid private key
+const bigQueryCredentialsPath = path.resolve(
+    __dirname,
+    '../../cypress/fixtures/credentials.json',
+);
+if (fs.existsSync(bigQueryCredentialsPath)) {
+    const keyfileContents = JSON.parse(
+        fs.readFileSync(bigQueryCredentialsPath, 'utf-8'),
+    );
+    if (keyfileContents.private_key) {
+        warehouseEntries.push([
+            'bigQuery',
+            {
+                project: 'lightdash-database-staging',
+                location: 'europe-west1',
+                dataset: 'e2e_jaffle_shop',
+                keyfileContents,
+                type: WarehouseTypes.BIGQUERY,
+            },
+        ]);
+    }
 }
 
 function getDatabaseDetails(
