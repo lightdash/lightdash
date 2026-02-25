@@ -13,25 +13,22 @@ export const enum InheritanceType {
 
 export const RootInheritanceOptions: AccessOption[] = [
     {
-        title: 'Project Access',
-        description:
-            'All project members can access with their project permissions',
-        selectDescription:
-            'All project members can access with their project permissions',
+        title: 'Inherited access',
+        description: 'All members of this project can access this space',
+        selectDescription: 'All members of this project can access this space',
         value: InheritanceType.INHERIT,
     },
     {
-        title: 'Custom Access',
-        description: 'Only directly invited members and admins can access',
-        selectDescription:
-            'Only directly invited members and admins can access this space',
+        title: 'Restricted access',
+        description: 'Only invited users & groups can access this space',
+        selectDescription: 'Only invited users & groups can access this space',
         value: InheritanceType.OWN_ONLY,
     },
 ];
 
 export const NestedInheritanceOptions: AccessOption[] = [
     {
-        title: 'Parent Access',
+        title: 'Inherited access',
         description:
             'Users with access to the parent space also have access here',
         selectDescription:
@@ -39,8 +36,9 @@ export const NestedInheritanceOptions: AccessOption[] = [
         value: InheritanceType.INHERIT,
     },
     {
-        title: 'Custom Access',
-        description: 'Only directly invited members and admins can access',
+        title: 'Restricted access',
+        description:
+            'Only invited users & groups, as well as admins, can access this space',
         selectDescription:
             'This space ignores parent space permissions and uses only its own access list',
         value: InheritanceType.OWN_ONLY,

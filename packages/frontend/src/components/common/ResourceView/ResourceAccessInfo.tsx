@@ -10,15 +10,15 @@ import { getResourceAccessLabel, getResourceAccessType } from './utils';
 const ResourceAccessInfoData = {
     [ResourceAccess.Private]: {
         Icon: IconLock,
-        status: 'Private',
+        status: 'Restricted access',
     },
     [ResourceAccess.Public]: {
         Icon: IconUsers,
-        status: 'Public',
+        status: 'Inherited access',
     },
     [ResourceAccess.Shared]: {
         Icon: IconUser,
-        status: 'Shared',
+        status: 'Restricted access',
     },
 } as const;
 
@@ -32,17 +32,14 @@ const getV2AccessType = (item: ResourceViewSpaceItem): ResourceAccess => {
     return ResourceAccess.Private;
 };
 
-const getV2Status = (
-    accessType: ResourceAccess,
-    isNestedSpace: boolean,
-): string => {
+const getV2Status = (accessType: ResourceAccess): string => {
     switch (accessType) {
         case ResourceAccess.Public:
-            return isNestedSpace ? 'Parent Access' : 'Project Access';
+            return 'Inherited access';
         case ResourceAccess.Private:
             return 'Private';
         case ResourceAccess.Shared:
-            return 'Custom Access';
+            return 'Restricted access';
     }
 };
 
@@ -87,7 +84,7 @@ const ResourceAccessInfo: React.FC<ResourceAccessInfoProps> = ({
     const isNestedSpace = !!item.data.parentSpaceUuid;
     const { Icon } = ResourceAccessInfoData[accessType];
     const status = isV2
-        ? getV2Status(accessType, isNestedSpace)
+        ? getV2Status(accessType)
         : ResourceAccessInfoData[accessType].status;
     const tooltipLabel = isV2
         ? getV2Label(item, accessType, isNestedSpace)
