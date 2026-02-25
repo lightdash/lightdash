@@ -302,14 +302,11 @@ export default class App {
     }
 
     private async initExpress(expressApp: Express) {
-        // Persistent file endpoints serve images embedded in emails that are
-        // loaded cross-origin by email clients and preview UIs (e.g. Postmark,
-        // Mailpit). Must be mounted before the global cors() middleware which
-        // swallows OPTIONS preflights for unrecognised origins.
+        // Handle OPTIONS preflights for persistent file endpoints before the
+        // global cors() middleware, which swallows preflights for unknown origins.
         expressApp.use('/api/v1/file/*', (req, res, next) => {
-            res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-            res.setHeader('Access-Control-Allow-Origin', '*');
             if (req.method === 'OPTIONS') {
+                res.setHeader('Access-Control-Allow-Origin', '*');
                 res.setHeader('Access-Control-Allow-Private-Network', 'true');
                 res.status(204).end();
                 return;
@@ -497,8 +494,14 @@ export default class App {
 
         expressApp.use('/embed/*', helmet(helmetConfigForEmbeds));
 
-        // NOTE: /api/v1/file/* CORS middleware is mounted at the top of
-        // initExpress, before the global cors() middleware.
+        // Persistent file endpoints serve images embedded in emails, loaded
+        // cross-origin by email clients and preview UIs. Must run AFTER helmet
+        // to override its default Cross-Origin-Resource-Policy: same-origin.
+        expressApp.use('/api/v1/file/*', (_req, res, next) => {
+            res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+            res.setHeader('Access-Control-Allow-Origin', '*');
+            next();
+        });
 
         expressApp.use((req, res, next) => {
             // Permissions-Policy header that is not yet supported by helmet. More details here: https://github.com/helmetjs/helmet/issues/234
