@@ -123,6 +123,15 @@ export const WarehouseFormInputs: FC<{
                     credentialsName={databricksCredentialsName}
                 />
             );
+        case WarehouseTypes.DUCKDB:
+            return (
+                <PasswordInput
+                    size="xs"
+                    label="Service Token"
+                    disabled={disabled}
+                    {...form.getInputProps('credentials.token')}
+                />
+            );
         default:
             return null;
     }

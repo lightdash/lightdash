@@ -7,6 +7,7 @@ import {
     type CreateBigqueryCredentials,
     type CreateClickhouseCredentials,
     type CreateDatabricksCredentials,
+    type CreateDuckdbCredentials,
     type CreatePostgresCredentials,
     type CreateRedshiftCredentials,
     type CreateSnowflakeCredentials,
@@ -37,7 +38,8 @@ export type UserWarehouseCredentials = {
           >
         | Pick<CreateBigqueryCredentials, 'type'>
         | Pick<CreateDatabricksCredentials, 'type'>
-        | Pick<CreateAthenaCredentials, 'type'>;
+        | Pick<CreateAthenaCredentials, 'type'>
+        | Pick<CreateDuckdbCredentials, 'type'>;
     project: UserWarehouseCredentialsProject | null;
 };
 
@@ -81,7 +83,8 @@ export type UserWarehouseCredentialsWithSecrets = Pick<
         | Pick<
               CreateAthenaCredentials,
               'type' | 'accessKeyId' | 'secretAccessKey'
-          >;
+          >
+        | Pick<CreateDuckdbCredentials, 'type' | 'token'>;
 };
 
 export type UpsertUserWarehouseCredentials = {

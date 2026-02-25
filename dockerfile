@@ -102,6 +102,8 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     "dbt-databricks~=1.8.0" \
     "dbt-trino~=1.8.0" \
     "dbt-clickhouse~=1.8.0" \
+    "dbt-duckdb" \ # unversioned: dbt-duckdb uses its own version scheme independent of dbt-core
+
     && ln -s /usr/local/dbt1.8/bin/dbt /usr/local/bin/dbt1.8 \
     && python3 -m venv /usr/local/dbt1.9 \
     && /usr/local/dbt1.9/bin/pip install \
@@ -114,6 +116,8 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     "dbt-trino~=1.9.0" \
     "dbt-clickhouse~=1.9.0" \
     "dbt-athena~=1.9.0" \
+    "dbt-duckdb" \ # unversioned: dbt-duckdb uses its own version scheme independent of dbt-core
+
     && ln -s /usr/local/dbt1.9/bin/dbt /usr/local/bin/dbt1.9 \
     && python3 -m venv /usr/local/dbt1.10 \
     && /usr/local/dbt1.10/bin/pip install \
@@ -126,6 +130,8 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     "dbt-trino~=1.10.0" \
     "dbt-clickhouse~=1.9.0" \
     "dbt-athena~=1.10.0" \
+    "dbt-duckdb" \ # unversioned: dbt-duckdb uses its own version scheme independent of dbt-core
+
     && ln -s /usr/local/dbt1.10/bin/dbt /usr/local/bin/dbt1.10 \
     && python3 -m venv /usr/local/dbt1.11 \
     && /usr/local/dbt1.11/bin/pip install \
@@ -138,6 +144,8 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     "dbt-trino~=1.10.0" \
     "dbt-clickhouse~=1.9.0" \
     "dbt-athena~=1.10.0" \
+    "dbt-duckdb" \ # unversioned: dbt-duckdb uses its own version scheme independent of dbt-core
+
     && ln -s /usr/local/dbt1.11/bin/dbt /usr/local/bin/dbt1.11
 
 # -----------------------------

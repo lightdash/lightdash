@@ -1,4 +1,5 @@
 import {
+    assertUnreachable,
     CreateWarehouseCredentials,
     UnexpectedServerError,
     WarehouseTypes,
@@ -37,9 +38,11 @@ export const warehouseClientFromCredentials = (
         case WarehouseTypes.DUCKDB:
             return new DuckdbWarehouseClient(credentials);
         default:
-            const never: never = credentials;
-            throw new UnexpectedServerError(
-                'Warehouse credentials type were not recognised',
+            return assertUnreachable(
+                credentials,
+                new UnexpectedServerError(
+                    'Warehouse credentials type were not recognised',
+                ),
             );
     }
 };

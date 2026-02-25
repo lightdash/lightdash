@@ -66,4 +66,8 @@ export const warehouseValueValidators: Record<
         schema: hasNoWhiteSpaces('Database'),
         s3StagingDir: hasNoWhiteSpaces('S3 Staging Directory'),
     },
+    [WarehouseTypes.DUCKDB]: {
+        database: hasNoWhiteSpaces('Database'),
+        schema: hasNoWhiteSpaces('Schema'),
+    },
 } as const;
