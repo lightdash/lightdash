@@ -1,3 +1,15 @@
+## [0.2523.5](https://github.com/lightdash/lightdash/compare/0.2523.4...0.2523.5) (2026-02-25)
+
+
+### Bug Fixes
+
+* improve unique constraint error message for ai slack integration ([#20623](https://github.com/lightdash/lightdash/issues/20623)) ([ef59194](https://github.com/lightdash/lightdash/commit/ef59194642dd6371c4342bf5c88115d5ff59d027)), closes [#20594](https://github.com/lightdash/lightdash/issues/20594)
+
+
+### Reverts
+
+* stabilize table column widths feature ([#20621](https://github.com/lightdash/lightdash/issues/20621)) ([84378ca](https://github.com/lightdash/lightdash/commit/84378caa3c18612716b9ff025fb5e1e1707b6f5a)), closes [#20585](https://github.com/lightdash/lightdash/issues/20585) [#20550](https://github.com/lightdash/lightdash/issues/20550)
+
 ## [0.2523.4](https://github.com/lightdash/lightdash/compare/0.2523.3...0.2523.4) (2026-02-25)
 
 
