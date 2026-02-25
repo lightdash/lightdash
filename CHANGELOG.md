@@ -1,3 +1,15 @@
+# [0.2522.0](https://github.com/lightdash/lightdash/compare/0.2521.0...0.2522.0) (2026-02-25)
+
+
+### Bug Fixes
+
+* show correct private/custom label on space ([#20601](https://github.com/lightdash/lightdash/issues/20601)) ([5ee8e4f](https://github.com/lightdash/lightdash/commit/5ee8e4f8806af812465ccd79085b4a78b8fa4371))
+
+
+### Features
+
+* add payload size error handling and batched deploy options to preview commands ([#20603](https://github.com/lightdash/lightdash/issues/20603)) ([a44e795](https://github.com/lightdash/lightdash/commit/a44e7953824729705a1879669bea5c8e6028e5f2))
+
 # [0.2521.0](https://github.com/lightdash/lightdash/compare/0.2520.2...0.2521.0) (2026-02-25)
 
 
