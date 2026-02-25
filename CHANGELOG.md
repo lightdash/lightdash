@@ -1,3 +1,10 @@
+## [0.2523.3](https://github.com/lightdash/lightdash/compare/0.2523.2...0.2523.3) (2026-02-25)
+
+
+### Reverts
+
+* add persistent file analytics events ([#20556](https://github.com/lightdash/lightdash/issues/20556)) ([#20609](https://github.com/lightdash/lightdash/issues/20609)) ([5c0c10c](https://github.com/lightdash/lightdash/commit/5c0c10c7eacd25f194725f1fbc7662ae17168c14))
+
 ## [0.2523.2](https://github.com/lightdash/lightdash/compare/0.2523.1...0.2523.2) (2026-02-25)
 
 
