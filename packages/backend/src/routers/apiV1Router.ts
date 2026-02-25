@@ -197,6 +197,57 @@ apiV1Router.get('/livez', async (req, res, next) => {
     });
 });
 
+apiV1Router.get('/debug/heap-snapshot', async (req, res) => {
+    if (process.env.ENABLE_DEBUG_HEAP_SNAPSHOT !== 'true') {
+        res.status(404).json({ status: 'error', message: 'Not found' });
+        return;
+    }
+
+    try {
+        const v8 = await import('v8');
+        const path = await import('path');
+        const fs = await import('fs');
+
+        // Force GC before snapshot if available
+        if (global.gc) {
+            global.gc();
+        }
+
+        const snapshotPath = v8.writeHeapSnapshot();
+        if (!snapshotPath) {
+            res.status(500).json({
+                status: 'error',
+                message: 'Failed to write heap snapshot',
+            });
+            return;
+        }
+
+        const stats = await fs.promises.stat(snapshotPath);
+        const fileSizeMB = (stats.size / 1024 / 1024).toFixed(1);
+        const mem = process.memoryUsage();
+
+        res.json({
+            status: 'ok',
+            results: {
+                snapshotFile: path.basename(snapshotPath),
+                fileSizeMB: `${fileSizeMB}MB`,
+                memory: {
+                    rss: `${(mem.rss / 1024 / 1024).toFixed(1)}MB`,
+                    heapUsed: `${(mem.heapUsed / 1024 / 1024).toFixed(1)}MB`,
+                    heapTotal: `${(mem.heapTotal / 1024 / 1024).toFixed(1)}MB`,
+                    external: `${(mem.external / 1024 / 1024).toFixed(1)}MB`,
+                    arrayBuffers: `${(mem.arrayBuffers / 1024 / 1024).toFixed(1)}MB`,
+                },
+            },
+        });
+    } catch (error) {
+        res.status(500).json({
+            status: 'error',
+            message: error instanceof Error ? error.message : 'Unknown error',
+        });
+    }
+});
+
 apiV1Router.get('/health', async (req, res, next) => {
     req.services
         .getHealthService()
