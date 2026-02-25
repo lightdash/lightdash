@@ -605,7 +605,7 @@ describe('Query builder', () => {
     });
 
     it('buildQuery with row() table calculation should order by custom bin _order column', () => {
-        const query = buildQuery({
+        const { query } = buildQuery({
             explore: EXPLORE,
             compiledMetricQuery: {
                 ...METRIC_QUERY_WITH_CUSTOM_DIMENSION,
@@ -631,10 +631,10 @@ describe('Query builder', () => {
             userAttributes: {},
             intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
             timezone: QUERY_BUILDER_UTC_TIMEZONE,
-        }).query;
+        });
 
         expect(query).toContain(
-            'ROW_NUMBER() OVER (ORDER BY `age_range_order` ASC) AS `row_num`',
+            'ROW_NUMBER() OVER (ORDER BY `age_range_order`) AS `row_num`',
         );
     });
 

@@ -973,7 +973,7 @@ test('Should compile template table calculations using _order for custom bin dim
             {
                 id: 'age_range',
                 name: 'Age range',
-                type: CustomDimensionType.BIN,
+                type: CustomDimensionType.BIN as const,
                 dimensionId: 'table1_dim_1',
                 table: 'table1',
                 binType: BinType.FIXED_WIDTH,
