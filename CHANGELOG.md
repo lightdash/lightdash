@@ -1,3 +1,10 @@
+# [0.2524.0](https://github.com/lightdash/lightdash/compare/0.2523.5...0.2524.0) (2026-02-25)
+
+
+### Features
+
+* show child space count in spaces table ([#20625](https://github.com/lightdash/lightdash/issues/20625)) ([24554d0](https://github.com/lightdash/lightdash/commit/24554d07fdb1de721cf277cd8f830c5ac64174eb))
+
 ## [0.2523.5](https://github.com/lightdash/lightdash/compare/0.2523.4...0.2523.5) (2026-02-25)
 
 
