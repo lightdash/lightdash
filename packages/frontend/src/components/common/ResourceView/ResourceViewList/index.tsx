@@ -165,6 +165,7 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                                                             search: `?validationId=${item.data.validationErrors[0].validationId}`,
                                                         }}
                                                         c="blue.4"
+                                                        fz="xs"
                                                     >
                                                         here
                                                     </Anchor>

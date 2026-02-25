@@ -69,6 +69,7 @@ const ResourceValidationErrorIndicator = ({
                                 search: `?validationId=${validationId}`,
                             }}
                             color="blue.4"
+                            fz="xs"
                         >
                             here
                         </Anchor>
