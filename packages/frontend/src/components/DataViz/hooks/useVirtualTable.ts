@@ -9,10 +9,8 @@ import {
     type ColumnDef,
 } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useAutoColumnWidths } from '../../../hooks/useAutoColumnWidths';
+import { useCallback, useMemo, useRef } from 'react';
 import { getValueCell } from '../../../hooks/useColumns';
-import { useIsTableColumnWidthStabilizationEnabled } from '../../../hooks/useIsTableColumnWidthStabilizationEnabled';
 import { ROW_HEIGHT_PX } from '../../common/Table/constants';
 
 // This just makes a virtual table from rows and columns. It's very similar to useTableDataModel.
@@ -25,89 +23,17 @@ export const useVirtualTable = ({
     rows: RawResultRow[];
     config?: VizColumnsConfig;
 }) => {
-    const headerLabels = useMemo(() => {
-        if (!config) return {};
-        const labels: Record<string, string> = {};
-        for (const col of columnNames) {
-            labels[col] = config[col]?.label || col;
-        }
-        return labels;
-    }, [columnNames, config]);
-
-    const getCellText = useCallback(
-        (row: Record<string, unknown>, colId: string) =>
-            String(row[colId] ?? ''),
-        [],
-    );
-
-    const isTableColumnWidthStabilizationEnabled =
-        useIsTableColumnWidthStabilizationEnabled();
-
-    const autoColumnWidths = useAutoColumnWidths({
-        columnIds: columnNames,
-        rows,
-        getCellText,
-        headerLabels,
-        enabled: isTableColumnWidthStabilizationEnabled,
-    });
-
-    const tableWrapperRef = useRef<HTMLDivElement>(null);
-    const [containerWidth, setContainerWidth] = useState(0);
-
-    useEffect(() => {
-        const el = tableWrapperRef.current;
-        if (!el || !isTableColumnWidthStabilizationEnabled) return;
-
-        const observer = new ResizeObserver((entries) => {
-            for (const entry of entries) {
-                setContainerWidth(entry.contentRect.width);
-            }
-        });
-        observer.observe(el);
-        setContainerWidth(el.clientWidth);
-
-        return () => observer.disconnect();
-    }, [isTableColumnWidthStabilizationEnabled]);
-
-    const totalColumnWidth = useMemo(() => {
-        if (!isTableColumnWidthStabilizationEnabled) return 0;
-        const total = Object.values(autoColumnWidths).reduce(
-            (sum, w) => sum + w,
-            0,
-        );
-        if (total <= 0) return 0;
-        return Math.max(total, containerWidth);
-    }, [
-        autoColumnWidths,
-        isTableColumnWidthStabilizationEnabled,
-        containerWidth,
-    ]);
-
     const tanstackColumns: ColumnDef<RawResultRow, any>[] = useMemo(() => {
-        return columnNames.map((columnName) => {
-            const autoWidth = autoColumnWidths[columnName];
-            return {
-                id: columnName,
-                // react table has a bug with accessors that has dots in them
-                // we found the fix here -> https://github.com/TanStack/table/issues/1671
-                // do not remove the line below
-                accessorFn: TableDataModel.getColumnsAccessorFn(columnName),
-                header: (config && config[columnName]?.label) || columnName,
-                cell: getValueCell,
-                ...(autoWidth
-                    ? {
-                          meta: {
-                              style: {
-                                  width: autoWidth,
-                                  minWidth: autoWidth,
-                                  maxWidth: autoWidth,
-                              },
-                          },
-                      }
-                    : {}),
-            };
-        });
-    }, [columnNames, config, autoColumnWidths]);
+        return columnNames.map((columnName) => ({
+            id: columnName,
+            // react table has a bug with accessors that has dots in them
+            // we found the fix here -> https://github.com/TanStack/table/issues/1671
+            // do not remove the line below
+            accessorFn: TableDataModel.getColumnsAccessorFn(columnName),
+            header: (config && config[columnName]?.label) || columnName,
+            cell: getValueCell,
+        }));
+    }, [columnNames, config]);
 
     const table = useReactTable({
         data: rows,
@@ -116,6 +42,8 @@ export const useVirtualTable = ({
     });
 
     const getRowHeight = useCallback(() => ROW_HEIGHT_PX, []);
+
+    const tableWrapperRef = useRef<HTMLDivElement>(null);
 
     const virtualizer = useVirtualizer({
         getScrollElement: () => tableWrapperRef.current,
@@ -155,6 +83,5 @@ export const useVirtualTable = ({
         getTableData,
         paddingTop,
         paddingBottom,
-        totalColumnWidth,
     };
 };

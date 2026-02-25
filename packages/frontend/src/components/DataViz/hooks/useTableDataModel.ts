@@ -10,10 +10,8 @@ import {
     type ColumnDef,
 } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useAutoColumnWidths } from '../../../hooks/useAutoColumnWidths';
+import { useCallback, useMemo, useRef } from 'react';
 import { getValueCell } from '../../../hooks/useColumns';
-import { useIsTableColumnWidthStabilizationEnabled } from '../../../hooks/useIsTableColumnWidthStabilizationEnabled';
 import { ROW_HEIGHT_PX } from '../../common/Table/constants';
 import { calculateColumnStats } from '../utils/columnStats';
 
@@ -50,89 +48,17 @@ export const useTableDataModel = ({
         return calculateColumnStats(rows, barColumns);
     }, [rows, columns, config?.columns]);
 
-    const headerLabels = useMemo(() => {
-        if (!config?.columns) return {};
-        const labels: Record<string, string> = {};
-        for (const col of columns) {
-            labels[col] = config.columns[col]?.label || col;
-        }
-        return labels;
-    }, [columns, config?.columns]);
-
-    const getCellText = useCallback(
-        (row: Record<string, unknown>, colId: string) =>
-            String(row[colId] ?? ''),
-        [],
-    );
-
-    const isTableColumnWidthStabilizationEnabled =
-        useIsTableColumnWidthStabilizationEnabled();
-
-    const autoColumnWidths = useAutoColumnWidths({
-        columnIds: columns,
-        rows,
-        getCellText,
-        headerLabels,
-        enabled: isTableColumnWidthStabilizationEnabled,
-    });
-
     const tanstackColumns: ColumnDef<RawResultRow, any>[] = useMemo(() => {
-        return columns.map((column) => {
-            const autoWidth = autoColumnWidths[column];
-            return {
-                id: column,
-                // react table has a bug with accessors that has dots in them
-                // we found the fix here -> https://github.com/TanStack/table/issues/1671
-                // do not remove the line below
-                accessorFn: TableDataModel.getColumnsAccessorFn(column),
-                header: config?.columns[column].label || column,
-                cell: getValueCell,
-                ...(autoWidth
-                    ? {
-                          meta: {
-                              style: {
-                                  width: autoWidth,
-                                  minWidth: autoWidth,
-                                  maxWidth: autoWidth,
-                              },
-                          },
-                      }
-                    : {}),
-            };
-        });
-    }, [columns, config?.columns, autoColumnWidths]);
-
-    const tableWrapperRef = useRef<HTMLDivElement>(null);
-    const [containerWidth, setContainerWidth] = useState(0);
-
-    useEffect(() => {
-        const el = tableWrapperRef.current;
-        if (!el || !isTableColumnWidthStabilizationEnabled) return;
-
-        const observer = new ResizeObserver((entries) => {
-            for (const entry of entries) {
-                setContainerWidth(entry.contentRect.width);
-            }
-        });
-        observer.observe(el);
-        setContainerWidth(el.clientWidth);
-
-        return () => observer.disconnect();
-    }, [isTableColumnWidthStabilizationEnabled]);
-
-    const totalColumnWidth = useMemo(() => {
-        if (!isTableColumnWidthStabilizationEnabled) return 0;
-        const total = Object.values(autoColumnWidths).reduce(
-            (sum, w) => sum + w,
-            0,
-        );
-        if (total <= 0) return 0;
-        return Math.max(total, containerWidth);
-    }, [
-        autoColumnWidths,
-        isTableColumnWidthStabilizationEnabled,
-        containerWidth,
-    ]);
+        return columns.map((column) => ({
+            id: column,
+            // react table has a bug with accessors that has dots in them
+            // we found the fix here -> https://github.com/TanStack/table/issues/1671
+            // do not remove the line below
+            accessorFn: TableDataModel.getColumnsAccessorFn(column),
+            header: config?.columns[column].label || column,
+            cell: getValueCell,
+        }));
+    }, [columns, config?.columns]);
 
     const table = useReactTable({
         data: rows,
@@ -145,6 +71,8 @@ export const useTableDataModel = ({
     });
 
     const getRowHeight = useCallback(() => ROW_HEIGHT_PX, []);
+
+    const tableWrapperRef = useRef<HTMLDivElement>(null);
 
     const virtualizer = useVirtualizer({
         getScrollElement: () => tableWrapperRef.current,
@@ -186,6 +114,5 @@ export const useTableDataModel = ({
         getTableData,
         paddingTop,
         paddingBottom,
-        totalColumnWidth,
     };
 };

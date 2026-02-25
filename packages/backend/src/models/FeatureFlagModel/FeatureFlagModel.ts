@@ -52,8 +52,6 @@ export class FeatureFlagModel {
                 this.getDefaultUserSpacesEnabled.bind(this),
             [FeatureFlags.EnableFilterAutofocusFix]:
                 this.getFilterAutofocusFixEnabled.bind(this),
-            [FeatureFlags.EnableTableColumnWidthStabilization]:
-                this.getTableColumnWidthStabilizationEnabled.bind(this),
         };
     }
 
@@ -297,32 +295,6 @@ export class FeatureFlagModel {
             (user !== undefined
                 ? await isFeatureFlagEnabled(
                       FeatureFlags.EnableFilterAutofocusFix,
-                      {
-                          userUuid: user.userUuid,
-                          organizationUuid: user.organizationUuid,
-                      },
-                      {
-                          throwOnTimeout: false,
-                          timeoutMilliseconds: 500,
-                      },
-                  )
-                : false);
-
-        return {
-            id: featureFlagId,
-            enabled,
-        };
-    }
-
-    private async getTableColumnWidthStabilizationEnabled({
-        user,
-        featureFlagId,
-    }: FeatureFlagLogicArgs) {
-        const enabled =
-            this.lightdashConfig.query.enableTableColumnWidthStabilization ??
-            (user !== undefined
-                ? await isFeatureFlagEnabled(
-                      FeatureFlags.EnableTableColumnWidthStabilization,
                       {
                           userUuid: user.userUuid,
                           organizationUuid: user.organizationUuid,

@@ -1,15 +1,10 @@
 import { forwardRef, type ComponentPropsWithRef, type ReactNode } from 'react';
 import styled, { css } from 'styled-components';
 import {
-    CELL_HORIZONTAL_PADDING_PX,
-    CELL_VERTICAL_PADDING_PX,
     FROZEN_COLUMN_BACKGROUND,
     FROZEN_COLUMN_BORDER_COLOR,
     FROZEN_COLUMN_BORDER_WIDTH,
-    MAX_CELL_WIDTH_PX,
     ROW_HEIGHT_PX,
-    TABLE_FONT_SIZE_PX,
-    TABLE_HEADER_FONT_WEIGHT,
 } from './constants';
 import trStyles from './Tr.module.css';
 
@@ -67,33 +62,24 @@ export const TableContainer = styled.div<
 
 export const Table = styled.table<{
     $showFooter?: boolean;
-    $fixedLayout?: number;
 }>`
     border-spacing: 0;
-    font-size: ${TABLE_FONT_SIZE_PX}px;
+    font-size: 14px;
+    width: 100%;
     border-radius: 4px;
-    ${({ $fixedLayout }) =>
-        $fixedLayout
-            ? `
-                table-layout: fixed;
-                width: max(100%, ${$fixedLayout}px);
-            `
-            : `
-                width: 100%;
-            `}
 
     th,
     td {
-        padding-left: ${CELL_HORIZONTAL_PADDING_PX}px;
-        padding-right: ${CELL_HORIZONTAL_PADDING_PX}px;
-        padding-bottom: ${CELL_VERTICAL_PADDING_PX}px;
-        padding-top: ${CELL_VERTICAL_PADDING_PX}px;
+        padding-left: 11px;
+        padding-right: 11px;
+        padding-bottom: 6px;
+        padding-top: 6px;
         text-align: left;
         vertical-align: top;
     }
 
     th {
-        font-weight: ${TABLE_HEADER_FONT_WEIGHT};
+        font-weight: 600;
     }
     td {
     }
@@ -224,7 +210,7 @@ export const Td = styled.td<{
     $hasNewlines: boolean;
     $hasUrls: boolean;
 }>`
-    max-width: ${MAX_CELL_WIDTH_PX}px;
+    max-width: 300px;
     white-space: pre;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -234,7 +220,7 @@ export const Td = styled.td<{
     ${({ $isLargeText, $isSelected, $isMinimal }) =>
         $isLargeText
             ? `
-                min-width: ${MAX_CELL_WIDTH_PX}px;
+                min-width: 300px;
                 white-space: ${$isSelected || $isMinimal ? 'pre-wrap' : 'pre'};
                 :hover {
                     white-space: pre-wrap;

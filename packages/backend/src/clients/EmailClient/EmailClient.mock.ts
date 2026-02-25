@@ -24,7 +24,6 @@ export const lightdashConfigWithNoSMTP: Pick<
         useSqlPivotResults: false,
         showExecutionTime: false,
         enableFilterAutofocusFix: undefined,
-        enableTableColumnWidthStabilization: undefined,
     },
 };
 
@@ -62,7 +61,6 @@ export const lightdashConfigWithBasicSMTP: Pick<
         useSqlPivotResults: false,
         showExecutionTime: false,
         enableFilterAutofocusFix: undefined,
-        enableTableColumnWidthStabilization: undefined,
     },
 };
 
@@ -88,7 +86,6 @@ export const lightdashConfigWithOauth2SMTP: Pick<
         useSqlPivotResults: false,
         showExecutionTime: false,
         enableFilterAutofocusFix: undefined,
-        enableTableColumnWidthStabilization: undefined,
     },
 };
 
@@ -110,7 +107,6 @@ export const lightdashConfigWithSecurePortSMTP: Pick<
         useSqlPivotResults: false,
         showExecutionTime: false,
         enableFilterAutofocusFix: undefined,
-        enableTableColumnWidthStabilization: undefined,
     },
 };
 

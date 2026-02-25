@@ -255,9 +255,17 @@ describe('SQL Runner (new)', () => {
             .contains('Fix errors')
             .click();
         cy.get('input[placeholder="Select X axis"]').click();
-        cy.get('div[role="option"]').contains('status').click();
+        cy.get('.mantine-8-Select-dropdown')
+            .filter(':visible')
+            .find('div[role="option"]')
+            .contains('status')
+            .click();
         cy.get('input[placeholder="Select Y axis"]').click();
-        cy.get('div[role="option"]').contains('customer_id').click();
+        cy.get('.mantine-8-Select-dropdown')
+            .filter(':visible')
+            .find('div[role="option"]')
+            .contains('customer_id')
+            .click();
 
         // Verify that saving changes and going back to view page displays the chart
         cy.contains('Save').click();

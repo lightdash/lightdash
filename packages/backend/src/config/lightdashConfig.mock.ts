@@ -210,7 +210,6 @@ export const lightdashConfigMock: LightdashConfig = {
         useSqlPivotResults: false,
         showExecutionTime: false,
         enableFilterAutofocusFix: undefined,
-        enableTableColumnWidthStabilization: undefined,
     },
     ai: {
         copilot: {
