@@ -10,7 +10,7 @@ import { IconFolders, IconSearch, IconX } from '@tabler/icons-react';
 import Fuse from 'fuse.js';
 import { useMemo, useState, type FC } from 'react';
 import { useParams } from 'react-router';
-import LoadingState from '../components/common/LoadingState';
+import EmptyStateLoader from '../components/common/EmptyStateLoader';
 import MantineIcon from '../components/common/MantineIcon';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import ResourceView from '../components/common/ResourceView';
@@ -60,7 +60,7 @@ const MobileSpaces: FC = () => {
     }
 
     if (isLoading && !userCannotViewSpace) {
-        return <LoadingState title="Loading spaces" />;
+        return <EmptyStateLoader my="xl" title="Loading spaces" />;
     }
 
     return (

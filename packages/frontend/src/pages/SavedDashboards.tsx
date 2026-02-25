@@ -3,7 +3,7 @@ import { Button, Group, Stack } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import LoadingState from '../components/common/LoadingState';
+import EmptyStateLoader from '../components/common/EmptyStateLoader';
 import DashboardCreateModal from '../components/common/modal/DashboardCreateModal';
 import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
@@ -34,7 +34,7 @@ const SavedDashboards = () => {
     }
 
     if (isInitialLoading) {
-        return <LoadingState title="Loading dashboards" />;
+        return <EmptyStateLoader my="xl" title="Loading dashboards" />;
     }
 
     const handleCreateDashboard = () => {

@@ -18,8 +18,8 @@ import {
 } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
+import EmptyStateLoader from '../components/common/EmptyStateLoader';
 import ErrorState from '../components/common/ErrorState';
-import LoadingState from '../components/common/LoadingState';
 import MantineIcon from '../components/common/MantineIcon';
 import DashboardCreateModal from '../components/common/modal/DashboardCreateModal';
 import Page from '../components/common/Page/Page';
@@ -95,7 +95,7 @@ const Space: FC = () => {
     );
 
     if (isInitialLoading) {
-        return <LoadingState title="Loading space" />;
+        return <EmptyStateLoader my="xl" title="Loading space" />;
     }
 
     if (error) {

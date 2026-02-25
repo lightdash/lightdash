@@ -294,6 +294,11 @@ Both accept all props of their base component (`GroupProps` / `PaperProps`) plus
 </UnstyledButton>
 ```
 
+### EmptyStateLoader
+
+- Use `EmptyStateLoader` from `components/common/EmptyStateLoader` for **any** centered loading state: page-level guards, panels, tables, empty containers
+- Built on `SuboptimalState` (Mantine v8) — renders a spinner with an optional title, fully centered in its parent
+
 ### TruncatedText
 
 - Use `TruncatedText` from `components/common/TruncatedText` whenever text may overflow a constrained width
