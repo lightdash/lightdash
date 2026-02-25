@@ -302,18 +302,6 @@ export default class App {
     }
 
     private async initExpress(expressApp: Express) {
-        // Handle OPTIONS preflights for persistent file endpoints before the
-        // global cors() middleware, which swallows preflights for unknown origins.
-        expressApp.use('/api/v1/file/*', (req, res, next) => {
-            if (req.method === 'OPTIONS') {
-                res.setHeader('Access-Control-Allow-Origin', '*');
-                res.setHeader('Access-Control-Allow-Private-Network', 'true');
-                res.status(204).end();
-                return;
-            }
-            next();
-        });
-
         // Cross-Origin Resource Sharing policy (CORS)
         // WARNING: this middleware should be mounted before the helmet middleware
         // (ideally at the top of the middleware stack)
