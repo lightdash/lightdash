@@ -15726,6 +15726,62 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "SpaceDeleteImpact": {
+                "properties": {
+                    "dashboardCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "chartCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "spaces": {
+                        "items": {
+                            "properties": {
+                                "dashboardCount": {
+                                    "type": "number",
+                                    "format": "double"
+                                },
+                                "chartCount": {
+                                    "type": "number",
+                                    "format": "double"
+                                },
+                                "name": {
+                                    "type": "string"
+                                },
+                                "uuid": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": [
+                                "dashboardCount",
+                                "chartCount",
+                                "name",
+                                "uuid"
+                            ],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["dashboardCount", "chartCount", "spaces"],
+                "type": "object"
+            },
+            "ApiSpaceDeleteImpactResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/SpaceDeleteImpact"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "Pick_SpaceShare.userUuid-or-role_": {
                 "properties": {
                     "userUuid": {
@@ -31341,6 +31397,57 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/spaces/{spaceUuid}/delete-impact": {
+            "get": {
+                "operationId": "GetSpaceDeleteImpact",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSpaceDeleteImpactResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get the impact of deleting a space (affected child spaces, charts, dashboards)",
+                "summary": "Get delete impact",
+                "tags": ["Spaces"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "The uuid of the space's parent project",
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "The uuid of the space to check",
+                        "in": "path",
+                        "name": "spaceUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/projects/{projectUuid}/spaces": {
