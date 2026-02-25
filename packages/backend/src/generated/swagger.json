@@ -8695,6 +8695,19 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
+                                                            "success",
+                                                            "error"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": ["status"],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
                                                             "error",
                                                             "success"
                                                         ]
@@ -16623,7 +16636,8 @@
                     "downloadAsyncQueryResults",
                     "syncSlackChannels",
                     "generateSlackChannelSyncJobs",
-                    "checkForStuckJobs"
+                    "checkForStuckJobs",
+                    "cleanDeploySessions"
                 ]
             },
             "BaseSchedulerLog": {
@@ -25358,6 +25372,102 @@
                 "required": ["enabled", "id"],
                 "type": "object"
             },
+            "ApiStartDeploySessionResponse": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "deploySessionUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["deploySessionUuid"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAddDeployBatchResponse": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "exploreCount": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "batchNumber": {
+                                "type": "number",
+                                "format": "double"
+                            }
+                        },
+                        "required": ["exploreCount", "batchNumber"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAddDeployBatchRequest": {
+                "properties": {
+                    "batchNumber": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "explores": {
+                        "items": {
+                            "anyOf": [
+                                {
+                                    "$ref": "#/components/schemas/Explore"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/ExploreError"
+                                }
+                            ]
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["batchNumber", "explores"],
+                "type": "object"
+            },
+            "DeploySessionStatus": {
+                "enum": ["uploading", "finalizing", "completed", "failed"],
+                "type": "string"
+            },
+            "ApiFinalizeDeployResponse": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "status": {
+                                "$ref": "#/components/schemas/DeploySessionStatus"
+                            },
+                            "exploreCount": {
+                                "type": "number",
+                                "format": "double"
+                            }
+                        },
+                        "required": ["status", "exploreCount"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "ApiDashboardPaginatedSchedulersResponse": {
                 "properties": {
                     "results": {
@@ -26442,7 +26552,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2516.0",
+        "version": "0.2518.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -43348,6 +43458,155 @@
                     {
                         "in": "path",
                         "name": "featureFlagId",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v2/projects/{projectUuid}/deploy": {
+            "post": {
+                "operationId": "startDeploySession",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiStartDeploySessionResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Start a new deploy session for batched explore uploads",
+                "summary": "Start deploy session",
+                "tags": ["Project"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v2/projects/{projectUuid}/deploy/{sessionUuid}/batch": {
+            "post": {
+                "operationId": "addDeployBatch",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAddDeployBatchResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Add a batch of explores to an existing deploy session",
+                "summary": "Add deploy batch",
+                "tags": ["Project"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "sessionUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiAddDeployBatchRequest"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/projects/{projectUuid}/deploy/{sessionUuid}/finalize": {
+            "post": {
+                "operationId": "finalizeDeploySession",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiFinalizeDeployResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Finalize a deploy session and commit all staged explores to the project",
+                "summary": "Finalize deploy",
+                "tags": ["Project"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "sessionUuid",
                         "required": true,
                         "schema": {
                             "type": "string"

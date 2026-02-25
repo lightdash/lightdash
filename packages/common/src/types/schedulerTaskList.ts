@@ -68,6 +68,7 @@ export const SCHEDULER_TASKS = {
     SYNC_SLACK_CHANNELS: 'syncSlackChannels',
     GENERATE_SLACK_CHANNEL_SYNC_JOBS: 'generateSlackChannelSyncJobs',
     CHECK_FOR_STUCK_JOBS: 'checkForStuckJobs',
+    CLEAN_DEPLOY_SESSIONS: 'cleanDeploySessions',
     ...EE_SCHEDULER_TASKS,
 } as const;
 
@@ -105,6 +106,7 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.SYNC_SLACK_CHANNELS]: SyncSlackChannelsPayload;
     [SCHEDULER_TASKS.GENERATE_SLACK_CHANNEL_SYNC_JOBS]: TraceTaskBase;
     [SCHEDULER_TASKS.CHECK_FOR_STUCK_JOBS]: TraceTaskBase;
+    [SCHEDULER_TASKS.CLEAN_DEPLOY_SESSIONS]: TraceTaskBase;
     [SCHEDULER_TASKS.AI_AGENT_EVAL_RESULT]: AiAgentEvalRunJobPayload;
     [SCHEDULER_TASKS.EMBED_ARTIFACT_VERSION]: EmbedArtifactVersionJobPayload;
     [SCHEDULER_TASKS.GENERATE_ARTIFACT_QUESTION]: GenerateArtifactQuestionJobPayload;

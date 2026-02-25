@@ -16,6 +16,7 @@ import { CommentService } from './CommentService/CommentService';
 import { ContentService } from './ContentService/ContentService';
 import { CsvService } from './CsvService/CsvService';
 import { DashboardService } from './DashboardService/DashboardService';
+import { DeployService } from './DeployService';
 import { DownloadFileService } from './DownloadFileService/DownloadFileService';
 import { FavoritesService } from './FavoritesService/FavoritesService';
 import { FeatureFlagService } from './FeatureFlag/FeatureFlagService';
@@ -68,6 +69,7 @@ interface ServiceManifest {
     commentService: CommentService;
     csvService: CsvService;
     dashboardService: DashboardService;
+    deployService: DeployService;
     downloadFileService: DownloadFileService;
     favoritesService: FavoritesService;
     gitIntegrationService: GitIntegrationService;
@@ -358,6 +360,19 @@ export class ServiceRepository
                     slackClient: this.clients.getSlackClient(),
                     catalogModel: this.models.getCatalogModel(),
                     spacePermissionService: this.getSpacePermissionService(),
+                }),
+        );
+    }
+
+    public getDeployService(): DeployService {
+        return this.getService(
+            'deployService',
+            () =>
+                new DeployService({
+                    deploySessionModel: this.models.getDeploySessionModel(),
+                    projectModel: this.models.getProjectModel(),
+                    projectService: this.getProjectService(),
+                    schedulerClient: this.clients.getSchedulerClient(),
                 }),
         );
     }

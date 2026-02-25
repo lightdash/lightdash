@@ -373,6 +373,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 csvService: context.serviceRepository.getCsvService(),
                 dashboardService:
                     context.serviceRepository.getDashboardService(),
+                deployService: context.serviceRepository.getDeployService(),
                 projectService: context.serviceRepository.getProjectService(),
                 schedulerService:
                     context.serviceRepository.getSchedulerService(),

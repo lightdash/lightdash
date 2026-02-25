@@ -126,6 +126,7 @@ import {
     getSchedulerCsvLimit,
 } from '../services/CsvService/CsvService';
 import { DashboardService } from '../services/DashboardService/DashboardService';
+import { DeployService } from '../services/DeployService';
 import { ExcelService } from '../services/ExcelService/ExcelService';
 import type { FeatureFlagService } from '../services/FeatureFlag/FeatureFlagService';
 import { PersistentDownloadFileService } from '../services/PersistentDownloadFileService/PersistentDownloadFileService';
@@ -147,6 +148,7 @@ export type SchedulerTaskArguments = {
     analytics: LightdashAnalytics;
     csvService: CsvService;
     dashboardService: DashboardService;
+    deployService: DeployService;
     projectService: ProjectService;
     schedulerService: SchedulerService;
     unfurlService: UnfurlService;
@@ -174,6 +176,8 @@ export default class SchedulerTask {
     protected readonly csvService: CsvService;
 
     protected readonly dashboardService: DashboardService;
+
+    protected readonly deployService: DeployService;
 
     protected readonly projectService: ProjectService;
 
@@ -214,6 +218,7 @@ export default class SchedulerTask {
         this.analytics = args.analytics;
         this.csvService = args.csvService;
         this.dashboardService = args.dashboardService;
+        this.deployService = args.deployService;
         this.projectService = args.projectService;
         this.schedulerService = args.schedulerService;
         this.unfurlService = args.unfurlService;

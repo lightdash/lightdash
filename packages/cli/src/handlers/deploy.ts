@@ -1,5 +1,6 @@
 import {
     AuthorizationError,
+    DeploySessionStatus,
     Explore,
     ExploreError,
     friendlyName,
@@ -44,6 +45,9 @@ type DeployHandlerOptions = DbtCompileOptions & {
     warehouseCredentials?: boolean;
     organizationCredentials?: string;
     assumeYes?: boolean;
+    useBatchedDeploy?: boolean;
+    batchSize?: string;
+    parallelBatches?: string;
 };
 
 type DeployArgs = DeployHandlerOptions & {
@@ -79,6 +83,133 @@ const replaceProjectParameters = async (
         method: 'PUT',
         url: `/api/v2/projects/${projectUuid}/parameters`,
         body: JSON.stringify(lightdashProjectConfig.parameters ?? {}),
+    });
+};
+
+const deployBatched = async (
+    explores: (Explore | ExploreError)[],
+    options: DeployArgs,
+): Promise<void> => {
+    const batchSize = parseInt(options.batchSize || '50', 10);
+    if (Number.isNaN(batchSize) || batchSize < 1 || batchSize > 1000) {
+        throw new Error(
+            'batchSize must be a positive integer between 1 and 1000',
+        );
+    }
+    const parallelBatches = parseInt(options.parallelBatches || '5', 10);
+    if (
+        Number.isNaN(parallelBatches) ||
+        parallelBatches < 1 ||
+        parallelBatches > 50
+    ) {
+        throw new Error(
+            'parallelBatches must be a positive integer between 1 and 50',
+        );
+    }
+
+    GlobalState.log(
+        styles.title(
+            `Deploying ${explores.length} explores using batched deploy (batch size: ${batchSize}, parallel: ${parallelBatches})`,
+        ),
+    );
+
+    const deployStartTime = Date.now();
+
+    // Start deploy session
+    GlobalState.log(`Starting deploy session...`);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const startSessionResponse = (await lightdashApi<any>({
+        method: 'POST',
+        url: `/api/v2/projects/${options.projectUuid}/deploy`,
+        body: JSON.stringify({}),
+    })) as { deploySessionUuid: string };
+
+    const sessionUuid = startSessionResponse.deploySessionUuid;
+    GlobalState.log(styles.success(`Deploy session created: ${sessionUuid}`));
+
+    // Split explores into batches
+    const batches: (Explore | ExploreError)[][] = [];
+    for (let i = 0; i < explores.length; i += batchSize) {
+        batches.push(explores.slice(i, i + batchSize));
+    }
+
+    GlobalState.log(`Uploading ${batches.length} batches...`);
+
+    // Send batches with parallelism using chunked processing
+    const uploadBatch = async (
+        batch: (Explore | ExploreError)[],
+        batchIndex: number,
+    ) => {
+        GlobalState.log(
+            `  Uploading batch ${batchIndex + 1}/${batches.length} (${batch.length} explores)...`,
+        );
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const response = (await lightdashApi<any>({
+            method: 'POST',
+            url: `/api/v2/projects/${options.projectUuid}/deploy/${sessionUuid}/batch`,
+            body: JSON.stringify({
+                explores: batch,
+                batchNumber: batchIndex,
+            }),
+        })) as { batchNumber: number; exploreCount: number };
+
+        GlobalState.log(
+            styles.success(
+                `  ✓ Batch ${batchIndex + 1} uploaded (${response.exploreCount} explores)`,
+            ),
+        );
+
+        return response;
+    };
+
+    // Process batches with controlled parallelism using recursive approach
+    const processBatchesWithParallelism = async (
+        remainingIndices: number[],
+        results: { batchNumber: number; exploreCount: number }[] = [],
+    ): Promise<{ batchNumber: number; exploreCount: number }[]> => {
+        if (remainingIndices.length === 0) {
+            return results;
+        }
+
+        const chunk = remainingIndices.slice(0, parallelBatches);
+        const remaining = remainingIndices.slice(parallelBatches);
+
+        const chunkPromises = chunk.map((index) =>
+            uploadBatch(batches[index], index),
+        );
+        const chunkResults = await Promise.all(chunkPromises);
+
+        return processBatchesWithParallelism(remaining, [
+            ...results,
+            ...chunkResults,
+        ]);
+    };
+
+    const batchIndices = Array.from({ length: batches.length }, (_, i) => i);
+    await processBatchesWithParallelism(batchIndices);
+
+    // Finalize deploy
+    GlobalState.log(`Finalizing deploy...`);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const finalizeResponse = (await lightdashApi<any>({
+        method: 'POST',
+        url: `/api/v2/projects/${options.projectUuid}/deploy/${sessionUuid}/finalize`,
+        body: JSON.stringify({}),
+    })) as { exploreCount: number; status: DeploySessionStatus };
+
+    GlobalState.log(
+        styles.success(
+            `Deploy completed! ${finalizeResponse.exploreCount} explores deployed.`,
+        ),
+    );
+
+    await LightdashAnalytics.track({
+        event: 'deploy.triggered',
+        properties: {
+            projectId: options.projectUuid,
+            durationMs: Date.now() - deployStartTime,
+        },
     });
 };
 
@@ -141,21 +272,26 @@ export const deploy = async (
         );
     }
 
-    const deployStartTime = Date.now();
-    const deployPayload = JSON.stringify(explores);
-    await lightdashApi<null>({
-        method: 'PUT',
-        url: `/api/v1/projects/${options.projectUuid}/explores`,
-        body: deployPayload,
-    });
-    await LightdashAnalytics.track({
-        event: 'deploy.triggered',
-        properties: {
-            projectId: options.projectUuid,
-            durationMs: Date.now() - deployStartTime,
-            payloadSizeBytes: Buffer.byteLength(deployPayload),
-        },
-    });
+    // Use batched deploy if enabled
+    if (options.useBatchedDeploy) {
+        await deployBatched(explores, options);
+    } else {
+        const deployStartTime = Date.now();
+        const deployPayload = JSON.stringify(explores);
+        await lightdashApi<null>({
+            method: 'PUT',
+            url: `/api/v1/projects/${options.projectUuid}/explores`,
+            body: deployPayload,
+        });
+        await LightdashAnalytics.track({
+            event: 'deploy.triggered',
+            properties: {
+                projectId: options.projectUuid,
+                durationMs: Date.now() - deployStartTime,
+                payloadSizeBytes: Buffer.byteLength(deployPayload),
+            },
+        });
+    }
 };
 
 const createNewProject = async (

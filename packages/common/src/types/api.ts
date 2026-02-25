@@ -81,7 +81,11 @@ import {
 } from './dashboard';
 import { type DbtExposure } from './dbt';
 import { type EmailStatusExpiring } from './email';
-import { type Explore, type SummaryExplore } from './explore';
+import {
+    type Explore,
+    type ExploreError,
+    type SummaryExplore,
+} from './explore';
 import { type ApiFavoriteItems, type ApiToggleFavorite } from './favorites';
 import {
     type DimensionType,
@@ -456,6 +460,52 @@ export type HealthState = {
     softDelete: {
         enabled: boolean;
         retentionDays: number;
+    };
+};
+
+// Deploy Session Types
+export enum DeploySessionStatus {
+    UPLOADING = 'uploading',
+    FINALIZING = 'finalizing',
+    COMPLETED = 'completed',
+    FAILED = 'failed',
+}
+
+export type DeploySession = {
+    deploySessionUuid: string;
+    projectUuid: string;
+    userUuid: string;
+    status: DeploySessionStatus;
+    batchCount: number;
+    exploreCount: number;
+    createdAt: Date;
+};
+
+export type ApiStartDeploySessionResponse = {
+    status: 'ok';
+    results: {
+        deploySessionUuid: string;
+    };
+};
+
+export type ApiAddDeployBatchRequest = {
+    explores: (Explore | ExploreError)[];
+    batchNumber: number;
+};
+
+export type ApiAddDeployBatchResponse = {
+    status: 'ok';
+    results: {
+        batchNumber: number;
+        exploreCount: number;
+    };
+};
+
+export type ApiFinalizeDeployResponse = {
+    status: 'ok';
+    results: {
+        exploreCount: number;
+        status: DeploySessionStatus;
     };
 };
 

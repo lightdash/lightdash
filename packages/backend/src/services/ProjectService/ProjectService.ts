@@ -1338,7 +1338,7 @@ export class ProjectService extends BaseService {
         return { warehouseClient: client, sshTunnel };
     }
 
-    private async saveExploresToCacheAndIndexCatalog(
+    async saveExploresToCacheAndIndexCatalog(
         userUuid: string,
         projectUuid: string,
         explores: (Explore | ExploreError)[],
