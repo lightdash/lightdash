@@ -1152,11 +1152,21 @@ export class MetricQueryBuilder {
 
     private buildWindowOrderByClause(): string | undefined {
         const { compiledMetricQuery, warehouseSqlBuilder } = this.args;
-        const { sorts } = compiledMetricQuery;
+        const { sorts, compiledCustomDimensions } = compiledMetricQuery;
         const q = warehouseSqlBuilder.getFieldQuoteChar();
+        const customBinDimensions = new Set(
+            compiledCustomDimensions
+                .filter(isCustomBinDimension)
+                .map(getItemId),
+        );
         if (sorts.length === 0) return undefined;
         return sorts
-            .map((s) => `${q}${s.fieldId}${q}${s.descending ? ' DESC' : ''}`)
+            .map((s) => {
+                const fieldId = customBinDimensions.has(s.fieldId)
+                    ? `${s.fieldId}_order`
+                    : s.fieldId;
+                return `${q}${fieldId}${q}${s.descending ? ' DESC' : ''}`;
+            })
             .join(', ');
     }
 
