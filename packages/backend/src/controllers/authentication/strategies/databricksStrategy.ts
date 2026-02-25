@@ -21,6 +21,22 @@ type DatabricksStrategyConfig = {
     clientSecret?: string;
 };
 
+const VALID_DATABRICKS_DOMAINS = [
+    '.cloud.databricks.com',
+    '.dev.databricks.com',
+    '.gcp.databricks.com',
+    '.azuredatabricks.net',
+    '.databricks.azure.cn',
+    '.databricks.azure.us',
+    '.cloud.databricks.us',
+    '.cloud.databricks.mil',
+];
+
+export const isValidDatabricksHost = (host: string): boolean =>
+    VALID_DATABRICKS_DOMAINS.some((domain) =>
+        host.toLowerCase().endsWith(domain),
+    );
+
 export const normalizeDatabricksHost = (serverHostName: string): string => {
     const trimmed = serverHostName.trim();
     const parsed = new URL(
@@ -34,6 +50,11 @@ export const normalizeDatabricksHost = (serverHostName: string): string => {
     if (parsed.pathname !== '/' || parsed.search || parsed.hash) {
         throw new ParameterError(
             'Databricks serverHostName must not include a path, query string, or hash',
+        );
+    }
+    if (!isValidDatabricksHost(parsed.host)) {
+        throw new ParameterError(
+            `Invalid Databricks host: must end with one of ${VALID_DATABRICKS_DOMAINS.join(', ')}`,
         );
     }
     return parsed.host;
