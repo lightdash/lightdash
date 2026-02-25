@@ -8,6 +8,7 @@ import { Anchor, Box, Group, Stack, Text, Tooltip } from '@mantine/core';
 import {
     IconAlertTriangleFilled,
     IconChartBar,
+    IconFolder,
     IconLayoutDashboard,
 } from '@tabler/icons-react';
 import { Link } from 'react-router';
@@ -200,6 +201,11 @@ const InfiniteResourceTableColumnName = ({
                                     Icon={IconChartBar}
                                     count={item.data.chartCount}
                                     name="Charts"
+                                />
+                                <AttributeCount
+                                    Icon={IconFolder}
+                                    count={item.data.childSpaceCount}
+                                    name="Spaces"
                                 />
                             </Group>
                         </Group>

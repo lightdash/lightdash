@@ -28,6 +28,7 @@ import {
     IconArrowsSort,
     IconArrowUp,
     IconChartBar,
+    IconFolder,
     IconFolderSymlink,
     IconLayoutDashboard,
     IconSearch,
@@ -225,7 +226,7 @@ const InfiniteResourceTable = ({
                 if (!isResourceViewSpaceItem(row.original)) return null;
                 const {
                     original: {
-                        data: { dashboardCount, chartCount },
+                        data: { dashboardCount, chartCount, childSpaceCount },
                     },
                 } = row;
                 return (
@@ -239,6 +240,11 @@ const InfiniteResourceTable = ({
                             Icon={IconChartBar}
                             count={chartCount}
                             name="Charts"
+                        />
+                        <AttributeCount
+                            Icon={IconFolder}
+                            count={childSpaceCount}
+                            name="Spaces"
                         />
                     </Group>
                 );

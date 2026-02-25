@@ -1,7 +1,11 @@
 import { type ResourceViewSpaceItem } from '@lightdash/common';
 import { Box, Flex, Group, Paper, Stack, Text, Tooltip } from '@mantine-8/core';
 import { useDisclosure, useHover } from '@mantine/hooks';
-import { IconChartBar, IconLayoutDashboard } from '@tabler/icons-react';
+import {
+    IconChartBar,
+    IconFolder,
+    IconLayoutDashboard,
+} from '@tabler/icons-react';
 import { useMemo, type FC, type ReactNode } from 'react';
 import { ResourceIcon } from '../../ResourceIcon';
 import AccessInfo from '../ResourceAccessInfo';
@@ -63,6 +67,10 @@ const ResourceViewGridSpaceItem: FC<ResourceViewGridSpaceItemProps> = ({
                                 <AttributeCount
                                     Icon={IconChartBar}
                                     count={item.data.chartCount}
+                                />
+                                <AttributeCount
+                                    Icon={IconFolder}
+                                    count={item.data.childSpaceCount}
                                 />
                             </Group>
                         </Stack>

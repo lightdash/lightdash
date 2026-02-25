@@ -172,6 +172,13 @@ export class SpaceModel {
                                 `${DashboardsTableName}.space_id = ${SpaceTableName}.space_id`,
                             )
                             .whereNull(`${DashboardsTableName}.deleted_at`),
+                        childSpaceCount: trx
+                            .count('*')
+                            .from(`${SpaceTableName} as child_space`)
+                            .whereRaw(
+                                `child_space.parent_space_uuid = ${SpaceTableName}.space_uuid`,
+                            )
+                            .whereNull('child_space.deleted_at'),
                         slug: `${SpaceTableName}.slug`,
                         parentSpaceUuid: `${SpaceTableName}.parent_space_uuid`,
                         path: `${SpaceTableName}.path`,
