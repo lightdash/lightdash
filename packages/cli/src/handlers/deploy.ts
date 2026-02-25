@@ -91,7 +91,21 @@ const deployBatched = async (
     options: DeployArgs,
 ): Promise<void> => {
     const batchSize = parseInt(options.batchSize || '50', 10);
+    if (Number.isNaN(batchSize) || batchSize < 1 || batchSize > 1000) {
+        throw new Error(
+            'batchSize must be a positive integer between 1 and 1000',
+        );
+    }
     const parallelBatches = parseInt(options.parallelBatches || '5', 10);
+    if (
+        Number.isNaN(parallelBatches) ||
+        parallelBatches < 1 ||
+        parallelBatches > 50
+    ) {
+        throw new Error(
+            'parallelBatches must be a positive integer between 1 and 50',
+        );
+    }
 
     GlobalState.log(
         styles.title(
