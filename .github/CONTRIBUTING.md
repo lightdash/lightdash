@@ -243,7 +243,7 @@ export PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=true
 pnpm dev # http://localhost:3000
 
 # Log in dev mode
-# When navigating to http://localhost:3000 you will be prompt to the login page, you can use our demo login details:
+# When navigating to http://localhost:3000 you will be prompted to the login page, you can use our demo login details:
 
 # Email-Address: demo@lightdash.com
 # Password: demo_password!
@@ -509,7 +509,7 @@ pnpm load:env ./scripts/seed-lightdash.sh
 pnpm load:env pnpm dev
 
 # Log in dev mode
-When navigating to http://localhost:3000 you will be prompt to the login page, you can use our demo login details:
+When navigating to http://localhost:3000 you will be prompted to the login page, you can use our demo login details:
 
 Email-Address: demo@lightdash.com
 Password: demo_password!
@@ -596,7 +596,7 @@ everything should work as expected.
 #### Running Lightdash without docker and headless browser on Linux
 
 If you are running lightdash without docker, you will have to run headless browser in a way that it is able to connect
-to your lightdash endpoint in localhost. You can achive this on Linux by doing:
+to your lightdash endpoint in localhost. You can achieve this on Linux by doing:
 
 ```shell
 docker run -e PORT=3001 --name=lightdash-headless --network 'host' -it --rm ghcr.io/browserless/chromium:v2.24.3
