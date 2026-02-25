@@ -111,7 +111,13 @@ const FiltersForm: FC<Props> = memo(({ filters, setFilters, isEditMode }) => {
         if (!isFilterAutofocusEnabled) return;
         const ruleId = lastFocusedRuleIdRef.current;
         if (!ruleId) return;
-        if (document.activeElement && document.activeElement !== document.body)
+        const active = document.activeElement;
+        if (
+            active &&
+            active !== document.body &&
+            active !== document.documentElement &&
+            active.isConnected
+        )
             return;
 
         const ruleEl = formRef.current?.querySelector(
