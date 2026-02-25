@@ -10390,7 +10390,8 @@
                     "databricks",
                     "trino",
                     "clickhouse",
-                    "athena"
+                    "athena",
+                    "duckdb"
                 ],
                 "type": "string"
             },
@@ -10974,6 +10975,48 @@
             "AthenaCredentials": {
                 "$ref": "#/components/schemas/Omit_CreateAthenaCredentials.SensitiveCredentialsFieldNames_"
             },
+            "WarehouseTypes.DUCKDB": {
+                "enum": ["duckdb"],
+                "type": "string"
+            },
+            "Pick_CreateDuckdbCredentials.Exclude_keyofCreateDuckdbCredentials.SensitiveCredentialsFieldNames__": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/WarehouseTypes.DUCKDB"
+                    },
+                    "requireUserCredentials": {
+                        "type": "boolean"
+                    },
+                    "database": {
+                        "type": "string"
+                    },
+                    "schema": {
+                        "type": "string"
+                    },
+                    "threads": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "startOfWeek": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/WeekDay"
+                            }
+                        ],
+                        "nullable": true
+                    }
+                },
+                "required": ["type", "database", "schema"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_CreateDuckdbCredentials.SensitiveCredentialsFieldNames_": {
+                "$ref": "#/components/schemas/Pick_CreateDuckdbCredentials.Exclude_keyofCreateDuckdbCredentials.SensitiveCredentialsFieldNames__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "DuckdbCredentials": {
+                "$ref": "#/components/schemas/Omit_CreateDuckdbCredentials.SensitiveCredentialsFieldNames_"
+            },
             "WarehouseCredentials": {
                 "anyOf": [
                     {
@@ -10999,6 +11042,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/AthenaCredentials"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DuckdbCredentials"
                     }
                 ]
             },
@@ -11697,6 +11743,39 @@
                 ],
                 "type": "object"
             },
+            "CreateDuckdbCredentials": {
+                "properties": {
+                    "startOfWeek": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/WeekDay"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "requireUserCredentials": {
+                        "type": "boolean"
+                    },
+                    "threads": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "token": {
+                        "type": "string"
+                    },
+                    "schema": {
+                        "type": "string"
+                    },
+                    "database": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/WarehouseTypes.DUCKDB"
+                    }
+                },
+                "required": ["schema", "database", "type"],
+                "type": "object"
+            },
             "CreateWarehouseCredentials": {
                 "anyOf": [
                     {
@@ -11722,6 +11801,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/CreateAthenaCredentials"
+                    },
+                    {
+                        "$ref": "#/components/schemas/CreateDuckdbCredentials"
                     }
                 ]
             },
@@ -12769,6 +12851,16 @@
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
+            "Pick_CreateDuckdbCredentials.type_": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/WarehouseTypes.DUCKDB"
+                    }
+                },
+                "required": ["type"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
             "ProjectType": {
                 "enum": ["DEFAULT", "PREVIEW"],
                 "type": "string"
@@ -12811,6 +12903,9 @@
                             },
                             {
                                 "$ref": "#/components/schemas/Pick_CreateAthenaCredentials.type_"
+                            },
+                            {
+                                "$ref": "#/components/schemas/Pick_CreateDuckdbCredentials.type_"
                             }
                         ]
                     },
@@ -12998,6 +13093,19 @@
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
+            "Pick_CreateDuckdbCredentials.type-or-token_": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/WarehouseTypes.DUCKDB"
+                    },
+                    "token": {
+                        "type": "string"
+                    }
+                },
+                "required": ["type"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
             "UpsertUserWarehouseCredentials": {
                 "properties": {
                     "credentials": {
@@ -13032,6 +13140,9 @@
                             },
                             {
                                 "$ref": "#/components/schemas/Pick_CreateAthenaCredentials.type-or-accessKeyId-or-secretAccessKey_"
+                            },
+                            {
+                                "$ref": "#/components/schemas/Pick_CreateDuckdbCredentials.type-or-token_"
                             }
                         ]
                     },
