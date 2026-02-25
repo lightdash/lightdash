@@ -117,7 +117,7 @@ type PivotTableProps = BoxProps & // TODO: remove this
         getFieldLabel: (fieldId: string) => string | undefined;
         getField: (fieldId: string) => ItemsMap[string] | undefined;
         showSubtotals?: boolean;
-        columnProperties?: Record<string, ColumnProperties>;
+        columnProperties?: ColumnProperties;
         isMinimal: boolean;
         isDashboard?: boolean;
     };

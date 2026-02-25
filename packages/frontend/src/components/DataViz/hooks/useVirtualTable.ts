@@ -9,7 +9,7 @@ import {
     type ColumnDef,
 } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import { useAutoColumnWidths } from '../../../hooks/useAutoColumnWidths';
 import { getValueCell } from '../../../hooks/useColumns';
 import { useIsTableColumnWidthStabilizationEnabled } from '../../../hooks/useIsTableColumnWidthStabilizationEnabled';
@@ -51,37 +51,10 @@ export const useVirtualTable = ({
         enabled: isTableColumnWidthStabilizationEnabled,
     });
 
-    const tableWrapperRef = useRef<HTMLDivElement>(null);
-    const [containerWidth, setContainerWidth] = useState(0);
-
-    useEffect(() => {
-        const el = tableWrapperRef.current;
-        if (!el || !isTableColumnWidthStabilizationEnabled) return;
-
-        const observer = new ResizeObserver((entries) => {
-            for (const entry of entries) {
-                setContainerWidth(entry.contentRect.width);
-            }
-        });
-        observer.observe(el);
-        setContainerWidth(el.clientWidth);
-
-        return () => observer.disconnect();
-    }, [isTableColumnWidthStabilizationEnabled]);
-
     const totalColumnWidth = useMemo(() => {
         if (!isTableColumnWidthStabilizationEnabled) return 0;
-        const total = Object.values(autoColumnWidths).reduce(
-            (sum, w) => sum + w,
-            0,
-        );
-        if (total <= 0) return 0;
-        return Math.max(total, containerWidth);
-    }, [
-        autoColumnWidths,
-        isTableColumnWidthStabilizationEnabled,
-        containerWidth,
-    ]);
+        return Object.values(autoColumnWidths).reduce((sum, w) => sum + w, 0);
+    }, [autoColumnWidths, isTableColumnWidthStabilizationEnabled]);
 
     const tanstackColumns: ColumnDef<RawResultRow, any>[] = useMemo(() => {
         return columnNames.map((columnName) => {
@@ -116,6 +89,8 @@ export const useVirtualTable = ({
     });
 
     const getRowHeight = useCallback(() => ROW_HEIGHT_PX, []);
+
+    const tableWrapperRef = useRef<HTMLDivElement>(null);
 
     const virtualizer = useVirtualizer({
         getScrollElement: () => tableWrapperRef.current,
