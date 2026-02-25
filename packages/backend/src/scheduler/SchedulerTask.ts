@@ -415,7 +415,6 @@ export default class SchedulerTask {
                                     createdByUserUuid: userUuid,
                                     expirationSeconds:
                                         expirationSecondsOverride,
-                                    source: 'scheduler',
                                 },
                             );
                     }
