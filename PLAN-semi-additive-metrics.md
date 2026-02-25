@@ -1,4 +1,4 @@
-# Plan: Semi-Additive Metrics in Lightdash
+# Plan: Semi-Additive Metrics in Lightdash (DRAFT)
 
 ## Problem
 
@@ -505,7 +505,8 @@ Add validation in the ExploreCompiler:
 1. `semi_additive.time_dimension` must reference a valid dimension of type DATE or TIMESTAMP in the same table (or a joined table)
 2. `window_groupings` entries must reference valid dimensions
 3. Semi-additive config is only valid on aggregate metric types (SUM, COUNT, COUNT_DISTINCT, AVERAGE, etc.) — not on non-aggregate or post-calculation types
-4. Cannot combine `semi_additive` with `distinct_keys` (sum_distinct) — they're separate patterns
+4. Cannot combine `semi_additive` with `distinct_keys` (sum_distinct) — they're separate CTE-based row-selection strategies that cannot coexist (see Phase 6 conflict analysis)
+5. PoP (Period-over-Period) comparisons on semi-additive metrics are **not supported in initial release** — the metric falls back to regular calculation for the PoP portion (see Phase 6)
 
 #### 5.2 Edge cases to handle
 
@@ -515,6 +516,104 @@ Add validation in the ExploreCompiler:
 - **Multiple semi-additive metrics in one query**: Each gets its own CTE, joined back independently (same pattern as multiple sum_distinct metrics)
 - **Interaction with PoP metrics**: Semi-additive metrics should work with Period-over-Period comparisons. The PoP CTE would reference the semi-additive CTE's result
 - **Interaction with metric inflation protection**: Need to ensure the experimental metrics CTE logic also handles semi-additive metrics correctly, or excludes them (since they already have their own CTE isolation)
+
+### Phase 6: CTE Conflict Analysis & Integration Strategy
+
+The `compileQuery()` pipeline in MetricQueryBuilder composes CTEs in a strict order. Each feature that rewrites queries must be aware of the others. Here's the full pipeline order and how semi-additive metrics slot in:
+
+#### Current `compileQuery()` CTE pipeline order
+
+```
+1. getDimensionsSQL()       → dimension selects, filters, GROUP BY, joins, custom dimension CTEs
+2. getMetricsSQL()          → metric selects, filters
+3. getJoinsSQL()            → JOIN clauses from table references
+4. Build initial SELECT     → SELECT dims + metrics FROM base JOIN ... WHERE ... GROUP BY
+5. experimentalMetricsCte   → IF metric inflation risk: cte_keys_<table> + cte_metrics_<table>
+   ELSE IF popConfigs       → base_metrics CTE + pop_min_max + pop_metrics CTEs
+6. buildSumDistinctCtes()   → sd_base CTE + sd_<metric> CTEs per sum_distinct metric
+7. Post-aggregation         → metrics CTE + post_calc + metric_filters + table_calculations CTEs
+8. Assemble final SQL       → WITH cte1, cte2, ... SELECT ... ORDER BY ... LIMIT
+```
+
+Steps 5 and 6 are the critical integration points. Semi-additive CTEs slot in **between steps 5 and 6** (or alongside step 6).
+
+#### Conflict: Semi-additive + Sum Distinct
+
+**Risk**: Both create metric-isolation CTEs that wrap `finalSelectParts` as a base CTE and join separate metric CTEs back in. If both run, the second would wrap the first's output.
+
+**Resolution**: This combination is **explicitly disallowed** (validation in Phase 5.1, rule 4). The YAML validation will reject a metric that has both `semi_additive` and `distinct_keys`. This mirrors dbt's behavior — these are fundamentally different row-selection strategies.
+
+#### Conflict: Semi-additive + Experimental Metrics CTE (Metric Inflation Protection)
+
+**Risk**: The experimental metrics CTE (`getExperimentalMetricsCteSQL()`) creates its own per-table CTEs (`cte_keys_<table>`, `cte_metrics_<table>`) to prevent metric inflation from join fan-out. Semi-additive also creates per-metric CTEs. Both could try to handle the same metric.
+
+**Resolution — Phase 1 approach**: When a metric has `semiAdditive`, the experimental metrics CTE should **skip it** (don't create a `cte_metrics_<table>` for it). Semi-additive CTEs already isolate the metric from regular aggregation, providing their own inflation protection by operating on raw data with explicit ROW_NUMBER partitioning.
+
+**Implementation detail**: In `getExperimentalMetricsCteSQL()`, add a check:
+```typescript
+if (isSemiAdditiveMetric(metric)) {
+    // Skip — handled by buildSemiAdditiveCtes() with its own isolation
+    continue;
+}
+```
+
+The semi-additive CTE itself queries from raw tables (not from experimental CTEs), so there's no dependency conflict.
+
+#### Conflict: Semi-additive + Period-over-Period (PoP)
+
+**Risk**: PoP creates its own CTEs (`pop_min_max_<suffix>`, `pop_metrics_<suffix>`) that recalculate metrics from raw data over a shifted date range. The PoP path is an `else if` branch from the experimental metrics CTE path. A semi-additive metric with a PoP comparison would need:
+1. The base semi-additive CTE (latest value in the current date range)
+2. A PoP semi-additive CTE (latest value in the *shifted* date range)
+
+**Resolution — Phase 1 approach**: PoP + semi-additive is **not supported in initial release**. If a semi-additive metric is requested with a PoP comparison, we should:
+1. Log a warning
+2. Fall back to treating it as a regular metric for the PoP portion (calculate normally without semi-additive logic)
+
+**Future enhancement**: Build dedicated `sa_pop_<metric>_<suffix>` CTEs that apply ROW_NUMBER within the shifted date range. This is tractable but adds significant complexity.
+
+#### Conflict: Semi-additive + Table Calculations
+
+**Risk**: Table calculations run in post-aggregation CTEs (step 7) that reference the `metrics` CTE. If a table calculation references a semi-additive metric, it needs to see the already-resolved semi-additive value.
+
+**Resolution**: No conflict. By the time table calculations run, the semi-additive metric has already been resolved via CTE and joined back into `finalSelectParts`. The `metrics` CTE (step 7) will contain the semi-additive metric's value as a regular column. Table calculations will reference it normally.
+
+#### Conflict: Semi-additive + Pivot Tables
+
+**Risk**: Pivot wraps the entire metric query in additional CTEs for `row_index`/`column_index` via DENSE_RANK().
+
+**Resolution**: No conflict. Pivot operates on the final query output. Semi-additive metrics produce a regular column in the result set, which pivots normally.
+
+#### Conflict: Semi-additive + Custom Dimensions (Bins)
+
+**Risk**: Custom bin dimensions add CTEs and JOINs in step 1. These propagate into the base query.
+
+**Resolution**: No conflict. Custom dimension CTEs are resolved before metric CTEs. The semi-additive CTE reads from raw tables with all joins intact, so custom dimension JOINs are available.
+
+#### Cache Key Impact
+
+The cache key is SHA256 of the **entire compiled SQL** (`QueryHistoryModel.getCacheKey`). Since semi-additive CTEs change the SQL text, any query with semi-additive metrics automatically gets a distinct cache key. No special handling needed.
+
+#### Integration point in `compileQuery()` — precise location
+
+The semi-additive CTE block should be inserted at **line ~2700** (after `buildSumDistinctCtes()` completes, before the post-aggregation block):
+
+```
+// After sum_distinct CTE handling (step 6):
+const saMetricIds = this.getSemiAdditiveMetricIds();
+if (saMetricIds.length > 0) {
+    // ... buildSemiAdditiveCtes() logic from Phase 3
+}
+
+// Existing post-aggregation block (step 7):
+if (needsPostAgg) {
+    // ... existing logic unchanged
+}
+```
+
+This placement ensures:
+- Semi-additive CTEs read from raw tables (not from other CTEs)
+- Semi-additive results are available for post-aggregation (table calcs, metric filters)
+- Sum-distinct and semi-additive don't collide (validated to be mutually exclusive)
 
 ## Files Changed (Summary)
 
