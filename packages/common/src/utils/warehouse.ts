@@ -22,6 +22,7 @@ export const getFieldQuoteChar = (
             case WarehouseTypes.TRINO:
             case WarehouseTypes.CLICKHOUSE:
             case WarehouseTypes.ATHENA:
+            case WarehouseTypes.DUCKDB:
                 return '"';
             default:
                 return assertUnreachable(
