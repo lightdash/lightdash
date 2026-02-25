@@ -166,45 +166,27 @@ export const createDatabricksStrategy = ({
 
                 const projectUuid = req.session.oauth?.databricks?.projectUuid;
 
-                let serverHostName: string | undefined;
-                let projectName: string | undefined;
-                if (projectUuid) {
-                    if (!req.account) {
-                        throw new ForbiddenError('User session not found');
-                    }
-                    const databricksConfig = await req.services
-                        .getProjectService()
-                        .getDatabricksOAuthConfigForProject(
-                            projectUuid,
-                            req.account,
-                        );
-                    serverHostName = databricksConfig.serverHostName;
-                    projectName = databricksConfig.projectName;
-                } else {
-                    // Derive host from the issuer in the strategy's closure
-                    serverHostName = new URL(issuer).host;
-                }
-
-                const credentialsName = serverHostName
-                    ? `Databricks (${serverHostName})`
-                    : undefined;
+                // Derive host from issuer when no project context
+                const serverHostName = projectUuid
+                    ? undefined // service resolves from project
+                    : new URL(issuer).host;
 
                 Logger.info(
                     `Creating user warehouse credentials for Databricks`,
                 );
-                const userCredentials = await req.services
-                    .getUserService()
-                    .createDatabricksWarehouseCredentials(
-                        req.user!,
+                const databricksOAuthService =
+                    req.services.getDatabricksOAuthService();
+                const credentialUuid =
+                    await databricksOAuthService.upsertUserCredentials(
+                        req.user!.userUuid,
                         refreshToken,
                         {
                             projectUuid,
-                            projectName,
                             serverHostName,
-                            credentialsName,
                             oauthClientId: clientId,
                         },
                     );
+                const userCredentials = { uuid: credentialUuid };
 
                 if (userCredentials && projectUuid) {
                     try {

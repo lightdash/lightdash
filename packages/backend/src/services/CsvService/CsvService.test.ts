@@ -33,6 +33,7 @@ import { WarehouseAvailableTablesModel } from '../../models/WarehouseAvailableTa
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
+import { DatabricksOAuthService } from '../DatabricksOAuthService/DatabricksOAuthService';
 import { PersistentDownloadFileService } from '../PersistentDownloadFileService/PersistentDownloadFileService';
 import { PivotTableService } from '../PivotTableService/PivotTableService';
 import { ProjectService } from '../ProjectService/ProjectService';
@@ -83,6 +84,7 @@ describe('Csv service', () => {
             projectCompileLogModel: {} as ProjectCompileLogModel,
             adminNotificationService: {} as AdminNotificationService,
             spacePermissionService: {} as SpacePermissionService,
+            databricksOAuthService: {} as DatabricksOAuthService,
         }),
         fileStorageClient: {} as FileStorageClient,
         savedChartModel: {} as SavedChartModel,
