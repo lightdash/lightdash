@@ -169,12 +169,10 @@ export class HealthService extends BaseService {
                         this.isEnterpriseEnabled(),
                 },
                 databricks: {
-                    // U2M OAuth only requires endpoints - client ID defaults to 'databricks-cli'
+                    // Databricks OAuth browser flow requires a configured client ID.
                     enabled:
                         !!this.lightdashConfig.auth.databricks.clientId &&
-                        !!this.lightdashConfig.auth.databricks
-                            .authorizationEndpoint &&
-                        !!this.lightdashConfig.auth.databricks.tokenEndpoint,
+                        this.isEnterpriseEnabled(),
                 },
             },
             hasEmailClient: !!this.lightdashConfig.smtp,

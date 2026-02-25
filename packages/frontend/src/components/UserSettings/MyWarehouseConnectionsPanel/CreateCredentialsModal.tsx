@@ -20,6 +20,8 @@ type Props = Pick<MantineModalProps, 'opened' | 'onClose'> & {
     description?: React.ReactNode;
     nameValue?: string;
     warehouseType?: WarehouseTypes;
+    projectUuid?: string;
+    projectName?: string;
     onSuccess?: (data: UserWarehouseCredentials) => void;
 };
 
@@ -76,6 +78,8 @@ export const CreateCredentialsModal: FC<Props> = ({
     description,
     nameValue,
     warehouseType,
+    projectUuid,
+    projectName,
     onSuccess,
 }) => {
     const health = useHealth();
@@ -165,6 +169,11 @@ export const CreateCredentialsModal: FC<Props> = ({
                         form={form}
                         disabled={isSaving}
                         onClose={onClose}
+                        projectUuid={projectUuid}
+                        projectName={projectName}
+                        databricksCredentialsName={
+                            nameValue || form.values.name
+                        }
                     />
                 </Stack>
             </form>

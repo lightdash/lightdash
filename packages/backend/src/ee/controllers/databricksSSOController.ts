@@ -1,4 +1,9 @@
-import { ApiErrorPayload, ApiSuccessEmpty } from '@lightdash/common';
+import {
+    ApiErrorPayload,
+    ApiSuccessEmpty,
+    NotFoundError,
+    WarehouseTypes,
+} from '@lightdash/common';
 import {
     Get,
     Middlewares,
@@ -30,10 +35,38 @@ export class DatabricksSSOController extends BaseController {
     @OperationId('getDatabricksAccessToken')
     async get(@Request() req: express.Request): Promise<ApiSuccessEmpty> {
         this.setStatus(200);
-        // This will throw an error if the user is not authenticated with databricks scopes
-        await this.services
-            .getUserService()
-            .getAccessToken(req.user!, 'databricks');
+        const projectUuid =
+            typeof req.query.projectUuid === 'string'
+                ? req.query.projectUuid
+                : undefined;
+        const serverHostName =
+            typeof req.query.serverHostName === 'string'
+                ? req.query.serverHostName
+                : undefined;
+        if (projectUuid) {
+            const credentials = await this.services
+                .getProjectService()
+                .getProjectCredentialsPreference(req.user!, projectUuid);
+            if (credentials?.credentials.type !== WarehouseTypes.DATABRICKS) {
+                throw new NotFoundError(
+                    'Databricks credentials not found for this project',
+                );
+            }
+        } else if (serverHostName) {
+            const hasHostCredential = await this.services
+                .getUserService()
+                .hasDatabricksOAuthCredentialForHost(req.user!, serverHostName);
+            if (!hasHostCredential) {
+                throw new NotFoundError(
+                    'Databricks credentials not found for this workspace',
+                );
+            }
+        } else {
+            // Fallback for non-project scoped checks
+            await this.services
+                .getUserService()
+                .getAccessToken(req.user!, 'databricks');
+        }
         return {
             status: 'ok',
             results: undefined,

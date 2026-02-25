@@ -66,11 +66,12 @@ export const DatabricksSchemaInput: FC<{
 export const DatabricksSSOInput: FC<{
     isAuthenticated: boolean;
     disabled: boolean;
+    disabledTooltip?: string;
     openLoginPopup: () => void;
-}> = ({ isAuthenticated, disabled, openLoginPopup }) => {
+}> = ({ isAuthenticated, disabled, disabledTooltip, openLoginPopup }) => {
     if (isAuthenticated) return null;
 
-    return (
+    const button = (
         <Button
             onClick={() => {
                 openLoginPopup();
@@ -80,10 +81,21 @@ export const DatabricksSSOInput: FC<{
             disabled={disabled}
             leftIcon={getWarehouseIcon(WarehouseTypes.DATABRICKS, 'sm')}
             sx={{ ':hover': { textDecoration: 'underline' } }}
+            fullWidth
         >
             Sign in with Databricks
         </Button>
     );
+
+    if (disabled && disabledTooltip) {
+        return (
+            <Tooltip label={disabledTooltip} withArrow>
+                <div>{button}</div>
+            </Tooltip>
+        );
+    }
+
+    return button;
 };
 
 const DatabricksForm: FC<{
@@ -95,12 +107,27 @@ const DatabricksForm: FC<{
     const requireSecrets: boolean =
         savedProject?.warehouseConnection?.type !== WarehouseTypes.DATABRICKS;
 
+    const serverHostNameForLogin =
+        form.values.warehouse.type === WarehouseTypes.DATABRICKS
+            ? form.values.warehouse.serverHostName
+            : undefined;
+    const isServerHostNameProvided = !!serverHostNameForLogin?.trim();
+    const databricksSsoDisabledTooltip = !isServerHostNameProvided
+        ? 'Enter server host name to enable Databricks sign-in'
+        : undefined;
+
     const {
         data,
         isLoading: isLoadingAuth,
         error: databricksAuthError,
         refetch: refetchAuth,
-    } = useIsDatabricksAuthenticated();
+    } = useIsDatabricksAuthenticated({
+        projectUuid: savedProject?.projectUuid,
+        serverHostName:
+            !savedProject?.projectUuid && isServerHostNameProvided
+                ? serverHostNameForLogin
+                : undefined,
+    });
 
     const isSso =
         form.values.warehouse?.type === WarehouseTypes.DATABRICKS &&
@@ -114,6 +141,9 @@ const DatabricksForm: FC<{
         onLogin: async () => {
             await refetchAuth();
         },
+        projectUuid: savedProject?.projectUuid,
+        projectName: savedProject?.name || form.values.name,
+        serverHostName: serverHostNameForLogin,
     });
 
     if (form.values.warehouse?.type !== WarehouseTypes.DATABRICKS) {
@@ -284,13 +314,12 @@ const DatabricksForm: FC<{
                         disabled={disabled}
                     />
                 ) : (
-                    !isLoadingAuth && (
-                        <DatabricksSSOInput
-                            isAuthenticated={isAuthenticated}
-                            disabled={disabled}
-                            openLoginPopup={openLoginPopup}
-                        />
-                    )
+                    <DatabricksSSOInput
+                        isAuthenticated={isAuthenticated}
+                        disabled={disabled || !isServerHostNameProvided}
+                        disabledTooltip={databricksSsoDisabledTooltip}
+                        openLoginPopup={openLoginPopup}
+                    />
                 )}
 
                 <TextInput

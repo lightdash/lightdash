@@ -41,6 +41,16 @@ import WarehouseBaseSqlBuilder from './WarehouseBaseSqlBuilder';
  */
 export const DATABRICKS_DEFAULT_OAUTH_CLIENT_ID = 'databricks-cli';
 
+/** Client IDs that only work with CLI redirect URIs, not browser OAuth flows */
+const DATABRICKS_CLI_OAUTH_CLIENT_IDS = new Set([
+    'databricks-cli',
+    'dbt-databricks',
+]);
+
+export const isDatabricksCliOAuthClientId = (
+    clientId: string | undefined,
+): boolean => !!clientId && DATABRICKS_CLI_OAUTH_CLIENT_IDS.has(clientId);
+
 type SchemaResult = {
     TABLE_CAT: string;
     TABLE_SCHEM: string;

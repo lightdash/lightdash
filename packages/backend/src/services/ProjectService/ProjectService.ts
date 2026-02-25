@@ -5,7 +5,6 @@ import {
     AlreadyExistsError,
     AlreadyProcessingError,
     AndFilterGroup,
-    AnonymousAccount,
     AnyType,
     ApiChartAndResults,
     ApiCreatePreviewResults,
@@ -42,6 +41,7 @@ import {
     DashboardBasicDetails,
     DashboardFilters,
     DatabricksAuthenticationType,
+    DatabricksTokenError,
     DateZoom,
     DbtExposure,
     DbtExposureType,
@@ -56,7 +56,6 @@ import {
     Explore,
     ExploreError,
     ExploreType,
-    FeatureFlags,
     FilterableDimension,
     FilterGroupItem,
     FilterOperator,
@@ -66,20 +65,16 @@ import {
     ForbiddenError,
     formatRawRows,
     formatRows,
-    getAggregatedField,
     getAvailableParametersFromTables,
     getDashboardFilterRulesForTables,
     getDateDimension,
     getDimensions,
     getErrorMessage,
-    getFieldQuoteChar,
     getFields,
     getIntrinsicUserAttributes,
     getItemId,
     getMetrics,
-    getSubtotalKey,
     getTimezoneLabel,
-    GroupByColumn,
     hasConnectionChanges,
     hasIntersection,
     hasWarehouseCredentials,
@@ -131,12 +126,10 @@ import {
     ResultRow,
     SavedChartDAO,
     SavedChartsInfoForDashboardAvailableFilters,
-    sensitiveCredentialsFieldNames,
     SessionUser,
     snakeCaseName,
     SnowflakeAuthenticationType,
     SnowflakeTokenError,
-    SortByDirection,
     SortField,
     SpaceQuery,
     SpaceSummary,
@@ -166,11 +159,9 @@ import {
     type ApiCreateProjectResults,
     type CalculateSubtotalsFromQuery,
     type CreateDatabricksCredentials,
-    type DashboardDAO,
     type ParameterDefinitions,
     type ParametersValuesMap,
     type RunQueryTags,
-    type SpaceSummaryBase,
     type Tag,
     type WarehouseSqlBuilder,
 } from '@lightdash/common';
@@ -201,6 +192,7 @@ import { S3CacheClient } from '../../clients/Aws/S3CacheClient';
 import EmailClient from '../../clients/EmailClient/EmailClient';
 import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
 import { LightdashConfig } from '../../config/parseConfig';
+import { normalizeDatabricksHostLenient } from '../../controllers/authentication/strategies/databricksStrategy';
 import type { DbTagUpdate } from '../../database/entities/tags';
 import { errorHandler } from '../../errors';
 import Logger from '../../logging/logger';
@@ -809,14 +801,35 @@ export class ProjectService extends BaseService {
                     `Refreshing databricks token for user ${userUuid}`,
                 );
 
-                const accessToken =
-                    await UserService.generateDatabricksAccessToken(
+                // If the project has an oauthClientId, the token was
+                // obtained with that client (e.g. CLI flow) — use it as-is.
+                // Only fall back to server config when there's no project
+                // client (UI flow stores tokens in user warehouse credentials).
+                let clientId: string;
+                let clientSecret: string | undefined;
+                if (args.oauthClientId) {
+                    clientId = args.oauthClientId;
+                    clientSecret = args.oauthClientSecret;
+                } else if (this.lightdashConfig.auth.databricks.clientId) {
+                    clientId = this.lightdashConfig.auth.databricks.clientId;
+                    clientSecret =
+                        this.lightdashConfig.auth.databricks.clientSecret;
+                } else {
+                    clientId = DATABRICKS_DEFAULT_OAUTH_CLIENT_ID;
+                    clientSecret = undefined;
+                }
+                const { accessToken, refreshToken: newRefreshToken } =
+                    await refreshDatabricksOAuthToken(
+                        args.serverHostName,
+                        clientId,
                         refreshToken,
+                        clientSecret,
                     );
                 return {
                     ...args,
                     authenticationType: DatabricksAuthenticationType.OAUTH_M2M,
                     token: accessToken,
+                    refreshToken: newRefreshToken || refreshToken,
                 };
             } catch (e: unknown) {
                 if (e instanceof LightdashError) {
@@ -848,31 +861,33 @@ export class ProjectService extends BaseService {
                     `Refreshing databricks U2M OAuth token for user ${userUuid}`,
                 );
 
-                // Keep client ID and secret paired: if the request provides a
-                // client ID (CLI flow), use its secret too; otherwise fall back
-                // to server config (browser SSO flow)
-                let accessToken: string;
-                let newRefreshToken: string | undefined;
+                // Resolve OAuth client for token refresh.
+                // U2M credentials store the clientId that obtained the token.
+                // The secret is only in server config (never stored in DB).
+                let clientId: string;
+                let clientSecret: string | undefined;
                 if (args.oauthClientId) {
-                    ({ accessToken, refreshToken: newRefreshToken } =
-                        await refreshDatabricksOAuthToken(
-                            args.serverHostName,
-                            args.oauthClientId,
-                            refreshToken,
-                            args.oauthClientSecret,
-                        ));
+                    clientId = args.oauthClientId;
+                } else if (this.lightdashConfig.auth.databricks.clientId) {
+                    clientId = this.lightdashConfig.auth.databricks.clientId;
                 } else {
-                    const clientId =
-                        this.lightdashConfig.auth.databricks.clientId ||
-                        DATABRICKS_DEFAULT_OAUTH_CLIENT_ID;
-                    ({ accessToken, refreshToken: newRefreshToken } =
-                        await refreshDatabricksOAuthToken(
-                            args.serverHostName,
-                            clientId,
-                            refreshToken,
-                            this.lightdashConfig.auth.databricks.clientSecret,
-                        ));
+                    clientId = DATABRICKS_DEFAULT_OAUTH_CLIENT_ID;
                 }
+
+                if (
+                    clientId === this.lightdashConfig.auth.databricks.clientId
+                ) {
+                    clientSecret =
+                        this.lightdashConfig.auth.databricks.clientSecret;
+                }
+
+                const { accessToken, refreshToken: newRefreshToken } =
+                    await refreshDatabricksOAuthToken(
+                        args.serverHostName,
+                        clientId,
+                        refreshToken,
+                        clientSecret,
+                    );
 
                 return {
                     ...args,
@@ -884,14 +899,9 @@ export class ProjectService extends BaseService {
                 if (e instanceof LightdashError) {
                     throw e;
                 }
-                this.logger.error(
-                    `Error refreshing databricks U2M OAuth token: ${getErrorMessage(
-                        e,
-                    )}`,
-                );
-                throw new UnexpectedServerError(
-                    'Error refreshing databricks U2M OAuth token',
-                );
+                const errorMessage = `Error refreshing databricks U2M OAuth token: ${getErrorMessage(e)}`;
+                this.logger.error(errorMessage);
+                throw new DatabricksTokenError(errorMessage);
             }
         }
 
@@ -1047,20 +1057,36 @@ export class ProjectService extends BaseService {
 
         if (
             args.warehouseConnection.type === WarehouseTypes.DATABRICKS &&
-            (args.warehouseConnection.authenticationType ===
-                DatabricksAuthenticationType.OAUTH_M2M ||
-                args.warehouseConnection.authenticationType ===
-                    DatabricksAuthenticationType.OAUTH_U2M) &&
+            args.warehouseConnection.authenticationType ===
+                DatabricksAuthenticationType.OAUTH_U2M &&
             !organizationWarehouseCredentialsUuid
         ) {
-            // Use refresh token from request body (e.g. CLI-obtained tokens) if available,
-            // otherwise look up from stored user identity
-            const refreshToken =
-                args.warehouseConnection.refreshToken ||
-                (await this.userModel.getRefreshToken(
-                    userUuid,
-                    OpenIdIdentityIssuerType.DATABRICKS,
-                ));
+            // Use refresh token from request body first (e.g. CLI flow).
+            // Otherwise, resolve a host-matching user credential to avoid
+            // cross-workspace refresh token mismatches.
+            let { refreshToken } = args.warehouseConnection;
+            if (!refreshToken) {
+                const matchingCredential =
+                    await this.userWarehouseCredentialsModel.findDatabricksOauthU2mForHostWithSecrets(
+                        userUuid,
+                        args.warehouseConnection.serverHostName,
+                    );
+                if (
+                    matchingCredential?.credentials.type ===
+                        WarehouseTypes.DATABRICKS &&
+                    matchingCredential.credentials.authenticationType ===
+                        DatabricksAuthenticationType.OAUTH_U2M
+                ) {
+                    refreshToken = matchingCredential.credentials.refreshToken;
+                }
+            }
+
+            if (!refreshToken) {
+                throw new NotFoundError(
+                    `No Databricks OAuth credentials found for workspace ${args.warehouseConnection.serverHostName}. Please sign in with Databricks for this workspace and try again.`,
+                );
+            }
+
             // Validate refresh token and generate new access token
             this.logger.debug(
                 `Refreshing databricks warehouse credentials from user uuid: ${userUuid}`,
@@ -1076,6 +1102,28 @@ export class ProjectService extends BaseService {
                     ...args.warehouseConnection,
                     ...credentials,
                     refreshToken, // Store refresh token from user so we can generate new access tokens later
+                },
+            };
+        }
+
+        if (
+            args.warehouseConnection.type === WarehouseTypes.DATABRICKS &&
+            args.warehouseConnection.authenticationType ===
+                DatabricksAuthenticationType.OAUTH_M2M &&
+            !organizationWarehouseCredentialsUuid
+        ) {
+            this.logger.debug(
+                `Refreshing databricks M2M warehouse credentials from user uuid: ${userUuid}`,
+            );
+            const credentials = await this.refreshCredentials(
+                args.warehouseConnection,
+                userUuid,
+            );
+            return {
+                ...args,
+                warehouseConnection: {
+                    ...args.warehouseConnection,
+                    ...credentials,
                 },
             };
         }
@@ -1198,7 +1246,23 @@ export class ProjectService extends BaseService {
                   )
                 : undefined;
 
-            if (userWarehouseCredentials) {
+            // Skip user credentials if the serverHostName doesn't match the project
+            const userCredHost =
+                userWarehouseCredentials?.credentials.type ===
+                    WarehouseTypes.DATABRICKS &&
+                'serverHostName' in userWarehouseCredentials.credentials
+                    ? normalizeDatabricksHostLenient(
+                          userWarehouseCredentials.credentials.serverHostName,
+                      )
+                    : undefined;
+            const projectHost =
+                credentials.type === WarehouseTypes.DATABRICKS
+                    ? normalizeDatabricksHostLenient(credentials.serverHostName)
+                    : undefined;
+            const hostMismatch =
+                userCredHost && projectHost && userCredHost !== projectHost;
+
+            if (userWarehouseCredentials && !hostMismatch) {
                 credentials = this.clearSecretsFromCredentials(credentials);
 
                 // User has credentials - use them
@@ -1216,7 +1280,11 @@ export class ProjectService extends BaseService {
                 );
                 userWarehouseCredentialsUuid = userWarehouseCredentials.uuid;
             } else if (credentials.requireUserCredentials) {
-                // User credentials are required but not found
+                if (credentials.type === WarehouseTypes.DATABRICKS) {
+                    throw new DatabricksTokenError(
+                        'Please authenticate to access Databricks',
+                    );
+                }
                 throw new NotFoundError('User warehouse credentials not found');
             } else if (!organizationWarehouseCredentialsUuid) {
                 // No user credentials, no org credentials, refresh project credentials
@@ -1418,6 +1486,33 @@ export class ProjectService extends BaseService {
         return project;
     }
 
+    async getDatabricksOAuthConfigForProject(
+        projectUuid: string,
+        account: Account,
+    ): Promise<{
+        projectName: string;
+        serverHostName: string;
+        oauthClientId?: string;
+        oauthClientSecret?: string;
+    }> {
+        const project = await this.getProject(projectUuid, account);
+        const credentials =
+            await this.projectModel.getWarehouseCredentialsForProject(
+                projectUuid,
+            );
+        if (credentials.type !== WarehouseTypes.DATABRICKS) {
+            throw new ParameterError(
+                'Project is not configured with Databricks credentials',
+            );
+        }
+        return {
+            projectName: project.name,
+            serverHostName: credentials.serverHostName,
+            oauthClientId: credentials.oauthClientId,
+            oauthClientSecret: credentials.oauthClientSecret,
+        };
+    }
+
     async createWithoutCompile(
         user: SessionUser,
         data: CreateProjectOptionalCredentials,
@@ -1518,13 +1613,15 @@ export class ProjectService extends BaseService {
                             await this.userWarehouseCredentialsModel.create(
                                 user.userUuid,
                                 {
-                                    name: `Databricks credentials for "${createProject.name}"`,
+                                    name: `Databricks (${warehouseConnection.serverHostName || createProject.name})`,
                                     credentials: {
                                         type: WarehouseTypes.DATABRICKS,
                                         authenticationType:
                                             DatabricksAuthenticationType.OAUTH_U2M,
                                         refreshToken:
                                             warehouseConnection.refreshToken,
+                                        oauthClientId:
+                                            warehouseConnection.oauthClientId,
                                     },
                                 },
                                 projectUuid,
@@ -2456,11 +2553,29 @@ export class ProjectService extends BaseService {
                 this.logger.debug(
                     `Refreshing databricks warehouse credentials from refresh token on buildAdapter`,
                 );
-                const accessToken =
-                    await UserService.generateDatabricksAccessToken(
+                let clientId: string;
+                let clientSecret: string | undefined;
+                if (project.warehouseConnection.oauthClientId) {
+                    clientId = project.warehouseConnection.oauthClientId;
+                    clientSecret =
+                        project.warehouseConnection.oauthClientSecret;
+                } else if (this.lightdashConfig.auth.databricks.clientId) {
+                    clientId = this.lightdashConfig.auth.databricks.clientId;
+                    clientSecret =
+                        this.lightdashConfig.auth.databricks.clientSecret;
+                } else {
+                    clientId = DATABRICKS_DEFAULT_OAUTH_CLIENT_ID;
+                    clientSecret = undefined;
+                }
+                const { accessToken, refreshToken } =
+                    await refreshDatabricksOAuthToken(
+                        project.warehouseConnection.serverHostName,
+                        clientId,
                         project.warehouseConnection.refreshToken,
+                        clientSecret,
                     );
                 project.warehouseConnection.token = accessToken;
+                project.warehouseConnection.refreshToken = refreshToken;
             }
         }
 
@@ -2473,6 +2588,7 @@ export class ProjectService extends BaseService {
             let u2mRefreshToken =
                 project.warehouseConnection.refreshToken ?? undefined;
 
+            let userCredOauthClientId: string | undefined;
             if (!u2mRefreshToken) {
                 const userCreds =
                     await this.userWarehouseCredentialsModel.findForProjectWithSecrets(
@@ -2487,6 +2603,7 @@ export class ProjectService extends BaseService {
                     userCreds.credentials.refreshToken
                 ) {
                     u2mRefreshToken = userCreds.credentials.refreshToken;
+                    userCredOauthClientId = userCreds.credentials.oauthClientId;
                 }
             }
 
@@ -2494,28 +2611,34 @@ export class ProjectService extends BaseService {
                 this.logger.debug(
                     `Refreshing databricks U2M OAuth token from refresh token on buildAdapter`,
                 );
-                let accessToken: string;
-                let refreshToken: string | undefined;
-                if (project.warehouseConnection.oauthClientId) {
-                    ({ accessToken, refreshToken } =
-                        await refreshDatabricksOAuthToken(
-                            project.warehouseConnection.serverHostName,
-                            project.warehouseConnection.oauthClientId,
-                            u2mRefreshToken,
-                            project.warehouseConnection.oauthClientSecret,
-                        ));
+                // Resolve client: user cred → project → server config → default
+                let clientId: string;
+                let clientSecret: string | undefined;
+                const storedClientId =
+                    userCredOauthClientId ||
+                    project.warehouseConnection.oauthClientId;
+                if (storedClientId) {
+                    clientId = storedClientId;
+                } else if (this.lightdashConfig.auth.databricks.clientId) {
+                    clientId = this.lightdashConfig.auth.databricks.clientId;
                 } else {
-                    const clientId =
-                        this.lightdashConfig.auth.databricks.clientId ||
-                        DATABRICKS_DEFAULT_OAUTH_CLIENT_ID;
-                    ({ accessToken, refreshToken } =
-                        await refreshDatabricksOAuthToken(
-                            project.warehouseConnection.serverHostName,
-                            clientId,
-                            u2mRefreshToken,
-                            this.lightdashConfig.auth.databricks.clientSecret,
-                        ));
+                    clientId = DATABRICKS_DEFAULT_OAUTH_CLIENT_ID;
                 }
+
+                if (
+                    clientId === this.lightdashConfig.auth.databricks.clientId
+                ) {
+                    clientSecret =
+                        this.lightdashConfig.auth.databricks.clientSecret;
+                }
+
+                const { accessToken, refreshToken } =
+                    await refreshDatabricksOAuthToken(
+                        project.warehouseConnection.serverHostName,
+                        clientId,
+                        u2mRefreshToken,
+                        clientSecret,
+                    );
                 project.warehouseConnection.token = accessToken;
                 project.warehouseConnection.refreshToken = refreshToken;
             }

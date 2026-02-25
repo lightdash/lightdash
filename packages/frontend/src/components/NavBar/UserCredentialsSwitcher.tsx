@@ -77,7 +77,17 @@ const UserCredentialsSwitcher = () => {
                             ?.requireUserCredentials
                     ) {
                         console.info('Triggering reauth modal for Snowflake');
-                        // Trigger the reauth modal
+                        setShowCreateModalOnPageLoad(true);
+                        setIsCreatingCredentials(true);
+                    }
+                    if (
+                        error?.error?.name === 'DatabricksTokenError' &&
+                        activeProject?.warehouseConnection?.type ===
+                            'databricks' &&
+                        activeProject?.warehouseConnection
+                            ?.requireUserCredentials
+                    ) {
+                        console.info('Triggering reauth modal for Databricks');
                         setShowCreateModalOnPageLoad(true);
                         setIsCreatingCredentials(true);
                     }
@@ -204,6 +214,8 @@ const UserCredentialsSwitcher = () => {
                         showCreateModalOnPageLoad ? 'Default' : undefined
                     }
                     warehouseType={activeProject.warehouseConnection?.type}
+                    projectUuid={activeProjectUuid}
+                    projectName={activeProject.name}
                     onSuccess={(data) => {
                         mutate({
                             projectUuid: activeProjectUuid,
