@@ -8,6 +8,15 @@ import { type DbPersistentDownloadFile } from '../../database/entities/persisten
 import { PersistentDownloadFileModel } from '../../models/PersistentDownloadFileModel';
 import { BaseService } from '../BaseService';
 
+export type PersistentFile = {
+    nanoid: string;
+    s3Key: string;
+    fileType: string;
+    organizationUuid: string;
+    projectUuid: string | null;
+    createdByUserUuid: string | null;
+};
+
 export type PersistentDownloadFileSource =
     | 'chart'
     | 'dashboard'
@@ -164,13 +173,20 @@ export class PersistentDownloadFileService extends BaseService {
         return this.lightdashConfig.persistentDownloadUrls.enabled;
     }
 
-    async getFileType(fileNanoid: string): Promise<string> {
+    async getFile(fileNanoid: string): Promise<PersistentFile> {
         const file = await this.getValidatedFile(fileNanoid);
-        return file.file_type;
+        return {
+            nanoid: file.nanoid,
+            s3Key: file.s3_key,
+            fileType: file.file_type,
+            organizationUuid: file.organization_uuid,
+            projectUuid: file.project_uuid,
+            createdByUserUuid: file.created_by_user_uuid,
+        };
     }
 
     async getFileStream(
-        fileNanoid: string,
+        file: PersistentFile,
         requestContext?: {
             ip: string | undefined;
             userAgent: string | undefined;
@@ -178,16 +194,15 @@ export class PersistentDownloadFileService extends BaseService {
         },
     ): Promise<{ stream: Readable; fileType: string }> {
         const requestStartedAt = Date.now();
-        const file = await this.getValidatedFile(fileNanoid);
 
         this.analytics?.track({
             event: 'persistent_file.url_requested',
             userId: requestContext?.requestedByUserUuid || undefined,
             properties: {
-                fileUuid: fileNanoid,
-                organizationId: file.organization_uuid,
-                projectId: file.project_uuid,
-                createdByUserUuid: file.created_by_user_uuid,
+                fileUuid: file.nanoid,
+                organizationId: file.organizationUuid,
+                projectId: file.projectUuid,
+                createdByUserUuid: file.createdByUserUuid,
                 requestedByUserUuid:
                     requestContext?.requestedByUserUuid || null,
                 source: 'api',
@@ -196,16 +211,16 @@ export class PersistentDownloadFileService extends BaseService {
             },
         });
 
-        const stream = await this.fileStorageClient.getFileStream(file.s3_key);
+        const stream = await this.fileStorageClient.getFileStream(file.s3Key);
 
         this.analytics?.track({
             event: 'persistent_file.url_responded',
             userId: requestContext?.requestedByUserUuid || undefined,
             properties: {
-                fileUuid: fileNanoid,
-                organizationId: file.organization_uuid,
-                projectId: file.project_uuid,
-                createdByUserUuid: file.created_by_user_uuid,
+                fileUuid: file.nanoid,
+                organizationId: file.organizationUuid,
+                projectId: file.projectUuid,
+                createdByUserUuid: file.createdByUserUuid,
                 requestedByUserUuid:
                     requestContext?.requestedByUserUuid || null,
                 source: 'api',
@@ -215,14 +230,14 @@ export class PersistentDownloadFileService extends BaseService {
         });
 
         this.logger.info(
-            `Streaming persistent download: nanoid=${fileNanoid}, ip=${requestContext?.ip}, userAgent=${requestContext?.userAgent}`,
+            `Streaming persistent download: nanoid=${file.nanoid}, ip=${requestContext?.ip}, userAgent=${requestContext?.userAgent}`,
         );
 
-        return { stream, fileType: file.file_type };
+        return { stream, fileType: file.fileType };
     }
 
     async getSignedUrl(
-        fileNanoid: string,
+        file: PersistentFile,
         requestContext?: {
             ip: string | undefined;
             userAgent: string | undefined;
@@ -230,16 +245,15 @@ export class PersistentDownloadFileService extends BaseService {
         },
     ): Promise<string> {
         const requestStartedAt = Date.now();
-        const file = await this.getValidatedFile(fileNanoid);
 
         this.analytics?.track({
             event: 'persistent_file.url_requested',
             userId: requestContext?.requestedByUserUuid || undefined,
             properties: {
-                fileUuid: fileNanoid,
-                organizationId: file.organization_uuid,
-                projectId: file.project_uuid,
-                createdByUserUuid: file.created_by_user_uuid,
+                fileUuid: file.nanoid,
+                organizationId: file.organizationUuid,
+                projectId: file.projectUuid,
+                createdByUserUuid: file.createdByUserUuid,
                 requestedByUserUuid:
                     requestContext?.requestedByUserUuid || null,
                 source: 'api',
@@ -249,7 +263,7 @@ export class PersistentDownloadFileService extends BaseService {
         });
 
         const signedUrl = await this.fileStorageClient.getFileUrl(
-            file.s3_key,
+            file.s3Key,
             PERSISTENT_URL_S3_EXPIRY_SECONDS,
         );
 
@@ -257,10 +271,10 @@ export class PersistentDownloadFileService extends BaseService {
             event: 'persistent_file.url_responded',
             userId: requestContext?.requestedByUserUuid || undefined,
             properties: {
-                fileUuid: fileNanoid,
-                organizationId: file.organization_uuid,
-                projectId: file.project_uuid,
-                createdByUserUuid: file.created_by_user_uuid,
+                fileUuid: file.nanoid,
+                organizationId: file.organizationUuid,
+                projectId: file.projectUuid,
+                createdByUserUuid: file.createdByUserUuid,
                 requestedByUserUuid:
                     requestContext?.requestedByUserUuid || null,
                 source: 'api',
@@ -269,7 +283,7 @@ export class PersistentDownloadFileService extends BaseService {
             },
         });
         this.logger.info(
-            `Serving persistent download: nanoid=${fileNanoid}, ip=${requestContext?.ip}, userAgent=${requestContext?.userAgent}`,
+            `Serving persistent download: nanoid=${file.nanoid}, ip=${requestContext?.ip}, userAgent=${requestContext?.userAgent}`,
         );
         return signedUrl;
     }

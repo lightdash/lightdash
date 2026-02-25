@@ -37,14 +37,18 @@ export class FileController extends BaseController {
         }
 
         const service = this.services.getPersistentDownloadFileService();
-        const fileType = await service.getFileType(fileId);
+        const file = await service.getFile(fileId);
+        const requestContext = {
+            ip: req.ip,
+            userAgent: req.headers['user-agent'],
+            requestedByUserUuid: req.user?.userUuid,
+        };
 
-        if (service.inlineImages && fileType === DownloadFileType.IMAGE) {
-            const { stream } = await service.getFileStream(fileId, {
-                ip: req.ip,
-                userAgent: req.headers['user-agent'],
-                requestedByUserUuid: req.user?.userUuid,
-            });
+        if (service.inlineImages && file.fileType === DownloadFileType.IMAGE) {
+            const { stream } = await service.getFileStream(
+                file,
+                requestContext,
+            );
 
             this.setStatus(200);
             this.setHeader('Content-Type', 'image/png');
@@ -65,11 +69,7 @@ export class FileController extends BaseController {
                 });
             }
         } else {
-            const signedUrl = await service.getSignedUrl(fileId, {
-                ip: req.ip,
-                userAgent: req.headers['user-agent'],
-                requestedByUserUuid: req.user?.userUuid,
-            });
+            const signedUrl = await service.getSignedUrl(file, requestContext);
 
             this.setStatus(302);
             this.setHeader('Location', signedUrl);
