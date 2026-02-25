@@ -77,10 +77,10 @@ const SimpleTable: FC<SimpleTableProps> = ({
     const shouldPaginateResults = useMemo(() => {
         return Boolean(
             !resultsData ||
-                !isTableVisualizationConfig(visualizationConfig) ||
-                // When subtotals are disable and there is no pivot table data, we don't need to load all the rows
-                (!visualizationConfig.chartConfig.showSubtotals &&
-                    !visualizationConfig.chartConfig.pivotTableData?.data),
+            !isTableVisualizationConfig(visualizationConfig) ||
+            // When subtotals are disable and there is no pivot table data, we don't need to load all the rows
+            (!visualizationConfig.chartConfig.showSubtotals &&
+                !visualizationConfig.chartConfig.pivotTableData?.data),
         );
     }, [resultsData, visualizationConfig]);
 

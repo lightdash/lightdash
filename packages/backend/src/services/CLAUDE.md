@@ -146,6 +146,7 @@ Services that support soft delete (`SpaceService`, `DashboardService`, `SavedCha
 - `permanentDelete()` — removes record from DB
 
 **Key rules:**
+
 - Only `delete()` tracks analytics — `softDelete()`/`permanentDelete()` do not, to avoid duplicate tracking
 - `bypassPermissions: true` skips permission checks and entity fetch (caller already handled both)
 - Feature flag `lightdashConfig.softDelete.enabled` controls whether `delete()` routes to `softDelete()` or `permanentDelete()`

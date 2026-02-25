@@ -55,10 +55,7 @@ export const CommentWithMentions: FC<Props> = ({
     }, [editor?.commands, setShouldClearEditor, shouldClearEditor]);
 
     return (
-        <RichTextEditor
-            editor={editor}
-            className={styles.editor}
-        >
+        <RichTextEditor editor={editor} className={styles.editor}>
             <RichTextEditor.Content fz="xs" />
         </RichTextEditor>
     );
