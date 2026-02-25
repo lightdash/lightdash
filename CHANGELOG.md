@@ -1,3 +1,10 @@
+# [0.2521.0](https://github.com/lightdash/lightdash/compare/0.2520.2...0.2521.0) (2026-02-25)
+
+
+### Features
+
+* add batched deploy API for large project deployments ([#20582](https://github.com/lightdash/lightdash/issues/20582)) ([40d758c](https://github.com/lightdash/lightdash/commit/40d758c56c049299acf5d1a8cf3f04bfc802ce8e))
+
 ## [0.2520.2](https://github.com/lightdash/lightdash/compare/0.2520.1...0.2520.2) (2026-02-24)
 
 
