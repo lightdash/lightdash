@@ -4,16 +4,33 @@
 
 Some measures (like account balances, inventory levels, MRR) cannot be meaningfully summed across time. A daily balance of $100 across 30 days doesn't mean $3,000 in revenue — it means $100 at the end of the month. These are **semi-additive metrics**: they aggregate normally across most dimensions (SUM balance across branches, regions, account types) but need special treatment on the time dimension (take the FIRST or LAST value in each time period).
 
-dbt's semantic layer calls this `non_additive_dimension`. We'll implement equivalent functionality in Lightdash.
+dbt's semantic layer has a similar concept called `non_additive_dimension`. We'll call ours `semi_additive` — a clearer, more widely-understood term.
 
-## How It Works (User-Facing)
+---
 
-### YAML Configuration (dbt model `meta`)
+## User Guide: How to Use Semi-Additive Metrics
 
-Users define semi-additive metrics on columns or at the model level, just like they define `sum` or `count` today, but with an additional `non_additive_dimension` property:
+### What is a semi-additive metric?
+
+A semi-additive metric is any metric where **summing across time doesn't make sense**. Common examples:
+
+| Metric | Why it's semi-additive |
+|--------|----------------------|
+| Account balance | $100 today + $100 yesterday ≠ $200 total — it's still $100 |
+| Inventory on hand | 50 units on Monday + 50 on Tuesday ≠ 100 units — it's still 50 |
+| Monthly recurring revenue (MRR) | You can't sum daily MRR snapshots to get monthly MRR |
+| Active subscriptions | 1,000 subs today + 1,000 yesterday ≠ 2,000 — it's still ~1,000 |
+| Headcount | 200 employees on Jan 1 + 200 on Feb 1 ≠ 400 |
+
+These metrics **can** be summed across non-time dimensions (balance across accounts, MRR across regions), but on the time dimension you want the **first** or **last** value in the period instead.
+
+### YAML Syntax
+
+Add `semi_additive` to any metric definition in your dbt model's `meta` config:
+
+#### Column-level metric (most common)
 
 ```yaml
-# schema.yml
 models:
   - name: daily_account_balances
     columns:
@@ -22,24 +39,133 @@ models:
           metrics:
             current_balance:
               type: sum
-              non_additive_dimension:
-                name: date_day          # The time dimension to not aggregate over
-                window_choice: max      # 'min' (first) or 'max' (last)
-                window_groupings:       # Optional: partition by these before picking first/last
+              semi_additive:
+                time_dimension: date_day      # Which time dimension to not aggregate over
+                window_choice: max            # 'max' = latest/last, 'min' = earliest/first
+                window_groupings:             # Optional: partition by these entities
                   - account_id
 ```
 
-### Behavior
+#### Model-level metric
 
-When a user queries `current_balance` grouped by `region`:
+```yaml
+models:
+  - name: daily_account_balances
+    meta:
+      metrics:
+        total_balance:
+          type: sum
+          sql: balance
+          semi_additive:
+            time_dimension: date_day
+            window_choice: max
+```
 
-1. **Without** semi-additive: `SELECT region, SUM(balance) FROM daily_account_balances GROUP BY region` — **WRONG**, sums balance across all dates
-2. **With** semi-additive (`window_choice: max`): Takes only each account's balance from the **latest date** in the queried range, then sums across regions — **CORRECT**
+### Configuration Reference
 
-### Generated SQL (Conceptual)
+| Property | Required | Values | Description |
+|----------|----------|--------|-------------|
+| `time_dimension` | Yes | dimension name | The time/date dimension that should not be aggregated over. Must reference a DATE or TIMESTAMP dimension in the same table. |
+| `window_choice` | Yes | `min` or `max` | `max` = take the **latest** (most recent) value. `min` = take the **earliest** (oldest) value. Most use cases want `max`. |
+| `window_groupings` | No | list of dimension names | Entity dimensions to partition by when selecting first/last. Use this when your table has multiple entities per date (e.g., one row per account per day). |
+
+### When to use `window_groupings`
+
+**Use `window_groupings`** when your source table has **multiple entities per time period**:
+
+```
+# Table: daily_account_balances
+# One row per account per day
+| date_day   | account_id | region | balance |
+|------------|------------|--------|---------|
+| 2024-01-01 | A          | East   | 100     |
+| 2024-01-01 | B          | West   | 200     |
+| 2024-01-02 | A          | East   | 150     |
+| 2024-01-02 | B          | West   | 250     |
+```
+
+With `window_groupings: [account_id]` and `window_choice: max`:
+→ For each account, take the row with the latest `date_day`
+→ Account A: balance = 150 (from Jan 2), Account B: balance = 250 (from Jan 2)
+→ Then SUM across accounts: total = 400
+
+**Omit `window_groupings`** when your table has **one row per time period** (already at the grain you want):
+
+```
+# Table: daily_company_metrics
+# One row per day, company-wide totals
+| date_day   | total_mrr | headcount |
+|------------|-----------|-----------|
+| 2024-01-01 | 50000     | 200       |
+| 2024-02-01 | 55000     | 210       |
+```
+
+Without `window_groupings`, `window_choice: max`:
+→ Take the single row with the latest `date_day`
+→ total_mrr = 55000, headcount = 210
+
+### Combining with other metric features
+
+Semi-additive works with existing metric features:
+
+```yaml
+current_balance:
+  type: sum
+  description: "Current account balance (as of latest date)"
+  filters:                          # Metric-level filters still work
+    - is_active: "true"
+  semi_additive:
+    time_dimension: date_day
+    window_choice: max
+    window_groupings:
+      - account_id
+  hidden: false
+  groups: ["finance"]
+```
+
+**Cannot be combined with**: `distinct_keys` (sum_distinct) — these are separate patterns that both use CTE-based query rewriting.
+
+### What users see in the Explore UI
+
+Semi-additive metrics appear in the sidebar **exactly like any other metric** — no special UI. The difference is entirely in the SQL that gets generated. Users select dimensions and metrics as normal; the query engine handles the semi-additive logic transparently.
+
+### Example queries and results
+
+**Scenario**: `daily_account_balances` table with columns `date_day`, `account_id`, `region`, `balance`
+
+**Query 1**: Metric `current_balance` grouped by `region`
+```
+| region | current_balance |
+|--------|-----------------|
+| East   | 150             |  ← Sum of latest balances for East accounts
+| West   | 250             |  ← Sum of latest balances for West accounts
+```
+
+**Query 2**: Metric `current_balance` grouped by `region` + `date_day` (monthly)
+```
+| date_month | region | current_balance |
+|------------|--------|-----------------|
+| January    | East   | 150             |  ← Last balance in Jan for East accounts
+| January    | West   | 250             |
+| February   | East   | 180             |  ← Last balance in Feb for East accounts
+| February   | West   | 300             |
+```
+When the time dimension itself is in the GROUP BY, the semi-additive logic applies **within each time bucket**.
+
+**Query 3**: Metric `current_balance` with no dimensions (grand total)
+```
+| current_balance |
+|-----------------|
+| 400             |  ← Sum of latest balance per account, across all accounts
+```
+
+---
+
+## Generated SQL (Conceptual)
+
+**Case A: With `window_groupings`** (ROW_NUMBER approach):
 
 ```sql
--- CTE: filter to latest row per partition, then aggregate
 WITH sa_current_balance AS (
   SELECT
     region,
@@ -62,10 +188,10 @@ SELECT
   base.region,
   sa_current_balance.current_balance
 FROM base_query base
-INNER JOIN sa_current_balance ON base.region = sa_current_balance.region
+LEFT JOIN sa_current_balance ON base.region = sa_current_balance.region
 ```
 
-When there are **no `window_groupings`**, it's simpler — just filter to the single min/max date globally:
+**Case B: Without `window_groupings`** (simpler global min/max date filter):
 
 ```sql
 WITH sa_current_balance AS (
@@ -73,27 +199,29 @@ WITH sa_current_balance AS (
     region,
     SUM(balance) AS current_balance
   FROM daily_account_balances
-  WHERE date_day = (SELECT MAX(date_day) FROM daily_account_balances WHERE <dimension_filters>)
+  WHERE date_day = (SELECT MAX(date_day) FROM daily_account_balances WHERE <filters>)
     AND <dimension_filters>
   GROUP BY region
 )
 ...
 ```
 
+---
+
 ## Implementation Plan
 
 ### Phase 1: Types & Configuration (packages/common)
 
-#### 1.1 Add `NonAdditiveDimension` type
+#### 1.1 Add `SemiAdditiveConfig` type
 
 **File**: `packages/common/src/types/field.ts`
 
 ```typescript
 export type WindowChoice = 'min' | 'max';
 
-export type NonAdditiveDimension = {
+export type SemiAdditiveConfig = {
     /** The time dimension name that should not be aggregated over */
-    name: string;
+    timeDimension: string;
     /** Whether to pick the first (min) or last (max) value */
     windowChoice: WindowChoice;
     /** Optional dimension/entity names to partition by before applying the window */
@@ -105,17 +233,16 @@ Add to `Metric` interface:
 ```typescript
 export interface Metric extends Field {
     // ... existing fields ...
-    nonAdditiveDimension?: NonAdditiveDimension;
+    semiAdditive?: SemiAdditiveConfig;
 }
 ```
 
 Add to `CompiledMetric`:
 ```typescript
-// The compiled SQL references for the non-additive dimension config
-compiledNonAdditiveDimension?: {
-    dimensionSql: string;       // compiled SQL for the time dimension
+compiledSemiAdditive?: {
+    timeDimensionSql: string;                // compiled SQL for the time dimension
     windowChoice: WindowChoice;
-    compiledWindowGroupings: string[];  // compiled SQL for each grouping column
+    compiledWindowGroupings: string[];       // compiled SQL for each grouping column
 };
 ```
 
@@ -127,10 +254,10 @@ Add to `DbtColumnLightdashMetric`:
 ```typescript
 export type DbtColumnLightdashMetric = {
     // ... existing fields ...
-    non_additive_dimension?: {
-        name: string;           // dimension name (snake_case, matching YAML convention)
+    semi_additive?: {
+        time_dimension: string;
         window_choice: 'min' | 'max';
-        window_groupings?: string[];  // optional
+        window_groupings?: string[];
     };
 };
 ```
@@ -143,7 +270,7 @@ Add to `AdditionalMetric` interface (for UI-created custom metrics):
 ```typescript
 export interface AdditionalMetric {
     // ... existing fields ...
-    nonAdditiveDimension?: NonAdditiveDimension;
+    semiAdditive?: SemiAdditiveConfig;
 }
 ```
 
@@ -151,14 +278,14 @@ export interface AdditionalMetric {
 
 **File**: `packages/common/src/types/dbt.ts` — `convertModelMetric()`
 
-Map `non_additive_dimension` from YAML to `nonAdditiveDimension` on the `Metric`:
+Map `semi_additive` from YAML to `semiAdditive` on the `Metric`:
 ```typescript
-...(metric.non_additive_dimension
+...(metric.semi_additive
     ? {
-          nonAdditiveDimension: {
-              name: metric.non_additive_dimension.name,
-              windowChoice: metric.non_additive_dimension.window_choice,
-              windowGroupings: metric.non_additive_dimension.window_groupings ?? [],
+          semiAdditive: {
+              timeDimension: metric.semi_additive.time_dimension,
+              windowChoice: metric.semi_additive.window_choice,
+              windowGroupings: metric.semi_additive.window_groupings ?? [],
           },
       }
     : {}),
@@ -168,14 +295,14 @@ Map `non_additive_dimension` from YAML to `nonAdditiveDimension` on the `Metric`
 
 **File**: `packages/common/src/dbt/schemas/lightdashMetadata.json`
 
-Add `non_additive_dimension` to the `LightdashMetric` definition (after `distinct_keys`):
+Add `semi_additive` to the `LightdashMetric` definition (after `distinct_keys`):
 
 ```json
-"non_additive_dimension": {
+"semi_additive": {
     "type": "object",
-    "required": ["name", "window_choice"],
+    "required": ["time_dimension", "window_choice"],
     "properties": {
-        "name": {
+        "time_dimension": {
             "type": "string",
             "description": "The time dimension that should not be aggregated over"
         },
@@ -199,28 +326,28 @@ Add `non_additive_dimension` to the `LightdashMetric` definition (after `distinc
 
 ```typescript
 export const isSemiAdditiveMetric = (metric: Metric | AdditionalMetric): boolean =>
-    'nonAdditiveDimension' in metric && metric.nonAdditiveDimension !== undefined;
+    'semiAdditive' in metric && metric.semiAdditive !== undefined;
 ```
 
 ### Phase 2: SQL Compilation (packages/common + packages/warehouses)
 
-#### 2.1 Compile non-additive dimension references in ExploreCompiler
+#### 2.1 Compile semi-additive dimension references in ExploreCompiler
 
 **File**: `packages/common/src/compiler/exploreCompiler.ts`
 
 In `compileMetricSql()`, after the existing logic that handles `SUM_DISTINCT`, add handling for semi-additive metrics. The key is to compile the dimension SQL references so the MetricQueryBuilder has resolved SQL to work with:
 
 ```typescript
-if (metric.nonAdditiveDimension) {
-    const nad = metric.nonAdditiveDimension;
+if (metric.semiAdditive) {
+    const sa = metric.semiAdditive;
 
-    // Compile the non-additive dimension SQL reference
-    const nadDimRef = this.compileDimensionReference(
-        nad.name, tables, metric.table, fieldContext
+    // Compile the time dimension SQL reference
+    const timeDimRef = this.compileDimensionReference(
+        sa.timeDimension, tables, metric.table, fieldContext
     );
 
     // Compile window grouping references
-    const compiledGroupings = nad.windowGroupings.map(ref => {
+    const compiledGroupings = sa.windowGroupings.map(ref => {
         const compiled = this.compileDimensionReference(
             ref, tables, metric.table, fieldContext
         );
@@ -228,15 +355,15 @@ if (metric.nonAdditiveDimension) {
         return compiled.sql;
     });
 
-    tablesReferences = new Set([...tablesReferences, ...nadDimRef.tablesReferences]);
+    tablesReferences = new Set([...tablesReferences, ...timeDimRef.tablesReferences]);
 
     return {
         sql: compiledSql,          // The normal aggregation SQL (e.g., SUM(balance))
         tablesReferences,
         valueSql: renderedSql,     // The raw un-aggregated expression
-        compiledNonAdditiveDimension: {
-            dimensionSql: nadDimRef.sql,
-            windowChoice: nad.windowChoice,
+        compiledSemiAdditive: {
+            timeDimensionSql: timeDimRef.sql,
+            windowChoice: sa.windowChoice,
             compiledWindowGroupings: compiledGroupings,
         },
     };
@@ -361,7 +488,7 @@ if (isSemiAdditiveMetric(metric)) {
 
 #### 4.1 Custom Metric Creation UI
 
-When users create custom metrics from the UI (right-click a dimension → "Add custom metric"), we'd need to allow configuring non-additive dimensions for appropriate metric types.
+When users create custom metrics from the UI (right-click a dimension -> "Add custom metric"), we'd need to allow configuring semi-additive settings for appropriate metric types.
 
 **This can be a follow-up phase.** Initially, semi-additive metrics would only be configurable via YAML. The UI would display them correctly since the SQL generation is server-side.
 
@@ -375,15 +502,15 @@ Semi-additive metrics will appear in the explore sidebar like any other metric. 
 
 Add validation in the ExploreCompiler:
 
-1. `non_additive_dimension.name` must reference a valid dimension of type DATE or TIMESTAMP in the same table (or a joined table)
+1. `semi_additive.time_dimension` must reference a valid dimension of type DATE or TIMESTAMP in the same table (or a joined table)
 2. `window_groupings` entries must reference valid dimensions
 3. Semi-additive config is only valid on aggregate metric types (SUM, COUNT, COUNT_DISTINCT, AVERAGE, etc.) — not on non-aggregate or post-calculation types
-4. Cannot combine `non_additive_dimension` with `distinct_keys` (sum_distinct) — they're separate patterns
+4. Cannot combine `semi_additive` with `distinct_keys` (sum_distinct) — they're separate patterns
 
 #### 5.2 Edge cases to handle
 
 - **No dimensions selected**: When querying a semi-additive metric with no GROUP BY, it should still filter to the last/first date row(s) before aggregating
-- **Time dimension is in the query**: When the non-additive time dimension itself is included as a GROUP BY column, the semi-additive behavior should still apply within each time bucket (e.g., grouping by month should take the last date within each month)
+- **Time dimension is in the query**: When the semi-additive time dimension itself is included as a GROUP BY column, the semi-additive behavior should still apply within each time bucket (e.g., grouping by month should take the last date within each month)
 - **Metric filters**: Metric-level filters (CASE WHEN) should be applied inside the semi-additive CTE, before the ROW_NUMBER
 - **Multiple semi-additive metrics in one query**: Each gets its own CTE, joined back independently (same pattern as multiple sum_distinct metrics)
 - **Interaction with PoP metrics**: Semi-additive metrics should work with Period-over-Period comparisons. The PoP CTE would reference the semi-additive CTE's result
@@ -393,13 +520,13 @@ Add validation in the ExploreCompiler:
 
 | File | Change |
 |------|--------|
-| `packages/common/src/types/field.ts` | Add `NonAdditiveDimension` type, add to `Metric` interface, add `isSemiAdditiveMetric()` |
-| `packages/common/src/types/dbt.ts` | Add `non_additive_dimension` to `DbtColumnLightdashMetric`, wire through `convertModelMetric()` |
-| `packages/common/src/dbt/schemas/lightdashMetadata.json` | Add `non_additive_dimension` to `LightdashMetric` JSON schema for YAML validation |
-| `packages/common/src/types/metricQuery.ts` | Add `nonAdditiveDimension` to `AdditionalMetric` |
-| `packages/common/src/compiler/exploreCompiler.ts` | Compile non-additive dimension references, return compiled metadata |
+| `packages/common/src/types/field.ts` | Add `SemiAdditiveConfig` type, add to `Metric` interface, add `isSemiAdditiveMetric()` |
+| `packages/common/src/types/dbt.ts` | Add `semi_additive` to `DbtColumnLightdashMetric`, wire through `convertModelMetric()` |
+| `packages/common/src/dbt/schemas/lightdashMetadata.json` | Add `semi_additive` to `LightdashMetric` JSON schema for YAML validation |
+| `packages/common/src/types/metricQuery.ts` | Add `semiAdditive` to `AdditionalMetric` |
+| `packages/common/src/compiler/exploreCompiler.ts` | Compile semi-additive dimension references, return compiled metadata |
 | `packages/backend/src/utils/QueryBuilder/MetricQueryBuilder.ts` | Add `buildSemiAdditiveCtes()`, integrate into `compileQuery()`, skip from regular SELECT |
-| `packages/backend/src/queryCompiler.ts` | Wire `nonAdditiveDimension` through `compileAdditionalMetric()` |
+| `packages/backend/src/queryCompiler.ts` | Wire `semiAdditive` through `compileAdditionalMetric()` |
 | `packages/warehouses/src/utils/sql.ts` | No changes needed (aggregation function itself doesn't change) |
 | `packages/common/src/utils/additionalMetrics.ts` | Potentially expose semi-additive as a custom metric option (Phase 4) |
 
@@ -417,9 +544,12 @@ Add validation in the ExploreCompiler:
 
 Semi-additivity is **orthogonal** to the aggregation type. A metric can be `type: sum` AND semi-additive, or `type: count_distinct` AND semi-additive. Making it a separate config property (like `distinct_keys` for sum_distinct) keeps the type system clean and avoids a combinatorial explosion of types.
 
-### Why match dbt's `non_additive_dimension` naming?
+### Why `semi_additive` instead of dbt's `non_additive_dimension`?
 
-Alignment with dbt's semantic layer terminology reduces cognitive load for users who work with both tools. The YAML property name uses dbt's snake_case convention (`non_additive_dimension`), while the TypeScript property uses camelCase (`nonAdditiveDimension`).
+- "Semi-additive" is the standard data modeling term (Kimball, OLAP literature)
+- It's clearer: the metric *is* additive on some dimensions, just not on time
+- dbt's `non_additive_dimension` is a mouthful and slightly misleading (the metric isn't fully "non-additive")
+- Shorter YAML config name is friendlier
 
 ## Testing Strategy
 
