@@ -99,7 +99,7 @@ const SourceCodeEditorPage: FC = () => {
         [branches, currentBranch],
     );
 
-    const isProtectedBranch = currentBranchData?.isDefault ?? false;
+    const isProtectedBranch = currentBranchData?.isProtected ?? false;
 
     const hasUnsavedChanges = useMemo(
         () => editorContent !== originalContent,
@@ -135,13 +135,13 @@ const SourceCodeEditorPage: FC = () => {
                     ? project.dbtConnection.branch
                     : null;
 
-            // Use project branch if it exists in the branches list, otherwise use repo default
+            // Use project branch if it exists in the branches list, otherwise use protected branch
             const targetBranch = projectBranch
                 ? branches.find((b) => b.name === projectBranch)
                 : null;
-            const defaultBranch = branches.find((b) => b.isDefault);
+            const protectedBranch = branches.find((b) => b.isProtected);
             setCurrentBranch(
-                targetBranch?.name ?? defaultBranch?.name ?? branches[0].name,
+                targetBranch?.name ?? protectedBranch?.name ?? branches[0].name,
             );
         }
     }, [branches, currentBranch, project, urlBranch]);

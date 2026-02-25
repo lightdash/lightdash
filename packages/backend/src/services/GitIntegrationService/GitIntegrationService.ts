@@ -1254,8 +1254,9 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
         return branches.map(
             (branch: { name: string; protected?: boolean }) => ({
                 name: branch.name,
-                protected: branch.protected ?? false,
-                isDefault: branch.name === protectedBranch,
+                isProtected:
+                    (branch.protected ?? false) ||
+                    branch.name === protectedBranch,
             }),
         );
     }
@@ -1560,12 +1561,9 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
             `Successfully created branch ${branchName} in ${creds.owner}/${creds.repo}`,
         );
 
-        const protectedBranch = await this.getProtectedBranch(projectUuid);
-
         return {
             name: branchName,
-            protected: false,
-            isDefault: branchName === protectedBranch,
+            isProtected: false, // Newly created branches are never protected
         };
     }
 

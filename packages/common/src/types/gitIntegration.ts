@@ -31,8 +31,8 @@ export type GitFileEntry = {
 
 export type GitBranch = {
     name: string;
-    protected: boolean;
-    isDefault: boolean; // TRUE = this is the project's protected branch, cannot write directly
+    /** TRUE if direct writes are blocked (GitHub protection OR project's configured branch) */
+    isProtected: boolean;
 };
 
 // Discriminated union for file/directory responses

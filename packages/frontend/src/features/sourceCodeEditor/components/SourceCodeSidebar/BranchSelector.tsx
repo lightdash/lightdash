@@ -20,7 +20,7 @@ const BranchSelector: FC<BranchSelectorProps> = ({
     isLoading,
 }) => {
     const currentBranchData = branches.find((b) => b.name === currentBranch);
-    const isProtected = currentBranchData?.isDefault ?? false;
+    const isProtected = currentBranchData?.isProtected ?? false;
 
     const branchOptions = branches.map((branch) => ({
         value: branch.name,

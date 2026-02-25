@@ -4952,10 +4952,6 @@
             },
             "ColumnProperties": {
                 "properties": {
-                    "width": {
-                        "type": "number",
-                        "format": "double"
-                    },
                     "color": {
                         "type": "string",
                         "description": "Color for bar display style (hex code)"
@@ -5012,10 +5008,6 @@
                     "showResultsTotal": {
                         "type": "boolean",
                         "description": "Show total results count"
-                    },
-                    "wrapColumnTitles": {
-                        "type": "boolean",
-                        "description": "Wrap column titles in header cells"
                     },
                     "hideRowNumbers": {
                         "type": "boolean",
@@ -12747,8 +12739,11 @@
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
-            "Partial_Pick_CreateDatabricksCredentials.database-or-serverHostName-or-httpPath__": {
+            "Partial_Pick_CreateDatabricksCredentials.database-or-serverHostName-or-httpPath-or-oauthClientId__": {
                 "properties": {
+                    "oauthClientId": {
+                        "type": "string"
+                    },
                     "database": {
                         "type": "string"
                     },
@@ -12806,7 +12801,7 @@
                                         "$ref": "#/components/schemas/Pick_CreateDatabricksCredentials.type-or-personalAccessToken-or-authenticationType-or-refreshToken_"
                                     },
                                     {
-                                        "$ref": "#/components/schemas/Partial_Pick_CreateDatabricksCredentials.database-or-serverHostName-or-httpPath__"
+                                        "$ref": "#/components/schemas/Partial_Pick_CreateDatabricksCredentials.database-or-serverHostName-or-httpPath-or-oauthClientId__"
                                     }
                                 ]
                             },
@@ -14676,6 +14671,10 @@
                                 "type": "string",
                                 "format": "date-time"
                             },
+                            "childSpaceCount": {
+                                "type": "number",
+                                "format": "double"
+                            },
                             "dashboardCount": {
                                 "type": "number",
                                 "format": "double"
@@ -14685,7 +14684,11 @@
                                 "format": "double"
                             }
                         },
-                        "required": ["dashboardCount", "chartCount"],
+                        "required": [
+                            "childSpaceCount",
+                            "dashboardCount",
+                            "chartCount"
+                        ],
                         "type": "object"
                     }
                 ]
@@ -15744,6 +15747,62 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "SpaceDeleteImpact": {
+                "properties": {
+                    "dashboardCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "chartCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "spaces": {
+                        "items": {
+                            "properties": {
+                                "dashboardCount": {
+                                    "type": "number",
+                                    "format": "double"
+                                },
+                                "chartCount": {
+                                    "type": "number",
+                                    "format": "double"
+                                },
+                                "name": {
+                                    "type": "string"
+                                },
+                                "uuid": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": [
+                                "dashboardCount",
+                                "chartCount",
+                                "name",
+                                "uuid"
+                            ],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["dashboardCount", "chartCount", "spaces"],
+                "type": "object"
+            },
+            "ApiSpaceDeleteImpactResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/SpaceDeleteImpact"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "Pick_SpaceShare.userUuid-or-role_": {
                 "properties": {
                     "userUuid": {
@@ -16644,7 +16703,8 @@
                     "downloadAsyncQueryResults",
                     "syncSlackChannels",
                     "generateSlackChannelSyncJobs",
-                    "checkForStuckJobs"
+                    "checkForStuckJobs",
+                    "cleanDeploySessions"
                 ]
             },
             "BaseSchedulerLog": {
@@ -20566,6 +20626,10 @@
                             },
                             {
                                 "properties": {
+                                    "childSpaceCount": {
+                                        "type": "number",
+                                        "format": "double"
+                                    },
                                     "chartCount": {
                                         "type": "number",
                                         "format": "double"
@@ -20586,6 +20650,7 @@
                                     }
                                 },
                                 "required": [
+                                    "childSpaceCount",
                                     "chartCount",
                                     "dashboardCount",
                                     "accessListLength",
@@ -22117,17 +22182,15 @@
             },
             "GitBranch": {
                 "properties": {
-                    "isDefault": {
-                        "type": "boolean"
-                    },
-                    "protected": {
-                        "type": "boolean"
+                    "isProtected": {
+                        "type": "boolean",
+                        "description": "TRUE if direct writes are blocked (GitHub protection OR project's configured branch)"
                     },
                     "name": {
                         "type": "string"
                     }
                 },
-                "required": ["isDefault", "protected", "name"],
+                "required": ["isProtected", "name"],
                 "type": "object"
             },
             "ApiGitBranchesResponse": {
@@ -25586,6 +25649,102 @@
                 "required": ["enabled", "id"],
                 "type": "object"
             },
+            "ApiStartDeploySessionResponse": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "deploySessionUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["deploySessionUuid"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAddDeployBatchResponse": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "exploreCount": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "batchNumber": {
+                                "type": "number",
+                                "format": "double"
+                            }
+                        },
+                        "required": ["exploreCount", "batchNumber"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAddDeployBatchRequest": {
+                "properties": {
+                    "batchNumber": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "explores": {
+                        "items": {
+                            "anyOf": [
+                                {
+                                    "$ref": "#/components/schemas/Explore"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/ExploreError"
+                                }
+                            ]
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["batchNumber", "explores"],
+                "type": "object"
+            },
+            "DeploySessionStatus": {
+                "enum": ["uploading", "finalizing", "completed", "failed"],
+                "type": "string"
+            },
+            "ApiFinalizeDeployResponse": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "status": {
+                                "$ref": "#/components/schemas/DeploySessionStatus"
+                            },
+                            "exploreCount": {
+                                "type": "number",
+                                "format": "double"
+                            }
+                        },
+                        "required": ["status", "exploreCount"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "ApiDashboardPaginatedSchedulersResponse": {
                 "properties": {
                     "results": {
@@ -26036,6 +26195,10 @@
                         "type": "number",
                         "format": "double"
                     },
+                    "childSpaceCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
                     "parentSpaceUuid": {
                         "type": "string",
                         "nullable": true
@@ -26070,6 +26233,7 @@
                     "inheritParentPermissions",
                     "dashboardCount",
                     "chartCount",
+                    "childSpaceCount",
                     "parentSpaceUuid",
                     "path",
                     "access"
@@ -26670,7 +26834,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2517.0",
+        "version": "0.2526.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -31469,6 +31633,57 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/spaces/{spaceUuid}/delete-impact": {
+            "get": {
+                "operationId": "GetSpaceDeleteImpact",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSpaceDeleteImpactResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get the impact of deleting a space (affected child spaces, charts, dashboards)",
+                "summary": "Get delete impact",
+                "tags": ["Spaces"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "The uuid of the space's parent project",
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "The uuid of the space to check",
+                        "in": "path",
+                        "name": "spaceUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/projects/{projectUuid}/spaces": {
@@ -43989,6 +44204,155 @@
                     {
                         "in": "path",
                         "name": "featureFlagId",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v2/projects/{projectUuid}/deploy": {
+            "post": {
+                "operationId": "startDeploySession",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiStartDeploySessionResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Start a new deploy session for batched explore uploads",
+                "summary": "Start deploy session",
+                "tags": ["Project"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v2/projects/{projectUuid}/deploy/{sessionUuid}/batch": {
+            "post": {
+                "operationId": "addDeployBatch",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAddDeployBatchResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Add a batch of explores to an existing deploy session",
+                "summary": "Add deploy batch",
+                "tags": ["Project"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "sessionUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiAddDeployBatchRequest"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/projects/{projectUuid}/deploy/{sessionUuid}/finalize": {
+            "post": {
+                "operationId": "finalizeDeploySession",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiFinalizeDeployResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Finalize a deploy session and commit all staged explores to the project",
+                "summary": "Finalize deploy",
+                "tags": ["Project"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "sessionUuid",
                         "required": true,
                         "schema": {
                             "type": "string"
