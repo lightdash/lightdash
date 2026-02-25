@@ -1,3 +1,10 @@
+## [0.2523.4](https://github.com/lightdash/lightdash/compare/0.2523.3...0.2523.4) (2026-02-25)
+
+
+### Bug Fixes
+
+* revert old access labels ([#20622](https://github.com/lightdash/lightdash/issues/20622)) ([d7d1cfc](https://github.com/lightdash/lightdash/commit/d7d1cfc003fdba56c5f974a569980d472a8dbf87))
+
 ## [0.2523.3](https://github.com/lightdash/lightdash/compare/0.2523.2...0.2523.3) (2026-02-25)
 
 
