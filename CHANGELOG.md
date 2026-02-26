@@ -1,3 +1,10 @@
+# [0.2534.0](https://github.com/lightdash/lightdash/compare/0.2533.0...0.2534.0) (2026-02-26)
+
+
+### Features
+
+* enable nested spaces ([#20669](https://github.com/lightdash/lightdash/issues/20669)) ([f809f99](https://github.com/lightdash/lightdash/commit/f809f996cdffd8d8dc8cb206689555b8e2a8e711))
+
 # [0.2533.0](https://github.com/lightdash/lightdash/compare/0.2532.1...0.2533.0) (2026-02-26)
 
 
