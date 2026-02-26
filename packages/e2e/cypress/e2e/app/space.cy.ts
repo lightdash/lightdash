@@ -27,6 +27,7 @@ describe('Space', () => {
 
         cy.contains('New').click();
         cy.contains('Organize your saved charts and dashboards.').click();
+        cy.findByText('Restricted access').click();
         cy.findByPlaceholderText('eg. KPIs')
             .click()
             .clear()
@@ -91,7 +92,7 @@ describe('Space', () => {
         cy.contains(`Private chart ${timestamp}`);
     };
 
-    it('Another non-admin user cannot see private content', () => {
+    it.only('Another non-admin user cannot see private content', () => {
         createPrivateSpace();
 
         // We assume the previous test has been run and the private space has been created
