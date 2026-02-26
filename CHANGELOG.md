@@ -1,3 +1,16 @@
+# [0.2532.0](https://github.com/lightdash/lightdash/compare/0.2531.0...0.2532.0) (2026-02-26)
+
+
+### Bug Fixes
+
+* keep access mode when moving spaces ([#20662](https://github.com/lightdash/lightdash/issues/20662)) ([6ed5220](https://github.com/lightdash/lightdash/commit/6ed5220ec95c4f72664a3b3b0d40eafd3f725703))
+
+
+### Features
+
+* hide space access details by default ([#20658](https://github.com/lightdash/lightdash/issues/20658)) ([7ba7831](https://github.com/lightdash/lightdash/commit/7ba78313f76daa731b3251cdb4fc19b04179cfb2))
+* show parent space name when access is inherited ([#20659](https://github.com/lightdash/lightdash/issues/20659)) ([c420e69](https://github.com/lightdash/lightdash/commit/c420e698d65d07e636de7e3d207ff710f24d4c2c))
+
 # [0.2531.0](https://github.com/lightdash/lightdash/compare/0.2530.1...0.2531.0) (2026-02-26)
 
 
