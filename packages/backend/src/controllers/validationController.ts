@@ -151,7 +151,7 @@ export class ValidationController extends BaseController {
         this.setStatus(200);
         const validationErrors = await this.services
             .getValidationService()
-            .validateAndUpdateChart(projectUuid, chartUuid);
+            .validateAndUpdateChart(req.user!, projectUuid, chartUuid);
         return {
             status: 'ok',
             results: {
@@ -179,7 +179,7 @@ export class ValidationController extends BaseController {
         this.setStatus(200);
         const validationErrors = await this.services
             .getValidationService()
-            .validateAndUpdateDashboard(projectUuid, dashboardUuid);
+            .validateAndUpdateDashboard(req.user!, projectUuid, dashboardUuid);
         return {
             status: 'ok',
             results: {

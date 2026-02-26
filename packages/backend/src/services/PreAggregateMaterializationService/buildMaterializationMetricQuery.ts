@@ -1,8 +1,8 @@
 import {
-    MAX_SAFE_INTEGER,
-    MetricType,
     getItemId,
     getMetricsByReference,
+    MAX_SAFE_INTEGER,
+    MetricType,
     type CompiledDimension,
     type CompiledMetric,
     type Explore,

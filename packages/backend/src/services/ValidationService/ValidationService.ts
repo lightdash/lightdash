@@ -1276,11 +1276,51 @@ export class ValidationService extends BaseService {
     }
 
     async validateAndUpdateChart(
+        user: SessionUser,
         projectUuid: string,
         chartUuid: string,
     ): Promise<CreateChartValidation[]> {
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('Validation', {
+                    organizationUuid,
+                    projectUuid,
+                    uuid: projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
         // Get the chart to find which explore it uses
         const chart = await this.savedChartModel.get(chartUuid);
+
+        // Check user permissions
+        const { isPrivate, access } =
+            await this.spacePermissionService.getSpaceAccessContext(
+                user.userUuid,
+                chart.spaceUuid,
+            );
+
+        if (
+            user.ability.cannot(
+                'view',
+                subject('SavedChart', {
+                    organizationUuid: chart.organizationUuid,
+                    projectUuid: chart.projectUuid,
+                    isPrivate,
+                    access,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                "You don't have access to validate this chart",
+            );
+        }
 
         // Only fetch the specific explore this chart uses
         const compiledExplore = await this.projectModel.getExploreFromCache(
@@ -1316,9 +1356,53 @@ export class ValidationService extends BaseService {
     }
 
     async validateAndUpdateDashboard(
+        user: SessionUser,
         projectUuid: string,
         dashboardUuid: string,
     ): Promise<CreateDashboardValidation[]> {
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('Validation', {
+                    organizationUuid,
+                    projectUuid,
+                    uuid: projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        // Get the dashboard to check permissions
+        const dashboard =
+            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+
+        // Check user permissions
+        const { isPrivate, access } =
+            await this.spacePermissionService.getSpaceAccessContext(
+                user.userUuid,
+                dashboard.spaceUuid,
+            );
+
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Dashboard', {
+                    organizationUuid: dashboard.organizationUuid,
+                    projectUuid: dashboard.projectUuid,
+                    isPrivate,
+                    access,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                "You don't have access to validate this dashboard",
+            );
+        }
+
         // Get all explores for dashboard validation
         const compiledExploresMap =
             await this.projectModel.getAllExploresFromCache(projectUuid);
