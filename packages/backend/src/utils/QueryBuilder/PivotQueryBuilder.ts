@@ -419,7 +419,7 @@ export class PivotQueryBuilder {
                         metricFirstValueQueries[colAnchorCteName]
                     ) {
                         acc.push(
-                            `${colAnchorCteName}.${q}${colAnchorCteName}_value${q}${sortDirection}${nullsClause}`,
+                            `${q}${colAnchorCteName}${q}.${q}${colAnchorCteName}_value${q}${sortDirection}${nullsClause}`,
                         );
                     }
                     return acc;
@@ -513,7 +513,7 @@ export class PivotQueryBuilder {
                         sort.nullsFirst,
                     );
                     orderByParts.push(
-                        `${rowAnchorCteName}.${q}${rowAnchorCteName}_value${q}${sortDirection}${nullsClause}`,
+                        `${q}${rowAnchorCteName}${q}.${q}${rowAnchorCteName}_value${q}${sortDirection}${nullsClause}`,
                     );
                 }
             } else if (isIndexColumn) {
@@ -646,10 +646,10 @@ export class PivotQueryBuilder {
             const joinConditions = groupByColumns
                 .map(
                     (col) =>
-                        `g.${q}${col.reference}${q} = ${cteName}.${q}${col.reference}${q}`,
+                        `g.${q}${col.reference}${q} = ${q}${cteName}${q}.${q}${col.reference}${q}`,
                 )
                 .join(' AND ');
-            joins.push(`LEFT JOIN ${cteName} ON ${joinConditions}`);
+            joins.push(`LEFT JOIN ${q}${cteName}${q} ON ${joinConditions}`);
         });
 
         if (joins.length > 0) {
@@ -798,8 +798,9 @@ export class PivotQueryBuilder {
             sortBy,
         );
 
+        const q = this.warehouseSqlBuilder.getFieldQuoteChar();
         const columnAnchorCTEs = Object.values(columnAnchorQueries).map(
-            ({ cteName, sql }) => `${cteName} AS (${sql})`,
+            ({ cteName, sql }) => `${q}${cteName}${q} AS (${sql})`,
         );
 
         // Check if we need row anchor CTEs (only when sorting by a metric value AND have index columns)
@@ -842,7 +843,7 @@ export class PivotQueryBuilder {
                 sortBy,
             );
             rowAnchorCTEs = Object.values(rowAnchorQueries).map(
-                ({ cteName, sql }) => `${cteName} AS (${sql})`,
+                ({ cteName, sql }) => `${q}${cteName}${q} AS (${sql})`,
             );
         }
 
@@ -897,20 +898,22 @@ export class PivotQueryBuilder {
                     const joinConditions = indexColumns
                         .map(
                             (col) =>
-                                `g.${q}${col.reference}${q} = ${cteName}.${q}${col.reference}${q}`,
+                                `g.${q}${col.reference}${q} = ${q}${cteName}${q}.${q}${col.reference}${q}`,
                         )
                         .join(' AND ');
-                    joins.push(`LEFT JOIN ${cteName} ON ${joinConditions}`);
+                    joins.push(
+                        `LEFT JOIN ${q}${cteName}${q} ON ${joinConditions}`,
+                    );
                 }
             } else if (cteName.endsWith('_column_anchor')) {
                 // Join on group columns for column anchor CTEs
                 const joinConditions = groupByColumns
                     .map(
                         (col) =>
-                            `g.${q}${col.reference}${q} = ${cteName}.${q}${col.reference}${q}`,
+                            `g.${q}${col.reference}${q} = ${q}${cteName}${q}.${q}${col.reference}${q}`,
                     )
                     .join(' AND ');
-                joins.push(`LEFT JOIN ${cteName} ON ${joinConditions}`);
+                joins.push(`LEFT JOIN ${q}${cteName}${q} ON ${joinConditions}`);
             }
         });
 
