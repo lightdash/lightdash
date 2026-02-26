@@ -4151,6 +4151,7 @@ export class ProjectService extends BaseService {
         projectUuid,
         table,
         initialFieldId,
+        initialLabelFieldId,
         search,
         limit,
         filters,
@@ -4158,6 +4159,7 @@ export class ProjectService extends BaseService {
         projectUuid: string;
         table: string;
         initialFieldId: string;
+        initialLabelFieldId?: string;
         search: string;
         limit: number;
         filters: AndFilterGroup | undefined;
@@ -4201,11 +4203,35 @@ export class ProjectService extends BaseService {
                 `Searching by field is only available for dimensions, but ${fieldId} is a ${field.type}`,
             );
         }
+
+        // Resolve optional label field
+        let labelFieldId = initialLabelFieldId
+            ? initialLabelFieldId.replace(table, explore.baseTable)
+            : undefined;
+        const labelField = labelFieldId
+            ? findFieldByIdInExplore(explore, labelFieldId)
+            : undefined;
+        if (initialLabelFieldId && !labelField) {
+            throw new NotFoundError(
+                `Can't find label dimension '${labelFieldId}' in explore '${explore.name}'`,
+            );
+        }
+        if (labelField && !isDimension(labelField)) {
+            throw new ParameterError(
+                `Label field must be a dimension, but ${labelFieldId} is a ${labelField.type}`,
+            );
+        }
+        if (labelField) {
+            labelFieldId = getItemId(labelField);
+        }
+
+        // When a label field is provided, search and filter by the label field; otherwise use the value field
+        const searchFieldId = labelFieldId ?? getItemId(field);
         const autocompleteDimensionFilters: FilterGroupItem[] = [
             {
                 id: uuidv4(),
                 target: {
-                    fieldId,
+                    fieldId: searchFieldId,
                 },
                 operator: FilterOperator.INCLUDE,
                 values: [search],
@@ -4213,7 +4239,7 @@ export class ProjectService extends BaseService {
             {
                 id: uuidv4(),
                 target: {
-                    fieldId,
+                    fieldId: getItemId(field),
                 },
                 operator: FilterOperator.NOT_NULL,
                 values: [],
@@ -4230,9 +4256,12 @@ export class ProjectService extends BaseService {
             );
             autocompleteDimensionFilters.push(...filtersCompatibleWithExplore);
         }
+        const dimensions = labelFieldId
+            ? [getItemId(field), labelFieldId]
+            : [getItemId(field)];
         const metricQuery: MetricQuery = {
             exploreName: explore.name,
-            dimensions: [getItemId(field)],
+            dimensions,
             metrics: [],
             filters: {
                 dimensions: {
@@ -4243,13 +4272,19 @@ export class ProjectService extends BaseService {
             tableCalculations: [],
             sorts: [
                 {
-                    fieldId: getItemId(field),
+                    fieldId: searchFieldId,
                     descending: false,
                 },
             ],
             limit,
         };
-        return { metricQuery, explore, field };
+        return {
+            metricQuery,
+            explore,
+            field,
+            labelField: labelField ?? undefined,
+            labelFieldId,
+        };
     }
 
     async searchFieldUniqueValues(
@@ -4263,6 +4298,7 @@ export class ProjectService extends BaseService {
         forceRefresh: boolean = false,
         parameters?: ParametersValuesMap,
         userAttributeOverrides?: UserAttributeValueMap, // EXPERIMENTAL: used to override user attributes for MCP
+        labelField?: string,
     ) {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
@@ -4276,15 +4312,21 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
 
-        const { metricQuery, explore, field } =
-            await this._getFieldValuesMetricQuery({
-                projectUuid,
-                table,
-                initialFieldId,
-                search,
-                limit,
-                filters,
-            });
+        const {
+            metricQuery,
+            explore,
+            field,
+            labelField: resolvedLabelField,
+            labelFieldId: resolvedLabelFieldId,
+        } = await this._getFieldValuesMetricQuery({
+            projectUuid,
+            table,
+            initialFieldId,
+            initialLabelFieldId: labelField,
+            search,
+            limit,
+            filters,
+        });
 
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
@@ -4373,18 +4415,61 @@ export class ProjectService extends BaseService {
         };
 
         const { rows } = await warehouseClient.runQuery(query, queryTags);
-        const allResults: Set<string | number | boolean> = new Set();
-        for (const row of rows) {
-            const value = row[getItemId(field)];
-            if (value !== null && value !== undefined) {
-                allResults.add(value);
+
+        let resultsArray:
+            | (string | number | boolean)[]
+            | {
+                  value: string | number | boolean;
+                  label: string | number | boolean;
+              }[];
+
+        const isPrimitive = (v: unknown): v is string | number | boolean =>
+            typeof v === 'string' ||
+            typeof v === 'number' ||
+            typeof v === 'boolean';
+
+        if (resolvedLabelField && resolvedLabelFieldId) {
+            // Deduplicate by value; when multiple rows share a value, keep the first
+            // (alphabetically earliest label, since the query sorts by label field).
+            const valueFieldId = getItemId(field);
+            const seenValues = new Set<string>();
+            const labeledResults: {
+                value: string | number | boolean;
+                label: string | number | boolean;
+            }[] = [];
+            for (const row of rows) {
+                const rawValue: unknown = row[valueFieldId];
+                const rawLabel: unknown = row[resolvedLabelFieldId];
+                if (isPrimitive(rawValue)) {
+                    const valueKey = String(rawValue);
+                    if (!seenValues.has(valueKey)) {
+                        seenValues.add(valueKey);
+                        const resolvedLabel = isPrimitive(rawLabel)
+                            ? rawLabel
+                            : rawValue;
+                        labeledResults.push({
+                            value: rawValue,
+                            label: resolvedLabel,
+                        });
+                    }
+                }
             }
+            resultsArray = labeledResults;
+        } else {
+            const allResults: Set<string | number | boolean> = new Set();
+            for (const row of rows) {
+                const rawValue: unknown = row[getItemId(field)];
+                if (isPrimitive(rawValue)) {
+                    allResults.add(rawValue);
+                }
+            }
+            resultsArray = Array.from(allResults);
         }
 
         if (isCacheEnabled) {
             const searchResults = {
                 search,
-                results: Array.from(allResults),
+                results: resultsArray,
                 refreshedAt: new Date(),
                 cached: true,
             };
@@ -4395,8 +4480,6 @@ export class ProjectService extends BaseService {
         }
 
         await sshTunnel.disconnect();
-
-        const resultsArray = Array.from(allResults);
 
         this.analytics.track({
             event: 'field_value.search',
