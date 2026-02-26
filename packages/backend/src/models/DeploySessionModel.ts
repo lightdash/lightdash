@@ -1,17 +1,17 @@
 import {
-    type DeploySession,
     DeploySessionStatus,
+    NotFoundError,
+    type DeploySession,
     type Explore,
     type ExploreError,
-    NotFoundError,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
 import {
+    DeploySessionBatchesTable,
+    DeploySessionsTable,
     type DbDeploySession,
     type DbDeploySessionBatch,
     type DbDeploySessionBatchInsert,
-    DeploySessionBatchesTable,
-    DeploySessionsTable,
 } from '../database/entities/deploySessions';
 
 export class DeploySessionModel {

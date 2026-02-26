@@ -189,6 +189,18 @@ export class ValidationModel {
             .delete();
     }
 
+    async deleteChartValidations(chartUuid: string): Promise<void> {
+        await this.database(ValidationTableName)
+            .where('saved_chart_uuid', chartUuid)
+            .delete();
+    }
+
+    async deleteDashboardValidations(dashboardUuid: string): Promise<void> {
+        await this.database(ValidationTableName)
+            .where('dashboard_uuid', dashboardUuid)
+            .delete();
+    }
+
     public static parseDashboardFilterError(error: string): {
         tableName?: string;
         dashboardFilterErrorType?: DashboardFilterValidationErrorType;

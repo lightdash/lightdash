@@ -539,7 +539,10 @@ export class DashboardModel {
         );
     }
 
-    async findDashboardsForValidation(projectUuid: string): Promise<
+    async findDashboardsForValidation(
+        projectUuid: string,
+        dashboardUuid?: string,
+    ): Promise<
         Array<{
             dashboardUuid: string;
             name: string;
@@ -553,7 +556,7 @@ export class DashboardModel {
             this.database
                 // cte to get the last version of each dashboard in the project
                 .with(cteName, (qb) => {
-                    void qb
+                    let cteQuery = qb
                         .select({
                             dashboard_uuid: `${DashboardsTableName}.dashboard_uuid`,
                             name: `${DashboardsTableName}.name`,
@@ -578,11 +581,20 @@ export class DashboardModel {
                             `${DashboardVersionsTableName}.dashboard_id`,
                         )
                         .where('projects.project_uuid', projectUuid)
-                        .whereNull(`${DashboardsTableName}.deleted_at`)
-                        .groupBy(
+                        .whereNull(`${DashboardsTableName}.deleted_at`);
+
+                    // Filter by specific dashboard UUID if provided
+                    if (dashboardUuid) {
+                        cteQuery = cteQuery.where(
                             `${DashboardsTableName}.dashboard_uuid`,
-                            `${DashboardsTableName}.name`,
+                            dashboardUuid,
                         );
+                    }
+
+                    void cteQuery.groupBy(
+                        `${DashboardsTableName}.dashboard_uuid`,
+                        `${DashboardsTableName}.name`,
+                    );
                 })
                 .select({
                     dashboardUuid: `${cteName}.dashboard_uuid`,

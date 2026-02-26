@@ -1,10 +1,10 @@
 import {
     Account,
+    assertUnreachable,
     ForbiddenError,
     NotFoundError,
     QueryHistory,
     QueryHistoryStatus,
-    assertUnreachable,
     sleep,
 } from '@lightdash/common';
 import crypto from 'crypto';

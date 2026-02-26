@@ -755,6 +755,7 @@ program
         'Include charts updates when uploading dashboards',
         false,
     )
+    .option('--validate', 'Validate charts and dashboards after upload', false)
     .action(uploadHandler);
 
 program

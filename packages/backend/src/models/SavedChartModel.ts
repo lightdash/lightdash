@@ -1367,7 +1367,10 @@ export class SavedChartModel {
         ]);
     }
 
-    async findChartsForValidation(projectUuid: string): Promise<
+    async findChartsForValidation(
+        projectUuid: string,
+        chartUuid?: string,
+    ): Promise<
         Array<{
             uuid: string;
             name: string;
@@ -1391,7 +1394,7 @@ export class SavedChartModel {
         // Optimized: Use scalar subqueries instead of multiple LEFT JOINs to avoid cartesian product.
         // Previously, joining 6 child tables caused row explosion (e.g., 5 fields × 2 calcs × 3 metrics = 30+ rows per chart)
         const cteName = 'chart_last_version_cte';
-        const savedCharts = await this.database
+        let query = this.database
             .with(cteName, (qb) =>
                 this.getProjectChartsLastVersionCTE(qb, projectUuid),
             )
@@ -1439,6 +1442,13 @@ export class SavedChartModel {
                 `${cteName}.saved_queries_version_id`,
                 'saved_queries_versions.saved_queries_version_id',
             );
+
+        // Filter by specific chart UUID if provided
+        if (chartUuid) {
+            query = query.where(`${cteName}.saved_query_uuid`, chartUuid);
+        }
+
+        const savedCharts = await query;
 
         // Filter out charts that are saved in a dashboard and don't belong to any tile in their dashboard last version
         const chartsNotInTilesUuids =

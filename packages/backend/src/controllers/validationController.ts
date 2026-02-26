@@ -1,5 +1,7 @@
 import {
     AnyType,
+    ApiChartValidationResponse,
+    ApiDashboardValidationResponse,
     ApiErrorPayload,
     ApiJobScheduledResponse,
     ApiValidateResponse,
@@ -127,6 +129,62 @@ export class ValidationController extends BaseController {
             .delete(req.user!, validationId);
         return {
             status: 'ok',
+        };
+    }
+
+    /**
+     * Validates a specific chart and updates validation entries in database.
+     * @summary Validate specific chart
+     * @param projectUuid the project UUID
+     * @param chartUuid the chart UUID to validate
+     * @param req express request
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/chart/{chartUuid}')
+    @OperationId('ValidateChart')
+    async validateChart(
+        @Path() projectUuid: string,
+        @Path() chartUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiChartValidationResponse> {
+        this.setStatus(200);
+        const validationErrors = await this.services
+            .getValidationService()
+            .validateAndUpdateChart(req.user!, projectUuid, chartUuid);
+        return {
+            status: 'ok',
+            results: {
+                errors: validationErrors,
+            },
+        };
+    }
+
+    /**
+     * Validates a specific dashboard and updates validation entries in database.
+     * @summary Validate specific dashboard
+     * @param projectUuid the project UUID
+     * @param dashboardUuid the dashboard UUID to validate
+     * @param req express request
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/dashboard/{dashboardUuid}')
+    @OperationId('ValidateDashboard')
+    async validateDashboard(
+        @Path() projectUuid: string,
+        @Path() dashboardUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiDashboardValidationResponse> {
+        this.setStatus(200);
+        const validationErrors = await this.services
+            .getValidationService()
+            .validateAndUpdateDashboard(req.user!, projectUuid, dashboardUuid);
+        return {
+            status: 'ok',
+            results: {
+                errors: validationErrors,
+            },
         };
     }
 }

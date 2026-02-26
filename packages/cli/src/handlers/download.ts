@@ -3,7 +3,9 @@
 import {
     ApiChartAsCodeListResponse,
     ApiChartAsCodeUpsertResponse,
+    ApiChartValidationResponse,
     ApiDashboardAsCodeListResponse,
+    ApiDashboardValidationResponse,
     ApiSqlChartAsCodeListResponse,
     assertUnreachable,
     AuthorizationError,
@@ -40,6 +42,7 @@ export type DownloadHandlerOptions = {
     public: boolean;
     includeCharts: boolean;
     nested: boolean; // Use nested folder structure (projectName/spaceSlug/charts|dashboards)
+    validate?: boolean; // Validate charts and dashboards after upload
 };
 
 type FolderScheme = 'flat' | 'nested';
@@ -728,6 +731,7 @@ const upsertResources = async <T extends ChartAsCode | DashboardAsCode>(
     customPath?: string,
     skipSpaceCreate?: boolean,
     publicSpaceCreate?: boolean,
+    validate?: boolean,
 ): Promise<{ changes: Record<string, number>; total: number }> => {
     const config = await getConfig();
 
@@ -798,6 +802,58 @@ const upsertResources = async <T extends ChartAsCode | DashboardAsCode>(
             );
 
             changes = storeUploadChanges(changes, upsertData);
+
+            // Run validation if requested
+            if (validate && !isSqlChartItem) {
+                const contentUuid =
+                    type === 'charts'
+                        ? upsertData.charts?.[0]?.data?.uuid
+                        : upsertData.dashboards?.[0]?.data?.uuid;
+
+                if (contentUuid) {
+                    try {
+                        const validationEndpoint =
+                            type === 'charts'
+                                ? `/api/v1/projects/${projectId}/validate/chart/${contentUuid}`
+                                : `/api/v1/projects/${projectId}/validate/dashboard/${contentUuid}`;
+
+                        const validationResult = await lightdashApi<
+                            | ApiChartValidationResponse['results']
+                            | ApiDashboardValidationResponse['results']
+                        >({
+                            method: 'POST',
+                            url: validationEndpoint,
+                            body: JSON.stringify({}),
+                        });
+
+                        if (
+                            validationResult.errors &&
+                            validationResult.errors.length > 0
+                        ) {
+                            GlobalState.log(
+                                styles.warning(
+                                    `Validation found ${validationResult.errors.length} issue(s) in ${type.slice(0, -1)} "${item.name}"`,
+                                ),
+                            );
+                            validationResult.errors.forEach((error) => {
+                                GlobalState.log(
+                                    styles.warning(`  - ${error.error}`),
+                                );
+                            });
+                        } else {
+                            GlobalState.log(
+                                styles.success(
+                                    `✓ No validation issues in ${type.slice(0, -1)} "${item.name}"`,
+                                ),
+                            );
+                        }
+                    } catch (validationError) {
+                        GlobalState.debug(
+                            `Validation failed for ${type.slice(0, -1)} "${item.name}": ${getErrorMessage(validationError)}`,
+                        );
+                    }
+                }
+            }
         } catch (error: unknown) {
             if (
                 error instanceof LightdashError &&
@@ -942,6 +998,7 @@ export const uploadHandler = async (
                     options.path,
                     options.skipSpaceCreate,
                     options.public,
+                    options.validate,
                 );
             changes = chartChanges;
             chartTotal = total;
@@ -962,6 +1019,7 @@ export const uploadHandler = async (
                     options.path,
                     options.skipSpaceCreate,
                     options.public,
+                    options.validate,
                 );
             changes = dashboardChanges;
             dashboardTotal = total;

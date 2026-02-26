@@ -1,4 +1,4 @@
-import { type Account, QueryHistoryStatus } from '@lightdash/common';
+import { QueryHistoryStatus, type Account } from '@lightdash/common';
 import { type PreAggregateModel } from '../../models/PreAggregateModel';
 import { type QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import { type AsyncQueryService } from '../AsyncQueryService/AsyncQueryService';
