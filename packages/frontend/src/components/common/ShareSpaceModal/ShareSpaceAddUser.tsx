@@ -40,6 +40,7 @@ import {
 import { LightdashUserAvatar } from '../../Avatar';
 import MantineIcon from '../MantineIcon';
 import { DEFAULT_PAGE_SIZE } from '../Table/constants';
+import styles from './ShareSpaceAddUser.module.css';
 import { UserAccessOptions } from './ShareSpaceSelect';
 import { getUserNameOrEmail } from './Utils';
 import { getAccessColor } from './v2/ShareSpaceModalUtils';
@@ -352,6 +353,7 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
         <Group>
             <MultiSelect
                 style={{ flex: 1 }}
+                classNames={{ option: styles.option }}
                 searchable
                 clearable
                 placeholder="Select groups or users to share this space with"
