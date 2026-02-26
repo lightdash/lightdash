@@ -77,58 +77,59 @@ export const registerMonacoLanguage = (monaco: Monaco, language: string) => {
 
 export const getLightdashMonacoTheme = (colorScheme: ColorScheme) => {
     if (colorScheme === 'dark') {
+        // Dracula-inspired dark theme with Lightdash purple accent
         return {
             rules: [
-                { token: '', foreground: 'd4d4d4' },
-                { token: 'keyword', foreground: '569cd6', fontStyle: 'bold' },
+                { token: '', foreground: 'f8f8f2' },
+                { token: 'keyword', foreground: '7262FF', fontStyle: 'bold' },
                 {
                     token: 'operator.sql',
-                    foreground: 'd4d4d4',
+                    foreground: 'ffb86c',
                     fontStyle: 'bold',
                 },
-                { token: 'number', foreground: 'b5cea8' },
-                { token: 'string', foreground: 'ce9178' },
-                { token: 'delimiter', foreground: 'ce9178' },
-                { token: 'identifier', foreground: '9cdcfe' },
-                { token: 'comment', foreground: '6a9955', fontStyle: 'italic' },
+                { token: 'number', foreground: '50fa7b' },
+                { token: 'string', foreground: 'ff79c6' },
+                { token: 'delimiter', foreground: 'ff79c6' },
+                { token: 'identifier', foreground: '8be9fd' },
+                { token: 'comment', foreground: '6272a4', fontStyle: 'italic' },
             ],
             colors: {
-                'editor.background': '#25262b',
-                'editor.foreground': '#d4d4d4',
-                'editor.lineHighlightBackground': '#2a2a2a',
-                'editor.lineHighlight': '#2a2a2a',
-                'editorCursor.foreground': '#569cd6',
+                'editor.background': '#1a1a1a',
+                'editor.foreground': '#f8f8f2',
+                'editor.lineHighlightBackground': '#242424',
+                'editor.lineHighlight': '#242424',
+                'editorCursor.foreground': '#7262FF',
                 'editorWhitespace.foreground': '#3b3b3b',
-                'editor.selectionBackground': '#264f78',
+                'editor.selectionBackground': '#3d3d5c',
                 'editor.selectionForeground': '#ffffff',
-                'editor.wordHighlightBackground': '#575757',
-                'editor.selectionHighlightBorder': '#569cd6',
+                'editor.wordHighlightBackground': '#454545',
+                'editor.selectionHighlightBorder': '#7262FF',
             },
         };
     }
 
-    // Light theme (default)
+    // Vibrant light theme with Lightdash purple accent
     return {
         rules: [
-            { token: '', foreground: '333333' },
+            { token: '', foreground: '24292e' },
             { token: 'keyword', foreground: '7262FF', fontStyle: 'bold' },
-            { token: 'operator.sql', foreground: '#24cf62', fontStyle: 'bold' },
-            { token: 'number', foreground: '098658' },
-            { token: 'string', foreground: 'A31515' },
-            { token: 'delimiter', foreground: 'A31515' },
-            { token: 'identifier', foreground: '001080' },
-            { token: 'comment', foreground: '008000', fontStyle: 'italic' },
+            { token: 'operator.sql', foreground: 'e85d04', fontStyle: 'bold' },
+            { token: 'number', foreground: '0d9649' },
+            { token: 'string', foreground: 'd6336c' },
+            { token: 'delimiter', foreground: 'd6336c' },
+            { token: 'identifier', foreground: '0078d4' },
+            { token: 'comment', foreground: '6b7280', fontStyle: 'italic' },
         ],
         colors: {
-            'editor.background': '#FFFFFF',
-            'editor.foreground': '#333333',
-            'editor.lineHighlightBackground': '#f8f8f8',
-            'editor.lineHighlight': '#e0e0e0',
+            'editor.background': '#f8f9fa',
+            'editor.foreground': '#24292e',
+            'editor.lineHighlightBackground': '#f0f1f4',
+            'editor.lineHighlight': '#f0f1f4',
             'editorCursor.foreground': '#7262FF',
-            'editorWhitespace.foreground': '#efefef',
+            'editorWhitespace.foreground': '#e1e4e8',
             'editor.selectionBackground': '#E6E3FF',
-            'editor.selectionForeground': '#333333',
-            'editor.wordHighlightBackground': '#bcfeff',
+            'editor.selectionForeground': '#24292e',
+            'editor.wordHighlightBackground': '#dce6f0',
             'editor.selectionHighlightBorder': '#7262FF',
         },
     };
