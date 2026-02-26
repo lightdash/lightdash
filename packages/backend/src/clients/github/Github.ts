@@ -511,3 +511,111 @@ export const createRepository = async ({
         throw new UnexpectedGitError(getErrorMessage(e));
     }
 };
+
+export const getDirectoryContents = async ({
+    owner,
+    repo,
+    branch,
+    path,
+    installationId,
+    token,
+}: {
+    owner: string;
+    repo: string;
+    branch: string;
+    path: string;
+    installationId?: string;
+    token?: string;
+}): Promise<
+    Array<{
+        name: string;
+        path: string;
+        type: string;
+        size: number;
+        sha: string;
+    }>
+> => {
+    const { octokit, headers } = getOctokit(installationId, token);
+    try {
+        const response = await octokit.rest.repos.getContent({
+            owner,
+            repo,
+            path: path || '',
+            ref: branch,
+            headers,
+        });
+
+        if (!Array.isArray(response.data)) {
+            throw new ParameterError('Path is not a directory');
+        }
+
+        return response.data.map((item) => ({
+            name: item.name,
+            path: item.path,
+            type: item.type,
+            size: item.size ?? 0,
+            sha: item.sha,
+        }));
+    } catch (error) {
+        if (
+            error instanceof Error &&
+            `status` in error &&
+            error.status === 404
+        ) {
+            throw new NotFoundError(`Directory ${path} not found in GitHub`);
+        }
+        if (error instanceof ParameterError) {
+            throw error;
+        }
+        throw new UnexpectedGitError(getErrorMessage(error));
+    }
+};
+
+export const deleteFile = async ({
+    owner,
+    repo,
+    path,
+    sha,
+    branch,
+    message,
+    installationId,
+    token,
+}: {
+    owner: string;
+    repo: string;
+    path: string;
+    sha: string;
+    branch: string;
+    message: string;
+    installationId?: string;
+    token?: string;
+}): Promise<
+    Awaited<ReturnType<OctokitRest['rest']['repos']['deleteFile']>>
+> => {
+    const { octokit, headers } = getOctokit(installationId, token);
+    try {
+        const response = await octokit.rest.repos.deleteFile({
+            owner,
+            repo,
+            path,
+            sha,
+            branch,
+            message,
+            headers,
+            committer: {
+                name: 'Lightdash',
+                email: 'developers@lightdash.com',
+            },
+        });
+        return response;
+    } catch (error) {
+        if (
+            error instanceof Error &&
+            `status` in error &&
+            error.status === 404
+        ) {
+            throw new NotFoundError(`File ${path} not found in GitHub`);
+        }
+        throw new UnexpectedGitError(getErrorMessage(error));
+    }
+};

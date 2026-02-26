@@ -96,6 +96,8 @@ import { type FieldValueSearchResult } from './fieldMatch';
 import { type DashboardFilters } from './filter';
 import {
     type ApiGitFileContent,
+    type GitBranch,
+    type GitFileOrDirectory,
     type GitIntegrationConfiguration,
     type GitRepo,
     type PullRequestCreated,
@@ -832,6 +834,11 @@ type ApiResults =
     | PullRequestCreated
     | ApiGitFileContent
     | GitIntegrationConfiguration
+    | GitBranch
+    | GitBranch[]
+    | GitFileOrDirectory
+    | { sha: string; path: string }
+    | { filePath: string }
     | UserWarehouseCredentials
     | ApiJobStatusResponse['results']
     | ApiJobScheduledResponse['results']

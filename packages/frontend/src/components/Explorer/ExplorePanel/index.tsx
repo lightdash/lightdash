@@ -24,6 +24,7 @@ import {
     useTransition,
     type FC,
 } from 'react';
+import { useNavigate } from 'react-router';
 import {
     explorerActions,
     selectAdditionalMetrics,
@@ -49,7 +50,6 @@ import PageBreadcrumbs from '../../common/PageBreadcrumbs';
 import ExploreTree from '../ExploreTree';
 import LoadingSkeleton from '../ExploreTree/LoadingSkeleton';
 import { ItemDetailProvider } from '../ExploreTree/TableTree/ItemDetailProvider';
-import ExploreYamlModal from '../ExploreYamlModal';
 import WarningsHoverCardContent from '../WarningsHoverCardContent';
 import { useIsGitProject } from '../WriteBackModal/hooks';
 import { VisualizationConfigPortalId } from './constants';
@@ -61,10 +61,10 @@ interface ExplorePanelProps {
 const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
     const { track } = useTracking();
     const { user } = useApp();
+    const navigate = useNavigate();
     const [isEditVirtualViewOpen, setIsEditVirtualViewOpen] = useState(false);
     const [isDeleteVirtualViewOpen, setIsDeleteVirtualViewOpen] =
         useState(false);
-    const [isViewSourceOpen, setIsViewSourceOpen] = useState(false);
     const [, startTransition] = useTransition();
 
     const projectUuid = useProjectUuid();
@@ -158,8 +158,12 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
     }, []);
 
     const handleViewSourceCode = useCallback(() => {
-        setIsViewSourceOpen(true);
-    }, []);
+        if (!projectUuid || !activeTableName) return;
+        const params = new URLSearchParams({ explore: activeTableName });
+        void navigate(
+            `/projects/${projectUuid}/source-code?${params.toString()}`,
+        );
+    }, [navigate, projectUuid, activeTableName]);
 
     const breadcrumbs = useMemo(() => {
         if (!explore) return [];
@@ -340,14 +344,6 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                         onClose={() => setIsDeleteVirtualViewOpen(false)}
                         virtualViewName={activeTableName}
                         projectUuid={projectUuid}
-                    />
-                )}
-                {isViewSourceOpen && projectUuid && activeTableName && (
-                    <ExploreYamlModal
-                        opened={isViewSourceOpen}
-                        onClose={() => setIsViewSourceOpen(false)}
-                        projectUuid={projectUuid}
-                        exploreName={activeTableName}
                     />
                 )}
             </Stack>

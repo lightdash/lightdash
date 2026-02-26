@@ -1316,6 +1316,18 @@ export type SourceCodeEvent = BaseTrack & {
     };
 };
 
+export type SourceCodeBranchPullRequestEvent = BaseTrack & {
+    event: 'source_code.branch_pull_request_created';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        branch: string;
+        baseBranch: string;
+        gitProvider: DbtProjectType.GITHUB | DbtProjectType.GITLAB;
+    };
+};
+
 type CreateTagEvent = BaseTrack & {
     event: 'category.created';
     userId: string;
@@ -1657,6 +1669,7 @@ type TypedEvent =
     | WriteBackEvent
     | WriteBackErrorEvent
     | SourceCodeEvent
+    | SourceCodeBranchPullRequestEvent
     | SchedulerTimezoneUpdateEvent
     | CreateTagEvent
     | CategoriesAppliedEvent
