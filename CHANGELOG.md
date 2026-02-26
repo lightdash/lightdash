@@ -1,3 +1,15 @@
+# [0.2531.0](https://github.com/lightdash/lightdash/compare/0.2530.1...0.2531.0) (2026-02-26)
+
+
+### Bug Fixes
+
+* dont show space access on home or spaces list ([#20657](https://github.com/lightdash/lightdash/issues/20657)) ([d3a81f4](https://github.com/lightdash/lightdash/commit/d3a81f4a9ce444086a4c6583dc3fe66b385c88e1))
+
+
+### Features
+
+* add pointer cursor to resource view grid items ([#20664](https://github.com/lightdash/lightdash/issues/20664)) ([6be32d0](https://github.com/lightdash/lightdash/commit/6be32d090155531f9fa193d43b49b621ce4cc2f3))
+
 ## [0.2530.1](https://github.com/lightdash/lightdash/compare/0.2530.0...0.2530.1) (2026-02-26)
 
 
