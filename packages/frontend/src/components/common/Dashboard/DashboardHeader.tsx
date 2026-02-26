@@ -20,6 +20,7 @@ import {
 } from '@mantine-8/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
+    IconBolt,
     IconCopy,
     IconDatabase,
     IconDatabaseExport,
@@ -57,6 +58,7 @@ import { useDashboardPinningMutation } from '../../../hooks/pinning/useDashboard
 import { useProject } from '../../../hooks/useProject';
 import { useClientFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
+import { type TilePreAggregateStatus } from '../../../providers/Dashboard/types';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import AddTileButton from '../../DashboardTiles/AddTileButton';
@@ -72,7 +74,9 @@ import {
     DASHBOARD_HEADER_HEIGHT,
     DASHBOARD_HEADER_ZINDEX,
 } from './dashboard.constants';
+import headerClasses from './DashboardHeader.module.css';
 import { DashboardRefreshButton } from './DashboardRefreshButton';
+import { PreAggregateAuditDrawer } from './PreAggregateAuditIndicator';
 
 type DashboardHeaderProps = {
     dashboard: Dashboard;
@@ -83,9 +87,12 @@ type DashboardHeaderProps = {
     isFullScreenFeatureEnabled?: boolean;
     isFullscreen: boolean;
     oldestCacheTime?: Date;
+    preAggregateStatuses?: Record<string, TilePreAggregateStatus>;
+    allTilesLoaded?: boolean;
     activeTabUuid?: string;
     dashboardTabs?: Dashboard['tabs'];
     isMovingDashboardToSpace: boolean;
+    onSwitchTab?: (tab: Dashboard['tabs'][number] | undefined) => void;
     onAddTiles: (tiles: Dashboard['tiles'][number][]) => void;
     onCancel: () => void;
     onSaveDashboard: () => void;
@@ -106,9 +113,12 @@ const DashboardHeader = ({
     isEditMode,
     isSaving,
     isMovingDashboardToSpace,
+    onSwitchTab,
     isFullScreenFeatureEnabled,
     isFullscreen,
     oldestCacheTime,
+    preAggregateStatuses,
+    allTilesLoaded,
     activeTabUuid,
     dashboardTabs,
     onAddTiles,
@@ -144,6 +154,7 @@ const DashboardHeader = ({
         useToggle(false);
     const [isTransferToSpaceModalOpen, transferToSpaceModalHandlers] =
         useDisclosure(false);
+    const [isPreAggAuditOpen, preAggAuditHandlers] = useDisclosure(false);
     const handleEditClick = () => {
         setIsUpdating(true);
         track({ name: EventName.UPDATE_DASHBOARD_NAME_CLICKED });
@@ -214,7 +225,8 @@ const DashboardHeader = ({
         [favorites, dashboardUuid],
     );
 
-    const { user } = useApp();
+    const { user, health } = useApp();
+    const preAggregatesEnabled = health.data?.preAggregates.enabled ?? false;
     const userCanManageDashboard = user.data?.ability.can(
         'manage',
         subject('Dashboard', dashboard),
@@ -562,18 +574,57 @@ const DashboardHeader = ({
                             }
                         >
                             <Menu.Target>
-                                <ActionIcon
-                                    variant="default"
-                                    size="md"
-                                    radius="md"
+                                <Box
+                                    className={headerClasses.menuTargetWrapper}
                                 >
-                                    <MantineIcon icon={IconDots} />
-                                </ActionIcon>
+                                    {preAggregatesEnabled && (
+                                        <Box
+                                            className={
+                                                headerClasses.zapIndicator
+                                            }
+                                            data-settled={
+                                                allTilesLoaded || undefined
+                                            }
+                                        >
+                                            <MantineIcon
+                                                icon={IconBolt}
+                                                size={9}
+                                            />
+                                        </Box>
+                                    )}
+                                    <ActionIcon
+                                        variant="default"
+                                        size="md"
+                                        radius="md"
+                                    >
+                                        <MantineIcon icon={IconDots} />
+                                    </ActionIcon>
+                                </Box>
                             </Menu.Target>
 
                             <Menu.Dropdown>
                                 {!!userCanManageDashboard && (
                                     <>
+                                        {preAggregatesEnabled &&
+                                            preAggregateStatuses &&
+                                            Object.keys(preAggregateStatuses)
+                                                .length > 0 && (
+                                                <>
+                                                    <Menu.Item
+                                                        leftSection={
+                                                            <MantineIcon
+                                                                icon={IconBolt}
+                                                            />
+                                                        }
+                                                        onClick={
+                                                            preAggAuditHandlers.open
+                                                        }
+                                                    >
+                                                        Pre-aggregation audit
+                                                    </Menu.Item>
+                                                    <Menu.Divider />
+                                                </>
+                                            )}
                                         <Menu.Item
                                             leftSection={
                                                 <MantineIcon icon={IconCopy} />
@@ -756,6 +807,16 @@ const DashboardHeader = ({
                             />
                         )}
                 </Group>
+            )}
+            {preAggregatesEnabled && preAggregateStatuses && (
+                <PreAggregateAuditDrawer
+                    opened={isPreAggAuditOpen}
+                    onClose={preAggAuditHandlers.close}
+                    statuses={preAggregateStatuses}
+                    activeTabUuid={activeTabUuid}
+                    dashboardTabs={dashboardTabs ?? []}
+                    onSwitchTab={(tab) => onSwitchTab?.(tab)}
+                />
             )}
         </PageHeader>
     );

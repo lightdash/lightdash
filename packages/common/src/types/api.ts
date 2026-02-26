@@ -464,6 +464,9 @@ export type HealthState = {
         enabled: boolean;
         retentionDays: number;
     };
+    preAggregates: {
+        enabled: boolean;
+    };
 };
 
 // Deploy Session Types

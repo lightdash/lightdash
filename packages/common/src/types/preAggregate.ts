@@ -127,6 +127,28 @@ export type PreAggregateMaterialization = {
     updatedAt: Date;
 };
 
+export const preAggregateMissReasonLabels: Record<
+    PreAggregateMissReason,
+    string
+> = {
+    [PreAggregateMissReason.NO_PRE_AGGREGATES_DEFINED]:
+        'No pre-aggregates defined',
+    [PreAggregateMissReason.DIMENSION_NOT_IN_PRE_AGGREGATE]:
+        'Dimension not in pre-aggregate',
+    [PreAggregateMissReason.METRIC_NOT_IN_PRE_AGGREGATE]:
+        'Metric not in pre-aggregate',
+    [PreAggregateMissReason.NON_ADDITIVE_METRIC]: 'Non-additive metric',
+    [PreAggregateMissReason.CUSTOM_SQL_METRIC]: 'Custom SQL metric',
+    [PreAggregateMissReason.FILTER_DIMENSION_NOT_IN_PRE_AGGREGATE]:
+        'Filter dimension not in pre-aggregate',
+    [PreAggregateMissReason.GRANULARITY_TOO_FINE]: 'Granularity too fine',
+    [PreAggregateMissReason.CUSTOM_DIMENSION_PRESENT]:
+        'Custom dimension present',
+    [PreAggregateMissReason.CUSTOM_METRIC_PRESENT]: 'Custom metric present',
+    [PreAggregateMissReason.TABLE_CALCULATION_PRESENT]:
+        'Table calculation present',
+};
+
 export type PreAggregateSchedulerDetails = {
     projectUuid: string;
     organizationUuid: string;

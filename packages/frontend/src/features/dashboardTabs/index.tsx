@@ -965,6 +965,9 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                                               key={
                                                                                   tile.uuid
                                                                               }
+                                                                              data-tile-uuid={
+                                                                                  tile.uuid
+                                                                              }
                                                                           >
                                                                               <TrackSection
                                                                                   name={
@@ -1056,6 +1059,9 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                           (tile, idx) => (
                                                               <div
                                                                   key={
+                                                                      tile.uuid
+                                                                  }
+                                                                  data-tile-uuid={
                                                                       tile.uuid
                                                                   }
                                                               >
