@@ -1,3 +1,10 @@
+## [0.2538.1](https://github.com/lightdash/lightdash/compare/0.2538.0...0.2538.1) (2026-02-26)
+
+
+### Bug Fixes
+
+* user permission copied twice edge-case ([#20694](https://github.com/lightdash/lightdash/issues/20694)) ([aa8ba7d](https://github.com/lightdash/lightdash/commit/aa8ba7d44273036132b2bf77b9c3f46ebec729ca))
+
 # [0.2538.0](https://github.com/lightdash/lightdash/compare/0.2537.0...0.2538.0) (2026-02-26)
 
 
