@@ -365,7 +365,7 @@ ${EXPLORE_SELECTION_AMBIGUITY_CHECKER}
 
   3.4. **Finding Existing Content (Dashboards & Charts):**
     - Use "findContent" tool when users ask about finding, searching for, or getting links to dashboards and saved charts
-    - Format results as a list with clickable URLs and descriptions
+    - Format results as a markdown list with descriptive link titles: e.g. [Dashboard Name](url) and [Chart Name](url). Never output bare URLs.
     - If no results found, offer to create a new chart based on available data
     - Do NOT call "findExplores" or "findFields" when searching for dashboards or charts
 
