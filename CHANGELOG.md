@@ -1,3 +1,10 @@
+## [0.2536.1](https://github.com/lightdash/lightdash/compare/0.2536.0...0.2536.1) (2026-02-26)
+
+
+### Reverts
+
+* Revert "fix: stop filter autoFocus from stealing focus to last filter (#20564)" (#20624) ([8075b8a](https://github.com/lightdash/lightdash/commit/8075b8ac0122fd51887b2ccec918a58b4228093c)), closes [#20564](https://github.com/lightdash/lightdash/issues/20564) [#20624](https://github.com/lightdash/lightdash/issues/20624)
+
 # [0.2536.0](https://github.com/lightdash/lightdash/compare/0.2535.0...0.2536.0) (2026-02-26)
 
 
