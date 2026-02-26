@@ -229,6 +229,9 @@ export class HealthService extends BaseService {
                 enabled: this.lightdashConfig.softDelete.enabled,
                 retentionDays: this.lightdashConfig.softDelete.retentionDays,
             },
+            preAggregates: {
+                enabled: this.lightdashConfig.preAggregates.enabled,
+            },
         };
     }
 

@@ -58,7 +58,10 @@ import {
     useSavedDashboardFiltersOverrides,
 } from '../../hooks/useSavedDashboardFiltersOverrides';
 import DashboardContext from './context';
-import { type SqlChartTileMetadata } from './types';
+import {
+    type SqlChartTileMetadata,
+    type TilePreAggregateStatus,
+} from './types';
 
 const emptyFilters: DashboardFilters = {
     dimensions: [],
@@ -178,6 +181,9 @@ const DashboardProvider: React.FC<
     const [haveFiltersChanged, setHaveFiltersChanged] =
         useState<boolean>(false);
     const [resultsCacheTimes, setResultsCacheTimes] = useState<Date[]>([]);
+    const [preAggregateStatuses, setPreAggregateStatuses] = useState<
+        Record<string, TilePreAggregateStatus>
+    >({});
     const [invalidateCache, setInvalidateCache] = useState<boolean>(
         defaultInvalidateCache === true,
     );
@@ -1085,6 +1091,8 @@ const DashboardProvider: React.FC<
 
     const clearCacheAndFetch = useCallback(() => {
         setResultsCacheTimes([]);
+        setPreAggregateStatuses({});
+        setLoadedTiles(new Set());
 
         // Causes results refetch
         setInvalidateCache(true);
@@ -1183,6 +1191,36 @@ const DashboardProvider: React.FC<
         }, {});
     }, [dashboardTiles]);
 
+    const tileTabsById = useMemo(() => {
+        if (!dashboardTiles) return {};
+        return dashboardTiles.reduce<Record<string, string | undefined>>(
+            (acc, tile) => {
+                acc[tile.uuid] = tile.tabUuid;
+                return acc;
+            },
+            {},
+        );
+    }, [dashboardTiles]);
+
+    const addPreAggregateStatus = useCallback(
+        (tileUuid: string, cacheMetadata?: CacheMetadata) => {
+            const preAggregate = cacheMetadata?.preAggregate ?? null;
+            setPreAggregateStatuses((prev) => ({
+                ...prev,
+                [tileUuid]: {
+                    tileUuid,
+                    tileName: tileNamesById[tileUuid] ?? tileUuid,
+                    hit: preAggregate?.hit ?? false,
+                    preAggregateName: preAggregate?.name ?? null,
+                    reason: preAggregate?.reason ?? null,
+                    hasPreAggregateMetadata: preAggregate !== null,
+                    tabUuid: tileTabsById[tileUuid],
+                },
+            }));
+        },
+        [tileNamesById, tileTabsById],
+    );
+
     const value = {
         projectUuid,
         isDashboardLoading,
@@ -1257,6 +1295,8 @@ const DashboardProvider: React.FC<
         setHavePinnedParametersChanged,
         addParameterDefinitions,
         tileNamesById,
+        preAggregateStatuses,
+        addPreAggregateStatus,
         refreshDashboardVersion,
         isRefreshingDashboardVersion,
         markTileScreenshotReady,

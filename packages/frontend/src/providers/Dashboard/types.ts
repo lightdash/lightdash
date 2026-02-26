@@ -10,6 +10,7 @@ import {
     type ParameterDefinitions,
     type ParametersValuesMap,
     type ParameterValue,
+    type PreAggregateMatchMiss,
     type ResultColumn,
     type SortField,
 } from '@lightdash/common';
@@ -22,6 +23,17 @@ import {
 export type SqlChartTileMetadata = {
     columns: ResultColumn[];
 };
+
+export type TilePreAggregateStatus = {
+    tileUuid: string;
+    tileName: string;
+    hit: boolean;
+    preAggregateName: string | null;
+    reason: PreAggregateMatchMiss | null;
+    hasPreAggregateMetadata: boolean;
+    tabUuid: string | undefined;
+};
+
 export type DashboardContextType = {
     projectUuid?: string;
     isDashboardLoading: boolean;
@@ -120,6 +132,11 @@ export type DashboardContextType = {
     havePinnedParametersChanged: boolean;
     setHavePinnedParametersChanged: Dispatch<SetStateAction<boolean>>;
     tileNamesById: Record<string, string>;
+    preAggregateStatuses: Record<string, TilePreAggregateStatus>;
+    addPreAggregateStatus: (
+        tileUuid: string,
+        cacheMetadata: CacheMetadata,
+    ) => void;
     refreshDashboardVersion: () => Promise<void>;
     isRefreshingDashboardVersion: boolean;
     markTileScreenshotReady: (tileUuid: string) => void;
