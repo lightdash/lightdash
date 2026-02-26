@@ -2578,10 +2578,6 @@
                     },
                     "type": "array"
                 },
-                "enableColumnResize": {
-                    "description": "Enable drag-to-resize columns",
-                    "type": "boolean"
-                },
                 "hideRowNumbers": {
                     "description": "Hide row number column",
                     "type": "boolean"

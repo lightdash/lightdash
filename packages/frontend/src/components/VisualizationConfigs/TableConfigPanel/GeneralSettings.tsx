@@ -147,10 +147,7 @@ const GeneralSettings: FC = () => {
         isPivotTableEnabled,
         canUseSubtotals,
         hideRowNumbers,
-        enableColumnResize,
-        isColumnCustomizationEnabled,
         metricsAsRows,
-        setEnableColumnResize,
         setHideRowNumbers,
         setShowColumnCalculation,
         setShowResultsTotal,
@@ -248,15 +245,6 @@ const GeneralSettings: FC = () => {
                         setHideRowNumbers(!hideRowNumbers);
                     }}
                 />
-                {isColumnCustomizationEnabled && (
-                    <Checkbox
-                        label="Drag to resize columns"
-                        checked={enableColumnResize}
-                        onChange={() => {
-                            setEnableColumnResize(!enableColumnResize);
-                        }}
-                    />
-                )}
             </Config.Section>
 
             <Config.Section>

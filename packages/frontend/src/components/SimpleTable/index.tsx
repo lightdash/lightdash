@@ -199,15 +199,11 @@ const SimpleTable: FC<SimpleTableProps> = ({
         getField,
         showResultsTotal,
         showSubtotals,
-        enableColumnResize,
         updateColumnProperty,
     } = visualizationConfig.chartConfig;
 
     const onColumnWidthChange =
-        isColumnCustomizationEnabled &&
-        enableColumnResize &&
-        !isDashboard &&
-        isEditMode !== false
+        isColumnCustomizationEnabled && !isDashboard && isEditMode !== false
             ? (fieldId: string, width: number) => {
                   updateColumnProperty(fieldId, { width });
               }

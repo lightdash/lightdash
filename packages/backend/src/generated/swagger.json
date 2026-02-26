@@ -5013,10 +5013,6 @@
                         "type": "boolean",
                         "description": "Show total results count"
                     },
-                    "enableColumnResize": {
-                        "type": "boolean",
-                        "description": "Enable drag-to-resize columns"
-                    },
                     "hideRowNumbers": {
                         "type": "boolean",
                         "description": "Hide row number column"
@@ -8918,6 +8914,19 @@
                                                         "type": "string",
                                                         "enum": ["error"],
                                                         "nullable": false
+                                                    }
+                                                },
+                                                "required": ["status"],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "error",
+                                                            "success"
+                                                        ]
                                                     }
                                                 },
                                                 "required": ["status"],
