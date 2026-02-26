@@ -1,3 +1,10 @@
+# [0.2537.0](https://github.com/lightdash/lightdash/compare/0.2536.4...0.2537.0) (2026-02-26)
+
+
+### Features
+
+* add option to validate content on 'lightdash upload' ([#20665](https://github.com/lightdash/lightdash/issues/20665)) ([0d8ce25](https://github.com/lightdash/lightdash/commit/0d8ce2511fd717898a2d0f0629edc3982c8c6991))
+
 ## [0.2536.4](https://github.com/lightdash/lightdash/compare/0.2536.3...0.2536.4) (2026-02-26)
 
 
