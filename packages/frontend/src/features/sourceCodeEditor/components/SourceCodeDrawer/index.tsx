@@ -12,32 +12,21 @@ import { useSourceCodeEditor } from '../../context/useSourceCodeEditor';
 import SourceCodeEditorContent from '../SourceCodeEditorContent';
 import styles from './SourceCodeDrawer.module.css';
 
-const SourceCodeDrawer: FC = () => {
-    const { isOpen, close, toggle, hasUnsavedChanges } = useSourceCodeEditor();
+/**
+ * Inner drawer content that fetches project data.
+ * Only mounted when drawer is open to avoid API calls on unauthenticated routes.
+ */
+const SourceCodeDrawerContent: FC<{ onClose: () => void }> = ({ onClose }) => {
     const { activeProjectUuid } = useActiveProjectUuid();
     const { data: project } = useProject(activeProjectUuid);
 
     const isPreviewProject = project?.type === ProjectType.PREVIEW;
     const topOffset = NAVBAR_HEIGHT + (isPreviewProject ? BANNER_HEIGHT : 0);
 
-    // Global keyboard shortcuts
-    useHotkeys([
-        ['mod+shift+E', () => toggle()],
-        ['mod+`', () => toggle()],
-    ]);
-
-    const handleClose = () => {
-        // TODO: Add unsaved changes warning if needed
-        if (hasUnsavedChanges) {
-            // For now, just close - the content component handles unsaved changes
-        }
-        close();
-    };
-
     return (
         <Drawer
-            opened={isOpen}
-            onClose={handleClose}
+            opened
+            onClose={onClose}
             position="right"
             size="90%"
             withOverlay
@@ -63,9 +52,34 @@ const SourceCodeDrawer: FC = () => {
                 '--drawer-top-offset': `${topOffset}px`,
             }}
         >
-            {isOpen && <SourceCodeEditorContent />}
+            <SourceCodeEditorContent />
         </Drawer>
     );
+};
+
+const SourceCodeDrawer: FC = () => {
+    const { isOpen, close, toggle, hasUnsavedChanges } = useSourceCodeEditor();
+
+    // Global keyboard shortcuts
+    useHotkeys([
+        ['mod+shift+E', () => toggle()],
+        ['mod+`', () => toggle()],
+    ]);
+
+    const handleClose = () => {
+        // TODO: Add unsaved changes warning if needed
+        if (hasUnsavedChanges) {
+            // For now, just close - the content component handles unsaved changes
+        }
+        close();
+    };
+
+    // Only render the drawer content when open to avoid API calls on unauthenticated routes
+    if (!isOpen) {
+        return null;
+    }
+
+    return <SourceCodeDrawerContent onClose={handleClose} />;
 };
 
 export default SourceCodeDrawer;
