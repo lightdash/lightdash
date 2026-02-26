@@ -3441,7 +3441,19 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                 },
                 extra: { responseLength: slackifiedMarkdown.length },
             });
-            throw error;
+
+            const threadUrl = thread.agentUuid
+                ? `${this.lightdashConfig.siteUrl}/projects/${slackPrompt.projectUuid}/ai-agents/${thread.agentUuid}/threads/${slackPrompt.threadUuid}`
+                : this.lightdashConfig.siteUrl;
+
+            newResponse = await this.slackClient.postMessage({
+                organizationUuid: slackPrompt.organizationUuid,
+                text: `⚠️ The response couldn't be displayed here. <${threadUrl}|View it in Lightdash>.`,
+                username: agent?.name,
+                channel: slackPrompt.slackChannelId,
+                thread_ts: slackPrompt.slackThreadTs,
+                unfurl_links: false,
+            });
         }
 
         await this.aiAgentModel.updateModelResponse({
