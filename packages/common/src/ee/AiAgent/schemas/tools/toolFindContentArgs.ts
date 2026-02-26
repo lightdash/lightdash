@@ -13,6 +13,7 @@ Usage tips:
 - If results aren't relevant, retry with the full user query or more specific terms.
 - Dashboards with validation errors will be deprioritized.
 - Returns chart and dashboard URLs when available.
+- Dashboards show a preview of the first 5 charts and the total chart count. Use "getDashboardCharts" to see all charts for a specific dashboard.
 - It doesn't provide summaries for dashboards yet, so don't suggest this capability.`;
 
 export const toolFindContentArgsSchema = createToolSchema({

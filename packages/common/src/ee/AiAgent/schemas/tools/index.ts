@@ -4,6 +4,7 @@ export * from './toolDashboardV2Args';
 export * from './toolFindChartsArgs';
 export * from './toolFindContentArgs';
 export * from './toolFindDashboardsArgs';
+export * from './toolGetDashboardChartsArgs';
 export * from './toolFindExploresArgs';
 export * from './toolFindFieldsArgs';
 export * from './toolImproveContextArgs';

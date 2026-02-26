@@ -35,6 +35,7 @@ import { SavedChartsTableName } from '../../database/entities/savedCharts';
 import { SavedSqlTableName } from '../../database/entities/savedSql';
 import { SpaceTableName } from '../../database/entities/spaces';
 import { UserTableName } from '../../database/entities/users';
+import KnexPaginate from '../../database/pagination';
 import {
     filterByCreatedAt,
     filterByCreatedByUuid,
@@ -464,6 +465,132 @@ export class SearchModel {
                 : null,
             charts: chartsByDashboard[dashboard.uuid] || [],
         }));
+    }
+
+    async getDashboardCharts(
+        dashboardUuid: string,
+        page: number,
+        pageSize: number,
+    ): Promise<{
+        dashboardName: string;
+        charts: DashboardSearchResult['charts'];
+        pagination: {
+            page: number;
+            pageSize: number;
+            totalResults: number;
+            totalPageCount: number;
+        };
+    }> {
+        const dashboard = await this.database(DashboardsTableName)
+            .select('dashboard_uuid', 'name')
+            .where('dashboard_uuid', dashboardUuid)
+            .whereNull('deleted_at')
+            .first();
+
+        if (!dashboard) {
+            throw new NotFoundError(`Dashboard not found: ${dashboardUuid}`);
+        }
+
+        // Charts can belong to a dashboard directly (dashboard_uuid on saved_queries)
+        // or via dashboard tiles. UNION deduplicates across both sources.
+        // Column order must match between both queries (PostgreSQL UNION matches by position).
+        const directCharts = this.database(SavedChartsTableName)
+            .select(
+                { uuid: 'saved_query_uuid' },
+                'name',
+                'description',
+                { chartType: 'last_version_chart_kind' },
+                { viewsCount: 'views_count' },
+            )
+            .where('dashboard_uuid', dashboardUuid)
+            .whereNull('deleted_at');
+
+        const tileCharts = this.database(DashboardsTableName)
+            .whereNull(`${DashboardsTableName}.deleted_at`)
+            .join(
+                'dashboard_versions',
+                `${DashboardsTableName}.dashboard_id`,
+                'dashboard_versions.dashboard_id',
+            )
+            .join(
+                'dashboard_tiles',
+                'dashboard_versions.dashboard_version_id',
+                'dashboard_tiles.dashboard_version_id',
+            )
+            .join('dashboard_tile_charts', function joinTileCharts() {
+                this.on(
+                    'dashboard_tile_charts.dashboard_version_id',
+                    '=',
+                    'dashboard_tiles.dashboard_version_id',
+                ).andOn(
+                    'dashboard_tile_charts.dashboard_tile_uuid',
+                    '=',
+                    'dashboard_tiles.dashboard_tile_uuid',
+                );
+            })
+            .join(SavedChartsTableName, function nonDeletedChartJoin() {
+                this.on(
+                    `${SavedChartsTableName}.saved_query_id`,
+                    '=',
+                    'dashboard_tile_charts.saved_chart_id',
+                ).andOnNull(`${SavedChartsTableName}.deleted_at`);
+            })
+            .select(
+                { uuid: `${SavedChartsTableName}.saved_query_uuid` },
+                `${SavedChartsTableName}.name`,
+                `${SavedChartsTableName}.description`,
+                {
+                    chartType: `${SavedChartsTableName}.last_version_chart_kind`,
+                },
+                { viewsCount: `${SavedChartsTableName}.views_count` },
+            )
+            .where(`${DashboardsTableName}.dashboard_uuid`, dashboardUuid)
+            .whereRaw(
+                `dashboard_versions.dashboard_version_id = (
+                    SELECT MAX(dashboard_version_id)
+                    FROM dashboard_versions dv2
+                    WHERE dv2.dashboard_id = ${DashboardsTableName}.dashboard_id
+                )`,
+            );
+
+        type ChartRow = {
+            uuid: string;
+            name: string;
+            description: string;
+            chartType: ChartKind;
+            viewsCount: number;
+        };
+
+        const chartsQuery = this.database
+            .from(
+                this.database.raw(`(? UNION ?) as dashboard_charts`, [
+                    directCharts,
+                    tileCharts,
+                ]),
+            )
+            .select<ChartRow[]>('*');
+
+        const { data: charts, pagination } = await KnexPaginate.paginate(
+            chartsQuery,
+            { page, pageSize },
+        );
+
+        return {
+            dashboardName: dashboard.name,
+            charts: charts.map((chart) => ({
+                uuid: chart.uuid,
+                name: chart.name,
+                description: chart.description,
+                chartType: chart.chartType,
+                viewsCount: chart.viewsCount,
+            })),
+            pagination: {
+                page,
+                pageSize,
+                totalResults: pagination?.totalResults ?? 0,
+                totalPageCount: pagination?.totalPageCount ?? 0,
+            },
+        };
     }
 
     private async searchDashboardTabs(

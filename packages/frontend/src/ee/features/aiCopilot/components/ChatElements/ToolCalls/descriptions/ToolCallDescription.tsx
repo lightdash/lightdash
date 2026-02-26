@@ -13,10 +13,12 @@ import {
     type ToolFindExploresArgsV2,
     type ToolFindExploresArgsV3,
     type ToolFindFieldsArgs,
+    type ToolGetDashboardChartsArgs,
     type ToolName,
     type ToolRunQueryArgs,
     type ToolSearchFieldValuesArgs,
 } from '@lightdash/common';
+import { Badge, rem, Text } from '@mantine-8/core';
 import type { FC } from 'react';
 import type { ToolCallSummary } from '../utils/types';
 import { AiChartGenerationToolCallDescription } from './AiChartGenerationToolCallDescription';
@@ -94,6 +96,28 @@ export const ToolCallDescription: FC<{
                     searchType="charts"
                     searchQueries={findChartsToolArgs.chartSearchQueries}
                 />
+            );
+        case 'getDashboardCharts':
+            const getDashboardChartsArgs =
+                toolCall.toolArgs as ToolGetDashboardChartsArgs;
+            return (
+                <Text c="dimmed" size="xs">
+                    Looking up charts in dashboard{' '}
+                    <Badge
+                        color="gray"
+                        variant="light"
+                        size="xs"
+                        mx={rem(2)}
+                        radius="sm"
+                        style={{
+                            textTransform: 'none',
+                            fontWeight: 400,
+                        }}
+                    >
+                        {getDashboardChartsArgs.dashboardName ??
+                            getDashboardChartsArgs.dashboardUuid}
+                    </Badge>
+                </Text>
             );
         case 'generateDashboard':
             const dashboardToolArgs = toolCall.toolArgs as ToolDashboardArgs;
