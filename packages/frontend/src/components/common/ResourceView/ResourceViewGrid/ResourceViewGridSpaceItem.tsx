@@ -1,4 +1,4 @@
-import { type ResourceViewSpaceItem } from '@lightdash/common';
+import { FeatureFlags, type ResourceViewSpaceItem } from '@lightdash/common';
 import { Box, Flex, Group, Paper, Stack, Text, Tooltip } from '@mantine-8/core';
 import { useDisclosure, useHover } from '@mantine/hooks';
 import {
@@ -7,6 +7,7 @@ import {
     IconLayoutDashboard,
 } from '@tabler/icons-react';
 import { useMemo, type FC, type ReactNode } from 'react';
+import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
 import { ResourceIcon } from '../../ResourceIcon';
 import AccessInfo from '../ResourceAccessInfo';
 import ResourceViewActionMenu, {
@@ -33,6 +34,10 @@ const ResourceViewGridSpaceItem: FC<ResourceViewGridSpaceItemProps> = ({
 }) => {
     const { hovered, ref } = useHover();
     const [opened, handlers] = useDisclosure(false);
+    const { data: nestedSpacesPermissionsFlag } = useServerFeatureFlag(
+        FeatureFlags.NestedSpacesPermissions,
+    );
+    const isV2 = !!nestedSpacesPermissionsFlag?.enabled;
 
     const tooltipText = useMemo(() => {
         return getResourceAccessLabel(item);
@@ -87,9 +92,26 @@ const ResourceViewGridSpaceItem: FC<ResourceViewGridSpaceItemProps> = ({
                         </Text>
 
                         <Group gap="sm">
-                            <Flex align="center" gap={4}>
-                                <AccessInfo item={item} />
-                            </Flex>
+                            {isV2 ? (
+                                <>
+                                    <AttributeCount
+                                        Icon={IconLayoutDashboard}
+                                        count={item.data.dashboardCount}
+                                    />
+                                    <AttributeCount
+                                        Icon={IconChartBar}
+                                        count={item.data.chartCount}
+                                    />
+                                    <AttributeCount
+                                        Icon={IconFolder}
+                                        count={item.data.childSpaceCount}
+                                    />
+                                </>
+                            ) : (
+                                <Flex align="center" gap={4}>
+                                    <AccessInfo item={item} />
+                                </Flex>
+                            )}
                         </Group>
                     </Stack>
                 </Tooltip>
