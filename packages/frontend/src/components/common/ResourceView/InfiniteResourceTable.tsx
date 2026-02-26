@@ -527,12 +527,12 @@ const InfiniteResourceTable = ({
                         opacity: 0,
                     },
                     '&:hover': {
-                        td: {
-                            backgroundColor: isSelected
-                                ? theme.colors.blue[1]
-                                : theme.colors.ldGray[0],
-                            transition: `background-color ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
-                        },
+                        td: isSelected
+                            ? {}
+                            : {
+                                  backgroundColor: theme.colors.ldGray[0],
+                                  transition: `background-color ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
+                              },
 
                         'td:first-of-type > div > .explore-button-container': {
                             visibility: 'visible',
