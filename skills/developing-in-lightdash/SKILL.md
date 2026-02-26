@@ -138,6 +138,7 @@ lightdash stop-preview --name "my-feature"
 | `lightdash lint` | Validate YAML locally |
 | `lightdash preview` | Create temporary test project |
 | `lightdash sql "..." -o file.csv` | Run SQL queries against warehouse |
+| `lightdash run-chart -p chart.yml` | Execute chart YAML query against warehouse |
 
 See [CLI Reference](./resources/cli-reference.md) for full command documentation.
 
