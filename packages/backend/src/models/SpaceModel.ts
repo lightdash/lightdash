@@ -1365,12 +1365,6 @@ export class SpaceModel {
                     parent_space_uuid = CASE
                         WHEN s.space_uuid = ? THEN ?
                         ELSE s.parent_space_uuid
-                    END,
-                    -- When moving into a parent, all spaces in the subtree must inherit permissions.
-                    -- This prevents currently unsupported scenarios where a nested space has its own permissions.
-                    inherit_parent_permissions = CASE
-                        WHEN ?::uuid IS NOT NULL THEN true
-                        ELSE NOT s.is_private
                     END
                 FROM
                     -- 'm' is the space being moved.
@@ -1388,7 +1382,6 @@ export class SpaceModel {
             `,
             [
                 spaceUuid,
-                targetSpaceUuid,
                 targetSpaceUuid,
                 targetSpaceUuid,
                 spaceUuid,
