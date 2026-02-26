@@ -11,64 +11,23 @@ import {
     type Item,
 } from '@lightdash/common';
 import {
-    Box,
     Group,
     Select,
     Text,
     Tooltip,
-    useMantineTheme,
+    type ComboboxItem,
     type SelectProps,
-} from '@mantine/core';
-import {
-    forwardRef,
-    memo,
-    useCallback,
-    useEffect,
-    useMemo,
-    useRef,
-} from 'react';
+} from '@mantine-8/core';
+import { memo, useCallback, useEffect, useMemo, useRef } from 'react';
 import { FILTER_SELECT_LIMIT } from '../Filters/constants';
 import FieldIcon from '../Filters/FieldIcon';
+import classes from './FieldSelect.module.css';
 
-interface ItemComponentProps extends React.ComponentPropsWithoutRef<'div'> {
+interface FieldSelectItem extends ComboboxItem {
     item: Item;
-    label: string;
     description?: string;
     size?: SelectProps['size'];
-    selected?: boolean;
 }
-
-const ItemComponent = forwardRef<HTMLDivElement, ItemComponentProps>(
-    ({ item, label, description, size, ...rest }, ref) => (
-        <Tooltip
-            disabled={!description}
-            label={
-                <Text truncate size={size}>
-                    {description}
-                </Text>
-            }
-            position="top"
-            multiline
-            maw={400}
-            offset={-2}
-            withinPortal
-            openDelay={500}
-        >
-            <Box ref={ref} {...rest}>
-                <Group noWrap spacing={size} maw="100%">
-                    <FieldIcon
-                        style={{ flexShrink: 0 }}
-                        item={item}
-                        selected={rest.selected}
-                    />
-                    <Text span size={size} style={{ wordBreak: 'normal' }}>
-                        {label}
-                    </Text>
-                </Group>
-            </Box>
-        </Tooltip>
-    ),
-);
 
 type FieldSelectProps<T extends Item = Item> = Omit<
     SelectProps,
@@ -101,7 +60,6 @@ const FieldSelectComponent = <T extends Item = Item>({
     focusOnRender = false,
     ...rest
 }: FieldSelectProps<T>) => {
-    const theme = useMantineTheme();
     const inputRef = useRef<HTMLInputElement | null>(null); // Input ref for focus handling
     useEffect(() => {
         if (focusOnRender) {
@@ -220,50 +178,105 @@ const FieldSelectComponent = <T extends Item = Item>({
         [items, onChange],
     );
 
+    const selectData = useMemo(() => {
+        const itemEntries = sortedItems.map((i) => {
+            const group =
+                hasGrouping && isField(i)
+                    ? i.tableLabel
+                    : isCustomDimension(i)
+                      ? tableLabelMap.get(i.table) // Custom dimensions don't have table labels, so we use the table map to get them
+                      : isTableCalculation(i)
+                        ? 'Table Calculations'
+                        : undefined;
+            const entry: FieldSelectItem = {
+                item: i,
+                value: getItemId(i),
+                label: getLabel(i, hasGrouping),
+                description: isField(i) ? i.description : undefined,
+                disabled: inactiveItemIds.includes(getItemId(i)),
+            };
+            return { group, entry };
+        });
+
+        const ungrouped = itemEntries
+            .filter((e) => !e.group)
+            .map((e) => e.entry);
+
+        const grouped = new Map<string, FieldSelectItem[]>();
+        for (const { group, entry } of itemEntries) {
+            if (group) {
+                const existing = grouped.get(group);
+                if (existing) {
+                    existing.push(entry);
+                } else {
+                    grouped.set(group, [entry]);
+                }
+            }
+        }
+
+        const groupedData = [...grouped.entries()].map(
+            ([group, groupItems]) => ({
+                group,
+                items: groupItems,
+            }),
+        );
+
+        return [...ungrouped, ...groupedData];
+    }, [sortedItems, hasGrouping, tableLabelMap, inactiveItemIds]);
+
+    const renderOption = useCallback(
+        ({ option }: { option: ComboboxItem }) => {
+            const fieldOption = option as FieldSelectItem;
+            const fieldItem = fieldOption.item;
+            return (
+                <Tooltip
+                    disabled={!fieldOption.description}
+                    label={
+                        <Text truncate size={rest.size}>
+                            {fieldOption.description}
+                        </Text>
+                    }
+                    position="top"
+                    multiline
+                    maw={400}
+                    offset={-2}
+                    openDelay={500}
+                >
+                    <Group wrap="nowrap" gap={rest.size} maw="100%">
+                        <FieldIcon style={{ flexShrink: 0 }} item={fieldItem} />
+                        <Text
+                            span
+                            fz="xs"
+                            size={rest.size}
+                            style={{ wordBreak: 'normal' }}
+                        >
+                            {fieldOption.label}
+                        </Text>
+                    </Group>
+                </Tooltip>
+            );
+        },
+        [rest.size],
+    );
+
     return (
         <Select
             limit={FILTER_SELECT_LIMIT}
             ref={inputRef}
             w="100%"
+            miw={250}
             searchable
-            styles={{
-                separator: {
-                    position: 'sticky',
-                    top: 0,
-                    zIndex: 1,
-                    backgroundColor:
-                        theme.colorScheme === 'dark'
-                            ? theme.colors.dark[6]
-                            : 'white',
-                },
-                separatorLabel: {
-                    fontWeight: 600,
-                },
+            classNames={{
+                groupLabel: classes.separatorLabel,
             }}
-            dropdownComponent="div"
-            itemComponent={ItemComponent}
-            icon={item ? <FieldIcon item={item} /> : undefined}
+            renderOption={renderOption}
+            leftSection={item ? <FieldIcon item={item} /> : undefined}
             placeholder={rest.placeholder ?? 'Search field...'}
             allowDeselect={false}
             {...rest}
             value={selectedItemId}
-            data={sortedItems.map((i) => ({
-                item: i,
-                value: getItemId(i),
-                label: getLabel(i, hasGrouping),
-                description: isField(i) ? i.description : undefined,
-                group:
-                    hasGrouping && isField(i)
-                        ? i.tableLabel
-                        : isCustomDimension(i)
-                          ? tableLabelMap.get(i.table) // Custom dimensions don't have table labels, so we use the table map to get them
-                          : isTableCalculation(i)
-                            ? 'Table Calculations'
-                            : undefined,
-                disabled: inactiveItemIds.includes(getItemId(i)),
-                size: rest.size,
-            }))}
-            onChange={handleChange}
+            data={selectData}
+            onChange={(value) => value && handleChange(value)}
         />
     );
 };

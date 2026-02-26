@@ -1,0 +1,18 @@
+.actionPaper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--mantine-color-ldGray-0);
+}
+
+.actionPaper[data-with-border] {
+    border-color: transparent;
+}
+
+.actionPaperSelected {
+    background-color: var(--action-paper-bg-selected);
+}
+
+.actionPaperSelected[data-with-border] {
+    border-color: var(--action-paper-border-selected);
+}

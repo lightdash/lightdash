@@ -1,0 +1,55 @@
+@keyframes animate-text {
+    0% {
+        opacity: 0;
+    }
+    5% {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    10% {
+        opacity: 1;
+        transform: translateY(0px);
+    }
+    25% {
+        opacity: 1;
+        transform: translateY(0px);
+    }
+    30% {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    80% {
+        opacity: 0;
+    }
+    100% {
+        opacity: 0;
+    }
+}
+
+.animatedTextRoot {
+    position: relative;
+    height: var(--mantine-spacing-lg);
+    text-align: center;
+    width: 100%;
+
+    & > span {
+        animation: animate-text 16s linear infinite 0s;
+        opacity: 0;
+        overflow: hidden;
+        position: absolute;
+        width: 100%;
+        left: 0;
+    }
+
+    & span:nth-of-type(2) {
+        animation-delay: 4s;
+    }
+
+    & span:nth-of-type(3) {
+        animation-delay: 8s;
+    }
+
+    & span:nth-of-type(4) {
+        animation-delay: 12s;
+    }
+}
