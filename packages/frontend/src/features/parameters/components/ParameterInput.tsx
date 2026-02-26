@@ -3,6 +3,7 @@ import {
     FieldType,
     formatDate,
     getItemId,
+    isLightdashParameterOption,
     parseDate,
     TimeFrames,
     type FilterableItem,
@@ -19,7 +20,6 @@ import {
 } from '@mantine-8/core';
 import { DatePickerInput } from '@mantine/dates';
 import { IconPlus } from '@tabler/icons-react';
-import uniq from 'lodash/uniq';
 import React, {
     useCallback,
     useEffect,
@@ -97,6 +97,15 @@ export const ParameterInput: FC<ParameterInputProps> = ({
 
     const fieldId = field ? getItemId(field) : undefined;
 
+    // label_dimension: build fieldId for the label field (table_dimension format)
+    const labelDimensionFieldId = useMemo(() => {
+        const ld = parameter.options_from_dimension?.label_dimension;
+        if (ld && parameter.options_from_dimension) {
+            return `${parameter.options_from_dimension.model}_${ld}`;
+        }
+        return undefined;
+    }, [parameter.options_from_dimension]);
+
     // Only use fetching if we have options_from_dimension and projectUuid
     const shouldFetch = !!(
         parameter.options_from_dimension &&
@@ -118,9 +127,15 @@ export const ParameterInput: FC<ParameterInputProps> = ({
             enabled: parameter.type !== 'date',
         },
         parameterValues,
+        labelDimensionFieldId,
     );
 
-    const { results: resultsSet, refreshedAt, refetch } = fieldValuesResult;
+    const {
+        results: resultsSet,
+        labelMap,
+        refreshedAt,
+        refetch,
+    } = fieldValuesResult;
 
     useEffect(() => {
         if (forceRefresh && shouldFetch && refetch) {
@@ -181,12 +196,20 @@ export const ParameterInput: FC<ParameterInputProps> = ({
 
         // Add custom values if allowed
         if (parameter.allow_custom_values) {
-            // Needed because current values are not in the same group as parameter options
+            // Filter out current values already covered by fetched results or parameterOptions
+            // For labeled options, compare against the option's value field
             const filteredCurrentValues = currentValues.filter(
-                (option) => !fetchedResults.includes(String(option)),
+                (option, index, self) =>
+                    self.indexOf(option) === index && // deduplicate within currentValues
+                    !fetchedResults.includes(String(option)) &&
+                    !parameterOptions.some((opt) =>
+                        isLightdashParameterOption(opt)
+                            ? String(opt.value) === String(option)
+                            : String(opt) === String(option),
+                    ),
             );
 
-            return uniq([...parameterOptions, ...filteredCurrentValues]);
+            return [...parameterOptions, ...filteredCurrentValues];
         }
 
         // Always return a copy to avoid Redux immutability issues
@@ -260,16 +283,33 @@ export const ParameterInput: FC<ParameterInputProps> = ({
         const baseItems = shouldFetch
             ? optionsData.filter(
                   (option) =>
-                      option !== '__refresh__' && option !== '__create__',
+                      typeof option === 'object' ||
+                      (option !== '__refresh__' && option !== '__create__'),
               )
             : optionsData;
 
         const regularItems = [...baseItems] // Create a copy to avoid mutating Redux state
-            .sort((a, b) => String(a).localeCompare(String(b)))
-            .map((option) => ({
-                value: String(option),
-                label: formatDisplayValue(String(option)),
-            }));
+            .sort((a, b) => {
+                const aLabel = isLightdashParameterOption(a)
+                    ? a.label
+                    : formatDisplayValue(String(a));
+                const bLabel = isLightdashParameterOption(b)
+                    ? b.label
+                    : formatDisplayValue(String(b));
+                return aLabel.localeCompare(bLabel);
+            })
+            .map((option) => {
+                if (isLightdashParameterOption(option)) {
+                    return {
+                        value: String(option.value),
+                        label: option.label,
+                    };
+                }
+                return {
+                    value: String(option),
+                    label: formatDisplayValue(String(option)),
+                };
+            });
 
         const fetchedItems =
             fetchedResults.length > 0
@@ -277,10 +317,17 @@ export const ParameterInput: FC<ParameterInputProps> = ({
                       {
                           group: 'Dimension values',
                           items: [...fetchedResults] // Create a copy to avoid mutating Redux state
-                              .sort((a, b) => a.localeCompare(b))
+                              .sort((a, b) => {
+                                  // Sort by label if available, otherwise by value
+                                  const aLabel = labelMap?.get(a) ?? a;
+                                  const bLabel = labelMap?.get(b) ?? b;
+                                  return aLabel.localeCompare(bLabel);
+                              })
                               .map((option) => ({
                                   value: option,
-                                  label: formatDisplayValue(option),
+                                  label:
+                                      labelMap?.get(option) ??
+                                      formatDisplayValue(option),
                               })),
                       } satisfies ComboboxItemGroup,
                   ]
@@ -318,6 +365,7 @@ export const ParameterInput: FC<ParameterInputProps> = ({
         return [...regularItems, ...fetchedItems, ...specialItems];
     }, [
         fetchedResults,
+        labelMap,
         shouldFetch,
         optionsData,
         parameter.allow_custom_values,

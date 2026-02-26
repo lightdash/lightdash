@@ -76,11 +76,30 @@
                             "type": "boolean"
                         },
                         "options": {
-                            "description": "A list of possible values for the parameter",
+                            "description": "A list of possible values for the parameter, either as plain values or as label+value pairs",
                             "type": "array",
                             "minItems": 1,
                             "items": {
-                                "type": ["string", "number"]
+                                "oneOf": [
+                                    {
+                                        "type": ["string", "number"]
+                                    },
+                                    {
+                                        "type": "object",
+                                        "properties": {
+                                            "label": {
+                                                "description": "Display text shown in the UI",
+                                                "type": "string"
+                                            },
+                                            "value": {
+                                                "description": "Underlying value used in SQL substitution",
+                                                "type": ["string", "number"]
+                                            }
+                                        },
+                                        "required": ["label", "value"],
+                                        "additionalProperties": false
+                                    }
+                                ]
                             }
                         },
                         "default": {
@@ -104,7 +123,11 @@
                                     "type": "string"
                                 },
                                 "dimension": {
-                                    "description": "The dimension to get options from",
+                                    "description": "The dimension whose value is used in SQL substitution",
+                                    "type": "string"
+                                },
+                                "label_dimension": {
+                                    "description": "Optional dimension whose value is displayed as the option label in the UI",
                                     "type": "string"
                                 }
                             },

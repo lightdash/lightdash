@@ -3,6 +3,7 @@ import {
     getFilterRulesFromGroup,
     getItemId,
     isField,
+    isLightdashParameterOption,
     QueryHistoryStatus,
     type AndFilterGroup,
     type ApiError,
@@ -11,6 +12,7 @@ import {
     type DashboardFilterRule,
     type FieldValueSearchResult,
     type FilterableItem,
+    type LightdashParameterOption,
     type ParametersValuesMap,
 } from '@lightdash/common';
 import { useQuery, type UseQueryOptions } from '@tanstack/react-query';
@@ -76,6 +78,7 @@ const getFieldValues = async (
     filters: AndFilterGroup | undefined,
     limit: number = MAX_AUTOCOMPLETE_RESULTS,
     parameterValues?: ParametersValuesMap,
+    labelField?: string,
 ) => {
     if (!table) {
         throw new Error('Table is required to search for field values');
@@ -91,6 +94,7 @@ const getFieldValues = async (
             filters: stripTileTargetsFromFilters(filters),
             forceRefresh,
             parameters: parameterValues,
+            ...(labelField ? { labelField } : {}),
         }),
     });
 };
@@ -211,6 +215,7 @@ export const useFieldValues = (
     forceRefresh: boolean = false,
     useQueryOptions?: UseQueryOptions<FieldValueSearchResult, ApiError>,
     parameterValues?: ParametersValuesMap,
+    labelField?: string,
 ) => {
     const { embedToken } = useEmbed();
     const { data: resultsCacheFlag } = useServerFeatureFlag(
@@ -221,6 +226,8 @@ export const useFieldValues = (
     const [debouncedSearch, setDebouncedSearch] = useState<string>(search);
     const [searches, setSearches] = useState(new Set<string>());
     const [results, setResults] = useState(new Set(initialData));
+    // labelMap stores value -> label mapping when labelField is used
+    const [labelMap, setLabelMap] = useState<Map<string, string>>(new Map());
     const [resultCounts, setResultCounts] = useState<Map<string, number>>(
         new Map(),
     );
@@ -238,6 +245,7 @@ export const useFieldValues = (
             if (getFilterRulesFromGroup(filters).length > 0) {
                 setSearches(new Set<string>());
                 setResults(new Set(initialData));
+                setLabelMap(new Map());
                 setResultCounts(new Map());
             }
             setRefreshedAt(new Date(data.refreshedAt));
@@ -263,6 +271,37 @@ export const useFieldValues = (
         },
         [filters, initialData],
     );
+
+    const handleUpdateLabeledResults = useCallback(
+        (data: FieldValueSearchResult<LightdashParameterOption>) => {
+            if (getFilterRulesFromGroup(filters).length > 0) {
+                setSearches(new Set<string>());
+                setResults(new Set(initialData));
+                setLabelMap(new Map());
+                setResultCounts(new Map());
+            }
+            setRefreshedAt(new Date(data.refreshedAt));
+            setSearches((s) => s.add(data.search));
+            setResultCounts((map) => map.set(data.search, data.results.length));
+            setResults((oldSet) => {
+                const newValues = data.results.map((r) => String(r.value));
+                return new Set(
+                    [...oldSet, ...newValues].sort((a, b) =>
+                        a.localeCompare(b),
+                    ),
+                );
+            });
+            setLabelMap((oldMap) => {
+                const newMap = new Map(oldMap);
+                for (const r of data.results) {
+                    newMap.set(String(r.value), String(r.label));
+                }
+                return newMap;
+            });
+        },
+        [filters, initialData],
+    );
+
     const cachekey = [
         'project',
         projectId,
@@ -272,6 +311,7 @@ export const useFieldValues = (
         debouncedSearch,
         parameterValues,
         useAsyncPath ? 'v2' : 'v1',
+        labelField,
     ];
 
     const query = useQuery<FieldValueSearchResult, ApiError>(
@@ -290,6 +330,8 @@ export const useFieldValues = (
                 });
             }
             if (useAsyncPath) {
+                // Label support is not wired through the async (v2) endpoint yet;
+                // when enabled, labels gracefully degrade to value-only results.
                 return getFieldValuesAsync(
                     projectId!,
                     tableName,
@@ -310,6 +352,7 @@ export const useFieldValues = (
                 filters,
                 undefined,
                 parameterValues,
+                labelField,
             );
         },
         {
@@ -324,20 +367,37 @@ export const useFieldValues = (
             onSuccess: (data) => {
                 const { results: newResults, search: newSearch } = data;
 
-                const normalizedNewResults = newResults.filter(
-                    (result): result is string => typeof result === 'string',
-                );
-
-                const normalizedData = {
-                    search: newSearch,
-                    results: normalizedNewResults,
-                    cached: data.cached,
-                    refreshedAt: data.refreshedAt,
-                };
-
-                handleUpdateResults(normalizedData);
-
-                useQueryOptions?.onSuccess?.(normalizedData);
+                if (labelField && newResults.some(isLightdashParameterOption)) {
+                    // Labeled results from label_dimension
+                    const labeledResults = newResults.filter(
+                        isLightdashParameterOption,
+                    );
+                    handleUpdateLabeledResults({
+                        search: newSearch,
+                        results: labeledResults,
+                        cached: data.cached,
+                        refreshedAt: data.refreshedAt,
+                    });
+                    useQueryOptions?.onSuccess?.({
+                        search: newSearch,
+                        results: labeledResults.map((r) => String(r.value)),
+                        cached: data.cached,
+                        refreshedAt: data.refreshedAt,
+                    });
+                } else {
+                    const normalizedNewResults = newResults.filter(
+                        (result): result is string =>
+                            typeof result === 'string',
+                    );
+                    const normalizedData = {
+                        search: newSearch,
+                        results: normalizedNewResults,
+                        cached: data.cached,
+                        refreshedAt: data.refreshedAt,
+                    };
+                    handleUpdateResults(normalizedData);
+                    useQueryOptions?.onSuccess?.(normalizedData);
+                }
             },
         },
     );
@@ -354,6 +414,7 @@ export const useFieldValues = (
             setFieldName(field.name);
             setSearches(new Set<string>());
             setResults(new Set(initialData));
+            setLabelMap(new Map());
             setResultCounts(new Map());
         }
     }, [initialData, fieldName, field.name, forceRefresh]);
@@ -369,6 +430,7 @@ export const useFieldValues = (
         debouncedSearch,
         searches,
         results,
+        labelMap,
         resultCounts,
         refreshedAt,
         reset,
@@ -387,6 +449,7 @@ export const useFieldValuesSafely = (
     forceRefresh: boolean = false,
     useQueryOptions?: UseQueryOptions<FieldValueSearchResult, ApiError>,
     parameterValues?: ParametersValuesMap,
+    labelField?: string,
 ) => {
     const fieldValuesResult = useFieldValues(
         search,
@@ -411,6 +474,7 @@ export const useFieldValuesSafely = (
             enabled: !!field && useQueryOptions?.enabled !== false,
         },
         parameterValues,
+        labelField,
     );
 
     if (!field) {
@@ -438,6 +502,7 @@ export const useFieldValuesSafely = (
             debouncedSearch: undefined,
             searches: undefined,
             results: undefined,
+            labelMap: undefined,
             resultCounts: undefined,
             refreshedAt: undefined,
             reset: undefined,

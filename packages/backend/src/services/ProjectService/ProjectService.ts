@@ -5117,6 +5117,7 @@ export class ProjectService extends BaseService {
         projectUuid,
         table,
         initialFieldId,
+        initialLabelFieldId,
         search,
         limit,
         filters,
@@ -5124,6 +5125,7 @@ export class ProjectService extends BaseService {
         projectUuid: string;
         table: string;
         initialFieldId: string;
+        initialLabelFieldId?: string;
         search: string;
         limit: number;
         filters: AndFilterGroup | undefined;
@@ -5132,6 +5134,7 @@ export class ProjectService extends BaseService {
             projectUuid,
             table,
             initialFieldId,
+            initialLabelFieldId,
             search,
             limit,
             maxLimit: this.lightdashConfig.query.maxLimit,
@@ -5152,6 +5155,7 @@ export class ProjectService extends BaseService {
         parameters?: ParametersValuesMap,
         userAttributeOverrides?: UserAttributeValueMap, // EXPERIMENTAL: used to override user attributes for MCP
         context: QueryExecutionContext = QueryExecutionContext.FILTER_AUTOCOMPLETE,
+        labelField?: string,
     ) {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
@@ -5166,15 +5170,21 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
 
-        const { metricQuery, explore, field } =
-            await this._getFieldValuesMetricQuery({
-                projectUuid,
-                table,
-                initialFieldId,
-                search,
-                limit,
-                filters,
-            });
+        const {
+            metricQuery,
+            explore,
+            field,
+            labelField: resolvedLabelField,
+            labelFieldId: resolvedLabelFieldId,
+        } = await this._getFieldValuesMetricQuery({
+            projectUuid,
+            table,
+            initialFieldId,
+            initialLabelFieldId: labelField,
+            search,
+            limit,
+            filters,
+        });
 
         const warehouseCredentials = await this.getWarehouseCredentials({
             projectUuid,
@@ -5272,18 +5282,61 @@ export class ProjectService extends BaseService {
         };
 
         const { rows } = await warehouseClient.runQuery(query, queryTags);
-        const allResults: Set<string | number | boolean> = new Set();
-        for (const row of rows) {
-            const value = row[getItemId(field)];
-            if (value !== null && value !== undefined) {
-                allResults.add(value);
+
+        let resultsArray:
+            | (string | number | boolean)[]
+            | {
+                  value: string | number | boolean;
+                  label: string | number | boolean;
+              }[];
+
+        const isPrimitive = (v: unknown): v is string | number | boolean =>
+            typeof v === 'string' ||
+            typeof v === 'number' ||
+            typeof v === 'boolean';
+
+        if (resolvedLabelField && resolvedLabelFieldId) {
+            // Deduplicate by value; when multiple rows share a value, keep the first
+            // (alphabetically earliest label, since the query sorts by label field).
+            const valueFieldId = getItemId(field);
+            const seenValues = new Set<string>();
+            const labeledResults: {
+                value: string | number | boolean;
+                label: string | number | boolean;
+            }[] = [];
+            for (const row of rows) {
+                const rawValue: unknown = row[valueFieldId];
+                const rawLabel: unknown = row[resolvedLabelFieldId];
+                if (isPrimitive(rawValue)) {
+                    const valueKey = String(rawValue);
+                    if (!seenValues.has(valueKey)) {
+                        seenValues.add(valueKey);
+                        const resolvedLabel = isPrimitive(rawLabel)
+                            ? rawLabel
+                            : rawValue;
+                        labeledResults.push({
+                            value: rawValue,
+                            label: resolvedLabel,
+                        });
+                    }
+                }
             }
+            resultsArray = labeledResults;
+        } else {
+            const allResults: Set<string | number | boolean> = new Set();
+            for (const row of rows) {
+                const rawValue: unknown = row[getItemId(field)];
+                if (isPrimitive(rawValue)) {
+                    allResults.add(rawValue);
+                }
+            }
+            resultsArray = Array.from(allResults);
         }
 
         if (isUserCacheEnabled) {
             const searchResults = {
                 search,
-                results: Array.from(allResults),
+                results: resultsArray,
                 refreshedAt: new Date(),
                 cached: true,
             };
@@ -5294,8 +5347,6 @@ export class ProjectService extends BaseService {
         }
 
         await sshTunnel.disconnect();
-
-        const resultsArray = Array.from(allResults);
 
         this.analytics.track({
             event: 'field_value.search',

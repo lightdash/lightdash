@@ -13,10 +13,12 @@ import {
     validConfigWithCustomGranularities,
     validConfigWithDateParameter,
     validConfigWithDateParameterFromDimension,
+    validConfigWithLabeledOptions,
     validConfigWithMixedArrayTypes,
     validConfigWithNumberArrayParameter,
     validConfigWithNumberParameter,
     validConfigWithOptionsFromDimension,
+    validConfigWithOptionsFromDimensionAndLabel,
     validConfigWithoutCustomGranularities,
     validConfigWithParameters,
     validConfigWithStringTypeExplicit,
@@ -267,5 +269,46 @@ describe('loadLightdashProjectConfig', () => {
             validConfigWithoutCustomGranularities,
         );
         expect(config.custom_granularities).toBeUndefined();
+    });
+
+    it('should load a valid config with options_from_dimension and label_dimension', async () => {
+        const config = await loadLightdashProjectConfig(
+            validConfigWithOptionsFromDimensionAndLabel,
+        );
+        expect(config).toEqual({
+            spotlight: {
+                default_visibility: 'show',
+            },
+            parameters: {
+                employer: {
+                    label: 'Employer',
+                    options_from_dimension: {
+                        model: 'employer_lookup',
+                        dimension: 'employer_id',
+                        label_dimension: 'employer_name',
+                    },
+                },
+            },
+        });
+    });
+
+    it('should load a valid config with labeled options (label+value pairs)', async () => {
+        const config = await loadLightdashProjectConfig(
+            validConfigWithLabeledOptions,
+        );
+        expect(config).toEqual({
+            spotlight: {
+                default_visibility: 'show',
+            },
+            parameters: {
+                status: {
+                    label: 'Status',
+                    options: [
+                        { label: 'Active', value: 'active_id_1' },
+                        { label: 'Inactive', value: 'inactive_id_2' },
+                    ],
+                },
+            },
+        });
     });
 });
