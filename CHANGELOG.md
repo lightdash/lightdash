@@ -1,3 +1,10 @@
+## [0.2527.1](https://github.com/lightdash/lightdash/compare/0.2527.0...0.2527.1) (2026-02-26)
+
+
+### Bug Fixes
+
+* format findContent results as markdown links instead of bare URLs ([#20646](https://github.com/lightdash/lightdash/issues/20646)) ([db7c1e9](https://github.com/lightdash/lightdash/commit/db7c1e9c983077c355c798ba243add8813ec23bc))
+
 # [0.2527.0](https://github.com/lightdash/lightdash/compare/0.2526.0...0.2527.0) (2026-02-26)
 
 
