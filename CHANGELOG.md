@@ -1,3 +1,15 @@
+## [0.2536.3](https://github.com/lightdash/lightdash/compare/0.2536.2...0.2536.3) (2026-02-26)
+
+
+### Bug Fixes
+
+* quote CTE names in pivot queries to support spaces in field names ([#20685](https://github.com/lightdash/lightdash/issues/20685)) ([3c09cc5](https://github.com/lightdash/lightdash/commit/3c09cc54ae8feceedc4b614100ac59a0a72a699d)), closes [#20683](https://github.com/lightdash/lightdash/issues/20683)
+
+
+### Reverts
+
+* Revert "feat: add debug heap snapshot endpoint to API v1 router (#20629)" (#20686) ([88af3b6](https://github.com/lightdash/lightdash/commit/88af3b6ffd63bf1e248fdf7024db565a6d03ad17)), closes [#20629](https://github.com/lightdash/lightdash/issues/20629) [#20686](https://github.com/lightdash/lightdash/issues/20686)
+
 ## [0.2536.2](https://github.com/lightdash/lightdash/compare/0.2536.1...0.2536.2) (2026-02-26)
 
 
