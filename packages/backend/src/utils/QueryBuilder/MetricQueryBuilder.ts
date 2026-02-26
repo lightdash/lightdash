@@ -2670,12 +2670,12 @@ export class MetricQueryBuilder {
         );
 
         if (sdMetricIds.length > 0) {
-            const fieldQuoteChar =
-                this.args.warehouseSqlBuilder.getFieldQuoteChar();
+            // Base query has dimensions or regular metrics — wrap it and join
             const sdBaseCteName = 'sd_base';
-            ctes.push(
-                MetricQueryBuilder.wrapAsCte(sdBaseCteName, finalSelectParts),
-            );
+
+            const hasNonSdSelects =
+                Object.keys(dimensionsSQL.selects).length > 0 ||
+                metricsSQL.selects.length > 0;
 
             const {
                 ctes: sdCtes,
@@ -2692,12 +2692,35 @@ export class MetricQueryBuilder {
             });
             ctes.push(...sdCtes);
 
-            finalSelectParts = [
-                `SELECT`,
-                [`  ${sdBaseCteName}.*`, ...sdMetricSelects].join(',\n'),
-                `FROM ${sdBaseCteName}`,
-                ...sdJoins,
-            ];
+            if (hasNonSdSelects) {
+                ctes.push(
+                    MetricQueryBuilder.wrapAsCte(
+                        sdBaseCteName,
+                        finalSelectParts,
+                    ),
+                );
+
+                finalSelectParts = [
+                    `SELECT`,
+                    [`  ${sdBaseCteName}.*`, ...sdMetricSelects].join(',\n'),
+                    `FROM ${sdBaseCteName}`,
+                    ...sdJoins,
+                ];
+            } else {
+                // Only sum_distinct metrics, no dimensions or regular metrics
+                // Select directly from the first sd CTE (no base needed)
+                finalSelectParts = [
+                    `SELECT`,
+                    sdMetricSelects.join(',\n'),
+                    `FROM ${sdCtes.length > 0 ? `sd_${snakeCaseName(sdMetricIds[0])}` : 'sd_base'}`,
+                ];
+
+                // If there are multiple sd CTEs, cross join them
+                for (let i = 1; i < sdMetricIds.length; i += 1) {
+                    const sdCteName = `sd_${snakeCaseName(sdMetricIds[i])}`;
+                    finalSelectParts.push(`CROSS JOIN ${sdCteName}`);
+                }
+            }
         }
 
         const { simpleTableCalcs, interdependentTableCalcs } =
