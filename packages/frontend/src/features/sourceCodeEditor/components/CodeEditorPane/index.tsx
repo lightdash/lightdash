@@ -133,6 +133,17 @@ const CodeEditorPane: FC<CodeEditorPaneProps> = ({
                 horizontal: 'hidden' as const,
                 verticalScrollbarSize: 8,
             },
+            // Modern editor features
+            bracketPairColorization: { enabled: true },
+            guides: {
+                indentation: false, // Disable indent guides for cleaner look
+                highlightActiveIndentation: false,
+                bracketPairs: true,
+            },
+            smoothScrolling: true,
+            cursorSmoothCaretAnimation: 'on' as const,
+            fontLigatures: true,
+            renderLineHighlightOnlyWhenFocus: false,
         }),
         [isReadOnly],
     );

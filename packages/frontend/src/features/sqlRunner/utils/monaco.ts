@@ -104,6 +104,21 @@ export const getLightdashMonacoTheme = (colorScheme: ColorScheme) => {
                 'editor.selectionForeground': '#ffffff',
                 'editor.wordHighlightBackground': '#454545',
                 'editor.selectionHighlightBorder': '#7262FF',
+                // Subtle indentation guides
+                'editorIndentGuide.background': '#2a2a2a',
+                'editorIndentGuide.activeBackground': '#3a3a3a',
+                // Bracket pair colors
+                'editorBracketHighlight.foreground1': '#7262FF',
+                'editorBracketHighlight.foreground2': '#ff79c6',
+                'editorBracketHighlight.foreground3': '#50fa7b',
+                'editorBracketHighlight.foreground4': '#ffb86c',
+                'editorBracketHighlight.foreground5': '#8be9fd',
+                'editorBracketHighlight.foreground6': '#bd93f9',
+                // Line numbers
+                'editorLineNumber.foreground': '#4a4a4a',
+                'editorLineNumber.activeForeground': '#888888',
+                // Gutter
+                'editorGutter.background': '#1a1a1a',
             },
         };
     }
@@ -131,6 +146,21 @@ export const getLightdashMonacoTheme = (colorScheme: ColorScheme) => {
             'editor.selectionForeground': '#24292e',
             'editor.wordHighlightBackground': '#dce6f0',
             'editor.selectionHighlightBorder': '#7262FF',
+            // Subtle indentation guides
+            'editorIndentGuide.background': '#e8e8e8',
+            'editorIndentGuide.activeBackground': '#d0d0d0',
+            // Bracket pair colors
+            'editorBracketHighlight.foreground1': '#7262FF',
+            'editorBracketHighlight.foreground2': '#d6336c',
+            'editorBracketHighlight.foreground3': '#0d9649',
+            'editorBracketHighlight.foreground4': '#e85d04',
+            'editorBracketHighlight.foreground5': '#0078d4',
+            'editorBracketHighlight.foreground6': '#8b5cf6',
+            // Line numbers
+            'editorLineNumber.foreground': '#b0b0b0',
+            'editorLineNumber.activeForeground': '#6b7280',
+            // Gutter
+            'editorGutter.background': '#f8f9fa',
         },
     };
 };
