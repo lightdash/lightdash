@@ -1,1 +1,1 @@
-export { SourceCodeEditorProvider } from './context';
+export { SourceCodeEditorProvider, useSourceCodeEditor } from './context';
