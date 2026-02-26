@@ -1,10 +1,15 @@
-import { AnyType, QueryHistoryStatus } from '@lightdash/common';
+import {
+    AnyType,
+    PreAggregateMissReason,
+    QueryHistoryStatus,
+} from '@lightdash/common';
 import express from 'express';
 import http from 'http';
 import { Knex } from 'knex';
 import { performance } from 'perf_hooks';
 import prometheus from 'prom-client';
 import { LightdashConfig } from './config/parseConfig';
+import { PreAggregateMaterializationsTableName } from './database/entities/preAggregates';
 import Logger from './logging/logger';
 import { SchedulerClient } from './scheduler/SchedulerClient';
 
@@ -26,6 +31,18 @@ export default class PrometheusMetrics {
     public aiAgentStreamFirstChunkHistogram: prometheus.Histogram | null = null;
 
     public aiAgentTTFTHistogram: prometheus.Histogram | null = null;
+
+    // Pre-aggregate metrics
+    public preAggregateMatchCounter: prometheus.Counter<string> | null = null;
+
+    public preAggregateMaterializationCounter: prometheus.Counter<string> | null =
+        null;
+
+    public preAggregateMaterializationDurationHistogram: prometheus.Histogram<string> | null =
+        null;
+
+    public preAggregateActiveMaterializationsGauge: prometheus.Gauge | null =
+        null;
 
     constructor(config: LightdashConfig['prometheus']) {
         this.config = config;
@@ -162,6 +179,42 @@ export default class PrometheusMetrics {
                     ],
                     ...rest,
                 });
+
+                // Initialize pre-aggregate metrics
+                this.preAggregateMatchCounter = new prometheus.Counter({
+                    name: 'pre_aggregate_match_total',
+                    help: 'Total number of pre-aggregate match attempts',
+                    labelNames: ['result', 'miss_reason'],
+                    ...rest,
+                });
+
+                this.preAggregateMaterializationCounter =
+                    new prometheus.Counter({
+                        name: 'pre_aggregate_materialization_total',
+                        help: 'Total number of pre-aggregate materializations by outcome',
+                        labelNames: ['status', 'trigger'],
+                        ...rest,
+                    });
+
+                this.preAggregateMaterializationDurationHistogram =
+                    new prometheus.Histogram({
+                        name: 'pre_aggregate_materialization_duration_ms',
+                        help: 'Histogram of pre-aggregate materialization duration in milliseconds',
+                        labelNames: ['status', 'trigger'],
+                        buckets: [
+                            1000, // 1s
+                            5000, // 5s
+                            10000, // 10s
+                            30000, // 30s
+                            60000, // 1min
+                            120000, // 2min
+                            300000, // 5min
+                            600000, // 10min
+                            900000, // 15min
+                            1800000, // 30min
+                        ],
+                        ...rest,
+                    });
 
                 const app = express();
                 this.server = http.createServer(app);
@@ -409,6 +462,51 @@ export default class PrometheusMetrics {
                 },
             });
         }
+    }
+
+    public incrementPreAggregateMatch(
+        hit: boolean,
+        missReason?: PreAggregateMissReason,
+    ) {
+        if (this.preAggregateMatchCounter) {
+            this.preAggregateMatchCounter.inc({
+                result: hit ? 'hit' : 'miss',
+                miss_reason: hit ? 'none' : missReason || 'unknown',
+            });
+        }
+    }
+
+    public monitorPreAggregates(knex: Knex) {
+        const { enabled, ...rest } = this.config;
+        if (!enabled) {
+            return;
+        }
+
+        this.preAggregateActiveMaterializationsGauge = new prometheus.Gauge({
+            name: 'pre_aggregate_active_materializations',
+            help: 'Current number of active pre-aggregate materializations',
+            ...rest,
+            async collect() {
+                try {
+                    const result = await knex(
+                        PreAggregateMaterializationsTableName,
+                    )
+                        .where('status', 'active')
+                        .count({ count: '*' })
+                        .first<{ count: string | number }>();
+                    this.set(Number(result?.count ?? 0));
+                } catch (error) {
+                    Logger.error(
+                        'Failed to collect active pre-aggregate materializations metric, setting to 0',
+                        {
+                            error:
+                                error instanceof Error ? error.message : error,
+                        },
+                    );
+                    this.set(0);
+                }
+            },
+        });
     }
 
     public stop() {
