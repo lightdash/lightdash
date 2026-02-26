@@ -4,10 +4,12 @@ import {
     convertLightdashModelsToDbtModels,
     DbtManifest,
     DbtManifestVersion,
+    DbtModelNode,
     Explore,
     ExploreError,
     getCompiledModels,
     getDbtManifestVersion,
+    getErrorMessage,
     getModelsFromManifest,
     getSchemaStructureFromDbtModels,
     isExploreError,
@@ -102,6 +104,62 @@ const getExploresFromLightdashYmlProject = async (
     return validExplores;
 };
 
+/**
+ * When using --defer, non-selected models pulled in via joins
+ * have incorrect schema/relation_name (they point to the dev target
+ * instead of production). Return new models with production values
+ * from the state manifest.
+ */
+async function patchDeferredModels(
+    compiledModels: DbtModelNode[],
+    originallySelectedModelIds: string[],
+    state: string,
+): Promise<DbtModelNode[]> {
+    const statePath = path.resolve(state);
+    GlobalState.debug(`> Loading state manifest for defer from ${statePath}`);
+    try {
+        const stateManifest = await loadManifest({
+            targetDir: statePath,
+        });
+        const stateModels = getModelsFromManifest(stateManifest);
+        const stateModelMap = new Map(stateModels.map((m) => [m.unique_id, m]));
+
+        const patchedModels = compiledModels.map((model) => {
+            if (originallySelectedModelIds.includes(model.unique_id)) {
+                return model;
+            }
+            const stateModel = stateModelMap.get(model.unique_id);
+            if (!stateModel) {
+                return model;
+            }
+            GlobalState.debug(
+                `> Deferred model ${model.name}: using production schema ${stateModel.schema}`,
+            );
+            return {
+                ...model,
+                relation_name: stateModel.relation_name,
+                schema: stateModel.schema,
+                database: stateModel.database,
+            };
+        });
+
+        const patchedCount = patchedModels.filter(
+            (m, i) => m !== compiledModels[i],
+        ).length;
+        if (patchedCount > 0) {
+            GlobalState.debug(
+                `> Patched ${patchedCount} deferred model(s) with production schema`,
+            );
+        }
+        return patchedModels;
+    } catch (e) {
+        GlobalState.debug(
+            `> Warning: Could not load state manifest for defer patching: ${getErrorMessage(e)}`,
+        );
+        return compiledModels;
+    }
+}
+
 export const compile = async (options: CompileHandlerOptions) => {
     const dbtVersionResult = await tryGetDbtVersion();
     const executionId = uuidv4();
@@ -158,7 +216,7 @@ export const compile = async (options: CompileHandlerOptions) => {
             targetPath: options.targetPath,
         });
 
-        const compiledModelIds: string[] | undefined =
+        const { compiledModelIds, originallySelectedModelIds } =
             await maybeCompileModelsAndJoins(
                 { targetDir: context.targetDir },
                 options,
@@ -171,12 +229,24 @@ export const compile = async (options: CompileHandlerOptions) => {
             compiledModelIds,
         );
 
+        // When using --defer, non-selected models pulled in via joins
+        // have incorrect schema/relation_name (they point to the dev target
+        // instead of production). Patch them from the state manifest.
+        const modelsForValidation =
+            options.defer && options.state && originallySelectedModelIds
+                ? await patchDeferredModels(
+                      compiledModels,
+                      originallySelectedModelIds,
+                      options.state,
+                  )
+                : compiledModels;
+
         const adapterType = manifest.metadata.adapter_type;
         const { valid: validModels, invalid: failedExplores } =
             await validateDbtModel(
                 adapterType,
                 manifestVersion,
-                compiledModels,
+                modelsForValidation,
             );
 
         if (failedExplores.length > 0) {
