@@ -111,14 +111,37 @@ export class SchedulerClient {
         this.lightdashConfig = lightdashConfig;
         this.analytics = analytics;
         this.schedulerModel = schedulerModel;
-        this.graphileUtils = makeWorkerUtils({
-            connectionString: lightdashConfig.database.connectionUri,
-        })
-            .then((utils) => utils)
-            .catch((e: AnyType) => {
-                Logger.error('Error migrating graphile worker', e);
-                process.exit(1);
-            });
+        this.graphileUtils = (async () => {
+            const maxAttempts = 10;
+            const baseDelayMs = 3000;
+            for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+                try {
+                    // eslint-disable-next-line no-await-in-loop
+                    return await makeWorkerUtils({
+                        connectionString:
+                            lightdashConfig.database.connectionUri,
+                    });
+                } catch (e: AnyType) {
+                    if (attempt === maxAttempts) {
+                        Logger.error(
+                            'Error migrating graphile worker, giving up',
+                            e,
+                        );
+                        return process.exit(1);
+                    }
+                    const delay = baseDelayMs * 2 ** (attempt - 1);
+                    Logger.warn(
+                        `Error migrating graphile worker (attempt ${attempt}/${maxAttempts}), retrying in ${delay}ms`,
+                        e,
+                    );
+                    // eslint-disable-next-line no-await-in-loop
+                    await new Promise((resolve) => {
+                        setTimeout(resolve, delay);
+                    });
+                }
+            }
+            return process.exit(1);
+        })() as Promise<WorkerUtils>;
     }
 
     static async processJob<T extends SchedulerTaskName>(
