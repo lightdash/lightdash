@@ -349,9 +349,9 @@ const ShareSpaceModalV2A: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
                 actions={
                     <Box>
                         <Text c="ldGray.7" fz="xs">
-                            Learn more about permissions in our{' '}
+                            Learn more about space permissions in our{' '}
                             <Anchor
-                                href="https://docs.lightdash.com/references/roles"
+                                href="https://docs.lightdash.com/references/workspace/spaces#managing-access-to-a-space"
                                 target="_blank"
                                 rel="noreferrer"
                                 fz="xs"
