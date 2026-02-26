@@ -1,5 +1,5 @@
 import { SupportedDbtAdapter, type DbtModelNode } from '../types/dbt';
-import { type Explore } from '../types/explore';
+import { ExploreType, InlineErrorType, type Explore } from '../types/explore';
 import { DimensionType, FieldType } from '../types/field';
 import { DEFAULT_SPOTLIGHT_CONFIG } from '../types/lightdashProjectConfig';
 import { TimeFrames } from '../types/timeFrames';
@@ -1216,5 +1216,233 @@ describe('explore-scoped additional dimensions', () => {
         expect(table.metrics.average_revenue.showUnderlyingValues).toEqual([
             'custom_field',
         ]);
+    });
+});
+
+describe('pre-aggregates metadata parsing', () => {
+    it('attaches parsed pre-aggregates to explore', async () => {
+        const explores = await convertExplores(
+            [
+                {
+                    ...model,
+                    meta: {
+                        pre_aggregates: [
+                            {
+                                name: 'orders_rollup',
+                                dimensions: ['myColumnName'],
+                                metrics: ['order_count'],
+                                time_dimension: 'myColumnName',
+                                granularity: 'day',
+                            },
+                        ],
+                    },
+                },
+            ],
+            false,
+            SupportedDbtAdapter.POSTGRES,
+            [],
+            warehouseClientMock,
+            {
+                spotlight: DEFAULT_SPOTLIGHT_CONFIG,
+            },
+        );
+
+        expect(explores).toHaveLength(1);
+        expect(explores[0]).not.toHaveProperty('errors');
+        expect((explores[0] as Explore).preAggregates).toStrictEqual([
+            {
+                name: 'orders_rollup',
+                dimensions: ['myColumnName'],
+                metrics: ['order_count'],
+                timeDimension: 'myColumnName',
+                granularity: TimeFrames.DAY,
+            },
+        ]);
+    });
+
+    it('does not attach pre-aggregates when metadata is missing', async () => {
+        const explores = await convertExplores(
+            [{ ...model, meta: {} }],
+            false,
+            SupportedDbtAdapter.POSTGRES,
+            [],
+            warehouseClientMock,
+            {
+                spotlight: DEFAULT_SPOTLIGHT_CONFIG,
+            },
+        );
+
+        expect(explores).toHaveLength(1);
+        expect((explores[0] as Explore).preAggregates).toBeUndefined();
+    });
+
+    it('uses config.meta.pre_aggregates over meta.pre_aggregates', async () => {
+        const explores = await convertExplores(
+            [
+                {
+                    ...model,
+                    meta: {
+                        pre_aggregates: [
+                            {
+                                name: 'from_meta',
+                                dimensions: ['myColumnName'],
+                                metrics: ['meta_metric'],
+                            },
+                        ],
+                    },
+                    config: {
+                        ...(model.config || { materialized: 'table' }),
+                        meta: {
+                            pre_aggregates: [
+                                {
+                                    name: 'from_config',
+                                    dimensions: ['customers.first_name'],
+                                    metrics: ['config_metric'],
+                                },
+                            ],
+                        },
+                    },
+                },
+            ],
+            false,
+            SupportedDbtAdapter.POSTGRES,
+            [],
+            warehouseClientMock,
+            {
+                spotlight: DEFAULT_SPOTLIGHT_CONFIG,
+            },
+        );
+
+        expect(explores).toHaveLength(1);
+        expect((explores[0] as Explore).preAggregates).toStrictEqual([
+            {
+                name: 'from_config',
+                dimensions: ['customers.first_name'],
+                metrics: ['config_metric'],
+            },
+        ]);
+    });
+
+    it('returns metadata parse errors when pre-aggregate shape is invalid', async () => {
+        const explores = await convertExplores(
+            [
+                {
+                    ...model,
+                    meta: {
+                        pre_aggregates: [
+                            {
+                                name: '',
+                                dimensions: ['myColumnName'],
+                                metrics: ['metric_1'],
+                            },
+                        ],
+                    },
+                },
+            ],
+            false,
+            SupportedDbtAdapter.POSTGRES,
+            [],
+            warehouseClientMock,
+            {
+                spotlight: DEFAULT_SPOTLIGHT_CONFIG,
+            },
+        );
+
+        expect(explores).toHaveLength(1);
+        expect(explores[0]).toHaveProperty('errors');
+    });
+});
+
+describe('pre-aggregate virtual explore generation', () => {
+    const previousFlagValue = process.env.PRE_AGGREGATES_ENABLED;
+
+    afterEach(() => {
+        process.env.PRE_AGGREGATES_ENABLED = previousFlagValue;
+    });
+
+    it('generates an internal pre-aggregate explore when enabled', async () => {
+        process.env.PRE_AGGREGATES_ENABLED = 'true';
+
+        const explores = await convertExplores(
+            [
+                {
+                    ...MODEL_WITH_METRIC,
+                    meta: {
+                        pre_aggregates: [
+                            {
+                                name: 'rollup',
+                                dimensions: ['user_id'],
+                                metrics: [
+                                    'myTable_total_num_participating_athletes',
+                                ],
+                            },
+                        ],
+                    },
+                },
+            ],
+            false,
+            SupportedDbtAdapter.POSTGRES,
+            [],
+            warehouseClientMock,
+            {
+                spotlight: DEFAULT_SPOTLIGHT_CONFIG,
+            },
+        );
+
+        expect(explores).toHaveLength(2);
+
+        const baseExplore = explores.find(
+            (explore) => !('errors' in explore) && explore.name === 'myTable',
+        ) as Explore;
+        const preAggregateExplore = explores.find(
+            (explore) =>
+                !('errors' in explore) &&
+                explore.name === '__preagg__myTable__rollup',
+        ) as Explore;
+
+        expect(baseExplore).toBeDefined();
+        expect(preAggregateExplore).toBeDefined();
+        expect(preAggregateExplore.type).toBe(ExploreType.PRE_AGGREGATE);
+        expect(preAggregateExplore.joinedTables).toEqual([]);
+        expect(preAggregateExplore.preAggregates).toEqual([]);
+        expect(
+            preAggregateExplore.tables[preAggregateExplore.baseTable].sqlTable,
+        ).toBe(MODEL_WITH_METRIC.relation_name);
+    });
+
+    it('keeps the base explore when pre-aggregate generation fails', async () => {
+        process.env.PRE_AGGREGATES_ENABLED = 'true';
+
+        const explores = await convertExplores(
+            [
+                {
+                    ...MODEL_WITH_METRIC,
+                    meta: {
+                        pre_aggregates: [
+                            {
+                                name: 'broken_rollup',
+                                dimensions: ['user_id'],
+                                metrics: ['myTable_missing_metric'],
+                            },
+                        ],
+                    },
+                },
+            ],
+            false,
+            SupportedDbtAdapter.POSTGRES,
+            [],
+            warehouseClientMock,
+            {
+                spotlight: DEFAULT_SPOTLIGHT_CONFIG,
+            },
+        );
+
+        expect(explores).toHaveLength(1);
+        expect((explores[0] as Explore).name).toBe('myTable');
+        expect(
+            (explores[0] as Explore).warnings?.some(
+                (warning) => warning.type === InlineErrorType.FIELD_ERROR,
+            ),
+        ).toBe(true);
     });
 });

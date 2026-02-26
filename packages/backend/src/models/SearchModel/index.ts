@@ -22,6 +22,7 @@ import {
     TableSelectionType,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import { type LightdashConfig } from '../../config/parseConfig';
 import {
     DashboardsTableName,
     DashboardTabsTableName,
@@ -50,6 +51,7 @@ import {
 
 type SearchModelArguments = {
     database: Knex;
+    lightdashConfig: LightdashConfig;
 };
 
 const SEARCH_LIMIT_PER_ITEM_TYPE = 10;
@@ -57,8 +59,11 @@ const SEARCH_LIMIT_PER_ITEM_TYPE = 10;
 export class SearchModel {
     private database: Knex;
 
+    private lightdashConfig: LightdashConfig;
+
     constructor(args: SearchModelArguments) {
         this.database = args.database;
+        this.lightdashConfig = args.lightdashConfig;
     }
 
     private async searchSpaces(
@@ -1249,21 +1254,35 @@ export class SearchModel {
             .limit(1);
 
         if (explores.length > 0 && explores[0].explores) {
+            const includePreAggregateDebugExplores =
+                this.lightdashConfig.preAggregates.debug;
             return explores[0].explores.filter(
                 (explore: Explore | ExploreError) => {
+                    if (
+                        !includePreAggregateDebugExplores &&
+                        explore.type === ExploreType.PRE_AGGREGATE
+                    ) {
+                        return false;
+                    }
                     if (tableSelection.type === TableSelectionType.WITH_TAGS) {
                         return (
                             hasIntersection(
                                 explore.tags || [],
                                 tableSelection.value || [],
-                            ) || explore.type === ExploreType.VIRTUAL
+                            ) ||
+                            explore.type === ExploreType.VIRTUAL ||
+                            (includePreAggregateDebugExplores &&
+                                explore.type === ExploreType.PRE_AGGREGATE)
                         );
                     }
                     if (tableSelection.type === TableSelectionType.WITH_NAMES) {
                         return (
                             (tableSelection.value || []).includes(
                                 explore.name,
-                            ) || explore.type === ExploreType.VIRTUAL
+                            ) ||
+                            explore.type === ExploreType.VIRTUAL ||
+                            (includePreAggregateDebugExplores &&
+                                explore.type === ExploreType.PRE_AGGREGATE)
                         );
                     }
                     return true;

@@ -22,6 +22,7 @@ import {
     Explore,
     ExploreCompiler,
     FieldType,
+    findMatch,
     ForbiddenError,
     formatItemValue,
     formatRawValue,
@@ -63,6 +64,7 @@ import {
     sleep,
     SqlChart,
     UnexpectedServerError,
+    UserAccessControls,
     WarehouseClient,
     type ApiDownloadAsyncQueryResults,
     type ApiDownloadAsyncQueryResultsAsCsv,
@@ -73,6 +75,7 @@ import {
     type CompiledCustomSqlDimension,
     type CompiledMetric,
     type CustomDimension,
+    type DateZoom,
     type ExecuteAsyncDashboardChartRequestParams,
     type ExecuteAsyncMetricQueryRequestParams,
     type ExecuteAsyncQueryRequestParams,
@@ -80,6 +83,7 @@ import {
     type ExecuteAsyncUnderlyingDataRequestParams,
     type Field,
     type Organization,
+    type ParameterDefinitions,
     type ParametersValuesMap,
     type PivotValuesColumn,
     type Project,
@@ -141,6 +145,7 @@ import {
 } from '../ProjectService/resultsPagination';
 import { getPivotedColumns } from './getPivotedColumns';
 import { getUnpivotedColumns } from './getUnpivotedColumns';
+import type { PreAggregationDuckDbClient } from './PreAggregationDuckDbClient';
 import {
     ExecuteAsyncSqlQueryArgs,
     isExecuteAsyncDashboardSqlChartByUuid,
@@ -154,11 +159,23 @@ import {
     type ExecuteAsyncSqlChartArgs,
     type ExecuteAsyncUnderlyingDataQueryArgs,
     type GetAsyncQueryResultsArgs,
+    type PreAggregationRoute,
     type RunAsyncWarehouseQueryArgs,
     type ScheduleDownloadAsyncQueryResultsArgs,
 } from './types';
 
 const SQL_QUERY_MOCK_EXPLORER_NAME = 'sql_query_explorer';
+
+type PreAggregationRoutingDecision =
+    | {
+          target: 'warehouse';
+          preAggregateMetadata?: CacheMetadata['preAggregate'];
+      }
+    | {
+          target: 'pre_aggregate';
+          preAggregateMetadata: CacheMetadata['preAggregate'];
+          route: PreAggregationRoute;
+      };
 
 type AsyncQueryServiceArguments = ProjectServiceArguments & {
     queryHistoryModel: QueryHistoryModel;
@@ -171,6 +188,7 @@ type AsyncQueryServiceArguments = ProjectServiceArguments & {
     schedulerClient: SchedulerClient;
     permissionsService: PermissionsService;
     persistentDownloadFileService: PersistentDownloadFileService;
+    preAggregationDuckDbClient: PreAggregationDuckDbClient;
 };
 
 export class AsyncQueryService extends ProjectService {
@@ -196,6 +214,8 @@ export class AsyncQueryService extends ProjectService {
 
     persistentDownloadFileService: PersistentDownloadFileService;
 
+    private readonly preAggregationDuckDbClient: PreAggregationDuckDbClient;
+
     constructor(args: AsyncQueryServiceArguments) {
         super(args);
         this.queryHistoryModel = args.queryHistoryModel;
@@ -209,6 +229,7 @@ export class AsyncQueryService extends ProjectService {
         this.schedulerClient = args.schedulerClient;
         this.permissionsService = args.permissionsService;
         this.persistentDownloadFileService = args.persistentDownloadFileService;
+        this.preAggregationDuckDbClient = args.preAggregationDuckDbClient;
     }
 
     private async assertSavedChartAccess(
@@ -238,6 +259,47 @@ export class AsyncQueryService extends ProjectService {
         ) {
             throw new ForbiddenError("You don't have access to this chart");
         }
+    }
+
+    private getPreAggregationRoutingDecision({
+        metricQuery,
+        explore,
+        context,
+    }: {
+        metricQuery: MetricQuery;
+        explore: Explore;
+        context: QueryExecutionContext;
+    }): PreAggregationRoutingDecision {
+        if (
+            !this.lightdashConfig.preAggregates.enabled ||
+            (explore.preAggregates || []).length === 0
+        ) {
+            return { target: 'warehouse' };
+        }
+
+        const matchResult = findMatch(metricQuery, explore);
+        const preAggregateMetadata: CacheMetadata['preAggregate'] = {
+            hit: matchResult.hit,
+            name: matchResult.preAggregateName || undefined,
+            reason: matchResult.miss || undefined,
+        };
+
+        if (
+            matchResult.hit &&
+            matchResult.preAggregateName &&
+            context !== QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION
+        ) {
+            return {
+                target: 'pre_aggregate',
+                preAggregateMetadata,
+                route: {
+                    sourceExploreName: metricQuery.exploreName,
+                    preAggregateName: matchResult.preAggregateName,
+                },
+            };
+        }
+
+        return { target: 'warehouse', preAggregateMetadata };
     }
 
     public getCacheExpiresAt(baseDate: Date) {
@@ -1387,7 +1449,12 @@ export class AsyncQueryService extends ProjectService {
         cacheKey,
         pivotConfiguration,
         originalColumns,
-    }: RunAsyncWarehouseQueryArgs) {
+        warehouseClientOverride,
+        warehouseCredentialsTypeOverride,
+    }: RunAsyncWarehouseQueryArgs & {
+        warehouseClientOverride?: WarehouseClient;
+        warehouseCredentialsTypeOverride?: CreateWarehouseCredentials['type'];
+    }) {
         let stream:
             | {
                   write: (rows: Record<string, unknown>[]) => void;
@@ -1400,6 +1467,7 @@ export class AsyncQueryService extends ProjectService {
         let warehouseCredentialsType:
             | CreateWarehouseCredentials['type']
             | undefined;
+        let warehouseClient: WarehouseClient;
 
         const analyticsIdentity = isRegisteredUser
             ? { userId }
@@ -1412,24 +1480,39 @@ export class AsyncQueryService extends ProjectService {
         };
 
         try {
-            const warehouseCredentials = await this.getWarehouseCredentials({
-                projectUuid,
-                userId,
-                isRegisteredUser,
-                isServiceAccount,
-            });
+            if (warehouseClientOverride) {
+                warehouseClient = warehouseClientOverride;
+                warehouseCredentialsType =
+                    warehouseCredentialsTypeOverride ??
+                    warehouseClient.credentials.type;
+            } else {
+                const warehouseCredentials = await this.getWarehouseCredentials(
+                    {
+                        projectUuid,
+                        userId,
+                        isRegisteredUser,
+                        isServiceAccount,
+                    },
+                );
 
-            warehouseCredentialsType = warehouseCredentials.type;
+                warehouseCredentialsType = warehouseCredentials.type;
 
-            // Get warehouse client using the projectService
-            const { warehouseClient, sshTunnel: warehouseSshTunnel } =
-                await this._getWarehouseClient(
+                // Get warehouse client using the projectService
+                const warehouseConnection = await this._getWarehouseClient(
                     projectUuid,
                     warehouseCredentials,
                     warehouseCredentialsOverrides,
                 );
+                warehouseClient = warehouseConnection.warehouseClient;
+                sshTunnel = warehouseConnection.sshTunnel;
+            }
 
-            sshTunnel = warehouseSshTunnel;
+            const executionSource = warehouseClientOverride
+                ? 'pre_aggregate_duckdb'
+                : 'warehouse';
+            this.logger.info(
+                `Running query ${queryHistoryUuid} source=${executionSource}`,
+            );
 
             const fileName =
                 QueryHistoryModel.createUniqueResultsFileName(cacheKey);
@@ -1576,6 +1659,12 @@ export class AsyncQueryService extends ProjectService {
                 warehouseCredentialsType,
                 queryTags.query_context,
             );
+
+            // Re-throw when using an override client (e.g. DuckDB pre-agg)
+            // so the caller can fall back to the warehouse path
+            if (warehouseClientOverride) {
+                throw e;
+            }
         }
 
         try {
@@ -1721,6 +1810,8 @@ export class AsyncQueryService extends ProjectService {
             ),
             usedParameters: fullQuery.usedParameters,
             responseMetricQuery,
+            userAccessControls: { userAttributes, intrinsicUserAttributes },
+            availableParameterDefinitions,
         };
     }
 
@@ -1733,6 +1824,9 @@ export class AsyncQueryService extends ProjectService {
             sql: string; // SQL generated from metric query or provided by user
             originalColumns?: ResultColumns;
             missingParameterReferences: string[];
+            preAggregationRoute?: PreAggregationRoute;
+            userAccessControls?: UserAccessControls;
+            availableParameterDefinitions?: ParameterDefinitions;
         },
         requestParameters: ExecuteAsyncQueryRequestParams,
     ): Promise<ExecuteAsyncQueryReturn> {
@@ -1753,6 +1847,10 @@ export class AsyncQueryService extends ProjectService {
                     originalColumns,
                     missingParameterReferences,
                     pivotConfiguration,
+                    parameters,
+                    preAggregationRoute,
+                    userAccessControls,
+                    availableParameterDefinitions,
                 } = args;
 
                 try {
@@ -1968,7 +2066,7 @@ export class AsyncQueryService extends ProjectService {
                         `Executing query ${queryHistoryUuid} in the main loop`,
                     );
 
-                    void this.runAsyncWarehouseQuery({
+                    const warehouseArgs: RunAsyncWarehouseQueryArgs = {
                         userId: account.user.id,
                         isRegisteredUser: account.isRegisteredUser(),
                         isServiceAccount: account.isServiceAccount(),
@@ -1981,14 +2079,62 @@ export class AsyncQueryService extends ProjectService {
                         pivotConfiguration,
                         cacheKey,
                         originalColumns,
-                    }).catch((e) => {
-                        const errorMessage = getErrorMessage(e);
+                    };
 
+                    void (async () => {
+                        const preAggResolution =
+                            this.lightdashConfig.preAggregates.enabled &&
+                            preAggregationRoute &&
+                            userAccessControls &&
+                            availableParameterDefinitions
+                                ? await this.preAggregationDuckDbClient.resolve(
+                                      {
+                                          projectUuid,
+                                          metricQuery,
+                                          dateZoom,
+                                          parameters,
+                                          preAggregationRoute,
+                                          fieldsMap,
+                                          pivotConfiguration,
+                                          startOfWeek:
+                                              warehouseCredentials.startOfWeek,
+                                          userAccessControls,
+                                          availableParameterDefinitions,
+                                      },
+                                  )
+                                : undefined;
+
+                        if (preAggResolution?.resolved) {
+                            this.logger.info(
+                                `DuckDB pre-agg route selected for ${queryHistoryUuid}: ${preAggregationRoute!.sourceExploreName}/${preAggregationRoute!.preAggregateName}`,
+                            );
+                            try {
+                                await this.runAsyncWarehouseQuery({
+                                    ...warehouseArgs,
+                                    query: preAggResolution.query,
+                                    warehouseClientOverride:
+                                        preAggResolution.warehouseClient,
+                                    warehouseCredentialsTypeOverride:
+                                        preAggResolution.warehouseClient
+                                            .credentials.type,
+                                });
+                            } catch (duckdbError) {
+                                this.logger.warn(
+                                    `DuckDB pre-agg execution failed for ${queryHistoryUuid}: ${getErrorMessage(duckdbError)}. Falling back to warehouse`,
+                                );
+                                await this.runAsyncWarehouseQuery(
+                                    warehouseArgs,
+                                );
+                            }
+                        } else {
+                            await this.runAsyncWarehouseQuery(warehouseArgs);
+                        }
+                    })().catch((e) => {
                         // There's no point in throwing the error here as this promise is called with void
                         // Set the status of the span to ERROR
                         span.setStatus({
                             code: 2, // ERROR
-                            message: errorMessage,
+                            message: getErrorMessage(e),
                         });
                     });
 
@@ -2053,11 +2199,6 @@ export class AsyncQueryService extends ProjectService {
             throw new CustomSqlQueryForbiddenError();
         }
 
-        const requestParameters: ExecuteAsyncMetricQueryRequestParams = {
-            context,
-            query: metricQuery,
-        };
-
         const queryTags: RunQueryTags = {
             ...this.getUserQueryTags(account),
             organization_uuid: organizationUuid,
@@ -2100,6 +2241,8 @@ export class AsyncQueryService extends ProjectService {
             missingParameterReferences,
             usedParameters,
             responseMetricQuery,
+            userAccessControls,
+            availableParameterDefinitions,
         } = await this.prepareMetricQueryAsyncQueryArgs({
             account,
             metricQuery,
@@ -2109,6 +2252,18 @@ export class AsyncQueryService extends ProjectService {
             parameters: combinedParameters,
             projectUuid,
             pivotConfiguration,
+        });
+
+        const requestParameters: ExecuteAsyncMetricQueryRequestParams = {
+            context,
+            query: metricQuery,
+            parameters: combinedParameters,
+        };
+
+        const routingDecision = this.getPreAggregationRoutingDecision({
+            metricQuery,
+            explore,
+            context,
         });
 
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
@@ -2121,18 +2276,27 @@ export class AsyncQueryService extends ProjectService {
                 queryTags,
                 dateZoom,
                 invalidateCache,
+                parameters: combinedParameters,
                 fields,
                 sql,
                 originalColumns: undefined,
                 missingParameterReferences,
                 pivotConfiguration,
+                ...(routingDecision.target === 'pre_aggregate' && {
+                    preAggregationRoute: routingDecision.route,
+                    userAccessControls,
+                    availableParameterDefinitions,
+                }),
             },
             requestParameters,
         );
 
         return {
             queryUuid,
-            cacheMetadata,
+            cacheMetadata: {
+                ...cacheMetadata,
+                preAggregate: routingDecision.preAggregateMetadata,
+            },
             metricQuery: responseMetricQuery,
             fields,
             warnings,
@@ -2303,6 +2467,8 @@ export class AsyncQueryService extends ProjectService {
             missingParameterReferences,
             usedParameters,
             responseMetricQuery,
+            userAccessControls,
+            availableParameterDefinitions,
         } = await this.prepareMetricQueryAsyncQueryArgs({
             account,
             metricQuery: metricQueryWithLimit,
@@ -2311,6 +2477,12 @@ export class AsyncQueryService extends ProjectService {
             parameters: combinedParameters,
             projectUuid,
             pivotConfiguration,
+        });
+
+        const routingDecision = this.getPreAggregationRoutingDecision({
+            metricQuery: metricQueryWithLimit,
+            explore,
+            context,
         });
 
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
@@ -2322,18 +2494,27 @@ export class AsyncQueryService extends ProjectService {
                 queryTags,
                 invalidateCache,
                 metricQuery: metricQueryWithLimit,
+                parameters: combinedParameters,
                 fields: fieldsWithOverrides,
                 sql,
                 originalColumns: undefined,
                 missingParameterReferences,
                 pivotConfiguration,
+                ...(routingDecision.target === 'pre_aggregate' && {
+                    preAggregationRoute: routingDecision.route,
+                    userAccessControls,
+                    availableParameterDefinitions,
+                }),
             },
             requestParameters,
         );
 
         return {
             queryUuid,
-            cacheMetadata,
+            cacheMetadata: {
+                ...cacheMetadata,
+                preAggregate: routingDecision.preAggregateMetadata,
+            },
             metricQuery: responseMetricQuery,
             fields: fieldsWithOverrides,
             warnings,
@@ -2560,6 +2741,8 @@ export class AsyncQueryService extends ProjectService {
             missingParameterReferences,
             usedParameters,
             responseMetricQuery,
+            userAccessControls,
+            availableParameterDefinitions,
         } = await this.prepareMetricQueryAsyncQueryArgs({
             account,
             metricQuery: metricQueryWithLimit,
@@ -2569,6 +2752,12 @@ export class AsyncQueryService extends ProjectService {
             parameters: combinedParameters,
             projectUuid,
             pivotConfiguration,
+        });
+
+        const routingDecision = this.getPreAggregationRoutingDecision({
+            metricQuery: metricQueryWithLimit,
+            explore,
+            context,
         });
 
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
@@ -2581,18 +2770,27 @@ export class AsyncQueryService extends ProjectService {
                 queryTags,
                 invalidateCache,
                 dateZoom,
+                parameters: combinedParameters,
                 fields: fieldsWithOverrides,
                 sql,
                 originalColumns: undefined,
                 missingParameterReferences,
                 pivotConfiguration,
+                ...(routingDecision.target === 'pre_aggregate' && {
+                    preAggregationRoute: routingDecision.route,
+                    userAccessControls,
+                    availableParameterDefinitions,
+                }),
             },
             requestParameters,
         );
 
         return {
             queryUuid,
-            cacheMetadata,
+            cacheMetadata: {
+                ...cacheMetadata,
+                preAggregate: routingDecision.preAggregateMetadata,
+            },
             appliedDashboardFilters,
             metricQuery: responseMetricQuery,
             fields: fieldsWithOverrides,
@@ -3416,40 +3614,14 @@ export class AsyncQueryService extends ProjectService {
         maxBackoffMs?: number;
         timeoutMs?: number;
     }): Promise<void> {
-        const startTime = Date.now();
-
-        const poll = async (backoffMs: number): Promise<void> => {
-            if (Date.now() - startTime > timeoutMs) {
-                throw new Error(`Query polling timed out after ${timeoutMs}ms`);
-            }
-
-            const queryHistory = await this.queryHistoryModel.get(
-                queryUuid,
-                projectUuid,
-                account,
-            );
-
-            switch (queryHistory.status) {
-                case QueryHistoryStatus.CANCELLED:
-                    throw new Error('Query was cancelled');
-                case QueryHistoryStatus.ERROR:
-                    throw new Error(
-                        queryHistory.error ?? 'Warehouse query failed',
-                    );
-                case QueryHistoryStatus.PENDING:
-                    await sleep(backoffMs);
-                    return poll(Math.min(backoffMs * 2, maxBackoffMs));
-                case QueryHistoryStatus.READY:
-                    return undefined;
-                default:
-                    return assertUnreachable(
-                        queryHistory.status,
-                        'Unknown query status',
-                    );
-            }
-        };
-
-        await poll(initialBackoffMs);
+        await this.queryHistoryModel.pollForQueryCompletion({
+            queryUuid,
+            account,
+            projectUuid,
+            initialBackoffMs,
+            maxBackoffMs,
+            timeoutMs,
+        });
     }
 
     /**

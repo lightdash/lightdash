@@ -16,6 +16,7 @@ import {
     type EmailNotificationPayload,
     type ExportCsvDashboardPayload,
     type GsheetsNotificationPayload,
+    type MaterializePreAggregatePayload,
     type MsTeamsBatchNotificationPayload,
     type MsTeamsNotificationPayload,
     type ReplaceCustomFieldsPayload,
@@ -63,6 +64,7 @@ export const SCHEDULER_TASKS = {
     GENERATE_DAILY_JOBS: 'generateDailyJobs',
     EXPORT_CSV_DASHBOARD: 'exportCsvDashboard',
     RENAME_RESOURCES: 'renameResources',
+    MATERIALIZE_PRE_AGGREGATE: 'materializePreAggregate',
     CLEAN_QUERY_HISTORY: 'cleanQueryHistory',
     DOWNLOAD_ASYNC_QUERY_RESULTS: 'downloadAsyncQueryResults',
     SYNC_SLACK_CHANNELS: 'syncSlackChannels',
@@ -101,6 +103,7 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.EXPORT_CSV_DASHBOARD]: ExportCsvDashboardPayload;
     [SCHEDULER_TASKS.SLACK_AI_PROMPT]: SlackPromptJobPayload;
     [SCHEDULER_TASKS.RENAME_RESOURCES]: RenameResourcesPayload;
+    [SCHEDULER_TASKS.MATERIALIZE_PRE_AGGREGATE]: MaterializePreAggregatePayload;
     [SCHEDULER_TASKS.CLEAN_QUERY_HISTORY]: TraceTaskBase;
     [SCHEDULER_TASKS.DOWNLOAD_ASYNC_QUERY_RESULTS]: DownloadAsyncQueryResultsPayload;
     [SCHEDULER_TASKS.SYNC_SLACK_CHANNELS]: SyncSlackChannelsPayload;

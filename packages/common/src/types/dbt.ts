@@ -35,6 +35,7 @@ export enum SupportedDbtAdapter {
     SNOWFLAKE = 'snowflake',
     REDSHIFT = 'redshift',
     POSTGRES = 'postgres',
+    DUCKDB = 'duckdb',
     TRINO = 'trino',
     CLICKHOUSE = 'clickhouse',
     ATHENA = 'athena',
@@ -106,6 +107,17 @@ type ExploreConfig = {
     >;
 };
 
+export type DbtPreAggregateDef = {
+    name: string;
+    dimensions: string[];
+    metrics: string[];
+    time_dimension?: string;
+    granularity?: string;
+    refresh?: {
+        cron?: string;
+    };
+};
+
 export type SharedDbtModelLightdashConfig = {
     default_filters?: RequiredFilter[];
     /**
@@ -149,6 +161,7 @@ export type DbtModelLightdashConfig = ExploreConfig &
         parameters?: LightdashProjectConfig['parameters'];
         primary_key?: string | string[];
         owner?: string; // model owner email
+        pre_aggregates?: DbtPreAggregateDef[];
     };
 
 export type DbtModelGroup = {
@@ -264,6 +277,7 @@ export const normaliseModelDatabase = (
         case SupportedDbtAdapter.TRINO:
         case SupportedDbtAdapter.ATHENA:
         case SupportedDbtAdapter.REDSHIFT:
+        case SupportedDbtAdapter.DUCKDB:
             if (model.database === null) {
                 throw new ParseError(
                     `Cannot parse dbt model '${model.unique_id}' because the database field has null value.`,

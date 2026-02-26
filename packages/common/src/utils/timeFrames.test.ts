@@ -30,6 +30,17 @@ describe('TimeFrames', () => {
             );
             expect(
                 timeFrameConfigs[TimeFrames.WEEK].getSql(
+                    SupportedDbtAdapter.DUCKDB,
+                    TimeFrames.WEEK,
+                    '${TABLE}.created',
+                    DimensionType.TIMESTAMP,
+                    WeekDay.WEDNESDAY,
+                ),
+            ).toEqual(
+                "(DATE_TRUNC('WEEK', (${TABLE}.created - interval '2 days')) + interval '2 days')",
+            );
+            expect(
+                timeFrameConfigs[TimeFrames.WEEK].getSql(
                     SupportedDbtAdapter.BIGQUERY,
                     TimeFrames.WEEK,
                     '${TABLE}.created',
@@ -214,6 +225,14 @@ describe('TimeFrames', () => {
             expect(
                 timeFrameConfigs[tf].getSql(
                     SupportedDbtAdapter.POSTGRES,
+                    tf,
+                    col,
+                    dt,
+                ),
+            ).toEqual(`DATE_PART('DOW', ${col})`);
+            expect(
+                timeFrameConfigs[tf].getSql(
+                    SupportedDbtAdapter.DUCKDB,
                     tf,
                     col,
                     dt,

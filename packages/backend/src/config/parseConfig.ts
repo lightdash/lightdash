@@ -1045,6 +1045,10 @@ export type LightdashConfig = {
         enabled: boolean;
         retentionDays: number;
     };
+    preAggregates: {
+        enabled: boolean;
+        debug: boolean;
+    };
 };
 
 export type SlackConfig = {
@@ -1312,11 +1316,13 @@ export const parseConfig = (): LightdashConfig => {
         copilotConfig = copilotConfigParse.data;
     }
 
+    const licenseKey = process.env.LIGHTDASH_LICENSE_KEY || null;
+
     return {
         mode,
         cookieSameSite: iframeEmbeddingEnabled ? 'none' : 'lax',
         license: {
-            licenseKey: process.env.LIGHTDASH_LICENSE_KEY || null,
+            licenseKey,
         },
         security: {
             contentSecurityPolicy: {
@@ -1909,6 +1915,14 @@ export const parseConfig = (): LightdashConfig => {
                 getIntegerFromEnvironmentVariable(
                     'SOFT_DELETE_RETENTION_DAYS',
                 ) ?? 30,
+        },
+        preAggregates: {
+            enabled:
+                licenseKey !== null &&
+                process.env.PRE_AGGREGATES_ENABLED === 'true',
+            debug:
+                licenseKey !== null &&
+                process.env.DEBUG_PRE_AGGREGATES === 'true',
         },
     };
 };

@@ -1,4 +1,5 @@
 import {
+    AnyType,
     DimensionType,
     ForbiddenError,
     NotFoundError,
@@ -11,6 +12,7 @@ import {
     type ExecuteAsyncQueryRequestParams,
     type QueryHistory,
     type ResultColumns,
+    type WarehouseClient,
 } from '@lightdash/common';
 import { type SshTunnel } from '@lightdash/warehouses';
 import { Readable } from 'stream';
@@ -33,6 +35,7 @@ import type { GroupsModel } from '../../models/GroupsModel';
 import type { JobModel } from '../../models/JobModel/JobModel';
 import type { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import type { OrganizationWarehouseCredentialsModel } from '../../models/OrganizationWarehouseCredentialsModel';
+import type { PreAggregateModel } from '../../models/PreAggregateModel';
 import type { ProjectCompileLogModel } from '../../models/ProjectCompileLogModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { projectUuid } from '../../models/ProjectModel/ProjectModel.mock';
@@ -73,6 +76,7 @@ import {
 } from '../ProjectService/ProjectService.mock';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { AsyncQueryService } from './AsyncQueryService';
+import type { PreAggregationDuckDbClient } from './PreAggregationDuckDbClient';
 import type {
     ExecuteAsyncQueryReturn,
     RunAsyncWarehouseQueryArgs,
@@ -135,6 +139,7 @@ const getMockedAsyncQueryService = (
         lightdashConfig,
         analytics: analyticsMock,
         projectModel: projectModel as unknown as ProjectModel,
+        preAggregateModel: {} as PreAggregateModel,
         onboardingModel: onboardingModel as unknown as OnboardingModel,
         savedChartModel: savedChartModel as unknown as SavedChartModel,
         jobModel: jobModel as unknown as JobModel,
@@ -195,7 +200,9 @@ const getMockedAsyncQueryService = (
             })),
         } as unknown as S3ResultsFileStorageClient,
         featureFlagModel: {} as FeatureFlagModel,
-        projectParametersModel: {} as ProjectParametersModel,
+        projectParametersModel: {
+            find: jest.fn(async () => []),
+        } as unknown as ProjectParametersModel,
         organizationWarehouseCredentialsModel:
             {} as OrganizationWarehouseCredentialsModel,
         pivotTableService: new PivotTableService({
@@ -206,6 +213,12 @@ const getMockedAsyncQueryService = (
         }),
         permissionsService: {} as PermissionsService,
         persistentDownloadFileService: {} as PersistentDownloadFileService,
+        preAggregationDuckDbClient: {
+            resolve: jest.fn(async () => ({
+                resolved: false as const,
+                reason: 'test_default_unresolved',
+            })),
+        } as unknown as PreAggregationDuckDbClient,
         projectCompileLogModel: {} as ProjectCompileLogModel,
         adminNotificationService: {} as AdminNotificationService,
         spacePermissionService: {} as SpacePermissionService,
@@ -690,6 +703,58 @@ describe('AsyncQueryService', () => {
 
             // THEN: runAsyncWarehouseQuery is NOT called (error prevents execution)
             expect(runAsyncWarehouseQuerySpy).not.toHaveBeenCalled();
+        });
+
+        test('does not resolve pre-aggregates when flag is disabled', async () => {
+            const resolveSpy = jest.fn(async () => ({
+                resolved: false as const,
+                reason: 'should_not_be_called',
+            }));
+            const service = getMockedAsyncQueryService({
+                ...lightdashConfigMock,
+                preAggregates: {
+                    enabled: false,
+                    debug: false,
+                },
+            });
+            (service as AnyType).preAggregationDuckDbClient = {
+                resolve: resolveSpy,
+            } as unknown as PreAggregationDuckDbClient;
+
+            const runAsyncWarehouseQuerySpy = jest
+                .spyOn(service, 'runAsyncWarehouseQuery')
+                .mockResolvedValue();
+
+            await service.executeAsyncQuery(
+                {
+                    account: sessionAccount,
+                    projectUuid,
+                    metricQuery: metricQueryMock,
+                    context: QueryExecutionContext.EXPLORE,
+                    dateZoom: undefined,
+                    queryTags: {
+                        query_context: QueryExecutionContext.EXPLORE,
+                    },
+                    explore: validExplore,
+                    invalidateCache: false,
+                    sql: 'SELECT * FROM test',
+                    fields: {},
+                    missingParameterReferences: [],
+                    preAggregationRoute: {
+                        sourceExploreName: metricQueryMock.exploreName,
+                        preAggregateName: 'orders_daily',
+                    },
+                    userAccessControls: {
+                        userAttributes: {},
+                        intrinsicUserAttributes: {},
+                    },
+                    availableParameterDefinitions: {},
+                },
+                { query: metricQueryMock },
+            );
+
+            expect(resolveSpy).not.toHaveBeenCalled();
+            expect(runAsyncWarehouseQuerySpy).toHaveBeenCalledTimes(1);
         });
     });
 

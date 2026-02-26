@@ -1250,4 +1250,59 @@ export class ProjectController extends BaseController {
             results,
         };
     }
+
+    /**
+     * Refresh all pre-aggregates in a project
+     * @summary Refresh project pre-aggregates
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('{projectUuid}/pre-aggregates/refresh')
+    @OperationId('refreshProjectPreAggregates')
+    async refreshPreAggregates(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccess<{ jobIds: string[] }>> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getProjectService()
+                .refreshPreAggregates(req.user!, projectUuid),
+        };
+    }
+
+    /**
+     * Refresh a single pre-aggregate explore in a project
+     * @summary Refresh project pre-aggregate by name
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('{projectUuid}/pre-aggregates/{preAggExploreName}/refresh')
+    @OperationId('refreshProjectPreAggregateByName')
+    async refreshPreAggregateByName(
+        @Path() projectUuid: string,
+        @Path() preAggExploreName: string,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccess<{ jobIds: string[] }>> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getProjectService()
+                .refreshPreAggregateByName(
+                    req.user!,
+                    projectUuid,
+                    preAggExploreName,
+                ),
+        };
+    }
 }
