@@ -1,3 +1,10 @@
+# [0.2529.0](https://github.com/lightdash/lightdash/compare/0.2528.0...0.2529.0) (2026-02-26)
+
+
+### Features
+
+* updated sum_distinct logic to use NULLs ([#20586](https://github.com/lightdash/lightdash/issues/20586)) ([b4c6ced](https://github.com/lightdash/lightdash/commit/b4c6cedf58bfeeece50bddfd4cfe812080595f60))
+
 # [0.2528.0](https://github.com/lightdash/lightdash/compare/0.2527.2...0.2528.0) (2026-02-26)
 
 
