@@ -72,7 +72,6 @@ export type ProviderProps = {
     conditionalFormattings?: ConditionalFormattingConfig[];
     minMaxMap?: ConditionalFormattingMinMaxMap;
     columnProperties?: Record<string, ColumnProperties>;
-    wrapColumnTitles?: boolean;
     footer?: {
         show?: boolean;
     };

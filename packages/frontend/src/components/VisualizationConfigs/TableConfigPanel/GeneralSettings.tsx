@@ -157,13 +157,11 @@ const GeneralSettings: FC = () => {
         setShowRowCalculation,
         setShowSubtotals,
         setShowTableNames,
-        setWrapColumnTitles,
         showColumnCalculation,
         showResultsTotal,
         showRowCalculation,
         showSubtotals,
         showTableNames,
-        wrapColumnTitles,
     } = chartConfig;
 
     return (
@@ -251,25 +249,13 @@ const GeneralSettings: FC = () => {
                     }}
                 />
                 {isColumnCustomizationEnabled && (
-                    <>
-                        <Checkbox
-                            label="Drag to resize columns"
-                            checked={enableColumnResize}
-                            onChange={() => {
-                                setEnableColumnResize(!enableColumnResize);
-                            }}
-                        />
-                        {enableColumnResize && (
-                            <Checkbox
-                                label="Wrap column titles"
-                                checked={wrapColumnTitles}
-                                ml="lg"
-                                onChange={() => {
-                                    setWrapColumnTitles(!wrapColumnTitles);
-                                }}
-                            />
-                        )}
-                    </>
+                    <Checkbox
+                        label="Drag to resize columns"
+                        checked={enableColumnResize}
+                        onChange={() => {
+                            setEnableColumnResize(!enableColumnResize);
+                        }}
+                    />
                 )}
             </Config.Section>
 

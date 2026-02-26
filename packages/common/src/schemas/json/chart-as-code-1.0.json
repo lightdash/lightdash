@@ -2578,6 +2578,10 @@
                     },
                     "type": "array"
                 },
+                "enableColumnResize": {
+                    "description": "Enable drag-to-resize columns",
+                    "type": "boolean"
+                },
                 "hideRowNumbers": {
                     "description": "Hide row number column",
                     "type": "boolean"
@@ -2604,10 +2608,6 @@
                 },
                 "showTableNames": {
                     "description": "Show table names in column headers",
-                    "type": "boolean"
-                },
-                "wrapColumnTitles": {
-                    "description": "Wrap column titles in header cells",
                     "type": "boolean"
                 }
             },

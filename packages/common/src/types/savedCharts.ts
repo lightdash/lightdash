@@ -351,8 +351,6 @@ export type TableChart = {
     hideRowNumbers?: boolean;
     /** Enable drag-to-resize columns */
     enableColumnResize?: boolean;
-    /** Wrap column titles in header cells */
-    wrapColumnTitles?: boolean;
     /** Show total results count */
     showResultsTotal?: boolean;
     /** Show subtotal rows */

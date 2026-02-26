@@ -25,13 +25,8 @@ const TableHeader: FC<TableHeaderProps> = ({
     showSubtotals = true,
 }) => {
     const theme = useMantineTheme();
-    const {
-        table,
-        headerContextMenu,
-        columns,
-        onColumnWidthChange,
-        wrapColumnTitles,
-    } = useTableContext();
+    const { table, headerContextMenu, columns, onColumnWidthChange } =
+        useTableContext();
     const HeaderContextMenu = headerContextMenu;
     const currentColOrder = React.useRef<Array<string>>([]);
     const { handleResizeStart, resizeHandleClassName } = useColumnResize({
@@ -132,9 +127,6 @@ const TableHeader: FC<TableHeaderProps> = ({
                                         {(provided, snapshot) => (
                                             <ThContainer>
                                                 <ThLabelContainer
-                                                    $wrapColumnTitles={
-                                                        wrapColumnTitles
-                                                    }
                                                     ref={provided.innerRef}
                                                     {...provided.draggableProps}
                                                     {...provided.dragHandleProps}
