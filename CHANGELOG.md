@@ -1,3 +1,10 @@
+# [0.2535.0](https://github.com/lightdash/lightdash/compare/0.2534.0...0.2535.0) (2026-02-26)
+
+
+### Features
+
+* convert source code editor to sliding drawer ([#20654](https://github.com/lightdash/lightdash/issues/20654)) ([d97b7dd](https://github.com/lightdash/lightdash/commit/d97b7dd9ef7ac01b0e7cdb211a867fffd0f3fb85))
+
 # [0.2534.0](https://github.com/lightdash/lightdash/compare/0.2533.0...0.2534.0) (2026-02-26)
 
 
