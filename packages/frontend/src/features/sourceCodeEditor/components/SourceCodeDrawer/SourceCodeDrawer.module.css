@@ -1,0 +1,21 @@
+.drawerContent {
+    display: flex;
+    flex-direction: column;
+}
+
+.drawerBody {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    overflow: hidden;
+}
+
+.drawerHeader {
+    border-bottom: 1px solid var(--mantine-color-gray-3);
+    flex-shrink: 0;
+}
+
+:global([data-mantine-color-scheme='dark']) .drawerHeader {
+    border-bottom-color: var(--mantine-color-dark-4);
+}
