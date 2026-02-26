@@ -450,6 +450,7 @@ const DashboardHeader = ({
                             }}
                         >
                             <ActionIcon
+                                aria-label="Edit dashboard"
                                 radius="md"
                                 onClick={onEditClicked}
                                 bg="foreground"
