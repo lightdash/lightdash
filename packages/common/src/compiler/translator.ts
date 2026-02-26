@@ -213,6 +213,9 @@ const convertDimension = (
         ...(meta.dimension?.ai_hint
             ? { aiHint: convertToAiHints(meta.dimension.ai_hint) }
             : {}),
+        ...(meta.dimension?.case_sensitive !== undefined
+            ? { caseSensitive: meta.dimension.case_sensitive }
+            : {}),
         ...(meta.dimension?.spotlight?.filter_by === false ||
         meta.dimension?.spotlight?.segment_by === false
             ? {
@@ -1021,6 +1024,7 @@ export const convertExplores = async (
                 groupLabel: meta.group_label,
                 joins: meta?.joins || [],
                 description: meta.description,
+                caseSensitive: meta.case_sensitive,
                 tables: tableLookup,
             },
             ...(meta.explores
@@ -1070,6 +1074,7 @@ export const convertExplores = async (
                               // Inherit joins from base model if not specified in explore config
                               joins: exploreConfig.joins || meta?.joins || [],
                               description: exploreConfig.description,
+                              caseSensitive: exploreConfig.case_sensitive,
                               tables: {
                                   ...tableLookup,
                                   // Override the base table with required filters and explore-scoped dimensions
@@ -1133,6 +1138,7 @@ export const convertExplores = async (
                     tags: tags || [],
                     baseTable: model.name,
                     groupLabel: exploreToCreate.groupLabel,
+                    caseSensitive: exploreToCreate.caseSensitive,
                     joinedTables: exploreToCreate.joins.map((join) => ({
                         table: join.join,
                         sqlOn: join.sql_on,

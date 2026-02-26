@@ -99,20 +99,33 @@ export const renderStringFilterSql = (
     dimensionSql: string,
     filter: FilterRule<FilterOperator, unknown>,
     stringQuoteChar: string,
+    caseSensitive: boolean = true,
 ): string => {
     const nonEmptyFilterValues = filter.values?.filter((v) => v !== '');
+
+    // Apply UPPER() to both dimension and values when case insensitive (caseSensitive = false)
+    const wrapDimension = (sql: string) =>
+        !caseSensitive ? `UPPER(${sql})` : sql;
+    const wrapValue = (value: string) =>
+        !caseSensitive ? value.toUpperCase() : value;
 
     switch (filter.operator) {
         case FilterOperator.EQUALS:
             return filter.values && filter.values.length > 0
-                ? `(${dimensionSql}) IN (${filter.values
-                      .map((v) => `${stringQuoteChar}${v}${stringQuoteChar}`)
+                ? `(${wrapDimension(dimensionSql)}) IN (${filter.values
+                      .map(
+                          (v) =>
+                              `${stringQuoteChar}${wrapValue(v)}${stringQuoteChar}`,
+                      )
                       .join(',')})`
                 : 'true';
         case FilterOperator.NOT_EQUALS:
             return filter.values && filter.values.length > 0
-                ? `((${dimensionSql}) NOT IN (${filter.values
-                      .map((v) => `${stringQuoteChar}${v}${stringQuoteChar}`)
+                ? `((${wrapDimension(dimensionSql)}) NOT IN (${filter.values
+                      .map(
+                          (v) =>
+                              `${stringQuoteChar}${wrapValue(v)}${stringQuoteChar}`,
+                      )
                       .join(',')}) OR (${dimensionSql}) IS NULL)`
                 : 'true';
         case FilterOperator.INCLUDE:
@@ -138,15 +151,17 @@ export const renderStringFilterSql = (
         case FilterOperator.NOT_NULL:
             return `(${dimensionSql}) IS NOT NULL`;
         case FilterOperator.STARTS_WITH:
-            const startWithQuery = nonEmptyFilterValues?.map(
-                (v) =>
-                    `(${dimensionSql}) LIKE ${stringQuoteChar}${v}%${stringQuoteChar}`,
+            const startWithQuery = nonEmptyFilterValues?.map((v) =>
+                !caseSensitive
+                    ? `UPPER(${dimensionSql}) LIKE ${stringQuoteChar}${wrapValue(v)}%${stringQuoteChar}`
+                    : `(${dimensionSql}) LIKE ${stringQuoteChar}${v}%${stringQuoteChar}`,
             );
             return startWithQuery?.join('\n  OR\n  ') || 'true';
         case FilterOperator.ENDS_WITH:
-            const endsWithQuery = nonEmptyFilterValues?.map(
-                (v) =>
-                    `(${dimensionSql}) LIKE ${stringQuoteChar}%${v}${stringQuoteChar}`,
+            const endsWithQuery = nonEmptyFilterValues?.map((v) =>
+                !caseSensitive
+                    ? `UPPER(${dimensionSql}) LIKE ${stringQuoteChar}%${wrapValue(v)}${stringQuoteChar}`
+                    : `(${dimensionSql}) LIKE ${stringQuoteChar}%${v}${stringQuoteChar}`,
             );
             return endsWithQuery?.join('\n  OR\n  ') || 'true';
         default:
@@ -494,6 +509,7 @@ export const renderTableCalculationFilterRuleSql = (
                 fieldSql,
                 escapedFilterRule,
                 stringQuoteChar,
+                true, // Table calculations default to case sensitive
             );
         case TableCalculationType.DATE:
         case TableCalculationType.TIMESTAMP:
@@ -524,6 +540,7 @@ export const renderTableCalculationFilterRuleSql = (
                 fieldSql,
                 escapedFilterRule,
                 stringQuoteChar,
+                true, // Table calculations default to case sensitive
             );
     }
 };
@@ -537,6 +554,7 @@ export const renderFilterRuleSql = (
     startOfWeek: WeekDay | null | undefined,
     adapterType: SupportedDbtAdapter,
     timezone: string = 'UTC',
+    caseSensitive: boolean = true,
 ): string => {
     if (filterRule.disabled) {
         return `1=1`; // When filter is disabled, we want to return all rows
@@ -553,6 +571,7 @@ export const renderFilterRuleSql = (
                 fieldSql,
                 escapedFilterRule,
                 stringQuoteChar,
+                caseSensitive,
             );
         }
         case DimensionType.NUMBER:
@@ -616,6 +635,7 @@ export const renderFilterRuleSqlFromField = (
     startOfWeek: WeekDay | null | undefined,
     adapterType: SupportedDbtAdapter,
     timezone: string = 'UTC',
+    exploreCaseSensitive: boolean = true,
 ): string => {
     const fieldType = isCompiledCustomSqlDimension(field)
         ? field.dimensionType
@@ -623,6 +643,18 @@ export const renderFilterRuleSqlFromField = (
     const fieldSql = isMetric(field)
         ? `${fieldQuoteChar}${getItemId(field)}${fieldQuoteChar}`
         : field.compiledSql;
+
+    // Determine if this filter should be case sensitive
+    // Priority: field-level setting > explore-level setting > default true
+    let caseSensitive: boolean;
+    if (isMetric(field)) {
+        caseSensitive = true;
+    } else if ('caseSensitive' in field && field.caseSensitive !== undefined) {
+        caseSensitive = field.caseSensitive;
+    } else {
+        caseSensitive = exploreCaseSensitive;
+    }
+
     return renderFilterRuleSql(
         filterRule,
         fieldType,
@@ -632,5 +664,6 @@ export const renderFilterRuleSqlFromField = (
         startOfWeek,
         adapterType,
         timezone,
+        caseSensitive,
     );
 };
