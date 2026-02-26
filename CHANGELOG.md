@@ -1,3 +1,15 @@
+# [0.2533.0](https://github.com/lightdash/lightdash/compare/0.2532.1...0.2533.0) (2026-02-26)
+
+
+### Bug Fixes
+
+* selected space is agressively highlighted ([#20667](https://github.com/lightdash/lightdash/issues/20667)) ([6d7a238](https://github.com/lightdash/lightdash/commit/6d7a2384c91104654e9fbe70d79e6036a38d2769))
+
+
+### Features
+
+* add pre-aggregate matching system and observability ([#20533](https://github.com/lightdash/lightdash/issues/20533)) ([e72756f](https://github.com/lightdash/lightdash/commit/e72756f32475d55198a502f8ea2769c9e80d0ca8))
+
 ## [0.2532.1](https://github.com/lightdash/lightdash/compare/0.2532.0...0.2532.1) (2026-02-26)
 
 
