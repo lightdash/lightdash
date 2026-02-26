@@ -1,3 +1,10 @@
+# [0.2527.0](https://github.com/lightdash/lightdash/compare/0.2526.0...0.2527.0) (2026-02-26)
+
+
+### Features
+
+* add source code editor ([#20638](https://github.com/lightdash/lightdash/issues/20638)) ([b67a06b](https://github.com/lightdash/lightdash/commit/b67a06b3cd0f1fb78d5a4cfe14d37c34bf5e1660))
+
 # [0.2526.0](https://github.com/lightdash/lightdash/compare/0.2525.0...0.2526.0) (2026-02-25)
 
 
