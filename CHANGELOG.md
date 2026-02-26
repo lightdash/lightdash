@@ -1,3 +1,10 @@
+## [0.2536.4](https://github.com/lightdash/lightdash/compare/0.2536.3...0.2536.4) (2026-02-26)
+
+
+### Bug Fixes
+
+* filter undefined userAccess values in useCreateInAnySpaceAccess ([#20689](https://github.com/lightdash/lightdash/issues/20689)) ([9791908](https://github.com/lightdash/lightdash/commit/9791908f8afb0128f4022f6ba0963d5f113cdcf6))
+
 ## [0.2536.3](https://github.com/lightdash/lightdash/compare/0.2536.2...0.2536.3) (2026-02-26)
 
 
