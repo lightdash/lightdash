@@ -98,6 +98,14 @@ export type ApiValidationDismissResponse = {
     status: 'ok';
 };
 
+export type ApiChartValidationResponse = ApiSuccess<{
+    errors: CreateChartValidation[];
+}>;
+
+export type ApiDashboardValidationResponse = ApiSuccess<{
+    errors: CreateDashboardValidation[];
+}>;
+
 export type ValidationSummary = Pick<
     ValidationResponse,
     'error' | 'createdAt' | 'validationId'
