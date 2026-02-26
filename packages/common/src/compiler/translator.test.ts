@@ -1218,3 +1218,140 @@ describe('explore-scoped additional dimensions', () => {
         ]);
     });
 });
+
+describe('buildRelationName fallback when relation_name is missing', () => {
+    const baseModel: DbtModelNode = {
+        ...model,
+        relation_name: undefined as unknown as string,
+    };
+
+    it('should build relation_name from database, schema, and alias for Postgres', () => {
+        const result = convertTable(
+            SupportedDbtAdapter.POSTGRES,
+            {
+                ...baseModel,
+                database: 'myDb',
+                schema: 'mySchema',
+                alias: 'myAlias',
+            },
+            [],
+            DEFAULT_SPOTLIGHT_CONFIG,
+        );
+        expect(result.sqlTable).toBe('"myDb"."mySchema"."myAlias"');
+    });
+
+    it('should build relation_name using backticks for BigQuery', () => {
+        const result = convertTable(
+            SupportedDbtAdapter.BIGQUERY,
+            {
+                ...baseModel,
+                database: 'project',
+                schema: 'dataset',
+                alias: 'table',
+            },
+            [],
+            DEFAULT_SPOTLIGHT_CONFIG,
+        );
+        expect(result.sqlTable).toBe('`project`.`dataset`.`table`');
+    });
+
+    it('should build relation_name using backticks for Databricks', () => {
+        const result = convertTable(
+            SupportedDbtAdapter.DATABRICKS,
+            { ...baseModel, database: 'catalog', schema: 'db', alias: 'tbl' },
+            [],
+            DEFAULT_SPOTLIGHT_CONFIG,
+        );
+        expect(result.sqlTable).toBe('`catalog`.`db`.`tbl`');
+    });
+
+    it('should build relation_name using double quotes for Athena', () => {
+        const result = convertTable(
+            SupportedDbtAdapter.ATHENA,
+            {
+                ...baseModel,
+                database: 'awscatalog',
+                schema: 'myschema',
+                alias: 'mytable',
+            },
+            [],
+            DEFAULT_SPOTLIGHT_CONFIG,
+        );
+        expect(result.sqlTable).toBe('"awscatalog"."myschema"."mytable"');
+    });
+
+    it('should build relation_name using double quotes for Snowflake', () => {
+        const result = convertTable(
+            SupportedDbtAdapter.SNOWFLAKE,
+            { ...baseModel, database: 'DB', schema: 'SCH', alias: 'TBL' },
+            [],
+            DEFAULT_SPOTLIGHT_CONFIG,
+        );
+        expect(result.sqlTable).toBe('"DB"."SCH"."TBL"');
+    });
+
+    it('should fall back to model name when alias is not set', () => {
+        const result = convertTable(
+            SupportedDbtAdapter.POSTGRES,
+            {
+                ...baseModel,
+                database: 'myDb',
+                schema: 'mySchema',
+                alias: undefined as unknown as string,
+                name: 'my_model',
+            },
+            [],
+            DEFAULT_SPOTLIGHT_CONFIG,
+        );
+        expect(result.sqlTable).toBe('"myDb"."mySchema"."my_model"');
+    });
+
+    it('should omit database part when database is empty', () => {
+        const result = convertTable(
+            SupportedDbtAdapter.POSTGRES,
+            {
+                ...baseModel,
+                database: '',
+                schema: 'mySchema',
+                alias: 'myAlias',
+            },
+            [],
+            DEFAULT_SPOTLIGHT_CONFIG,
+        );
+        expect(result.sqlTable).toBe('"mySchema"."myAlias"');
+    });
+
+    it('should prefer relation_name over buildRelationName when both are available', () => {
+        const result = convertTable(
+            SupportedDbtAdapter.POSTGRES,
+            {
+                ...baseModel,
+                relation_name: 'explicit_relation',
+                database: 'myDb',
+                schema: 'mySchema',
+                alias: 'myAlias',
+            },
+            [],
+            DEFAULT_SPOTLIGHT_CONFIG,
+        );
+        expect(result.sqlTable).toBe('explicit_relation');
+    });
+
+    it('should prefer sql_from over both relation_name and buildRelationName', () => {
+        const modelWithSqlFrom: DbtModelNode = {
+            ...baseModel,
+            relation_name: 'explicit_relation',
+            database: 'myDb',
+            schema: 'mySchema',
+            alias: 'myAlias',
+            meta: { sql_from: 'custom_sql_table' },
+        };
+        const result = convertTable(
+            SupportedDbtAdapter.POSTGRES,
+            modelWithSqlFrom,
+            [],
+            DEFAULT_SPOTLIGHT_CONFIG,
+        );
+        expect(result.sqlTable).toBe('custom_sql_table');
+    });
+});

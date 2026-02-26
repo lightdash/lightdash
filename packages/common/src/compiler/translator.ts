@@ -554,6 +554,42 @@ function validateSets(
     });
 }
 
+const getAdapterQuoteChar = (adapterType: SupportedDbtAdapter): string => {
+    switch (adapterType) {
+        case SupportedDbtAdapter.BIGQUERY:
+        case SupportedDbtAdapter.DATABRICKS:
+            return '`';
+        case SupportedDbtAdapter.SNOWFLAKE:
+        case SupportedDbtAdapter.REDSHIFT:
+        case SupportedDbtAdapter.POSTGRES:
+        case SupportedDbtAdapter.TRINO:
+        case SupportedDbtAdapter.ATHENA:
+        case SupportedDbtAdapter.CLICKHOUSE:
+            return '"';
+        default:
+            return assertUnreachable(
+                adapterType,
+                new ParseError(`Unknown adapter type ${adapterType}`),
+            );
+    }
+};
+
+const buildRelationName = (
+    adapterType: SupportedDbtAdapter,
+    model: DbtModelNode,
+): string | null => {
+    const identifier = model.alias || model.name;
+    if (!identifier) return null;
+    const q = getAdapterQuoteChar(adapterType);
+    const parts: string[] = [];
+    if (model.database) {
+        parts.push(`${q}${model.database}${q}`);
+    }
+    parts.push(`${q}${model.schema}${q}`);
+    parts.push(`${q}${identifier}${q}`);
+    return parts.join('.');
+};
+
 export const convertTable = (
     adapterType: SupportedDbtAdapter,
     model: DbtModelNode,
@@ -824,7 +860,10 @@ export const convertTable = (
         validateSets(dimensions, allMetrics, model, meta);
     }
 
-    const sqlTable = meta.sql_from || model.relation_name;
+    const sqlTable =
+        meta.sql_from ||
+        model.relation_name ||
+        buildRelationName(adapterType, model);
     if (sqlTable === null || sqlTable === undefined || sqlTable === '') {
         throw new Error(`Model "${model.name}" is missing a table reference.`);
     }
