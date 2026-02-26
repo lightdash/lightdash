@@ -1,3 +1,15 @@
+# [0.2528.0](https://github.com/lightdash/lightdash/compare/0.2527.2...0.2528.0) (2026-02-26)
+
+
+### Bug Fixes
+
+* sum_distinct SQL when no other dims/metrics selected ([#20640](https://github.com/lightdash/lightdash/issues/20640)) ([b4a32b9](https://github.com/lightdash/lightdash/commit/b4a32b96b10041effae2b7f46de6cd6660e9e14e))
+
+
+### Features
+
+* **style:** update Monaco editor theme with vibrant Dracula-inspired colors ([#20648](https://github.com/lightdash/lightdash/issues/20648)) ([1cd1ce8](https://github.com/lightdash/lightdash/commit/1cd1ce84e4bcef408063ce0c5062206951d4a33b)), closes [#7262](https://github.com/lightdash/lightdash/issues/7262)
+
 ## [0.2527.2](https://github.com/lightdash/lightdash/compare/0.2527.1...0.2527.2) (2026-02-26)
 
 
