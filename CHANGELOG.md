@@ -1,3 +1,16 @@
+# [0.2530.0](https://github.com/lightdash/lightdash/compare/0.2529.0...0.2530.0) (2026-02-26)
+
+
+### Bug Fixes
+
+* auto-scrolling on space share user ([#20647](https://github.com/lightdash/lightdash/issues/20647)) ([e7f334b](https://github.com/lightdash/lightdash/commit/e7f334bc1355eb73f31a3bead1c77b314f4c8c77))
+* show fallback message with Lightdash link when Slack response fails ([#20653](https://github.com/lightdash/lightdash/issues/20653)) ([92760c1](https://github.com/lightdash/lightdash/commit/92760c1cf64f799e3f2f385b7b3bbedf0852ccd0)), closes [#18105](https://github.com/lightdash/lightdash/issues/18105)
+
+
+### Features
+
+* add getDashboardCharts tool for AI agent ([#20645](https://github.com/lightdash/lightdash/issues/20645)) ([bc1e6a0](https://github.com/lightdash/lightdash/commit/bc1e6a02987ccf6e6d0cf40518c7d0ac1bca683c)), closes [#20321](https://github.com/lightdash/lightdash/issues/20321)
+
 # [0.2529.0](https://github.com/lightdash/lightdash/compare/0.2528.0...0.2529.0) (2026-02-26)
 
 
