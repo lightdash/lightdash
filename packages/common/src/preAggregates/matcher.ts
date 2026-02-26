@@ -12,6 +12,7 @@ import { getMetricsMapFromTables } from '../utils/fields';
 import { getItemId } from '../utils/item';
 import { timeFrameOrder } from '../utils/timeFrames';
 import { isReAggregatable } from './additivity';
+import { getDimensionReferences, getMetricReferences } from './references';
 
 export type MatchResult =
     | { hit: true; preAggregateName: string; miss: null }
@@ -46,36 +47,6 @@ const getDimensionsByFieldId = (
     return dimensionsByFieldId;
 };
 
-const getMetricReferences = (
-    explore: Explore,
-    metric: Explore['tables'][string]['metrics'][string],
-): Set<string> => {
-    const references = new Set<string>([`${metric.table}.${metric.name}`]);
-
-    if (metric.table === explore.baseTable) {
-        references.add(metric.name);
-    }
-
-    return references;
-};
-
-const getDimensionReferences = (
-    explore: Explore,
-    dimension: Explore['tables'][string]['dimensions'][string],
-): Set<string> => {
-    const baseDimensionName =
-        dimension.timeIntervalBaseDimensionName ?? dimension.name;
-    const references = new Set<string>([
-        `${dimension.table}.${baseDimensionName}`,
-    ]);
-
-    if (dimension.table === explore.baseTable) {
-        references.add(baseDimensionName);
-    }
-
-    return references;
-};
-
 const dimensionFieldIdMatchesDef = (
     fieldId: FieldId,
     explore: Explore,
@@ -90,10 +61,10 @@ const dimensionFieldIdMatchesDef = (
         return false;
     }
 
-    const references = getDimensionReferences(explore, dimension);
-    return Array.from(references).some((reference) =>
-        defDimensions.has(reference),
-    );
+    return getDimensionReferences({
+        dimension,
+        baseTable: explore.baseTable,
+    }).some((reference) => defDimensions.has(reference));
 };
 
 const extractDimensionFilterFieldIds = (
@@ -187,10 +158,10 @@ const getMissForDef = ({
             };
         }
 
-        const metricReferences = getMetricReferences(explore, metric);
-        const isMetricInDef = Array.from(metricReferences).some((reference) =>
-            defMetrics.has(reference),
-        );
+        const isMetricInDef = getMetricReferences({
+            metric,
+            baseTable: explore.baseTable,
+        }).some((reference) => defMetrics.has(reference));
         if (!isMetricInDef) {
             return {
                 reason: PreAggregateMissReason.METRIC_NOT_IN_PRE_AGGREGATE,

@@ -193,6 +193,14 @@ export const virtualExplore: Explore = {
     tags: [],
 };
 
+export const preAggregateExplore: Explore = {
+    ...validExplore,
+    name: '__preagg__valid_explore__rollup',
+    label: 'Pre-agg Explore',
+    type: ExploreType.PRE_AGGREGATE,
+    tags: [],
+};
+
 export const exploreWithRequiredAttributes: Explore = {
     ...validExplore,
     name: 'explore_with_required_attributes',

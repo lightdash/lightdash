@@ -1,5 +1,6 @@
 import merge from 'lodash/merge';
 import { parseDbtPreAggregates } from '../preAggregates/definition';
+import { generatePreAggregateExplores } from '../preAggregates/generatePreAggregateExplores';
 import {
     buildModelGraph,
     convertColumnMetric,
@@ -1122,7 +1123,7 @@ export const convertExplores = async (
         // Multiple explores can be created from a single model. The base explore + additional explores
         // Properties created from `model` are the same across all explores. e.g. all explores will have the same base table & warehouse
         // Properties created from `exploreToCreate` are specific to each explore. e.g. each explore can have a different name, label & joins
-        const newExplores = exploresToCreate.map((exploreToCreate) => {
+        const compiledExplores = exploresToCreate.map((exploreToCreate) => {
             try {
                 return exploreCompiler.compileExplore({
                     name: exploreToCreate.name,
@@ -1195,7 +1196,14 @@ export const convertExplores = async (
             }
         });
 
-        return [...acc, ...newExplores];
+        const exploresWithGeneratedPreAggregates = generatePreAggregateExplores(
+            {
+                compiledExplores,
+                parsedPreAggregates,
+            },
+        );
+
+        return [...acc, ...exploresWithGeneratedPreAggregates];
     }, []);
 
     return [...explores, ...exploreErrors];

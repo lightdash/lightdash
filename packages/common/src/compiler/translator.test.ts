@@ -1,5 +1,5 @@
 import { SupportedDbtAdapter, type DbtModelNode } from '../types/dbt';
-import { type Explore } from '../types/explore';
+import { ExploreType, InlineErrorType, type Explore } from '../types/explore';
 import { DimensionType, FieldType } from '../types/field';
 import { DEFAULT_SPOTLIGHT_CONFIG } from '../types/lightdashProjectConfig';
 import { TimeFrames } from '../types/timeFrames';
@@ -1350,5 +1350,99 @@ describe('pre-aggregates metadata parsing', () => {
 
         expect(explores).toHaveLength(1);
         expect(explores[0]).toHaveProperty('errors');
+    });
+});
+
+describe('pre-aggregate virtual explore generation', () => {
+    const previousFlagValue = process.env.ENABLE_PRE_AGGREGATE_VIRTUAL_EXPLORES;
+
+    afterEach(() => {
+        process.env.ENABLE_PRE_AGGREGATE_VIRTUAL_EXPLORES = previousFlagValue;
+    });
+
+    it('generates an internal pre-aggregate explore when enabled', async () => {
+        process.env.ENABLE_PRE_AGGREGATE_VIRTUAL_EXPLORES = 'true';
+
+        const explores = await convertExplores(
+            [
+                {
+                    ...MODEL_WITH_METRIC,
+                    meta: {
+                        pre_aggregates: [
+                            {
+                                name: 'rollup',
+                                dimensions: ['user_id'],
+                                metrics: [
+                                    'myTable_total_num_participating_athletes',
+                                ],
+                            },
+                        ],
+                    },
+                },
+            ],
+            false,
+            SupportedDbtAdapter.POSTGRES,
+            [],
+            warehouseClientMock,
+            {
+                spotlight: DEFAULT_SPOTLIGHT_CONFIG,
+            },
+        );
+
+        expect(explores).toHaveLength(2);
+
+        const baseExplore = explores.find(
+            (explore) => !('errors' in explore) && explore.name === 'myTable',
+        ) as Explore;
+        const preAggregateExplore = explores.find(
+            (explore) =>
+                !('errors' in explore) &&
+                explore.name === '__preagg__myTable__rollup',
+        ) as Explore;
+
+        expect(baseExplore).toBeDefined();
+        expect(preAggregateExplore).toBeDefined();
+        expect(preAggregateExplore.type).toBe(ExploreType.PRE_AGGREGATE);
+        expect(preAggregateExplore.joinedTables).toEqual([]);
+        expect(preAggregateExplore.preAggregates).toEqual([]);
+        expect(
+            preAggregateExplore.tables[preAggregateExplore.baseTable].sqlTable,
+        ).toBe(MODEL_WITH_METRIC.relation_name);
+    });
+
+    it('keeps the base explore when pre-aggregate generation fails', async () => {
+        process.env.ENABLE_PRE_AGGREGATE_VIRTUAL_EXPLORES = 'true';
+
+        const explores = await convertExplores(
+            [
+                {
+                    ...MODEL_WITH_METRIC,
+                    meta: {
+                        pre_aggregates: [
+                            {
+                                name: 'broken_rollup',
+                                dimensions: ['user_id'],
+                                metrics: ['myTable_missing_metric'],
+                            },
+                        ],
+                    },
+                },
+            ],
+            false,
+            SupportedDbtAdapter.POSTGRES,
+            [],
+            warehouseClientMock,
+            {
+                spotlight: DEFAULT_SPOTLIGHT_CONFIG,
+            },
+        );
+
+        expect(explores).toHaveLength(1);
+        expect((explores[0] as Explore).name).toBe('myTable');
+        expect(
+            (explores[0] as Explore).warnings?.some(
+                (warning) => warning.type === InlineErrorType.FIELD_ERROR,
+            ),
+        ).toBe(true);
     });
 });
