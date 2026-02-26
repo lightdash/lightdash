@@ -23,7 +23,6 @@ export const lightdashConfigWithNoSMTP: Pick<
         timezone: undefined,
         useSqlPivotResults: false,
         showExecutionTime: false,
-        enableFilterAutofocusFix: undefined,
     },
 };
 
@@ -60,7 +59,6 @@ export const lightdashConfigWithBasicSMTP: Pick<
         timezone: undefined,
         useSqlPivotResults: false,
         showExecutionTime: false,
-        enableFilterAutofocusFix: undefined,
     },
 };
 
@@ -85,7 +83,6 @@ export const lightdashConfigWithOauth2SMTP: Pick<
         timezone: undefined,
         useSqlPivotResults: false,
         showExecutionTime: false,
-        enableFilterAutofocusFix: undefined,
     },
 };
 
@@ -106,7 +103,6 @@ export const lightdashConfigWithSecurePortSMTP: Pick<
         timezone: undefined,
         useSqlPivotResults: false,
         showExecutionTime: false,
-        enableFilterAutofocusFix: undefined,
     },
 };
 
