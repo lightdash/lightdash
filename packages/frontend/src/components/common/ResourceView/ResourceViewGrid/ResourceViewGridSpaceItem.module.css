@@ -1,4 +1,6 @@
 .gridCard {
+    cursor: pointer;
+
     &:hover {
         background-color: color-mix(
             in srgb,
