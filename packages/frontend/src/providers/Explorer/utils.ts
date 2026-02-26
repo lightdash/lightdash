@@ -8,7 +8,6 @@ const DEFAULTS = {
     [ChartType.BIG_NUMBER]: () => ({ showTableNamesInLabel: false }),
     [ChartType.TABLE]: () => ({
         showTableNames: false,
-        wrapColumnTitles: false,
     }),
     [ChartType.PIE]: () => ({ showLegend: false, valueLabel: 'outside' }),
     [ChartType.FUNNEL]: () => ({}),

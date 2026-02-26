@@ -200,7 +200,6 @@ const SimpleTable: FC<SimpleTableProps> = ({
         showResultsTotal,
         showSubtotals,
         enableColumnResize,
-        wrapColumnTitles,
         updateColumnProperty,
     } = visualizationConfig.chartConfig;
 
@@ -316,9 +315,6 @@ const SimpleTable: FC<SimpleTableProps> = ({
                 showSubtotals={showSubtotals}
                 conditionalFormattings={conditionalFormattings}
                 minMaxMap={minMaxMap}
-                wrapColumnTitles={
-                    isColumnCustomizationEnabled ? wrapColumnTitles : undefined
-                }
                 onColumnWidthChange={onColumnWidthChange}
                 columnProperties={
                     visualizationConfig.chartConfig.columnProperties

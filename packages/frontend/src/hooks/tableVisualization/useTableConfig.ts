@@ -86,10 +86,6 @@ const useTableConfig = (
         tableChartConfig?.enableColumnResize ?? false,
     );
 
-    const [wrapColumnTitles, setWrapColumnTitles] = useState<boolean>(
-        tableChartConfig?.wrapColumnTitles ?? true,
-    );
-
     const [metricsAsRows, setMetricsAsRows] = useState<boolean>(
         tableChartConfig?.metricsAsRows || false,
     );
@@ -626,9 +622,7 @@ const useTableConfig = (
             showSubtotals,
             columns: columnProperties,
             hideRowNumbers,
-            ...(isColumnCustomizationEnabled
-                ? { enableColumnResize, wrapColumnTitles }
-                : {}),
+            ...(isColumnCustomizationEnabled ? { enableColumnResize } : {}),
             conditionalFormattings,
             metricsAsRows,
         }),
@@ -644,7 +638,6 @@ const useTableConfig = (
             metricsAsRows,
             isColumnCustomizationEnabled,
             enableColumnResize,
-            wrapColumnTitles,
         ],
     );
 
@@ -667,8 +660,6 @@ const useTableConfig = (
             setShowSubtotals,
             enableColumnResize,
             setEnableColumnResize,
-            wrapColumnTitles,
-            setWrapColumnTitles,
             isColumnCustomizationEnabled,
             columnProperties,
             setColumnProperties,
@@ -708,8 +699,6 @@ const useTableConfig = (
             setShowSubtotals,
             enableColumnResize,
             setEnableColumnResize,
-            wrapColumnTitles,
-            setWrapColumnTitles,
             isColumnCustomizationEnabled,
             columnProperties,
             setColumnProperties,
