@@ -89,6 +89,10 @@ export enum FeatureFlags {
      */
     DefaultUserSpaces = 'default-user-spaces',
 
+    /**
+     * Enable table column customization (resize, header wrap, tooltips)
+     */
+    EnableTableColumnCustomization = 'enable-table-column-customization',
 }
 
 export type FeatureFlag = {

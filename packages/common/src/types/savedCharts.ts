@@ -337,6 +337,7 @@ export type ColumnProperties = {
     displayStyle?: 'text' | 'bar';
     /** Color for bar display style (hex code) */
     color?: string;
+    width?: number;
 };
 
 export type TableChart = {

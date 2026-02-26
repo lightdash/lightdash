@@ -26,6 +26,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import useEmbed from '../../ee/providers/Embed/useEmbed';
 import { useCalculateSubtotals } from '../useCalculateSubtotals';
 import { useCalculateTotal } from '../useCalculateTotal';
+import { useIsTableColumnCustomizationEnabled } from '../useIsTableColumnCustomizationEnabled';
 import { type InfiniteQueryResults } from '../useQueryResults';
 import getDataAndColumns from './getDataAndColumns';
 
@@ -52,6 +53,7 @@ const useTableConfig = (
     dateZoom?: DateZoom,
 ) => {
     const { embedToken } = useEmbed();
+    const isColumnCustomizationEnabled = useIsTableColumnCustomizationEnabled();
 
     const [showColumnCalculation, setShowColumnCalculation] = useState<boolean>(
         !!tableChartConfig?.showColumnCalculation,
@@ -172,6 +174,11 @@ const useTableConfig = (
         [columnProperties],
     );
 
+    const getColumnWidth = useCallback(
+        (fieldId: string) => columnProperties[fieldId]?.width,
+        [columnProperties],
+    );
+
     const isPivotTableEnabled =
         resultsData?.metricQuery &&
         resultsData.metricQuery.metrics.length > 0 &&
@@ -267,6 +274,7 @@ const useTableConfig = (
             showTableNames,
             getFieldLabelOverride,
             isColumnFrozen,
+            getColumnWidth,
             columnOrder,
             totals: totalCalculations,
             groupedSubtotals,
@@ -280,6 +288,7 @@ const useTableConfig = (
         isColumnVisible,
         showTableNames,
         isColumnFrozen,
+        getColumnWidth,
         getFieldLabelOverride,
         totalCalculations,
         groupedSubtotals,
@@ -642,6 +651,7 @@ const useTableConfig = (
             setShowResultsTotal,
             showSubtotals,
             setShowSubtotals,
+            isColumnCustomizationEnabled,
             columnProperties,
             setColumnProperties,
             updateColumnProperty,
@@ -678,6 +688,7 @@ const useTableConfig = (
             setShowResultsTotal,
             showSubtotals,
             setShowSubtotals,
+            isColumnCustomizationEnabled,
             columnProperties,
             setColumnProperties,
             updateColumnProperty,

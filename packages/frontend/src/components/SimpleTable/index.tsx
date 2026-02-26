@@ -6,6 +6,7 @@ import {
     isChunkLoadError,
     triggerChunkErrorReload,
 } from '../../features/chunkErrorHandler';
+import { useIsTableColumnCustomizationEnabled } from '../../hooks/useIsTableColumnCustomizationEnabled';
 import LoadingChart from '../common/LoadingChart';
 import PivotTable from '../common/PivotTable';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
@@ -48,7 +49,10 @@ const SimpleTable: FC<SimpleTableProps> = ({
         visualizationConfig,
         resultsData,
         isLoading,
+        isEditMode,
     } = useVisualizationContext();
+
+    const isColumnCustomizationEnabled = useIsTableColumnCustomizationEnabled();
 
     const hasSignaledScreenshotReady = useRef(false);
 
@@ -195,7 +199,15 @@ const SimpleTable: FC<SimpleTableProps> = ({
         getField,
         showResultsTotal,
         showSubtotals,
+        updateColumnProperty,
     } = visualizationConfig.chartConfig;
+
+    const onColumnWidthChange =
+        isColumnCustomizationEnabled && !isDashboard && isEditMode !== false
+            ? (fieldId: string, width: number) => {
+                  updateColumnProperty(fieldId, { width });
+              }
+            : undefined;
 
     if (pivotTableData.error) {
         const isWorkerFetchError = isChunkLoadError(pivotTableData.error);
@@ -260,6 +272,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
                             columnProperties={
                                 visualizationConfig.chartConfig.columnProperties
                             }
+                            onColumnWidthChange={onColumnWidthChange}
                             {...rest}
                         />
                         {showResultsTotal && (
@@ -298,6 +311,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
                 showSubtotals={showSubtotals}
                 conditionalFormattings={conditionalFormattings}
                 minMaxMap={minMaxMap}
+                onColumnWidthChange={onColumnWidthChange}
                 columnProperties={
                     visualizationConfig.chartConfig.columnProperties
                 }

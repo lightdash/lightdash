@@ -50,6 +50,8 @@ export class FeatureFlagModel {
                 this.getSavedMetricsTreeEnabled.bind(this),
             [FeatureFlags.DefaultUserSpaces]:
                 this.getDefaultUserSpacesEnabled.bind(this),
+            [FeatureFlags.EnableTableColumnCustomization]:
+                this.getTableColumnCustomizationEnabled.bind(this),
         };
     }
 
@@ -284,4 +286,29 @@ export class FeatureFlagModel {
         };
     }
 
+    private async getTableColumnCustomizationEnabled({
+        user,
+        featureFlagId,
+    }: FeatureFlagLogicArgs) {
+        const enabled =
+            this.lightdashConfig.query.enableTableColumnCustomization ??
+            (user !== undefined
+                ? await isFeatureFlagEnabled(
+                      FeatureFlags.EnableTableColumnCustomization,
+                      {
+                          userUuid: user.userUuid,
+                          organizationUuid: user.organizationUuid,
+                      },
+                      {
+                          throwOnTimeout: false,
+                          timeoutMilliseconds: 500,
+                      },
+                  )
+                : false);
+
+        return {
+            id: featureFlagId,
+            enabled,
+        };
+    }
 }

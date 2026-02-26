@@ -290,7 +290,9 @@ export const FooterCell = styled.th<{ $isNaN: boolean }>`
     background-color: var(--mantine-color-ldGray-0);
 `;
 
-export const Th = styled.th``;
+export const Th = styled.th`
+    position: relative;
+`;
 
 export const ThContainer = styled.div`
     display: flex;
@@ -301,7 +303,7 @@ export const ThContainer = styled.div`
 export const ThLabelContainer = styled.div``;
 
 export const ThActionsContainer = styled.div`
-    flex: 1;
+    flex-shrink: 0;
     display: flex;
     flex-direction: row;
     justify-content: flex-end;
