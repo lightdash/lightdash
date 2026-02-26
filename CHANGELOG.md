@@ -1,3 +1,10 @@
+# [0.2538.0](https://github.com/lightdash/lightdash/compare/0.2537.0...0.2538.0) (2026-02-26)
+
+
+### Features
+
+* add case sensitivity configuration for string filters ([#20693](https://github.com/lightdash/lightdash/issues/20693)) ([2c211e9](https://github.com/lightdash/lightdash/commit/2c211e9d211c58cb8f8e0a19c6174e409635938f))
+
 # [0.2537.0](https://github.com/lightdash/lightdash/compare/0.2536.4...0.2537.0) (2026-02-26)
 
 
