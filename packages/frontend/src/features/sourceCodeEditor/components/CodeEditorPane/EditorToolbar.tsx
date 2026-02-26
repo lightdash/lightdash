@@ -86,7 +86,7 @@ const EditorToolbar: FC<EditorToolbarProps> = ({
                     <>
                         <Button
                             size="xs"
-                            variant="subtle"
+                            variant={hasUnsavedChanges ? 'filled' : 'subtle'}
                             leftSection={
                                 isSaving ? (
                                     <Loader size={14} />

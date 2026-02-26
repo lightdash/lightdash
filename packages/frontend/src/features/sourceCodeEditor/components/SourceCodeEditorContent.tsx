@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { useParams, useSearchParams } from 'react-router';
 import ErrorState from '../../../components/common/ErrorState';
 import { useProject } from '../../../hooks/useProject';
+import { useRefreshServer } from '../../../hooks/useRefreshServer';
 import useApp from '../../../providers/App/useApp';
 import { useSourceCodeEditor } from '../context/useSourceCodeEditor';
 import {
@@ -92,6 +93,7 @@ const SourceCodeEditorContent: FC = () => {
 
     // Mutations
     const saveFileMutation = useSaveGitFile(projectUuid ?? '');
+    const refreshServer = useRefreshServer();
 
     // Local storage for crash recovery
     const { saveUnsavedContent, clearUnsavedContent, saveLastLocation } =
@@ -317,6 +319,16 @@ const SourceCodeEditorContent: FC = () => {
 
         setOriginalContent(editorContent);
         clearUnsavedContent();
+
+        // If saved to the project's configured branch, trigger a refresh
+        const projectBranch =
+            project?.dbtConnection && isGitProjectType(project.dbtConnection)
+                ? project.dbtConnection.branch
+                : null;
+
+        if (projectBranch && currentBranch === projectBranch) {
+            refreshServer.mutate();
+        }
     }, [
         currentBranch,
         currentFilePath,
@@ -324,6 +336,8 @@ const SourceCodeEditorContent: FC = () => {
         originalSha,
         saveFileMutation,
         clearUnsavedContent,
+        project,
+        refreshServer,
     ]);
 
     const handleBranchCreated = useCallback((branchName: string) => {
