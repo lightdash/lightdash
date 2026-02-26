@@ -1,3 +1,10 @@
+## [0.2532.1](https://github.com/lightdash/lightdash/compare/0.2532.0...0.2532.1) (2026-02-26)
+
+
+### Bug Fixes
+
+* dedup users and groups when making space private ([#20666](https://github.com/lightdash/lightdash/issues/20666)) ([e4bd806](https://github.com/lightdash/lightdash/commit/e4bd806d27e020c1cf4edd815ad1bc95fe115ebd))
+
 # [0.2532.0](https://github.com/lightdash/lightdash/compare/0.2531.0...0.2532.0) (2026-02-26)
 
 
