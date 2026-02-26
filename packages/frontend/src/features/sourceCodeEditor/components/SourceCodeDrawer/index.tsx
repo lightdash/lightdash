@@ -1,14 +1,24 @@
-import { ActionIcon, Drawer, Group, Kbd, Text } from '@mantine-8/core';
+import { ProjectType } from '@lightdash/common';
+import { Drawer } from '@mantine-8/core';
 import { useHotkeys } from '@mantine/hooks';
-import { IconX } from '@tabler/icons-react';
 import { type FC } from 'react';
-import MantineIcon from '../../../../components/common/MantineIcon';
+import {
+    BANNER_HEIGHT,
+    NAVBAR_HEIGHT,
+} from '../../../../components/common/Page/constants';
+import { useActiveProjectUuid } from '../../../../hooks/useActiveProject';
+import { useProject } from '../../../../hooks/useProject';
 import { useSourceCodeEditor } from '../../context/useSourceCodeEditor';
 import SourceCodeEditorContent from '../SourceCodeEditorContent';
 import styles from './SourceCodeDrawer.module.css';
 
 const SourceCodeDrawer: FC = () => {
     const { isOpen, close, toggle, hasUnsavedChanges } = useSourceCodeEditor();
+    const { activeProjectUuid } = useActiveProjectUuid();
+    const { data: project } = useProject(activeProjectUuid);
+
+    const isPreviewProject = project?.type === ProjectType.PREVIEW;
+    const topOffset = NAVBAR_HEIGHT + (isPreviewProject ? BANNER_HEIGHT : 0);
 
     // Global keyboard shortcuts
     useHotkeys([
@@ -46,35 +56,13 @@ const SourceCodeDrawer: FC = () => {
             classNames={{
                 content: styles.drawerContent,
                 body: styles.drawerBody,
+                inner: styles.drawerInner,
+                overlay: styles.drawerOverlay,
+            }}
+            __vars={{
+                '--drawer-top-offset': `${topOffset}px`,
             }}
         >
-            <Group
-                justify="space-between"
-                p="sm"
-                className={styles.drawerHeader}
-            >
-                <Group gap="sm">
-                    <ActionIcon
-                        onClick={handleClose}
-                        variant="subtle"
-                        color="gray"
-                    >
-                        <MantineIcon icon={IconX} />
-                    </ActionIcon>
-                    <Text fw={500}>Source Code Editor</Text>
-                </Group>
-                <Group gap="xs">
-                    <Kbd size="xs">
-                        {navigator.platform.includes('Mac') ? '⌘' : 'Ctrl'}
-                    </Kbd>
-                    <Kbd size="xs">Shift</Kbd>
-                    <Kbd size="xs">E</Kbd>
-                    <Text size="xs" c="dimmed">
-                        to toggle
-                    </Text>
-                </Group>
-            </Group>
-
             {isOpen && <SourceCodeEditorContent />}
         </Drawer>
     );
