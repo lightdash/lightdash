@@ -1,3 +1,10 @@
+## [0.2530.1](https://github.com/lightdash/lightdash/compare/0.2530.0...0.2530.1) (2026-02-26)
+
+
+### Bug Fixes
+
+* long agent messages dont show up in slack ([#20652](https://github.com/lightdash/lightdash/issues/20652)) ([e268fcb](https://github.com/lightdash/lightdash/commit/e268fcb1d88061846d990cd36371aa4100ff25c9)), closes [#19688](https://github.com/lightdash/lightdash/issues/19688)
+
 # [0.2530.0](https://github.com/lightdash/lightdash/compare/0.2529.0...0.2530.0) (2026-02-26)
 
 
