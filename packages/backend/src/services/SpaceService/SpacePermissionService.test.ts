@@ -786,7 +786,7 @@ describe('SpacePermissionService', () => {
             expect(result.groupAccessEntries).toHaveLength(0);
         });
 
-        test('collects group entries from multiple ancestors', async () => {
+        test('deduplicates same group across ancestors, keeping highest role', async () => {
             const childSpaceUuid = 'child-space';
             const parentSpaceUuid = 'parent-space';
             const grandparentSpaceUuid = 'grandparent-space';
@@ -839,15 +839,77 @@ describe('SpacePermissionService', () => {
             const result =
                 await service.getInheritedPermissionsToCopy(childSpaceUuid);
 
-            // Both entries are returned; ON CONFLICT MERGE at DB level
-            // keeps the last-written role per group
-            expect(result.groupAccessEntries).toHaveLength(2);
-            expect(result.groupAccessEntries).toEqual(
-                expect.arrayContaining([
-                    { groupUuid: 'group-1', role: SpaceMemberRole.VIEWER },
-                    { groupUuid: 'group-1', role: SpaceMemberRole.EDITOR },
-                ]),
-            );
+            // Same group appears on two ancestors — deduplicated to one entry
+            // with the highest role (EDITOR > VIEWER)
+            expect(result.groupAccessEntries).toHaveLength(1);
+            expect(result.groupAccessEntries[0]).toEqual({
+                groupUuid: 'group-1',
+                role: SpaceMemberRole.EDITOR,
+            });
+        });
+
+        test('deduplicates same user across ancestors, keeping highest role', async () => {
+            const childSpaceUuid = 'child-space';
+            const parentSpaceUuid = 'parent-space';
+            const grandparentSpaceUuid = 'grandparent-space';
+            const duplicateUser = 'duplicate-user';
+
+            mockPermissionModel.getInheritanceChains.mockResolvedValue({
+                [childSpaceUuid]: {
+                    chain: [
+                        {
+                            spaceUuid: childSpaceUuid,
+                            spaceName: 'Child',
+                            inheritParentPermissions: true,
+                        },
+                        {
+                            spaceUuid: parentSpaceUuid,
+                            spaceName: 'Parent',
+                            inheritParentPermissions: true,
+                        },
+                        {
+                            spaceUuid: grandparentSpaceUuid,
+                            spaceName: 'Grandparent',
+                            inheritParentPermissions: false,
+                        },
+                    ],
+                    inheritsFromOrgOrProject: false,
+                },
+            });
+
+            // Same user on parent (VIEWER) and grandparent (ADMIN)
+            mockPermissionModel.getDirectSpaceAccess.mockResolvedValue({
+                [parentSpaceUuid]: [
+                    {
+                        userUuid: duplicateUser,
+                        spaceUuid: parentSpaceUuid,
+                        groupUuid: null,
+                        role: SpaceMemberRole.VIEWER,
+                        from: DirectSpaceAccessOrigin.USER_ACCESS,
+                    },
+                ],
+                [grandparentSpaceUuid]: [
+                    {
+                        userUuid: duplicateUser,
+                        spaceUuid: grandparentSpaceUuid,
+                        groupUuid: null,
+                        role: SpaceMemberRole.ADMIN,
+                        from: DirectSpaceAccessOrigin.USER_ACCESS,
+                    },
+                ],
+            });
+
+            const result =
+                await service.getInheritedPermissionsToCopy(childSpaceUuid);
+
+            // Same user appears on two ancestors — deduplicated to one entry
+            // with the highest role (ADMIN > VIEWER)
+            expect(result.userAccessEntries).toHaveLength(1);
+            expect(result.userAccessEntries[0]).toEqual({
+                userUuid: duplicateUser,
+                role: SpaceMemberRole.ADMIN,
+            });
+            expect(result.groupAccessEntries).toHaveLength(0);
         });
     });
 });
