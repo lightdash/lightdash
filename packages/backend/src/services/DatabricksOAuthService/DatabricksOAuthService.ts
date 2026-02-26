@@ -1,6 +1,5 @@
 import {
     AuthorizationError,
-    CreateDatabricksCredentials,
     DatabricksAuthenticationType,
     DatabricksTokenError,
     getErrorMessage,
@@ -9,6 +8,9 @@ import {
     ParameterError,
     UnexpectedServerError,
     WarehouseTypes,
+    type CreateDatabricksCredentials,
+    type DatabricksOAuthM2MCredentials,
+    type DatabricksOAuthU2MCredentials,
     type SessionUser,
     type UpsertUserWarehouseCredentials,
 } from '@lightdash/common';
@@ -138,8 +140,8 @@ export class DatabricksOAuthService extends BaseService {
     }
 
     private async refreshM2MCredentials(
-        args: CreateDatabricksCredentials,
-    ): Promise<CreateDatabricksCredentials> {
+        args: DatabricksOAuthM2MCredentials,
+    ): Promise<DatabricksOAuthM2MCredentials> {
         try {
             // Try client_credentials grant when we have client creds but no refresh token
             if (
@@ -206,8 +208,8 @@ export class DatabricksOAuthService extends BaseService {
     }
 
     private async refreshU2MCredentials(
-        args: CreateDatabricksCredentials,
-    ): Promise<CreateDatabricksCredentials> {
+        args: DatabricksOAuthU2MCredentials,
+    ): Promise<DatabricksOAuthU2MCredentials> {
         try {
             if (!args.refreshToken) {
                 throw new Error(
@@ -281,8 +283,18 @@ export class DatabricksOAuthService extends BaseService {
                 );
             }
             serverHostName = credentials.serverHostName;
-            projectClientId = credentials.oauthClientId;
-            projectClientSecret = credentials.oauthClientSecret;
+            if (
+                credentials.authenticationType ===
+                DatabricksAuthenticationType.OAUTH_M2M
+            ) {
+                projectClientId = credentials.oauthClientId;
+                projectClientSecret = credentials.oauthClientSecret;
+            } else if (
+                credentials.authenticationType ===
+                DatabricksAuthenticationType.OAUTH_U2M
+            ) {
+                projectClientId = credentials.oauthClientId;
+            }
         }
 
         // Fallback: extract host from OIDC issuer URL

@@ -308,7 +308,7 @@ We will ask for user credentials again on the Lightdash UI.\n`,
         } else {
             console.error(
                 styles.warning(
-                    `\nUser has externalbrowser snowflake authentication. 
+                    `\nUser has externalbrowser snowflake authentication.
 We will generate programatically a temporary PAT to enable access on Lightdash which expires in 1 day.
 For a better user experience, we recommend enabling Snowflake OAuth authentication on the server.\n`,
                 ),
@@ -341,6 +341,8 @@ For a better user experience, we recommend enabling Snowflake OAuth authenticati
         copyContent: options.copyContent,
         organizationWarehouseCredentialsUuid,
     };
+
+    console.log({ options, zap: project.warehouseConnection });
 
     return lightdashApi<ApiCreateProjectResults>({
         method: 'POST',

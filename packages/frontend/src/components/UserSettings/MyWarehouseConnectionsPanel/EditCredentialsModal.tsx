@@ -1,4 +1,5 @@
 import {
+    DatabricksAuthenticationType,
     WarehouseTypes,
     type UpsertUserWarehouseCredentials,
     type UserWarehouseCredentials,
@@ -33,7 +34,8 @@ const getCredentialsWithPlaceholders = (
         case WarehouseTypes.DATABRICKS:
             return {
                 ...credentials,
-                personalAccessToken: '',
+                authenticationType: DatabricksAuthenticationType.OAUTH_U2M,
+                refreshToken: '',
             };
         default:
             throw new Error(`Credential type not supported`);

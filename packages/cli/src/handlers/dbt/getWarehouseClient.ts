@@ -403,12 +403,16 @@ export default async function getWarehouseClient(
                 const tokens = await performDatabricksOAuthFlow(
                     credentials.serverHostName,
                     clientId,
-                    credentials.oauthClientSecret,
+                    undefined, // U2M doesn't use client secret
                 );
 
                 // Store tokens in memory only
                 credentials.token = tokens.accessToken;
                 credentials.refreshToken = tokens.refreshToken;
+                console.log(
+                    'getWarehouseClient after OAuth flow tokens:',
+                    tokens,
+                );
             }
 
             GlobalState.debug(
@@ -425,6 +429,7 @@ export default async function getWarehouseClient(
             warehouseClientCache.set(cacheKey, warehouseClient);
         }
     }
+    console.log('getWarehouseClient returning credentials:', credentials);
     return {
         warehouseClient,
         credentials,

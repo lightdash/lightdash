@@ -6,11 +6,11 @@ import {
     type CreateAthenaCredentials,
     type CreateBigqueryCredentials,
     type CreateClickhouseCredentials,
-    type CreateDatabricksCredentials,
     type CreatePostgresCredentials,
     type CreateRedshiftCredentials,
     type CreateSnowflakeCredentials,
     type CreateTrinoCredentials,
+    type DatabricksOAuthU2MCredentials,
     type ProjectType,
 } from './projects';
 
@@ -36,7 +36,7 @@ export type UserWarehouseCredentials = {
               'type' | 'user'
           >
         | Pick<CreateBigqueryCredentials, 'type'>
-        | Pick<CreateDatabricksCredentials, 'type'>
+        | Pick<DatabricksOAuthU2MCredentials, 'type'>
         | Pick<CreateAthenaCredentials, 'type'>;
     project: UserWarehouseCredentialsProject | null;
 };
@@ -63,19 +63,13 @@ export type UserWarehouseCredentialsWithSecrets = Pick<
               'type' | 'keyfileContents' | 'authenticationType'
           >
         | (Pick<
-              CreateDatabricksCredentials,
-              | 'type'
-              | 'personalAccessToken'
-              | 'authenticationType'
-              | 'refreshToken'
+              DatabricksOAuthU2MCredentials,
+              'type' | 'authenticationType' | 'refreshToken' | 'oauthClientId'
           > &
               Partial<
                   Pick<
-                      CreateDatabricksCredentials,
-                      | 'database'
-                      | 'serverHostName'
-                      | 'httpPath'
-                      | 'oauthClientId'
+                      DatabricksOAuthU2MCredentials,
+                      'database' | 'serverHostName' | 'httpPath'
                   >
               >)
         | Pick<
@@ -102,16 +96,25 @@ export const snowflakeSsoUserCredentialsSchema = z
     .strict();
 
 // Zod schema for validating Databricks OAuth U2M user warehouse credentials
-// Requires refreshToken and allows optional compatibility fields
+// Requires refreshToken and allows optional fields from DatabricksOAuthU2MCredentials
 export const databricksOauthU2mUserCredentialsSchema = z
     .object({
         type: z.literal(WarehouseTypes.DATABRICKS),
         authenticationType: z.literal(DatabricksAuthenticationType.OAUTH_U2M),
         refreshToken: z.string(),
         oauthClientId: z.string().optional(),
-        personalAccessToken: z.string().optional(),
         database: z.string().optional(),
         serverHostName: z.string().optional(),
         httpPath: z.string().optional(),
     })
     .strict();
+
+// Compile-time check: Zod schema keys must be valid keys of DatabricksOAuthU2MCredentials
+type DatabricksU2MSchemaKeys = keyof z.infer<
+    typeof databricksOauthU2mUserCredentialsSchema
+>;
+type DatabricksU2MSchemaCheck =
+    DatabricksU2MSchemaKeys extends keyof DatabricksOAuthU2MCredentials
+        ? true
+        : never;
+const databricksU2mSchemaValid: DatabricksU2MSchemaCheck = true; // eslint-disable-line @typescript-eslint/no-unused-vars

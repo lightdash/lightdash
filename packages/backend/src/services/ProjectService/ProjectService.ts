@@ -937,30 +937,13 @@ export class ProjectService extends BaseService {
                 DatabricksAuthenticationType.OAUTH_U2M &&
             !organizationWarehouseCredentialsUuid
         ) {
-            // Use refresh token from request body first (e.g. CLI flow).
-            // Otherwise, resolve a host-matching user credential to avoid
-            // cross-workspace refresh token mismatches.
-            let { refreshToken } = args.warehouseConnection;
-            if (!refreshToken) {
-                const matchingCredential =
-                    await this.userWarehouseCredentialsModel.findDatabricksOauthU2mForHostWithSecrets(
-                        userUuid,
-                        args.warehouseConnection.serverHostName,
-                    );
-                if (
-                    matchingCredential?.credentials.type ===
-                        WarehouseTypes.DATABRICKS &&
-                    matchingCredential.credentials.authenticationType ===
-                        DatabricksAuthenticationType.OAUTH_U2M
-                ) {
-                    refreshToken = matchingCredential.credentials.refreshToken;
-                }
-            }
+            const { refreshToken } = args.warehouseConnection;
 
+            // No refresh token — nothing to refresh. Store credentials as-is
+            // (e.g. CLI preview creation sends connection details without tokens;
+            // the user will authenticate via the UI later).
             if (!refreshToken) {
-                throw new NotFoundError(
-                    `No Databricks OAuth credentials found for workspace ${args.warehouseConnection.serverHostName}. Please sign in with Databricks for this workspace and try again.`,
-                );
+                return args;
             }
 
             // Validate refresh token and generate new access token
@@ -968,7 +951,7 @@ export class ProjectService extends BaseService {
                 `Refreshing databricks warehouse credentials from user uuid: ${userUuid}`,
             );
             const credentials = await this.refreshCredentials(
-                { ...args.warehouseConnection, refreshToken },
+                args.warehouseConnection,
                 userUuid,
             );
 
@@ -977,7 +960,6 @@ export class ProjectService extends BaseService {
                 warehouseConnection: {
                     ...args.warehouseConnection,
                     ...credentials,
-                    refreshToken, // Store refresh token from user so we can generate new access tokens later
                 },
             };
         }
@@ -1020,8 +1002,16 @@ export class ProjectService extends BaseService {
                 return rest;
             }
             case WarehouseTypes.DATABRICKS: {
-                const { refreshToken, token, personalAccessToken, ...rest } =
-                    credentials;
+                if (
+                    credentials.authenticationType ===
+                        DatabricksAuthenticationType.OAUTH_M2M ||
+                    credentials.authenticationType ===
+                        DatabricksAuthenticationType.OAUTH_U2M
+                ) {
+                    const { refreshToken, token, ...rest } = credentials;
+                    return rest;
+                }
+                const { personalAccessToken, ...rest } = credentials;
                 return rest;
             }
             case WarehouseTypes.BIGQUERY: {
@@ -1141,11 +1131,25 @@ export class ProjectService extends BaseService {
             if (userWarehouseCredentials && !hostMismatch) {
                 credentials = this.clearSecretsFromCredentials(credentials);
 
-                // User has credentials - use them
-                credentials = {
-                    ...credentials,
-                    ...userWarehouseCredentials.credentials,
-                } as CreateWarehouseCredentials; // force type as typescript doesn't know the types match
+                // Merge user credentials on top of (secret-cleared) project credentials.
+                // Databricks is handled with proper narrowing; other warehouses
+                // still need an assertion because TypeScript can't prove the
+                // spread of two matching-type credential unions is valid.
+                if (
+                    credentials.type === WarehouseTypes.DATABRICKS &&
+                    userWarehouseCredentials.credentials.type ===
+                        WarehouseTypes.DATABRICKS
+                ) {
+                    credentials = {
+                        ...credentials,
+                        ...userWarehouseCredentials.credentials,
+                    };
+                } else {
+                    credentials = {
+                        ...credentials,
+                        ...userWarehouseCredentials.credentials,
+                    } as CreateWarehouseCredentials;
+                }
 
                 this.logger.debug(
                     `Using user warehouse credentials for user ${userId}`,
@@ -1526,12 +1530,30 @@ export class ProjectService extends BaseService {
                 'Project is not configured with Databricks credentials',
             );
         }
-        return {
+        const base = {
             projectName: project.name,
             serverHostName: credentials.serverHostName,
-            oauthClientId: credentials.oauthClientId,
-            oauthClientSecret: credentials.oauthClientSecret,
         };
+        if (
+            credentials.authenticationType ===
+            DatabricksAuthenticationType.OAUTH_M2M
+        ) {
+            return {
+                ...base,
+                oauthClientId: credentials.oauthClientId,
+                oauthClientSecret: credentials.oauthClientSecret,
+            };
+        }
+        if (
+            credentials.authenticationType ===
+            DatabricksAuthenticationType.OAUTH_U2M
+        ) {
+            return {
+                ...base,
+                oauthClientId: credentials.oauthClientId,
+            };
+        }
+        return base;
     }
 
     async createWithoutCompile(
@@ -1544,6 +1566,11 @@ export class ProjectService extends BaseService {
         }
 
         await this.validateProjectCreationPermissions(user, data);
+
+        console.log(
+            'createWithoutCompile incoming data.warehouseConnection:',
+            data.warehouseConnection,
+        );
 
         const newProjectData = data;
 
@@ -1587,6 +1614,11 @@ export class ProjectService extends BaseService {
             }
         }
 
+        console.log(
+            'createWithoutCompile after merge warehouseConnection:',
+            newProjectData.warehouseConnection,
+        );
+
         const createProject: CreateProjectOptionalCredentials =
             hasWarehouseCredentials(newProjectData)
                 ? await this._resolveWarehouseClientCredentials(
@@ -1627,8 +1659,17 @@ export class ProjectService extends BaseService {
             try {
                 const { warehouseConnection } = createProject;
                 const warehouseType = warehouseConnection.type;
+                console.log(
+                    'createWithoutCompile preview UWC creation warehouseConnection:',
+                    warehouseConnection,
+                );
                 switch (warehouseType) {
                     case WarehouseTypes.DATABRICKS: {
+                        if (
+                            warehouseConnection.authenticationType !==
+                            DatabricksAuthenticationType.OAUTH_U2M
+                        )
+                            break;
                         if (!warehouseConnection.refreshToken) break;
                         const userWarehouseCredentialsUuid =
                             await this.userWarehouseCredentialsModel.create(
@@ -2549,12 +2590,10 @@ export class ProjectService extends BaseService {
             project.warehouseConnection.authenticationType ===
                 DatabricksAuthenticationType.OAUTH_M2M
         ) {
-            const refreshed =
+            project.warehouseConnection =
                 await this.databricksOAuthService.refreshCredentials(
                     project.warehouseConnection,
                 );
-            project.warehouseConnection.token = refreshed.token;
-            project.warehouseConnection.refreshToken = refreshed.refreshToken;
         }
 
         if (
@@ -2588,13 +2627,10 @@ export class ProjectService extends BaseService {
             }
 
             if (u2mCredentials.refreshToken) {
-                const refreshed =
+                project.warehouseConnection =
                     await this.databricksOAuthService.refreshCredentials(
                         u2mCredentials,
                     );
-                project.warehouseConnection.token = refreshed.token;
-                project.warehouseConnection.refreshToken =
-                    refreshed.refreshToken;
             }
         }
 

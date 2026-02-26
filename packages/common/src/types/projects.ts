@@ -94,19 +94,13 @@ export enum AthenaAuthenticationType {
     IAM_ROLE = 'iam_role',
 }
 
-export type CreateDatabricksCredentials = {
+export type DatabricksCredentialsBase = {
     type: WarehouseTypes.DATABRICKS;
     catalog?: string;
     // this supposed to be a `schema` but changing it will break for existing customers
     database: string;
     serverHostName: string;
     httpPath: string;
-    authenticationType?: DatabricksAuthenticationType;
-    personalAccessToken?: string; // Optional when using OAuth
-    refreshToken?: string; // Refresh token for OAuth, used to generate a new access token
-    token?: string; // Access token for OAuth, has a low expiry time (1 hour)
-    oauthClientId?: string; // OAuth M2M client ID (Service Principal)
-    oauthClientSecret?: string; // OAuth M2M client secret (Service Principal)
     requireUserCredentials?: boolean;
     startOfWeek?: WeekDay | null;
     compute?: Array<{
@@ -114,6 +108,31 @@ export type CreateDatabricksCredentials = {
         httpPath: string;
     }>;
 };
+
+export type DatabricksPATCredentials = DatabricksCredentialsBase & {
+    authenticationType?: DatabricksAuthenticationType.PERSONAL_ACCESS_TOKEN;
+    personalAccessToken?: string;
+};
+
+export type DatabricksOAuthM2MCredentials = DatabricksCredentialsBase & {
+    authenticationType: DatabricksAuthenticationType.OAUTH_M2M;
+    oauthClientId?: string;
+    oauthClientSecret?: string;
+    refreshToken?: string;
+    token?: string;
+};
+
+export type DatabricksOAuthU2MCredentials = DatabricksCredentialsBase & {
+    authenticationType: DatabricksAuthenticationType.OAUTH_U2M;
+    oauthClientId?: string;
+    refreshToken?: string;
+    token?: string;
+};
+
+export type CreateDatabricksCredentials =
+    | DatabricksPATCredentials
+    | DatabricksOAuthM2MCredentials
+    | DatabricksOAuthU2MCredentials;
 export type DatabricksCredentials = Omit<
     CreateDatabricksCredentials,
     SensitiveCredentialsFieldNames
