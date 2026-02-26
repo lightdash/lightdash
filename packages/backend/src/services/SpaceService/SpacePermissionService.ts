@@ -492,40 +492,35 @@ export class SpacePermissionService extends BaseService {
         const ancestorDirectAccess =
             await this.spacePermissionModel.getDirectSpaceAccess(ancestorUuids);
 
-        // Reducer to split ancestorDirectAccess entries into user and group access arrays
-        const { userAccessEntries, groupAccessEntries } = Object.values(
-            ancestorDirectAccess,
-        )
-            .flat()
-            .reduce<{
-                userAccessEntries: {
-                    userUuid: string;
-                    role: SpaceAccess['role'];
-                }[];
-                groupAccessEntries: {
-                    groupUuid: string;
-                    role: SpaceGroup['spaceRole'];
-                }[];
-            }>(
-                (acc, access) => {
-                    if (access.from === 'user_access') {
-                        acc.userAccessEntries.push({
-                            userUuid: access.userUuid,
-                            role: access.role,
-                        });
-                    } else if (
-                        access.from === 'group_access' &&
-                        access.groupUuid !== null
-                    ) {
-                        acc.groupAccessEntries.push({
-                            groupUuid: access.groupUuid,
-                            role: access.role,
-                        });
-                    }
-                    return acc;
-                },
-                { userAccessEntries: [], groupAccessEntries: [] },
-            );
+        // Deduplicate user and group access entries, keeping highest role per user/group
+        const userAccessMap = new Map<string, SpaceAccess['role']>();
+        const groupAccessMap = new Map<string, SpaceGroup['spaceRole']>();
+
+        for (const access of Object.values(ancestorDirectAccess).flat()) {
+            if (access.from === 'user_access') {
+                const existing = userAccessMap.get(access.userUuid);
+                const highest = getHighestSpaceRole([existing, access.role]);
+                if (highest !== undefined) {
+                    userAccessMap.set(access.userUuid, highest);
+                }
+            } else if (
+                access.from === 'group_access' &&
+                access.groupUuid !== null
+            ) {
+                const existing = groupAccessMap.get(access.groupUuid);
+                const highest = getHighestSpaceRole([existing, access.role]);
+                if (highest !== undefined) {
+                    groupAccessMap.set(access.groupUuid, highest);
+                }
+            }
+        }
+
+        const userAccessEntries = [...userAccessMap.entries()].map(
+            ([userUuid, role]) => ({ userUuid, role }),
+        );
+        const groupAccessEntries = [...groupAccessMap.entries()].map(
+            ([groupUuid, role]) => ({ groupUuid, role }),
+        );
 
         return { userAccessEntries, groupAccessEntries };
     }
