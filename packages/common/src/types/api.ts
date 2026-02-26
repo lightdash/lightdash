@@ -194,6 +194,8 @@ import {
 } from './user';
 import { type UserWarehouseCredentials } from './userWarehouseCredentials';
 import {
+    type ApiChartValidationResponse,
+    type ApiDashboardValidationResponse,
     type ApiPaginatedValidateResponse,
     type ApiSingleValidationResponse,
     type ValidationResponse,
@@ -935,6 +937,8 @@ type ApiResults =
     | ApiProjectCompileLogResponse['results']
     | ApiSingleValidationResponse['results']
     | ApiFavoriteItems['results']
+    | ApiChartValidationResponse['results']
+    | ApiDashboardValidationResponse['results']
     | ApiToggleFavorite['results'];
 // Note: EE API types removed from ApiResults to avoid circular imports
 // They can still be used with ApiResponse<T> by importing from '@lightdash/common'

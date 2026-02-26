@@ -818,8 +818,8 @@ const upsertResources = async <T extends ChartAsCode | DashboardAsCode>(
                                 : `/api/v1/projects/${projectId}/validate/dashboard/${contentUuid}`;
 
                         const validationResult = await lightdashApi<
-                            | ApiChartValidationResponse
-                            | ApiDashboardValidationResponse
+                            | ApiChartValidationResponse['results']
+                            | ApiDashboardValidationResponse['results']
                         >({
                             method: 'POST',
                             url: validationEndpoint,
@@ -827,22 +827,24 @@ const upsertResources = async <T extends ChartAsCode | DashboardAsCode>(
                         });
 
                         if (
-                            validationResult.results?.errors &&
-                            validationResult.results.errors.length > 0
+                            validationResult.errors &&
+                            validationResult.errors.length > 0
                         ) {
-                            console.warn(
+                            GlobalState.log(
                                 styles.warning(
-                                    `Validation found ${validationResult.results.errors.length} issue(s) in ${type.slice(0, -1)} "${item.name}"`,
+                                    `Validation found ${validationResult.errors.length} issue(s) in ${type.slice(0, -1)} "${item.name}"`,
                                 ),
                             );
-                            validationResult.results.errors.forEach((error) => {
-                                console.warn(
+                            validationResult.errors.forEach((error) => {
+                                GlobalState.log(
                                     styles.warning(`  - ${error.error}`),
                                 );
                             });
                         } else {
-                            GlobalState.debug(
-                                `No validation issues found in ${type.slice(0, -1)} "${item.name}"`,
+                            GlobalState.log(
+                                styles.success(
+                                    `✓ No validation issues in ${type.slice(0, -1)} "${item.name}"`,
+                                ),
                             );
                         }
                     } catch (validationError) {
