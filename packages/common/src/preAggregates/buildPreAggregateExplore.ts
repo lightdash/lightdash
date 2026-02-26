@@ -1,3 +1,4 @@
+import { SupportedDbtAdapter } from '../types/dbt';
 import {
     ExploreType,
     type CompiledTable,
@@ -15,12 +16,7 @@ import { type PreAggregateDef } from '../types/preAggregate';
 import { type TimeFrames } from '../types/timeFrames';
 import { getItemId } from '../utils/item';
 import { getSqlForTruncatedDate, timeFrameOrder } from '../utils/timeFrames';
-import {
-    getJoinedDimensionColumnName,
-    getMetricColumnName,
-    getPreAggregateExploreName,
-    getTimeDimensionColumnName,
-} from './naming';
+import { getMetricColumnName, getPreAggregateExploreName } from './naming';
 import {
     getDimensionBaseName,
     getDimensionReferences,
@@ -77,14 +73,14 @@ const getMetricAggregateSql = (
     }
 };
 
-const getPhysicalDimensionColumnName = ({
+const getMaterializedDimensionColumnName = ({
+    sourceExplore,
     dimension,
     preAggregateDef,
-    baseTable,
 }: {
+    sourceExplore: Explore;
     dimension: CompiledDimension;
     preAggregateDef: PreAggregateDef;
-    baseTable: string;
 }): string => {
     const dimensionBaseName = getDimensionBaseName(dimension);
 
@@ -93,17 +89,21 @@ const getPhysicalDimensionColumnName = ({
         preAggregateDef.granularity &&
         dimensionBaseName === preAggregateDef.timeDimension
     ) {
-        return getTimeDimensionColumnName(
-            dimensionBaseName,
-            preAggregateDef.granularity,
+        const preAggregateGranularityDimension = Object.values(
+            sourceExplore.tables[dimension.table]?.dimensions || {},
+        ).find(
+            (candidateDimension) =>
+                getDimensionBaseName(candidateDimension) ===
+                    preAggregateDef.timeDimension &&
+                candidateDimension.timeInterval === preAggregateDef.granularity,
         );
+
+        if (preAggregateGranularityDimension) {
+            return getItemId(preAggregateGranularityDimension);
+        }
     }
 
-    if (dimension.table === baseTable) {
-        return dimensionBaseName;
-    }
-
-    return getJoinedDimensionColumnName(dimension.table, dimensionBaseName);
+    return getItemId(dimension);
 };
 
 const getBaseDimensionType = (
@@ -126,15 +126,20 @@ const buildDimensionSql = ({
     preAggregateDef: PreAggregateDef;
 }): string => {
     const dimensionBaseName = getDimensionBaseName(dimension);
-    const physicalBaseColumnName = getPhysicalDimensionColumnName({
+    const materializedBaseColumnName = getMaterializedDimensionColumnName({
+        sourceExplore,
         dimension,
         preAggregateDef,
-        baseTable: sourceExplore.baseTable,
     });
-    const physicalBaseColumnReference = `${sourceExplore.baseTable}.${physicalBaseColumnName}`;
+    const materializedBaseColumnReference = `${sourceExplore.baseTable}.${materializedBaseColumnName}`;
+    const timeDimensionReference =
+        preAggregateDef.timeDimension &&
+        dimensionBaseName === preAggregateDef.timeDimension
+            ? `CAST(${materializedBaseColumnReference} AS TIMESTAMP)`
+            : materializedBaseColumnReference;
 
     if (!dimension.timeInterval) {
-        return physicalBaseColumnReference;
+        return timeDimensionReference;
     }
 
     if (
@@ -143,13 +148,13 @@ const buildDimensionSql = ({
         dimensionBaseName === preAggregateDef.timeDimension &&
         dimension.timeInterval === preAggregateDef.granularity
     ) {
-        return physicalBaseColumnReference;
+        return timeDimensionReference;
     }
 
     return getSqlForTruncatedDate(
-        sourceExplore.targetDatabase,
+        SupportedDbtAdapter.DUCKDB,
         dimension.timeInterval,
-        physicalBaseColumnReference,
+        timeDimensionReference,
         getBaseDimensionType(sourceExplore, dimension),
     );
 };

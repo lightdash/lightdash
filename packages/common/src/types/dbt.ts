@@ -35,6 +35,7 @@ export enum SupportedDbtAdapter {
     SNOWFLAKE = 'snowflake',
     REDSHIFT = 'redshift',
     POSTGRES = 'postgres',
+    DUCKDB = 'duckdb',
     TRINO = 'trino',
     CLICKHOUSE = 'clickhouse',
     ATHENA = 'athena',
@@ -276,6 +277,7 @@ export const normaliseModelDatabase = (
         case SupportedDbtAdapter.TRINO:
         case SupportedDbtAdapter.ATHENA:
         case SupportedDbtAdapter.REDSHIFT:
+        case SupportedDbtAdapter.DUCKDB:
             if (model.database === null) {
                 throw new ParseError(
                     `Cannot parse dbt model '${model.unique_id}' because the database field has null value.`,

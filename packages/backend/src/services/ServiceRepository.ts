@@ -8,6 +8,7 @@ import type { UtilRepository } from '../utils/UtilRepository';
 import { AdminNotificationService } from './AdminNotificationService/AdminNotificationService';
 import { AnalyticsService } from './AnalyticsService/AnalyticsService';
 import { AsyncQueryService } from './AsyncQueryService/AsyncQueryService';
+import { PreAggregationDuckDbClient } from './AsyncQueryService/PreAggregationDuckDbClient';
 import { BaseService } from './BaseService';
 import { CatalogService } from './CatalogService/CatalogService';
 import { ChangesetService } from './ChangesetService';
@@ -691,6 +692,11 @@ export class ServiceRepository
                     permissionsService: this.getPermissionsService(),
                     persistentDownloadFileService:
                         this.getPersistentDownloadFileService(),
+                    preAggregationDuckDbClient: new PreAggregationDuckDbClient({
+                        lightdashConfig: this.context.lightdashConfig,
+                        preAggregateModel: this.models.getPreAggregateModel(),
+                        projectModel: this.models.getProjectModel(),
+                    }),
                     projectCompileLogModel:
                         this.models.getProjectCompileLogModel(),
                     adminNotificationService:
