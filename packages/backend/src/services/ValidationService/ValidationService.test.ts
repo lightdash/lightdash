@@ -180,13 +180,14 @@ describe('validation', () => {
     it('Should show unselected table errors on joins', async () => {
         (
             projectModel.findExploresFromCache as jest.Mock
-        ).mockImplementationOnce(async () => [
-            exploreError,
-            {
+        ).mockImplementationOnce(async () => ({
+            valid_explore: exploreError,
+            joined_explore: {
                 name: 'joined_explore',
                 joinedTables: [{ table: 'valid_explore' }],
+                tables: {}, // Add tables property to avoid undefined error
             },
-        ]);
+        }));
 
         (
             projectModel.getTablesConfiguration as jest.Mock
@@ -220,10 +221,10 @@ describe('validation', () => {
     it('Should validate only tables in project', async () => {
         (
             projectModel.findExploresFromCache as jest.Mock
-        ).mockImplementationOnce(async () => [
-            exploreError,
-            exploreWithoutDimension,
-        ]);
+        ).mockImplementationOnce(async () => ({
+            valid_explore: exploreError,
+            explore_without_dimension: exploreWithoutDimension,
+        }));
 
         const errors = await validationService.generateValidation(
             'projectUuid',
