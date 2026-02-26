@@ -34,7 +34,7 @@ import SavedExplorer from './pages/SavedExplorer';
 import SavedQueries from './pages/SavedQueries';
 import Settings from './pages/Settings';
 import ShareRedirect from './pages/ShareRedirect';
-import SourceCodeEditor from './pages/SourceCodeEditor';
+import SourceCodeEditorRedirect from './pages/SourceCodeEditorRedirect';
 import Space from './pages/Space';
 import Spaces from './pages/Spaces';
 import SqlRunner from './pages/SqlRunner';
@@ -262,15 +262,9 @@ const SQL_RUNNER_ROUTES: RouteObject[] = [
 
 const SOURCE_CODE_ROUTES: RouteObject[] = [
     {
+        // Redirect old source-code route to project home with editor drawer open
         path: '/projects/:projectUuid/source-code',
-        element: (
-            <>
-                <NavBar />
-                <TrackPage name={PageName.SOURCE_CODE}>
-                    <SourceCodeEditor />
-                </TrackPage>
-            </>
-        ),
+        element: <SourceCodeEditorRedirect />,
     },
 ];
 
