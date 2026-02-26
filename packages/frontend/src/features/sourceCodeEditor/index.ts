@@ -1,1 +1,1 @@
-export { default as SourceCodeEditorPage } from './components/SourceCodeEditorPage';
+export { SourceCodeEditorProvider, useSourceCodeEditor } from './context';

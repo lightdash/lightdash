@@ -4,10 +4,11 @@ import { Box, Group } from '@mantine-8/core';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { useParams, useSearchParams } from 'react-router';
 import ErrorState from '../../../components/common/ErrorState';
-import Page from '../../../components/common/Page/Page';
 import { useProject } from '../../../hooks/useProject';
 import useApp from '../../../providers/App/useApp';
+import { useSourceCodeEditor } from '../context/useSourceCodeEditor';
 import {
+    useEditorLocalStorage,
     useExploreFilePath,
     useGitBranches,
     useGitDirectory,
@@ -20,15 +21,26 @@ import CreatePullRequestModal from './CreatePullRequestModal';
 import SourceCodeSidebar from './SourceCodeSidebar';
 import UnsavedChangesModal from './UnsavedChangesModal';
 
-const SourceCodeEditorPage: FC = () => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+const SourceCodeEditorContent: FC = () => {
+    const { projectUuid: routeProjectUuid } = useParams<{
+        projectUuid: string;
+    }>();
     const [searchParams, setSearchParams] = useSearchParams();
     const { user } = useApp();
+    const {
+        setProjectUuid,
+        setCurrentBranch: setContextBranch,
+        setCurrentFilePath: setContextFilePath,
+        setHasUnsavedChanges: setContextHasUnsavedChanges,
+    } = useSourceCodeEditor();
 
     // Read initial values from URL params
     const urlBranch = searchParams.get('branch');
     const urlFile = searchParams.get('file');
     const urlExplore = searchParams.get('explore');
+
+    // Use project UUID from route
+    const projectUuid = routeProjectUuid;
 
     // If explore param is provided, fetch the file path for that explore
     const { data: exploreFilePathData } = useExploreFilePath(
@@ -81,6 +93,10 @@ const SourceCodeEditorPage: FC = () => {
     // Mutations
     const saveFileMutation = useSaveGitFile(projectUuid ?? '');
 
+    // Local storage for crash recovery
+    const { saveUnsavedContent, clearUnsavedContent, saveLastLocation } =
+        useEditorLocalStorage(projectUuid);
+
     // Derived state
     const canManageSourceCode = useMemo(
         () =>
@@ -105,6 +121,23 @@ const SourceCodeEditorPage: FC = () => {
         () => editorContent !== originalContent,
         [editorContent, originalContent],
     );
+
+    // Sync state to context
+    useEffect(() => {
+        setProjectUuid(projectUuid ?? null);
+    }, [projectUuid, setProjectUuid]);
+
+    useEffect(() => {
+        setContextBranch(currentBranch);
+    }, [currentBranch, setContextBranch]);
+
+    useEffect(() => {
+        setContextFilePath(currentFilePath);
+    }, [currentFilePath, setContextFilePath]);
+
+    useEffect(() => {
+        setContextHasUnsavedChanges(hasUnsavedChanges);
+    }, [hasUnsavedChanges, setContextHasUnsavedChanges]);
 
     // When explore param is provided and file path is resolved, set the file path
     useEffect(() => {
@@ -183,17 +216,55 @@ const SourceCodeEditorPage: FC = () => {
         setOriginalSha(null);
     }, [currentFilePath, currentBranch]);
 
-    // Sync state to URL params
+    // Auto-save unsaved content to local storage for crash recovery
     useEffect(() => {
-        const newParams = new URLSearchParams();
+        if (hasUnsavedChanges && currentBranch && currentFilePath) {
+            saveUnsavedContent(
+                currentBranch,
+                currentFilePath,
+                editorContent,
+                originalSha,
+            );
+        }
+    }, [
+        hasUnsavedChanges,
+        currentBranch,
+        currentFilePath,
+        editorContent,
+        originalSha,
+        saveUnsavedContent,
+    ]);
+
+    // Save last viewed location
+    useEffect(() => {
+        saveLastLocation(currentBranch, currentFilePath);
+    }, [currentBranch, currentFilePath, saveLastLocation]);
+
+    // Sync state to URL params (preserving editor=1 and other params)
+    useEffect(() => {
+        const newParams = new URLSearchParams(searchParams);
         if (currentBranch) {
             newParams.set('branch', currentBranch);
+        } else {
+            newParams.delete('branch');
         }
         if (currentFilePath) {
             newParams.set('file', currentFilePath);
+        } else {
+            newParams.delete('file');
+        }
+        // Remove explore param after it's been resolved to a file
+        if (currentFilePath && urlExplore) {
+            newParams.delete('explore');
         }
         setSearchParams(newParams, { replace: true });
-    }, [currentBranch, currentFilePath, setSearchParams]);
+    }, [
+        currentBranch,
+        currentFilePath,
+        setSearchParams,
+        searchParams,
+        urlExplore,
+    ]);
 
     // Navigation handlers with unsaved changes check
     const handleBranchChange = useCallback(
@@ -245,12 +316,14 @@ const SourceCodeEditorPage: FC = () => {
         });
 
         setOriginalContent(editorContent);
+        clearUnsavedContent();
     }, [
         currentBranch,
         currentFilePath,
         editorContent,
         originalSha,
         saveFileMutation,
+        clearUnsavedContent,
     ]);
 
     const handleBranchCreated = useCallback((branchName: string) => {
@@ -268,7 +341,7 @@ const SourceCodeEditorPage: FC = () => {
     }
 
     return (
-        <Page title="Source Code" noContentPadding flexContent withFullHeight>
+        <>
             <Group gap={0} align="stretch" wrap="nowrap" h="100%" w="100%">
                 <Box w={300} style={{ flexShrink: 0 }}>
                     <SourceCodeSidebar
@@ -328,8 +401,8 @@ const SourceCodeEditorPage: FC = () => {
                 }}
                 onDiscard={handleDiscardChanges}
             />
-        </Page>
+        </>
     );
 };
 
-export default SourceCodeEditorPage;
+export default SourceCodeEditorContent;

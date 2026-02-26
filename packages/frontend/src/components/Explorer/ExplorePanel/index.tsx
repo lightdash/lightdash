@@ -24,7 +24,6 @@ import {
     useTransition,
     type FC,
 } from 'react';
-import { useNavigate } from 'react-router';
 import {
     explorerActions,
     selectAdditionalMetrics,
@@ -34,6 +33,7 @@ import {
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
+import { useSourceCodeEditor } from '../../../features/sourceCodeEditor';
 import {
     DeleteVirtualViewModal,
     EditVirtualViewModal,
@@ -61,7 +61,6 @@ interface ExplorePanelProps {
 const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
     const { track } = useTracking();
     const { user } = useApp();
-    const navigate = useNavigate();
     const [isEditVirtualViewOpen, setIsEditVirtualViewOpen] = useState(false);
     const [isDeleteVirtualViewOpen, setIsDeleteVirtualViewOpen] =
         useState(false);
@@ -69,6 +68,7 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
 
     const projectUuid = useProjectUuid();
     const isGitProject = useIsGitProject(projectUuid ?? '');
+    const { open: openSourceCodeEditor } = useSourceCodeEditor();
     const { data: editYamlInUiFlag } = useServerFeatureFlag(
         FeatureFlags.EditYamlInUi,
     );
@@ -158,12 +158,9 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
     }, []);
 
     const handleViewSourceCode = useCallback(() => {
-        if (!projectUuid || !activeTableName) return;
-        const params = new URLSearchParams({ explore: activeTableName });
-        void navigate(
-            `/projects/${projectUuid}/source-code?${params.toString()}`,
-        );
-    }, [navigate, projectUuid, activeTableName]);
+        if (!activeTableName) return;
+        openSourceCodeEditor({ explore: activeTableName });
+    }, [openSourceCodeEditor, activeTableName]);
 
     const breadcrumbs = useMemo(() => {
         if (!explore) return [];
