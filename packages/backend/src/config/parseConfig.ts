@@ -1896,7 +1896,7 @@ export const parseConfig = (): LightdashConfig => {
                     ? true
                     : undefined,
         },
-        // TODO: Nested spaces permissions on by default -> remvoe this flag and the old code paths
+        // TODO: Nested spaces permissions on by default -> remove this flag and the old code paths
         nestedSpacesPermissions: {
             enabled: process.env.NESTED_SPACES_PERMISSIONS_ENABLED !== 'false',
         },
