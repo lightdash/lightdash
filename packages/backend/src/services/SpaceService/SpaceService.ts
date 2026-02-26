@@ -5,6 +5,7 @@ import {
     CreateSpace,
     FeatureFlags,
     ForbiddenError,
+    getHighestSpaceRole,
     NotFoundError,
     ParameterError,
     SessionUser,
@@ -332,10 +333,24 @@ export class SpaceService
                 );
 
             if (userAccess && !userAccess.hasDirectAccess) {
-                userAccessEntries.push({
-                    userUuid: user.userUuid,
-                    role: userAccess.role,
-                });
+                const existingIdx = userAccessEntries.findIndex(
+                    (e) => e.userUuid === user.userUuid,
+                );
+                if (existingIdx >= 0) {
+                    // User already inherited from an ancestor — keep highest role
+                    const highest = getHighestSpaceRole([
+                        userAccessEntries[existingIdx].role,
+                        userAccess.role,
+                    ]);
+                    if (highest !== undefined) {
+                        userAccessEntries[existingIdx].role = highest;
+                    }
+                } else {
+                    userAccessEntries.push({
+                        userUuid: user.userUuid,
+                        role: userAccess.role,
+                    });
+                }
             }
             await this.spaceModel.updateWithCopiedPermissions(
                 spaceUuid,

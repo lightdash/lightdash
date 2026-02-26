@@ -1147,6 +1147,66 @@ describe('SpaceService.updateSpace - permission copy on inherit toggle', () => {
         );
     });
 
+    test('deduplicates acting user when already present in inherited entries from ancestors', async () => {
+        mockSpaceModel.getSpaceSummary.mockResolvedValue({
+            uuid: 'space-uuid',
+            name: 'Test Space',
+            projectUuid: 'project-uuid',
+            organizationUuid: 'org-uuid',
+            isPrivate: false,
+            inheritParentPermissions: true,
+        });
+        mockSpaceModel.isRootSpace.mockResolvedValue(true);
+        mockFeatureFlagModel.get.mockResolvedValue({ enabled: true });
+
+        // User has EDITOR access inherited (not direct) on the target space
+        mockSpacePermissionService.getSpaceAccessContext.mockResolvedValue({
+            organizationUuid: 'org-uuid',
+            projectUuid: 'project-uuid',
+            isPrivate: false,
+            access: [
+                {
+                    userUuid: mockUser.userUuid,
+                    role: SpaceMemberRole.EDITOR,
+                    hasDirectAccess: false,
+                    inheritedFrom: 'space',
+                },
+            ],
+        });
+
+        // Same user already appears in inherited entries from an ancestor with VIEWER role
+        mockSpacePermissionService.getInheritedPermissionsToCopy.mockResolvedValue(
+            {
+                userAccessEntries: [
+                    {
+                        userUuid: mockUser.userUuid,
+                        role: SpaceMemberRole.VIEWER,
+                    },
+                ],
+                groupAccessEntries: [],
+            },
+        );
+
+        await service.updateSpace(
+            mockUser as unknown as SessionUser,
+            'space-uuid',
+            { name: 'Test Space', isPrivate: true },
+        );
+
+        // Should deduplicate and keep the highest role (EDITOR > VIEWER), not create a duplicate
+        expect(mockSpaceModel.updateWithCopiedPermissions).toHaveBeenCalledWith(
+            'space-uuid',
+            expect.anything(),
+            [
+                {
+                    userUuid: mockUser.userUuid,
+                    role: SpaceMemberRole.EDITOR,
+                },
+            ],
+            [],
+        );
+    });
+
     test('does NOT add acting user to copied permissions if they already have direct access', async () => {
         mockSpaceModel.getSpaceSummary.mockResolvedValue({
             uuid: 'space-uuid',
