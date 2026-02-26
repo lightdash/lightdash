@@ -13,6 +13,70 @@ import { Block, KnownBlock } from '@slack/bolt';
 import { partition } from 'lodash';
 import { populateCustomMetricsSQL } from './populateCustomMetricsSQL';
 
+const SLACK_SECTION_TEXT_LIMIT = 3000;
+
+/**
+ * Splits text into chunks that fit within Slack's section block text limit (3000 chars).
+ * Splits at markdown-safe boundaries to avoid breaking links, code blocks, or formatting.
+ * Priority: newlines > spaces > hard cut (as last resort).
+ */
+const findSplitIndex = (window: string): { index: number; skip: number } => {
+    // Try to split at the last newline within the limit
+    const newlineIdx = window.lastIndexOf('\n');
+    if (newlineIdx > 0) {
+        return { index: newlineIdx, skip: 1 };
+    }
+
+    // Fall back to the last space
+    const spaceIdx = window.lastIndexOf(' ');
+    if (spaceIdx > 0) {
+        return { index: spaceIdx, skip: 1 };
+    }
+
+    // Hard cut as last resort (no whitespace at all in 3000 chars)
+    return { index: SLACK_SECTION_TEXT_LIMIT, skip: 0 };
+};
+
+const chunkSlackText = (text: string): string[] => {
+    if (text.length <= SLACK_SECTION_TEXT_LIMIT) {
+        return [text];
+    }
+
+    const chunks: string[] = [];
+    let remaining = text;
+
+    while (remaining.length > 0) {
+        if (remaining.length <= SLACK_SECTION_TEXT_LIMIT) {
+            chunks.push(remaining);
+            break;
+        }
+
+        const window = remaining.slice(0, SLACK_SECTION_TEXT_LIMIT);
+        const { index, skip } = findSplitIndex(window);
+
+        chunks.push(remaining.slice(0, index));
+        remaining = remaining.slice(index + skip);
+    }
+
+    return chunks;
+};
+
+/**
+ * Converts text into Slack section blocks, splitting long text
+ * into multiple blocks to stay within Slack's 3000 character limit.
+ */
+export const getTextBlocks = (
+    text: string,
+    format: 'mrkdwn' | 'plain_text' = 'mrkdwn',
+): (Block | KnownBlock)[] =>
+    chunkSlackText(text).map((chunk) => ({
+        type: 'section' as const,
+        text: {
+            type: format,
+            text: chunk,
+        },
+    }));
+
 /**
  * Returns compact Slack blocks showing a "thinking" animation with a GIF.
  * Uses context block for smaller, dimmed text appearance.

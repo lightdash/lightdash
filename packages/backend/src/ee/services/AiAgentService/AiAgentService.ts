@@ -155,6 +155,7 @@ import {
     getFollowUpToolBlocks,
     getProposeChangeBlocks,
     getReferencedArtifactsBlocks,
+    getTextBlocks,
     getThinkingBlocks,
 } from '../ai/utils/getSlackBlocks';
 import { llmAsAJudge } from '../ai/utils/llmAsAJudge';
@@ -3405,16 +3406,15 @@ Use them as a reference, but do all the due dilligence and follow the instructio
 
         // ! This is needed because the markdownToBlocks escapes all characters and slack just needs &, <, > to be escaped
         // ! https://api.slack.com/reference/surfaces/formatting#escaping
-        const slackifiedMarkdown = slackifyMarkdown(response);
+        // Also strip trailing backslashes before newlines — slackifyMarkdown converts
+        // markdown hard line breaks (two trailing spaces) into `\` which Slack renders literally.
+        const slackifiedMarkdown = slackifyMarkdown(response).replace(
+            /\\\n/g,
+            '\n',
+        );
 
         const blocks = [
-            {
-                type: 'section',
-                text: {
-                    type: 'mrkdwn',
-                    text: slackifiedMarkdown,
-                },
-            },
+            ...getTextBlocks(slackifiedMarkdown),
             ...exploreBlocks,
             ...proposeChangeBlocks,
             ...referencedArtifactsBlocks,
