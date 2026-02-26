@@ -18,11 +18,11 @@ import {
     type ToolRunQueryArgs,
     type ToolSearchFieldValuesArgs,
 } from '@lightdash/common';
-import { Badge, rem, Text } from '@mantine-8/core';
 import type { FC } from 'react';
 import type { ToolCallSummary } from '../utils/types';
 import { AiChartGenerationToolCallDescription } from './AiChartGenerationToolCallDescription';
 import { ContentSearchToolCallDescription } from './ContentSearchToolCallDescription';
+import { DashboardChartsToolCallDescription } from './DashboardChartsToolCallDescription';
 import { DashboardToolCallDescription } from './DashboardToolCallDescription';
 import { ExploreToolCallDescription } from './ExploreToolCallDescription';
 import { FieldSearchToolCallDescription } from './FieldSearchToolCallDescription';
@@ -101,23 +101,13 @@ export const ToolCallDescription: FC<{
             const getDashboardChartsArgs =
                 toolCall.toolArgs as ToolGetDashboardChartsArgs;
             return (
-                <Text c="dimmed" size="xs">
-                    Looking up charts in dashboard{' '}
-                    <Badge
-                        color="gray"
-                        variant="light"
-                        size="xs"
-                        mx={rem(2)}
-                        radius="sm"
-                        style={{
-                            textTransform: 'none',
-                            fontWeight: 400,
-                        }}
-                    >
-                        {getDashboardChartsArgs.dashboardName ??
-                            getDashboardChartsArgs.dashboardUuid}
-                    </Badge>
-                </Text>
+                <DashboardChartsToolCallDescription
+                    dashboardName={
+                        getDashboardChartsArgs.dashboardName ??
+                        getDashboardChartsArgs.dashboardUuid
+                    }
+                    page={getDashboardChartsArgs.page ?? null}
+                />
             );
         case 'generateDashboard':
             const dashboardToolArgs = toolCall.toolArgs as ToolDashboardArgs;
