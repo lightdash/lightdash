@@ -623,6 +623,7 @@ export interface Dimension extends Field {
     isIntervalBase?: boolean;
     aiHint?: string | string[];
     formatOptions?: CustomFormat;
+    caseSensitive?: boolean; // When false, string filters on this dimension will be case insensitive. Default is true
     image?: {
         url: string;
         width?: number;

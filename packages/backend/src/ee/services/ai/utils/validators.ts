@@ -272,6 +272,8 @@ function validateFilterRule(
                 (string: string) => string.replaceAll('\\', '\\\\'),
                 WeekDay.SUNDAY,
                 SupportedDbtAdapter.BIGQUERY,
+                'UTC',
+                true, // Default to case sensitive for validation
             );
         }
     } catch (e) {

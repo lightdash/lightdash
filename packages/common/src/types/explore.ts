@@ -91,6 +91,7 @@ export type Explore = {
     ymlPath?: string;
     sqlPath?: string;
     type?: ExploreType;
+    caseSensitive?: boolean; // When false, all string filters in this explore will be case insensitive. Default is true
     // Spotlight config for this explore
     spotlight?: {
         visibility: LightdashProjectConfig['spotlight']['default_visibility'];

@@ -96,6 +96,7 @@ type ExploreConfig = {
     description?: string;
     group_label?: string;
     joins?: DbtModelJoin[];
+    case_sensitive?: boolean; // When false, all string filters in this explore will be case insensitive. Default is true
     /**
      * Explore-scoped custom dimensions.
      * These dimensions are only available within this specific explore
@@ -213,6 +214,7 @@ export type DbtColumnLightdashDimension = {
     required_attributes?: Record<string, string | string[]>;
     any_attributes?: Record<string, string | string[]>;
     ai_hint?: string | string[];
+    case_sensitive?: boolean; // When false, string filters on this dimension will be case insensitive. Default is true
     image?: {
         url: string;
         width?: number;

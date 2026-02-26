@@ -1056,6 +1056,7 @@ export class MetricQueryBuilder {
                 startOfWeek,
                 adapterType,
                 timezone,
+                this.args.explore.caseSensitive ?? true,
             ),
         );
     }
