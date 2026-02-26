@@ -1,3 +1,11 @@
+## [0.2527.2](https://github.com/lightdash/lightdash/compare/0.2527.1...0.2527.2) (2026-02-26)
+
+
+### Bug Fixes
+
+* embed settings save changes is disabled if project has only charts saved in dashboards ([#20650](https://github.com/lightdash/lightdash/issues/20650)) ([c106814](https://github.com/lightdash/lightdash/commit/c106814667bce7462e2030798836b9c122f5bc86))
+* make inherit the default for spaces ([#20641](https://github.com/lightdash/lightdash/issues/20641)) ([5f6e499](https://github.com/lightdash/lightdash/commit/5f6e499f46fa6e87aac213a0cbd89ff8239fc28c))
+
 ## [0.2527.1](https://github.com/lightdash/lightdash/compare/0.2527.0...0.2527.1) (2026-02-26)
 
 
