@@ -71,7 +71,6 @@ type ValidationServiceArguments = {
 export class ValidationService extends BaseService {
     private static buildExploreFields(
         compiledExplores: (Explore | ExploreError)[],
-        indexByExploreName = false,
     ): Record<string, { dimensionIds: string[]; metricIds: string[] }> {
         const exploreFields: Record<
             string,
@@ -80,38 +79,22 @@ export class ValidationService extends BaseService {
 
         compiledExplores.forEach((explore: Explore | ExploreError) => {
             if (!isExploreError(explore)) {
-                if (indexByExploreName) {
-                    // For validation, index by both baseTable and explore name
-                    const dimensions = Object.values(explore.tables).flatMap(
-                        (table) => Object.values(table.dimensions || {}),
-                    );
-                    const metrics = Object.values(explore.tables).flatMap(
-                        (table) => Object.values(table.metrics || {}),
-                    );
-                    const fieldData = {
-                        dimensionIds: dimensions.map(getItemId),
-                        metricIds: metrics.map(getItemId),
-                    };
-                    // Index by baseTable
-                    exploreFields[explore.baseTable] = fieldData;
-                    // Also index by explore name if different
-                    if (explore.name !== explore.baseTable) {
-                        exploreFields[explore.name] = fieldData;
-                    }
-                } else {
-                    // For chart/dashboard validation, index by table name
-                    Object.values(explore.tables).forEach((table) => {
-                        const dimensionIds = Object.values(
-                            table.dimensions || {},
-                        ).map((dimension) => getItemId(dimension));
-                        const metricIds = Object.values(
-                            table.metrics || {},
-                        ).map((metric) => getItemId(metric));
-                        exploreFields[table.name] = {
-                            dimensionIds,
-                            metricIds,
-                        };
-                    });
+                // For validation, index by both baseTable and explore name
+                const dimensions = Object.values(explore.tables).flatMap(
+                    (table) => Object.values(table.dimensions || {}),
+                );
+                const metrics = Object.values(explore.tables).flatMap((table) =>
+                    Object.values(table.metrics || {}),
+                );
+                const fieldData = {
+                    dimensionIds: dimensions.map(getItemId),
+                    metricIds: metrics.map(getItemId),
+                };
+                // Index by baseTable
+                exploreFields[explore.baseTable] = fieldData;
+                // Also index by explore name if different
+                if (explore.name !== explore.baseTable) {
+                    exploreFields[explore.name] = fieldData;
                 }
             }
         });
@@ -873,7 +856,7 @@ export class ValidationService extends BaseService {
         });
 
         const exploreFields = explores
-            ? ValidationService.buildExploreFields(explores, true)
+            ? ValidationService.buildExploreFields(explores)
             : {};
 
         const existingFields = explores
