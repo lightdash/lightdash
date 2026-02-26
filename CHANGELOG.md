@@ -1,3 +1,10 @@
+# [0.2536.0](https://github.com/lightdash/lightdash/compare/0.2535.0...0.2536.0) (2026-02-26)
+
+
+### Features
+
+* display dashcache checker on dashboard runs ([#20673](https://github.com/lightdash/lightdash/issues/20673)) ([3b8b30d](https://github.com/lightdash/lightdash/commit/3b8b30dbb0876693b58356afa6996e22e8f72b0b))
+
 # [0.2535.0](https://github.com/lightdash/lightdash/compare/0.2534.0...0.2535.0) (2026-02-26)
 
 
