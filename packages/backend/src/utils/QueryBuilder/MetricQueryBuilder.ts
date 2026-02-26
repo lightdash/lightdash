@@ -2670,8 +2670,8 @@ export class MetricQueryBuilder {
         );
 
         if (sdMetricIds.length > 0) {
-            const fieldQuoteChar =
-                this.args.warehouseSqlBuilder.getFieldQuoteChar();
+            // Base query has dimensions or regular metrics — wrap it and join
+            const sdBaseCteName = 'sd_base';
 
             const hasNonSdSelects =
                 Object.keys(dimensionsSQL.selects).length > 0 ||
@@ -2688,13 +2688,11 @@ export class MetricQueryBuilder {
                 sqlFrom,
                 joinsSql: joins.joinSQL,
                 dimensionJoins: dimensionsSQL.joins,
-                baseCteName: 'sd_base',
+                baseCteName: sdBaseCteName,
             });
             ctes.push(...sdCtes);
 
             if (hasNonSdSelects) {
-                // Base query has dimensions or regular metrics — wrap it and join
-                const sdBaseCteName = 'sd_base';
                 ctes.push(
                     MetricQueryBuilder.wrapAsCte(
                         sdBaseCteName,
