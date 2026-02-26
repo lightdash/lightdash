@@ -1,3 +1,10 @@
+## [0.2536.2](https://github.com/lightdash/lightdash/compare/0.2536.1...0.2536.2) (2026-02-26)
+
+
+### Bug Fixes
+
+* **duckdb:** install httpfs extension before loading ([#20678](https://github.com/lightdash/lightdash/issues/20678)) ([9551baa](https://github.com/lightdash/lightdash/commit/9551baafb0de71d2401c95149cffe3215c36ea66))
+
 ## [0.2536.1](https://github.com/lightdash/lightdash/compare/0.2536.0...0.2536.1) (2026-02-26)
 
 
