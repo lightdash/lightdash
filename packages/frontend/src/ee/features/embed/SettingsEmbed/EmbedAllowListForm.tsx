@@ -103,8 +103,7 @@ const EmbedAllowListForm: FC<{
                         type="submit"
                         disabled={
                             disabled ||
-                            dashboards.length === 0 ||
-                            charts.length === 0
+                            (dashboards.length === 0 && charts.length === 0)
                         }
                     >
                         Save changes
