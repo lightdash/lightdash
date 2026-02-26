@@ -8,6 +8,7 @@ import { useProject } from '../../../hooks/useProject';
 import useApp from '../../../providers/App/useApp';
 import { useSourceCodeEditor } from '../context/useSourceCodeEditor';
 import {
+    useEditorLocalStorage,
     useExploreFilePath,
     useGitBranches,
     useGitDirectory,
@@ -91,6 +92,10 @@ const SourceCodeEditorContent: FC = () => {
 
     // Mutations
     const saveFileMutation = useSaveGitFile(projectUuid ?? '');
+
+    // Local storage for crash recovery
+    const { saveUnsavedContent, clearUnsavedContent, saveLastLocation } =
+        useEditorLocalStorage(projectUuid);
 
     // Derived state
     const canManageSourceCode = useMemo(
@@ -211,6 +216,30 @@ const SourceCodeEditorContent: FC = () => {
         setOriginalSha(null);
     }, [currentFilePath, currentBranch]);
 
+    // Auto-save unsaved content to local storage for crash recovery
+    useEffect(() => {
+        if (hasUnsavedChanges && currentBranch && currentFilePath) {
+            saveUnsavedContent(
+                currentBranch,
+                currentFilePath,
+                editorContent,
+                originalSha,
+            );
+        }
+    }, [
+        hasUnsavedChanges,
+        currentBranch,
+        currentFilePath,
+        editorContent,
+        originalSha,
+        saveUnsavedContent,
+    ]);
+
+    // Save last viewed location
+    useEffect(() => {
+        saveLastLocation(currentBranch, currentFilePath);
+    }, [currentBranch, currentFilePath, saveLastLocation]);
+
     // Sync state to URL params (preserving editor=1 and other params)
     useEffect(() => {
         const newParams = new URLSearchParams(searchParams);
@@ -287,12 +316,14 @@ const SourceCodeEditorContent: FC = () => {
         });
 
         setOriginalContent(editorContent);
+        clearUnsavedContent();
     }, [
         currentBranch,
         currentFilePath,
         editorContent,
         originalSha,
         saveFileMutation,
+        clearUnsavedContent,
     ]);
 
     const handleBranchCreated = useCallback((branchName: string) => {

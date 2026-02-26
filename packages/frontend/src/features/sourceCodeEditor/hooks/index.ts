@@ -5,3 +5,4 @@ export { useSaveGitFile } from './useSaveGitFile';
 export { useCreateGitBranch } from './useCreateGitBranch';
 export { useCreatePullRequest } from './useCreatePullRequest';
 export { useExploreFilePath } from './useExploreFilePath';
+export { useEditorLocalStorage } from './useEditorLocalStorage';
