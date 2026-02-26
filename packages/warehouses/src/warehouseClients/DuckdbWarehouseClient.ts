@@ -159,6 +159,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
     }
 
     private async bootstrapSession(db: DuckdbConnection): Promise<void> {
+        await db.run('INSTALL httpfs;');
         await db.run('LOAD httpfs;');
 
         if (!this.s3Config) {
