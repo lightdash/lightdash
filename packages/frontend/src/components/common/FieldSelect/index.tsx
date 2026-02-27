@@ -276,7 +276,7 @@ const FieldSelectComponent = <T extends Item = Item>({
             {...rest}
             value={selectedItemId}
             data={selectData}
-            onChange={(value) => value && handleChange(value)}
+            onChange={(value) => (value ? handleChange(value) : onChange(undefined))}
         />
     );
 };
