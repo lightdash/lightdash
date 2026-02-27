@@ -15,6 +15,7 @@ export enum ResourceViewItemAction {
     CREATE_SPACE,
     PIN_TO_HOMEPAGE,
     TRANSFER_TO_SPACE,
+    SHARE,
 }
 
 export enum ResourceViewType {
@@ -61,6 +62,10 @@ export type ResourceViewItemActionState =
               | ResourceViewChartItem
               | ResourceViewDashboardItem
               | ResourceViewSpaceItem;
+      }
+    | {
+          type: ResourceViewItemAction.SHARE;
+          item: ResourceViewSpaceItem;
       };
 
 type TabType = {

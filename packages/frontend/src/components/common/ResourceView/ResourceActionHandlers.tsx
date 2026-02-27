@@ -7,6 +7,7 @@ import {
     type ResourceViewItem,
     type Space,
 } from '@lightdash/common';
+import { Center, Loader } from '@mantine-8/core';
 import {
     IconFolderCog,
     IconFolderPlus,
@@ -19,6 +20,7 @@ import { useChartPinningMutation } from '../../../hooks/pinning/useChartPinningM
 import { useDashboardPinningMutation } from '../../../hooks/pinning/useDashboardPinningMutation';
 import { useSpacePinningMutation } from '../../../hooks/pinning/useSpaceMutation';
 import { useContentAction } from '../../../hooks/useContent';
+import { useSpace } from '../../../hooks/useSpaces';
 import AddTilesToDashboardModal from '../../SavedDashboards/AddTilesToDashboardModal';
 import ChartDeleteModal from '../modal/ChartDeleteModal';
 import ChartDuplicateModal from '../modal/ChartDuplicateModal';
@@ -26,6 +28,7 @@ import ChartUpdateModal from '../modal/ChartUpdateModal';
 import DashboardDeleteModal from '../modal/DashboardDeleteModal';
 import DashboardDuplicateModal from '../modal/DashboardDuplicateModal';
 import DashboardUpdateModal from '../modal/DashboardUpdateModal';
+import ShareSpaceModal from '../ShareSpaceModal';
 import SpaceActionModal from '../SpaceActionModal';
 import { ActionType } from '../SpaceActionModal/types';
 import TransferItemsModal from '../TransferItemsModal/TransferItemsModal';
@@ -33,6 +36,35 @@ import {
     ResourceViewItemAction,
     type ResourceViewItemActionState,
 } from './types';
+
+const ShareSpaceAction: FC<{
+    projectUuid: string;
+    spaceUuid: string;
+    onClose: () => void;
+}> = ({ projectUuid, spaceUuid, onClose }) => {
+    const { data: space, isLoading } = useSpace(projectUuid, spaceUuid);
+
+    if (isLoading) {
+        return (
+            <Center p="xl">
+                <Loader />
+            </Center>
+        );
+    }
+
+    if (!space) {
+        return null;
+    }
+
+    return (
+        <ShareSpaceModal
+            space={space}
+            projectUuid={projectUuid}
+            opened
+            onClose={onClose}
+        />
+    );
+};
 
 interface ResourceActionHandlersProps {
     action: ResourceViewItemActionState;
@@ -304,6 +336,15 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
                         await moveToSpace(action.item, spaceUuid);
                         handleReset();
                     }}
+                />
+            );
+
+        case ResourceViewItemAction.SHARE:
+            return (
+                <ShareSpaceAction
+                    projectUuid={projectUuid}
+                    spaceUuid={action.item.data.uuid}
+                    onClose={handleReset}
                 />
             );
 
