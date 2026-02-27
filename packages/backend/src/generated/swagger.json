@@ -16102,6 +16102,42 @@
                         "type": "number",
                         "format": "double"
                     },
+                    "dashboards": {
+                        "items": {
+                            "properties": {
+                                "spaceUuid": {
+                                    "type": "string"
+                                },
+                                "name": {
+                                    "type": "string"
+                                },
+                                "uuid": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["spaceUuid", "name", "uuid"],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "charts": {
+                        "items": {
+                            "properties": {
+                                "spaceUuid": {
+                                    "type": "string"
+                                },
+                                "name": {
+                                    "type": "string"
+                                },
+                                "uuid": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["spaceUuid", "name", "uuid"],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
                     "spaces": {
                         "items": {
                             "properties": {
@@ -16113,6 +16149,10 @@
                                     "type": "number",
                                     "format": "double"
                                 },
+                                "parentSpaceUuid": {
+                                    "type": "string",
+                                    "nullable": true
+                                },
                                 "name": {
                                     "type": "string"
                                 },
@@ -16123,6 +16163,7 @@
                             "required": [
                                 "dashboardCount",
                                 "chartCount",
+                                "parentSpaceUuid",
                                 "name",
                                 "uuid"
                             ],
@@ -16131,7 +16172,13 @@
                         "type": "array"
                     }
                 },
-                "required": ["dashboardCount", "chartCount", "spaces"],
+                "required": [
+                    "dashboardCount",
+                    "chartCount",
+                    "dashboards",
+                    "charts",
+                    "spaces"
+                ],
                 "type": "object"
             },
             "ApiSpaceDeleteImpactResponse": {

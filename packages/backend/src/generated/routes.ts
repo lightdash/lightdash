@@ -15195,6 +15195,30 @@ const models: TsoaRoute.Models = {
             nestedProperties: {
                 dashboardCount: { dataType: 'double', required: true },
                 chartCount: { dataType: 'double', required: true },
+                dashboards: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'nestedObjectLiteral',
+                        nestedProperties: {
+                            spaceUuid: { dataType: 'string', required: true },
+                            name: { dataType: 'string', required: true },
+                            uuid: { dataType: 'string', required: true },
+                        },
+                    },
+                    required: true,
+                },
+                charts: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'nestedObjectLiteral',
+                        nestedProperties: {
+                            spaceUuid: { dataType: 'string', required: true },
+                            name: { dataType: 'string', required: true },
+                            uuid: { dataType: 'string', required: true },
+                        },
+                    },
+                    required: true,
+                },
                 spaces: {
                     dataType: 'array',
                     array: {
@@ -15205,6 +15229,14 @@ const models: TsoaRoute.Models = {
                                 required: true,
                             },
                             chartCount: { dataType: 'double', required: true },
+                            parentSpaceUuid: {
+                                dataType: 'union',
+                                subSchemas: [
+                                    { dataType: 'string' },
+                                    { dataType: 'enum', enums: [null] },
+                                ],
+                                required: true,
+                            },
                             name: { dataType: 'string', required: true },
                             uuid: { dataType: 'string', required: true },
                         },

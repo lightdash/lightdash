@@ -173,7 +173,7 @@ import { type SearchResults } from './search';
 import { type ShareUrl } from './share';
 import { type ApiSlackChannelsResponse } from './slack';
 import { type SlackSettings } from './slackSettings';
-import { type Space } from './space';
+import { type ApiSpaceDeleteImpactResponse, type Space } from './space';
 import {
     type ApiCreateSqlChart,
     type ApiCreateVirtualView,
@@ -939,7 +939,8 @@ type ApiResults =
     | ApiFavoriteItems['results']
     | ApiChartValidationResponse['results']
     | ApiDashboardValidationResponse['results']
-    | ApiToggleFavorite['results'];
+    | ApiToggleFavorite['results']
+    | ApiSpaceDeleteImpactResponse['results'];
 // Note: EE API types removed from ApiResults to avoid circular imports
 // They can still be used with ApiResponse<T> by importing from '@lightdash/common'
 

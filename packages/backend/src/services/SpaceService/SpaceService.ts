@@ -599,21 +599,34 @@ export class SpaceService
 
         const spaces = await this.spaceModel.find({ spaceUuids: allUuids });
 
+        const [charts, sqlCharts, dashboards] = await Promise.all([
+            this.spaceModel.getSpaceQueries(allUuids),
+            this.spaceModel.getSpaceSqlCharts(allUuids),
+            this.spaceModel.getSpaceDashboards(allUuids),
+        ]);
+
+        const allCharts = [...charts, ...sqlCharts];
+
         return {
             spaces: spaces.map((s) => ({
                 uuid: s.uuid,
                 name: s.name,
+                parentSpaceUuid: s.parentSpaceUuid,
                 chartCount: Number(s.chartCount),
                 dashboardCount: Number(s.dashboardCount),
             })),
-            chartCount: spaces.reduce(
-                (sum, s) => sum + Number(s.chartCount),
-                0,
-            ),
-            dashboardCount: spaces.reduce(
-                (sum, s) => sum + Number(s.dashboardCount),
-                0,
-            ),
+            charts: allCharts.map((c) => ({
+                uuid: c.uuid,
+                name: c.name,
+                spaceUuid: c.spaceUuid,
+            })),
+            dashboards: dashboards.map((d) => ({
+                uuid: d.uuid,
+                name: d.name,
+                spaceUuid: d.spaceUuid,
+            })),
+            chartCount: allCharts.length,
+            dashboardCount: dashboards.length,
         };
     }
 
