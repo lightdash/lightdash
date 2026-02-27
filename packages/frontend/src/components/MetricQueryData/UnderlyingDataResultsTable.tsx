@@ -4,7 +4,7 @@ import {
     type ItemsMap,
     type SortField,
 } from '@lightdash/common';
-import { Box, Center } from '@mantine/core';
+import { Box, Center } from '@mantine-8/core';
 import { useCallback, type FC } from 'react';
 import useUnderlyingDataColumns from '../../hooks/useUnderlyingDataColumns';
 import { TrackSection } from '../../providers/Tracking/TrackingProvider';

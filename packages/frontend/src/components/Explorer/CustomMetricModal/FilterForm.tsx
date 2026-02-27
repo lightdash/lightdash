@@ -7,7 +7,7 @@ import {
     type FilterOperator,
     type FilterRule,
 } from '@lightdash/common';
-import { Button, Stack } from '@mantine/core';
+import { Button, Stack } from '@mantine-8/core';
 import {
     useCallback,
     type Dispatch,
@@ -103,7 +103,7 @@ export const FilterForm: FC<{
     );
 
     return (
-        <Stack spacing="sm">
+        <Stack gap="sm">
             {customMetricFiltersWithIds.map((filterRule, index) => (
                 <FilterRuleForm
                     key={filterRule.id}

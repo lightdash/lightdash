@@ -1,5 +1,5 @@
 import { type SummaryExplore } from '@lightdash/common';
-import { Divider, Text } from '@mantine/core';
+import { Divider, Text } from '@mantine-8/core';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { memo, useCallback, useMemo, useRef, useState, type FC } from 'react';
 import ExploreNavLink from './ExploreNavLink';
