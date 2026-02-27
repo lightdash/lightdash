@@ -476,6 +476,12 @@ const Settings: FC = () => {
                     path: '/generalSettings/customRoles/:roleId',
                 },
                 location.pathname,
+            ) &&
+            !matchPath(
+                {
+                    path: '/generalSettings/projectManagement/:projectUuid/preAggregateAudit',
+                },
+                location.pathname,
             )
         );
     }, [location.pathname]);
@@ -825,6 +831,19 @@ const Settings: FC = () => {
                                             <MantineIcon icon={IconRefresh} />
                                         }
                                     />
+
+                                    {health.preAggregates.enabled && (
+                                        <RouterNavLink
+                                            label="Pre-aggregate audit"
+                                            exact
+                                            to={`/generalSettings/projectManagement/${project.projectUuid}/preAggregateAudit`}
+                                            leftSection={
+                                                <MantineIcon
+                                                    icon={IconReportAnalytics}
+                                                />
+                                            }
+                                        />
+                                    )}
 
                                     <RouterNavLink
                                         label="Parameters"

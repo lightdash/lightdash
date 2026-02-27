@@ -222,6 +222,9 @@ const getMockedAsyncQueryService = (
         projectCompileLogModel: {} as ProjectCompileLogModel,
         adminNotificationService: {} as AdminNotificationService,
         spacePermissionService: {} as SpacePermissionService,
+        preAggregateDailyStatsModel: {
+            upsert: jest.fn(),
+        } as unknown as import('../../models/PreAggregateDailyStatsModel').PreAggregateDailyStatsModel,
         ...overrides,
     });
 

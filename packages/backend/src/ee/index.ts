@@ -292,6 +292,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     encryptionUtil: utils.getEncryptionUtil(),
                     userModel: models.getUserModel(),
                     queryHistoryModel: models.getQueryHistoryModel(),
+                    preAggregateDailyStatsModel:
+                        models.getPreAggregateDailyStatsModel(),
                     downloadAuditModel: models.getDownloadAuditModel(),
                     cacheService: repository.getCacheService(),
                     savedSqlModel: models.getSavedSqlModel(),

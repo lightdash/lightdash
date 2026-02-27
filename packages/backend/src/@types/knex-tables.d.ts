@@ -450,6 +450,7 @@ declare module 'knex/types/tables' {
         [OrganizationWarehouseCredentialsTableName]: OrganizationWarehouseCredentialsTable;
         [QueryHistoryTableName]: QueryHistoryTable;
         [PreAggregateDefinitionsTableName]: PreAggregateDefinitionsTable;
+        [PreAggregateDailyStatsTableName]: PreAggregateDailyStatsTable;
         [PreAggregateMaterializationsTableName]: PreAggregateMaterializationsTable;
         [ProjectParametersTableName]: ProjectParametersTable;
         [RolesTableName]: RoleTable;
