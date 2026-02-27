@@ -1,10 +1,39 @@
+/**
+ * Inject Lightdash metric definitions into a dbt manifest.json.
+ *
+ * dbt's lineage graph only shows nodes that exist in the manifest (models, sources,
+ * exposures, etc). Lightdash metrics are defined in dbt model YAML (under meta.metrics
+ * or column.meta.metrics) but dbt doesn't create lineage nodes for them.
+ *
+ * This module reads a dbt manifest and injects two types of nodes:
+ *
+ *   1. semantic_model nodes — one per dbt model that has Lightdash metrics.
+ *      These appear as intermediate nodes between the model and its metrics.
+ *      Lineage: model -> semantic_model -> metric
+ *
+ *   2. metric nodes — one per Lightdash metric definition.
+ *      "Simple" metrics (sum, count, etc.) depend on their semantic_model.
+ *      "Derived" metrics (type: number, with ${ref} SQL) depend on other metrics.
+ *
+ * All injected nodes are tagged with _lightdash_injected in their meta, so they
+ * can be cleanly removed and re-injected on subsequent runs (idempotency).
+ *
+ * Injected nodes use Lightdash brand purple in the lineage graph via the
+ * `node_color` data attribute, which dbt docs' Cytoscape config picks up.
+ */
 import { promises as fs } from 'fs';
 import * as path from 'path';
 import GlobalState from '../globalState';
 
+/** Marker added to meta on all injected nodes, used to identify and clean them up */
 const LIGHTDASH_MARKER = '_lightdash_injected';
 
-// Lightdash brand purple for dbt docs lineage graph (uses Cytoscape node_color data attr)
+/**
+ * dbt docs uses Cytoscape.js for the lineage graph. The `node[node_color]` CSS
+ * selector overrides the default color with a per-node data attribute.
+ * We use Lightdash brand purple (#7262FF) for metrics and a lighter tint for
+ * semantic models so they're visually distinct.
+ */
 const LIGHTDASH_PURPLE = '#7262FF';
 const LIGHTDASH_PURPLE_LIGHT = '#b8b0ff';
 
@@ -40,11 +69,19 @@ type Manifest = {
     [key: string]: unknown;
 };
 
+/**
+ * Extract all Lightdash metrics from a dbt model node.
+ *
+ * Lightdash metrics can be defined in two places in dbt YAML:
+ *   - Column-level: columns.<col>.meta.metrics.<name>
+ *   - Table-level:  meta.metrics.<name>  (used for derived/calculated metrics)
+ */
 function extractMetricsFromModel(
     node: ManifestNode,
 ): Array<[string, MetricDef]> {
     const metrics: Array<[string, MetricDef]> = [];
 
+    // Column-level metrics
     const columns = node.columns ?? {};
     for (const col of Object.values(columns)) {
         const colMetrics = col.meta?.metrics ?? {};
@@ -53,6 +90,7 @@ function extractMetricsFromModel(
         }
     }
 
+    // Table-level metrics (often derived metrics that reference other metrics)
     const tableMetrics = node.meta?.metrics ?? {};
     for (const [name, definition] of Object.entries(tableMetrics)) {
         metrics.push([name, definition]);
@@ -61,6 +99,12 @@ function extractMetricsFromModel(
     return metrics;
 }
 
+/**
+ * When the same metric name (e.g. "total_revenue") exists in multiple models,
+ * we need to prefix metrics to avoid unique_id collisions in the manifest.
+ * The first model (by insertion order) keeps unprefixed names; all other models
+ * with a collision get ALL their metrics prefixed with the model short name.
+ */
 function findModelsNeedingPrefix(
     modelMetrics: Map<string, Array<[string, MetricDef]>>,
 ): Set<string> {
@@ -80,6 +124,7 @@ function findModelsNeedingPrefix(
     return modelsToPrefix;
 }
 
+/** Strip the "dbt_" prefix from model names to produce shorter prefixes (e.g. "dbt_orders" -> "orders") */
 function modelShortName(modelName: string): string {
     if (modelName.startsWith('dbt_')) {
         return modelName.slice(4);
@@ -98,17 +143,23 @@ function resolveMetricName(
     return metricName;
 }
 
+/**
+ * Parse ${metric_name} references from a derived metric's SQL expression.
+ * e.g. "${total_revenue} / ${total_orders}" -> ["total_revenue", "total_orders"]
+ */
 function parseDerivedRefs(sql: string): string[] {
     const matches = sql.match(/\$\{(\w+)\}/g);
     if (!matches) return [];
     return matches.map((m) => m.slice(2, -1));
 }
 
+/** Derive the YAML file path from the model's SQL path (for the injected node metadata) */
 function getYmlPath(node: ManifestNode): string {
     const orig = node.original_file_path ?? '';
     return orig.replace('.sql', '.yml');
 }
 
+/** Build a dbt semantic_model manifest node that sits between a model and its metrics */
 function buildSemanticModel(
     modelNode: ManifestNode,
     packageName: string,
@@ -149,6 +200,11 @@ function buildSemanticModel(
     ];
 }
 
+/**
+ * Build a dbt metric manifest node for a Lightdash metric.
+ * Lightdash "number" type metrics become dbt "derived" metrics (they reference other metrics).
+ * All other types (sum, count, average, etc.) become dbt "simple" metrics.
+ */
 function buildMetric(
     resolvedName: string,
     metricDef: MetricDef,
@@ -188,6 +244,11 @@ function buildMetric(
     ];
 }
 
+/**
+ * Remove all previously injected nodes so we can re-inject cleanly.
+ * Nodes are identified by the _lightdash_injected marker in their meta.
+ * Also cleans up parent_map and child_map references to removed nodes.
+ */
 // eslint-disable-next-line no-param-reassign
 function clearPreviousInjections(m: Manifest): void {
     for (const section of ['semantic_models', 'metrics'] as const) {
@@ -213,6 +274,16 @@ function clearPreviousInjections(m: Manifest): void {
     }
 }
 
+/**
+ * Core injection logic. Takes a parsed manifest, clears old injections,
+ * then walks all project models to create semantic_model + metric nodes.
+ *
+ * The process has 4 steps:
+ *   1. Collect all models with Lightdash metrics
+ *   2. Determine which models need metric name prefixes (collision avoidance)
+ *   3. For each model: create a semantic_model, then a metric per Lightdash metric
+ *   4. Fix up derived metrics so their lineage points to input metrics, not semantic_model
+ */
 function inject(m: Manifest): Manifest {
     clearPreviousInjections(m);
 
@@ -419,6 +490,10 @@ type InjectResult = {
     metricCount: number;
 };
 
+/**
+ * Main entry point: reads a dbt manifest.json, injects Lightdash metric nodes,
+ * writes the modified manifest back, and returns a count of what was injected.
+ */
 export async function injectLightdashLineage(
     manifestPath: string,
 ): Promise<InjectResult> {
@@ -457,6 +532,7 @@ export async function injectLightdashLineage(
     return { semanticModelCount, metricCount };
 }
 
+/** Resolve the path to manifest.json, respecting --target-path if provided */
 export function getManifestPath(
     projectDir: string,
     targetPath?: string,
@@ -465,6 +541,7 @@ export function getManifestPath(
     return path.join(targetDir, 'manifest.json');
 }
 
+/** Resolve the path to static_index.html, respecting --target-path if provided */
 export function getStaticIndexPath(
     projectDir: string,
     targetPath?: string,
@@ -473,6 +550,16 @@ export function getStaticIndexPath(
     return path.join(targetDir, 'static_index.html');
 }
 
+/**
+ * Patch static_index.html with the injected manifest.
+ *
+ * `dbt docs generate --static` produces a self-contained HTML file that embeds
+ * the manifest and catalog inline as JavaScript:
+ *   var n = { manifest: {<JSON>}, catalog: {<JSON>} }
+ *
+ * Since we modified manifest.json after dbt generated this file, we need to
+ * find and replace the embedded manifest with our injected version.
+ */
 export async function patchStaticIndex(
     manifestPath: string,
     staticIndexPath: string,
