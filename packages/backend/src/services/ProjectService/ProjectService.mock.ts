@@ -373,6 +373,7 @@ export const spacesWithSavedCharts: Space[] = [
                 spaceName: 'spaceName',
                 organizationUuid: 'organizationUuid',
                 slug: 'saved-chart-name',
+                verification: null,
             },
         ],
         projectUuid,

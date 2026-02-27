@@ -365,7 +365,10 @@ const DashboardHeader = ({
                         onClose={transferToSpaceModalHandlers.close}
                         items={[
                             {
-                                data: dashboard,
+                                data: {
+                                    ...dashboard,
+                                    verification: null,
+                                },
                                 type: ResourceViewItemType.DASHBOARD,
                             },
                         ]}

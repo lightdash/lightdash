@@ -34,6 +34,8 @@ import {
     TogglePinnedItemInfo,
     UpdateDashboard,
     UpdateMultipleDashboards,
+    ContentType,
+    type ContentVerificationInfo,
     type ChartFieldUpdates,
     type DashboardBasicDetailsWithTileTypes,
     type DashboardHistory,
@@ -57,6 +59,7 @@ import { CaslAuditWrapper } from '../../logging/caslAuditWrapper';
 import { logAuditEvent } from '../../logging/winston';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
+import { ContentVerificationModel } from '../../models/ContentVerificationModel';
 import { getChartFieldUsageChanges } from '../../models/CatalogModel/utils';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
@@ -92,6 +95,7 @@ type DashboardServiceArguments = {
     projectModel: ProjectModel;
     catalogModel: CatalogModel;
     spacePermissionService: SpacePermissionService;
+    contentVerificationModel: ContentVerificationModel;
 };
 
 export class DashboardService
@@ -128,6 +132,8 @@ export class DashboardService
 
     spacePermissionService: SpacePermissionService;
 
+    contentVerificationModel: ContentVerificationModel;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -144,6 +150,7 @@ export class DashboardService
         projectModel,
         catalogModel,
         spacePermissionService,
+        contentVerificationModel,
     }: DashboardServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -161,6 +168,7 @@ export class DashboardService
         this.schedulerClient = schedulerClient;
         this.slackClient = slackClient;
         this.spacePermissionService = spacePermissionService;
+        this.contentVerificationModel = contentVerificationModel;
     }
 
     static getCreateEventProperties(
@@ -598,6 +606,92 @@ export class DashboardService
         };
     }
 
+    async verifyDashboard(
+        user: SessionUser,
+        dashboardUuid: string,
+    ): Promise<ContentVerificationInfo> {
+        const dashboard =
+            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('ContentVerification', {
+                    organizationUuid: dashboard.organizationUuid,
+                    projectUuid: dashboard.projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'Only admins can verify dashboards',
+            );
+        }
+
+        await this.contentVerificationModel.verify(
+            ContentType.DASHBOARD,
+            dashboard.uuid,
+            dashboard.projectUuid,
+            user.userUuid,
+        );
+
+        this.analytics.track({
+            event: 'content_verification.created',
+            userId: user.userUuid,
+            properties: {
+                contentType: ContentType.DASHBOARD,
+                contentUuid: dashboard.uuid,
+                projectId: dashboard.projectUuid,
+            },
+        });
+
+        const verification =
+            await this.contentVerificationModel.getByContent(
+                ContentType.DASHBOARD,
+                dashboard.uuid,
+            );
+        if (!verification) {
+            throw new NotFoundError('Verification not found');
+        }
+        return verification;
+    }
+
+    async unverifyDashboard(
+        user: SessionUser,
+        dashboardUuid: string,
+    ): Promise<void> {
+        const dashboard =
+            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('ContentVerification', {
+                    organizationUuid: dashboard.organizationUuid,
+                    projectUuid: dashboard.projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'Only admins can remove dashboard verification',
+            );
+        }
+
+        await this.contentVerificationModel.unverify(
+            ContentType.DASHBOARD,
+            dashboard.uuid,
+        );
+
+        this.analytics.track({
+            event: 'content_verification.deleted',
+            userId: user.userUuid,
+            properties: {
+                contentType: ContentType.DASHBOARD,
+                contentUuid: dashboard.uuid,
+                projectId: dashboard.projectUuid,
+            },
+        });
+    }
+
     async update(
         user: SessionUser,
         dashboardUuidOrSlug: string,
@@ -786,6 +880,12 @@ export class DashboardService
                 existingDashboardDao.uuid,
             );
         }
+
+        // Auto-remove verification when dashboard is edited
+        await this.contentVerificationModel.unverify(
+            ContentType.DASHBOARD,
+            existingDashboardDao.uuid,
+        );
 
         const updatedNewDashboard = await this.dashboardModel.getByIdOrSlug(
             existingDashboardDao.uuid,

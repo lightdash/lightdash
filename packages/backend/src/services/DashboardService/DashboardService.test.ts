@@ -131,6 +131,7 @@ describe('DashboardService', () => {
         catalogModel: {} as CatalogModel,
         spacePermissionService:
             spacePermissionService as unknown as SpacePermissionService,
+        contentVerificationModel: { unverify: jest.fn() } as any,
     });
     afterEach(() => {
         jest.clearAllMocks();

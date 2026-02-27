@@ -930,6 +930,7 @@ const SavedChartsHeader: FC = () => {
                                           firstViewedAt:
                                               chartViewStats.data.firstViewedAt,
                                           views: chartViewStats.data.views,
+                                          verification: null,
                                       },
                                       type: ResourceViewItemType.CHART,
                                   } satisfies ResourceViewChartItem,

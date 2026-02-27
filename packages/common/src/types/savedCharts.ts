@@ -3,6 +3,7 @@ import { type ViewStatistics } from './analytics';
 import { type DateZoom } from './api/paginatedQuery';
 import { type ConditionalFormattingConfig } from './conditionalFormatting';
 import { type ChartSourceType } from './content';
+import { type ContentVerificationInfo } from './contentVerification';
 import { type CompactOrAlias, type FieldId } from './field';
 import { type KnexPaginatedData } from './knex-paginate';
 import { type MetricQuery, type MetricQueryRequest } from './metricQuery';
@@ -1067,6 +1068,7 @@ export type SpaceQuery = ChartSummary &
     Pick<SavedChart, 'updatedAt' | 'updatedByUser' | 'pinnedListOrder'> &
     ViewStatistics & {
         validationErrors?: ValidationSummary[];
+        verification: ContentVerificationInfo | null;
     };
 
 export type ApiChartSummaryListResponse = {
