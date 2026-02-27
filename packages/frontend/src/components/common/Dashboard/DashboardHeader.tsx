@@ -37,6 +37,7 @@ import {
     IconSend,
     IconStar,
     IconStarFilled,
+    IconShieldCheck,
     IconTrash,
     IconUpload,
 } from '@tabler/icons-react';
@@ -55,6 +56,7 @@ import { getSchedulerUuidFromUrlParams } from '../../../features/scheduler/utils
 import { useFavoriteMutation } from '../../../hooks/favorites/useFavoriteMutation';
 import { useFavorites } from '../../../hooks/favorites/useFavorites';
 import { useDashboardPinningMutation } from '../../../hooks/pinning/useDashboardPinningMutation';
+import { useVerifyDashboardMutation } from '../../../hooks/useContentVerification';
 import { useProject } from '../../../hooks/useProject';
 import { useClientFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
@@ -251,6 +253,17 @@ const DashboardHeader = ({
             projectUuid,
         }),
     );
+
+    const canManageContentVerification =
+        user.data?.ability?.can(
+            'manage',
+            subject('ContentVerification', {
+                organizationUuid,
+                projectUuid,
+            }),
+        ) === true;
+
+    const { mutate: verifyDashboard } = useVerifyDashboardMutation();
 
     const userCanPromoteDashboard = user.data?.ability?.can(
         'promote',
@@ -722,6 +735,22 @@ const DashboardHeader = ({
                                         </div>
                                     </Tooltip>
                                 )}
+
+                                {canManageContentVerification &&
+                                    dashboardUuid && (
+                                        <Menu.Item
+                                            leftSection={
+                                                <MantineIcon
+                                                    icon={IconShieldCheck}
+                                                />
+                                            }
+                                            onClick={() =>
+                                                verifyDashboard(dashboardUuid)
+                                            }
+                                        >
+                                            Verify
+                                        </Menu.Item>
+                                    )}
 
                                 {userCanManageDashboard && dashboardUuid && (
                                     <Menu.Item

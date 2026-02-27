@@ -35,6 +35,7 @@ import {
     IconPin,
     IconPinnedOff,
     IconSend,
+    IconShieldCheck,
     IconStar,
     IconStarFilled,
     IconTrash,
@@ -76,6 +77,7 @@ import { useFavoriteMutation } from '../../../hooks/favorites/useFavoriteMutatio
 import { useFavorites } from '../../../hooks/favorites/useFavorites';
 import { useChartPinningMutation } from '../../../hooks/pinning/useChartPinningMutation';
 import { useContentAction } from '../../../hooks/useContent';
+import { useVerifyChartMutation } from '../../../hooks/useContentVerification';
 import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
 import { useProject } from '../../../hooks/useProject';
 import { useUpdateMutation } from '../../../hooks/useSavedQuery';
@@ -323,6 +325,17 @@ const SavedChartsHeader: FC = () => {
             projectUuid: savedChart?.projectUuid,
         }),
     );
+
+    const canManageContentVerification =
+        user.data?.ability?.can(
+            'manage',
+            subject('ContentVerification', {
+                organizationUuid: user.data?.organizationUuid,
+                projectUuid,
+            }),
+        ) === true;
+
+    const { mutate: verifyChart } = useVerifyChartMutation();
 
     const userCanCreateDeliveriesAndAlerts = user.data?.ability?.can(
         'create',
@@ -722,6 +735,22 @@ const SavedChartsHeader: FC = () => {
                                         </div>
                                     </Tooltip>
                                 }
+
+                                {canManageContentVerification &&
+                                    savedChart?.uuid && (
+                                        <Menu.Item
+                                            leftSection={
+                                                <MantineIcon
+                                                    icon={IconShieldCheck}
+                                                />
+                                            }
+                                            onClick={() => {
+                                                verifyChart(savedChart.uuid);
+                                            }}
+                                        >
+                                            Verify
+                                        </Menu.Item>
+                                    )}
 
                                 <Menu.Divider />
                                 <Menu.Label>Integrations</Menu.Label>
