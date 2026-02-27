@@ -1,3 +1,10 @@
+# [0.2544.0](https://github.com/lightdash/lightdash/compare/0.2543.0...0.2544.0) (2026-02-27)
+
+
+### Features
+
+* display pre-aggregate logs table ([#20549](https://github.com/lightdash/lightdash/issues/20549)) ([c40abdc](https://github.com/lightdash/lightdash/commit/c40abdc72c63311c30caac3c2354c1b207560b9f))
+
 # [0.2543.0](https://github.com/lightdash/lightdash/compare/0.2542.0...0.2543.0) (2026-02-27)
 
 
