@@ -180,7 +180,7 @@ describe('buildMaterializationMetricQuery', () => {
                 orders_order_count: [
                     {
                         componentFieldId: 'orders_order_count',
-                        aggregation: 'sum',
+                        aggregation: MetricType.SUM,
                     },
                 ],
             });
@@ -243,11 +243,11 @@ describe('buildMaterializationMetricQuery', () => {
             orders_avg_order_amount: [
                 {
                     componentFieldId: 'orders_avg_order_amount__sum',
-                    aggregation: 'sum',
+                    aggregation: MetricType.SUM,
                 },
                 {
                     componentFieldId: 'orders_avg_order_amount__count',
-                    aggregation: 'sum',
+                    aggregation: MetricType.SUM,
                 },
             ],
         });

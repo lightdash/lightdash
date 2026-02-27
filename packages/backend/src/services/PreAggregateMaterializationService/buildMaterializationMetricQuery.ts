@@ -1,9 +1,12 @@
 import {
+    assertUnreachable,
     getItemId,
     getMetricComponentColumnName,
     getMetricsByReference,
+    getPreAggregateMetricRepresentation,
     MAX_SAFE_INTEGER,
     MetricType,
+    PreAggregateMetricRepresentationKind,
     type AdditionalMetric,
     type CompiledDimension,
     type CompiledMetric,
@@ -54,24 +57,6 @@ const getDimensionsByReference = (sourceExplore: Explore) =>
 
         return acc;
     }, new Map<string, CompiledDimension[]>());
-
-const getMetricReAggregationComponent = (
-    metricType: MetricType,
-): MaterializationMetricComponent['aggregation'] => {
-    switch (metricType) {
-        case MetricType.SUM:
-        case MetricType.COUNT:
-            return 'sum';
-        case MetricType.MIN:
-            return 'min';
-        case MetricType.MAX:
-            return 'max';
-        default:
-            throw new Error(
-                `Unsupported metric type "${metricType}" for pre-aggregate materialization`,
-            );
-    }
-};
 
 const getAverageMetricComponents = (
     metric: CompiledMetric,
@@ -240,64 +225,80 @@ export const buildMaterializationMetricQuery = ({
     const metricComponents = Array.from(metricsByFieldId.entries()).reduce<
         Record<string, MaterializationMetricComponent[]>
     >((acc, [metricFieldId, metric]) => {
-        if (metric.type === MetricType.AVERAGE) {
-            const [sumMetric, countMetric] = getAverageMetricComponents(metric);
-            const sumFieldId = getItemId(sumMetric);
-            const countFieldId = getItemId(countMetric);
+        const representation = getPreAggregateMetricRepresentation(metric.type);
 
-            [
-                getMetricComponentColumnName(metricFieldId, 'sum'),
-                getMetricComponentColumnName(metricFieldId, 'count'),
-            ].forEach((expectedFieldId, index) => {
-                const actualFieldId = index === 0 ? sumFieldId : countFieldId;
-                if (actualFieldId !== expectedFieldId) {
-                    throw new Error(
-                        `Pre-aggregate "${preAggregateDef.name}" generated unexpected AVG component field ID "${actualFieldId}" for metric "${metricFieldId}"`,
+        switch (representation.kind) {
+            case PreAggregateMetricRepresentationKind.DECOMPOSED: {
+                const [sumMetric, countMetric] =
+                    getAverageMetricComponents(metric);
+                const sumFieldId = getItemId(sumMetric);
+                const countFieldId = getItemId(countMetric);
+
+                representation.components.forEach((component, index) => {
+                    const expectedFieldId = getMetricComponentColumnName(
+                        metricFieldId,
+                        component,
                     );
-                }
-            });
+                    const actualFieldId =
+                        index === 0 ? sumFieldId : countFieldId;
+                    if (actualFieldId !== expectedFieldId) {
+                        throw new Error(
+                            `Pre-aggregate "${preAggregateDef.name}" generated unexpected AVG component field ID "${actualFieldId}" for metric "${metricFieldId}"`,
+                        );
+                    }
+                });
 
-            assertUniqueMetricFieldId({
-                preAggregateName: preAggregateDef.name,
-                fieldId: sumFieldId,
-                selectedMetricFieldIds,
-            });
-            assertUniqueMetricFieldId({
-                preAggregateName: preAggregateDef.name,
-                fieldId: countFieldId,
-                selectedMetricFieldIds,
-            });
+                assertUniqueMetricFieldId({
+                    preAggregateName: preAggregateDef.name,
+                    fieldId: sumFieldId,
+                    selectedMetricFieldIds,
+                });
+                assertUniqueMetricFieldId({
+                    preAggregateName: preAggregateDef.name,
+                    fieldId: countFieldId,
+                    selectedMetricFieldIds,
+                });
 
-            additionalMetrics.push(sumMetric, countMetric);
+                additionalMetrics.push(sumMetric, countMetric);
 
-            acc[metricFieldId] = [
-                {
-                    componentFieldId: sumFieldId,
-                    aggregation: 'sum',
-                },
-                {
-                    componentFieldId: countFieldId,
-                    aggregation: 'sum',
-                },
-            ];
+                acc[metricFieldId] = [
+                    {
+                        componentFieldId: sumFieldId,
+                        aggregation: MetricType.SUM,
+                    },
+                    {
+                        componentFieldId: countFieldId,
+                        aggregation: MetricType.SUM,
+                    },
+                ];
 
-            return acc;
+                return acc;
+            }
+            case PreAggregateMetricRepresentationKind.DIRECT:
+                assertUniqueMetricFieldId({
+                    preAggregateName: preAggregateDef.name,
+                    fieldId: metricFieldId,
+                    selectedMetricFieldIds,
+                });
+
+                acc[metricFieldId] = [
+                    {
+                        componentFieldId: metricFieldId,
+                        aggregation: representation.metricType,
+                    },
+                ];
+
+                return acc;
+            case PreAggregateMetricRepresentationKind.UNSUPPORTED:
+                throw new Error(
+                    `Unsupported metric type "${metric.type}" for pre-aggregate materialization`,
+                );
+            default:
+                return assertUnreachable(
+                    representation,
+                    `Unsupported pre-aggregate metric representation`,
+                );
         }
-
-        assertUniqueMetricFieldId({
-            preAggregateName: preAggregateDef.name,
-            fieldId: metricFieldId,
-            selectedMetricFieldIds,
-        });
-
-        acc[metricFieldId] = [
-            {
-                componentFieldId: metricFieldId,
-                aggregation: getMetricReAggregationComponent(metric.type),
-            },
-        ];
-
-        return acc;
     }, {});
 
     const metricFieldIds = Array.from(selectedMetricFieldIds);
