@@ -1,5 +1,5 @@
 import { assertUnreachable, ChartType } from '@lightdash/common';
-import { Anchor, Text } from '@mantine/core';
+import { Anchor, Text } from '@mantine-8/core';
 import { IconChartBarOff } from '@tabler/icons-react';
 import { forwardRef, Fragment, lazy, memo, Suspense } from 'react';
 import { EmptyState } from '../common/EmptyState';

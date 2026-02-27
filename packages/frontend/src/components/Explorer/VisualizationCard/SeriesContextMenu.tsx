@@ -5,8 +5,7 @@ import {
     type ApiExploreResults,
     type EChartsSeries,
 } from '@lightdash/common';
-import { Menu } from '@mantine-8/core';
-import { Portal } from '@mantine/core';
+import { Menu, Portal } from '@mantine-8/core';
 import { useClipboard } from '@mantine/hooks';
 import { IconCopy, IconStack } from '@tabler/icons-react';
 import {

@@ -6,8 +6,7 @@ import {
     type ResultRow,
     type ResultValue,
 } from '@lightdash/common';
-import { Menu, type MenuProps } from '@mantine-8/core';
-import { Box, Portal } from '@mantine/core';
+import { Box, Menu, Portal, type MenuProps } from '@mantine-8/core';
 import { useClipboard } from '@mantine/hooks';
 import { IconCopy } from '@tabler/icons-react';
 import { type FC } from 'react';
@@ -129,7 +128,7 @@ const PieChartContextMenu: FC<PieChartContextMenuProps> = ({
             <Portal>
                 <Menu.Target>
                     <Box
-                        sx={{ position: 'absolute', ...(menuPosition ?? {}) }}
+                        style={{ position: 'absolute', ...(menuPosition ?? {}) }}
                     />
                 </Menu.Target>
             </Portal>
