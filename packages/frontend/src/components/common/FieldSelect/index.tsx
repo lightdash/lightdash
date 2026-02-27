@@ -275,6 +275,9 @@ const FieldSelectComponent = <T extends Item = Item>({
             leftSection={item ? <FieldIcon item={item} /> : undefined}
             placeholder={rest.placeholder ?? 'Search field...'}
             allowDeselect={false}
+            rightSectionPointerEvents={
+                rest.clearable || rest.rightSection ? 'all' : 'none'
+            }
             {...rest}
             value={selectedItemId}
             data={selectData}
