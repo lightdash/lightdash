@@ -4,9 +4,9 @@ seeds:
   - name: raw_events
     config:
       column_types:
-        timestamp_tz: "{{ 'timestamp_tz' if target.type == 'snowflake' else 'timestamp' }}"
-        timestamp_ltz: "{{ 'timestamp_ltz' if target.type == 'snowflake' else 'timestamp' }}"
-        timestamp_ntz: "{{ 'timestamp_ntz' if target.type == 'snowflake' else 'timestamp' }}"
+        timestamp_tz: "{{ 'timestamp_tz' if target.type == 'snowflake' else ('timestamptz' if target.type == 'duckdb' else 'timestamp') }}"
+        timestamp_ltz: "{{ 'timestamp_ltz' if target.type == 'snowflake' else ('timestamptz' if target.type == 'duckdb' else 'timestamp') }}"
+        timestamp_ntz: "{{ 'timestamp_ntz' if target.type == 'snowflake' else ('timestamptz' if target.type == 'duckdb' else 'timestamp') }}"
   - name: raw_generated
     config:
       column_types:
@@ -41,8 +41,9 @@ seeds:
         numberrange14: integer
         numberrange15: integer
         primary_key: integer
-        # Athena's Hive metastore doesn't support TIME type
-        time: "{{ 'varchar' if target.type == 'athena' else 'time' }}"
+        currency: "{{ 'varchar' if target.type == 'duckdb' else 'double' }}"
+        # Athena's Hive metastore doesn't support TIME type; DuckDB can't auto-parse "7:01 AM" format
+        time: "{{ 'varchar' if target.type in ['athena', 'duckdb'] else 'time' }}"
   - name: raw_subscriptions
     config:
       column_types:
@@ -58,11 +59,69 @@ seeds:
         event_id: integer
         user_id: integer
         event_timestamp: timestamp
-        event_properties: "{{ 'variant' if target.type == 'snowflake' else ('varchar' if target.type in ['athena', 'trino'] else 'jsonb') }}"
+        event_properties: "{{ 'variant' if target.type == 'snowflake' else ('varchar' if target.type in ['athena', 'trino', 'duckdb'] else 'jsonb') }}"
   - name: raw_plan
     config:
       column_types:
-        metadata: "{{ 'variant' if target.type == 'snowflake' else ('varchar' if target.type in ['athena', 'trino'] else 'jsonb') }}"
+        metadata: "{{ 'variant' if target.type == 'snowflake' else ('varchar' if target.type in ['athena', 'trino', 'duckdb'] else 'jsonb') }}"
+  - name: raw_buildings
+    config:
+      column_types:
+        # DuckDB sniffs integer columns as BIGINT; force bigint to avoid type mismatch
+        building_id: bigint
+        address_zip: varchar
+        construction_year: bigint
+        last_renovation_year: bigint
+        building_age_years: bigint
+        total_square_feet: bigint
+        rentable_square_feet: bigint
+        usable_square_feet: bigint
+        common_area_square_feet: bigint
+        number_of_floors: bigint
+        basement_levels: bigint
+        roof_age_years: bigint
+        parking_spaces: bigint
+        parking_revenue_monthly: bigint
+        total_units: bigint
+        occupied_units: bigint
+        vacant_units: bigint
+        number_of_tenants: bigint
+        largest_tenant_sqft: bigint
+        building_value: bigint
+        assessed_value: bigint
+        property_tax_annual: bigint
+        insurance_premium_annual: bigint
+        utility_cost_monthly: bigint
+        maintenance_cost_monthly: bigint
+        janitorial_cost_monthly: bigint
+        security_cost_monthly: bigint
+        landscaping_cost_monthly: bigint
+        total_operating_cost_monthly: bigint
+        revenue_monthly: bigint
+        net_operating_income_monthly: bigint
+        energy_star_score: bigint
+        walkability_score: bigint
+        transit_score: bigint
+        bike_score: bigint
+        hvac_system_age: bigint
+        hvac_capacity_tons: bigint
+        electrical_capacity_amps: bigint
+        generator_capacity_kw: bigint
+        elevator_count: bigint
+        cctv_camera_count: bigint
+        bandwidth_mbps: bigint
+        average_water_usage_gallons: bigint
+        average_electricity_kwh: bigint
+        average_gas_therms: bigint
+        solar_capacity_kw: bigint
+        ev_charging_stations: bigint
+        bike_storage_capacity: bigint
+        building_code_violations: bigint
+        code_violations_resolved: bigint
+        insurance_claims_5yr: bigint
+        total_work_orders_ytd: bigint
+        open_work_orders: bigint
+        sprinkler_coverage: varchar
   - name: raw_orders
     config:
       column_types:
