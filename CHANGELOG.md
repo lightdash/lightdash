@@ -1,3 +1,10 @@
+## [0.2540.1](https://github.com/lightdash/lightdash/compare/0.2540.0...0.2540.1) (2026-02-27)
+
+
+### Bug Fixes
+
+* fieldSelect onChange to handle undefined values ([#20700](https://github.com/lightdash/lightdash/issues/20700)) ([354e36e](https://github.com/lightdash/lightdash/commit/354e36e82af4ff93921e79310b43ed4684b0b5f6))
+
 # [0.2540.0](https://github.com/lightdash/lightdash/compare/0.2539.0...0.2540.0) (2026-02-27)
 
 
