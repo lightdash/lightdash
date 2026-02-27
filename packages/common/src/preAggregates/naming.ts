@@ -15,6 +15,11 @@ export const getJoinedDimensionColumnName = (
 
 export const getMetricColumnName = (fieldId: string): string => fieldId;
 
+export const getMetricComponentColumnName = (
+    fieldId: string,
+    component: 'sum' | 'count',
+): string => `${fieldId}__${component}`;
+
 export const getTimeDimensionColumnName = (
     dimensionName: string,
     granularity: TimeFrames,

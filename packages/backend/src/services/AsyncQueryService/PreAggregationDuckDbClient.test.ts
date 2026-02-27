@@ -216,4 +216,43 @@ describe('PreAggregationDuckDbClient', () => {
             }),
         );
     });
+
+    test('preserves decomposed average component columns in DuckDB JSON schema', async () => {
+        const { client } = getClient({
+            activeMaterialization: {
+                materializationUuid: 'mat-1',
+                queryUuid: 'mat-query-1',
+                resultsFileName: 'abc123',
+                format: 'jsonl',
+                columns: {
+                    a_avg_revenue__sum: {
+                        reference: 'a.avg_revenue__sum',
+                        type: DimensionType.NUMBER,
+                    },
+                    a_avg_revenue__count: {
+                        reference: 'a.avg_revenue__count',
+                        type: DimensionType.NUMBER,
+                    },
+                },
+                materializedAt: new Date('2024-01-01T00:00:00.000Z'),
+            },
+        });
+
+        await client.resolve(baseResolveArgs);
+
+        expect(ProjectService._compileQuery).toHaveBeenCalledWith(
+            expect.objectContaining({
+                explore: expect.objectContaining({
+                    tables: expect.objectContaining({
+                        a: expect.objectContaining({
+                            sqlTable: `read_json('s3://mock_bucket/abc123.jsonl', columns={"a_avg_revenue__sum": 'DOUBLE', "a_avg_revenue__count": 'DOUBLE'}, format='newline_delimited')`,
+                        }),
+                        b: expect.objectContaining({
+                            sqlTable: `read_json('s3://mock_bucket/abc123.jsonl', columns={"a_avg_revenue__sum": 'DOUBLE', "a_avg_revenue__count": 'DOUBLE'}, format='newline_delimited')`,
+                        }),
+                    }),
+                }),
+            }),
+        );
+    });
 });
