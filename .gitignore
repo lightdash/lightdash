@@ -113,3 +113,7 @@ http-client.private.env.json
 
 # turbo
 .turbo
+
+# HAR replay
+scripts/har-replay-server.ts
+*.har
