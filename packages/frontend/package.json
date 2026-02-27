@@ -185,6 +185,7 @@
         "react-test-renderer": "^19.0.0",
         "storybook": "^8.6.15",
         "ts-unused-exports": "^9.0.4",
+        "typescript": "5.5.4",
         "vite": "^7.1.10",
         "vite-plugin-compression2": "^2.3.0",
         "vite-plugin-css-injected-by-js": "^3.5.2",
