@@ -40,7 +40,7 @@ const SourceCodeDrawerContent: FC<{ onClose: () => void }> = ({ onClose }) => {
                 timingFunction: 'ease-out',
             }}
             closeOnEscape
-            trapFocus
+            trapFocus={false}
             withCloseButton={false}
             classNames={{
                 content: styles.drawerContent,
