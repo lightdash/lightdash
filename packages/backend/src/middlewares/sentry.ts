@@ -11,6 +11,9 @@ export const sentrySetProjectUuidTagMiddleware: RequestHandler = (
     if (req.params?.projectUuid) {
         setTag('project.uuid', req.params.projectUuid);
     }
+    if (req.params?.dashboardUuid) {
+        setTag('dashboard.uuid', req.params.dashboardUuid);
+    }
 
     if (req.user) {
         if (req.user.userUuid && typeof req.user.userUuid === 'string') {
