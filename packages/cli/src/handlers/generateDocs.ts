@@ -17,8 +17,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { LightdashAnalytics } from '../analytics/analytics';
 import GlobalState from '../globalState';
 import {
-    getManifestPath,
-    getStaticIndexPath,
+    getTargetFilePath,
     injectLightdashLineage,
     patchStaticIndex,
 } from './injectLightdashLineage';
@@ -34,6 +33,31 @@ type GenerateDocsHandlerOptions = {
     serve: boolean;
     port: number;
 };
+
+/** Build the common dbt CLI flags shared across generate and serve steps */
+function buildCommonDbtArgs(
+    absoluteProjectDir: string,
+    options: Pick<
+        GenerateDocsHandlerOptions,
+        'projectDir' | 'profilesDir' | 'target'
+    >,
+    absoluteTargetPath: string | undefined,
+): string[] {
+    const args: string[] = [];
+    if (options.projectDir) {
+        args.push('--project-dir', absoluteProjectDir);
+    }
+    if (options.profilesDir) {
+        args.push('--profiles-dir', options.profilesDir);
+    }
+    if (options.target) {
+        args.push('--target', options.target);
+    }
+    if (absoluteTargetPath) {
+        args.push('--target-path', absoluteTargetPath);
+    }
+    return args;
+}
 
 export const generateDocsHandler = async (
     options: GenerateDocsHandlerOptions,
@@ -51,29 +75,23 @@ export const generateDocsHandler = async (
     const absoluteTargetPath = options.targetPath
         ? path.resolve(options.targetPath)
         : undefined;
+    const commonArgs = buildCommonDbtArgs(
+        absoluteProjectDir,
+        options,
+        absoluteTargetPath,
+    );
 
     // Step 1: Run dbt docs generate
     // dbt output streams directly to the terminal via stdio: 'inherit'
     try {
-        const dbtArgs = ['docs', 'generate'];
+        const generateArgs = ['docs', 'generate'];
         if (options.static) {
-            dbtArgs.push('--static');
+            generateArgs.push('--static');
         }
-        if (options.projectDir) {
-            dbtArgs.push('--project-dir', absoluteProjectDir);
-        }
-        if (options.profilesDir) {
-            dbtArgs.push('--profiles-dir', options.profilesDir);
-        }
-        if (options.target) {
-            dbtArgs.push('--target', options.target);
-        }
-        if (absoluteTargetPath) {
-            dbtArgs.push('--target-path', absoluteTargetPath);
-        }
+        generateArgs.push(...commonArgs);
 
-        GlobalState.debug(`> Running: dbt ${dbtArgs.join(' ')}`);
-        await execa('dbt', dbtArgs, { stdio: 'inherit' });
+        GlobalState.debug(`> Running: dbt ${generateArgs.join(' ')}`);
+        await execa('dbt', generateArgs, { stdio: 'inherit' });
     } catch (e: unknown) {
         const msg = getErrorMessage(e);
         await LightdashAnalytics.track({
@@ -89,9 +107,10 @@ export const generateDocsHandler = async (
 
     // Step 2: Inject Lightdash metric nodes into the manifest so they
     // appear on the dbt lineage graph (see injectLightdashLineage.ts)
-    const manifestPath = getManifestPath(
+    const manifestPath = getTargetFilePath(
         absoluteProjectDir,
         absoluteTargetPath,
+        'manifest.json',
     );
     if (!options.skipInject) {
         const injectSpinner = GlobalState.startSpinner(
@@ -123,9 +142,10 @@ export const generateDocsHandler = async (
                 '  Patching static docs with injected metrics...',
             );
             try {
-                const staticIndexPath = getStaticIndexPath(
+                const staticIndexPath = getTargetFilePath(
                     absoluteProjectDir,
                     absoluteTargetPath,
+                    'static_index.html',
                 );
                 await patchStaticIndex(manifestPath, staticIndexPath);
                 staticSpinner.succeed(
@@ -161,9 +181,10 @@ export const generateDocsHandler = async (
     // --static and --serve are mutually exclusive: static outputs a file,
     // serve starts dbt's built-in HTTP server for interactive browsing.
     if (options.static) {
-        const staticIndexPath = getStaticIndexPath(
+        const staticIndexPath = getTargetFilePath(
             absoluteProjectDir,
             absoluteTargetPath,
+            'static_index.html',
         );
         console.info(`\n  Static docs written to: ${staticIndexPath}`);
         console.info('  Open this file directly in your browser.\n');
@@ -172,19 +193,13 @@ export const generateDocsHandler = async (
             `\n  Serving docs on port ${options.port}. Press Ctrl+C to stop.\n`,
         );
 
-        const serveArgs = ['docs', 'serve', '--port', String(options.port)];
-        if (options.projectDir) {
-            serveArgs.push('--project-dir', absoluteProjectDir);
-        }
-        if (options.profilesDir) {
-            serveArgs.push('--profiles-dir', options.profilesDir);
-        }
-        if (options.target) {
-            serveArgs.push('--target', options.target);
-        }
-        if (absoluteTargetPath) {
-            serveArgs.push('--target-path', absoluteTargetPath);
-        }
+        const serveArgs = [
+            'docs',
+            'serve',
+            '--port',
+            String(options.port),
+            ...commonArgs,
+        ];
 
         GlobalState.debug(`> Running: dbt ${serveArgs.join(' ')}`);
         await execa('dbt', serveArgs, { stdio: 'inherit' });
