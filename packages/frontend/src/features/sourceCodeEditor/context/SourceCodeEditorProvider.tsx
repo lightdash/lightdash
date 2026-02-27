@@ -1,5 +1,11 @@
 import { useCallback, useMemo, useState, type FC, type ReactNode } from 'react';
-import { useLocation, useNavigate, useSearchParams } from 'react-router';
+import {
+    useLocation,
+    useNavigate,
+    useParams,
+    useSearchParams,
+} from 'react-router';
+import useApp from '../../../providers/App/useApp';
 import SourceCodeDrawer from '../components/SourceCodeDrawer';
 import SourceCodeEditorContext, {
     type SourceCodeEditorContextValue,
@@ -12,9 +18,22 @@ type SourceCodeEditorProviderProps = {
 const SourceCodeEditorProvider: FC<SourceCodeEditorProviderProps> = ({
     children,
 }) => {
+    const { health, user } = useApp();
+    const { projectUuid: routeProjectUuid } = useParams<{
+        projectUuid?: string;
+    }>();
     const navigate = useNavigate();
     const location = useLocation();
     const [searchParams] = useSearchParams();
+
+    // Wait for app to be ready before rendering the drawer
+    // This prevents the editor from showing before the navbar/project context is ready
+    // We check for routeProjectUuid to ensure we're on a project page
+    const isAppReady =
+        !health.isLoading &&
+        health.data?.isAuthenticated &&
+        !!user.data &&
+        !!routeProjectUuid;
 
     // Core state
     const [projectUuid, setProjectUuid] = useState<string | null>(null);
@@ -84,7 +103,7 @@ const SourceCodeEditorProvider: FC<SourceCodeEditorProviderProps> = ({
     return (
         <SourceCodeEditorContext.Provider value={value}>
             {children}
-            <SourceCodeDrawer />
+            {isAppReady && <SourceCodeDrawer />}
         </SourceCodeEditorContext.Provider>
     );
 };
