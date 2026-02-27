@@ -186,6 +186,13 @@ const scopes: Scope[] = [
         getConditions: addDefaultUuidCondition,
     },
     {
+        name: 'manage:ContentVerification',
+        description: 'Verify and unverify charts and dashboards',
+        isEnterprise: false,
+        group: ScopeGroup.CONTENT,
+        getConditions: addDefaultUuidCondition,
+    },
+    {
         name: 'manage:DeletedContent',
         description:
             'Manage soft-deleted content (restore, permanently delete)',
