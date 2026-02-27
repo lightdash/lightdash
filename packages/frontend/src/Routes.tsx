@@ -34,6 +34,7 @@ import SavedExplorer from './pages/SavedExplorer';
 import SavedQueries from './pages/SavedQueries';
 import Settings from './pages/Settings';
 import ShareRedirect from './pages/ShareRedirect';
+import SourceCodeEditorRedirect from './pages/SourceCodeEditorRedirect';
 import Space from './pages/Space';
 import Spaces from './pages/Spaces';
 import SqlRunner from './pages/SqlRunner';
@@ -259,6 +260,14 @@ const SQL_RUNNER_ROUTES: RouteObject[] = [
     },
 ];
 
+const SOURCE_CODE_ROUTES: RouteObject[] = [
+    {
+        // Redirect old source-code route to project home with editor drawer open
+        path: '/projects/:projectUuid/source-code',
+        element: <SourceCodeEditorRedirect />,
+    },
+];
+
 const TABLES_ROUTES: RouteObject[] = [
     {
         path: '/projects/:projectUuid/tables',
@@ -383,6 +392,7 @@ const APP_ROUTES: RouteObject[] = [
                 children: [
                     ...TABLES_ROUTES,
                     ...SQL_RUNNER_ROUTES,
+                    ...SOURCE_CODE_ROUTES,
                     ...CHART_ROUTES,
                     ...DASHBOARD_ROUTES,
                     ...SPACES_ROUTES,

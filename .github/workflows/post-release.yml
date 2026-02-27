@@ -155,8 +155,8 @@ jobs:
 
           echo "Comparing $PREVIOUS_TAG to $CURRENT_TAG"
 
-          # Check if CLI directory changed
-          CHANGED_FILES=$(git diff --name-only "$PREVIOUS_TAG" "$CURRENT_TAG" | grep -E '^packages/cli/' || true)
+          # Check if the CLI or its runtime dependencies changed
+          CHANGED_FILES=$(git diff --name-only "$PREVIOUS_TAG" "$CURRENT_TAG" | grep -E '^(packages/cli/|packages/common/|packages/warehouses/|package.json|pnpm-lock.yaml|pnpm-workspace.yaml)' || true)
 
           if [ -n "$CHANGED_FILES" ]; then
             echo "CLI files changed:"
@@ -194,11 +194,13 @@ jobs:
           path: |
             node_modules
             packages/*/node_modules
-          key: ${{ runner.os }}-node-modules-${{ hashFiles('pnpm-lock.yaml') }}
+          key: ${{ runner.os }}-node-modules-cli-binaries-v2-${{ hashFiles('pnpm-lock.yaml') }}
 
       - name: Install dependencies
         if: steps.cache-node-modules.outputs.cache-hit != 'true'
-        run: pnpm install --filter @lightdash/cli --filter @lightdash/common --filter @lightdash/warehouses --frozen-lockfile --prefer-offline --prod=false
+        # Force reinstall so pnpm includes optional DuckDB native bindings
+        # needed to build both macOS pkg targets from a single runner.
+        run: pnpm install --filter @lightdash/cli --filter @lightdash/common --filter @lightdash/warehouses --frozen-lockfile --prefer-offline --prod=false --force
 
       - name: Cache common build
         id: cache-common

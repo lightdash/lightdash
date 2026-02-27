@@ -134,6 +134,7 @@ import {
     FindContentFn,
     FindExploresFn,
     FindFieldFn,
+    GetDashboardChartsFn,
     GetExploreFn,
     GetPromptFn,
     ListExploresFn,
@@ -154,6 +155,7 @@ import {
     getFollowUpToolBlocks,
     getProposeChangeBlocks,
     getReferencedArtifactsBlocks,
+    getTextBlocks,
     getThinkingBlocks,
 } from '../ai/utils/getSlackBlocks';
 import { llmAsAJudge } from '../ai/utils/llmAsAJudge';
@@ -2791,6 +2793,15 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                 };
             });
 
+        const getDashboardCharts: GetDashboardChartsFn = async (args) =>
+            wrapSentryTransaction('AiAgent.getDashboardCharts', args, () =>
+                this.searchModel.getDashboardCharts(
+                    args.dashboardUuid,
+                    args.page,
+                    args.pageSize,
+                ),
+            );
+
         const searchFieldValues: SearchFieldValuesFn = async (args) =>
             wrapSentryTransaction(
                 'AiAgent.searchFieldValues',
@@ -2864,6 +2875,7 @@ Use them as a reference, but do all the due dilligence and follow the instructio
             listExplores,
             getExplore,
             findContent,
+            getDashboardCharts,
             findFields,
             findExplores,
             updateProgress,
@@ -2939,6 +2951,7 @@ Use them as a reference, but do all the due dilligence and follow the instructio
             listExplores,
             getExplore,
             findContent,
+            getDashboardCharts,
             findFields,
             findExplores,
             updateProgress,
@@ -2981,8 +2994,7 @@ Use them as a reference, but do all the due dilligence and follow the instructio
 
             findExploresFieldSearchSize: 200,
             findFieldsPageSize: 30,
-            findDashboardsPageSize: 5,
-            findChartsPageSize: 5,
+            getDashboardChartsPageSize: 20,
             maxQueryLimit: this.lightdashConfig.ai.copilot.maxQueryLimit,
             siteUrl: this.lightdashConfig.siteUrl,
             canManageAgent: options.canManageAgent,
@@ -2992,6 +3004,7 @@ Use them as a reference, but do all the due dilligence and follow the instructio
             listExplores,
             getExplore,
             findContent,
+            getDashboardCharts,
             findFields,
             findExplores,
             runAsyncQuery,
@@ -3393,16 +3406,15 @@ Use them as a reference, but do all the due dilligence and follow the instructio
 
         // ! This is needed because the markdownToBlocks escapes all characters and slack just needs &, <, > to be escaped
         // ! https://api.slack.com/reference/surfaces/formatting#escaping
-        const slackifiedMarkdown = slackifyMarkdown(response);
+        // Also strip trailing backslashes before newlines — slackifyMarkdown converts
+        // markdown hard line breaks (two trailing spaces) into `\` which Slack renders literally.
+        const slackifiedMarkdown = slackifyMarkdown(response).replace(
+            /\\\n/g,
+            '\n',
+        );
 
         const blocks = [
-            {
-                type: 'section',
-                text: {
-                    type: 'mrkdwn',
-                    text: slackifiedMarkdown,
-                },
-            },
+            ...getTextBlocks(slackifiedMarkdown),
             ...exploreBlocks,
             ...proposeChangeBlocks,
             ...referencedArtifactsBlocks,
@@ -3429,7 +3441,19 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                 },
                 extra: { responseLength: slackifiedMarkdown.length },
             });
-            throw error;
+
+            const threadUrl = thread.agentUuid
+                ? `${this.lightdashConfig.siteUrl}/projects/${slackPrompt.projectUuid}/ai-agents/${thread.agentUuid}/threads/${slackPrompt.threadUuid}`
+                : this.lightdashConfig.siteUrl;
+
+            newResponse = await this.slackClient.postMessage({
+                organizationUuid: slackPrompt.organizationUuid,
+                text: `⚠️ The response couldn't be displayed here. <${threadUrl}|View it in Lightdash>.`,
+                username: agent?.name,
+                channel: slackPrompt.slackChannelId,
+                thread_ts: slackPrompt.slackThreadTs,
+                unfurl_links: false,
+            });
         }
 
         await this.aiAgentModel.updateModelResponse({

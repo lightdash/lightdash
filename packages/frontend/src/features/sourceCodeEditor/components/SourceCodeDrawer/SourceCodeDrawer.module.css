@@ -1,0 +1,23 @@
+.drawerInner {
+    top: var(--drawer-top-offset, 0);
+    height: calc(100% - var(--drawer-top-offset, 0));
+}
+
+.drawerOverlay {
+    top: var(--drawer-top-offset, 0);
+    height: calc(100% - var(--drawer-top-offset, 0));
+}
+
+.drawerContent {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.drawerBody {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    overflow: hidden;
+}

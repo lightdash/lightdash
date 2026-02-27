@@ -202,6 +202,7 @@ export const projectMemberAbilities: Record<
         });
         can('manage', 'SourceCode', {
             projectUuid: member.projectUuid,
+            isProtectedBranch: false, // Only allow writes when NOT writing to protected branch
         });
 
         can('manage', 'CompileProject', {

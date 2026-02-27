@@ -25,6 +25,7 @@ import { GroupsModel } from '../../models/GroupsModel';
 import { JobModel } from '../../models/JobModel/JobModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { OrganizationWarehouseCredentialsModel } from '../../models/OrganizationWarehouseCredentialsModel';
+import { PreAggregateModel } from '../../models/PreAggregateModel';
 import { ProjectCompileLogModel } from '../../models/ProjectCompileLogModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { ProjectParametersModel } from '../../models/ProjectParametersModel';
@@ -106,6 +107,11 @@ const projectModel = {
     findExploreByTableName: jest.fn(async () => validExplore),
     updateDefaultUserSpaces: jest.fn(async () => undefined),
 };
+const preAggregateModel = {
+    upsertPreAggregateDefinitions: jest.fn(),
+    getPreAggregateDefinitionsForProject: jest.fn(async () => []),
+    getPreAggregateDefinitionByName: jest.fn(async () => undefined),
+};
 const onboardingModel = {
     getByOrganizationUuid: jest.fn(async () => ({
         ranQueryAt: new Date(),
@@ -126,11 +132,16 @@ const userAttributesModel = {
     getAttributeValuesForOrgMember: jest.fn(async () => ({})),
 };
 
+const schedulerClient = {
+    materializePreAggregate: jest.fn(async () => ({ jobId: 'job-1' })),
+};
+
 const getMockedProjectService = (lightdashConfig: LightdashConfig) =>
     new ProjectService({
         lightdashConfig,
         analytics: analyticsMock,
         projectModel: projectModel as unknown as ProjectModel,
+        preAggregateModel: preAggregateModel as unknown as PreAggregateModel,
         onboardingModel: onboardingModel as unknown as OnboardingModel,
         savedChartModel: savedChartModel as unknown as SavedChartModel,
         jobModel: jobModel as unknown as JobModel,
@@ -153,7 +164,7 @@ const getMockedProjectService = (lightdashConfig: LightdashConfig) =>
                 isVerified: true,
             }),
         } as unknown as EmailModel,
-        schedulerClient: {} as SchedulerClient,
+        schedulerClient: schedulerClient as unknown as SchedulerClient,
         downloadFileModel: {} as unknown as DownloadFileModel,
         fileStorageClient: {} as FileStorageClient,
         groupsModel: {} as GroupsModel,
@@ -1022,6 +1033,116 @@ describe('ProjectService', () => {
             expect(projectModel.updateDefaultUserSpaces).toHaveBeenCalledWith(
                 projectUuid,
                 false,
+            );
+        });
+    });
+
+    describe('pre-aggregate refreshes', () => {
+        const adminUser: SessionUser = {
+            ...user,
+            role: OrganizationMemberRole.ADMIN,
+            ability: defineUserAbility(
+                {
+                    userUuid: user.userUuid,
+                    role: OrganizationMemberRole.ADMIN,
+                    organizationUuid: 'organizationUuid',
+                },
+                [],
+            ),
+        };
+
+        test('refreshPreAggregates schedules only materializable definitions', async () => {
+            (
+                preAggregateModel.getPreAggregateDefinitionsForProject as jest.Mock
+            ).mockResolvedValue([
+                {
+                    preAggregateDefinitionUuid: 'def-valid',
+                    projectUuid,
+                    sourceCachedExploreUuid: 'source-1',
+                    preAggCachedExploreUuid: 'preagg-1',
+                    preAggregateDefinition: {
+                        name: 'valid',
+                        dimensions: ['orders.status'],
+                        metrics: ['orders.count'],
+                    },
+                    materializationMetricQuery: {
+                        metricQuery: METRIC_QUERY,
+                        metricComponents: {},
+                    },
+                    materializationQueryError: null,
+                    refreshCron: null,
+                    createdAt: new Date('2024-01-01'),
+                    updatedAt: new Date('2024-01-01'),
+                },
+                {
+                    preAggregateDefinitionUuid: 'def-invalid',
+                    projectUuid,
+                    sourceCachedExploreUuid: 'source-1',
+                    preAggCachedExploreUuid: 'preagg-2',
+                    preAggregateDefinition: {
+                        name: 'invalid',
+                        dimensions: ['orders.status'],
+                        metrics: ['orders.count'],
+                    },
+                    materializationMetricQuery: null,
+                    materializationQueryError: 'Unknown metric "orders.count"',
+                    refreshCron: null,
+                    createdAt: new Date('2024-01-01'),
+                    updatedAt: new Date('2024-01-01'),
+                },
+            ]);
+            (
+                schedulerClient.materializePreAggregate as jest.Mock
+            ).mockResolvedValueOnce({ jobId: 'job-valid' });
+
+            const result = await service.refreshPreAggregates(
+                adminUser,
+                projectUuid,
+            );
+
+            expect(result).toEqual({ jobIds: ['job-valid'] });
+            expect(
+                schedulerClient.materializePreAggregate,
+            ).toHaveBeenCalledTimes(1);
+            expect(
+                schedulerClient.materializePreAggregate,
+            ).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    preAggregateDefinitionUuid: 'def-valid',
+                    trigger: 'manual',
+                }),
+            );
+        });
+
+        test('refreshPreAggregateByName throws actionable error when definition is invalid', async () => {
+            (
+                preAggregateModel.getPreAggregateDefinitionByName as jest.Mock
+            ).mockResolvedValue({
+                preAggregateDefinitionUuid: 'def-invalid',
+                projectUuid,
+                sourceCachedExploreUuid: 'source-1',
+                preAggCachedExploreUuid: 'preagg-2',
+                preAggregateDefinition: {
+                    name: 'invalid',
+                    dimensions: ['orders.status'],
+                    metrics: ['orders.count'],
+                },
+                materializationMetricQuery: null,
+                materializationQueryError: 'Unknown metric "orders.count"',
+                refreshCron: null,
+                createdAt: new Date('2024-01-01'),
+                updatedAt: new Date('2024-01-01'),
+                preAggExploreName: 'orders__invalid',
+            });
+
+            await expect(
+                service.refreshPreAggregateByName(
+                    adminUser,
+                    projectUuid,
+                    'orders__invalid',
+                ),
+            ).rejects.toThrowError(
+                'Pre-aggregate explore "orders__invalid" cannot be materialized: Unknown metric "orders.count"',
             );
         });
     });

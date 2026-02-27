@@ -209,7 +209,6 @@ export const lightdashConfigMock: LightdashConfig = {
         timezone: undefined,
         useSqlPivotResults: false,
         showExecutionTime: false,
-        enableFilterAutofocusFix: undefined,
     },
     ai: {
         copilot: {
@@ -338,5 +337,9 @@ export const lightdashConfigMock: LightdashConfig = {
     softDelete: {
         enabled: false,
         retentionDays: 30,
+    },
+    preAggregates: {
+        enabled: false,
+        debug: false,
     },
 };

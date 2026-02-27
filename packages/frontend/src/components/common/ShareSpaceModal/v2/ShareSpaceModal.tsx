@@ -11,14 +11,18 @@ import {
     Badge,
     Box,
     Button,
+    Collapse,
     Group,
     Stack,
     Tabs,
     Text,
     TextInput,
     Tooltip,
+    UnstyledButton,
 } from '@mantine-8/core';
 import {
+    IconChevronDown,
+    IconChevronRight,
     IconFolderShare,
     IconLock,
     IconLockOpen,
@@ -187,23 +191,34 @@ const UserAccessAuditList: FC<UserAccessAuditListProps> = ({
     );
 };
 
-const ShareSpaceModalV2A: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
+const ShareSpaceModalV2A: FC<ShareSpaceProps> = ({
+    space,
+    projectUuid,
+    opened: externalOpened,
+    onClose: externalOnClose,
+}) => {
     const navigate = useNavigate();
     const shareSpaceModalSearchParam = useSearchParams('shareSpaceModal');
     const { user: sessionUser } = useApp();
     const { showToastError } = useToaster();
 
-    const [isOpen, setIsOpen] = useState(false);
+    const isControlled = externalOpened !== undefined;
+    const [internalIsOpen, setInternalIsOpen] = useState(false);
+    const isOpen = isControlled ? externalOpened : internalIsOpen;
+    const handleClose = isControlled
+        ? () => externalOnClose?.()
+        : () => setInternalIsOpen(false);
     const [sortOrder, setSortOrder] = useState<SortOrder>('name');
     const [auditSortOrder, setAuditSortOrder] = useState<SortOrder>('name');
     const [auditSearch, setAuditSearch] = useState('');
     const [isGroupsHintDismissed, setIsGroupsHintDismissed] = useState(false);
+    const [accessDetailsOpen, setAccessDetailsOpen] = useState(false);
 
     const isNestedSpace = !!space.parentSpaceUuid;
 
     useEffect(() => {
         if (shareSpaceModalSearchParam === 'true') {
-            setIsOpen(true);
+            setInternalIsOpen(true);
             void navigate(`/projects/${projectUuid}/spaces/${space.uuid}`);
         }
     }, [navigate, projectUuid, shareSpaceModalSearchParam, space.uuid]);
@@ -323,35 +338,37 @@ const ShareSpaceModalV2A: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
 
     return (
         <>
-            <Box>
-                <Button
-                    leftSection={
-                        !space.inheritParentPermissions ? (
-                            <IconLock size={18} />
-                        ) : (
-                            <IconUsers size={18} />
-                        )
-                    }
-                    onClick={() => setIsOpen(true)}
-                    variant="default"
-                >
-                    Share
-                </Button>
-            </Box>
+            {!isControlled && (
+                <Box>
+                    <Button
+                        leftSection={
+                            !space.inheritParentPermissions ? (
+                                <IconLock size={18} />
+                            ) : (
+                                <IconUsers size={18} />
+                            )
+                        }
+                        onClick={() => setInternalIsOpen(true)}
+                        variant="default"
+                    >
+                        Share
+                    </Button>
+                </Box>
+            )}
 
             <MantineModal
                 size="xl"
                 icon={IconFolderShare}
                 title={`Share "${space.name}" space`}
                 opened={isOpen}
-                onClose={() => setIsOpen(false)}
+                onClose={handleClose}
                 cancelLabel={false}
                 actions={
                     <Box>
                         <Text c="ldGray.7" fz="xs">
-                            Learn more about permissions in our{' '}
+                            Learn more about space permissions in our{' '}
                             <Anchor
-                                href="https://docs.lightdash.com/references/roles"
+                                href="https://docs.lightdash.com/references/workspace/spaces#managing-access-to-a-space"
                                 target="_blank"
                                 rel="noreferrer"
                                 fz="xs"
@@ -373,238 +390,280 @@ const ShareSpaceModalV2A: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
                         isNestedSpace={isNestedSpace}
                     />
 
-                    <Tabs
-                        keepMounted={false}
-                        defaultValue="manage"
-                        onChange={() => setAuditSearch('')}
+                    <UnstyledButton
+                        onClick={() => setAccessDetailsOpen((o) => !o)}
                     >
-                        <Tabs.List>
-                            <Tabs.Tab
-                                value="manage"
-                                leftSection={
-                                    <MantineIcon icon={IconUsers} size="sm" />
+                        <Group gap="xs">
+                            <MantineIcon
+                                icon={
+                                    accessDetailsOpen
+                                        ? IconChevronDown
+                                        : IconChevronRight
                                 }
-                            >
-                                Shared with ({manageCount})
-                            </Tabs.Tab>
-                            <Tabs.Tab
-                                value="audit"
-                                leftSection={
-                                    <MantineIcon
-                                        icon={IconSettings}
-                                        size="sm"
-                                    />
-                                }
-                            >
-                                Who has access ({auditUsers.length})
-                            </Tabs.Tab>
-                        </Tabs.List>
-
-                        <Tabs.Panel value="manage" pt="md">
-                            <Stack gap="md">
-                                <ShareSpaceAddUser
-                                    space={space}
-                                    projectUuid={projectUuid}
-                                />
-
-                                {accessByType.direct.length >= 5 &&
-                                    space.groupsAccess.length === 0 &&
-                                    !isGroupsHintDismissed && (
-                                        <Callout
-                                            variant="info"
-                                            title="Tip: Use groups for easier management"
-                                            withCloseButton
-                                            onClose={() =>
-                                                setIsGroupsHintDismissed(true)
-                                            }
-                                        >
-                                            <Text fz="sm">
-                                                This space is shared with
-                                                several individual users.
-                                                Consider using{' '}
-                                                <Anchor
-                                                    href="/generalSettings/userManagement"
-                                                    target="_blank"
-                                                    fz="sm"
-                                                >
-                                                    groups
-                                                </Anchor>{' '}
-                                                to manage access more
-                                                efficiently.
-                                            </Text>
-                                        </Callout>
-                                    )}
-
-                                {space.groupsAccess.length > 0 && (
-                                    <Stack gap="xs">
-                                        <Text fw={400} c="ldGray.6" fz="sm">
-                                            Groups
-                                        </Text>
-                                        <GroupsAccessList
-                                            isPrivate={
-                                                !space.inheritParentPermissions
-                                            }
-                                            groupsAccess={space.groupsAccess}
-                                            onAccessChange={
-                                                handleGroupAccessChange
-                                            }
-                                            pageSize={5}
-                                        />
-                                    </Stack>
-                                )}
-
-                                {accessByType.direct.length > 0 && (
-                                    <Stack gap="xs">
-                                        <Group
-                                            gap={6}
-                                            wrap="nowrap"
-                                            mt={
-                                                space.groupsAccess.length > 0
-                                                    ? 'sm'
-                                                    : undefined
-                                            }
-                                        >
-                                            <Text fw={400} c="ldGray.6" fz="sm">
-                                                Users
-                                            </Text>
-                                            <Tooltip
-                                                label={
-                                                    sortOrder === 'name'
-                                                        ? 'Sort by access level'
-                                                        : 'Sort by name'
-                                                }
-                                                position="top"
-                                                withArrow
-                                                withinPortal
-                                            >
-                                                <ActionIcon
-                                                    size="lg"
-                                                    variant="subtle"
-                                                    onClick={() =>
-                                                        setSortOrder((prev) =>
-                                                            prev === 'name'
-                                                                ? 'role'
-                                                                : 'name',
-                                                        )
-                                                    }
-                                                >
-                                                    <MantineIcon
-                                                        icon={
-                                                            sortOrder === 'name'
-                                                                ? IconSortAZ
-                                                                : IconLockOpen
-                                                        }
-                                                        size="md"
-                                                        color="ldGray.5"
-                                                    />
-                                                </ActionIcon>
-                                            </Tooltip>
-                                        </Group>
-                                        <UserAccessList
-                                            isPrivate={
-                                                !space.inheritParentPermissions
-                                            }
-                                            accessList={accessByType.direct}
-                                            sessionUser={sessionUser.data}
-                                            onAccessChange={handleAccessChange}
-                                            pageSize={5}
-                                            sortOrder={sortOrder}
-                                        />
-                                    </Stack>
-                                )}
-
-                                {manageCount === 0 && (
-                                    <Stack gap="xs" align="center" py="md">
+                                size="sm"
+                                color="ldGray.7"
+                            />
+                            <Text size="sm" fw={600} c="ldGray.7">
+                                Access details
+                            </Text>
+                        </Group>
+                    </UnstyledButton>
+                    <Collapse in={accessDetailsOpen}>
+                        <Tabs
+                            keepMounted={false}
+                            defaultValue="manage"
+                            onChange={() => setAuditSearch('')}
+                        >
+                            <Tabs.List>
+                                <Tabs.Tab
+                                    value="manage"
+                                    leftSection={
                                         <MantineIcon
                                             icon={IconUsers}
-                                            size="xl"
-                                            color="ldGray.4"
+                                            size="sm"
                                         />
-                                        <Text c="ldGray.5" fz="sm" ta="center">
-                                            This space hasn't been shared with
-                                            any users or groups.
-                                        </Text>
-                                    </Stack>
-                                )}
-                            </Stack>
-                        </Tabs.Panel>
+                                    }
+                                >
+                                    Shared with ({manageCount})
+                                </Tabs.Tab>
+                                <Tabs.Tab
+                                    value="audit"
+                                    leftSection={
+                                        <MantineIcon
+                                            icon={IconSettings}
+                                            size="sm"
+                                        />
+                                    }
+                                >
+                                    Who has access ({auditUsers.length})
+                                </Tabs.Tab>
+                            </Tabs.List>
 
-                        <Tabs.Panel value="audit" pt="md">
-                            <Stack gap="sm">
-                                <Group gap="xs" wrap="nowrap">
-                                    <TextInput
-                                        placeholder="Search users..."
-                                        leftSection={
-                                            <MantineIcon
-                                                icon={IconSearch}
-                                                size="sm"
-                                            />
-                                        }
-                                        size="sm"
-                                        value={auditSearch}
-                                        onChange={(e) =>
-                                            setAuditSearch(
-                                                e.currentTarget.value,
-                                            )
-                                        }
-                                        flex={1}
+                            <Tabs.Panel value="manage" pt="md">
+                                <Stack gap="md">
+                                    <ShareSpaceAddUser
+                                        space={space}
+                                        projectUuid={projectUuid}
                                     />
-                                    <Tooltip
-                                        label={
-                                            auditSortOrder === 'name'
-                                                ? 'Sort by access level'
-                                                : 'Sort by name'
-                                        }
-                                        position="top"
-                                        withArrow
-                                        withinPortal
-                                    >
-                                        <ActionIcon
-                                            size="lg"
-                                            variant="subtle"
-                                            onClick={() =>
-                                                setAuditSortOrder((prev) =>
-                                                    prev === 'name'
-                                                        ? 'role'
-                                                        : 'name',
+
+                                    {accessByType.direct.length >= 5 &&
+                                        space.groupsAccess.length === 0 &&
+                                        !isGroupsHintDismissed && (
+                                            <Callout
+                                                variant="info"
+                                                title="Tip: Use groups for easier management"
+                                                withCloseButton
+                                                onClose={() =>
+                                                    setIsGroupsHintDismissed(
+                                                        true,
+                                                    )
+                                                }
+                                            >
+                                                <Text fz="sm">
+                                                    This space is shared with
+                                                    several individual users.
+                                                    Consider using{' '}
+                                                    <Anchor
+                                                        href="/generalSettings/userManagement"
+                                                        target="_blank"
+                                                        fz="sm"
+                                                    >
+                                                        groups
+                                                    </Anchor>{' '}
+                                                    to manage access more
+                                                    efficiently.
+                                                </Text>
+                                            </Callout>
+                                        )}
+
+                                    {space.groupsAccess.length > 0 && (
+                                        <Stack gap="xs">
+                                            <Text fw={400} c="ldGray.6" fz="sm">
+                                                Groups
+                                            </Text>
+                                            <GroupsAccessList
+                                                isPrivate={
+                                                    !space.inheritParentPermissions
+                                                }
+                                                groupsAccess={
+                                                    space.groupsAccess
+                                                }
+                                                onAccessChange={
+                                                    handleGroupAccessChange
+                                                }
+                                                pageSize={5}
+                                            />
+                                        </Stack>
+                                    )}
+
+                                    {accessByType.direct.length > 0 && (
+                                        <Stack gap="xs">
+                                            <Group
+                                                gap={6}
+                                                wrap="nowrap"
+                                                mt={
+                                                    space.groupsAccess.length >
+                                                    0
+                                                        ? 'sm'
+                                                        : undefined
+                                                }
+                                            >
+                                                <Text
+                                                    fw={400}
+                                                    c="ldGray.6"
+                                                    fz="sm"
+                                                >
+                                                    Users
+                                                </Text>
+                                                <Tooltip
+                                                    label={
+                                                        sortOrder === 'name'
+                                                            ? 'Sort by access level'
+                                                            : 'Sort by name'
+                                                    }
+                                                    position="top"
+                                                    withArrow
+                                                    withinPortal
+                                                >
+                                                    <ActionIcon
+                                                        size="lg"
+                                                        variant="subtle"
+                                                        onClick={() =>
+                                                            setSortOrder(
+                                                                (prev) =>
+                                                                    prev ===
+                                                                    'name'
+                                                                        ? 'role'
+                                                                        : 'name',
+                                                            )
+                                                        }
+                                                    >
+                                                        <MantineIcon
+                                                            icon={
+                                                                sortOrder ===
+                                                                'name'
+                                                                    ? IconSortAZ
+                                                                    : IconLockOpen
+                                                            }
+                                                            size="md"
+                                                            color="ldGray.5"
+                                                        />
+                                                    </ActionIcon>
+                                                </Tooltip>
+                                            </Group>
+                                            <UserAccessList
+                                                isPrivate={
+                                                    !space.inheritParentPermissions
+                                                }
+                                                accessList={accessByType.direct}
+                                                sessionUser={sessionUser.data}
+                                                onAccessChange={
+                                                    handleAccessChange
+                                                }
+                                                pageSize={5}
+                                                sortOrder={sortOrder}
+                                            />
+                                        </Stack>
+                                    )}
+
+                                    {manageCount === 0 && (
+                                        <Stack gap="xs" align="center" py="md">
+                                            <MantineIcon
+                                                icon={IconUsers}
+                                                size="xl"
+                                                color="ldGray.4"
+                                            />
+                                            <Text
+                                                c="ldGray.5"
+                                                fz="sm"
+                                                ta="center"
+                                            >
+                                                This space hasn't been shared
+                                                with any users or groups.
+                                            </Text>
+                                        </Stack>
+                                    )}
+                                </Stack>
+                            </Tabs.Panel>
+
+                            <Tabs.Panel value="audit" pt="md">
+                                <Stack gap="sm">
+                                    <Group gap="xs" wrap="nowrap">
+                                        <TextInput
+                                            placeholder="Search users..."
+                                            leftSection={
+                                                <MantineIcon
+                                                    icon={IconSearch}
+                                                    size="sm"
+                                                />
+                                            }
+                                            size="sm"
+                                            value={auditSearch}
+                                            onChange={(e) =>
+                                                setAuditSearch(
+                                                    e.currentTarget.value,
                                                 )
                                             }
+                                            flex={1}
+                                        />
+                                        <Tooltip
+                                            label={
+                                                auditSortOrder === 'name'
+                                                    ? 'Sort by access level'
+                                                    : 'Sort by name'
+                                            }
+                                            position="top"
+                                            withArrow
+                                            withinPortal
                                         >
-                                            <MantineIcon
-                                                icon={
-                                                    auditSortOrder === 'name'
-                                                        ? IconSortAZ
-                                                        : IconLockOpen
+                                            <ActionIcon
+                                                size="lg"
+                                                variant="subtle"
+                                                onClick={() =>
+                                                    setAuditSortOrder((prev) =>
+                                                        prev === 'name'
+                                                            ? 'role'
+                                                            : 'name',
+                                                    )
                                                 }
-                                                size="md"
-                                                color="ldGray.5"
-                                            />
-                                        </ActionIcon>
-                                    </Tooltip>
-                                </Group>
-                                {filteredAuditUsers.length > 0 ? (
-                                    <UserAccessAuditList
-                                        users={filteredAuditUsers}
-                                        sessionUserUuid={
-                                            sessionUser.data?.userUuid
-                                        }
-                                        pageSize={10}
-                                    />
-                                ) : (
-                                    <Text
-                                        c="ldGray.5"
-                                        fz="sm"
-                                        ta="center"
-                                        py="md"
-                                    >
-                                        {auditSearch
-                                            ? 'No users match your search.'
-                                            : "This space hasn't been shared with any users or groups, only admins can access it."}
-                                    </Text>
-                                )}
-                            </Stack>
-                        </Tabs.Panel>
-                    </Tabs>
+                                            >
+                                                <MantineIcon
+                                                    icon={
+                                                        auditSortOrder ===
+                                                        'name'
+                                                            ? IconSortAZ
+                                                            : IconLockOpen
+                                                    }
+                                                    size="md"
+                                                    color="ldGray.5"
+                                                />
+                                            </ActionIcon>
+                                        </Tooltip>
+                                    </Group>
+                                    {filteredAuditUsers.length > 0 ? (
+                                        <UserAccessAuditList
+                                            users={filteredAuditUsers}
+                                            sessionUserUuid={
+                                                sessionUser.data?.userUuid
+                                            }
+                                            pageSize={10}
+                                        />
+                                    ) : (
+                                        <Text
+                                            c="ldGray.5"
+                                            fz="sm"
+                                            ta="center"
+                                            py="md"
+                                        >
+                                            {auditSearch
+                                                ? 'No users match your search.'
+                                                : "This space hasn't been shared with any users or groups, only admins can access it."}
+                                        </Text>
+                                    )}
+                                </Stack>
+                            </Tabs.Panel>
+                        </Tabs>
+                    </Collapse>
                 </Stack>
             </MantineModal>
         </>

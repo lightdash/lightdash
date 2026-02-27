@@ -109,7 +109,7 @@ const SpaceModal: FC<ActionModalProps> = ({
 
     const isNestedSpace = !!parentSpaceUuid;
     const [inheritanceValue, setInheritanceValue] = useState<InheritanceType>(
-        isNestedSpace ? InheritanceType.INHERIT : InheritanceType.OWN_ONLY,
+        InheritanceType.INHERIT,
     );
 
     const [modalStep, setModalStep] = useState(CreateModalStep.SET_NAME);

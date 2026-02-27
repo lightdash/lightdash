@@ -11,7 +11,7 @@ import {
     type FilterRule,
     type Filters,
 } from '@lightdash/common';
-import { Badge, Text, Tooltip } from '@mantine/core';
+import { Badge, Text, Tooltip } from '@mantine-8/core';
 import {
     memo,
     useCallback,
@@ -288,20 +288,17 @@ const FiltersCard: FC = memo(() => {
                         >
                             <Badge
                                 color="gray"
-                                sx={{
-                                    textTransform: 'unset',
-                                }}
+                                variant="light"
+                                tt="none"
+                                fw={500}
                             >
-                                {totalActiveFilters}{' '}
-                                <Text span fw={500}>
-                                    active filter
-                                    {totalActiveFilters === 1 ? '' : 's'}
-                                </Text>
+                                {totalActiveFilters} active filter
+                                {totalActiveFilters === 1 ? '' : 's'}
                             </Badge>
                         </Tooltip>
                     ) : null}
                     {totalActiveFilters > 0 && filterIsOpen && !isEditMode ? (
-                        <Text color="gray">
+                        <Text c="gray">
                             You must be in 'edit' or 'explore' mode to change
                             the filters
                         </Text>

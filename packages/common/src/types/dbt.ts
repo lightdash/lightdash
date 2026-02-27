@@ -35,6 +35,7 @@ export enum SupportedDbtAdapter {
     SNOWFLAKE = 'snowflake',
     REDSHIFT = 'redshift',
     POSTGRES = 'postgres',
+    DUCKDB = 'duckdb',
     TRINO = 'trino',
     CLICKHOUSE = 'clickhouse',
     ATHENA = 'athena',
@@ -95,6 +96,7 @@ type ExploreConfig = {
     description?: string;
     group_label?: string;
     joins?: DbtModelJoin[];
+    case_sensitive?: boolean; // When false, all string filters in this explore will be case insensitive. Default is true
     /**
      * Explore-scoped custom dimensions.
      * These dimensions are only available within this specific explore
@@ -104,6 +106,17 @@ type ExploreConfig = {
         string,
         DbtExploreLightdashAdditionalDimension
     >;
+};
+
+export type DbtPreAggregateDef = {
+    name: string;
+    dimensions: string[];
+    metrics: string[];
+    time_dimension?: string;
+    granularity?: string;
+    refresh?: {
+        cron?: string;
+    };
 };
 
 export type SharedDbtModelLightdashConfig = {
@@ -149,6 +162,7 @@ export type DbtModelLightdashConfig = ExploreConfig &
         parameters?: LightdashProjectConfig['parameters'];
         primary_key?: string | string[];
         owner?: string; // model owner email
+        pre_aggregates?: DbtPreAggregateDef[];
     };
 
 export type DbtModelGroup = {
@@ -200,6 +214,7 @@ export type DbtColumnLightdashDimension = {
     required_attributes?: Record<string, string | string[]>;
     any_attributes?: Record<string, string | string[]>;
     ai_hint?: string | string[];
+    case_sensitive?: boolean; // When false, string filters on this dimension will be case insensitive. Default is true
     image?: {
         url: string;
         width?: number;
@@ -264,6 +279,7 @@ export const normaliseModelDatabase = (
         case SupportedDbtAdapter.TRINO:
         case SupportedDbtAdapter.ATHENA:
         case SupportedDbtAdapter.REDSHIFT:
+        case SupportedDbtAdapter.DUCKDB:
             if (model.database === null) {
                 throw new ParseError(
                     `Cannot parse dbt model '${model.unique_id}' because the database field has null value.`,

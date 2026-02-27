@@ -114,13 +114,19 @@ const useSentry = (
         }
     }, [isSentryLoaded, setIsSentryLoaded, sentryConfig, user]);
 
-    const { projectUuid } = useParams<{ projectUuid?: string }>();
+    const { projectUuid, dashboardUuid } = useParams<{
+        projectUuid?: string;
+        dashboardUuid?: string;
+    }>();
     const location = useLocation();
     useEffect(() => {
         if (projectUuid) {
             setTag('project.uuid', projectUuid);
         }
-    }, [location, projectUuid]);
+        if (dashboardUuid) {
+            setTag('dashboard.uuid', dashboardUuid);
+        }
+    }, [location, projectUuid, dashboardUuid]);
 };
 
 export default useSentry;

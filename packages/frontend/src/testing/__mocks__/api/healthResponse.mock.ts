@@ -128,6 +128,9 @@ export default function mockHealthResponse(
             enabled: false,
             retentionDays: 30,
         },
+        preAggregates: {
+            enabled: false,
+        },
         ...overrides,
     };
 }

@@ -8,6 +8,7 @@ import type { UtilRepository } from '../utils/UtilRepository';
 import { AdminNotificationService } from './AdminNotificationService/AdminNotificationService';
 import { AnalyticsService } from './AnalyticsService/AnalyticsService';
 import { AsyncQueryService } from './AsyncQueryService/AsyncQueryService';
+import { PreAggregationDuckDbClient } from './AsyncQueryService/PreAggregationDuckDbClient';
 import { BaseService } from './BaseService';
 import { CatalogService } from './CatalogService/CatalogService';
 import { ChangesetService } from './ChangesetService';
@@ -37,6 +38,7 @@ import { PersistentDownloadFileService } from './PersistentDownloadFileService/P
 import { PersonalAccessTokenService } from './PersonalAccessTokenService';
 import { PinningService } from './PinningService/PinningService';
 import { PivotTableService } from './PivotTableService/PivotTableService';
+import { PreAggregateMaterializationService } from './PreAggregateMaterializationService/PreAggregateMaterializationService';
 import { ProjectCompileLogService } from './ProjectCompileLogService/ProjectCompileLogService';
 import { ProjectParametersService } from './ProjectParametersService';
 import { ProjectService } from './ProjectService/ProjectService';
@@ -82,6 +84,7 @@ interface ServiceManifest {
     oauthService: OAuthService;
 
     organizationService: OrganizationService;
+    preAggregateMaterializationService: PreAggregateMaterializationService;
     persistentDownloadFileService: PersistentDownloadFileService;
     personalAccessTokenService: PersonalAccessTokenService;
     pinningService: PinningService;
@@ -540,6 +543,19 @@ export class ServiceRepository
         );
     }
 
+    public getPreAggregateMaterializationService(): PreAggregateMaterializationService {
+        return this.getService(
+            'preAggregateMaterializationService',
+            () =>
+                new PreAggregateMaterializationService({
+                    preAggregateModel: this.models.getPreAggregateModel(),
+                    queryHistoryModel: this.models.getQueryHistoryModel(),
+                    asyncQueryService: this.getAsyncQueryService(),
+                    prometheusMetrics: this.prometheusMetrics,
+                }),
+        );
+    }
+
     public getPersonalAccessTokenService(): PersonalAccessTokenService {
         return this.getService(
             'personalAccessTokenService',
@@ -592,6 +608,7 @@ export class ServiceRepository
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
                     projectModel: this.models.getProjectModel(),
+                    preAggregateModel: this.models.getPreAggregateModel(),
                     onboardingModel: this.models.getOnboardingModel(),
                     savedChartModel: this.models.getSavedChartModel(),
                     jobModel: this.models.getJobModel(),
@@ -638,6 +655,7 @@ export class ServiceRepository
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
                     projectModel: this.models.getProjectModel(),
+                    preAggregateModel: this.models.getPreAggregateModel(),
                     onboardingModel: this.models.getOnboardingModel(),
                     savedChartModel: this.models.getSavedChartModel(),
                     jobModel: this.models.getJobModel(),
@@ -663,6 +681,8 @@ export class ServiceRepository
                     encryptionUtil: this.utils.getEncryptionUtil(),
                     userModel: this.models.getUserModel(),
                     queryHistoryModel: this.models.getQueryHistoryModel(),
+                    preAggregateDailyStatsModel:
+                        this.models.getPreAggregateDailyStatsModel(),
                     downloadAuditModel: this.models.getDownloadAuditModel(),
                     savedSqlModel: this.models.getSavedSqlModel(),
                     resultsStorageClient:
@@ -677,6 +697,11 @@ export class ServiceRepository
                     permissionsService: this.getPermissionsService(),
                     persistentDownloadFileService:
                         this.getPersistentDownloadFileService(),
+                    preAggregationDuckDbClient: new PreAggregationDuckDbClient({
+                        lightdashConfig: this.context.lightdashConfig,
+                        preAggregateModel: this.models.getPreAggregateModel(),
+                        projectModel: this.models.getProjectModel(),
+                    }),
                     projectCompileLogModel:
                         this.models.getProjectCompileLogModel(),
                     adminNotificationService:

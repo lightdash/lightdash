@@ -192,9 +192,12 @@ export type SpaceDeleteImpact = {
     spaces: {
         uuid: string;
         name: string;
+        parentSpaceUuid: string | null;
         chartCount: number;
         dashboardCount: number;
     }[];
+    charts: { uuid: string; name: string; spaceUuid: string }[];
+    dashboards: { uuid: string; name: string; spaceUuid: string }[];
     chartCount: number;
     dashboardCount: number;
 };

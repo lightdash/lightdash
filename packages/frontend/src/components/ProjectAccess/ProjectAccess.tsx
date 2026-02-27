@@ -575,7 +575,7 @@ const ProjectAccess: FC<ProjectAccessProps> = ({ projectUuid }) => {
             },
         },
         mantineTableContainerProps: {
-            style: { maxHeight: 'calc(100dvh - 420px)' },
+            style: { maxHeight: 'calc(100dvh - 350px)' },
         },
         mantineTableProps: {
             highlightOnHover: true,
@@ -614,7 +614,7 @@ const ProjectAccess: FC<ProjectAccessProps> = ({ projectUuid }) => {
         mantineTableBodyCellProps: () => {
             return {
                 style: {
-                    padding: `${theme.spacing.md} ${theme.spacing.xl}`,
+                    padding: `${theme.spacing.xs} ${theme.spacing.xl}`,
                     borderRight: 'none',
                     borderLeft: 'none',
                     borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
@@ -747,7 +747,7 @@ const ProjectAccess: FC<ProjectAccessProps> = ({ projectUuid }) => {
                 isLoading ||
                 isLoadingOrganizationRoles ||
                 isLoadingOrganizationRoleAssignments,
-            density: 'md',
+            density: 'xs',
         },
     });
 

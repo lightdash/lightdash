@@ -26,6 +26,7 @@ import {
     type Metric,
 } from '../types/field';
 import { type LightdashProjectConfig } from '../types/lightdashProjectConfig';
+import { type PreAggregateDef } from '../types/preAggregate';
 import {
     dateGranularityToTimeFrameMap,
     type DateGranularity,
@@ -142,6 +143,8 @@ export type UncompiledExplore = {
     meta: DbtRawModelNode['meta'];
     databricksCompute?: string;
     projectParameters?: LightdashProjectConfig['parameters'];
+    preAggregates?: PreAggregateDef[];
+    caseSensitive?: boolean;
 };
 
 const getReferencedTable = (
@@ -198,6 +201,8 @@ export class ExploreCompiler {
         databricksCompute,
         aiHint,
         projectParameters,
+        preAggregates,
+        caseSensitive,
     }: UncompiledExplore): Explore {
         // Check that base table exists (always required)
         if (!tables[baseTable]) {
@@ -498,6 +503,7 @@ export class ExploreCompiler {
             ymlPath,
             sqlPath,
             databricksCompute,
+            ...(caseSensitive !== undefined ? { caseSensitive } : {}),
             ...(aiHint ? { aiHint } : {}),
             ...getSpotlightConfigurationForResource({
                 visibility: spotlightVisibility,
@@ -506,6 +512,9 @@ export class ExploreCompiler {
             }),
             ...(meta.parameters && Object.keys(meta.parameters).length > 0
                 ? { parameters: meta.parameters }
+                : {}),
+            ...(preAggregates && preAggregates.length > 0
+                ? { preAggregates }
                 : {}),
             ...(exploreWarnings.length > 0
                 ? { warnings: exploreWarnings }

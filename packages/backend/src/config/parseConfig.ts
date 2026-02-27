@@ -827,7 +827,6 @@ export type LightdashConfig = {
         maxPageSize: number;
         useSqlPivotResults: boolean | undefined;
         showExecutionTime: boolean | undefined;
-        enableFilterAutofocusFix: boolean | undefined;
     };
     pivotTable: {
         maxColumnLimit: number;
@@ -1044,6 +1043,10 @@ export type LightdashConfig = {
     softDelete: {
         enabled: boolean;
         retentionDays: number;
+    };
+    preAggregates: {
+        enabled: boolean;
+        debug: boolean;
     };
 };
 
@@ -1312,11 +1315,13 @@ export const parseConfig = (): LightdashConfig => {
         copilotConfig = copilotConfigParse.data;
     }
 
+    const licenseKey = process.env.LIGHTDASH_LICENSE_KEY || null;
+
     return {
         mode,
         cookieSameSite: iframeEmbeddingEnabled ? 'none' : 'lax',
         license: {
-            licenseKey: process.env.LIGHTDASH_LICENSE_KEY || null,
+            licenseKey,
         },
         security: {
             contentSecurityPolicy: {
@@ -1600,9 +1605,6 @@ export const parseConfig = (): LightdashConfig => {
                 : undefined,
             showExecutionTime: process.env.SHOW_EXECUTION_TIME
                 ? process.env.SHOW_EXECUTION_TIME === 'true'
-                : undefined,
-            enableFilterAutofocusFix: process.env.ENABLE_FILTER_AUTOFOCUS_FIX
-                ? process.env.ENABLE_FILTER_AUTOFOCUS_FIX === 'true'
                 : undefined,
         },
         chart: {
@@ -1896,8 +1898,9 @@ export const parseConfig = (): LightdashConfig => {
                     ? true
                     : undefined,
         },
+        // TODO: Nested spaces permissions on by default -> remove this flag and the old code paths
         nestedSpacesPermissions: {
-            enabled: process.env.NESTED_SPACES_PERMISSIONS_ENABLED === 'true',
+            enabled: process.env.NESTED_SPACES_PERMISSIONS_ENABLED !== 'false',
         },
         defaultUserSpaces: {
             enabled:
@@ -1909,6 +1912,14 @@ export const parseConfig = (): LightdashConfig => {
                 getIntegerFromEnvironmentVariable(
                     'SOFT_DELETE_RETENTION_DAYS',
                 ) ?? 30,
+        },
+        preAggregates: {
+            enabled:
+                licenseKey !== null &&
+                process.env.PRE_AGGREGATES_ENABLED === 'true',
+            debug:
+                licenseKey !== null &&
+                process.env.DEBUG_PRE_AGGREGATES === 'true',
         },
     };
 };

@@ -22,6 +22,7 @@ import {
     TableSelectionType,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import { type LightdashConfig } from '../../config/parseConfig';
 import {
     DashboardsTableName,
     DashboardTabsTableName,
@@ -35,6 +36,7 @@ import { SavedChartsTableName } from '../../database/entities/savedCharts';
 import { SavedSqlTableName } from '../../database/entities/savedSql';
 import { SpaceTableName } from '../../database/entities/spaces';
 import { UserTableName } from '../../database/entities/users';
+import KnexPaginate from '../../database/pagination';
 import {
     filterByCreatedAt,
     filterByCreatedByUuid,
@@ -49,6 +51,7 @@ import {
 
 type SearchModelArguments = {
     database: Knex;
+    lightdashConfig: LightdashConfig;
 };
 
 const SEARCH_LIMIT_PER_ITEM_TYPE = 10;
@@ -56,8 +59,11 @@ const SEARCH_LIMIT_PER_ITEM_TYPE = 10;
 export class SearchModel {
     private database: Knex;
 
+    private lightdashConfig: LightdashConfig;
+
     constructor(args: SearchModelArguments) {
         this.database = args.database;
+        this.lightdashConfig = args.lightdashConfig;
     }
 
     private async searchSpaces(
@@ -464,6 +470,132 @@ export class SearchModel {
                 : null,
             charts: chartsByDashboard[dashboard.uuid] || [],
         }));
+    }
+
+    async getDashboardCharts(
+        dashboardUuid: string,
+        page: number,
+        pageSize: number,
+    ): Promise<{
+        dashboardName: string;
+        charts: DashboardSearchResult['charts'];
+        pagination: {
+            page: number;
+            pageSize: number;
+            totalResults: number;
+            totalPageCount: number;
+        };
+    }> {
+        const dashboard = await this.database(DashboardsTableName)
+            .select('dashboard_uuid', 'name')
+            .where('dashboard_uuid', dashboardUuid)
+            .whereNull('deleted_at')
+            .first();
+
+        if (!dashboard) {
+            throw new NotFoundError(`Dashboard not found: ${dashboardUuid}`);
+        }
+
+        // Charts can belong to a dashboard directly (dashboard_uuid on saved_queries)
+        // or via dashboard tiles. UNION deduplicates across both sources.
+        // Column order must match between both queries (PostgreSQL UNION matches by position).
+        const directCharts = this.database(SavedChartsTableName)
+            .select(
+                { uuid: 'saved_query_uuid' },
+                'name',
+                'description',
+                { chartType: 'last_version_chart_kind' },
+                { viewsCount: 'views_count' },
+            )
+            .where('dashboard_uuid', dashboardUuid)
+            .whereNull('deleted_at');
+
+        const tileCharts = this.database(DashboardsTableName)
+            .whereNull(`${DashboardsTableName}.deleted_at`)
+            .join(
+                'dashboard_versions',
+                `${DashboardsTableName}.dashboard_id`,
+                'dashboard_versions.dashboard_id',
+            )
+            .join(
+                'dashboard_tiles',
+                'dashboard_versions.dashboard_version_id',
+                'dashboard_tiles.dashboard_version_id',
+            )
+            .join('dashboard_tile_charts', function joinTileCharts() {
+                this.on(
+                    'dashboard_tile_charts.dashboard_version_id',
+                    '=',
+                    'dashboard_tiles.dashboard_version_id',
+                ).andOn(
+                    'dashboard_tile_charts.dashboard_tile_uuid',
+                    '=',
+                    'dashboard_tiles.dashboard_tile_uuid',
+                );
+            })
+            .join(SavedChartsTableName, function nonDeletedChartJoin() {
+                this.on(
+                    `${SavedChartsTableName}.saved_query_id`,
+                    '=',
+                    'dashboard_tile_charts.saved_chart_id',
+                ).andOnNull(`${SavedChartsTableName}.deleted_at`);
+            })
+            .select(
+                { uuid: `${SavedChartsTableName}.saved_query_uuid` },
+                `${SavedChartsTableName}.name`,
+                `${SavedChartsTableName}.description`,
+                {
+                    chartType: `${SavedChartsTableName}.last_version_chart_kind`,
+                },
+                { viewsCount: `${SavedChartsTableName}.views_count` },
+            )
+            .where(`${DashboardsTableName}.dashboard_uuid`, dashboardUuid)
+            .whereRaw(
+                `dashboard_versions.dashboard_version_id = (
+                    SELECT MAX(dashboard_version_id)
+                    FROM dashboard_versions dv2
+                    WHERE dv2.dashboard_id = ${DashboardsTableName}.dashboard_id
+                )`,
+            );
+
+        type ChartRow = {
+            uuid: string;
+            name: string;
+            description: string;
+            chartType: ChartKind;
+            viewsCount: number;
+        };
+
+        const chartsQuery = this.database
+            .from(
+                this.database.raw(`(? UNION ?) as dashboard_charts`, [
+                    directCharts,
+                    tileCharts,
+                ]),
+            )
+            .select<ChartRow[]>('*');
+
+        const { data: charts, pagination } = await KnexPaginate.paginate(
+            chartsQuery,
+            { page, pageSize },
+        );
+
+        return {
+            dashboardName: dashboard.name,
+            charts: charts.map((chart) => ({
+                uuid: chart.uuid,
+                name: chart.name,
+                description: chart.description,
+                chartType: chart.chartType,
+                viewsCount: chart.viewsCount,
+            })),
+            pagination: {
+                page,
+                pageSize,
+                totalResults: pagination?.totalResults ?? 0,
+                totalPageCount: pagination?.totalPageCount ?? 0,
+            },
+        };
     }
 
     private async searchDashboardTabs(
@@ -1122,21 +1254,35 @@ export class SearchModel {
             .limit(1);
 
         if (explores.length > 0 && explores[0].explores) {
+            const includePreAggregateDebugExplores =
+                this.lightdashConfig.preAggregates.debug;
             return explores[0].explores.filter(
                 (explore: Explore | ExploreError) => {
+                    if (
+                        !includePreAggregateDebugExplores &&
+                        explore.type === ExploreType.PRE_AGGREGATE
+                    ) {
+                        return false;
+                    }
                     if (tableSelection.type === TableSelectionType.WITH_TAGS) {
                         return (
                             hasIntersection(
                                 explore.tags || [],
                                 tableSelection.value || [],
-                            ) || explore.type === ExploreType.VIRTUAL
+                            ) ||
+                            explore.type === ExploreType.VIRTUAL ||
+                            (includePreAggregateDebugExplores &&
+                                explore.type === ExploreType.PRE_AGGREGATE)
                         );
                     }
                     if (tableSelection.type === TableSelectionType.WITH_NAMES) {
                         return (
                             (tableSelection.value || []).includes(
                                 explore.name,
-                            ) || explore.type === ExploreType.VIRTUAL
+                            ) ||
+                            explore.type === ExploreType.VIRTUAL ||
+                            (includePreAggregateDebugExplores &&
+                                explore.type === ExploreType.PRE_AGGREGATE)
                         );
                     }
                     return true;

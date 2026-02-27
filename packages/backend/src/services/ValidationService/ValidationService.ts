@@ -69,6 +69,64 @@ type ValidationServiceArguments = {
 };
 
 export class ValidationService extends BaseService {
+    private static buildExploreFields(
+        compiledExplores: (Explore | ExploreError)[],
+    ): Record<string, { dimensionIds: string[]; metricIds: string[] }> {
+        const exploreFields: Record<
+            string,
+            { dimensionIds: string[]; metricIds: string[] }
+        > = {};
+
+        compiledExplores.forEach((explore: Explore | ExploreError) => {
+            if (!isExploreError(explore)) {
+                // For validation, index by both baseTable and explore name
+                const dimensions = Object.values(explore.tables).flatMap(
+                    (table) => Object.values(table.dimensions || {}),
+                );
+                const metrics = Object.values(explore.tables).flatMap((table) =>
+                    Object.values(table.metrics || {}),
+                );
+                const fieldData = {
+                    dimensionIds: dimensions.map(getItemId),
+                    metricIds: metrics.map(getItemId),
+                };
+                // Index by baseTable
+                exploreFields[explore.baseTable] = fieldData;
+                // Also index by explore name if different
+                if (explore.name !== explore.baseTable) {
+                    exploreFields[explore.name] = fieldData;
+                }
+            }
+        });
+
+        return exploreFields;
+    }
+
+    private static buildExistingFields(
+        compiledExplores: (Explore | ExploreError)[],
+    ): CompiledField[] {
+        const existingFields: CompiledField[] = [];
+
+        compiledExplores.forEach((explore: Explore | ExploreError) => {
+            if (!isExploreError(explore)) {
+                Object.values(explore.tables).forEach((table) => {
+                    existingFields.push(
+                        ...(Object.values(
+                            table.dimensions || {},
+                        ) as CompiledField[]),
+                    );
+                    existingFields.push(
+                        ...(Object.values(
+                            table.metrics || {},
+                        ) as CompiledField[]),
+                    );
+                });
+            }
+        });
+
+        return existingFields;
+    }
+
     lightdashConfig: LightdashConfig;
 
     analytics: LightdashAnalytics;
@@ -263,9 +321,12 @@ export class ValidationService extends BaseService {
             { dimensionIds: string[]; metricIds: string[] }
         >,
         selectedExplores?: (Explore | ExploreError)[],
+        chartUuid?: string,
     ): Promise<CreateChartValidation[]> {
-        const charts =
-            await this.savedChartModel.findChartsForValidation(projectUuid);
+        const charts = await this.savedChartModel.findChartsForValidation(
+            projectUuid,
+            chartUuid,
+        );
 
         // Only validate charts that are using selected explores
         const results = charts
@@ -525,6 +586,7 @@ export class ValidationService extends BaseService {
         projectUuid: string,
         existingFields: CompiledField[],
         brokenCharts: Pick<CreateChartValidation, 'chartUuid' | 'name'>[],
+        dashboardUuid?: string,
     ): Promise<CreateDashboardValidation[]> {
         const existingFieldIds = existingFields.map(getItemId);
 
@@ -534,13 +596,16 @@ export class ValidationService extends BaseService {
         );
 
         const dashboardsToValidate =
-            await this.dashboardModel.findDashboardsForValidation(projectUuid);
+            await this.dashboardModel.findDashboardsForValidation(
+                projectUuid,
+                dashboardUuid,
+            );
         const results: CreateDashboardValidation[] =
             dashboardsToValidate.flatMap(
-                ({ name, dashboardUuid, filters, chartUuids }) => {
+                ({ name, dashboardUuid: uuid, filters, chartUuids }) => {
                     const commonValidation = {
                         name,
-                        dashboardUuid,
+                        dashboardUuid: uuid,
                         projectUuid,
                         source: ValidationSourceType.Dashboard,
                     };
@@ -763,12 +828,9 @@ export class ValidationService extends BaseService {
                 ),
             );
         }
-        const exploreFields =
-            explores?.reduce<
-                Record<string, { dimensionIds: string[]; metricIds: string[] }>
-            >((acc, explore) => {
-                if (isExploreError(explore) || explore?.tables === undefined)
-                    return acc;
+        // Check for undefined dimensions/metrics before processing
+        explores?.forEach((explore) => {
+            if (!isExploreError(explore) && explore?.tables !== undefined) {
                 const dimensions = Object.values(explore.tables).flatMap(
                     (table) => Object.values(table.dimensions),
                 );
@@ -790,38 +852,16 @@ export class ValidationService extends BaseService {
                         ),
                     );
                 }
+            }
+        });
 
-                const fieldData = {
-                    dimensionIds: dimensions.map(getItemId),
-                    metricIds: metrics.map(getItemId),
-                };
-                return {
-                    ...acc,
-                    // Index by baseTable for base explores and charts using baseTable
-                    [explore.baseTable]: fieldData,
-                    // Also index by explore name for additional explores
-                    // https://docs.lightdash.com/guides/explores
-                    ...(explore.name !== explore.baseTable
-                        ? { [explore.name]: fieldData }
-                        : {}),
-                };
-            }, {}) || {};
+        const exploreFields = explores
+            ? ValidationService.buildExploreFields(explores)
+            : {};
 
-        const existingFields = explores?.reduce<CompiledField[]>(
-            (acc, explore) => {
-                if (!explore.tables) return acc;
-
-                const fields = Object.values(explore.tables).flatMap(
-                    (table) => [
-                        ...Object.values(table.dimensions),
-                        ...Object.values(table.metrics),
-                    ],
-                );
-
-                return [...acc, ...fields];
-            },
-            [],
-        );
+        const existingFields = explores
+            ? ValidationService.buildExistingFields(explores)
+            : [];
 
         if (!existingFields) {
             this.logger.warn(
@@ -1233,5 +1273,183 @@ export class ValidationService extends BaseService {
         });
 
         await this.validationModel.deleteValidation(validationId);
+    }
+
+    async validateAndUpdateChart(
+        user: SessionUser,
+        projectUuid: string,
+        chartUuid: string,
+    ): Promise<CreateChartValidation[]> {
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('Validation', {
+                    organizationUuid,
+                    projectUuid,
+                    uuid: projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        // Get the chart to find which explore it uses
+        const chart = await this.savedChartModel.get(chartUuid);
+
+        // Check user permissions
+        const { isPrivate, access } =
+            await this.spacePermissionService.getSpaceAccessContext(
+                user.userUuid,
+                chart.spaceUuid,
+            );
+
+        if (
+            user.ability.cannot(
+                'view',
+                subject('SavedChart', {
+                    organizationUuid: chart.organizationUuid,
+                    projectUuid: chart.projectUuid,
+                    isPrivate,
+                    access,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                "You don't have access to validate this chart",
+            );
+        }
+
+        // Only fetch the specific explore this chart uses
+        const compiledExplore = await this.projectModel.getExploreFromCache(
+            projectUuid,
+            chart.tableName,
+        );
+        const compiledExplores = compiledExplore ? [compiledExplore] : [];
+
+        // Build field lookup for validation
+        const exploreFields =
+            ValidationService.buildExploreFields(compiledExplores);
+
+        // Validate the single chart
+        const validationErrors = await this.validateCharts(
+            projectUuid,
+            exploreFields,
+            compiledExplores,
+            chartUuid,
+        );
+
+        // Delete existing validations for this chart
+        await this.validationModel.deleteChartValidations(chartUuid);
+
+        // Store new validation errors if any
+        if (validationErrors.length > 0) {
+            await this.validationModel.create({
+                projectUuid,
+                validations: validationErrors,
+            });
+        }
+
+        return validationErrors;
+    }
+
+    async validateAndUpdateDashboard(
+        user: SessionUser,
+        projectUuid: string,
+        dashboardUuid: string,
+    ): Promise<CreateDashboardValidation[]> {
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('Validation', {
+                    organizationUuid,
+                    projectUuid,
+                    uuid: projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        // Get the dashboard to check permissions
+        const dashboard =
+            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+
+        // Check user permissions
+        const { isPrivate, access } =
+            await this.spacePermissionService.getSpaceAccessContext(
+                user.userUuid,
+                dashboard.spaceUuid,
+            );
+
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Dashboard', {
+                    organizationUuid: dashboard.organizationUuid,
+                    projectUuid: dashboard.projectUuid,
+                    isPrivate,
+                    access,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                "You don't have access to validate this dashboard",
+            );
+        }
+
+        // Get all explores for dashboard validation
+        const compiledExploresMap =
+            await this.projectModel.getAllExploresFromCache(projectUuid);
+        const compiledExplores = Object.values(compiledExploresMap);
+
+        // Get existing fields for validation
+        const existingFields =
+            ValidationService.buildExistingFields(compiledExplores);
+
+        // Get existing chart validation errors from database
+        const validations = await this.validationModel.get(projectUuid);
+        const blockingChartErrors = validations.reduce<
+            Array<{ chartUuid: string; name: string }>
+        >((acc, v) => {
+            if (
+                v.source === ValidationSourceType.Chart &&
+                'chartUuid' in v &&
+                v.chartUuid &&
+                v.errorType !== ValidationErrorType.ChartConfiguration
+            ) {
+                acc.push({
+                    chartUuid: v.chartUuid,
+                    name: v.name || '',
+                });
+            }
+            return acc;
+        }, []);
+
+        // Validate the single dashboard
+        const validationErrors = await this.validateDashboards(
+            projectUuid,
+            existingFields,
+            blockingChartErrors,
+            dashboardUuid,
+        );
+
+        // Delete existing validations for this dashboard
+        await this.validationModel.deleteDashboardValidations(dashboardUuid);
+
+        // Store new validation errors if any
+        if (validationErrors.length > 0) {
+            await this.validationModel.create({
+                projectUuid,
+                validations: validationErrors,
+            });
+        }
+
+        return validationErrors;
     }
 }

@@ -100,6 +100,8 @@ import { type FieldValueSearchResult } from './fieldMatch';
 import { type DashboardFilters } from './filter';
 import {
     type ApiGitFileContent,
+    type GitBranch,
+    type GitFileOrDirectory,
     type GitIntegrationConfiguration,
     type GitRepo,
     type PullRequestCreated,
@@ -134,6 +136,10 @@ import {
 } from './personalAccessToken';
 import { type ApiTogglePinnedItem, type PinnedItems } from './pinning';
 import { type PivotConfiguration } from './pivot';
+import type {
+    ApiGetPreAggregateStatsResponse,
+    PreAggregateMatchMiss,
+} from './preAggregate';
 import {
     type ApiProjectCompileLogResponse,
     type ApiProjectCompileLogsResponse,
@@ -174,7 +180,7 @@ import { type SearchResults } from './search';
 import { type ShareUrl } from './share';
 import { type ApiSlackChannelsResponse } from './slack';
 import { type SlackSettings } from './slackSettings';
-import { type Space } from './space';
+import { type ApiSpaceDeleteImpactResponse, type Space } from './space';
 import {
     type ApiCreateSqlChart,
     type ApiCreateVirtualView,
@@ -195,6 +201,8 @@ import {
 } from './user';
 import { type UserWarehouseCredentials } from './userWarehouseCredentials';
 import {
+    type ApiChartValidationResponse,
+    type ApiDashboardValidationResponse,
     type ApiPaginatedValidateResponse,
     type ApiSingleValidationResponse,
     type ValidationResponse,
@@ -465,6 +473,9 @@ export type HealthState = {
         enabled: boolean;
         retentionDays: number;
     };
+    preAggregates: {
+        enabled: boolean;
+    };
 };
 
 // Deploy Session Types
@@ -585,6 +596,11 @@ export type CacheMetadata = {
     cacheExpiresAt?: Date;
     cacheKey?: string;
     cacheHit: boolean;
+    preAggregate?: {
+        hit: boolean;
+        name?: string;
+        reason?: PreAggregateMatchMiss;
+    };
 };
 
 export type ApiQueryResults = {
@@ -836,6 +852,11 @@ type ApiResults =
     | PullRequestCreated
     | ApiGitFileContent
     | GitIntegrationConfiguration
+    | GitBranch
+    | GitBranch[]
+    | GitFileOrDirectory
+    | { sha: string; path: string }
+    | { filePath: string }
     | UserWarehouseCredentials
     | ApiJobStatusResponse['results']
     | ApiJobScheduledResponse['results']
@@ -923,7 +944,11 @@ type ApiResults =
     | ApiProjectCompileLogResponse['results']
     | ApiSingleValidationResponse['results']
     | ApiFavoriteItems['results']
+    | ApiChartValidationResponse['results']
+    | ApiDashboardValidationResponse['results']
     | ApiToggleFavorite['results']
+    | ApiSpaceDeleteImpactResponse['results']
+    | ApiGetPreAggregateStatsResponse['results']
     | ApiContentVerificationResponse['results']
     | ApiContentVerificationDeleteResponse['results'];
 // Note: EE API types removed from ApiResults to avoid circular imports

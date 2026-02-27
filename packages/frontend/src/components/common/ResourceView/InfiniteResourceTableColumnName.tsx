@@ -1,19 +1,21 @@
 import {
+    FeatureFlags,
     isResourceViewItemChart,
     isResourceViewItemDashboard,
     isResourceViewSpaceItem,
     type ContentVerificationInfo,
     type ResourceViewItem,
 } from '@lightdash/common';
-import { Anchor, Box, Group, Stack, Text, Tooltip } from '@mantine/core';
+import { Anchor, Box, Group, Stack, Text, Tooltip } from '@mantine-8/core';
 import {
-    IconAlertTriangleFilled,
+    IconAlertTriangle,
     IconChartBar,
     IconCircleCheckFilled,
     IconFolder,
     IconLayoutDashboard,
 } from '@tabler/icons-react';
 import { Link } from 'react-router';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { ResourceIcon, ResourceIndicator } from '../ResourceIcon';
 import { ResourceInfoPopup } from '../ResourceInfoPopup/ResourceInfoPopup';
 import ResourceAccessInfo from './ResourceAccessInfo';
@@ -49,7 +51,7 @@ const ResourceValidationErrorIndicator = ({
     return (
         <ResourceIndicator
             iconProps={{
-                icon: IconAlertTriangleFilled,
+                icon: IconAlertTriangle,
                 color: 'red',
             }}
             tooltipProps={{
@@ -146,6 +148,11 @@ const InfiniteResourceTableColumnName = ({
     projectUuid,
     canUserManageValidation,
 }: InfiniteResourceTableColumnNameProps) => {
+    const { data: nestedSpacesPermissionsFlag } = useServerFeatureFlag(
+        FeatureFlags.NestedSpacesPermissions,
+    );
+    const isV2 = !!nestedSpacesPermissionsFlag?.enabled;
+
     const isSpace = isResourceViewSpaceItem(item);
     const isChartOrDashboard =
         isResourceViewItemChart(item) || isResourceViewItemDashboard(item);
@@ -167,19 +174,14 @@ const InfiniteResourceTableColumnName = ({
     return (
         <Anchor
             component={Link}
-            sx={{
-                color: 'unset',
-                ':hover': {
-                    color: 'unset',
-                    textDecoration: 'none',
-                },
-            }}
+            c="unset"
+            underline="never"
             to={getResourceUrl(projectUuid, item)}
             onClick={(e: React.MouseEvent<HTMLAnchorElement>) =>
                 e.stopPropagation()
             }
         >
-            <Group noWrap>
+            <Group wrap="nowrap">
                 <ResourceValidationErrorIndicator
                     item={item}
                     projectUuid={projectUuid}
@@ -191,12 +193,12 @@ const InfiniteResourceTableColumnName = ({
                     </ResourceVerifiedIndicator>
                 </ResourceValidationErrorIndicator>
 
-                <Stack spacing={2}>
-                    <Group spacing="xs" noWrap>
+                <Stack gap={2}>
+                    <Group gap="xs" wrap="nowrap">
                         <Text
                             fw={600}
                             lineClamp={1}
-                            sx={{ overflowWrap: 'anywhere' }}
+                            style={{ overflowWrap: 'anywhere' }}
                         >
                             {item.data.name}
                         </Text>
@@ -219,7 +221,7 @@ const InfiniteResourceTableColumnName = ({
                             )}
                     </Group>
                     {isChartOrDashboard && (
-                        <Text fz={12} color="ldGray.6">
+                        <Text fz={12} c="ldGray.6">
                             {getResourceTypeName(item)} •{' '}
                             <Tooltip
                                 position="top-start"
@@ -235,15 +237,19 @@ const InfiniteResourceTableColumnName = ({
                         </Text>
                     )}
                     {isSpace && item.data.parentSpaceUuid && (
-                        <Group spacing="xs" noWrap>
-                            <ResourceAccessInfo
-                                item={item}
-                                type="secondary"
-                                withTooltip
-                            />
-                            <Text fz={12} color="ldGray.6">
-                                •
-                            </Text>
+                        <Group gap="xs" wrap="nowrap">
+                            {!isV2 && (
+                                <>
+                                    <ResourceAccessInfo
+                                        item={item}
+                                        type="secondary"
+                                        withTooltip
+                                    />
+                                    <Text fz={12} c="ldGray.6">
+                                        &bull;
+                                    </Text>
+                                </>
+                            )}
                             <Group>
                                 <AttributeCount
                                     Icon={IconLayoutDashboard}

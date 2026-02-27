@@ -140,10 +140,15 @@ export const ResourceIndicator: FC<
                 >
                     <MantineIcon
                         icon={iconProps.icon}
+                        size={14}
                         onMouseEnter={handleMouseEnter}
                         onMouseLeave={handleMouseLeave}
+                        fill={iconProps.color}
+                        fillOpacity={0.15}
+                        strokeWidth={1.2}
                         style={{
-                            color: iconProps.color, // NOTE: If react-tabler icon is filled, then we have to override the color this way
+                            color: iconProps.color,
+                            opacity: 0.65, // NOTE: If react-tabler icon is filled, then we have to override the color this way
                         }}
                     />
                 </Tooltip>

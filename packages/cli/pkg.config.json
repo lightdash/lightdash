@@ -2,6 +2,7 @@
   "scripts": "bundle/**/*.js",
   "assets": [
     "bundle/**/*.node",
+    "bundle/**/*.dylib",
     "bundle/ca-bundle-aws-redshift.crt",
     "bundle/ca-bundle-aws-rds-global.pem"
   ],

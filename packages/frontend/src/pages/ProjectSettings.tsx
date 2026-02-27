@@ -9,6 +9,7 @@ import SuboptimalState from '../components/common/SuboptimalState/SuboptimalStat
 import CompilationHistory from '../components/CompilationHistory';
 import { DataOps } from '../components/DataOps';
 import { DefaultUserSpaces } from '../components/DefaultUserSpaces';
+import PreAggregateAudit from '../components/PreAggregateAudit';
 import ProjectUserAccess from '../components/ProjectAccess';
 import { UpdateProjectConnection } from '../components/ProjectConnection';
 import ProjectParameters from '../components/ProjectParameters';
@@ -103,6 +104,10 @@ const ProjectSettings: FC = () => {
             {
                 path: `/compilationHistory`,
                 element: <CompilationHistory projectUuid={projectUuid} />,
+            },
+            {
+                path: `/preAggregateAudit`,
+                element: <PreAggregateAudit projectUuid={projectUuid} />,
             },
             {
                 path: '*',

@@ -128,6 +128,9 @@ export const BaseResponse: HealthState = {
         enabled: false,
         retentionDays: 30,
     },
+    preAggregates: {
+        enabled: false,
+    },
 };
 
 export const userMock = {

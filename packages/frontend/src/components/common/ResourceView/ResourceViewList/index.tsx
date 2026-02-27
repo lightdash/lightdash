@@ -14,7 +14,7 @@ import {
     Tooltip,
 } from '@mantine-8/core';
 import {
-    IconAlertTriangleFilled,
+    IconAlertTriangle,
     IconChevronDown,
     IconChevronUp,
 } from '@tabler/icons-react';
@@ -141,7 +141,7 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                                 item.data.validationErrors?.length ? (
                                     <ResourceIndicator
                                         iconProps={{
-                                            icon: IconAlertTriangleFilled,
+                                            icon: IconAlertTriangle,
                                             color: 'red',
                                         }}
                                         tooltipProps={{

@@ -98,4 +98,5 @@ export enum QueryExecutionContext {
     API = 'api',
     CLI = 'cli',
     METRICS_EXPLORER = 'metricsExplorer',
+    PRE_AGGREGATE_MATERIALIZATION = 'preAggregateMaterialization',
 }

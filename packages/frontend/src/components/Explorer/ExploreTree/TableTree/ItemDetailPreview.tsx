@@ -18,7 +18,7 @@ import {
     Title,
     Tooltip,
     useMantineTheme,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import { IconCode } from '@tabler/icons-react';
 import ReactMarkdownPreview from '@uiw/react-markdown-preview';
 import { Fragment, useState, type FC, type PropsWithChildren } from 'react';
@@ -89,10 +89,10 @@ export const ItemDetailPreview: FC<{
     const [showCompiled, setShowCompiled] = useState(false);
 
     return (
-        <Stack spacing="xs">
+        <Stack gap="xs">
             {metricInfo && (
                 <>
-                    <Group spacing="xs" position="apart">
+                    <Group gap="xs" justify="space-between">
                         <Text fz="sm" fw={500} c="ldDark.7">
                             {metricInfo.name}
                         </Text>
@@ -100,10 +100,10 @@ export const ItemDetailPreview: FC<{
                             radius="sm"
                             color="indigo"
                             p={2}
-                            sx={(theme) => ({
-                                boxShadow: theme.shadows.subtle,
-                                border: `1px solid ${theme.colors.indigo[1]}`,
-                            })}
+                            style={{
+                                boxShadow: 'var(--mantine-shadow-subtle)',
+                                border: '1px solid var(--mantine-color-indigo-1)',
+                            }}
                         >
                             {friendlyName(metricInfo.type)}
                         </Badge>
@@ -113,16 +113,15 @@ export const ItemDetailPreview: FC<{
             {description && (
                 <Box
                     mah={120}
-                    sx={{
+                    style={{
                         overflow: 'hidden',
-
                         // If we're over the truncation limit, use a mask to fade out the bottom of the container.
                         maskImage: isTruncated
                             ? 'linear-gradient(180deg, white 0%, white 80%, transparent 100%)'
                             : undefined,
                     }}
                 >
-                    <Stack spacing="xs">
+                    <Stack gap="xs">
                         {metricInfo && (
                             <>
                                 <Divider color="ldGray.2" />
@@ -152,8 +151,8 @@ export const ItemDetailPreview: FC<{
             {metricInfo && (
                 <>
                     <Divider color="ldGray.2" />
-                    <Stack spacing="xs">
-                        <Group spacing="xs" align="center" position="apart">
+                    <Stack gap="xs">
+                        <Group gap="xs" align="center" justify="space-between">
                             <Text fz="xs" fw={500} c="ldDark.7">
                                 SQL
                             </Text>
@@ -167,7 +166,6 @@ export const ItemDetailPreview: FC<{
                                 }
                             >
                                 <Button
-                                    compact
                                     variant="subtle"
                                     color="gray"
                                     onClick={(
@@ -176,8 +174,10 @@ export const ItemDetailPreview: FC<{
                                         e.stopPropagation();
                                         setShowCompiled(!showCompiled);
                                     }}
-                                    size="xs"
-                                    leftIcon={<MantineIcon icon={IconCode} />}
+                                    size="compact-xs"
+                                    leftSection={
+                                        <MantineIcon icon={IconCode} />
+                                    }
                                 >
                                     {showCompiled
                                         ? 'Original SQL'
@@ -204,7 +204,7 @@ export const ItemDetailPreview: FC<{
                                             ];
 
                                         return (
-                                            <Group key={filter.id} spacing={4}>
+                                            <Group key={filter.id} gap={4}>
                                                 <Code fz="xs" fw={500}>
                                                     {filter.target.fieldRef}
                                                 </Code>

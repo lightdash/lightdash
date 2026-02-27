@@ -1,0 +1,32 @@
+.sidebar {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    border-right: 1px solid var(--mantine-color-gray-3);
+}
+
+:global([data-mantine-color-scheme='dark']) .sidebar {
+    border-right-color: var(--mantine-color-dark-4);
+}
+
+.header {
+    padding: var(--mantine-spacing-md);
+    border-bottom: 1px solid var(--mantine-color-gray-3);
+}
+
+:global([data-mantine-color-scheme='dark']) .header {
+    border-bottom-color: var(--mantine-color-dark-4);
+}
+
+.fileTreeNode {
+    border-radius: 0;
+}
+
+.chevron {
+    transition: transform 200ms ease;
+}
+
+.chevronExpanded {
+    transform: rotate(90deg);
+    transition: transform 200ms ease;
+}

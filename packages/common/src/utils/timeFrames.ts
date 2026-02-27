@@ -445,6 +445,7 @@ const warehouseConfigs: Record<SupportedDbtAdapter, WarehouseConfig> = {
     [SupportedDbtAdapter.SNOWFLAKE]: snowflakeConfig,
     [SupportedDbtAdapter.REDSHIFT]: postgresConfig,
     [SupportedDbtAdapter.POSTGRES]: postgresConfig,
+    [SupportedDbtAdapter.DUCKDB]: postgresConfig,
     [SupportedDbtAdapter.DATABRICKS]: databricksConfig,
     [SupportedDbtAdapter.TRINO]: trinoConfig,
     [SupportedDbtAdapter.ATHENA]: trinoConfig, // Athena uses Trino SQL dialect
@@ -692,7 +693,7 @@ export const validateTimeFrames = (values: string[]): TimeFrames[] =>
         return isTimeInterval(uppercaseValue) ? [...acc, uppercaseValue] : acc;
     }, []);
 
-const timeFrameOrder = [
+export const timeFrameOrder = [
     undefined,
     TimeFrames.RAW,
     TimeFrames.MILLISECOND,

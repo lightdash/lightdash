@@ -26,7 +26,8 @@ import {
     Select,
     Stack,
     Text,
-} from '@mantine/core';
+    useMantineColorScheme,
+} from '@mantine-8/core';
 import { IconPlus } from '@tabler/icons-react';
 import React, { memo, useCallback, useMemo, useState, type FC } from 'react';
 import { v4 as uuidv4 } from 'uuid';
@@ -41,13 +42,33 @@ type Props = {
     fields: FilterableField[];
     filterGroup: FilterGroup;
     isEditMode: boolean;
-    autoFocusRuleId?: string;
-    onAutoFocusRule?: (ruleId: string) => void;
     onChange: (value: FilterGroup) => void;
     onDelete: () => void;
 };
 
 const ALLOW_CONVERT_TO_GROUP_UP_TO_DEPTH = 2;
+
+const AddFilterButton: FC<{ onClick: () => void }> = ({ onClick }) => {
+    const { colorScheme } = useMantineColorScheme();
+    return (
+        <Box
+            pos="relative"
+            bg={colorScheme === 'dark' ? 'ldDark.6' : 'white'}
+            style={{
+                zIndex: 2,
+            }}
+        >
+            <Button
+                variant="outline"
+                size="xs"
+                leftSection={<MantineIcon icon={IconPlus} />}
+                onClick={onClick}
+            >
+                Add group rule
+            </Button>
+        </Box>
+    );
+};
 
 const FilterGroupForm: FC<Props> = memo(
     ({
@@ -57,8 +78,6 @@ const FilterGroupForm: FC<Props> = memo(
         fields,
         filterGroup,
         isEditMode,
-        autoFocusRuleId,
-        onAutoFocusRule,
         onChange,
         onDelete,
     }) => {
@@ -141,25 +160,17 @@ const FilterGroupForm: FC<Props> = memo(
 
         const onAddFilterRule = useCallback(() => {
             if (availableFieldsForGroupRules.length > 0) {
-                const newRule = createFilterRuleFromField(
-                    availableFieldsForGroupRules[0],
-                );
-                onAutoFocusRule?.(newRule.id);
                 onChange({
                     ...filterGroup,
                     [getFilterGroupItemsPropertyName(filterGroup)]: [
                         ...items,
-                        newRule,
+                        createFilterRuleFromField(
+                            availableFieldsForGroupRules[0],
+                        ),
                     ],
                 });
             }
-        }, [
-            availableFieldsForGroupRules,
-            filterGroup,
-            items,
-            onChange,
-            onAutoFocusRule,
-        ]);
+        }, [availableFieldsForGroupRules, filterGroup, items, onChange]);
 
         const onChangeOperator = useCallback(
             (value: FilterGroupOperator) => {
@@ -172,7 +183,7 @@ const FilterGroupForm: FC<Props> = memo(
         );
 
         return (
-            <Stack pos="relative" spacing="sm" mb="xxs">
+            <Stack pos="relative" gap="sm" mb="xxs">
                 {!hideLine && (
                     <Divider
                         orientation="vertical"
@@ -184,13 +195,12 @@ const FilterGroupForm: FC<Props> = memo(
                     />
                 )}
 
-                <Group spacing="xs">
+                <Group gap="xs">
                     <Box pos="relative" style={{ zIndex: 3 }}>
                         <Select
                             limit={FILTER_SELECT_LIMIT}
                             size="xs"
                             w={70}
-                            withinPortal
                             disabled={!isEditMode}
                             data={[
                                 {
@@ -207,19 +217,22 @@ const FilterGroupForm: FC<Props> = memo(
                                     ? FilterGroupOperator.and
                                     : FilterGroupOperator.or
                             }
-                            onChange={(operator: FilterGroupOperator) =>
-                                onChangeOperator(operator)
+                            onChange={(operator) =>
+                                operator &&
+                                onChangeOperator(
+                                    operator as FilterGroupOperator,
+                                )
                             }
                         />
                     </Box>
 
-                    <Text color="dimmed" size="xs">
+                    <Text c="dimmed" size="xs">
                         of the following {conditionLabel} conditions match:
                     </Text>
                 </Group>
 
                 <Stack
-                    spacing="xs"
+                    gap="xs"
                     pl={36}
                     style={{ flexGrow: 1, overflowY: 'auto' }}
                 >
@@ -230,7 +243,6 @@ const FilterGroupForm: FC<Props> = memo(
                                     filterRule={item}
                                     fields={availableFieldsForGroupRules}
                                     isEditMode={isEditMode}
-                                    autoFocus={autoFocusRuleId === item.id}
                                     onChange={(value) =>
                                         onChangeItem(index, value)
                                     }
@@ -261,8 +273,6 @@ const FilterGroupForm: FC<Props> = memo(
                                 <FilterGroupForm
                                     groupDepth={groupDepth + 1}
                                     isEditMode={isEditMode}
-                                    autoFocusRuleId={autoFocusRuleId}
-                                    onAutoFocusRule={onAutoFocusRule}
                                     filterGroup={item}
                                     fields={availableFieldsForGroupRules}
                                     onChange={(value) =>
@@ -278,25 +288,7 @@ const FilterGroupForm: FC<Props> = memo(
                 {isEditMode &&
                     !hideButtons &&
                     availableFieldsForGroupRules.length > 0 && (
-                        <Box
-                            pos="relative"
-                            sx={(theme) => ({
-                                zIndex: 2,
-                                backgroundColor:
-                                    theme.colorScheme === 'dark'
-                                        ? theme.colors.dark[6]
-                                        : 'white',
-                            })}
-                        >
-                            <Button
-                                variant="outline"
-                                size="xs"
-                                leftIcon={<MantineIcon icon={IconPlus} />}
-                                onClick={onAddFilterRule}
-                            >
-                                Add group rule
-                            </Button>
-                        </Box>
+                        <AddFilterButton onClick={onAddFilterRule} />
                     )}
             </Stack>
         );

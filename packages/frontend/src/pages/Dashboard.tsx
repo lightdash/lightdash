@@ -70,6 +70,7 @@ const Dashboard: FC = () => {
     const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
     const setDashboardTabs = useDashboardContext((c) => c.setDashboardTabs);
     const activeTab = useDashboardContext((c) => c.activeTab);
+    const setActiveTab = useDashboardContext((c) => c.setActiveTab);
     const setDashboardFilters = useDashboardContext(
         (c) => c.setDashboardFilters,
     );
@@ -103,6 +104,9 @@ const Dashboard: FC = () => {
         );
     }, [dashboard, isDateZoomDisabled]);
     const oldestCacheTime = useDashboardContext((c) => c.oldestCacheTime);
+    const preAggregateStatuses = useDashboardContext(
+        (c) => c.preAggregateStatuses,
+    );
     const dashboardParameters = useDashboardContext(
         (c) => c.dashboardParameters,
     );
@@ -620,6 +624,8 @@ const Dashboard: FC = () => {
         isEditMode,
         isSaving,
         oldestCacheTime,
+        preAggregateStatuses,
+        allTilesLoaded: areAllChartsLoaded,
         isFullscreen,
         activeTabUuid: activeTab?.uuid,
         dashboardTabs,
@@ -642,6 +648,7 @@ const Dashboard: FC = () => {
         onDelete: deleteModalHandlers.open,
         onExport: exportDashboardModalHandlers.open,
         setAddingTab,
+        onSwitchTab: setActiveTab,
         onEditClicked: handleEnterEditMode,
         ...(isEditMode && { className: styles.stickyHeader }),
     };

@@ -10,6 +10,7 @@ import {
     IconStar,
     IconStarFilled,
     IconTrash,
+    IconUsers,
 } from '@tabler/icons-react';
 import React from 'react';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
@@ -24,6 +25,7 @@ interface Props {
     onDelete: () => void;
     onTogglePin: () => void;
     onTransferToSpace: () => void;
+    onShare: () => void;
 }
 
 export const SpaceBrowserMenu: React.FC<React.PropsWithChildren<Props>> = ({
@@ -33,6 +35,7 @@ export const SpaceBrowserMenu: React.FC<React.PropsWithChildren<Props>> = ({
     onDelete,
     onTogglePin,
     onTransferToSpace,
+    onShare,
     children,
 }) => {
     const { user } = useApp();
@@ -128,6 +131,15 @@ export const SpaceBrowserMenu: React.FC<React.PropsWithChildren<Props>> = ({
                     }}
                 >
                     Move
+                </Menu.Item>
+
+                <Menu.Item
+                    component="button"
+                    role="menuitem"
+                    leftSection={<IconUsers size={18} />}
+                    onClick={onShare}
+                >
+                    Share
                 </Menu.Item>
 
                 <Menu.Divider />

@@ -22,6 +22,7 @@ import {
     IconStar,
     IconStarFilled,
     IconTrash,
+    IconUsers,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useLocation, useParams } from 'react-router';
@@ -467,6 +468,22 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                             >
                                 Move
                             </Menu.Item>
+
+                            {item.type === ResourceViewItemType.SPACE && (
+                                <Menu.Item
+                                    component="button"
+                                    role="menuitem"
+                                    leftSection={<IconUsers size={18} />}
+                                    onClick={() => {
+                                        onAction({
+                                            type: ResourceViewItemAction.SHARE,
+                                            item,
+                                        });
+                                    }}
+                                >
+                                    Share
+                                </Menu.Item>
+                            )}
 
                             {allowDelete && (
                                 <>

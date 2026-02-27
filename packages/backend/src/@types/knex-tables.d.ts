@@ -154,6 +154,12 @@ import {
     PinnedSpaceTableName,
 } from '../database/entities/pinnedList';
 import {
+    PreAggregateDefinitionsTable,
+    PreAggregateDefinitionsTableName,
+    PreAggregateMaterializationsTable,
+    PreAggregateMaterializationsTableName,
+} from '../database/entities/preAggregates';
+import {
     ProjectGroupAccessTable,
     ProjectGroupAccessTableName,
 } from '../database/entities/projectGroupAccess';
@@ -447,6 +453,9 @@ declare module 'knex/types/tables' {
         [OrganizationColorPaletteTableName]: OrganizationColorPaletteTable;
         [OrganizationWarehouseCredentialsTableName]: OrganizationWarehouseCredentialsTable;
         [QueryHistoryTableName]: QueryHistoryTable;
+        [PreAggregateDefinitionsTableName]: PreAggregateDefinitionsTable;
+        [PreAggregateDailyStatsTableName]: PreAggregateDailyStatsTable;
+        [PreAggregateMaterializationsTableName]: PreAggregateMaterializationsTable;
         [ProjectParametersTableName]: ProjectParametersTable;
         [RolesTableName]: RoleTable;
         [ScopedRolesTableName]: ScopedRoleTable;

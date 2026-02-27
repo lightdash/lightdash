@@ -15,8 +15,7 @@ import {
     isTimeBasedDimension,
     type TableCalculation,
 } from '@lightdash/common';
-import { Menu } from '@mantine-8/core';
-import { ActionIcon, Box, Group, Text } from '@mantine/core';
+import { ActionIcon, Box, Group, Menu, Text } from '@mantine-8/core';
 import {
     IconChevronDown,
     IconFilter,
@@ -143,8 +142,8 @@ const ContextMenu: FC<ContextMenuProps> = ({
                             }}
                         >
                             Filter by{' '}
-                            <Text span fw={500}>
-                                {getItemLabelWithoutTableName(item)}
+                            <Text span fz="sm">
+                                "{getItemLabelWithoutTableName(item)}"
                             </Text>
                         </Menu.Item>
 
@@ -353,13 +352,14 @@ const ColumnHeaderContextMenu: FC<HeaderProps> = ({ header }) => {
                     e.stopPropagation();
                 }}
             >
-                <Group spacing="two" noWrap>
+                <Group gap="two" wrap="nowrap">
                     <Menu withinPortal withArrow shadow="md">
                         <Menu.Target>
                             <ActionIcon
                                 size="xs"
                                 variant="light"
                                 bg="transparent"
+                                color="ldGray.6"
                             >
                                 <MantineIcon icon={IconChevronDown} />
                             </ActionIcon>

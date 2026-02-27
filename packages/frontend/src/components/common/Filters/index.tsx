@@ -22,20 +22,12 @@ import {
     Stack,
     Text,
     Tooltip,
-} from '@mantine/core';
+    useMantineColorScheme,
+} from '@mantine-8/core';
 import { IconAlertCircle, IconPlus, IconX } from '@tabler/icons-react';
-import {
-    memo,
-    useCallback,
-    useEffect,
-    useLayoutEffect,
-    useMemo,
-    useRef,
-    type FC,
-} from 'react';
+import { memo, useCallback, useMemo, type FC } from 'react';
 import { useToggle } from 'react-use';
 import { v4 as uuidv4 } from 'uuid';
-import { useIsFilterAutofocusEnabled } from '../../../hooks/useIsFilterAutofocusEnabled';
 import {
     type FieldsWithSuggestions,
     type FieldWithSuggestions,
@@ -69,61 +61,99 @@ const getInvalidFilterRules = (
         return accumulator;
     }, []);
 
+type AddFilterSectionProps = {
+    isOpen: boolean;
+    fields: FieldWithSuggestions[];
+    totalFilterRules: number;
+    baseTable?: string;
+    toggleFieldInput: () => void;
+    clearAllFilters: () => void;
+    addFieldRule: (field: FieldWithSuggestions) => void;
+};
+
+const AddFilterSection: FC<AddFilterSectionProps> = ({
+    isOpen,
+    fields,
+    totalFilterRules,
+    baseTable,
+    toggleFieldInput,
+    clearAllFilters,
+    addFieldRule,
+}) => {
+    const { colorScheme } = useMantineColorScheme();
+    return (
+        <Box
+            pos="relative"
+            style={{
+                zIndex: 2,
+                backgroundColor:
+                    colorScheme === 'dark'
+                        ? 'var(--mantine-color-dark-6)'
+                        : 'white',
+            }}
+        >
+            {!isOpen ? (
+                <Group
+                    align="center"
+                    justify="space-between"
+                    style={{ flex: 1 }}
+                >
+                    <Button
+                        variant="outline"
+                        size="xs"
+                        leftSection={<MantineIcon icon={IconPlus} />}
+                        disabled={fields.length <= 0}
+                        onClick={toggleFieldInput}
+                        data-testid="FiltersForm/add-filter-button"
+                    >
+                        Add filter
+                    </Button>
+                    {totalFilterRules > 0 && (
+                        <Tooltip label="Clear all filters" position="bottom">
+                            <Button
+                                variant="light"
+                                size="xs"
+                                color="gray"
+                                onClick={clearAllFilters}
+                                disabled={totalFilterRules === 0}
+                            >
+                                Clear all
+                            </Button>
+                        </Tooltip>
+                    )}
+                </Group>
+            ) : (
+                <FieldSelect
+                    limit={FILTER_SELECT_LIMIT}
+                    size="xs"
+                    maw={300}
+                    hasGrouping
+                    baseTable={baseTable}
+                    items={fields}
+                    onChange={(field) => {
+                        if (!field) return;
+                        addFieldRule(field);
+                    }}
+                    onClosed={toggleFieldInput}
+                    rightSection={
+                        <ActionIcon
+                            variant="subtle"
+                            color="gray"
+                            onClick={toggleFieldInput}
+                        >
+                            <MantineIcon icon={IconX} />
+                        </ActionIcon>
+                    }
+                />
+            )}
+        </Box>
+    );
+};
+
 const FiltersForm: FC<Props> = memo(({ filters, setFilters, isEditMode }) => {
     // const theme = useMantineTheme();
     const { itemsMap, baseTable } = useFiltersContext<FieldsWithSuggestions>();
     const [isOpen, toggleFieldInput] = useToggle(false);
-    const isFilterAutofocusEnabled = useIsFilterAutofocusEnabled();
-    const autoFocusRuleIdRef = useRef<string | undefined>(undefined);
-    const lastFocusedRuleIdRef = useRef<string | undefined>(undefined);
-    const formRef = useRef<HTMLDivElement>(null);
-
-    useLayoutEffect(() => {
-        if (!isFilterAutofocusEnabled) return;
-        if (autoFocusRuleIdRef.current) {
-            autoFocusRuleIdRef.current = undefined;
-        }
-    }, [isFilterAutofocusEnabled]);
-
-    const handleFocusCapture = useCallback(
-        (e: React.FocusEvent) => {
-            if (!isFilterAutofocusEnabled) return;
-            const ruleEl = (e.target as HTMLElement).closest?.(
-                '[data-rule-id]',
-            );
-            if (ruleEl) {
-                lastFocusedRuleIdRef.current =
-                    ruleEl.getAttribute('data-rule-id') || undefined;
-            }
-        },
-        [isFilterAutofocusEnabled],
-    );
-
-    const setAutoFocusRuleId = useCallback(
-        (ruleId: string) => {
-            if (!isFilterAutofocusEnabled) return;
-            autoFocusRuleIdRef.current = ruleId;
-        },
-        [isFilterAutofocusEnabled],
-    );
-
-    useEffect(() => {
-        if (!isFilterAutofocusEnabled) return;
-        const ruleId = lastFocusedRuleIdRef.current;
-        if (!ruleId) return;
-        if (document.activeElement && document.activeElement !== document.body)
-            return;
-
-        const ruleEl = formRef.current?.querySelector(
-            `[data-rule-id="${CSS.escape(ruleId)}"]`,
-        );
-        if (ruleEl) {
-            const input = ruleEl.querySelector<HTMLInputElement>(
-                'input:not([type="hidden"])',
-            );
-            input?.focus();
-        }
-    }, [filters, isFilterAutofocusEnabled]);
     const fields = useMemo<FieldWithSuggestions[]>(() => {
         return Object.values(itemsMap);
     }, [itemsMap]);
@@ -141,23 +171,11 @@ const FiltersForm: FC<Props> = memo(({ filters, setFilters, isEditMode }) => {
     const addFieldRule = useCallback(
         (field: FieldWithSuggestions) => {
             if (isFilterableField(field)) {
-                const newFilters = addFilterRule({ filters, field });
-                const newRules = getTotalFilterRules(newFilters);
-                const lastRule = newRules[newRules.length - 1];
-                if (isFilterAutofocusEnabled && lastRule) {
-                    setAutoFocusRuleId(lastRule.id);
-                }
-                setFilters(newFilters);
+                setFilters(addFilterRule({ filters, field }));
                 toggleFieldInput(false);
             }
         },
-        [
-            filters,
-            isFilterAutofocusEnabled,
-            setAutoFocusRuleId,
-            setFilters,
-            toggleFieldInput,
-        ],
+        [filters, setFilters, toggleFieldInput],
     );
 
     const updateFiltersFromGroup = useCallback(
@@ -238,24 +256,12 @@ const FiltersForm: FC<Props> = memo(({ filters, setFilters, isEditMode }) => {
     }, [andRootFilterGroupItems, orRootFilterGroups]);
 
     return (
-        <Stack
-            ref={formRef}
-            onFocusCapture={handleFocusCapture}
-            spacing="xs"
-            pos="relative"
-            m="sm"
-            style={{ flexGrow: 1 }}
-        >
+        <Stack gap="xs" pos="relative" m="sm" style={{ flexGrow: 1 }}>
             {totalFilterRules.length >= 1 &&
                 (showSimplifiedForm ? (
                     <SimplifiedFilterGroupForm
                         fields={fields}
                         isEditMode={isEditMode}
-                        autoFocusRuleId={
-                            isFilterAutofocusEnabled
-                                ? autoFocusRuleIdRef.current
-                                : undefined
-                        }
                         filterRules={getTotalFilterRules(filters)}
                         onChange={(filterRules) => {
                             // This is a simplified form that only shows up with 1 filter rule, so we can just create a new root group
@@ -280,16 +286,6 @@ const FiltersForm: FC<Props> = memo(({ filters, setFilters, isEditMode }) => {
                             <FilterGroupForm
                                 hideLine
                                 hideButtons
-                                autoFocusRuleId={
-                                    isFilterAutofocusEnabled
-                                        ? autoFocusRuleIdRef.current
-                                        : undefined
-                                }
-                                onAutoFocusRule={
-                                    isFilterAutofocusEnabled
-                                        ? setAutoFocusRuleId
-                                        : undefined
-                                }
                                 filterGroup={rootFilterGroup}
                                 fields={fields}
                                 isEditMode={isEditMode}
@@ -304,27 +300,29 @@ const FiltersForm: FC<Props> = memo(({ filters, setFilters, isEditMode }) => {
                 invalidFilterRules.map((rule, index) => (
                     <Stack
                         key={index}
-                        ml={showSimplifiedForm ? 'none' : 'xl'}
-                        spacing="two"
+                        ml={showSimplifiedForm ? undefined : 'xl'}
+                        gap="two"
                         align="flex-start"
                     >
                         <Group
                             key={rule.id}
-                            spacing="xs"
+                            gap="xs"
                             pl="xs"
-                            sx={(theme) => ({
-                                border: `1px solid ${theme.colors.ldGray[2]}`,
-                                borderRadius: theme.radius.sm,
-                            })}
+                            style={{
+                                border: '1px solid var(--mantine-color-ldGray-2)',
+                                borderRadius: 'var(--mantine-radius-sm)',
+                            }}
                         >
                             <MantineIcon icon={IconAlertCircle} />
-                            <Text color="dimmed" fz="xs">
+                            <Text c="dimmed" fz="xs">
                                 Tried to reference field with unknown id:{' '}
                                 <Text span fw={500} c="ldGray.7">
                                     {rule.target.fieldId}
                                 </Text>
                             </Text>
                             <ActionIcon
+                                variant="subtle"
+                                color="gray"
                                 onClick={() =>
                                     updateFiltersFromGroup(
                                         deleteFilterRuleFromGroup(
@@ -341,68 +339,15 @@ const FiltersForm: FC<Props> = memo(({ filters, setFilters, isEditMode }) => {
                 ))}
 
             {isEditMode && (
-                <Box
-                    pos="relative"
-                    sx={(theme) => ({
-                        zIndex: 2,
-                        backgroundColor:
-                            theme.colorScheme === 'dark'
-                                ? theme.colors.dark[6]
-                                : 'white',
-                    })}
-                >
-                    {!isOpen ? (
-                        <Group align="center" position="apart" sx={{ flex: 1 }}>
-                            <Button
-                                variant="outline"
-                                size="xs"
-                                leftIcon={<MantineIcon icon={IconPlus} />}
-                                disabled={fields.length <= 0}
-                                onClick={toggleFieldInput}
-                                data-testid="FiltersForm/add-filter-button"
-                            >
-                                Add filter
-                            </Button>
-                            {totalFilterRules.length > 0 && (
-                                <Tooltip
-                                    label="Clear all filters"
-                                    position="bottom"
-                                >
-                                    <Button
-                                        variant="light"
-                                        size="xs"
-                                        color="gray"
-                                        onClick={clearAllFilters}
-                                        disabled={totalFilterRules.length === 0}
-                                    >
-                                        Clear all
-                                    </Button>
-                                </Tooltip>
-                            )}
-                        </Group>
-                    ) : (
-                        <FieldSelect
-                            limit={FILTER_SELECT_LIMIT}
-                            size="xs"
-                            withinPortal
-                            maw={300}
-                            autoFocus
-                            hasGrouping
-                            baseTable={baseTable}
-                            items={fields}
-                            onChange={(field) => {
-                                if (!field) return;
-                                addFieldRule(field);
-                            }}
-                            onClosed={toggleFieldInput}
-                            rightSection={
-                                <ActionIcon onClick={toggleFieldInput}>
-                                    <MantineIcon icon={IconX} />
-                                </ActionIcon>
-                            }
-                        />
-                    )}
-                </Box>
+                <AddFilterSection
+                    isOpen={isOpen}
+                    fields={fields}
+                    totalFilterRules={totalFilterRules.length}
+                    baseTable={baseTable}
+                    toggleFieldInput={toggleFieldInput}
+                    clearAllFilters={clearAllFilters}
+                    addFieldRule={addFieldRule}
+                />
             )}
         </Stack>
     );

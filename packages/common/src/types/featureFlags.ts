@@ -89,10 +89,6 @@ export enum FeatureFlags {
      */
     DefaultUserSpaces = 'default-user-spaces',
 
-    /**
-     * Enable the filter autofocus fix for form inputs
-     */
-    EnableFilterAutofocusFix = 'enable-filter-autofocus-fix',
 }
 
 export type FeatureFlag = {

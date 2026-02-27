@@ -74,6 +74,9 @@ const schedulerWorkerFactory = (context: {
         featureFlagService: context.serviceRepository.getFeatureFlagService(),
         persistentDownloadFileService:
             context.serviceRepository.getPersistentDownloadFileService(),
+        preAggregateModel: context.models.getPreAggregateModel(),
+        preAggregateMaterializationService:
+            context.serviceRepository.getPreAggregateMaterializationService(),
     });
 
 export default class SchedulerApp {
@@ -176,6 +179,7 @@ export default class SchedulerApp {
 
         this.prometheusMetrics.start();
         this.prometheusMetrics.monitorDatabase(this.database);
+        this.prometheusMetrics.monitorPreAggregates(this.database);
         // @ts-ignore
         // eslint-disable-next-line no-extend-native, func-names
         BigInt.prototype.toJSON = function () {

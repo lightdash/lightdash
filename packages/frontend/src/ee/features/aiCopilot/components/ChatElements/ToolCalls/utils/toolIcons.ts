@@ -27,6 +27,7 @@ export const getToolIcon = (toolName: ToolName) => {
             findContent: IconSearch,
             findDashboards: IconLayoutDashboard,
             findCharts: IconChartDots3,
+            getDashboardCharts: IconLayoutDashboard,
             improveContext: IconSchool,
             proposeChange: IconPencil,
             runQuery: IconTable,

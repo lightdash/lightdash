@@ -1,6 +1,6 @@
 {
   "name": "@lightdash/cli",
-  "version": "0.2525.0",
+  "version": "0.2544.1",
   "description": "Lightdash CLI tool",
   "license": "MIT",
   "repository": {
@@ -19,8 +19,8 @@
     "test": "jest",
     "dev": "ts-node src/index.ts",
     "build": "tsc --build tsconfig.json",
-    "bundle": "ncc build dist/index.js -o bundle && cp ../warehouses/src/warehouseClients/ca-bundle-*.crt ../warehouses/src/warehouseClients/ca-bundle-*.pem bundle/",
-    "build:binary": "pnpm bundle && npx @yao-pkg/pkg bundle/index.js --config pkg.config.json --targets node20-macos-x64,node20-macos-arm64 --output bin/lightdash --compress Brotli",
+    "bundle": "ncc build dist/index.js -o bundle -e @duckdb/node-api -e @duckdb/node-bindings -e @duckdb/node-bindings-darwin-arm64 -e @duckdb/node-bindings-darwin-x64 -e @duckdb/node-bindings-linux-arm64 -e @duckdb/node-bindings-linux-x64 -e @duckdb/node-bindings-win32-x64 && bash ./scripts/copy-bundle-assets.sh",
+    "build:binary": "DUCKDB_BINDINGS=node-bindings-darwin-x64,node-bindings-darwin-arm64 pnpm bundle && npx @yao-pkg/pkg bundle/index.js --config pkg.config.json --targets node20-macos-x64,node20-macos-arm64 --output bin/lightdash --compress Brotli",
     "typecheck": "tsc --project tsconfig.json --noEmit",
     "linter": "eslint -c .eslintrc.js --ignore-path ./../../.gitignore",
     "formatter": "oxfmt",

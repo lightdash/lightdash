@@ -1,6 +1,6 @@
 import { subject } from '@casl/ability';
 import { FeatureFlags, isTimeZone } from '@lightdash/common';
-import { Badge, Box, Button, Group, Tooltip } from '@mantine/core';
+import { Badge, Box, Button, Group, Tooltip } from '@mantine-8/core';
 import { IconAlertCircle, IconArrowLeft } from '@tabler/icons-react';
 import { memo, useEffect, useMemo, type FC } from 'react';
 import useEmbed from '../../../ee/providers/Embed/useEmbed';
@@ -134,11 +134,11 @@ const ExplorerHeader: FC = memo(() => {
     const userCanManageCompileProject = ability.can('manage', 'CompileProject');
 
     return (
-        <Group position="apart">
+        <Group justify="space-between">
             {typeof onBackToDashboard === 'function' && (
                 <Button
                     variant="light"
-                    leftIcon={<MantineIcon icon={IconArrowLeft} />}
+                    leftSection={<MantineIcon icon={IconArrowLeft} />}
                     onClick={onBackToDashboard}
                 >
                     Back to Dashboard
@@ -149,10 +149,10 @@ const ExplorerHeader: FC = memo(() => {
                 <RefreshDbtButton />
             </Box>
 
-            <Group spacing="xs">
+            <Group gap="xs">
                 {showLimitWarning && (
                     <Tooltip
-                        width={400}
+                        w={400}
                         label={`Query limit of ${limit} reached. There may be additional results that have not been displayed. To see more, increase the query limit or try narrowing filters.`}
                         multiline
                         position={'bottom'}
@@ -167,7 +167,7 @@ const ExplorerHeader: FC = memo(() => {
                             color="yellow"
                             variant="outline"
                             tt="none"
-                            sx={{ cursor: 'help' }}
+                            style={{ cursor: 'help' }}
                         >
                             Results may be incomplete
                         </Badge>

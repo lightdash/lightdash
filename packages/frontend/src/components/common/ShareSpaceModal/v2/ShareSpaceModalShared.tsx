@@ -394,6 +394,20 @@ export const AccessModelToggle: FC<AccessModelToggleProps> = ({
     const currentOption =
         options.find((o) => o.value === currentValue) ?? options[0];
 
+    const inheritDescription = useMemo(() => {
+        if (currentValue !== InheritanceType.INHERIT) return undefined;
+        const breadcrumbs = space.breadcrumbs ?? [];
+        // Last breadcrumb is the current space, second-to-last is the parent
+        const parent =
+            breadcrumbs.length >= 2
+                ? breadcrumbs[breadcrumbs.length - 2]
+                : undefined;
+        if (parent) {
+            return `Inherits access from "${parent.name}"`;
+        }
+        return 'Inherits access from the project';
+    }, [currentValue, space.breadcrumbs]);
+
     return (
         <>
             <Paper
@@ -425,7 +439,8 @@ export const AccessModelToggle: FC<AccessModelToggleProps> = ({
                                 {currentOption.title}
                             </Text>
                             <Text c="ldGray.6" fz="xs">
-                                {currentOption.description}
+                                {inheritDescription ??
+                                    currentOption.description}
                             </Text>
                         </Stack>
                     </Group>

@@ -2801,6 +2801,9 @@
                     "formatOptions": {
                         "$ref": "#/components/schemas/CustomFormat"
                     },
+                    "caseSensitive": {
+                        "type": "boolean"
+                    },
                     "image": {
                         "properties": {
                             "fit": {
@@ -5941,6 +5944,9 @@
                     "formatOptions": {
                         "$ref": "#/components/schemas/CustomFormat"
                     },
+                    "caseSensitive": {
+                        "type": "boolean"
+                    },
                     "image": {
                         "properties": {
                             "fit": {
@@ -6416,6 +6422,7 @@
                     "snowflake",
                     "redshift",
                     "postgres",
+                    "duckdb",
                     "trino",
                     "clickhouse",
                     "athena"
@@ -6423,8 +6430,43 @@
                 "type": "string"
             },
             "ExploreType": {
-                "enum": ["virtual", "default"],
+                "enum": ["virtual", "default", "pre_aggregate"],
                 "type": "string"
+            },
+            "PreAggregateDef": {
+                "properties": {
+                    "refresh": {
+                        "properties": {
+                            "cron": {
+                                "type": "string"
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "granularity": {
+                        "$ref": "#/components/schemas/TimeFrames"
+                    },
+                    "timeDimension": {
+                        "type": "string"
+                    },
+                    "metrics": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "dimensions": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": ["metrics", "dimensions", "name"],
+                "type": "object"
             },
             "InlineErrorType": {
                 "enum": [
@@ -6456,6 +6498,12 @@
                         },
                         "type": "array",
                         "description": "Non-fatal warnings from partial compilation.\nPresent when some joins or fields failed to compile but the explore is still usable.\nOnly populated when PARTIAL_COMPILATION_ENABLED=true."
+                    },
+                    "preAggregates": {
+                        "items": {
+                            "$ref": "#/components/schemas/PreAggregateDef"
+                        },
+                        "type": "array"
                     },
                     "parameters": {
                         "$ref": "#/components/schemas/Record_string.LightdashProjectParameter_"
@@ -6491,6 +6539,9 @@
                         },
                         "required": ["visibility"],
                         "type": "object"
+                    },
+                    "caseSensitive": {
+                        "type": "boolean"
                     },
                     "type": {
                         "$ref": "#/components/schemas/ExploreType"
@@ -6677,8 +6728,190 @@
                 ],
                 "type": "object"
             },
+            "PreAggregateMissReason.NO_PRE_AGGREGATES_DEFINED": {
+                "enum": ["no_pre_aggregates_defined"],
+                "type": "string"
+            },
+            "PreAggregateMissReason.DIMENSION_NOT_IN_PRE_AGGREGATE": {
+                "enum": ["dimension_not_in_pre_aggregate"],
+                "type": "string"
+            },
+            "PreAggregateMissReason.METRIC_NOT_IN_PRE_AGGREGATE": {
+                "enum": ["metric_not_in_pre_aggregate"],
+                "type": "string"
+            },
+            "PreAggregateMissReason.NON_ADDITIVE_METRIC": {
+                "enum": ["non_additive_metric"],
+                "type": "string"
+            },
+            "PreAggregateMissReason.CUSTOM_SQL_METRIC": {
+                "enum": ["custom_sql_metric"],
+                "type": "string"
+            },
+            "PreAggregateMissReason.FILTER_DIMENSION_NOT_IN_PRE_AGGREGATE": {
+                "enum": ["filter_dimension_not_in_pre_aggregate"],
+                "type": "string"
+            },
+            "PreAggregateMissReason.GRANULARITY_TOO_FINE": {
+                "enum": ["granularity_too_fine"],
+                "type": "string"
+            },
+            "PreAggregateMissReason.CUSTOM_DIMENSION_PRESENT": {
+                "enum": ["custom_dimension_present"],
+                "type": "string"
+            },
+            "PreAggregateMissReason.CUSTOM_METRIC_PRESENT": {
+                "enum": ["custom_metric_present"],
+                "type": "string"
+            },
+            "PreAggregateMissReason.TABLE_CALCULATION_PRESENT": {
+                "enum": ["table_calculation_present"],
+                "type": "string"
+            },
+            "PreAggregateMatchMiss": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "reason": {
+                                "$ref": "#/components/schemas/PreAggregateMissReason.NO_PRE_AGGREGATES_DEFINED"
+                            }
+                        },
+                        "required": ["reason"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "fieldId": {
+                                "$ref": "#/components/schemas/FieldId"
+                            },
+                            "reason": {
+                                "$ref": "#/components/schemas/PreAggregateMissReason.DIMENSION_NOT_IN_PRE_AGGREGATE"
+                            }
+                        },
+                        "required": ["fieldId", "reason"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "fieldId": {
+                                "$ref": "#/components/schemas/FieldId"
+                            },
+                            "reason": {
+                                "$ref": "#/components/schemas/PreAggregateMissReason.METRIC_NOT_IN_PRE_AGGREGATE"
+                            }
+                        },
+                        "required": ["fieldId", "reason"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "fieldId": {
+                                "$ref": "#/components/schemas/FieldId"
+                            },
+                            "reason": {
+                                "$ref": "#/components/schemas/PreAggregateMissReason.NON_ADDITIVE_METRIC"
+                            }
+                        },
+                        "required": ["fieldId", "reason"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "fieldId": {
+                                "$ref": "#/components/schemas/FieldId"
+                            },
+                            "reason": {
+                                "$ref": "#/components/schemas/PreAggregateMissReason.CUSTOM_SQL_METRIC"
+                            }
+                        },
+                        "required": ["fieldId", "reason"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "fieldId": {
+                                "$ref": "#/components/schemas/FieldId"
+                            },
+                            "reason": {
+                                "$ref": "#/components/schemas/PreAggregateMissReason.FILTER_DIMENSION_NOT_IN_PRE_AGGREGATE"
+                            }
+                        },
+                        "required": ["fieldId", "reason"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "preAggregateTimeDimension": {
+                                "type": "string"
+                            },
+                            "preAggregateGranularity": {
+                                "$ref": "#/components/schemas/TimeFrames"
+                            },
+                            "queryGranularity": {
+                                "$ref": "#/components/schemas/TimeFrames"
+                            },
+                            "fieldId": {
+                                "$ref": "#/components/schemas/FieldId"
+                            },
+                            "reason": {
+                                "$ref": "#/components/schemas/PreAggregateMissReason.GRANULARITY_TOO_FINE"
+                            }
+                        },
+                        "required": [
+                            "preAggregateTimeDimension",
+                            "preAggregateGranularity",
+                            "queryGranularity",
+                            "fieldId",
+                            "reason"
+                        ],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "reason": {
+                                "$ref": "#/components/schemas/PreAggregateMissReason.CUSTOM_DIMENSION_PRESENT"
+                            }
+                        },
+                        "required": ["reason"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "reason": {
+                                "$ref": "#/components/schemas/PreAggregateMissReason.CUSTOM_METRIC_PRESENT"
+                            }
+                        },
+                        "required": ["reason"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "reason": {
+                                "$ref": "#/components/schemas/PreAggregateMissReason.TABLE_CALCULATION_PRESENT"
+                            }
+                        },
+                        "required": ["reason"],
+                        "type": "object"
+                    }
+                ]
+            },
             "CacheMetadata": {
                 "properties": {
+                    "preAggregate": {
+                        "properties": {
+                            "reason": {
+                                "$ref": "#/components/schemas/PreAggregateMatchMiss"
+                            },
+                            "name": {
+                                "type": "string"
+                            },
+                            "hit": {
+                                "type": "boolean"
+                            }
+                        },
+                        "required": ["hit"],
+                        "type": "object"
+                    },
                     "cacheHit": {
                         "type": "boolean"
                     },
@@ -8564,6 +8797,7 @@
                     "searchFieldValues",
                     "findDashboards",
                     "findCharts",
+                    "getDashboardCharts",
                     "improveContext",
                     "runQuery"
                 ],
@@ -12187,6 +12421,126 @@
                 "required": ["status"],
                 "type": "object"
             },
+            "Pick_ValidationErrorChartResponse.error-or-errorType-or-fieldName-or-name-or-projectUuid-or-chartUuid-or-source-or-chartName_": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "error": {
+                        "type": "string"
+                    },
+                    "source": {
+                        "$ref": "#/components/schemas/ValidationSourceType"
+                    },
+                    "errorType": {
+                        "$ref": "#/components/schemas/ValidationErrorType"
+                    },
+                    "fieldName": {
+                        "type": "string"
+                    },
+                    "chartUuid": {
+                        "type": "string"
+                    },
+                    "chartName": {
+                        "type": "string"
+                    }
+                },
+                "required": ["name", "projectUuid", "error", "errorType"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "CreateChartValidation": {
+                "$ref": "#/components/schemas/Pick_ValidationErrorChartResponse.error-or-errorType-or-fieldName-or-name-or-projectUuid-or-chartUuid-or-source-or-chartName_"
+            },
+            "ApiSuccess__errors-CreateChartValidation-Array__": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "errors": {
+                                "items": {
+                                    "$ref": "#/components/schemas/CreateChartValidation"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["errors"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiChartValidationResponse": {
+                "$ref": "#/components/schemas/ApiSuccess__errors-CreateChartValidation-Array__"
+            },
+            "Pick_ValidationErrorDashboardResponse.error-or-errorType-or-fieldName-or-name-or-projectUuid-or-dashboardUuid-or-chartName-or-source_": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "error": {
+                        "type": "string"
+                    },
+                    "source": {
+                        "$ref": "#/components/schemas/ValidationSourceType"
+                    },
+                    "errorType": {
+                        "$ref": "#/components/schemas/ValidationErrorType"
+                    },
+                    "fieldName": {
+                        "type": "string"
+                    },
+                    "chartName": {
+                        "type": "string"
+                    },
+                    "dashboardUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["name", "projectUuid", "error", "errorType"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "CreateDashboardValidation": {
+                "$ref": "#/components/schemas/Pick_ValidationErrorDashboardResponse.error-or-errorType-or-fieldName-or-name-or-projectUuid-or-dashboardUuid-or-chartName-or-source_"
+            },
+            "ApiSuccess__errors-CreateDashboardValidation-Array__": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "errors": {
+                                "items": {
+                                    "$ref": "#/components/schemas/CreateDashboardValidation"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["errors"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiDashboardValidationResponse": {
+                "$ref": "#/components/schemas/ApiSuccess__errors-CreateDashboardValidation-Array__"
+            },
             "LightdashUser": {
                 "properties": {
                     "userUuid": {
@@ -14873,6 +15227,10 @@
                     "spaceUuid": {
                         "type": "string"
                     },
+                    "dashboardUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "pinnedListUuid": {
                         "type": "string",
                         "nullable": true
@@ -14946,10 +15304,6 @@
                         "type": "object",
                         "description": "Table view configuration"
                     },
-                    "dashboardUuid": {
-                        "type": "string",
-                        "nullable": true
-                    },
                     "dashboardName": {
                         "type": "string",
                         "nullable": true
@@ -14969,6 +15323,7 @@
                     "updatedAt",
                     "chartConfig",
                     "spaceUuid",
+                    "dashboardUuid",
                     "pinnedListUuid",
                     "pinnedListOrder",
                     "slug",
@@ -14976,7 +15331,6 @@
                     "tableName",
                     "metricQuery",
                     "tableConfig",
-                    "dashboardUuid",
                     "dashboardName",
                     "colorPalette"
                 ],
@@ -15322,6 +15676,10 @@
                     "spaceUuid": {
                         "type": "string"
                     },
+                    "dashboardUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "pinnedListUuid": {
                         "type": "string",
                         "nullable": true
@@ -15332,10 +15690,6 @@
                     },
                     "spaceName": {
                         "type": "string"
-                    },
-                    "dashboardUuid": {
-                        "type": "string",
-                        "nullable": true
                     },
                     "dashboardName": {
                         "type": "string",
@@ -15348,10 +15702,10 @@
                     "organizationUuid",
                     "uuid",
                     "spaceUuid",
+                    "dashboardUuid",
                     "pinnedListUuid",
                     "slug",
                     "spaceName",
-                    "dashboardUuid",
                     "dashboardName"
                 ],
                 "type": "object",
@@ -15787,6 +16141,42 @@
                         "type": "number",
                         "format": "double"
                     },
+                    "dashboards": {
+                        "items": {
+                            "properties": {
+                                "spaceUuid": {
+                                    "type": "string"
+                                },
+                                "name": {
+                                    "type": "string"
+                                },
+                                "uuid": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["spaceUuid", "name", "uuid"],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "charts": {
+                        "items": {
+                            "properties": {
+                                "spaceUuid": {
+                                    "type": "string"
+                                },
+                                "name": {
+                                    "type": "string"
+                                },
+                                "uuid": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["spaceUuid", "name", "uuid"],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
                     "spaces": {
                         "items": {
                             "properties": {
@@ -15798,6 +16188,10 @@
                                     "type": "number",
                                     "format": "double"
                                 },
+                                "parentSpaceUuid": {
+                                    "type": "string",
+                                    "nullable": true
+                                },
                                 "name": {
                                     "type": "string"
                                 },
@@ -15808,6 +16202,7 @@
                             "required": [
                                 "dashboardCount",
                                 "chartCount",
+                                "parentSpaceUuid",
                                 "name",
                                 "uuid"
                             ],
@@ -15816,7 +16211,13 @@
                         "type": "array"
                     }
                 },
-                "required": ["dashboardCount", "chartCount", "spaces"],
+                "required": [
+                    "dashboardCount",
+                    "chartCount",
+                    "dashboards",
+                    "charts",
+                    "spaces"
+                ],
                 "type": "object"
             },
             "ApiSpaceDeleteImpactResponse": {
@@ -16729,6 +17130,7 @@
                     "generateDailyJobs",
                     "exportCsvDashboard",
                     "renameResources",
+                    "materializePreAggregate",
                     "cleanQueryHistory",
                     "downloadAsyncQueryResults",
                     "syncSlackChannels",
@@ -19313,22 +19715,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "chart": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_ChartAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ApiChartAsCodeListResponse": {
@@ -19434,15 +19836,15 @@
                     "title": {
                         "type": "string"
                     },
+                    "chartName": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "hideTitle": {
                         "type": "boolean"
                     },
                     "chartSlug": {
                         "type": "string"
-                    },
-                    "chartName": {
-                        "type": "string",
-                        "nullable": true
                     }
                 },
                 "type": "object",
@@ -19619,22 +20021,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "dashboard": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ApiDashboardAsCodeListResponse": {
@@ -20086,6 +20488,29 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "ApiSuccess__jobIds-string-Array__": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "jobIds": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["jobIds"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "CompilationSource": {
                 "type": "string",
                 "enum": ["cli_deploy", "refresh_dbt", "create_project"]
@@ -20148,6 +20573,9 @@
                     "type": {
                         "$ref": "#/components/schemas/ExploreType"
                     },
+                    "caseSensitive": {
+                        "type": "boolean"
+                    },
                     "spotlight": {
                         "properties": {
                             "owner": {
@@ -20182,6 +20610,12 @@
                     },
                     "parameters": {
                         "$ref": "#/components/schemas/Record_string.LightdashProjectParameter_"
+                    },
+                    "preAggregates": {
+                        "items": {
+                            "$ref": "#/components/schemas/PreAggregateDef"
+                        },
+                        "type": "array"
                     },
                     "warnings": {
                         "items": {
@@ -22254,6 +22688,211 @@
                 "required": ["filePath", "sha", "content"],
                 "type": "object"
             },
+            "GitBranch": {
+                "properties": {
+                    "isProtected": {
+                        "type": "boolean",
+                        "description": "TRUE if direct writes are blocked (GitHub protection OR project's configured branch)"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": ["isProtected", "name"],
+                "type": "object"
+            },
+            "ApiGitBranchesResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/GitBranch"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "GitFileEntry": {
+                "properties": {
+                    "sha": {
+                        "type": "string"
+                    },
+                    "size": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": ["file", "dir"]
+                    },
+                    "path": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": ["sha", "size", "type", "path", "name"],
+                "type": "object"
+            },
+            "GitFileOrDirectory": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "entries": {
+                                "items": {
+                                    "$ref": "#/components/schemas/GitFileEntry"
+                                },
+                                "type": "array"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["directory"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["entries", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "path": {
+                                "type": "string"
+                            },
+                            "sha": {
+                                "type": "string"
+                            },
+                            "content": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["file"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["path", "sha", "content", "type"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ApiGitFileOrDirectoryResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/GitFileOrDirectory"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiGitFileSavedResponse": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "path": {
+                                "type": "string"
+                            },
+                            "sha": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["path", "sha"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiGitFileDeletedResponse": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "deleted": {
+                                "type": "boolean",
+                                "enum": [true],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["deleted"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiGitBranchCreatedResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/GitBranch"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "CreateGitBranchRequest": {
+                "properties": {
+                    "sourceBranch": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": ["sourceBranch", "name"],
+                "type": "object"
+            },
+            "ApiGitPullRequestCreatedResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/PullRequestCreated"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "CreateGitPullRequestRequest": {
+                "properties": {
+                    "description": {
+                        "type": "string"
+                    },
+                    "title": {
+                        "type": "string"
+                    }
+                },
+                "required": ["description", "title"],
+                "type": "object"
+            },
             "ApiFunnelEventNamesResponse": {
                 "properties": {
                     "results": {
@@ -22751,6 +23390,9 @@
                     "sqlPath": {
                         "type": "string"
                     },
+                    "caseSensitive": {
+                        "type": "boolean"
+                    },
                     "aiHint": {
                         "anyOf": [
                             {
@@ -22763,6 +23405,12 @@
                                 "type": "array"
                             }
                         ]
+                    },
+                    "preAggregates": {
+                        "items": {
+                            "$ref": "#/components/schemas/PreAggregateDef"
+                        },
+                        "type": "array"
                     },
                     "warnings": {
                         "items": {
@@ -23916,12 +24564,12 @@
                     "spaceUuid": {
                         "type": "string"
                     },
-                    "spaceName": {
-                        "type": "string"
-                    },
                     "dashboardUuid": {
                         "type": "string",
                         "nullable": true
+                    },
+                    "spaceName": {
+                        "type": "string"
                     },
                     "dashboardName": {
                         "type": "string",
@@ -23935,8 +24583,8 @@
                     "name",
                     "uuid",
                     "spaceUuid",
-                    "spaceName",
                     "dashboardUuid",
+                    "spaceName",
                     "dashboardName"
                 ],
                 "type": "object",
@@ -24838,7 +25486,8 @@
                     "mcp",
                     "api",
                     "cli",
-                    "metricsExplorer"
+                    "metricsExplorer",
+                    "preAggregateMaterialization"
                 ],
                 "type": "string"
             },
@@ -25404,6 +26053,125 @@
             "Omit_DownloadAsyncQueryResultsRequestParams.queryUuid_": {
                 "$ref": "#/components/schemas/Pick_DownloadAsyncQueryResultsRequestParams.Exclude_keyofDownloadAsyncQueryResultsRequestParams.queryUuid__",
                 "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "PreAggregateDailyStatResult": {
+                "properties": {
+                    "updatedAt": {
+                        "type": "string"
+                    },
+                    "preAggregateName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "missReason": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "missCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "hitCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "queryContext": {
+                        "type": "string"
+                    },
+                    "dashboardName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "dashboardUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "chartName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "chartUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "date": {
+                        "type": "string"
+                    },
+                    "exploreName": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "updatedAt",
+                    "preAggregateName",
+                    "missReason",
+                    "missCount",
+                    "hitCount",
+                    "queryContext",
+                    "dashboardName",
+                    "dashboardUuid",
+                    "chartName",
+                    "chartUuid",
+                    "date",
+                    "exploreName"
+                ],
+                "type": "object"
+            },
+            "ApiPreAggregateStatsResults": {
+                "properties": {
+                    "stats": {
+                        "items": {
+                            "$ref": "#/components/schemas/PreAggregateDailyStatResult"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["stats"],
+                "type": "object"
+            },
+            "KnexPaginatedData_ApiPreAggregateStatsResults_": {
+                "properties": {
+                    "pagination": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/KnexPaginateArgs"
+                            },
+                            {
+                                "properties": {
+                                    "totalResults": {
+                                        "type": "number",
+                                        "format": "double"
+                                    },
+                                    "totalPageCount": {
+                                        "type": "number",
+                                        "format": "double"
+                                    }
+                                },
+                                "required": ["totalResults", "totalPageCount"],
+                                "type": "object"
+                            }
+                        ]
+                    },
+                    "data": {
+                        "$ref": "#/components/schemas/ApiPreAggregateStatsResults"
+                    }
+                },
+                "required": ["data"],
+                "type": "object"
+            },
+            "ApiGetPreAggregateStatsResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/KnexPaginatedData_ApiPreAggregateStatsResults_"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
             },
             "ProjectParameterSummary": {
                 "properties": {
@@ -26730,7 +27498,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2525.0",
+        "version": "0.2544.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -29156,6 +29924,108 @@
                         "schema": {
                             "format": "double",
                             "type": "number"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/validate/chart/{chartUuid}": {
+            "post": {
+                "operationId": "ValidateChart",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiChartValidationResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Validates a specific chart and updates validation entries in database.",
+                "summary": "Validate specific chart",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "the project UUID",
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "the chart UUID to validate",
+                        "in": "path",
+                        "name": "chartUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/validate/dashboard/{dashboardUuid}": {
+            "post": {
+                "operationId": "ValidateDashboard",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiDashboardValidationResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Validates a specific dashboard and updates validation entries in database.",
+                "summary": "Validate specific dashboard",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "the project UUID",
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "the dashboard UUID to validate",
+                        "in": "path",
+                        "name": "dashboardUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
                         }
                     }
                 ]
@@ -36456,6 +37326,96 @@
                 ]
             }
         },
+        "/api/v1/projects/{projectUuid}/pre-aggregates/refresh": {
+            "post": {
+                "operationId": "refreshProjectPreAggregates",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccess__jobIds-string-Array__"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Refresh all pre-aggregates in a project",
+                "summary": "Refresh project pre-aggregates",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/pre-aggregates/{preAggExploreName}/refresh": {
+            "post": {
+                "operationId": "refreshProjectPreAggregateByName",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccess__jobIds-string-Array__"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Refresh a single pre-aggregate explore in a project",
+                "summary": "Refresh project pre-aggregate by name",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "preAggExploreName",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
         "/api/v1/projects/{projectUuid}/compile-logs": {
             "get": {
                 "operationId": "getProjectCompileLogs",
@@ -39117,6 +40077,72 @@
                 ]
             }
         },
+        "/api/v1/projects/{projectUuid}/git-integration/explores/{exploreName}/file-path": {
+            "get": {
+                "operationId": "GetGitFilePathForExplore",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "properties": {
+                                                "filePath": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": ["filePath"],
+                                            "type": "object"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get the file path for an explore's YAML file (without fetching content)",
+                "summary": "Get explore file path",
+                "tags": ["Git Integration"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "exploreName",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
         "/api/v1/projects/{projectUuid}/git-integration/pull-requests/file-change": {
             "post": {
                 "operationId": "CreatePullRequestForFileChange",
@@ -39197,6 +40223,353 @@
                                     "filePath"
                                 ],
                                 "type": "object"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/git/branches": {
+            "get": {
+                "operationId": "listGitBranches",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiGitBranchesResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "List branches for the connected repository",
+                "summary": "List branches",
+                "tags": ["Git Files"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "createGitBranch",
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiGitBranchCreatedResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Create a new branch from a source branch",
+                "summary": "Create branch",
+                "tags": ["Git Files"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateGitBranchRequest"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/git/branches/{branch}/files": {
+            "get": {
+                "operationId": "getGitFileOrDirectory",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiGitFileOrDirectoryResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get file content or directory listing. Returns directory entries if path is a directory, file content if path is a file.",
+                "summary": "Get file or directory",
+                "tags": ["Git Files"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "branch",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "path",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            },
+            "put": {
+                "operationId": "saveGitFile",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiGitFileSavedResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Create or update a file. Provide sha to update existing file, omit for new file.",
+                "summary": "Save file",
+                "tags": ["Git Files"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "branch",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "message": {
+                                        "type": "string"
+                                    },
+                                    "sha": {
+                                        "type": "string"
+                                    },
+                                    "content": {
+                                        "type": "string"
+                                    },
+                                    "path": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": ["content", "path"],
+                                "type": "object"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "deleteGitFile",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiGitFileDeletedResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Delete a file from the repository",
+                "summary": "Delete file",
+                "tags": ["Git Files"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "branch",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "message": {
+                                        "type": "string"
+                                    },
+                                    "sha": {
+                                        "type": "string"
+                                    },
+                                    "path": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": ["sha", "path"],
+                                "type": "object"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/git/branches/{branch}/pull-request": {
+            "post": {
+                "operationId": "createGitPullRequest",
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiGitPullRequestCreatedResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Create a pull request from a branch to the default branch",
+                "summary": "Create pull request",
+                "tags": ["Git Files"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "branch",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateGitPullRequestRequest"
                             }
                         }
                     }
@@ -43619,6 +44992,91 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v2/projects/{projectUuid}/pre-aggregate-stats": {
+            "get": {
+                "operationId": "getPreAggregateStats",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiGetPreAggregateStatsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Retrieves aggregated pre-aggregate hit/miss statistics for a project",
+                "summary": "Get pre-aggregate stats",
+                "tags": ["v2", "Pre-Aggregates"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "days",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "page",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "pageSize",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "exploreName",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "queryType",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": ["chart", "dashboard", "explorer"]
+                        }
+                    }
+                ]
             }
         },
         "/api/v2/projects/{projectUuid}/parameters/list": {

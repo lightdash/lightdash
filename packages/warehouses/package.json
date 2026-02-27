@@ -1,6 +1,6 @@
 {
   "name": "@lightdash/warehouses",
-  "version": "0.2525.0",
+  "version": "0.2544.1",
   "description": "Warehouse connectors for Lightdash",
   "license": "MIT",
   "repository": {
@@ -30,6 +30,7 @@
     "@aws-sdk/client-athena": "^3.972.0",
     "@clickhouse/client": "^1.12.1",
     "@databricks/sql": "1.8.4",
+    "@duckdb/node-api": "^1.4.4-r.1",
     "@google-cloud/bigquery": "^7.9.2",
     "@lightdash/common": "workspace:*",
     "lodash": "^4.17.23",

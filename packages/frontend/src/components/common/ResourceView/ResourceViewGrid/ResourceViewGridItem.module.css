@@ -1,6 +1,7 @@
 .gridCard {
     display: flex;
     flex-direction: column;
+    cursor: pointer;
 
     &:hover {
         background-color: color-mix(

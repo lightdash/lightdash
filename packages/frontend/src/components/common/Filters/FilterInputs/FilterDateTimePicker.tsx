@@ -49,7 +49,7 @@ const FilterDateTimePicker: FC<Props> = ({
                 }}
                 inputWrapperOrder={['input', 'description']}
                 description={
-                    <Text ml="two">
+                    <Text ml="two" fz="xs" c="dimmed">
                         UTC time: {value?.toUTCString().replace('GMT', '')}
                     </Text>
                 }
