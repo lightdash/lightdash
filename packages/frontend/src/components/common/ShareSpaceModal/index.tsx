@@ -25,11 +25,15 @@ import ShareSpaceModalV2 from './v2/ShareSpaceModal';
 export interface ShareSpaceProps {
     space: Space;
     projectUuid: string;
+    opened?: boolean;
+    onClose?: () => void;
 }
 
 const ShareSpaceModalContent: FC<ShareSpaceProps> = ({
     space,
     projectUuid,
+    opened: externalOpened,
+    onClose: externalOnClose,
 }) => {
     const navigate = useNavigate();
     const shareSpaceModalSearchParam = useSearchParams('shareSpaceModal');
@@ -38,13 +42,18 @@ const ShareSpaceModalContent: FC<ShareSpaceProps> = ({
     );
     const { user: sessionUser } = useApp();
 
-    const [isOpen, setIsOpen] = useState<boolean>(false);
+    const isControlled = externalOpened !== undefined;
+    const [internalIsOpen, setInternalIsOpen] = useState<boolean>(false);
+    const isOpen = isControlled ? externalOpened : internalIsOpen;
+    const handleClose = isControlled
+        ? () => externalOnClose?.()
+        : () => setInternalIsOpen(false);
     const isNestedSpace = !!space.parentSpaceUuid;
     const rootSpaceBreadcrumb = space.breadcrumbs?.[0] ?? null;
 
     useEffect(() => {
         if (shareSpaceModalSearchParam === 'true') {
-            setIsOpen(true);
+            setInternalIsOpen(true);
             //clear the search param after opening the modal
             void navigate(`/projects/${projectUuid}/spaces/${space.uuid}`);
         }
@@ -52,30 +61,32 @@ const ShareSpaceModalContent: FC<ShareSpaceProps> = ({
 
     return (
         <>
-            <Box>
-                <Button
-                    leftIcon={
-                        selectedAccess.value === SpaceAccessType.PRIVATE ? (
-                            <IconLock size={18} />
-                        ) : (
-                            <IconUsers size={18} />
-                        )
-                    }
-                    onClick={() => {
-                        setIsOpen(true);
-                    }}
-                    variant="default"
-                >
-                    Share
-                </Button>
-            </Box>
+            {!isControlled && (
+                <Box>
+                    <Button
+                        leftIcon={
+                            selectedAccess.value === SpaceAccessType.PRIVATE ? (
+                                <IconLock size={18} />
+                            ) : (
+                                <IconUsers size={18} />
+                            )
+                        }
+                        onClick={() => {
+                            setInternalIsOpen(true);
+                        }}
+                        variant="default"
+                    >
+                        Share
+                    </Button>
+                </Box>
+            )}
 
             <MantineModal
                 size="xl"
                 icon={IconFolderShare}
                 title={`Share "${space.name}" space`}
                 opened={isOpen}
-                onClose={() => setIsOpen(false)}
+                onClose={handleClose}
                 actions={
                     !isNestedSpace ? (
                         <Box bg="ldGray.0">
@@ -136,7 +147,7 @@ const ShareSpaceModalContent: FC<ShareSpaceProps> = ({
                                         <Anchor
                                             component={Link}
                                             onClick={() => {
-                                                setIsOpen(false);
+                                                handleClose();
                                             }}
                                             to={`/projects/${projectUuid}/spaces/${rootSpaceBreadcrumb?.uuid}?shareSpaceModal=true`}
                                         >

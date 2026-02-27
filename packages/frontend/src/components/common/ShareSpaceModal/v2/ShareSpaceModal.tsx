@@ -191,13 +191,23 @@ const UserAccessAuditList: FC<UserAccessAuditListProps> = ({
     );
 };
 
-const ShareSpaceModalV2A: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
+const ShareSpaceModalV2A: FC<ShareSpaceProps> = ({
+    space,
+    projectUuid,
+    opened: externalOpened,
+    onClose: externalOnClose,
+}) => {
     const navigate = useNavigate();
     const shareSpaceModalSearchParam = useSearchParams('shareSpaceModal');
     const { user: sessionUser } = useApp();
     const { showToastError } = useToaster();
 
-    const [isOpen, setIsOpen] = useState(false);
+    const isControlled = externalOpened !== undefined;
+    const [internalIsOpen, setInternalIsOpen] = useState(false);
+    const isOpen = isControlled ? externalOpened : internalIsOpen;
+    const handleClose = isControlled
+        ? () => externalOnClose?.()
+        : () => setInternalIsOpen(false);
     const [sortOrder, setSortOrder] = useState<SortOrder>('name');
     const [auditSortOrder, setAuditSortOrder] = useState<SortOrder>('name');
     const [auditSearch, setAuditSearch] = useState('');
@@ -208,7 +218,7 @@ const ShareSpaceModalV2A: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
 
     useEffect(() => {
         if (shareSpaceModalSearchParam === 'true') {
-            setIsOpen(true);
+            setInternalIsOpen(true);
             void navigate(`/projects/${projectUuid}/spaces/${space.uuid}`);
         }
     }, [navigate, projectUuid, shareSpaceModalSearchParam, space.uuid]);
@@ -328,28 +338,30 @@ const ShareSpaceModalV2A: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
 
     return (
         <>
-            <Box>
-                <Button
-                    leftSection={
-                        !space.inheritParentPermissions ? (
-                            <IconLock size={18} />
-                        ) : (
-                            <IconUsers size={18} />
-                        )
-                    }
-                    onClick={() => setIsOpen(true)}
-                    variant="default"
-                >
-                    Share
-                </Button>
-            </Box>
+            {!isControlled && (
+                <Box>
+                    <Button
+                        leftSection={
+                            !space.inheritParentPermissions ? (
+                                <IconLock size={18} />
+                            ) : (
+                                <IconUsers size={18} />
+                            )
+                        }
+                        onClick={() => setInternalIsOpen(true)}
+                        variant="default"
+                    >
+                        Share
+                    </Button>
+                </Box>
+            )}
 
             <MantineModal
                 size="xl"
                 icon={IconFolderShare}
                 title={`Share "${space.name}" space`}
                 opened={isOpen}
-                onClose={() => setIsOpen(false)}
+                onClose={handleClose}
                 cancelLabel={false}
                 actions={
                     <Box>

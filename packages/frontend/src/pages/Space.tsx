@@ -76,6 +76,7 @@ const Space: FC = () => {
 
     const [updateSpace, setUpdateSpace] = useState<boolean>(false);
     const [deleteSpace, setDeleteSpace] = useState<boolean>(false);
+    const [shareSpace, setShareSpace] = useState<boolean>(false);
     const [
         isTransferToSpaceOpen,
         { open: openTransferToSpace, close: closeTransferToSpace },
@@ -309,12 +310,6 @@ const Space: FC = () => {
                                     </Menu>
                                 )}
                             <Can I="manage" this={subject('Space', space)}>
-                                {!!space && (
-                                    <ShareSpaceModal
-                                        space={space}
-                                        projectUuid={projectUuid}
-                                    />
-                                )}
                                 <SpaceBrowserMenu
                                     onRename={() => setUpdateSpace(true)}
                                     onDelete={() => setDeleteSpace(true)}
@@ -324,6 +319,7 @@ const Space: FC = () => {
                                     onTransferToSpace={() => {
                                         openTransferToSpace();
                                     }}
+                                    onShare={() => setShareSpace(true)}
                                     isPinned={!!space?.pinnedListUuid}
                                     spaceUuid={spaceUuid}
                                 >
@@ -376,6 +372,14 @@ const Space: FC = () => {
                                         onClose={() => {
                                             setDeleteSpace(false);
                                         }}
+                                    />
+                                )}
+                                {shareSpace && (
+                                    <ShareSpaceModal
+                                        space={space}
+                                        projectUuid={projectUuid}
+                                        opened
+                                        onClose={() => setShareSpace(false)}
                                     />
                                 )}
                             </Can>
