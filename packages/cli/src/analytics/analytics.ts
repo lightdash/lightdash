@@ -439,6 +439,30 @@ type CliCommandExecuted = BaseTrack & {
     };
 };
 
+type CliGenerateDocsStarted = BaseTrack & {
+    event: 'generate_docs.started';
+    properties: {
+        executionId: string;
+    };
+};
+type CliGenerateDocsCompleted = BaseTrack & {
+    event: 'generate_docs.completed';
+    properties: {
+        executionId: string;
+        durationMs: number;
+        skipInject: boolean;
+        serve: boolean;
+    };
+};
+type CliGenerateDocsError = BaseTrack & {
+    event: 'generate_docs.error';
+    properties: {
+        executionId: string;
+        step: string;
+        error: string;
+    };
+};
+
 type Track =
     | CliGenerateStarted
     | CliGenerateCompleted
@@ -478,7 +502,10 @@ type Track =
     | CliLintError
     | CliRenameCompleted
     | CliRenameError
-    | CliCommandExecuted;
+    | CliCommandExecuted
+    | CliGenerateDocsStarted
+    | CliGenerateDocsCompleted
+    | CliGenerateDocsError;
 
 const ERROR_NAME_TO_CATEGORY: Record<string, string> = {
     ForbiddenError: 'forbidden',
