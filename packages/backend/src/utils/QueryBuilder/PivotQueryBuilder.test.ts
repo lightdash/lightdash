@@ -494,22 +494,33 @@ describe('PivotQueryBuilder', () => {
             expect(result).toContain('"revenue_row_anchor" AS (');
             expect(result).toContain('"revenue_column_anchor" AS (');
 
-            // Should join anchor CTEs on the correct keys
+            // row_ranking CTE should join with row_anchor and compute DENSE_RANK
+            expect(result).toContain('row_ranking AS (');
             expect(replaceWhitespace(result)).toContain(
                 'JOIN "revenue_row_anchor" ON g."date" = "revenue_row_anchor"."date"',
             );
+
+            // column_ranking CTE should join with column_anchor and compute DENSE_RANK
             expect(replaceWhitespace(result)).toContain(
                 'JOIN "revenue_column_anchor" ON g."category" = "revenue_column_anchor"."category"',
             );
 
-            // Row index should order by the row anchor value then remaining index columns
+            // Row index should be computed in row_ranking CTE (not in pivot_query)
             expect(replaceWhitespace(result)).toContain(
                 'DENSE_RANK() OVER (ORDER BY "revenue_row_anchor"."revenue_row_anchor_value" DESC, g."date" ASC) AS "row_index"',
             );
 
-            // Column index should order by the column anchor value then remaining groupBy columns
+            // Column index should be computed in column_ranking CTE (not in pivot_query)
             expect(replaceWhitespace(result)).toContain(
-                'DENSE_RANK() OVER (ORDER BY "revenue_column_anchor"."revenue_column_anchor_value" DESC, g."category" ASC) AS "column_index"',
+                'DENSE_RANK() OVER (ORDER BY "revenue_column_anchor"."revenue_column_anchor_value" DESC, g."category" ASC) AS "col_idx"',
+            );
+
+            // pivot_query should JOIN with precomputed rankings
+            expect(replaceWhitespace(result)).toContain(
+                'LEFT JOIN row_ranking rr ON g."date" = rr."date"',
+            );
+            expect(replaceWhitespace(result)).toContain(
+                'LEFT JOIN column_ranking cr ON g."category" = cr."category"',
             );
         });
 
@@ -588,6 +599,77 @@ describe('PivotQueryBuilder', () => {
             expect(replaceWhitespace(result)).toContain(
                 'FIRST_VALUE("revenue_sum") OVER (PARTITION BY "category" ORDER BY "revenue_sum" DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING)',
             );
+        });
+
+        test('Metric sort: should use precomputed row_ranking and column_ranking CTEs instead of inline Window functions', () => {
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'category' }],
+                sortBy: [
+                    { reference: 'revenue', direction: SortByDirection.DESC },
+                ],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            );
+
+            const result = builder.toSql();
+
+            // row_ranking CTE should compute row_index with DENSE_RANK in a self-contained CTE
+            expect(result).toContain('row_ranking AS (');
+            expect(replaceWhitespace(result)).toContain(
+                'row_ranking AS (SELECT DISTINCT g."date", DENSE_RANK() OVER (ORDER BY "revenue_row_anchor"."revenue_row_anchor_value" DESC, g."date" ASC) AS "row_index" FROM group_by_query g LEFT JOIN "revenue_row_anchor" ON g."date" = "revenue_row_anchor"."date")',
+            );
+
+            // pivot_query should JOIN with precomputed rankings instead of computing Window functions
+            expect(replaceWhitespace(result)).toContain(
+                'pivot_query AS (SELECT g."date", g."category", g."revenue_sum", rr."row_index" AS "row_index", cr."col_idx" AS "column_index" FROM group_by_query g LEFT JOIN row_ranking rr ON g."date" = rr."date" LEFT JOIN column_ranking cr ON g."category" = cr."category")',
+            );
+
+            // pivot_query should NOT contain DENSE_RANK (rankings are precomputed)
+            const pivotQueryMatch = result.match(/pivot_query AS \(([^)]+)\)/);
+            expect(pivotQueryMatch?.[1]).not.toContain('DENSE_RANK');
+        });
+
+        test('No metric sort: should NOT create row_ranking CTE when no anchor CTEs exist', () => {
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'category' }],
+                sortBy: [{ reference: 'date', direction: SortByDirection.ASC }],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            );
+
+            const result = builder.toSql();
+
+            // No metric sort, so no precomputed rankings
+            expect(result).not.toContain('row_ranking AS (');
+
+            // pivot_query should compute rankings inline with DENSE_RANK
+            expect(result).toContain('DENSE_RANK() OVER');
+
+            // Downstream CTEs should reference pivot_query directly
+            expect(result).toContain('FROM pivot_query WHERE "row_index"');
+            expect(result).toContain('FROM pivot_query p CROSS JOIN');
         });
     });
 
@@ -1617,9 +1699,9 @@ SELECT * FROM group_by_query LIMIT 50`);
 
             const result = builder.toSql();
 
-            // Column index should include NULLS LAST when sorting by value column
+            // Column index should include NULLS LAST in column_ranking CTE
             expect(replaceWhitespace(result)).toContain(
-                'DENSE_RANK() OVER (ORDER BY "revenue_column_anchor"."revenue_column_anchor_value" DESC NULLS LAST, g."category" ASC) AS "column_index"',
+                'DENSE_RANK() OVER (ORDER BY "revenue_column_anchor"."revenue_column_anchor_value" DESC NULLS LAST, g."category" ASC) AS "col_idx"',
             );
         });
 
