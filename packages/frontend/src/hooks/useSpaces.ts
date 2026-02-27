@@ -2,6 +2,7 @@ import {
     type ApiError,
     type CreateSpace,
     type Space,
+    type SpaceDeleteImpact,
     type SpaceSummary,
     type UpdateSpace,
 } from '@lightdash/common';
@@ -76,6 +77,23 @@ export const useSpace = (
         queryFn: () => getSpace(projectUuid!, spaceUuid!),
         enabled: !!projectUuid && !!spaceUuid,
         ...useQueryOptions,
+    });
+
+const getSpaceDeleteImpact = async (projectUuid: string, spaceUuid: string) =>
+    lightdashApi<SpaceDeleteImpact>({
+        url: `/projects/${projectUuid}/spaces/${spaceUuid}/delete-impact`,
+        method: 'GET',
+        body: undefined,
+    });
+
+export const useSpaceDeleteImpact = (
+    projectUuid: string | undefined,
+    spaceUuid: string | undefined,
+) =>
+    useQuery<SpaceDeleteImpact, ApiError>({
+        queryKey: ['space', projectUuid, spaceUuid, 'delete-impact'],
+        queryFn: () => getSpaceDeleteImpact(projectUuid!, spaceUuid!),
+        enabled: !!projectUuid && !!spaceUuid,
     });
 
 const deleteQuery = async (projectUuid: string, spaceUuid: string) =>
