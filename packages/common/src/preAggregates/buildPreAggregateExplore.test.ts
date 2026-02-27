@@ -120,10 +120,20 @@ const sourceExplore = (): Explore => ({
                     table: 'orders',
                     type: MetricType.COUNT,
                 }),
+                distinct_customer_count: makeMetric({
+                    name: 'distinct_customer_count',
+                    table: 'orders',
+                    type: MetricType.COUNT_DISTINCT,
+                }),
                 avg_order_amount: makeMetric({
                     name: 'avg_order_amount',
                     table: 'orders',
                     type: MetricType.AVERAGE,
+                }),
+                median_order_amount: makeMetric({
+                    name: 'median_order_amount',
+                    table: 'orders',
+                    type: MetricType.MEDIAN,
                 }),
                 custom_sql: makeMetric({
                     name: 'custom_sql',
@@ -162,8 +172,6 @@ const sourceExplore = (): Explore => ({
             metrics: [
                 'total_order_amount',
                 'order_count',
-                'avg_order_amount',
-                'custom_sql',
                 'customers.max_customer_age',
             ],
             timeDimension: 'order_date',
@@ -189,7 +197,7 @@ describe('buildPreAggregateExplore', () => {
         );
     });
 
-    it('rewrites metrics and excludes unsupported metric types', () => {
+    it('rewrites supported metrics', () => {
         const result = buildPreAggregateExplore(
             sourceExplore(),
             sourceExplore().preAggregates![0],
@@ -204,9 +212,6 @@ describe('buildPreAggregateExplore', () => {
         expect(
             result.tables.customers.metrics.max_customer_age.compiledSql,
         ).toBe('MAX(orders.customers_max_customer_age)');
-
-        expect(result.tables.orders.metrics.avg_order_amount).toBeUndefined();
-        expect(result.tables.orders.metrics.custom_sql).toBeUndefined();
     });
 
     it('maps joined dimensions to materialized field-id columns', () => {
@@ -259,6 +264,23 @@ describe('buildPreAggregateExplore', () => {
                 metrics: ['order_count'],
             }),
         ).toThrow('references unknown dimensions');
+    });
+
+    it('throws when pre-aggregate references unsupported metric types', () => {
+        expect(() =>
+            buildPreAggregateExplore(sourceExplore(), {
+                name: 'invalid_rollup',
+                dimensions: ['status'],
+                metrics: [
+                    'avg_order_amount',
+                    'distinct_customer_count',
+                    'median_order_amount',
+                    'custom_sql',
+                ],
+            }),
+        ).toThrow(
+            'Pre-aggregate "invalid_rollup" references unsupported metrics: "avg_order_amount" (average), "distinct_customer_count" (count_distinct), "median_order_amount" (median), "custom_sql" (number). Supported metric types: sum, count, min, max',
+        );
     });
 
     it('includes time dimension even when not in dimensions array', () => {

@@ -6,7 +6,6 @@ import {
 } from '../types/explore';
 import {
     MetricType,
-    PostCalculationMetricTypes,
     type CompiledDimension,
     type CompiledMetric,
     type DimensionType,
@@ -51,10 +50,15 @@ const getDimensionsByReference = (sourceExplore: Explore) =>
         return acc;
     }, new Map<string, CompiledDimension[]>());
 
+const supportedPreAggregateMetricTypes: MetricType[] = [
+    MetricType.SUM,
+    MetricType.COUNT,
+    MetricType.MIN,
+    MetricType.MAX,
+];
+
 const isSupportedMetricType = (metricType: MetricType): boolean =>
-    [MetricType.SUM, MetricType.COUNT, MetricType.MIN, MetricType.MAX].includes(
-        metricType,
-    );
+    supportedPreAggregateMetricTypes.includes(metricType);
 
 const getMetricAggregateSql = (
     metricType: MetricType,
@@ -233,8 +237,12 @@ const getIncludedMetrics = (
         tables: sourceExplore.tables,
         baseTable: sourceExplore.baseTable,
     });
+    const unsupportedMetrics: Array<{
+        reference: string;
+        metricType: MetricType;
+    }> = [];
 
-    return preAggregateDef.metrics.reduce<
+    const includedMetrics = preAggregateDef.metrics.reduce<
         Array<{ fieldId: FieldId; metric: CompiledMetric }>
     >((acc, metricReference) => {
         const metricLookup = metricsByReference.get(metricReference);
@@ -246,17 +254,35 @@ const getIncludedMetrics = (
 
         const { fieldId, metric } = metricLookup;
 
-        // TODO: Support AVERAGE by materializing SUM + COUNT and deriving AVG at query time.
-        if (
-            metric.type === MetricType.AVERAGE ||
-            PostCalculationMetricTypes.includes(metric.type) ||
-            !isSupportedMetricType(metric.type)
-        ) {
+        if (!isSupportedMetricType(metric.type)) {
+            unsupportedMetrics.push({
+                reference: metricReference,
+                metricType: metric.type,
+            });
             return acc;
         }
 
         return [...acc, { fieldId, metric }];
     }, []);
+
+    if (unsupportedMetrics.length > 0) {
+        throw new Error(
+            `Pre-aggregate "${
+                preAggregateDef.name
+            }" references unsupported metrics: ${unsupportedMetrics
+                .map(
+                    ({ reference, metricType }) =>
+                        `"${reference}" (${metricType})`,
+                )
+                .join(
+                    ', ',
+                )}. Supported metric types: ${supportedPreAggregateMetricTypes.join(
+                ', ',
+            )}`,
+        );
+    }
+
+    return includedMetrics;
 };
 
 const getEmptyTable = (
