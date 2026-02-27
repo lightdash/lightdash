@@ -732,6 +732,7 @@ const upsertResources = async <T extends ChartAsCode | DashboardAsCode>(
     skipSpaceCreate?: boolean,
     publicSpaceCreate?: boolean,
     validate?: boolean,
+    spinner?: ReturnType<typeof GlobalState.startSpinner>,
 ): Promise<{ changes: Record<string, number>; total: number }> => {
     const config = await getConfig();
 
@@ -757,7 +758,10 @@ const upsertResources = async <T extends ChartAsCode | DashboardAsCode>(
         });
     }
 
-    for (const item of filteredItems) {
+    spinner?.start(`Uploading ${type} (0/${filteredItems.length})`);
+
+    for (let i = 0; i < filteredItems.length; i++) {
+        const item = filteredItems[i];
         // If a chart fails to update, we keep updating the rest
         try {
             if (!force && !item.needsUpdating) {
@@ -890,7 +894,11 @@ const upsertResources = async <T extends ChartAsCode | DashboardAsCode>(
                 });
             }
         }
+        spinner?.start(
+            `Uploading ${type} (${i + 1}/${filteredItems.length})`,
+        );
     }
+    spinner?.succeed(`Uploaded ${filteredItems.length} ${type}`);
     return { changes, total: filteredItems.length };
 };
 
@@ -964,6 +972,8 @@ export const uploadHandler = async (
         },
     });
 
+    const spinner = GlobalState.startSpinner('Uploading charts');
+
     try {
         // If any filter is provided, we skip those items without filters
         // eg: if a --charts filter is provided, we skip dashboards if no --dashboards filter is provided
@@ -999,10 +1009,13 @@ export const uploadHandler = async (
                     options.skipSpaceCreate,
                     options.public,
                     options.validate,
+                    spinner,
                 );
             changes = chartChanges;
             chartTotal = total;
         }
+
+        spinner.start('Uploading dashboards');
 
         if (hasFilters && options.dashboards.length === 0) {
             console.info(
@@ -1020,6 +1033,7 @@ export const uploadHandler = async (
                     options.skipSpaceCreate,
                     options.public,
                     options.validate,
+                    spinner,
                 );
             changes = dashboardChanges;
             dashboardTotal = total;
@@ -1040,9 +1054,7 @@ export const uploadHandler = async (
 
         logUploadChanges(changes);
     } catch (error) {
-        console.error(
-            styles.error(`\nError downloading: ${getErrorMessage(error)}`),
-        );
+        spinner.fail(`Error uploading: ${getErrorMessage(error)}`);
         await LightdashAnalytics.track({
             event: 'download.error',
             properties: {
