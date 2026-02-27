@@ -7,7 +7,7 @@ import {
 } from '@lightdash/common';
 import { Anchor, Box, Group, Stack, Text, Tooltip } from '@mantine-8/core';
 import {
-    IconAlertTriangleFilled,
+    IconAlertTriangle,
     IconChartBar,
     IconFolder,
     IconLayoutDashboard,
@@ -49,7 +49,7 @@ const ResourceValidationErrorIndicator = ({
     return (
         <ResourceIndicator
             iconProps={{
-                icon: IconAlertTriangleFilled,
+                icon: IconAlertTriangle,
                 color: 'red',
             }}
             tooltipProps={{
