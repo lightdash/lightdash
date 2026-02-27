@@ -1,3 +1,10 @@
+# [0.2543.0](https://github.com/lightdash/lightdash/compare/0.2542.0...0.2543.0) (2026-02-27)
+
+
+### Features
+
+* show space content counts on delete ([#20714](https://github.com/lightdash/lightdash/issues/20714)) ([7309769](https://github.com/lightdash/lightdash/commit/73097695f0af8033c934bec18d0faa0a98a5c649))
+
 # [0.2542.0](https://github.com/lightdash/lightdash/compare/0.2541.1...0.2542.0) (2026-02-27)
 
 
