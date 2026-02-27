@@ -1,8 +1,10 @@
 import {
     getItemId,
+    getMetricComponentColumnName,
     getMetricsByReference,
     MAX_SAFE_INTEGER,
     MetricType,
+    type AdditionalMetric,
     type CompiledDimension,
     type CompiledMetric,
     type Explore,
@@ -69,6 +71,45 @@ const getMetricReAggregationComponent = (
                 `Unsupported metric type "${metricType}" for pre-aggregate materialization`,
             );
     }
+};
+
+const getAverageMetricComponents = (
+    metric: CompiledMetric,
+): [AdditionalMetric, AdditionalMetric] => [
+    {
+        name: `${metric.name}__sum`,
+        table: metric.table,
+        type: MetricType.SUM,
+        sql: metric.sql,
+        hidden: true,
+        ...(metric.filters ? { filters: metric.filters } : {}),
+    },
+    {
+        name: `${metric.name}__count`,
+        table: metric.table,
+        type: MetricType.COUNT,
+        sql: metric.sql,
+        hidden: true,
+        ...(metric.filters ? { filters: metric.filters } : {}),
+    },
+];
+
+const assertUniqueMetricFieldId = ({
+    preAggregateName,
+    fieldId,
+    selectedMetricFieldIds,
+}: {
+    preAggregateName: string;
+    fieldId: FieldId;
+    selectedMetricFieldIds: Set<FieldId>;
+}) => {
+    if (selectedMetricFieldIds.has(fieldId)) {
+        throw new Error(
+            `Pre-aggregate "${preAggregateName}" generates duplicate materialization metric field ID "${fieldId}"`,
+        );
+    }
+
+    selectedMetricFieldIds.add(fieldId);
 };
 
 const getDimensionFieldId = ({
@@ -194,18 +235,60 @@ export const buildMaterializationMetricQuery = ({
         return acc;
     }, new Map<FieldId, CompiledMetric>());
 
-    const metricFieldIds = Array.from(metricsByFieldId.keys());
-
-    const metricComponents = metricFieldIds.reduce<
+    const selectedMetricFieldIds = new Set<FieldId>();
+    const additionalMetrics: AdditionalMetric[] = [];
+    const metricComponents = Array.from(metricsByFieldId.entries()).reduce<
         Record<string, MaterializationMetricComponent[]>
-    >((acc, metricFieldId) => {
-        const metric = metricsByFieldId.get(metricFieldId);
+    >((acc, [metricFieldId, metric]) => {
+        if (metric.type === MetricType.AVERAGE) {
+            const [sumMetric, countMetric] = getAverageMetricComponents(metric);
+            const sumFieldId = getItemId(sumMetric);
+            const countFieldId = getItemId(countMetric);
 
-        if (!metric) {
-            throw new Error(
-                `Pre-aggregate "${preAggregateDef.name}" references unknown metric "${metricFieldId}"`,
-            );
+            [
+                getMetricComponentColumnName(metricFieldId, 'sum'),
+                getMetricComponentColumnName(metricFieldId, 'count'),
+            ].forEach((expectedFieldId, index) => {
+                const actualFieldId = index === 0 ? sumFieldId : countFieldId;
+                if (actualFieldId !== expectedFieldId) {
+                    throw new Error(
+                        `Pre-aggregate "${preAggregateDef.name}" generated unexpected AVG component field ID "${actualFieldId}" for metric "${metricFieldId}"`,
+                    );
+                }
+            });
+
+            assertUniqueMetricFieldId({
+                preAggregateName: preAggregateDef.name,
+                fieldId: sumFieldId,
+                selectedMetricFieldIds,
+            });
+            assertUniqueMetricFieldId({
+                preAggregateName: preAggregateDef.name,
+                fieldId: countFieldId,
+                selectedMetricFieldIds,
+            });
+
+            additionalMetrics.push(sumMetric, countMetric);
+
+            acc[metricFieldId] = [
+                {
+                    componentFieldId: sumFieldId,
+                    aggregation: 'sum',
+                },
+                {
+                    componentFieldId: countFieldId,
+                    aggregation: 'sum',
+                },
+            ];
+
+            return acc;
         }
+
+        assertUniqueMetricFieldId({
+            preAggregateName: preAggregateDef.name,
+            fieldId: metricFieldId,
+            selectedMetricFieldIds,
+        });
 
         acc[metricFieldId] = [
             {
@@ -217,6 +300,8 @@ export const buildMaterializationMetricQuery = ({
         return acc;
     }, {});
 
+    const metricFieldIds = Array.from(selectedMetricFieldIds);
+
     const metricQuery: MetricQuery = {
         exploreName: sourceExplore.name,
         dimensions,
@@ -225,6 +310,7 @@ export const buildMaterializationMetricQuery = ({
         sorts: [],
         limit: MAX_SAFE_INTEGER,
         tableCalculations: [],
+        ...(additionalMetrics.length > 0 ? { additionalMetrics } : {}),
     };
 
     return {

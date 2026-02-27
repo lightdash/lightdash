@@ -11,7 +11,7 @@ import { type TimeFrames } from '../types/timeFrames';
 import { getMetricsMapFromTables } from '../utils/fields';
 import { getItemId } from '../utils/item';
 import { timeFrameOrder } from '../utils/timeFrames';
-import { isReAggregatable } from './additivity';
+import { isPreAggregateCompatible } from './additivity';
 import { getDimensionReferences, getMetricReferences } from './references';
 
 export type MatchResult =
@@ -175,7 +175,7 @@ const getMissForDef = ({
                 fieldId: metricFieldId,
             };
         }
-        if (!isReAggregatable(metric.type)) {
+        if (!isPreAggregateCompatible(metric.type)) {
             return {
                 reason: PreAggregateMissReason.NON_ADDITIVE_METRIC,
                 fieldId: metricFieldId,

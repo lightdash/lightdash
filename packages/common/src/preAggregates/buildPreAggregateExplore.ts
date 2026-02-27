@@ -13,14 +13,26 @@ import {
 } from '../types/field';
 import { type PreAggregateDef } from '../types/preAggregate';
 import { type TimeFrames } from '../types/timeFrames';
+import assertUnreachable from '../utils/assertUnreachable';
 import { getItemId } from '../utils/item';
 import { getSqlForTruncatedDate, timeFrameOrder } from '../utils/timeFrames';
-import { getMetricColumnName, getPreAggregateExploreName } from './naming';
+import {
+    getMetricColumnName,
+    getMetricComponentColumnName,
+    getPreAggregateExploreName,
+} from './naming';
 import {
     getDimensionBaseName,
     getDimensionReferences,
     getMetricsByReference,
 } from './references';
+
+type SupportedPreAggregateMetricType =
+    | MetricType.SUM
+    | MetricType.COUNT
+    | MetricType.MIN
+    | MetricType.MAX
+    | MetricType.AVERAGE;
 
 const isFinerGranularity = (
     candidateGranularity: TimeFrames,
@@ -50,15 +62,28 @@ const getDimensionsByReference = (sourceExplore: Explore) =>
         return acc;
     }, new Map<string, CompiledDimension[]>());
 
-const supportedPreAggregateMetricTypes: MetricType[] = [
+const supportedPreAggregateMetricTypes: SupportedPreAggregateMetricType[] = [
     MetricType.SUM,
     MetricType.COUNT,
     MetricType.MIN,
     MetricType.MAX,
+    MetricType.AVERAGE,
 ];
 
-const isSupportedMetricType = (metricType: MetricType): boolean =>
-    supportedPreAggregateMetricTypes.includes(metricType);
+const isSupportedMetricType = (
+    metricType: MetricType,
+): metricType is SupportedPreAggregateMetricType => {
+    switch (metricType) {
+        case MetricType.SUM:
+        case MetricType.COUNT:
+        case MetricType.MIN:
+        case MetricType.MAX:
+        case MetricType.AVERAGE:
+            return true;
+        default:
+            return false;
+    }
+};
 
 const getMetricAggregateSql = (
     metricType: MetricType,
@@ -74,6 +99,66 @@ const getMetricAggregateSql = (
             return `MAX(${columnReference})`;
         default:
             throw new Error(`Unsupported metric type "${metricType}"`);
+    }
+};
+
+const getAverageMetricAggregateSql = (
+    tableName: string,
+    fieldId: FieldId,
+): string => {
+    const sumColumnReference = `${tableName}.${getMetricComponentColumnName(
+        fieldId,
+        'sum',
+    )}`;
+    const countColumnReference = `${tableName}.${getMetricComponentColumnName(
+        fieldId,
+        'count',
+    )}`;
+
+    // Force floating-point division because both components are numeric aggregates.
+    return `CAST(SUM(${sumColumnReference}) AS DOUBLE) / CAST(NULLIF(SUM(${countColumnReference}), 0) AS DOUBLE)`;
+};
+
+const getMetricSqlForPreAggregateExplore = ({
+    metricType,
+    tableName,
+    fieldId,
+}: {
+    metricType: SupportedPreAggregateMetricType;
+    tableName: string;
+    fieldId: FieldId;
+}): { sql: string; compiledSql: string } => {
+    switch (metricType) {
+        case MetricType.AVERAGE: {
+            const compiledSql = getAverageMetricAggregateSql(
+                tableName,
+                fieldId,
+            );
+            return {
+                sql: compiledSql,
+                compiledSql,
+            };
+        }
+        case MetricType.SUM:
+        case MetricType.COUNT:
+        case MetricType.MIN:
+        case MetricType.MAX: {
+            const metricColumnReference = `${tableName}.${getMetricColumnName(
+                fieldId,
+            )}`;
+            return {
+                sql: metricColumnReference,
+                compiledSql: getMetricAggregateSql(
+                    metricType,
+                    metricColumnReference,
+                ),
+            };
+        }
+        default:
+            return assertUnreachable(
+                metricType,
+                `Unsupported metric type "${metricType}"`,
+            );
     }
 };
 
@@ -342,16 +427,15 @@ export const buildPreAggregateExplore = (
     });
 
     includedMetrics.forEach(({ fieldId, metric }) => {
-        const metricColumnName = getMetricColumnName(fieldId);
-        const metricColumnReference = `${sourceExplore.baseTable}.${metricColumnName}`;
-        const compiledSql = getMetricAggregateSql(
-            metric.type,
-            metricColumnReference,
-        );
+        const { sql, compiledSql } = getMetricSqlForPreAggregateExplore({
+            metricType: metric.type as SupportedPreAggregateMetricType,
+            tableName: sourceExplore.baseTable,
+            fieldId,
+        });
 
         tables[metric.table].metrics[metric.name] = {
             ...metric,
-            sql: metricColumnReference,
+            sql,
             compiledSql,
             tablesReferences: [sourceExplore.baseTable],
         };
