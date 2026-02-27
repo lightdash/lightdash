@@ -172,6 +172,7 @@ const sourceExplore = (): Explore => ({
             metrics: [
                 'total_order_amount',
                 'order_count',
+                'avg_order_amount',
                 'customers.max_customer_age',
             ],
             timeDimension: 'order_date',
@@ -208,6 +209,9 @@ describe('buildPreAggregateExplore', () => {
         ).toBe('SUM(orders.orders_total_order_amount)');
         expect(result.tables.orders.metrics.order_count.compiledSql).toBe(
             'SUM(orders.orders_order_count)',
+        );
+        expect(result.tables.orders.metrics.avg_order_amount.compiledSql).toBe(
+            'CAST(SUM(orders.orders_avg_order_amount__sum) AS DOUBLE) / CAST(NULLIF(SUM(orders.orders_avg_order_amount__count), 0) AS DOUBLE)',
         );
         expect(
             result.tables.customers.metrics.max_customer_age.compiledSql,
@@ -272,14 +276,13 @@ describe('buildPreAggregateExplore', () => {
                 name: 'invalid_rollup',
                 dimensions: ['status'],
                 metrics: [
-                    'avg_order_amount',
                     'distinct_customer_count',
                     'median_order_amount',
                     'custom_sql',
                 ],
             }),
         ).toThrow(
-            'Pre-aggregate "invalid_rollup" references unsupported metrics: "avg_order_amount" (average), "distinct_customer_count" (count_distinct), "median_order_amount" (median), "custom_sql" (number). Supported metric types: sum, count, min, max',
+            'Pre-aggregate "invalid_rollup" references unsupported metrics: "distinct_customer_count" (count_distinct), "median_order_amount" (median), "custom_sql" (number). Supported metric types: sum, count, min, max, average',
         );
     });
 

@@ -34,5 +34,16 @@ export const getAdditivityType = (metricType: MetricType): AdditivityType => {
     }
 };
 
-export const isReAggregatable = (metricType: MetricType): boolean =>
-    getAdditivityType(metricType) === AdditivityType.ADDITIVE;
+export const isPreAggregateCompatible = (metricType: MetricType): boolean => {
+    const additivityType = getAdditivityType(metricType);
+
+    switch (additivityType) {
+        case AdditivityType.ADDITIVE:
+        case AdditivityType.DECOMPOSABLE:
+            return true;
+        case AdditivityType.NON_ADDITIVE:
+            return false;
+        default:
+            return assertUnreachable(additivityType, `Unknown additivity type`);
+    }
+};
