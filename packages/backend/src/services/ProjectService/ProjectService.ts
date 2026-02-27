@@ -1567,11 +1567,6 @@ export class ProjectService extends BaseService {
 
         await this.validateProjectCreationPermissions(user, data);
 
-        console.log(
-            'createWithoutCompile incoming data.warehouseConnection:',
-            data.warehouseConnection,
-        );
-
         const newProjectData = data;
 
         // If type preview and has upstream project, we first link the preview to the same organization warehouse credentials (if exists)
@@ -1614,11 +1609,6 @@ export class ProjectService extends BaseService {
             }
         }
 
-        console.log(
-            'createWithoutCompile after merge warehouseConnection:',
-            newProjectData.warehouseConnection,
-        );
-
         const createProject: CreateProjectOptionalCredentials =
             hasWarehouseCredentials(newProjectData)
                 ? await this._resolveWarehouseClientCredentials(
@@ -1659,10 +1649,6 @@ export class ProjectService extends BaseService {
             try {
                 const { warehouseConnection } = createProject;
                 const warehouseType = warehouseConnection.type;
-                console.log(
-                    'createWithoutCompile preview UWC creation warehouseConnection:',
-                    warehouseConnection,
-                );
                 switch (warehouseType) {
                     case WarehouseTypes.DATABRICKS: {
                         if (

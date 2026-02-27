@@ -8,7 +8,6 @@ import { JSONSchemaType } from 'ajv';
 import betterAjvErrors from 'better-ajv-errors';
 import { ajv } from '../../ajv';
 import { Target } from '../types';
-import { DATABRICKS_DEFAULT_OAUTH_CLIENT_ID } from './Databricks/oauth';
 
 type DatabricksComputeConfig = {
     [name: string]: {
@@ -81,10 +80,6 @@ export const databricksSchema: JSONSchemaType<DatabricksTarget> = {
             type: 'string',
             nullable: true,
         },
-        oauth_client_id: {
-            type: 'string',
-            nullable: true,
-        },
         threads: {
             type: 'number',
             nullable: true,
@@ -144,8 +139,6 @@ export const convertDatabricksSchema = (
                     : DatabricksAuthenticationType.OAUTH_U2M;
         }
 
-        const clientId = target.client_id || DATABRICKS_DEFAULT_OAUTH_CLIENT_ID;
-
         return {
             type: WarehouseTypes.DATABRICKS,
             authenticationType,
@@ -153,7 +146,9 @@ export const convertDatabricksSchema = (
             database: target.schema,
             serverHostName: target.host,
             httpPath: target.http_path,
-            oauthClientId: clientId,
+            oauthClientId: target.client_id, // JWT claim fills this after OAuth flow
+            // TODO: oauthClientSecret is sent to the server for M2M but is a sensitive field
+            // that gets stripped from API responses. Consider whether U2M should omit it entirely.
             oauthClientSecret: target.client_secret,
             compute: Object.entries(target.compute || {}).map(
                 ([name, compute]) => ({

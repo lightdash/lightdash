@@ -35,13 +35,17 @@ import * as styles from '../../styles';
 import { lightdashApi } from './apiClient';
 
 /**
- * Cache warehouse clients to avoid repeated authentication prompts
- * Currently used for:
- * - Snowflake external browser auth (avoids opening multiple browser tabs)
+ * Cache warehouse clients and their resolved credentials to avoid repeated
+ * authentication prompts (e.g. Snowflake external browser, Databricks OAuth).
+ * Without caching credentials, a second call (e.g. createProject after compile)
+ * would return bare credentials missing OAuth tokens.
  */
 const warehouseClientCache = new Map<
     string,
-    ReturnType<typeof warehouseClientFromCredentials>
+    {
+        client: ReturnType<typeof warehouseClientFromCredentials>;
+        credentials: CreateWarehouseCredentials;
+    }
 >();
 
 /**
@@ -348,11 +352,13 @@ export default async function getWarehouseClient(
         // Check cache before any OAuth flows to avoid repeated authentication prompts
         const cacheKey = getWarehouseClientCacheKey(credentials);
 
-        if (warehouseClientCache.has(cacheKey)) {
+        const cached = warehouseClientCache.get(cacheKey);
+        if (cached) {
             GlobalState.debug(
                 `> Reusing cached warehouse client (${credentials.type})`,
             );
-            warehouseClient = warehouseClientCache.get(cacheKey)!;
+            warehouseClient = cached.client;
+            credentials = cached.credentials;
         } else {
             // Exchange Databricks OAuth M2M credentials for access token if needed
             if (
@@ -367,26 +373,24 @@ export default async function getWarehouseClient(
                     `> Exchanging Databricks OAuth credentials for access token`,
                 );
                 try {
-                    const { accessToken } =
+                    const { accessToken, refreshToken, jwtClientId } =
                         await exchangeDatabricksOAuthCredentials(
                             credentials.serverHostName,
                             credentials.oauthClientId,
                             credentials.oauthClientSecret,
                         );
                     credentials.token = accessToken;
+                    if (refreshToken) {
+                        credentials.refreshToken = refreshToken;
+                    }
+                    if (jwtClientId) {
+                        credentials.oauthClientId = jwtClientId;
+                    }
                 } catch (e) {
-                    GlobalState.debug(
-                        `> Failed to exchange Databricks OAuth credentials for access token: ${getErrorMessage(
-                            e,
-                        )}`,
+                    throw new Error(
+                        `Failed to authenticate with Databricks using M2M OAuth (client_id and client_secret): ${getErrorMessage(e)}. ` +
+                            `Perhaps you meant to use U2M OAuth instead? Set DATABRICKS_OAUTH=u2m environment variable to force U2M authentication.`,
                     );
-                    console.warn(
-                        styles.error(
-                            `\nFailed to authenticate with Databricks using M2M OAuth (client_id and client_secret). ` +
-                                `Perhaps you meant to use U2M OAuth instead? Set DATABRICKS_OAUTH=u2m environment variable to force U2M authentication.`,
-                        ),
-                    );
-                    process.exit(1);
                 }
             }
 
@@ -397,22 +401,21 @@ export default async function getWarehouseClient(
                     DatabricksAuthenticationType.OAUTH_U2M &&
                 !credentials.token
             ) {
-                const clientId =
+                // Use profile client_id for the request, fall back to dbt-databricks default
+                const requestClientId =
                     credentials.oauthClientId ||
                     DATABRICKS_DEFAULT_OAUTH_CLIENT_ID;
                 const tokens = await performDatabricksOAuthFlow(
                     credentials.serverHostName,
-                    clientId,
+                    requestClientId,
                     undefined, // U2M doesn't use client secret
                 );
 
-                // Store tokens in memory only
                 credentials.token = tokens.accessToken;
                 credentials.refreshToken = tokens.refreshToken;
-                console.log(
-                    'getWarehouseClient after OAuth flow tokens:',
-                    tokens,
-                );
+                // Use the client ID from the JWT (authoritative from Databricks)
+                credentials.oauthClientId =
+                    tokens.oauthClientId || requestClientId;
             }
 
             GlobalState.debug(
@@ -426,10 +429,12 @@ export default async function getWarehouseClient(
                     : undefined,
             });
 
-            warehouseClientCache.set(cacheKey, warehouseClient);
+            warehouseClientCache.set(cacheKey, {
+                client: warehouseClient,
+                credentials,
+            });
         }
     }
-    console.log('getWarehouseClient returning credentials:', credentials);
     return {
         warehouseClient,
         credentials,

@@ -342,8 +342,6 @@ For a better user experience, we recommend enabling Snowflake OAuth authenticati
         organizationWarehouseCredentialsUuid,
     };
 
-    console.log({ options, zap: project.warehouseConnection });
-
     return lightdashApi<ApiCreateProjectResults>({
         method: 'POST',
         url: `/api/v1/org/projects`,

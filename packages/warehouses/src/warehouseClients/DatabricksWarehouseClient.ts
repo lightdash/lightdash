@@ -582,49 +582,129 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
     }
 }
 
+type DatabricksTokenResponse = {
+    access_token: string;
+    refresh_token?: string;
+    expires_in?: number;
+};
+
 /**
- * Exchange Databricks OAuth M2M credentials for access and refresh tokens
+ * Decode the payload of a Databricks JWT access token (no verification).
+ * Returns the parsed claims object, or undefined if decoding fails.
  */
-export const exchangeDatabricksOAuthCredentials = async (
+const decodeDatabricksJwtPayload = (
+    token: string,
+): Record<string, unknown> | undefined => {
+    try {
+        const parts = token.split('.');
+        if (parts.length !== 3) return undefined;
+        const payload = Buffer.from(parts[1], 'base64url').toString('utf-8');
+        return JSON.parse(payload) as Record<string, unknown>;
+    } catch {
+        return undefined;
+    }
+};
+
+/**
+ * Single entry point for all Databricks OIDC token requests.
+ */
+export const databricksTokenRequest = async (
     host: string,
-    clientId: string,
-    clientSecret: string,
-): Promise<{ accessToken: string; refreshToken?: string }> => {
+    params: Record<string, string>,
+): Promise<DatabricksTokenResponse> => {
     const tokenUrl = `https://${host}/oidc/v1/token`;
+    console.log(`[Databricks] ${params.grant_type} request:`, {
+        tokenUrl,
+        params,
+    });
 
     const response = await fetch(tokenUrl, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
         },
-        body: new URLSearchParams({
-            grant_type: 'client_credentials',
-            client_id: clientId,
-            client_secret: clientSecret,
-            scope: 'sql',
-        }).toString(),
+        body: new URLSearchParams(params).toString(),
     });
 
+    const responseText = await response.text();
+
     if (!response.ok) {
-        const errorText = await response.text();
         throw new Error(
-            `Failed to obtain Databricks OAuth token: ${response.status} ${errorText}`,
+            `Failed Databricks token request (${params.grant_type}): ${response.status} ${responseText}`,
         );
     }
 
-    const data = (await response.json()) as {
-        access_token: string;
-        refresh_token?: string;
+    const parsed = JSON.parse(responseText) as DatabricksTokenResponse;
+    console.log(`[Databricks] ${params.grant_type} response:`, parsed);
+
+    return parsed;
+};
+
+/** Exchange authorization code for tokens (U2M browser flow) */
+export const exchangeDatabricksAuthorizationCode = async (
+    host: string,
+    clientId: string,
+    code: string,
+    redirectUri: string,
+    codeVerifier: string,
+    clientSecret?: string,
+): Promise<{
+    accessToken: string;
+    /** Undefined when the OAuth app does not have offline_access scope enabled. */
+    refreshToken: string | undefined;
+    /** The client_id claim from the JWT — the actual client Databricks authenticated. */
+    jwtClientId: string | undefined;
+}> => {
+    const params: Record<string, string> = {
+        grant_type: 'authorization_code',
+        code,
+        client_id: clientId,
+        redirect_uri: redirectUri,
+        code_verifier: codeVerifier,
     };
+    if (clientSecret) params.client_secret = clientSecret;
+
+    const data = await databricksTokenRequest(host, params);
+    const claims = decodeDatabricksJwtPayload(data.access_token);
     return {
         accessToken: data.access_token,
         refreshToken: data.refresh_token,
+        jwtClientId:
+            typeof claims?.client_id === 'string'
+                ? claims.client_id
+                : undefined,
     };
 };
 
-/**
- * Refresh Databricks OAuth U2M access token using refresh token
- */
+/** Exchange M2M client credentials for tokens */
+export const exchangeDatabricksOAuthCredentials = async (
+    host: string,
+    clientId: string,
+    clientSecret: string,
+): Promise<{
+    accessToken: string;
+    refreshToken: string | undefined;
+    /** The client_id claim from the JWT — the actual client Databricks authenticated. */
+    jwtClientId: string | undefined;
+}> => {
+    const data = await databricksTokenRequest(host, {
+        grant_type: 'client_credentials',
+        client_id: clientId,
+        client_secret: clientSecret,
+        scope: 'sql',
+    });
+    const claims = decodeDatabricksJwtPayload(data.access_token);
+    return {
+        accessToken: data.access_token,
+        refreshToken: data.refresh_token,
+        jwtClientId:
+            typeof claims?.client_id === 'string'
+                ? claims.client_id
+                : undefined,
+    };
+};
+
+/** Refresh an OAuth token */
 export const refreshDatabricksOAuthToken = async (
     host: string,
     clientId: string,
@@ -635,40 +715,17 @@ export const refreshDatabricksOAuthToken = async (
     refreshToken: string;
     expiresIn: number;
 }> => {
-    const tokenUrl = `https://${host}/oidc/v1/token`;
-
-    const params = new URLSearchParams({
+    const params: Record<string, string> = {
         grant_type: 'refresh_token',
         refresh_token: refreshToken,
         client_id: clientId,
-    });
-    if (clientSecret) {
-        params.set('client_secret', clientSecret);
-    }
-
-    const response = await fetch(tokenUrl, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: params.toString(),
-    });
-
-    if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(
-            `Failed to refresh Databricks OAuth token: ${response.status} ${errorText}`,
-        );
-    }
-
-    const data = (await response.json()) as {
-        access_token: string;
-        refresh_token: string;
-        expires_in: number;
     };
+    if (clientSecret) params.client_secret = clientSecret;
+
+    const data = await databricksTokenRequest(host, params);
     return {
         accessToken: data.access_token,
-        refreshToken: data.refresh_token,
-        expiresIn: data.expires_in,
+        refreshToken: data.refresh_token!,
+        expiresIn: data.expires_in!,
     };
 };
