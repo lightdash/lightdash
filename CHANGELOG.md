@@ -1,3 +1,10 @@
+## [0.2538.2](https://github.com/lightdash/lightdash/compare/0.2538.1...0.2538.2) (2026-02-27)
+
+
+### Bug Fixes
+
+* **cli:** homebrew build broken due to duckdb dependency ([#20696](https://github.com/lightdash/lightdash/issues/20696)) ([2d71ded](https://github.com/lightdash/lightdash/commit/2d71dede74509e488d177a905204e086d61a608a))
+
 ## [0.2538.1](https://github.com/lightdash/lightdash/compare/0.2538.0...0.2538.1) (2026-02-26)
 
 
