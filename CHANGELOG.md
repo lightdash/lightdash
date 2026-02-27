@@ -1,3 +1,10 @@
+# [0.2539.0](https://github.com/lightdash/lightdash/compare/0.2538.2...0.2539.0) (2026-02-27)
+
+
+### Features
+
+* refresh preview projects on branch update ([#20679](https://github.com/lightdash/lightdash/issues/20679)) ([b160c53](https://github.com/lightdash/lightdash/commit/b160c53547bdced15f852529af62c2c83896c180))
+
 ## [0.2538.2](https://github.com/lightdash/lightdash/compare/0.2538.1...0.2538.2) (2026-02-27)
 
 
