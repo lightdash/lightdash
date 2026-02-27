@@ -98,6 +98,20 @@ export class ParameterError extends LightdashError {
     }
 }
 
+export class PayloadTooLargeError extends LightdashError {
+    constructor(
+        message: string = 'Request payload exceeds the maximum allowed size',
+        data: Record<string, AnyType> = {},
+    ) {
+        super({
+            message,
+            name: 'PayloadTooLargeError',
+            statusCode: 413,
+            data,
+        });
+    }
+}
+
 export class NonCompiledModelError extends LightdashError {
     constructor(message: string, data: { [key: string]: AnyType } = {}) {
         super({
