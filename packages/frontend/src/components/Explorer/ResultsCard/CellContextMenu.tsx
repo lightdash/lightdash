@@ -176,9 +176,11 @@ const CellContextMenu: FC<
                         leftSection={<MantineIcon icon={IconFilter} />}
                         onClick={handleFilterByValue}
                     >
-                        Filter by{' '}
-                        <Text span fw={500}>
-                            {value.formatted}
+                        <Text fz="sm">
+                            Filter by{' '}
+                            <Text span fz="sm" fw="bold">
+                                {value.formatted}
+                            </Text>
                         </Text>
                     </Menu.Item>
                 )}

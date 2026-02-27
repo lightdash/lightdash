@@ -140,7 +140,7 @@ const BigNumberContextMenu: FC<
                         onClick={handleOpenDrillIntoModal}
                     >
                         Drill into{' '}
-                        <Text span fw={500}>
+                        <Text span fw="bold" fz="sm">
                             {value.formatted}
                         </Text>
                     </Menu.Item>

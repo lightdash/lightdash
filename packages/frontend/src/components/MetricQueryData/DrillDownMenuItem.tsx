@@ -84,7 +84,7 @@ const DrillDownMenuItem: FC<DrillDownMenuItemProps> = ({
                 onClick={handleDrillInto}
             >
                 Drill into{' '}
-                <Text span fw={500}>
+                <Text span fz="sm" fw="bold">
                     {value}
                 </Text>
             </Menu.Item>

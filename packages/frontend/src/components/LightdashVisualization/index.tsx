@@ -76,7 +76,6 @@ const LightdashVisualization = memo(
                                     </Text>
                                     {apiErrorDetail.data.documentationUrl && (
                                         <Fragment>
-                                            <br />
                                             <Anchor
                                                 href={
                                                     apiErrorDetail.data
@@ -84,6 +83,8 @@ const LightdashVisualization = memo(
                                                 }
                                                 target="_blank"
                                                 rel="noreferrer"
+                                                fz="xs"
+                                                fw="bold"
                                             >
                                                 Learn how to resolve this in our
                                                 documentation →

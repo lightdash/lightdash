@@ -25,7 +25,6 @@ import {
 import { memo, useMemo, type FC, type ReactNode } from 'react';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { BetaBadge } from '../../common/BetaBadge';
-import { COLLAPSABLE_CARD_BUTTON_PROPS } from '../../common/CollapsableCard/constants';
 import MantineIcon from '../../common/MantineIcon';
 import {
     isBigNumberVisualizationConfig,
@@ -220,7 +219,8 @@ const VisualizationCardOptions: FC = memo(() => {
         >
             <Menu.Target>
                 <Button
-                    {...COLLAPSABLE_CARD_BUTTON_PROPS}
+                    variant="default"
+                    size="xs"
                     disabled={disabled}
                     leftSection={selectedChartType.icon}
                     rightSection={
