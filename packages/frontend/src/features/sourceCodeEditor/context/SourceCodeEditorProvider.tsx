@@ -1,6 +1,5 @@
 import { useCallback, useMemo, useState, type FC, type ReactNode } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router';
-import SourceCodeDrawer from '../components/SourceCodeDrawer';
 import SourceCodeEditorContext, {
     type SourceCodeEditorContextValue,
 } from './SourceCodeEditorContext';
@@ -9,6 +8,13 @@ type SourceCodeEditorProviderProps = {
     children: ReactNode;
 };
 
+/**
+ * Provides context for the source code editor drawer.
+ *
+ * NOTE: This provider only manages state/context. The actual SourceCodeDrawer
+ * component is rendered by ProjectLayout/DashboardLayout to ensure it appears
+ * after the NavBar in the render order.
+ */
 const SourceCodeEditorProvider: FC<SourceCodeEditorProviderProps> = ({
     children,
 }) => {
@@ -84,7 +90,6 @@ const SourceCodeEditorProvider: FC<SourceCodeEditorProviderProps> = ({
     return (
         <SourceCodeEditorContext.Provider value={value}>
             {children}
-            <SourceCodeDrawer />
         </SourceCodeEditorContext.Provider>
     );
 };
