@@ -450,7 +450,9 @@ export class RolesService extends BaseService {
             .catch((err) => {
                 this.logger.error(
                     'Failed to send org admin role change notification',
-                    { error: err },
+                    {
+                        error: err,
+                    },
                 );
             });
 
@@ -781,6 +783,12 @@ export class RolesService extends BaseService {
                 error instanceof DatabaseError &&
                 error.code === foreignKeyViolation
             ) {
+                this.logger.error('Role deletion blocked by FK constraint', {
+                    roleUuid,
+                    detail: error.detail,
+                    constraint: error.constraint,
+                    table: error.table,
+                });
                 throw new ParameterError('Role cannot be deleted if assigned');
             }
 
