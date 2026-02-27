@@ -937,6 +937,94 @@ describe('case sensitivity', () => {
             ),
         ).toBe(`UPPER(${stringFilterDimension}) LIKE '%BOB'`);
     });
+    test('should apply UPPER() when caseSensitive is false for INCLUDE', () => {
+        const filter = {
+            ...stringFilterRuleMocks.includeFilterWithSingleVal,
+            values: ['Bob'],
+        };
+        expect(
+            renderStringFilterSql(
+                stringFilterDimension,
+                filter,
+                "'",
+                false, // caseSensitive = false
+            ),
+        ).toBe(`UPPER(${stringFilterDimension}) LIKE UPPER('%Bob%')`);
+    });
+    test('should not apply UPPER() when caseSensitive is true for INCLUDE', () => {
+        const filter = {
+            ...stringFilterRuleMocks.includeFilterWithSingleVal,
+            values: ['Bob'],
+        };
+        expect(
+            renderStringFilterSql(
+                stringFilterDimension,
+                filter,
+                "'",
+                true, // caseSensitive = true (default)
+            ),
+        ).toBe(`(${stringFilterDimension}) LIKE '%Bob%'`);
+    });
+    test('should apply UPPER() when caseSensitive is false for INCLUDE with multiple values', () => {
+        const filter = {
+            ...stringFilterRuleMocks.includeFilterWithMultiVal,
+            values: ['Tom', 'Jerry'],
+        };
+        expect(
+            renderStringFilterSql(
+                stringFilterDimension,
+                filter,
+                "'",
+                false, // caseSensitive = false
+            ),
+        ).toBe(`(UPPER(${stringFilterDimension}) LIKE UPPER('%Tom%')
+  OR
+  UPPER(${stringFilterDimension}) LIKE UPPER('%Jerry%'))`);
+    });
+    test('should apply UPPER() when caseSensitive is false for NOT_INCLUDE', () => {
+        const filter = {
+            ...stringFilterRuleMocks.notIncludeFilterWithSingleVal,
+            values: ['Bob'],
+        };
+        expect(
+            renderStringFilterSql(
+                stringFilterDimension,
+                filter,
+                "'",
+                false, // caseSensitive = false
+            ),
+        ).toBe(`UPPER(${stringFilterDimension}) NOT LIKE UPPER('%Bob%')`);
+    });
+    test('should not apply UPPER() when caseSensitive is true for NOT_INCLUDE', () => {
+        const filter = {
+            ...stringFilterRuleMocks.notIncludeFilterWithSingleVal,
+            values: ['Bob'],
+        };
+        expect(
+            renderStringFilterSql(
+                stringFilterDimension,
+                filter,
+                "'",
+                true, // caseSensitive = true (default)
+            ),
+        ).toBe(`(${stringFilterDimension}) NOT LIKE '%Bob%'`);
+    });
+    test('should apply UPPER() when caseSensitive is false for NOT_INCLUDE with multiple values', () => {
+        const filter = {
+            ...stringFilterRuleMocks.notIncludeFilterWithMultiVal,
+            values: ['Tom', 'Jerry'],
+        };
+        expect(
+            renderStringFilterSql(
+                stringFilterDimension,
+                filter,
+                "'",
+                false, // caseSensitive = false
+            ),
+        ).toBe(`UPPER(${stringFilterDimension}) NOT LIKE UPPER('%Tom%')
+  AND
+  UPPER(${stringFilterDimension}) NOT LIKE UPPER('%Jerry%')`);
+    });
 
     test('should respect field-level caseSensitive over explore-level', () => {
         const field = {

@@ -429,12 +429,12 @@ export const stringFilterRuleMocks = {
         ...stringSingleValueFilter,
         operator: FilterOperator.INCLUDE,
     },
-    includeFilterWithSingleValSQL: `LOWER(${stringFilterDimension}) LIKE LOWER('%Bob%')`,
+    includeFilterWithSingleValSQL: `(${stringFilterDimension}) LIKE '%Bob%'`,
     includeFilterWithMultiVal: {
         ...stringMultiValueFilter,
         operator: FilterOperator.INCLUDE,
     },
-    includeFilterWithMultiValSQL: `(LOWER(${stringFilterDimension}) LIKE LOWER('%Tom%')\n  OR\n  LOWER(${stringFilterDimension}) LIKE LOWER('%Jerry%'))`,
+    includeFilterWithMultiValSQL: `((${stringFilterDimension}) LIKE '%Tom%'\n  OR\n  (${stringFilterDimension}) LIKE '%Jerry%')`,
     includeFilterWithNoVal: {
         ...noValueFilter,
         operator: FilterOperator.INCLUDE,
@@ -444,12 +444,12 @@ export const stringFilterRuleMocks = {
         ...stringSingleValueFilter,
         operator: FilterOperator.NOT_INCLUDE,
     },
-    notIncludeFilterWithSingleValSQL: `LOWER(${stringFilterDimension}) NOT LIKE LOWER('%Bob%')`,
+    notIncludeFilterWithSingleValSQL: `(${stringFilterDimension}) NOT LIKE '%Bob%'`,
     notIncludeFilterWithMultiVal: {
         ...stringMultiValueFilter,
         operator: FilterOperator.NOT_INCLUDE,
     },
-    notIncludeFilterWithMultiValSQL: `LOWER(${stringFilterDimension}) NOT LIKE LOWER('%Tom%')\n  AND\n  LOWER(${stringFilterDimension}) NOT LIKE LOWER('%Jerry%')`,
+    notIncludeFilterWithMultiValSQL: `(${stringFilterDimension}) NOT LIKE '%Tom%'\n  AND\n  (${stringFilterDimension}) NOT LIKE '%Jerry%'`,
     notIncludeFilterWithNoVal: {
         ...noValueFilter,
         operator: FilterOperator.NOT_INCLUDE,
@@ -509,7 +509,7 @@ export const stringFilterRuleMocks = {
         ...mixedEmptyStringFilter,
         operator: FilterOperator.INCLUDE,
     },
-    includeFilterWithMixedEmptyStringsSQL: `(LOWER(${stringFilterDimension}) LIKE LOWER('%Bob's%')\n  OR\n  LOWER(${stringFilterDimension}) LIKE LOWER('%Tom's%'))`,
+    includeFilterWithMixedEmptyStringsSQL: `((${stringFilterDimension}) LIKE '%Bob''s%'\n  OR\n  (${stringFilterDimension}) LIKE '%Tom''s%')`,
 
     equalsFilterWithEmptyString: {
         ...emptyStringFilter,

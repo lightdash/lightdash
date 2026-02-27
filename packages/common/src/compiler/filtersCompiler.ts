@@ -130,9 +130,13 @@ export const renderStringFilterSql = (
                 : 'true';
         case FilterOperator.INCLUDE:
             if (nonEmptyFilterValues && nonEmptyFilterValues.length > 0) {
-                const includesQuery = nonEmptyFilterValues.map(
-                    (v) => `LOWER(${dimensionSql}) LIKE LOWER('%${v}%')`,
-                );
+                const includesQuery = nonEmptyFilterValues.map((v) => {
+                    // Escape single quotes for SQL
+                    const escapedValue = String(v).replace(/'/g, "''");
+                    return !caseSensitive
+                        ? `UPPER(${dimensionSql}) LIKE UPPER('%${escapedValue}%')`
+                        : `(${dimensionSql}) LIKE '%${escapedValue}%'`;
+                });
                 if (includesQuery.length > 1)
                     return `(${includesQuery.join('\n  OR\n  ')})`;
                 return includesQuery.join('\n  OR\n  ');
@@ -140,9 +144,13 @@ export const renderStringFilterSql = (
             return 'true';
         case FilterOperator.NOT_INCLUDE:
             if (nonEmptyFilterValues && nonEmptyFilterValues.length > 0) {
-                const notIncludeQuery = nonEmptyFilterValues.map(
-                    (v) => `LOWER(${dimensionSql}) NOT LIKE LOWER('%${v}%')`,
-                );
+                const notIncludeQuery = nonEmptyFilterValues.map((v) => {
+                    // Escape single quotes for SQL
+                    const escapedValue = String(v).replace(/'/g, "''");
+                    return !caseSensitive
+                        ? `UPPER(${dimensionSql}) NOT LIKE UPPER('%${escapedValue}%')`
+                        : `(${dimensionSql}) NOT LIKE '%${escapedValue}%'`;
+                });
                 return notIncludeQuery.join('\n  AND\n  ');
             }
             return 'true';
