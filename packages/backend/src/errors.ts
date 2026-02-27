@@ -2,6 +2,7 @@ import {
     getErrorMessage,
     isUnrecoverableSlackError,
     LightdashError,
+    PayloadTooLargeError,
     ScimError,
     SlackError,
     UnexpectedServerError,
@@ -34,6 +35,13 @@ export const errorHandler = (error: Error): LightdashError => {
             message: errorMessage,
             data: error.fields,
         });
+    }
+    // Handle PayloadTooLargeError from body-parser/express
+    if (
+        error.name === 'PayloadTooLargeError' ||
+        (error.message && error.message.includes('request entity too large'))
+    ) {
+        return new PayloadTooLargeError();
     }
     if (error instanceof LightdashError) {
         return error;
