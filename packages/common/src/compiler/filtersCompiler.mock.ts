@@ -509,7 +509,7 @@ export const stringFilterRuleMocks = {
         ...mixedEmptyStringFilter,
         operator: FilterOperator.INCLUDE,
     },
-    includeFilterWithMixedEmptyStringsSQL: `((${stringFilterDimension}) LIKE '%Bob''s%'\n  OR\n  (${stringFilterDimension}) LIKE '%Tom''s%')`,
+    includeFilterWithMixedEmptyStringsSQL: `((${stringFilterDimension}) LIKE '%Bob's%'\n  OR\n  (${stringFilterDimension}) LIKE '%Tom's%')`,
 
     equalsFilterWithEmptyString: {
         ...emptyStringFilter,
