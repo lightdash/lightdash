@@ -171,8 +171,10 @@ const FieldSelectComponent = <T extends Item = Item>({
     }, [item]);
 
     const handleChange = useCallback(
-        (value: string) => {
-            const selectedField = items.find((f) => getItemId(f) === value);
+        (value: string | null) => {
+            const selectedField = value
+                ? items.find((f) => getItemId(f) === value)
+                : undefined;
             onChange(selectedField);
         },
         [items, onChange],
@@ -276,7 +278,7 @@ const FieldSelectComponent = <T extends Item = Item>({
             {...rest}
             value={selectedItemId}
             data={selectData}
-            onChange={(value) => (value ? handleChange(value) : onChange(undefined))}
+            onChange={handleChange}
         />
     );
 };
