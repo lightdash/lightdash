@@ -1527,10 +1527,12 @@ export class ProjectModel {
         userUuid: string,
         role: ProjectMemberRole,
     ): Promise<void> {
+        // Clear role_uuid when switching to a system role so that stale FK
+        // references don't prevent custom role deletion later (see #20690).
         await this.database.raw<(DbProjectMembership & DbProject & DbUser)[]>(
             `
                 UPDATE project_memberships AS m
-                SET role = :role FROM projects AS p, users AS u
+                SET role = :role, role_uuid = NULL FROM projects AS p, users AS u
                 WHERE p.project_id = m.project_id
                   AND u.user_id = m.user_id
                   AND user_uuid = :userUuid

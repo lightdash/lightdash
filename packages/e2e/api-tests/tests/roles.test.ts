@@ -599,6 +599,78 @@ describe('Roles API Tests', () => {
             }
         });
 
+        it('should clear role_uuid when switching to system role via v1 API', async () => {
+            const testUserUuid = SEED_ORG_1_ADMIN.user_uuid;
+
+            // Step 1: Create a custom role with scopes
+            const roleResp = await admin.post<Body<RoleResult>>(
+                `${orgRolesApiUrl}/${testOrgUuid}/roles`,
+                {
+                    name: `V1 Update Cleanup ${Date.now()}`,
+                    description:
+                        'Role to verify v1 API clears role_uuid on system role change',
+                    scopes: ['view:Dashboard'],
+                },
+            );
+            const customRoleUuid = roleResp.body.results.roleUuid;
+            rolesToCleanup.push(customRoleUuid);
+
+            // Step 2: Assign custom role to user via v2 API
+            const assignResp = await admin.post<Body<AssignmentResult>>(
+                `${projectRolesApiUrl}/${SEED_PROJECT.project_uuid}/roles/assignments/user/${testUserUuid}`,
+                { roleId: customRoleUuid },
+            );
+            expect(assignResp.status).toBe(200);
+
+            // Verify the custom role is assigned
+            const beforeResp = await admin.get<Body<AssignmentResult[]>>(
+                `${projectRolesApiUrl}/${SEED_PROJECT.project_uuid}/roles/assignments`,
+            );
+            const beforeAssignment = beforeResp.body.results.find(
+                (a: AnyType) =>
+                    a.assigneeType === 'user' &&
+                    a.assigneeId === testUserUuid,
+            );
+            expect(beforeAssignment).toBeDefined();
+            expect(beforeAssignment!.roleId).toBe(customRoleUuid);
+
+            // Step 3: Switch user to system role via deprecated v1 API.
+            // The v1 endpoint must clear role_uuid when changing to a system
+            // role, otherwise the stale FK reference blocks role deletion.
+            const v1UpdateResp = await admin.patch<Body<unknown>>(
+                `/api/v1/projects/${SEED_PROJECT.project_uuid}/access/${testUserUuid}`,
+                { role: 'editor' },
+            );
+            expect(v1UpdateResp.status).toBe(200);
+
+            // Step 4: Verify the role_uuid was cleared - role assignment
+            // should show system role, not the custom role UUID
+            const afterResp = await admin.get<Body<AssignmentResult[]>>(
+                `${projectRolesApiUrl}/${SEED_PROJECT.project_uuid}/roles/assignments`,
+            );
+            const afterAssignment = afterResp.body.results.find(
+                (a: AnyType) =>
+                    a.assigneeType === 'user' &&
+                    a.assigneeId === testUserUuid,
+            );
+            expect(afterAssignment).toBeDefined();
+            // The role should now be the system role, not the custom role UUID
+            expect(afterAssignment!.roleId).toBe('editor');
+
+            // Step 5: Delete the custom role - should succeed because the v1
+            // update should have cleared the role_uuid FK reference
+            const deleteRoleResp = await admin.delete<Body<unknown>>(
+                `${orgRolesApiUrl}/${testOrgUuid}/roles/${customRoleUuid}`,
+                { failOnStatusCode: false },
+            );
+            expect(deleteRoleResp.status).toBe(200);
+
+            // Remove from cleanup since we already deleted it
+            rolesToCleanup = rolesToCleanup.filter(
+                (uuid) => uuid !== customRoleUuid,
+            );
+        });
+
         it('should reject assigning role with 0 scopes to user', async () => {
             const testUserUuid = SEED_ORG_1_ADMIN.user_uuid;
 
