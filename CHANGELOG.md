@@ -1,3 +1,10 @@
+## [0.2544.1](https://github.com/lightdash/lightdash/compare/0.2544.0...0.2544.1) (2026-02-27)
+
+
+### Bug Fixes
+
+* **debug:** add log whenever role deletion fails ([#20719](https://github.com/lightdash/lightdash/issues/20719)) ([9977e2b](https://github.com/lightdash/lightdash/commit/9977e2bd74e7ee03c5f787926d2fd24f8b862213))
+
 # [0.2544.0](https://github.com/lightdash/lightdash/compare/0.2543.0...0.2544.0) (2026-02-27)
 
 
