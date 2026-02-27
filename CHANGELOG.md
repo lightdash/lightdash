@@ -1,3 +1,10 @@
+# [0.2540.0](https://github.com/lightdash/lightdash/compare/0.2539.0...0.2540.0) (2026-02-27)
+
+
+### Features
+
+* add dashboard.uuid tag to Sentry for backend and frontend ([#20699](https://github.com/lightdash/lightdash/issues/20699)) ([1572227](https://github.com/lightdash/lightdash/commit/1572227de0352f1fa2e8644a7a79023eb666d16d))
+
 # [0.2539.0](https://github.com/lightdash/lightdash/compare/0.2538.2...0.2539.0) (2026-02-27)
 
 
