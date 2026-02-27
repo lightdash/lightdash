@@ -1,3 +1,10 @@
+# [0.2541.0](https://github.com/lightdash/lightdash/compare/0.2540.2...0.2541.0) (2026-02-27)
+
+
+### Features
+
+* add HAR replay skill for frontend performance testing ([#20703](https://github.com/lightdash/lightdash/issues/20703)) ([4c94b33](https://github.com/lightdash/lightdash/commit/4c94b3355a5094b963efd22c3566de640d93be11))
+
 ## [0.2540.2](https://github.com/lightdash/lightdash/compare/0.2540.1...0.2540.2) (2026-02-27)
 
 
