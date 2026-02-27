@@ -1,3 +1,10 @@
+## [0.2540.2](https://github.com/lightdash/lightdash/compare/0.2540.1...0.2540.2) (2026-02-27)
+
+
+### Bug Fixes
+
+* clear stale role_uuid when updating project access via v1 API ([#20701](https://github.com/lightdash/lightdash/issues/20701)) ([ec15650](https://github.com/lightdash/lightdash/commit/ec15650328e8f0dab77c72349caaeb51a0b5c924)), closes [#20690](https://github.com/lightdash/lightdash/issues/20690)
+
 ## [0.2540.1](https://github.com/lightdash/lightdash/compare/0.2540.0...0.2540.1) (2026-02-27)
 
 
