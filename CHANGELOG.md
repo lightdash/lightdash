@@ -1,3 +1,10 @@
+## [0.2541.1](https://github.com/lightdash/lightdash/compare/0.2541.0...0.2541.1) (2026-02-27)
+
+
+### Bug Fixes
+
+* pivot query with metric sorting on Databricks ([#20682](https://github.com/lightdash/lightdash/issues/20682)) ([2640d57](https://github.com/lightdash/lightdash/commit/2640d57e385f999742fdaa6883cfbc2934a82ead))
+
 # [0.2541.0](https://github.com/lightdash/lightdash/compare/0.2540.2...0.2541.0) (2026-02-27)
 
 
