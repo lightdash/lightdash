@@ -1,4 +1,4 @@
-import { type FieldId } from './field';
+import { type FieldId, type MetricType } from './field';
 import { type MetricQuery } from './metricQuery';
 import { type ResultColumns } from './results';
 import { type PreAggregateMaterializationTrigger } from './scheduler';
@@ -6,7 +6,7 @@ import { type TimeFrames } from './timeFrames';
 
 export type MaterializationMetricComponent = {
     componentFieldId: string;
-    aggregation: 'sum' | 'count' | 'min' | 'max';
+    aggregation: MetricType.SUM | MetricType.MIN | MetricType.MAX;
 };
 
 export type MaterializationMetricQueryPayload = {
