@@ -413,7 +413,7 @@ const ProjectGroupAccessComponent: FC<ProjectGroupAccessProps> = ({
             },
         },
         mantineTableContainerProps: {
-            style: { maxHeight: 'calc(100dvh - 420px)' },
+            style: { maxHeight: 'calc(100dvh - 300px)' },
         },
         mantineTableProps: {
             highlightOnHover: true,
@@ -450,7 +450,7 @@ const ProjectGroupAccessComponent: FC<ProjectGroupAccessProps> = ({
         mantineTableBodyCellProps: () => {
             return {
                 style: {
-                    padding: `${theme.spacing.md} ${theme.spacing.xl}`,
+                    padding: `${theme.spacing.xs} ${theme.spacing.xl}`,
                     borderRight: 'none',
                     borderLeft: 'none',
                     borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
@@ -488,7 +488,7 @@ const ProjectGroupAccessComponent: FC<ProjectGroupAccessProps> = ({
         },
         state: {
             isLoading: isLoadingProjectGroupAccessList,
-            density: 'md',
+            density: 'xs',
         },
         renderEmptyRowsFallback: () => (
             <Box p="4xl">
