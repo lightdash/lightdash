@@ -24,6 +24,7 @@ import { diagnosticsHandler } from './handlers/diagnostics';
 import { downloadHandler, uploadHandler } from './handlers/download';
 import { exportChartImageHandler } from './handlers/exportChartImage';
 import { generateHandler } from './handlers/generate';
+import { generateDocsHandler } from './handlers/generateDocs';
 import { generateExposuresHandler } from './handlers/generateExposures';
 import { getProjectHandler } from './handlers/getProject';
 import { installSkillsHandler } from './handlers/installSkills';
@@ -1094,6 +1095,53 @@ ${styles.bold('Examples:')}
         undefined,
     )
     .action(generateExposuresHandler);
+
+program
+    .command('generate-docs')
+    .description(
+        'Generates dbt docs with Lightdash metrics injected into the lineage graph',
+    )
+    .addHelpText(
+        'after',
+        `
+${styles.bold('Examples:')}
+  ${styles.title('⚡')}️lightdash ${styles.bold(
+      'generate-docs',
+  )} ${styles.secondary('-- generate docs and serve with Lightdash lineage')}
+  ${styles.title('⚡')}️lightdash ${styles.bold(
+      'generate-docs',
+  )} --no-serve ${styles.secondary('-- generate and inject without serving')}
+  ${styles.title('⚡')}️lightdash ${styles.bold(
+      'generate-docs',
+  )} --skip-inject ${styles.secondary('-- generate and serve without Lightdash injection')}
+`,
+    )
+    .option(
+        '--project-dir <path>',
+        'The directory of the dbt project',
+        defaultProjectDir,
+    )
+    .option(
+        '--profiles-dir <path>',
+        'The directory of the dbt profiles',
+        defaultProfilesDir,
+    )
+    .option('--target <target>', 'The dbt target to use')
+    .option('--target-path <path>', 'Override the target directory for output')
+    .option('--verbose', undefined, false)
+    .option(
+        '--skip-inject',
+        'Skip Lightdash metric injection into manifest',
+        false,
+    )
+    .option(
+        '--static',
+        'Generate a static_index.html with manifest and catalog built-in',
+        false,
+    )
+    .option('--no-serve', 'Do not run dbt docs serve after generation')
+    .option('--port <port>', 'Port for dbt docs serve', parseIntArgument, 8080)
+    .action(generateDocsHandler);
 
 program
     .command('diagnostics')
