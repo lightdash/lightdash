@@ -1,3 +1,16 @@
+# [0.2542.0](https://github.com/lightdash/lightdash/compare/0.2541.1...0.2542.0) (2026-02-27)
+
+
+### Bug Fixes
+
+* add PayloadTooLargeError handling for oversized requests ([#20707](https://github.com/lightdash/lightdash/issues/20707)) ([9938ef7](https://github.com/lightdash/lightdash/commit/9938ef735b683370deac72c9014a7170b2abcd77))
+* validate unsupported metric types in pre-aggregates ([#20704](https://github.com/lightdash/lightdash/issues/20704)) ([fd82301](https://github.com/lightdash/lightdash/commit/fd82301afe08d4435985a2c27bfb1e333070c97e))
+
+
+### Features
+
+* add space share option to overflow menu ([#20709](https://github.com/lightdash/lightdash/issues/20709)) ([28ed262](https://github.com/lightdash/lightdash/commit/28ed262a2ee48dda2d814d8c74e7334adbb7e5d3))
+
 ## [0.2541.1](https://github.com/lightdash/lightdash/compare/0.2541.0...0.2541.1) (2026-02-27)
 
 
