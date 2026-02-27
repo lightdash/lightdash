@@ -19,7 +19,13 @@ export type CreateDbContentVerification = Pick<
     | 'verified_by_user_uuid'
 >;
 
+export type UpdateDbContentVerification = Pick<
+    DbContentVerification,
+    'verified_by_user_uuid' | 'verified_at'
+>;
+
 export type ContentVerificationTable = Knex.CompositeTableType<
     DbContentVerification,
-    CreateDbContentVerification
+    CreateDbContentVerification,
+    UpdateDbContentVerification
 >;

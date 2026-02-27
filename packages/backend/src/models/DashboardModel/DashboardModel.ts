@@ -533,6 +533,7 @@ export class DashboardModel {
                             }),
                         ),
                         tileTypes,
+                        verification: null,
                     };
                 },
             ),
