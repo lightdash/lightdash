@@ -10,8 +10,7 @@ import {
     type ResultValue,
     type TableCalculation,
 } from '@lightdash/common';
-import { Menu } from '@mantine-8/core';
-import { Text } from '@mantine/core';
+import { Menu, Text } from '@mantine-8/core';
 import { useClipboard } from '@mantine/hooks';
 import { IconCopy, IconEye, IconFilter, IconStack } from '@tabler/icons-react';
 import mapValues from 'lodash/mapValues';

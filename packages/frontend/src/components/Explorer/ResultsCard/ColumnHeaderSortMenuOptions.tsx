@@ -5,8 +5,7 @@ import {
     type SortField,
     type TableCalculation,
 } from '@lightdash/common';
-import { Menu } from '@mantine-8/core';
-import { Text } from '@mantine/core';
+import { Menu, Text } from '@mantine-8/core';
 import { IconCheck } from '@tabler/icons-react';
 import { useCallback, type FC } from 'react';
 import {

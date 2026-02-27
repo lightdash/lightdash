@@ -5,8 +5,7 @@ import {
     FeatureFlags,
     isSeriesWithMixedChartTypes,
 } from '@lightdash/common';
-import { Menu } from '@mantine-8/core';
-import { Button, Group } from '@mantine/core';
+import { Button, Group, Menu } from '@mantine-8/core';
 import {
     IconChartArea,
     IconChartAreaLine,
@@ -223,8 +222,8 @@ const VisualizationCardOptions: FC = memo(() => {
                 <Button
                     {...COLLAPSABLE_CARD_BUTTON_PROPS}
                     disabled={disabled}
-                    leftIcon={selectedChartType.icon}
-                    rightIcon={
+                    leftSection={selectedChartType.icon}
+                    rightSection={
                         <MantineIcon icon={IconChevronDown} color="ldGray" />
                     }
                     data-testid="VisualizationCardOptions"
@@ -434,7 +433,7 @@ const VisualizationCardOptions: FC = memo(() => {
                             setChartType(ChartType.MAP);
                         }}
                     >
-                        <Group spacing="xs">
+                        <Group gap="xs">
                             Map
                             <BetaBadge />
                         </Group>

@@ -1,5 +1,5 @@
 import { getItemLabel, getItemMap, isField } from '@lightdash/common';
-import { Box, Loader, Text } from '@mantine/core';
+import { Box, Loader, Text } from '@mantine-8/core';
 import { memo, useCallback, useMemo, useState, type FC } from 'react';
 import {
     explorerActions,
