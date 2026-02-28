@@ -306,7 +306,7 @@ jobs:
           json: ${{ secrets.GCP_CREDENTIALS }}
           dir: "./packages/e2e/cypress/fixtures/"
       - name: Run API tests
-        run: pnpm -F e2e test:api
+        run: pnpm -F api-tests test:api
         env:
           SITE_URL: https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev
           PGHOST: ${{ secrets.PGHOST }}

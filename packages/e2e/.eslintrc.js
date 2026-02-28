@@ -12,19 +12,4 @@ module.exports = {
         'prettier',
     ],
     rules: {},
-    overrides: [
-        {
-            files: ['api-tests/**/*.ts'],
-            rules: {
-                '@typescript-eslint/no-explicit-any': 'off',
-                '@typescript-eslint/no-loop-func': 'off',
-                '@typescript-eslint/no-unused-vars': 'off',
-                'no-await-in-loop': 'off',
-                'no-plusplus': 'off',
-                'no-promise-executor-return': 'off',
-                'no-restricted-syntax': 'off',
-                'import/no-extraneous-dependencies': 'off',
-            },
-        },
-    ],
 };
