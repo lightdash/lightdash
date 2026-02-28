@@ -61,6 +61,6 @@
     "@types/pegjs": "^0.10.3",
     "@types/sanitize-html": "^2.11.0",
     "@types/uuid": "^10.0.0",
-    "typescript": "5.5.4"
+    "typescript": "6.0.0-beta"
   }
 }
