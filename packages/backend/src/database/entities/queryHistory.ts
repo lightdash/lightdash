@@ -1,4 +1,5 @@
 import type {
+    AuthType,
     ExecuteAsyncQueryRequestParams,
     ItemsMap,
     MetricQuery,
@@ -16,6 +17,7 @@ export type DbQueryHistory = {
     created_at: Date;
     created_by_user_uuid: string | null;
     created_by_account: string | null;
+    created_by_actor_type: AuthType | null;
     project_uuid: string | null;
     organization_uuid: string;
     context: QueryExecutionContext;
@@ -40,12 +42,15 @@ export type DbQueryHistory = {
     results_expires_at: Date | null;
     columns: ResultColumns | null; // result columns with or without pivoting
     original_columns: ResultColumns | null; // columns from original SQL, before pivoting
+    pre_aggregate_compiled_sql: string | null; // DuckDB SQL for pre-aggregate execution path
 };
 
 export type DbQueryHistoryIn = Omit<
     DbQueryHistory,
-    'query_uuid' | 'created_at'
->;
+    'query_uuid' | 'created_at' | 'created_by_actor_type'
+> & {
+    created_by_actor_type: AuthType;
+};
 
 export type DbQueryHistoryUpdate = Partial<
     Pick<
@@ -66,6 +71,7 @@ export type DbQueryHistoryUpdate = Partial<
         | 'results_expires_at'
         | 'columns'
         | 'original_columns'
+        | 'pre_aggregate_compiled_sql'
     >
 >;
 

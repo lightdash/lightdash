@@ -195,6 +195,7 @@ import {
 import { S3CacheClient } from '../../clients/Aws/S3CacheClient';
 import EmailClient from '../../clients/EmailClient/EmailClient';
 import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
+import type { INatsJobClient } from '../../clients/NatsJobClient';
 import { LightdashConfig } from '../../config/parseConfig';
 import { normalizeDatabricksHostLenient } from '../../controllers/authentication/strategies/databricksStrategy';
 import { type DbPreAggregateDefinitionIn } from '../../database/entities/preAggregates';
@@ -290,6 +291,7 @@ export type ProjectServiceArguments = {
     projectCompileLogModel: ProjectCompileLogModel;
     adminNotificationService: AdminNotificationService;
     spacePermissionService: SpacePermissionService;
+    natsJobClient?: INatsJobClient;
 };
 
 export class ProjectService extends BaseService {

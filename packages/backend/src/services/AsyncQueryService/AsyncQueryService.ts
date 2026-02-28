@@ -43,6 +43,7 @@ import {
     isCustomDimension,
     isCustomSqlDimension,
     isDateItem,
+    isExploreError,
     isField,
     isJwtUser,
     isMetric,
@@ -102,6 +103,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { DownloadCsv } from '../../analytics/LightdashAnalytics';
 import { transformAndExportResults } from '../../clients/Aws/transformAndExportResults';
 import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
+import type { INatsJobClient } from '../../clients/NatsJobClient';
 import { S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import { measureTime } from '../../logging/measureTime';
 import { DownloadAuditModel } from '../../models/DownloadAuditModel';
@@ -163,6 +165,7 @@ import {
     type ExecuteAsyncUnderlyingDataQueryArgs,
     type GetAsyncQueryResultsArgs,
     type PreAggregationRoute,
+    type RunAsyncPreAggregateQueryArgs,
     type RunAsyncWarehouseQueryArgs,
     type ScheduleDownloadAsyncQueryResultsArgs,
 } from './types';
@@ -180,6 +183,21 @@ type PreAggregationRoutingDecision =
           route: PreAggregationRoute;
       };
 
+type AsyncQueryExecutionPlan =
+    | {
+          target: 'warehouse';
+          warehouseQuery: string;
+      }
+    | {
+          target: 'pre_aggregate';
+          preAggregateQuery: string;
+          warehouseQuery: string;
+      }
+    | {
+          target: 'error';
+          error: string;
+      };
+
 type AsyncQueryServiceArguments = ProjectServiceArguments & {
     queryHistoryModel: QueryHistoryModel;
     downloadAuditModel: DownloadAuditModel;
@@ -190,6 +208,7 @@ type AsyncQueryServiceArguments = ProjectServiceArguments & {
     pivotTableService: PivotTableService;
     prometheusMetrics?: PrometheusMetrics;
     schedulerClient: SchedulerClient;
+    natsJobClient: INatsJobClient;
     permissionsService: PermissionsService;
     persistentDownloadFileService: PersistentDownloadFileService;
     preAggregationDuckDbClient: PreAggregationDuckDbClient;
@@ -217,6 +236,8 @@ export class AsyncQueryService extends ProjectService {
 
     schedulerClient: SchedulerClient;
 
+    natsJobClient: INatsJobClient;
+
     permissionsService: PermissionsService;
 
     persistentDownloadFileService: PersistentDownloadFileService;
@@ -238,6 +259,7 @@ export class AsyncQueryService extends ProjectService {
         this.pivotTableService = args.pivotTableService;
         this.prometheusMetrics = args.prometheusMetrics;
         this.schedulerClient = args.schedulerClient;
+        this.natsJobClient = args.natsJobClient;
         this.permissionsService = args.permissionsService;
         this.persistentDownloadFileService = args.persistentDownloadFileService;
         this.preAggregationDuckDbClient = args.preAggregationDuckDbClient;
@@ -320,6 +342,10 @@ export class AsyncQueryService extends ProjectService {
         explore: Explore;
         context: QueryExecutionContext;
     }): PreAggregationRoutingDecision {
+        if (!this.isPreAggregationExecutionEnabled()) {
+            return { target: 'warehouse' };
+        }
+
         if (explore.type === ExploreType.PRE_AGGREGATE) {
             if (!explore.preAggregateSource) {
                 throw new UnexpectedServerError(
@@ -340,10 +366,7 @@ export class AsyncQueryService extends ProjectService {
             };
         }
 
-        if (
-            !this.lightdashConfig.preAggregates.enabled ||
-            (explore.preAggregates || []).length === 0
-        ) {
+        if ((explore.preAggregates || []).length === 0) {
             return { target: 'warehouse' };
         }
 
@@ -371,6 +394,15 @@ export class AsyncQueryService extends ProjectService {
         }
 
         return { target: 'warehouse', preAggregateMetadata };
+    }
+
+    private isPreAggregationExecutionEnabled(): boolean {
+        // Pre-aggregate execution is currently a NATS-only path. Keep the
+        // metadata and execution planners aligned on the same feature gate.
+        return (
+            this.lightdashConfig.preAggregates.enabled &&
+            this.lightdashConfig.natsWorker.enabled
+        );
     }
 
     private getResultsStorageClientForContext(
@@ -1534,12 +1566,190 @@ export class AsyncQueryService extends ProjectService {
         };
     }
 
+    private async resolveAsyncQueryExecutionPlan({
+        projectUuid,
+        warehouseQuery,
+        metricQuery,
+        dateZoom,
+        parameters,
+        preAggregationRoute,
+        fieldsMap,
+        pivotConfiguration,
+        startOfWeek,
+        userAccessControls,
+        availableParameterDefinitions,
+        queryUuid,
+    }: {
+        projectUuid: string;
+        warehouseQuery: string;
+        metricQuery: MetricQuery;
+        dateZoom: ExecuteAsyncMetricQueryArgs['dateZoom'];
+        parameters: ExecuteAsyncMetricQueryArgs['parameters'];
+        preAggregationRoute?: PreAggregationRoute;
+        fieldsMap: ItemsMap;
+        pivotConfiguration?: PivotConfiguration;
+        startOfWeek: CreateWarehouseCredentials['startOfWeek'];
+        userAccessControls?: UserAccessControls;
+        availableParameterDefinitions?: ParameterDefinitions;
+        queryUuid: string;
+    }): Promise<AsyncQueryExecutionPlan> {
+        if (!preAggregationRoute || !this.isPreAggregationExecutionEnabled()) {
+            return {
+                target: 'warehouse',
+                warehouseQuery,
+            };
+        }
+
+        const isRequiredPreAggregationRoute =
+            preAggregationRoute.mode === 'required';
+        const canResolvePreAggregation =
+            !!userAccessControls && !!availableParameterDefinitions;
+
+        if (isRequiredPreAggregationRoute && !canResolvePreAggregation) {
+            const error =
+                PreAggregationDuckDbClient.getPreAggregationResolutionErrorMessage(
+                    {
+                        route: preAggregationRoute,
+                        reason: PreAggregationDuckDbResolveReason.RESOLVE_ERROR,
+                    },
+                );
+            this.logger.warn(
+                `Required pre-aggregate resolution failed for ${queryUuid}: ${error}`,
+            );
+            return { target: 'error', error };
+        }
+
+        const preAggResolution = canResolvePreAggregation
+            ? await this.preAggregationDuckDbClient.resolve({
+                  projectUuid,
+                  metricQuery,
+                  dateZoom,
+                  parameters,
+                  preAggregationRoute,
+                  fieldsMap,
+                  pivotConfiguration,
+                  startOfWeek,
+                  userAccessControls,
+                  availableParameterDefinitions,
+              })
+            : undefined;
+
+        if (preAggResolution?.resolved) {
+            this.logger.info(
+                `DuckDB pre-agg route selected for ${queryUuid}: ${preAggregationRoute!.sourceExploreName}/${preAggregationRoute!.preAggregateName}`,
+            );
+            return {
+                target: 'pre_aggregate',
+                preAggregateQuery: preAggResolution.query,
+                warehouseQuery,
+            };
+        }
+
+        if (
+            isRequiredPreAggregationRoute &&
+            preAggResolution &&
+            !preAggResolution.resolved
+        ) {
+            const error =
+                PreAggregationDuckDbClient.getPreAggregationResolutionErrorMessage(
+                    {
+                        route: preAggregationRoute,
+                        reason: preAggResolution.reason,
+                    },
+                );
+            this.logger.warn(
+                `Required pre-aggregate resolution failed for ${queryUuid}: ${error}`,
+            );
+            return { target: 'error', error };
+        }
+
+        return {
+            target: 'warehouse',
+            warehouseQuery,
+        };
+    }
+
+    public async runAsyncPreAggregateQuery({
+        userUuid,
+        isRegisteredUser,
+        isServiceAccount,
+        projectUuid,
+        queryUuid,
+        queryTags,
+        fieldsMap,
+        cacheKey,
+        warehouseCredentialsOverrides,
+        pivotConfiguration,
+        originalColumns,
+        preAggregateQuery,
+        warehouseQuery,
+    }: RunAsyncPreAggregateQueryArgs) {
+        try {
+            const duckDbWarehouseClient =
+                this.preAggregationDuckDbClient.createExecutionWarehouseClient();
+
+            await this.runAsyncWarehouseQuery({
+                userUuid,
+                isRegisteredUser,
+                isServiceAccount,
+                projectUuid,
+                queryUuid,
+                queryTags,
+                query: preAggregateQuery,
+                fieldsMap,
+                cacheKey,
+                warehouseCredentialsOverrides,
+                pivotConfiguration,
+                originalColumns,
+                warehouseClientOverride: duckDbWarehouseClient,
+                warehouseCredentialsTypeOverride:
+                    duckDbWarehouseClient.credentials.type,
+            });
+        } catch (duckdbError) {
+            this.logger.warn(
+                `DuckDB pre-agg execution failed for ${queryUuid}: ${getErrorMessage(
+                    duckdbError,
+                )}. Falling back to warehouse`,
+            );
+            this.prometheusMetrics?.incrementPreAggregateFallback(
+                'duckdb_execution_error',
+            );
+            await this.runAsyncWarehouseQuery({
+                userUuid,
+                isRegisteredUser,
+                isServiceAccount,
+                projectUuid,
+                queryUuid,
+                queryTags,
+                query: warehouseQuery,
+                fieldsMap,
+                cacheKey,
+                warehouseCredentialsOverrides,
+                pivotConfiguration,
+                originalColumns,
+            });
+        }
+    }
+
+    public async runAsyncWarehouseQueryFromHistory(
+        queryUuid: string,
+    ): Promise<void> {
+        const args = await this.buildWarehouseQueryArgs(queryUuid);
+        await this.runAsyncWarehouseQuery(args);
+    }
+
+    public async runAsyncPreAggregateQueryFromHistory(
+        queryUuid: string,
+    ): Promise<void> {
+        const args = await this.buildPreAggregateQueryArgs(queryUuid);
+        await this.runAsyncPreAggregateQuery(args);
+    }
+
     /**
      * Runs the query the warehouse and updates the query history and cache (if cache is enabled and cache is not hit) when complete
-     * TODO: Remove once feature flag `WorkerQueryExecution` is completely removed as this is duplicated in SchedulerTask.runAsyncWarehouseQuery
      */
     public async runAsyncWarehouseQuery({
-        userId,
+        userUuid,
         isRegisteredUser,
         isServiceAccount,
         projectUuid,
@@ -1547,7 +1757,7 @@ export class AsyncQueryService extends ProjectService {
         fieldsMap,
         queryTags,
         warehouseCredentialsOverrides,
-        queryHistoryUuid,
+        queryUuid,
         cacheKey,
         pivotConfiguration,
         originalColumns,
@@ -1572,12 +1782,12 @@ export class AsyncQueryService extends ProjectService {
         let warehouseClient: WarehouseClient;
 
         const analyticsIdentity = isRegisteredUser
-            ? { userId }
+            ? { userId: userUuid }
             : { anonymousId: 'embed' };
         const queryHistoryAccount = {
             isRegisteredUser: () => isRegisteredUser,
             user: {
-                id: userId,
+                id: userUuid,
             },
         };
 
@@ -1595,7 +1805,7 @@ export class AsyncQueryService extends ProjectService {
                 const warehouseCredentials = await this.getWarehouseCredentials(
                     {
                         projectUuid,
-                        userId,
+                        userId: userUuid,
                         isRegisteredUser,
                         isServiceAccount,
                     },
@@ -1614,7 +1824,7 @@ export class AsyncQueryService extends ProjectService {
             }
 
             this.logger.info(
-                `Running query ${queryHistoryUuid} source=${executionSource}`,
+                `Running query ${queryUuid} source=${executionSource}`,
             );
 
             const fileName =
@@ -1647,7 +1857,9 @@ export class AsyncQueryService extends ProjectService {
                     totalRowCount: null,
                     createdAt,
                     expiresAt: newExpiresAt,
-                    ...(isRegisteredUser ? undefined : { externalId: userId }),
+                    ...(isRegisteredUser
+                        ? undefined
+                        : { externalId: userUuid }),
                 },
             });
             queryStartTime = Date.now();
@@ -1701,7 +1913,7 @@ export class AsyncQueryService extends ProjectService {
                 ...analyticsIdentity,
                 event: 'query.ready',
                 properties: {
-                    queryId: queryHistoryUuid,
+                    queryId: queryUuid,
                     projectId: projectUuid,
                     warehouseType: warehouseClient.credentials.type,
                     warehouseExecutionTimeMs: durationMs,
@@ -1710,7 +1922,9 @@ export class AsyncQueryService extends ProjectService {
                         Object.keys(fieldsMap).length,
                     totalRowCount: pivotDetails?.totalRows ?? totalRows,
                     isPivoted: pivotDetails !== null,
-                    ...(isRegisteredUser ? undefined : { externalId: userId }),
+                    ...(isRegisteredUser
+                        ? undefined
+                        : { externalId: userUuid }),
                 },
             });
 
@@ -1743,7 +1957,7 @@ export class AsyncQueryService extends ProjectService {
                     ...analyticsIdentity,
                     event: 'results_cache.write',
                     properties: {
-                        queryId: queryHistoryUuid,
+                        queryId: queryUuid,
                         projectId: projectUuid,
                         cacheKey,
                         totalRowCount: pivotDetails?.totalRows ?? totalRows,
@@ -1751,13 +1965,13 @@ export class AsyncQueryService extends ProjectService {
                         isPivoted: pivotDetails !== null,
                         ...(isRegisteredUser
                             ? undefined
-                            : { externalId: userId }),
+                            : { externalId: userUuid }),
                     },
                 });
             }
 
             await this.queryHistoryModel.update(
-                queryHistoryUuid,
+                queryUuid,
                 projectUuid,
                 {
                     warehouse_query_id: queryId,
@@ -1805,14 +2019,16 @@ export class AsyncQueryService extends ProjectService {
                 ...analyticsIdentity,
                 event: 'query.error',
                 properties: {
-                    queryId: queryHistoryUuid,
+                    queryId: queryUuid,
                     projectId: projectUuid,
                     warehouseType: warehouseCredentialsType,
-                    ...(isRegisteredUser ? undefined : { externalId: userId }),
+                    ...(isRegisteredUser
+                        ? undefined
+                        : { externalId: userUuid }),
                 },
             });
             await this.queryHistoryModel.update(
-                queryHistoryUuid,
+                queryUuid,
                 projectUuid,
                 {
                     status: QueryHistoryStatus.ERROR,
@@ -1841,7 +2057,7 @@ export class AsyncQueryService extends ProjectService {
             await stream?.close();
         } catch (e) {
             await this.queryHistoryModel.update(
-                queryHistoryUuid,
+                queryUuid,
                 projectUuid,
                 {
                     status: QueryHistoryStatus.ERROR,
@@ -1852,6 +2068,211 @@ export class AsyncQueryService extends ProjectService {
 
             // Throw the error again so that it can be added to the span
             throw e;
+        }
+    }
+
+    private async buildWarehouseQueryArgs(
+        queryUuid: string,
+    ): Promise<RunAsyncWarehouseQueryArgs> {
+        const query = await this.getQueryHistoryFromHistory(queryUuid);
+        const actor = AsyncQueryService.getQueryHistoryActor(query);
+        const queryTags = AsyncQueryService.buildQueryTags(query);
+        const warehouseCredentialsOverrides =
+            await this.deriveWarehouseCredentialsOverrides(query);
+
+        return {
+            projectUuid: query.projectUuid ?? '',
+            userUuid: actor.userUuid,
+            queryUuid: query.queryUuid,
+            isRegisteredUser: actor.isRegisteredUser,
+            isServiceAccount: actor.isServiceAccount,
+            queryTags,
+            fieldsMap: query.fields,
+            cacheKey: query.cacheKey,
+            warehouseCredentialsOverrides,
+            pivotConfiguration: query.pivotConfiguration ?? undefined,
+            originalColumns: query.originalColumns ?? undefined,
+            query: query.compiledSql,
+        };
+    }
+
+    private async buildPreAggregateQueryArgs(
+        queryUuid: string,
+    ): Promise<RunAsyncPreAggregateQueryArgs> {
+        const query = await this.getQueryHistoryFromHistory(queryUuid);
+
+        if (!query.preAggregateCompiledSql) {
+            throw new NotFoundError(
+                `Pre-aggregate query not found in query_history for ${queryUuid}`,
+            );
+        }
+
+        const actor = AsyncQueryService.getQueryHistoryActor(query);
+        const queryTags = AsyncQueryService.buildQueryTags(query);
+        const warehouseCredentialsOverrides =
+            await this.deriveWarehouseCredentialsOverrides(query);
+
+        return {
+            projectUuid: query.projectUuid ?? '',
+            userUuid: actor.userUuid,
+            queryUuid: query.queryUuid,
+            isRegisteredUser: actor.isRegisteredUser,
+            isServiceAccount: actor.isServiceAccount,
+            queryTags,
+            fieldsMap: query.fields,
+            cacheKey: query.cacheKey,
+            warehouseCredentialsOverrides,
+            pivotConfiguration: query.pivotConfiguration ?? undefined,
+            originalColumns: query.originalColumns ?? undefined,
+            preAggregateQuery: query.preAggregateCompiledSql,
+            warehouseQuery: query.compiledSql,
+        };
+    }
+
+    private async getQueryHistoryFromHistory(
+        queryUuid: string,
+    ): Promise<QueryHistory> {
+        const query = await this.queryHistoryModel.getByQueryUuid(queryUuid);
+
+        if (!query) {
+            throw new NotFoundError(
+                `Query history not found for query ${queryUuid}`,
+            );
+        }
+
+        return query;
+    }
+
+    private static getQueryHistoryActor(query: QueryHistory): {
+        userUuid: string;
+        isRegisteredUser: boolean;
+        isServiceAccount: boolean;
+    } {
+        switch (query.createdByActorType) {
+            case 'jwt':
+                if (!query.createdByAccount) {
+                    throw new NotFoundError(
+                        `JWT actor identity not found in query_history for ${query.queryUuid}`,
+                    );
+                }
+
+                return {
+                    userUuid: query.createdByAccount,
+                    isRegisteredUser: false,
+                    isServiceAccount: false,
+                };
+            case 'service-account':
+                if (!query.createdByUserUuid) {
+                    throw new NotFoundError(
+                        `Registered actor identity not found in query_history for ${query.queryUuid}`,
+                    );
+                }
+
+                return {
+                    userUuid: query.createdByUserUuid,
+                    isRegisteredUser: true,
+                    isServiceAccount: true,
+                };
+            case 'session':
+            case 'pat':
+            case 'oauth':
+                if (!query.createdByUserUuid) {
+                    throw new NotFoundError(
+                        `Registered actor identity not found in query_history for ${query.queryUuid}`,
+                    );
+                }
+
+                return {
+                    userUuid: query.createdByUserUuid,
+                    isRegisteredUser: true,
+                    isServiceAccount: false,
+                };
+            case null:
+                throw new NotFoundError(
+                    `Actor type not found in query_history for ${query.queryUuid}`,
+                );
+            default:
+                return assertUnreachable(
+                    query.createdByActorType,
+                    'Unknown query actor type',
+                );
+        }
+    }
+
+    private static buildQueryTags(query: QueryHistory): RunQueryTags {
+        let actorTags: Record<string, string>;
+        if (query.createdByActorType === 'jwt') {
+            if (!query.createdByAccount) {
+                throw new NotFoundError(
+                    `JWT actor identity not found in query_history for ${query.queryUuid}`,
+                );
+            }
+
+            actorTags = {
+                embed: 'true',
+                external_id: query.createdByAccount,
+            };
+        } else if (query.createdByUserUuid) {
+            actorTags = { user_uuid: query.createdByUserUuid };
+        } else {
+            throw new NotFoundError(
+                `Registered actor identity not found in query_history for ${query.queryUuid}`,
+            );
+        }
+
+        const params = query.requestParameters;
+        const chartUuid =
+            params && 'chartUuid' in params ? params.chartUuid : undefined;
+        const dashboardUuid =
+            params && 'dashboardUuid' in params
+                ? params.dashboardUuid
+                : undefined;
+
+        return {
+            ...actorTags,
+            organization_uuid: query.organizationUuid,
+            project_uuid: query.projectUuid ?? undefined,
+            explore_name: query.metricQuery.exploreName,
+            query_context: query.context,
+            ...(chartUuid ? { chart_uuid: chartUuid } : {}),
+            ...(dashboardUuid ? { dashboard_uuid: dashboardUuid } : {}),
+        };
+    }
+
+    private async deriveWarehouseCredentialsOverrides(
+        query: QueryHistory,
+    ): Promise<
+        | { snowflakeVirtualWarehouse?: string; databricksCompute?: string }
+        | undefined
+    > {
+        const { exploreName } = query.metricQuery;
+        if (!exploreName || !query.projectUuid) {
+            return undefined;
+        }
+
+        try {
+            const explore = await this.projectModel.getExploreFromCache(
+                query.projectUuid,
+                exploreName,
+            );
+
+            if (isExploreError(explore)) {
+                return undefined;
+            }
+
+            if (!explore.warehouse && !explore.databricksCompute) {
+                return undefined;
+            }
+
+            return {
+                snowflakeVirtualWarehouse: explore.warehouse,
+                databricksCompute: explore.databricksCompute,
+            };
+        } catch {
+            this.logger.warn(
+                `Could not derive warehouse credentials overrides for explore "${exploreName}" in project "${query.projectUuid}"`,
+            );
+            return undefined;
         }
     }
 
@@ -2258,171 +2679,135 @@ export class AsyncQueryService extends ProjectService {
                         } satisfies ExecuteAsyncQueryReturn;
                     }
 
-                    this.logger.info(
-                        `Executing query ${queryHistoryUuid} in the main loop`,
-                    );
+                    const executionPlan =
+                        await this.resolveAsyncQueryExecutionPlan({
+                            projectUuid,
+                            warehouseQuery: query,
+                            metricQuery,
+                            dateZoom,
+                            parameters,
+                            preAggregationRoute,
+                            fieldsMap,
+                            pivotConfiguration,
+                            startOfWeek: warehouseCredentials.startOfWeek,
+                            userAccessControls,
+                            availableParameterDefinitions,
+                            queryUuid: queryHistoryUuid,
+                        });
+
+                    if (executionPlan.target === 'error') {
+                        await this.queryHistoryModel.update(
+                            queryHistoryUuid,
+                            projectUuid,
+                            {
+                                status: QueryHistoryStatus.ERROR,
+                                error: executionPlan.error,
+                            },
+                            account,
+                        );
+
+                        return {
+                            queryUuid: queryHistoryUuid,
+                            cacheMetadata: {
+                                cacheHit: false,
+                            },
+                        } satisfies ExecuteAsyncQueryReturn;
+                    }
 
                     const warehouseArgs: RunAsyncWarehouseQueryArgs = {
-                        userId: account.user.id,
+                        userUuid: account.user.id,
                         isRegisteredUser: account.isRegisteredUser(),
                         isServiceAccount: account.isServiceAccount(),
                         projectUuid,
-                        query,
+                        query: executionPlan.warehouseQuery,
                         fieldsMap,
                         queryTags,
                         warehouseCredentialsOverrides,
-                        queryHistoryUuid,
+                        queryUuid: queryHistoryUuid,
                         pivotConfiguration,
                         cacheKey,
                         originalColumns,
                     };
 
-                    void (async () => {
-                        if (!preAggregationRoute) {
-                            await this.runAsyncWarehouseQuery(warehouseArgs);
-                            return;
-                        }
+                    if (this.lightdashConfig.natsWorker.enabled) {
+                        this.logger.info(
+                            `Enqueueing query ${queryHistoryUuid} on NATS JetStream (${executionPlan.target})`,
+                        );
 
-                        const isRequiredPreAggregationRoute =
-                            preAggregationRoute.mode === 'required';
-                        const isPreAggregationEnabled =
-                            this.lightdashConfig.preAggregates.enabled;
-                        const canResolvePreAggregation =
-                            isPreAggregationEnabled &&
-                            !!userAccessControls &&
-                            !!availableParameterDefinitions;
+                        try {
+                            const natsPayload = {
+                                queryUuid: queryHistoryUuid,
+                            };
 
-                        const updateRequiredPreAggregationError = async (
-                            reason: PreAggregationDuckDbResolveReason,
-                        ) =>
-                            this.queryHistoryModel.update(
+                            // Store pre-aggregate SQL in query_history before dispatching
+                            if (executionPlan.target === 'pre_aggregate') {
+                                await this.queryHistoryModel.update(
+                                    queryHistoryUuid,
+                                    projectUuid,
+                                    {
+                                        pre_aggregate_compiled_sql:
+                                            executionPlan.preAggregateQuery,
+                                    },
+                                    account,
+                                );
+                            }
+
+                            const { jobId } =
+                                executionPlan.target === 'pre_aggregate'
+                                    ? await this.natsJobClient.enqueuePreAggregateQuery(
+                                          natsPayload,
+                                      )
+                                    : await this.natsJobClient.enqueueWarehouseQuery(
+                                          natsPayload,
+                                      );
+
+                            this.logger.info(
+                                `Enqueued query ${queryHistoryUuid} on NATS with job ${jobId}`,
+                            );
+                        } catch (e) {
+                            const errorMessage = getErrorMessage(e);
+                            this.logger.error(
+                                `Failed to enqueue async query ${queryHistoryUuid} on NATS`,
+                                e,
+                            );
+
+                            await this.queryHistoryModel.update(
                                 queryHistoryUuid,
                                 projectUuid,
                                 {
                                     status: QueryHistoryStatus.ERROR,
-                                    error: PreAggregationDuckDbClient.getPreAggregationResolutionErrorMessage(
-                                        {
-                                            route: preAggregationRoute,
-                                            reason,
-                                        },
-                                    ),
+                                    error: `Failed to enqueue ${executionPlan.target} query: ${errorMessage}`,
                                 },
                                 account,
                             );
 
-                        const handlePreAggregationMiss = async (
-                            reason: PreAggregationDuckDbResolveReason,
-                        ) => {
-                            if (isRequiredPreAggregationRoute) {
-                                await updateRequiredPreAggregationError(reason);
-                                return;
-                            }
-
-                            this.prometheusMetrics?.incrementPreAggregateFallback(
-                                reason,
+                            this.prometheusMetrics?.incrementQueryStatus(
+                                QueryHistoryStatus.ERROR,
+                                warehouseCredentialsType,
+                                queryTags.query_context,
                             );
-                            await this.runAsyncWarehouseQuery(warehouseArgs);
-                        };
 
-                        if (!isPreAggregationEnabled) {
-                            await handlePreAggregationMiss(
-                                PreAggregationDuckDbResolveReason.PRE_AGGREGATES_DISABLED,
-                            );
-                            return;
+                            return {
+                                queryUuid: queryHistoryUuid,
+                                cacheMetadata: {
+                                    cacheHit: false,
+                                },
+                            } satisfies ExecuteAsyncQueryReturn;
                         }
-
-                        if (!canResolvePreAggregation) {
-                            await handlePreAggregationMiss(
-                                PreAggregationDuckDbResolveReason.RESOLVE_ERROR,
-                            );
-                            return;
-                        }
-
-                        const preAggResolution =
-                            await this.preAggregationDuckDbClient.resolve({
-                                projectUuid,
-                                metricQuery,
-                                dateZoom,
-                                parameters,
-                                preAggregationRoute,
-                                fieldsMap,
-                                pivotConfiguration,
-                                startOfWeek: warehouseCredentials.startOfWeek,
-                                userAccessControls,
-                                availableParameterDefinitions,
-                            });
-
-                        if (!preAggResolution?.resolved) {
-                            span.setAttribute(
-                                'lightdash.preAggregate.resolved',
-                                false,
-                            );
-                            span.setAttribute(
-                                'lightdash.preAggregate.resolveReason',
-                                preAggResolution?.reason ?? 'resolve_error',
-                            );
-                            await handlePreAggregationMiss(
-                                preAggResolution?.reason ??
-                                    PreAggregationDuckDbResolveReason.RESOLVE_ERROR,
-                            );
-                            return;
-                        }
-
-                        span.setAttribute(
-                            'lightdash.preAggregate.resolved',
-                            true,
-                        );
-                        span.setAttribute(
-                            'lightdash.executionSource',
-                            'pre_aggregate_duckdb',
-                        );
-
+                    } else {
                         this.logger.info(
-                            `DuckDB pre-agg route selected for ${queryHistoryUuid}: ${preAggregationRoute.sourceExploreName}/${preAggregationRoute.preAggregateName}`,
+                            `Running query ${queryHistoryUuid} inline (fire-and-forget)`,
                         );
 
-                        try {
-                            await this.runAsyncWarehouseQuery({
-                                ...warehouseArgs,
-                                query: preAggResolution.query,
-                                warehouseClientOverride:
-                                    preAggResolution.warehouseClient,
-                                warehouseCredentialsTypeOverride:
-                                    preAggResolution.warehouseClient.credentials
-                                        .type,
-                            });
-                        } catch (duckdbError) {
-                            if (isRequiredPreAggregationRoute) {
-                                this.logger.warn(
-                                    `DuckDB pre-agg execution failed for ${queryHistoryUuid}: ${getErrorMessage(duckdbError)}`,
-                                );
-                                return;
-                            }
-
-                            this.logger.warn(
-                                `DuckDB pre-agg execution failed for ${queryHistoryUuid}: ${getErrorMessage(duckdbError)}. Falling back to warehouse`,
-                            );
-                            span.setAttribute(
-                                'lightdash.preAggregate.fallback',
-                                true,
-                            );
-                            span.setAttribute(
-                                'lightdash.executionSource',
-                                'warehouse_after_duckdb_fallback',
-                            );
-                            this.prometheusMetrics?.incrementPreAggregateFallback(
-                                'duckdb_execution_error',
-                            );
-                            await this.runAsyncWarehouseQuery(warehouseArgs);
-                        }
-                    })().catch((e) => {
-                        // There's no point in throwing the error here as this promise is called with void
-                        // Set the status of the span to ERROR
-                        span.setStatus({
-                            code: 2, // ERROR
-                            message: getErrorMessage(e),
-                        });
-                    });
+                        void this.runAsyncWarehouseQuery(warehouseArgs).catch(
+                            (e) => {
+                                span.setStatus({
+                                    code: 2, // ERROR
+                                    message: getErrorMessage(e),
+                                });
+                            },
+                        );
+                    }
 
                     return {
                         queryUuid: queryHistoryUuid,
