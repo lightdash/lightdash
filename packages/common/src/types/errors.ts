@@ -342,6 +342,20 @@ export class AlreadyExistsError extends LightdashError {
     }
 }
 
+export class ConflictError extends LightdashError {
+    constructor(
+        message: string = 'Resource has been modified by another user',
+        data: { [key: string]: AnyType } = {},
+    ) {
+        super({
+            message,
+            name: 'ConflictError',
+            statusCode: 409,
+            data,
+        });
+    }
+}
+
 export class MissingConfigError extends LightdashError {
     constructor(message: string) {
         super({
