@@ -191,6 +191,6 @@
         "knex-mock-client": "^1.11.0",
         "nodemon": "^3.1.9",
         "ts-node": "^10.9.2",
-        "typescript": "5.5.4"
+        "typescript": "6.0.0-beta"
     }
 }
