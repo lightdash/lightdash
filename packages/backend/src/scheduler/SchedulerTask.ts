@@ -101,6 +101,9 @@ import {
     type MsTeamsNotificationPayload,
     type PartialFailure,
     type PivotConfiguration,
+    type RunAsyncPreAggregateQueryPayload,
+    type RunAsyncWarehouseQueryPayload,
+    type RunQueryTags,
     type SchedulerIndexCatalogJobPayload,
     type SlackBatchNotificationPayload,
 } from '@lightdash/common';
@@ -4094,6 +4097,54 @@ export default class SchedulerTask {
                     account,
                     ...payload,
                 });
+            },
+        );
+    }
+
+    protected async runAsyncPreAggregateQuery(
+        jobId: string,
+        scheduledTime: Date,
+        payload: RunAsyncPreAggregateQueryPayload,
+    ) {
+        await this.logWrapper(
+            {
+                task: SCHEDULER_TASKS.RUN_ASYNC_PRE_AGGREGATE_QUERY,
+                jobId,
+                scheduledTime,
+                details: {
+                    createdByUserUuid: payload.userUuid,
+                    queryUuid: payload.queryUuid,
+                    projectUuid: payload.projectUuid,
+                    organizationUuid: payload.organizationUuid,
+                },
+            },
+            async () => {
+                await this.asyncQueryService.runAsyncPreAggregateQuery(payload);
+                return undefined;
+            },
+        );
+    }
+
+    protected async runAsyncWarehouseQuery(
+        jobId: string,
+        scheduledTime: Date,
+        payload: RunAsyncWarehouseQueryPayload,
+    ) {
+        await this.logWrapper(
+            {
+                task: SCHEDULER_TASKS.RUN_ASYNC_WAREHOUSE_QUERY,
+                jobId,
+                scheduledTime,
+                details: {
+                    createdByUserUuid: payload.userUuid,
+                    queryUuid: payload.queryUuid,
+                    projectUuid: payload.projectUuid,
+                    organizationUuid: payload.organizationUuid,
+                },
+            },
+            async () => {
+                await this.asyncQueryService.runAsyncWarehouseQuery(payload);
+                return undefined;
             },
         );
     }

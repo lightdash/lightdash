@@ -918,6 +918,10 @@ export type LightdashConfig = {
         jobTimeout: number;
         screenshotTimeout?: number;
         tasks: Array<SchedulerTaskName>;
+        asyncQueryWorkers: {
+            preAggregatesEnabled: boolean;
+            warehouseEnabled: boolean;
+        };
         queryHistory: {
             cleanup: {
                 enabled: boolean;
@@ -1769,6 +1773,14 @@ export const parseConfig = (): LightdashConfig => {
                 ? parseInt(process.env.SCHEDULER_SCREENSHOT_TIMEOUT, 10)
                 : undefined,
             tasks: parseAndSanitizeSchedulerTasks(),
+            asyncQueryWorkers: {
+                preAggregatesEnabled:
+                    process.env.SCHEDULER_PRE_AGGREGATE_QUERY_WORKER_ENABLED ===
+                    'true',
+                warehouseEnabled:
+                    process.env.SCHEDULER_WAREHOUSE_QUERY_WORKER_ENABLED ===
+                    'true',
+            },
             queryHistory: {
                 cleanup: {
                     enabled:
