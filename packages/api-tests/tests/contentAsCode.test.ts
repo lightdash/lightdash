@@ -6,7 +6,6 @@ import {
     SqlChartAsCode,
 } from '@lightdash/common';
 import * as fs from 'fs';
-// @ts-expect-error - js-yaml types not in e2e package.json devDependencies
 import * as yaml from 'js-yaml';
 import * as path from 'path';
 import { beforeAll, describe, expect, it } from 'vitest';
@@ -16,7 +15,7 @@ import { login } from '../helpers/auth';
 const projectUuid = SEED_PROJECT.project_uuid;
 
 // Load YAML fixtures
-const fixturesDir = path.resolve(__dirname, '../../cypress/support');
+const fixturesDir = path.resolve(__dirname, '../fixtures');
 
 function loadYamlFixture<T>(filename: string): T {
     const filePath = path.join(fixturesDir, filename);
