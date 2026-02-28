@@ -152,6 +152,7 @@ export const AthenaDefaultValues: CreateAthenaCredentials = {
     s3StagingDir: '',
     accessKeyId: '',
     secretAccessKey: '',
+    accessibleSchemas: [],
     threads: 1,
     numRetries: 5,
     startOfWeek: undefined,

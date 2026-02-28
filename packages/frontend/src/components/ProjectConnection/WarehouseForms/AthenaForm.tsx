@@ -26,7 +26,7 @@ export const AthenaSchemaInput: FC<{
         <TextInput
             name="warehouse.schema"
             label="Schema"
-            description="This is the schema name (database in Athena)."
+            description="This is the default schema name (database in Athena)."
             required
             {...form.getInputProps('warehouse.schema')}
             disabled={disabled}
@@ -125,10 +125,47 @@ const AthenaForm: FC<{
                 <TextInput
                     name="warehouse.schema"
                     label="Database"
-                    description="This is the Athena database name (also known as schema)."
+                    description="This is the default Athena database name (also known as schema)."
                     required
                     {...form.getInputProps('warehouse.schema')}
                     disabled={disabled}
+                />
+                <TextInput
+                    name="warehouse.accessibleSchemas"
+                    label="Additional databases"
+                    description="Comma-separated list of additional Athena databases to explore. Supports wildcards: * (any characters), ? (single character). E.g. 'sales_*' or '*'."
+                    placeholder="db2, db3"
+                    disabled={disabled}
+                    value={
+                        Array.isArray(warehouse.accessibleSchemas)
+                            ? warehouse.accessibleSchemas.join(', ')
+                            : ''
+                    }
+                    onChange={(e) => {
+                        const val = e.currentTarget.value;
+                        const schemas = val
+                            .split(',')
+                            .map((s: string) => s.trim())
+                            .filter((s: string) => s !== '');
+                        form.setFieldValue(
+                            'warehouse.accessibleSchemas',
+                            schemas,
+                        );
+                        const invalid = schemas.filter(
+                            (s: string) => !/^[a-zA-Z0-9_*?-]+$/.test(s),
+                        );
+                        if (invalid.length > 0) {
+                            form.setFieldError(
+                                'warehouse.accessibleSchemas',
+                                `Invalid pattern: ${invalid.join(', ')}. Only alphanumeric characters, underscores, hyphens, *, and ? are allowed.`,
+                            );
+                        } else {
+                            form.clearFieldError(
+                                'warehouse.accessibleSchemas',
+                            );
+                        }
+                    }}
+                    error={form.errors['warehouse.accessibleSchemas']}
                 />
                 <TextInput
                     name="warehouse.s3StagingDir"
