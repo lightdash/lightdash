@@ -3,20 +3,15 @@
     "compilerOptions": {
         "composite": true,
         "target": "ESNext",
-        "lib": [
-            "dom",
-            "dom.iterable",
-            "esnext",
-        ],
+        "lib": ["dom", "dom.iterable", "esnext"],
         "module": "ESNext",
-        "moduleResolution": "node",
+        "ignoreDeprecations": "6.0",
+        "moduleResolution": "node10",
         "jsx": "react-jsx",
         "types": [
             "vite/client",
             "./vite-env.d.ts"
         ]
     },
-    "include": [
-        "src"
-    ],
+    "include": ["src"]
 }
