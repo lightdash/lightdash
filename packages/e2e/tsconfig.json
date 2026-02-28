@@ -2,22 +2,17 @@
     "extends": "./../../tsconfig.json",
     "compilerOptions": {
         "composite": true,
-        "target": "es5",
-        "lib": [
-            "es5",
-            "dom"
-        ],
+        "target": "ES2020",
+        "lib": ["ES2020", "dom"],
         "types": [
             "cypress",
             "@testing-library/cypress",
             "node",
             "cypress-file-upload"
         ],
-        "strictNullChecks": true, /* Enable strict null checks. */
-        "esModuleInterop": true,
-        "resolveJsonModule": true,
+        "ignoreDeprecations": "6.0",
+        "moduleResolution": "node10",
+        "resolveJsonModule": true
     },
-    "include": [
-        "**/*.ts"
-    ]
+    "include": ["**/*.ts"]
 }
