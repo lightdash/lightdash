@@ -25,6 +25,7 @@ import Login from './pages/Login';
 import MetricsCatalog from './pages/MetricsCatalog';
 import MinimalDashboard from './pages/MinimalDashboard';
 import MinimalSavedExplorer from './pages/MinimalSavedExplorer';
+import OnboardingWizard from './pages/OnboardingWizard';
 import PasswordRecovery from './pages/PasswordRecovery';
 import PasswordReset from './pages/PasswordReset';
 import Projects from './pages/Projects';
@@ -526,6 +527,17 @@ const PRIVATE_ROUTES: RouteObject[] = [
                         <NavBar />
                         <TrackPage name={PageName.SHARE}>
                             <ShareRedirect />
+                        </TrackPage>
+                    </>
+                ),
+            },
+            {
+                path: '/onboarding',
+                element: (
+                    <>
+                        <NavBar />
+                        <TrackPage name={PageName.ONBOARDING_WIZARD}>
+                            <OnboardingWizard />
                         </TrackPage>
                     </>
                 ),
