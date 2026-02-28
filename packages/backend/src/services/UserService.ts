@@ -2188,7 +2188,7 @@ export class UserService extends BaseService {
                 (member) => member.role === 'admin',
             );
             if (adminUser) {
-                return await this.userModel.findSessionUserAndOrgByUuid(
+                return this.userModel.findSessionUserAndOrgByUuid(
                     adminUser.userUuid,
                     organizationUuid,
                 );

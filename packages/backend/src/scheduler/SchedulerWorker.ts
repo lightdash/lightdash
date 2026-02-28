@@ -122,7 +122,7 @@ export class SchedulerWorker extends SchedulerTask {
 
         this.isRunning = true;
         // Don't await this! This promise will never resolve, as the worker will keep running until the process is killed
-        this.runner.promise.finally(() => {
+        void this.runner.promise.finally(() => {
             this.isRunning = false;
         });
     }
