@@ -604,6 +604,40 @@ describe('Query builder', () => {
         );
     });
 
+    it('buildQuery with row() table calculation should order by custom bin _order column', () => {
+        const { query } = buildQuery({
+            explore: EXPLORE,
+            compiledMetricQuery: {
+                ...METRIC_QUERY_WITH_CUSTOM_DIMENSION,
+                sorts: [{ fieldId: 'age_range', descending: false }],
+                tableCalculations: [
+                    {
+                        name: 'row_num',
+                        displayName: '',
+                        sql: 'row()',
+                    },
+                ],
+                compiledTableCalculations: [
+                    {
+                        name: 'row_num',
+                        displayName: '',
+                        sql: 'row()',
+                        compiledSql: 'row()',
+                        dependsOn: [],
+                    },
+                ],
+            },
+            warehouseSqlBuilder: bigqueryClientMock,
+            userAttributes: {},
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        expect(query).toContain(
+            'ROW_NUMBER() OVER (ORDER BY `age_range_order`) AS `row_num`',
+        );
+    });
+
     it('buildQuery with custom dimension bin width on postgres', () => {
         // Concat function is different in postgres/redshift
         expect(
