@@ -742,8 +742,8 @@ export class SchedulerClient {
                     scheduler.schedulerUuid
                 }. Job IDs: ${jobs.map((j) => j.jobId)}`,
             );
-            jobs.map(async ({ jobId, date }) => {
-                await this.schedulerModel.logSchedulerJob({
+            void jobs.map(({ jobId, date }) =>
+                this.schedulerModel.logSchedulerJob({
                     task: SCHEDULER_TASKS.HANDLE_SCHEDULED_DELIVERY,
                     schedulerUuid: scheduler.schedulerUuid,
                     jobGroup: jobId,
@@ -755,8 +755,8 @@ export class SchedulerClient {
                         organizationUuid: traceProperties.organizationUuid,
                         createdByUserUuid: scheduler.createdBy,
                     },
-                });
-            });
+                }),
+            );
         } catch (err: AnyType) {
             Logger.error(
                 `Unable to schedule job for scheduler ${scheduler.schedulerUuid}`,

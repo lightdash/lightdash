@@ -88,7 +88,6 @@ export enum FeatureFlags {
      * Enable default personal spaces for project members
      */
     DefaultUserSpaces = 'default-user-spaces',
-
 }
 
 export type FeatureFlag = {
