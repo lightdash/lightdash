@@ -1,0 +1,25 @@
+{
+    "name": "api-tests",
+    "version": "0.2544.1",
+    "private": true,
+    "license": "MIT",
+    "scripts": {
+        "linter": "eslint -c .eslintrc.js --ignore-path ./../../.gitignore",
+        "formatter": "oxfmt",
+        "lint": "pnpm run linter .",
+        "fix-lint": "pnpm run linter . --fix",
+        "format": "oxfmt . --check",
+        "fix-format": "oxfmt .",
+        "test:api": "vitest run --config vitest.config.ts",
+        "test:api:watch": "vitest watch --config vitest.config.ts"
+    },
+    "dependencies": {
+        "@lightdash/common": "workspace:*",
+        "js-yaml": "^4.1.1"
+    },
+    "devDependencies": {
+        "@types/js-yaml": "^4.0.9",
+        "typescript": "6.0.0-beta",
+        "vitest": "^3.0.5"
+    }
+}
