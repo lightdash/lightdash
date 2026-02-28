@@ -190,6 +190,7 @@
         "jest-fetch-mock": "^3.0.3",
         "knex-mock-client": "^1.11.0",
         "nodemon": "^3.1.9",
-        "ts-node": "^10.9.2"
+        "ts-node": "^10.9.2",
+        "typescript": "5.5.4"
     }
 }

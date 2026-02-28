@@ -46,6 +46,7 @@
     "@types/pg": "^8.11.10",
     "@types/pg-cursor": "^2.7.0",
     "@types/ssh2": "^1.11.15",
-    "copyfiles": "^2.4.1"
+    "copyfiles": "^2.4.1",
+    "typescript": "6.0.0-beta"
   }
 }
