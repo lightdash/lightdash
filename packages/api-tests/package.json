@@ -10,6 +10,7 @@
         "fix-lint": "pnpm run linter . --fix",
         "format": "oxfmt . --check",
         "fix-format": "oxfmt .",
+        "typecheck": "tsc --project tsconfig.json --noEmit",
         "test:api": "vitest run --config vitest.config.ts",
         "test:api:watch": "vitest watch --config vitest.config.ts"
     },

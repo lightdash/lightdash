@@ -12,7 +12,9 @@
         ],
         "ignoreDeprecations": "6.0",
         "moduleResolution": "node10",
-        "resolveJsonModule": true
+        "resolveJsonModule": true,
+        "skipLibCheck": true,
+        "isolatedModules": true
     },
     "include": ["**/*.ts"]
 }

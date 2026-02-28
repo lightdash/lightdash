@@ -1420,7 +1420,7 @@ export class UnfurlService extends BaseService {
 
         Logger.debug(`Got link_shared slack event ${event.message_ts}`);
 
-        event.links.map(async (l) => {
+        void event.links.map(async (l) => {
             const eventUserId = context.botUserId;
 
             try {

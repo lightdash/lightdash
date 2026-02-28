@@ -37,7 +37,7 @@ export const cliMocks = {
 export const cliMockImplementation = {
     success: async () => cliMocks.success,
     error: async () => {
-        // eslint-disable-next-line @typescript-eslint/no-throw-literal
+        // eslint-disable-next-line @typescript-eslint/only-throw-error, @typescript-eslint/no-throw-literal
         throw cliMocks.error;
     },
 };

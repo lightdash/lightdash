@@ -1,7 +1,7 @@
 module.exports = {
+    ignorePatterns: ['.eslintrc.js', 'package.json'],
     parserOptions: {
         project: './tsconfig.json',
-        createDefaultProgram: true,
     },
     extends: [
         './../../.eslintrc.js',

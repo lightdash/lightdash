@@ -628,8 +628,7 @@ describe('Roles API Tests', () => {
             );
             const beforeAssignment = beforeResp.body.results.find(
                 (a: AnyType) =>
-                    a.assigneeType === 'user' &&
-                    a.assigneeId === testUserUuid,
+                    a.assigneeType === 'user' && a.assigneeId === testUserUuid,
             );
             expect(beforeAssignment).toBeDefined();
             expect(beforeAssignment!.roleId).toBe(customRoleUuid);
@@ -650,8 +649,7 @@ describe('Roles API Tests', () => {
             );
             const afterAssignment = afterResp.body.results.find(
                 (a: AnyType) =>
-                    a.assigneeType === 'user' &&
-                    a.assigneeId === testUserUuid,
+                    a.assigneeType === 'user' && a.assigneeId === testUserUuid,
             );
             expect(afterAssignment).toBeDefined();
             // The role should now be the system role, not the custom role UUID
