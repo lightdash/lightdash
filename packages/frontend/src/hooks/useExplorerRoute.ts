@@ -210,6 +210,31 @@ export const useExplorerRoute = () => {
     }, [pathParams.tableId, dispatch]);
 };
 
+/**
+ * Hook to perform optimistic URL updates before Redux state changes.
+ * This prevents race conditions where component remounting occurs before URL sync completes.
+ */
+export const useOptimisticExplorerUrlUpdate = () => {
+    const navigate = useNavigate();
+    const pathParams = useParams<{
+        projectUuid: string;
+        tableId: string | undefined;
+    }>();
+    const unsavedChartVersion = useExplorerSelector(selectUnsavedChartVersion);
+
+    return (updatedChartVersion: CreateSavedChartVersion) => {
+        if (pathParams.projectUuid && pathParams.tableId) {
+            void navigate(
+                getExplorerUrlFromCreateSavedChartVersion(
+                    pathParams.projectUuid,
+                    updatedChartVersion,
+                ),
+                { replace: true },
+            );
+        }
+    };
+};
+
 export const useExplorerUrlState = (): ExplorerReduceState | undefined => {
     const { showToastError } = useToaster();
     const { search } = useLocation();
