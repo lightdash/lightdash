@@ -283,7 +283,7 @@ type CliLogin = BaseTrack & {
 type CliContentAsCode = BaseTrack &
     (
         | {
-              event: 'download.started' | 'upload.started';
+              event: 'download.started' | 'upload.started' | 'delete.started';
               properties: {
                   userId?: string;
                   organizationId?: string;
@@ -302,7 +302,20 @@ type CliContentAsCode = BaseTrack &
               };
           }
         | {
-              event: 'download.error' | 'upload.error';
+              event: 'delete.completed';
+              properties: {
+                  userId?: string;
+                  organizationId?: string;
+                  projectId: string;
+                  chartsNum?: number;
+                  dashboardsNum?: number;
+                  deletedNum: number;
+                  errorsNum: number;
+                  timeToCompleted: number; // in seconds
+              };
+          }
+        | {
+              event: 'download.error' | 'upload.error' | 'delete.error';
               properties: {
                   userId?: string;
                   organizationId?: string;
