@@ -164,6 +164,8 @@ const getMockedAsyncQueryService = (
         } as unknown as EmailModel,
         schedulerClient: {
             scheduleTask: jest.fn(),
+            runAsyncPreAggregateQuery: jest.fn(),
+            runAsyncWarehouseQuery: jest.fn(),
         } as unknown as SchedulerClient,
         downloadFileModel: {} as unknown as DownloadFileModel,
         fileStorageClient: {} as FileStorageClient,
@@ -451,11 +453,11 @@ describe('AsyncQueryService', () => {
             // THEN: runAsyncWarehouseQuery IS called with correct parameters
             expect(runAsyncWarehouseQuerySpy).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    userId: sessionAccount.user.id,
+                    userUuid: sessionAccount.user.id,
                     isRegisteredUser: sessionAccount.isRegisteredUser(),
                     projectUuid,
                     query: 'SELECT * FROM test',
-                    queryHistoryUuid: 'test-query-uuid',
+                    queryUuid: 'test-query-uuid',
                     fieldsMap: {},
                     queryTags: { query_context: QueryExecutionContext.EXPLORE },
                 } satisfies Partial<RunAsyncWarehouseQueryArgs>),
@@ -528,11 +530,11 @@ describe('AsyncQueryService', () => {
             // THEN: runAsyncWarehouseQuery IS called with correct parameters
             expect(runAsyncWarehouseQuerySpy).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    userId: sessionAccount.user.id,
+                    userUuid: sessionAccount.user.id,
                     isRegisteredUser: sessionAccount.isRegisteredUser(),
                     projectUuid,
                     query: 'SELECT * FROM test',
-                    queryHistoryUuid: 'test-query-uuid',
+                    queryUuid: 'test-query-uuid',
                     fieldsMap: {},
                     queryTags: { query_context: QueryExecutionContext.EXPLORE },
                 } satisfies Partial<RunAsyncWarehouseQueryArgs>),
@@ -624,11 +626,11 @@ describe('AsyncQueryService', () => {
             // THEN: runAsyncWarehouseQuery IS always called with correct parameters
             expect(runAsyncWarehouseQuerySpy).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    userId: sessionAccount.user.id,
+                    userUuid: sessionAccount.user.id,
                     isRegisteredUser: sessionAccount.isRegisteredUser(),
                     projectUuid,
                     query: 'SELECT * FROM test',
-                    queryHistoryUuid: 'test-query-uuid',
+                    queryUuid: 'test-query-uuid',
                     fieldsMap: {},
                     queryTags: { query_context: QueryExecutionContext.EXPLORE },
                 } satisfies Partial<RunAsyncWarehouseQueryArgs>),
@@ -729,6 +731,86 @@ describe('AsyncQueryService', () => {
             );
 
             // THEN: runAsyncWarehouseQuery is NOT called (error prevents execution)
+            expect(runAsyncWarehouseQuerySpy).not.toHaveBeenCalled();
+        });
+
+        test('enqueues warehouse queries on dedicated workers when the gate is enabled', async () => {
+            const schedulerClientMock = {
+                scheduleTask: jest.fn(),
+                runAsyncPreAggregateQuery: jest.fn(),
+                runAsyncWarehouseQuery: jest.fn(),
+            };
+            const service = getMockedAsyncQueryService(
+                {
+                    ...lightdashConfigMock,
+                    scheduler: {
+                        ...lightdashConfigMock.scheduler,
+                        asyncQueryWorkers: {
+                            preAggregatesEnabled: false,
+                            warehouseEnabled: true,
+                        },
+                    },
+                },
+                {
+                    schedulerClient:
+                        schedulerClientMock as unknown as SchedulerClient,
+                },
+            );
+
+            service.findResultsCache = jest.fn().mockResolvedValueOnce({
+                cacheHit: false,
+                updatedAt: undefined,
+                expiresAt: undefined,
+            } satisfies MissCacheResult);
+            (service.queryHistoryModel.create as jest.Mock).mockResolvedValue({
+                queryUuid: 'test-query-uuid',
+            });
+
+            const runAsyncWarehouseQuerySpy = jest.spyOn(
+                service,
+                'runAsyncWarehouseQuery',
+            );
+
+            const result = await service.executeAsyncQuery(
+                {
+                    account: sessionAccount,
+                    projectUuid,
+                    metricQuery: metricQueryMock,
+                    context: QueryExecutionContext.EXPLORE,
+                    dateZoom: undefined,
+                    queryTags: {
+                        query_context: QueryExecutionContext.EXPLORE,
+                    },
+                    explore: validExplore,
+                    invalidateCache: false,
+                    sql: 'SELECT * FROM test',
+                    fields: {},
+                    missingParameterReferences: [],
+                },
+                { query: metricQueryMock },
+            );
+
+            expect(result).toEqual({
+                queryUuid: 'test-query-uuid',
+                cacheMetadata: {
+                    cacheHit: false,
+                    cacheUpdatedTime: undefined,
+                    cacheExpiresAt: undefined,
+                },
+            } satisfies ExecuteAsyncQueryReturn);
+
+            expect(
+                schedulerClientMock.runAsyncWarehouseQuery,
+            ).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    organizationUuid:
+                        sessionAccount.organization.organizationUuid,
+                    userUuid: sessionAccount.user.id,
+                    projectUuid,
+                    queryUuid: 'test-query-uuid',
+                    query: 'SELECT * FROM test',
+                }),
+            );
             expect(runAsyncWarehouseQuerySpy).not.toHaveBeenCalled();
         });
 
@@ -1216,14 +1298,14 @@ describe('AsyncQueryService', () => {
                 );
 
                 const runAsyncArgs: RunAsyncWarehouseQueryArgs = {
-                    userId: sessionAccount.user.id,
+                    userUuid: sessionAccount.user.id,
                     isRegisteredUser: true,
                     projectUuid,
                     query: 'SELECT * FROM test',
                     fieldsMap: {},
                     queryTags: { query_context: QueryExecutionContext.EXPLORE },
                     warehouseCredentialsOverrides: undefined,
-                    queryHistoryUuid: 'test-query-uuid',
+                    queryUuid: 'test-query-uuid',
                     cacheKey: 'test-cache-key',
                     pivotConfiguration: undefined,
                     originalColumns: undefined,
@@ -1309,14 +1391,14 @@ describe('AsyncQueryService', () => {
             );
 
             const runAsyncArgs: RunAsyncWarehouseQueryArgs = {
-                userId: sessionAccount.user.id,
+                userUuid: sessionAccount.user.id,
                 isRegisteredUser: true,
                 projectUuid,
                 query: 'SELECT * FROM test_table',
                 fieldsMap: {},
                 queryTags: { query_context: QueryExecutionContext.EXPLORE },
                 warehouseCredentialsOverrides: undefined,
-                queryHistoryUuid: 'test-query-uuid',
+                queryUuid: 'test-query-uuid',
                 cacheKey: 'test-cache-key',
                 pivotConfiguration: undefined,
                 originalColumns: undefined,

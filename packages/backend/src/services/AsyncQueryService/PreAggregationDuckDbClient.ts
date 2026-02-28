@@ -81,6 +81,20 @@ export class PreAggregationDuckDbClient {
             ((warehouseArgs) => new DuckdbWarehouseClient(warehouseArgs));
     }
 
+    createExecutionWarehouseClient(): WarehouseClient {
+        const duckdbRuntimeConfig = getDuckdbRuntimeConfig(
+            this.lightdashConfig.preAggregates.s3,
+        );
+
+        if (!duckdbRuntimeConfig) {
+            throw new Error('Missing DuckDB runtime config');
+        }
+
+        return this.createDuckdbWarehouseClient({
+            s3Config: duckdbRuntimeConfig,
+        });
+    }
+
     async resolve(
         args: ResolvePreAggregationDuckDbArgs,
     ): Promise<PreAggregationDuckDbResolution> {
