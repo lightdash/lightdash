@@ -25,7 +25,7 @@ overrides:
   eslint: ^8.57.1
   canvas: ^3.0.0
 
-pnpmfileChecksum: ljbuipupldntgfel5vaej2gdgy
+pnpmfileChecksum: sha256-eQZaSN8dBqsURx9Y0qj3HqXggTVV5DtL6B15n8AQ53E=
 
 importers:
 
