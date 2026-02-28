@@ -154,15 +154,13 @@ export const isExecuteAsyncSqlChartByUuid = (
 ): args is ExecuteAsyncSqlChartByUuidArgs => 'savedSqlUuid' in args;
 
 export type RunAsyncWarehouseQueryArgs = {
-    userId: string;
-    // Is the user in the database?
+    projectUuid: string;
+    userUuid: string;
+    queryUuid: string;
     isRegisteredUser: boolean;
     isServiceAccount?: boolean;
-    projectUuid: string;
     queryTags: RunQueryTags;
-    query: string;
     fieldsMap: ItemsMap;
-    queryHistoryUuid: string;
     cacheKey: string;
     warehouseCredentialsOverrides?: {
         snowflakeVirtualWarehouse?: string;
@@ -170,4 +168,13 @@ export type RunAsyncWarehouseQueryArgs = {
     };
     pivotConfiguration?: PivotConfiguration;
     originalColumns?: ResultColumns;
+    query: string;
+};
+
+export type RunAsyncPreAggregateQueryArgs = Omit<
+    RunAsyncWarehouseQueryArgs,
+    'query'
+> & {
+    preAggregateQuery: string;
+    warehouseQuery: string;
 };

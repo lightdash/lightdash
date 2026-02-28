@@ -2,6 +2,7 @@ import type { PivotConfiguration, ResultColumns } from '..';
 import type { PivotValuesColumn } from '../visualizations/types';
 import type { QueryExecutionContext } from './analytics';
 import type { ExecuteAsyncQueryRequestParams } from './api/paginatedQuery';
+import type { AuthType } from './auth';
 import type { ItemsMap } from './field';
 import type { MetricQuery } from './metricQuery';
 import type { WarehouseTypes } from './projects';
@@ -30,6 +31,7 @@ export type QueryHistory = {
     createdBy: string | null;
     createdByUserUuid: string | null;
     createdByAccount: string | null;
+    createdByActorType: AuthType | null;
     organizationUuid: string;
     projectUuid: string | null;
     warehouseQueryId: string | null;
@@ -54,4 +56,5 @@ export type QueryHistory = {
     resultsExpiresAt: Date | null;
     columns: ResultColumns | null; // result columns with or without pivoting
     originalColumns: ResultColumns | null; // columns from original SQL, before pivoting
+    preAggregateCompiledSql: string | null; // DuckDB SQL for pre-aggregate execution path
 };

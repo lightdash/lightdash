@@ -911,6 +911,11 @@ export type LightdashConfig = {
         cacheStateTimeSeconds: number;
         s3?: Omit<S3Config, 'expirationTime'>;
     };
+    natsWorker: {
+        enabled: boolean;
+        url: string | undefined;
+        workerConcurrency: number;
+    };
     slack?: SlackConfig;
     scheduler: {
         enabled: boolean;
@@ -1377,9 +1382,22 @@ export const parseConfig = (): LightdashConfig => {
     const preAggregatesEnabled =
         licenseKey !== null && process.env.PRE_AGGREGATES_ENABLED === 'true';
     const preAggregatesS3 = parsePreAggregateResultsS3Config();
+    const natsWorkerEnabled = process.env.NATS_ENABLED === 'true';
+    const natsWorkerUrl = process.env.NATS_URL;
+    const natsWorkerConcurrency =
+        getIntegerFromEnvironmentVariable('NATS_WORKER_CONCURRENCY') ?? 1;
 
     if (preAggregatesEnabled && !preAggregatesS3) {
         throw new ParseError('Pre-aggregates require S3 configuration', {});
+    }
+    if (natsWorkerEnabled && !natsWorkerUrl) {
+        throw new ParseError('NATS_URL is required when NATS_ENABLED=true', {});
+    }
+    if (natsWorkerConcurrency <= 0) {
+        throw new ParseError(
+            'NATS_WORKER_CONCURRENCY must be greater than 0',
+            {},
+        );
     }
 
     return {
@@ -1749,6 +1767,11 @@ export const parseConfig = (): LightdashConfig => {
                 10,
             ),
             s3: parseResultsS3Config(),
+        },
+        natsWorker: {
+            enabled: natsWorkerEnabled,
+            url: natsWorkerUrl,
+            workerConcurrency: natsWorkerConcurrency,
         },
         slack: {
             signingSecret: process.env.SLACK_SIGNING_SECRET,
