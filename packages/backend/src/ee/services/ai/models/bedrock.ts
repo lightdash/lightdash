@@ -24,20 +24,29 @@ export const getBedrockProvider = (
     config: NonNullable<
         LightdashConfig['ai']['copilot']['providers']['bedrock']
     >,
-): AmazonBedrockProvider =>
-    'apiKey' in config
-        ? createAmazonBedrock({
-              apiKey: config.apiKey,
-              region: config.region,
-          })
-        : createAmazonBedrock({
-              region: config.region,
-              accessKeyId: config.accessKeyId,
-              secretAccessKey: config.secretAccessKey,
-              ...(config.sessionToken
-                  ? { sessionToken: config.sessionToken }
-                  : {}),
-          });
+): AmazonBedrockProvider => {
+    if ('apiKey' in config) {
+        return createAmazonBedrock({
+            apiKey: config.apiKey,
+            region: config.region,
+        });
+    }
+    if ('accessKeyId' in config) {
+        return createAmazonBedrock({
+            region: config.region,
+            accessKeyId: config.accessKeyId,
+            secretAccessKey: config.secretAccessKey,
+            ...(config.sessionToken
+                ? { sessionToken: config.sessionToken }
+                : {}),
+        });
+    }
+    // useDefaultCredentials: rely on AWS default credential chain
+    // (ECS Task Role, EC2 Instance Profile, etc.)
+    return createAmazonBedrock({
+        region: config.region,
+    });
+};
 
 export const getBedrockModel = (
     config: NonNullable<
