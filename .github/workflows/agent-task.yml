@@ -1,0 +1,244 @@
+name: Agent Task
+
+on:
+    issues:
+        types: [labeled]
+
+concurrency:
+    group: agent-task-${{ github.event.issue.number }}
+    cancel-in-progress: true
+
+permissions:
+    contents: write
+    pull-requests: write
+    issues: write
+
+jobs:
+    agent-task:
+        if: github.event.label.name == 'agent-task'
+        runs-on: ubuntu-latest
+
+        services:
+            postgres:
+                image: pgvector/pgvector:pg16
+                env:
+                    POSTGRES_PASSWORD: password
+                options: >-
+                    --health-cmd pg_isready
+                    --health-interval 10s
+                    --health-timeout 5s
+                    --health-retries 5
+                ports:
+                    - 5432:5432
+
+            minio:
+                image: coollabsio/minio:latest
+                env:
+                    MINIO_ROOT_USER: minioadmin
+                    MINIO_ROOT_PASSWORD: minioadmin
+                    MINIO_DEFAULT_BUCKETS: default,results
+                    MINIO_BROWSER: 'off'
+                ports:
+                    - 9000:9000
+
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: pnpm/action-setup@v4
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: '20'
+                  cache: 'pnpm'
+                  cache-dependency-path: 'pnpm-lock.yaml'
+
+            - name: Setup Python and dbt
+              uses: actions/setup-python@v4
+              with:
+                  python-version: '3.10.x'
+
+            - name: Install dbt
+              run: |
+                  pip install dbt-core~=1.7.0 dbt-postgres~=1.7.0
+                  sudo ln -sf $(which dbt) /usr/local/bin/dbt1.7
+
+            - name: Install packages
+              run: pnpm install --frozen-lockfile --prefer-offline
+
+            - name: Build common and warehouses
+              run: |
+                  pnpm common-build
+                  pnpm warehouses-build
+
+            - name: Setup database
+              run: |
+                  PGPASSWORD=password psql -h localhost -U postgres -d postgres -c "CREATE DATABASE agent_ci"
+                  PGHOST=localhost PGPORT=5432 PGUSER=postgres PGPASSWORD=password PGDATABASE=agent_ci \
+                    pnpm -F backend migrate
+                  PGHOST=localhost PGPORT=5432 PGUSER=postgres PGPASSWORD=password PGDATABASE=agent_ci \
+                    pnpm -F backend seed
+              env:
+                  PGHOST: localhost
+                  PGPORT: 5432
+                  PGUSER: postgres
+                  PGPASSWORD: password
+
+            - name: Setup dbt models
+              run: |
+                  dbt1.7 deps --project-dir $PROJECT_DIR --profiles-dir $PROFILES_DIR
+                  dbt1.7 seed --project-dir $PROJECT_DIR --profiles-dir $PROFILES_DIR --full-refresh
+                  dbt1.7 run --project-dir $PROJECT_DIR --profiles-dir $PROFILES_DIR --full-refresh --exclude fanouts_sales_targets
+              env:
+                  PROJECT_DIR: './examples/full-jaffle-shop-demo/dbt'
+                  PROFILES_DIR: './examples/full-jaffle-shop-demo/profiles'
+                  PGHOST: localhost
+                  PGPORT: 5432
+                  PGUSER: postgres
+                  PGPASSWORD: password
+                  PGDATABASE: agent_ci
+
+            - name: Start backend
+              run: |
+                  cd packages/backend
+                  node --import tsx src/index.ts &
+                  echo $! > /tmp/backend.pid
+              env:
+                  PORT: 8080
+                  PGHOST: localhost
+                  PGPORT: 5432
+                  PGUSER: postgres
+                  PGPASSWORD: password
+                  PGDATABASE: agent_ci
+                  SITE_URL: http://localhost:3000
+                  LIGHTDASH_SECRET: ci-agent-secret
+                  LIGHTDASH_MODE: development
+                  NODE_ENV: development
+                  HEADLESS: 'true'
+                  SCHEDULER_ENABLED: 'false'
+                  S3_ENDPOINT: http://localhost:9000
+                  S3_REGION: us-east-1
+                  S3_BUCKET: default
+                  S3_SECRET_KEY: minioadmin
+                  S3_ACCESS_KEY: minioadmin
+                  S3_FORCE_PATH_STYLE: 'true'
+                  HEADLESS_BROWSER_HOST: localhost
+                  HEADLESS_BROWSER_PORT: 3000
+                  DBT_DEMO_DIR: ${{ github.workspace }}/examples/full-jaffle-shop-demo
+
+            - name: Start frontend
+              run: |
+                  cd packages/frontend
+                  npx vite --port 3000 &
+                  echo $! > /tmp/frontend.pid
+
+            - name: Wait for health check
+              run: |
+                  echo "Waiting for API to be ready..."
+                  for i in $(seq 1 60); do
+                    if curl -sf http://localhost:8080/api/v1/health > /dev/null 2>&1; then
+                      echo "API is ready!"
+                      exit 0
+                    fi
+                    sleep 2
+                  done
+                  echo "API did not become ready within 120 seconds"
+                  exit 1
+
+            - name: Run Claude Code
+              id: claude
+              continue-on-error: true
+              run: |
+                  ISSUE_TITLE="${{ github.event.issue.title }}"
+                  ISSUE_BODY="${{ github.event.issue.body }}"
+                  BRANCH_NAME="agent/issue-${{ github.event.issue.number }}"
+
+                  git checkout -b "$BRANCH_NAME"
+
+                  echo "Running Claude Code with issue prompt..."
+                  npx @anthropic-ai/claude-code --print \
+                    --allowedTools "Edit,Write,Bash,Read,Glob,Grep" \
+                    "You are working on a Lightdash issue. The dev server is running on localhost:8080 (API) and localhost:3000 (frontend).
+
+                  Issue #${{ github.event.issue.number }}: ${ISSUE_TITLE}
+
+                  ${ISSUE_BODY}
+
+                  Instructions:
+                  1. Understand the issue and investigate the codebase
+                  2. Implement the fix or feature
+                  3. Run verification: pnpm -F common typecheck && pnpm -F backend typecheck && pnpm -F frontend typecheck && pnpm -F common lint && pnpm -F backend lint && pnpm -F frontend lint && pnpm -F common test && pnpm -F backend test:dev:nowatch
+                  4. Fix any issues found during verification
+                  5. Commit your changes with a descriptive message"
+              env:
+                  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+            - name: Run verification
+              id: verify
+              continue-on-error: true
+              run: |
+                  set +e
+                  pnpm -F common typecheck && \
+                  pnpm -F backend typecheck && \
+                  pnpm -F frontend typecheck && \
+                  pnpm -F common lint && \
+                  pnpm -F backend lint && \
+                  pnpm -F frontend lint && \
+                  pnpm -F common test && \
+                  pnpm -F backend test:dev:nowatch
+                  echo "verify_status=$?" >> $GITHUB_OUTPUT
+
+            - name: Create PR if verification passes
+              if: steps.verify.outcome == 'success'
+              run: |
+                  BRANCH_NAME="agent/issue-${{ github.event.issue.number }}"
+
+                  git add -A
+                  git diff --cached --quiet && echo "No changes to commit" && exit 0
+
+                  git config user.name "github-actions[bot]"
+                  git config user.email "github-actions[bot]@users.noreply.github.com"
+                  git commit -m "feat: agent implementation for #${{ github.event.issue.number }}" || true
+                  git push -u origin "$BRANCH_NAME"
+
+                  gh pr create \
+                    --title "Agent: ${{ github.event.issue.title }}" \
+                    --body "## Auto-generated by Agent Task workflow
+
+                  Closes #${{ github.event.issue.number }}
+
+                  ### Verification
+                  - Typecheck: ${{ steps.verify.outcome == 'success' && 'PASS' || 'FAIL' }}
+                  - Lint: ${{ steps.verify.outcome == 'success' && 'PASS' || 'FAIL' }}
+                  - Tests: ${{ steps.verify.outcome == 'success' && 'PASS' || 'FAIL' }}
+
+                  > This PR was automatically generated by the agent-task workflow.
+                  > Please review carefully before merging." \
+                    --base main \
+                    --head "$BRANCH_NAME"
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+            - name: Comment on issue
+              if: always()
+              run: |
+                  if [ "${{ steps.verify.outcome }}" = "success" ]; then
+                    STATUS="Verification passed. A PR has been created."
+                  elif [ "${{ steps.claude.outcome }}" = "failure" ]; then
+                    STATUS="Claude Code encountered an error. Check the [workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details."
+                  else
+                    STATUS="Verification failed. Check the [workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details."
+                  fi
+
+                  gh issue comment ${{ github.event.issue.number }} \
+                    --body "### Agent Task Result
+
+                  ${STATUS}
+
+                  **Workflow run**: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+            - name: Cleanup
+              if: always()
+              run: |
+                  [ -f /tmp/backend.pid ] && kill $(cat /tmp/backend.pid) 2>/dev/null || true
+                  [ -f /tmp/frontend.pid ] && kill $(cat /tmp/frontend.pid) 2>/dev/null || true

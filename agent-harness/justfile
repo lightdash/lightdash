@@ -1,0 +1,85 @@
+# Agent Harness — human-friendly command runner
+# Usage: just agent <command> [args...]
+#
+# Prerequisites: install 'just' (https://github.com/casey/just)
+#   brew install just  OR  cargo install just
+
+harness_dir := justfile_directory()
+
+# One-time shared infrastructure setup
+[group('agent')]
+setup:
+    {{harness_dir}}/setup-infra.sh
+
+# Launch a single agent (id: 1-5)
+[group('agent')]
+launch id:
+    {{harness_dir}}/launch.sh {{id}}
+
+# Launch agent with isolated git worktree
+[group('agent')]
+launch-worktree id:
+    {{harness_dir}}/launch.sh {{id}} --worktree
+
+# Tear down a single agent
+[group('agent')]
+teardown id:
+    {{harness_dir}}/teardown.sh {{id}}
+
+# Run quick verification (typecheck + lint + unit tests)
+[group('agent')]
+verify id:
+    {{harness_dir}}/verify.sh {{id}}
+
+# Run full verification (all stages + smoke test)
+[group('agent')]
+verify-full id:
+    {{harness_dir}}/verify.sh {{id}} --full
+
+# Show status of all agent PM2 processes
+[group('agent')]
+status:
+    #!/usr/bin/env bash
+    for id in 1 2 3 4 5; do
+        procs=$(npx pm2 jlist 2>/dev/null | node -e "
+            const d = JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
+            const p = d.filter(x => x.name.startsWith('agent-${id}-'));
+            if (p.length > 0) {
+                console.log('Agent ${id}: ' + p.map(x => x.name.split('-').slice(2).join('-') + '=' + x.pm2_env.status).join(', '));
+            }
+        " 2>/dev/null) || true
+        if [ -n "$procs" ]; then
+            echo "$procs"
+        fi
+    done
+    echo ""
+    echo "No more agents found."
+
+# Launch N agents (default: 3)
+[group('agent')]
+launch-all n='3':
+    #!/usr/bin/env bash
+    for id in $(seq 1 {{n}}); do
+        echo "==> Launching agent $id..."
+        {{harness_dir}}/launch.sh "$id"
+    done
+
+# Tear down all agents
+[group('agent')]
+teardown-all:
+    #!/usr/bin/env bash
+    for id in 1 2 3 4 5; do
+        procs=$(npx pm2 jlist 2>/dev/null | node -e "
+            const d = JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
+            if (d.some(x => x.name.startsWith('agent-${id}-'))) console.log('yes');
+        " 2>/dev/null) || true
+        if [ "$procs" = "yes" ]; then
+            echo "==> Tearing down agent $id..."
+            {{harness_dir}}/teardown.sh "$id"
+        fi
+    done
+
+# CLI shortcut: agent-cli.sh <id> <command...>
+[group('agent')]
+cli id +args:
+    {{harness_dir}}/agent-cli.sh {{id}} {{args}}
