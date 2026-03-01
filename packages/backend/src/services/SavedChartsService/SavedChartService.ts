@@ -11,8 +11,8 @@ import {
     ChartVersion,
     countCustomDimensionsInMetricQuery,
     countTotalFilterRules,
-    ContentType,
     type ContentVerificationInfo,
+    ContentType,
     CreateSavedChart,
     CreateSavedChartVersion,
     CreateSchedulerAndTargetsWithoutIds,
@@ -66,6 +66,8 @@ import { GoogleDriveClient } from '../../clients/Google/GoogleDriveClient';
 import { SlackClient } from '../../clients/Slack/SlackClient';
 import { LightdashConfig } from '../../config/parseConfig';
 import { getSchedulerTargetType } from '../../database/entities/scheduler';
+import { CaslAuditWrapper } from '../../logging/caslAuditWrapper';
+import { logAuditEvent } from '../../logging/winston';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { ContentVerificationModel } from '../../models/ContentVerificationModel';
@@ -206,12 +208,17 @@ export class SavedChartService
         const savedChart = await this.savedChartModel.getSummary(chartUuid);
         const { organizationUuid, projectUuid } = savedChart;
 
+        const auditedAbility = new CaslAuditWrapper(user.ability, user, {
+            auditLogger: logAuditEvent,
+        });
+
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('ContentVerification', {
                     organizationUuid,
                     projectUuid,
+                    uuid: projectUuid,
                 }),
             )
         ) {
@@ -257,12 +264,17 @@ export class SavedChartService
         const savedChart = await this.savedChartModel.getSummary(chartUuid);
         const { organizationUuid, projectUuid } = savedChart;
 
+        const auditedAbility = new CaslAuditWrapper(user.ability, user, {
+            auditLogger: logAuditEvent,
+        });
+
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('ContentVerification', {
                     organizationUuid,
                     projectUuid,
+                    uuid: projectUuid,
                 }),
             )
         ) {

@@ -31,11 +31,11 @@ import {
     SchedulerAndTargets,
     SchedulerFormat,
     SessionUser,
+    ContentType,
+    type ContentVerificationInfo,
     TogglePinnedItemInfo,
     UpdateDashboard,
     UpdateMultipleDashboards,
-    ContentType,
-    type ContentVerificationInfo,
     type ChartFieldUpdates,
     type DashboardBasicDetailsWithTileTypes,
     type DashboardHistory,
@@ -613,12 +613,17 @@ export class DashboardService
         const dashboard =
             await this.dashboardModel.getByIdOrSlug(dashboardUuid);
 
+        const auditedAbility = new CaslAuditWrapper(user.ability, user, {
+            auditLogger: logAuditEvent,
+        });
+
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('ContentVerification', {
                     organizationUuid: dashboard.organizationUuid,
                     projectUuid: dashboard.projectUuid,
+                    uuid: dashboard.projectUuid,
                 }),
             )
         ) {
@@ -662,12 +667,17 @@ export class DashboardService
         const dashboard =
             await this.dashboardModel.getByIdOrSlug(dashboardUuid);
 
+        const auditedAbility = new CaslAuditWrapper(user.ability, user, {
+            auditLogger: logAuditEvent,
+        });
+
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('ContentVerification', {
                     organizationUuid: dashboard.organizationUuid,
                     projectUuid: dashboard.projectUuid,
+                    uuid: dashboard.projectUuid,
                 }),
             )
         ) {

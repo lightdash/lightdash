@@ -1,9 +1,11 @@
+import { subject } from '@casl/ability';
 import {
     ForbiddenError,
     type SessionUser,
     type VerifiedContentListItem,
 } from '@lightdash/common';
-import { subject } from '@casl/ability';
+import { CaslAuditWrapper } from '../logging/caslAuditWrapper';
+import { logAuditEvent } from '../logging/winston';
 import { ContentVerificationModel } from '../models/ContentVerificationModel';
 import { ProjectModel } from '../models/ProjectModel/ProjectModel';
 import { BaseService } from './BaseService';
@@ -33,12 +35,17 @@ export class ContentVerificationService extends BaseService {
     ): Promise<VerifiedContentListItem[]> {
         const project = await this.projectModel.getSummary(projectUuid);
 
+        const auditedAbility = new CaslAuditWrapper(user.ability, user, {
+            auditLogger: logAuditEvent,
+        });
+
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('ContentVerification', {
                     organizationUuid: project.organizationUuid,
                     projectUuid,
+                    uuid: projectUuid,
                 }),
             )
         ) {
