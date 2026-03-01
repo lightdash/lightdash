@@ -52,6 +52,8 @@
 
               # for dbt
               python312
+              uv
+
               postgresql
 
               jq
