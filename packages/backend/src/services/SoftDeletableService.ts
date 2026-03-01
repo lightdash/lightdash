@@ -1,4 +1,5 @@
 import type { SessionUser } from '@lightdash/common';
+import type { SoftDeletableModel } from '../models/SoftDeletableModel';
 
 /**
  * Options for soft-delete operations.
@@ -62,15 +63,8 @@ export interface SoftDeletableService {
     ): Promise<CleanupResult>;
 }
 
-interface SoftDeletableModel {
-    permanentlyDeleteExpiredBatch(
-        retentionDays: number,
-        limit: number,
-    ): Promise<number>;
-}
-
 export async function batchDeleteExpired(
-    model: SoftDeletableModel,
+    model: Pick<SoftDeletableModel, 'permanentlyDeleteExpiredBatch'>,
     retentionDays: number,
     config: CleanupConfig,
 ): Promise<CleanupResult> {

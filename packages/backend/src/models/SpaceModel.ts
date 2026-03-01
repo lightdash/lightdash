@@ -54,6 +54,10 @@ import {
     generateUniqueSpaceSlug,
 } from '../utils/SlugUtils';
 import type { GetDashboardDetailsQuery } from './DashboardModel/DashboardModel';
+import {
+    deleteExpiredSoftDeletedRows,
+    type SoftDeletableModel,
+} from './SoftDeletableModel';
 import { getRootSpaceIsPrivateQuery } from './SpacePermissionModel';
 
 type SpaceModelArguments = {
@@ -68,7 +72,7 @@ const spaceRootCache =
               checkperiod: 60, // cleanup interval in seconds
           })
         : undefined;
-export class SpaceModel {
+export class SpaceModel implements SoftDeletableModel {
     private database: Knex;
 
     public MOST_POPULAR_OR_RECENTLY_UPDATED_LIMIT: number;
@@ -1111,24 +1115,6 @@ export class SpaceModel {
         };
     }
 
-    async permanentlyDeleteExpiredBatch(
-        retentionDays: number,
-        limit: number,
-    ): Promise<number> {
-        // Shallowest first so parent cascade removes children before next batch
-        const subquery = this.database(SpaceTableName)
-            .select('space_id')
-            .whereNotNull('deleted_at')
-            .andWhereRaw('deleted_at < NOW() - make_interval(days => ?)', [
-                retentionDays,
-            ])
-            .orderByRaw('nlevel(path) ASC')
-            .limit(limit);
-        return this.database(SpaceTableName)
-            .whereIn('space_id', subquery)
-            .delete();
-    }
-
     async permanentDelete(spaceUuid: string): Promise<void> {
         await this.database(SpaceTableName)
             .where('space_uuid', spaceUuid)
@@ -1157,6 +1143,22 @@ export class SpaceModel {
         if (updateCount !== 1) {
             throw new NotFoundError('Deleted space not found');
         }
+    }
+
+    async permanentlyDeleteExpiredBatch(
+        retentionDays: number,
+        limit: number,
+    ): Promise<number> {
+        return deleteExpiredSoftDeletedRows(
+            this.database,
+            {
+                tableName: SpaceTableName,
+                pkColumn: 'space_id',
+                orderByRaw: 'nlevel(path) ASC',
+            },
+            retentionDays,
+            limit,
+        );
     }
 
     async getDescendantSpaceUuids(spaceUuid: string): Promise<string[]> {
