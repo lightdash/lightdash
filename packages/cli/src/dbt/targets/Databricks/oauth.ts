@@ -1,6 +1,6 @@
 import { AuthorizationError } from '@lightdash/common';
+import { exchangeDatabricksAuthorizationCode } from '@lightdash/warehouses';
 import * as http from 'http';
-import fetch from 'node-fetch';
 import { generators } from 'openid-client';
 import ora from 'ora';
 import { URL } from 'url';
@@ -20,7 +20,8 @@ export const DATABRICKS_DEFAULT_OAUTH_CLIENT_ID = 'dbt-databricks';
 export interface DatabricksOAuthTokens {
     accessToken: string;
     refreshToken: string;
-    expiresAt: number; // Unix timestamp in seconds
+    /** The client_id extracted from the Databricks JWT — the actual client used. */
+    oauthClientId: string | undefined;
 }
 
 /**
@@ -184,50 +185,26 @@ export const performDatabricksOAuthFlow = async (
             `> Got authorization code ${code.substring(0, 10)}...`,
         );
 
-        // Exchange the authorization code for tokens
-        const tokenUrl = new URL('/oidc/v1/token', `https://${host}`);
+        // Exchange the authorization code for tokens (uses shared warehouses code)
+        const { accessToken, refreshToken, jwtClientId } =
+            await exchangeDatabricksAuthorizationCode(
+                host,
+                clientId,
+                code,
+                redirectUri,
+                codeVerifier,
+                clientSecret,
+            );
 
-        // Build token request parameters
-        const tokenParams: Record<string, string> = {
-            grant_type: 'authorization_code',
-            code,
-            client_id: clientId,
-            redirect_uri: redirectUri,
-            code_verifier: codeVerifier,
-        };
-
-        // For confidential clients (custom OAuth apps), include client_secret
-        if (clientSecret) {
-            tokenParams.client_secret = clientSecret;
-        }
-
-        const tokenResponse = await fetch(tokenUrl.href, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: new URLSearchParams(tokenParams),
-        });
-
-        if (!tokenResponse.ok) {
-            const errorText = await tokenResponse.text();
+        if (!accessToken) {
             throw new AuthorizationError(
-                `Token exchange failed: ${tokenResponse.status} ${errorText}`,
+                'No access token received from Databricks',
             );
         }
 
-        const tokenData = (await tokenResponse.json()) as {
-            access_token: string;
-            refresh_token: string;
-            expires_in: number;
-        };
-        const accessToken = tokenData.access_token;
-        const refreshToken = tokenData.refresh_token;
-        const expiresIn = tokenData.expires_in;
-
-        if (!accessToken || !refreshToken) {
+        if (!refreshToken) {
             throw new AuthorizationError(
-                'No access token or refresh token received from Databricks',
+                "Databricks did not return a refresh token. Ensure 'offline_access' scope is enabled for your OAuth app.",
             );
         }
 
@@ -237,9 +214,6 @@ export const performDatabricksOAuthFlow = async (
         GlobalState.debug(
             `> OAuth refresh token: ${refreshToken.substring(0, 10)}...`,
         );
-
-        // Calculate expiration timestamp (current time + expires_in)
-        const expiresAt = Math.floor(Date.now() / 1000) + expiresIn;
 
         console.error(
             `${styles.success('✔')}   Successfully authenticated with Databricks`,
@@ -254,7 +228,7 @@ export const performDatabricksOAuthFlow = async (
         return {
             accessToken,
             refreshToken,
-            expiresAt,
+            oauthClientId: jwtClientId,
         };
     } finally {
         // Clean up the server
