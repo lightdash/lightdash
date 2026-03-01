@@ -532,7 +532,9 @@ export default class SchedulerTask {
                                 },
                             );
                         csvUrl = {
-                            filename: ExcelService.generateFileId(chart.name),
+                            filename: format === SchedulerFormat.XLSX
+                                ? ExcelService.generateFileId(chart.name)
+                                : CsvService.generateFileId(chart.name),
                             path: downloadResult.fileUrl,
                             localPath: downloadResult.fileUrl,
                             truncated: false,
