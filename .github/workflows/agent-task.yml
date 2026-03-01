@@ -1,0 +1,294 @@
+name: Agent Task
+
+on:
+    issues:
+        types: [labeled]
+    workflow_dispatch:
+        inputs:
+            issue_number:
+                description: 'Issue number to process'
+                required: true
+                type: number
+
+concurrency:
+    group: agent-task-${{ github.event.issue.number || inputs.issue_number }}
+    cancel-in-progress: true
+
+permissions:
+    contents: write
+    issues: write
+    pull-requests: write
+
+jobs:
+    agent-task:
+        if: >
+            github.event_name == 'workflow_dispatch' ||
+            (github.event.action == 'labeled' && github.event.label.name == 'agent-task')
+        runs-on: ubuntu-latest
+
+        services:
+            postgres:
+                image: pgvector/pgvector:pg16
+                env:
+                    POSTGRES_PASSWORD: password
+                    POSTGRES_DB: postgres
+                options: >-
+                    --health-cmd pg_isready
+                    --health-interval 10s
+                    --health-timeout 5s
+                    --health-retries 5
+                    --shm-size=256m
+                ports:
+                    - 5432:5432
+
+            minio:
+                image: minio/minio:latest
+                env:
+                    MINIO_ROOT_USER: minioadmin
+                    MINIO_ROOT_PASSWORD: minioadmin
+                ports:
+                    - 9000:9000
+
+        env:
+            PGHOST: localhost
+            PGPORT: 5432
+            PGUSER: postgres
+            PGPASSWORD: password
+            PGDATABASE: lightdash_agent
+
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: pnpm/action-setup@v4
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: '20'
+                  cache: 'pnpm'
+                  cache-dependency-path: 'pnpm-lock.yaml'
+
+            - name: Install packages
+              run: pnpm install --frozen-lockfile --prefer-offline
+
+            - name: Build common
+              run: pnpm common-build
+
+            - name: Build warehouses
+              run: pnpm warehouses-build
+
+            - name: Build backend
+              run: pnpm backend-build
+
+            - name: Setup Python and dbt
+              uses: actions/setup-python@v4
+              with:
+                  python-version: '3.10.x'
+
+            - name: Install dbt
+              run: pip install dbt-core~=1.7.0 dbt-postgres~=1.7.0
+
+            - name: Create dbt1.7 symlink
+              run: |
+                  sudo ln -sf $(which dbt) /usr/local/bin/dbt1.7
+                  dbt1.7 --version
+
+            - name: Setup database
+              run: |
+                  PGPASSWORD=password createdb -h localhost -U postgres lightdash_agent
+                  cd packages/backend
+                  pnpm run migrate
+              env:
+                  PGCONNECTIONURI: postgresql://postgres:password@localhost:5432/lightdash_agent
+                  LIGHTDASH_SECRET: agent-task-secret
+                  LIGHTDASH_LICENSE_KEY: ${{ secrets.LIGHTDASH_LICENSE_KEY }}
+
+            - name: Seed database
+              run: |
+                  cd packages/backend
+                  pnpm run seed
+              env:
+                  PGCONNECTIONURI: postgresql://postgres:password@localhost:5432/lightdash_agent
+                  LIGHTDASH_SECRET: agent-task-secret
+                  DBT_DEMO_DIR: ${{ github.workspace }}/examples/full-jaffle-shop-demo
+
+            - name: Setup dbt models
+              run: |
+                  dbt1.7 deps --project-dir $PROJECT_DIR --profiles-dir $PROFILES_DIR
+                  dbt1.7 seed --project-dir $PROJECT_DIR --profiles-dir $PROFILES_DIR --full-refresh
+                  dbt1.7 run --project-dir $PROJECT_DIR --profiles-dir $PROFILES_DIR --full-refresh --exclude fanouts_sales_targets
+              env:
+                  PROJECT_DIR: './examples/full-jaffle-shop-demo/dbt'
+                  PROFILES_DIR: './examples/full-jaffle-shop-demo/profiles'
+
+            - name: Start backend
+              run: |
+                  cd packages/backend
+                  node --import tsx src/index.ts &
+                  echo $! > /tmp/backend.pid
+              env:
+                  PORT: 8080
+                  SITE_URL: http://localhost:3000
+                  PGCONNECTIONURI: postgresql://postgres:password@localhost:5432/lightdash_agent
+                  LIGHTDASH_SECRET: agent-task-secret
+                  LIGHTDASH_MODE: development
+                  NODE_ENV: development
+                  HEADLESS: 'true'
+                  SCHEDULER_ENABLED: 'false'
+                  S3_ENDPOINT: http://localhost:9000
+                  S3_REGION: us-east-1
+                  S3_BUCKET: default
+                  S3_ACCESS_KEY: minioadmin
+                  S3_SECRET_KEY: minioadmin
+                  S3_FORCE_PATH_STYLE: 'true'
+                  DBT_DEMO_DIR: ${{ github.workspace }}/examples/full-jaffle-shop-demo
+                  LIGHTDASH_LICENSE_KEY: ${{ secrets.LIGHTDASH_LICENSE_KEY }}
+
+            - name: Start frontend
+              run: |
+                  cd packages/frontend
+                  npx vite --port 3000 --strictPort &
+                  echo $! > /tmp/frontend.pid
+              env:
+                  NODE_ENV: development
+
+            - name: Wait for health check
+              run: |
+                  echo "Waiting for backend to be ready..."
+                  for i in $(seq 1 60); do
+                      if curl -sf http://localhost:8080/api/v1/health > /dev/null 2>&1; then
+                          echo "Backend is healthy!"
+                          exit 0
+                      fi
+                      sleep 1
+                  done
+                  echo "ERROR: Backend not healthy after 60s"
+                  exit 1
+
+            - name: Get issue details
+              id: issue
+              run: |
+                  ISSUE_NUMBER="${{ github.event.issue.number || inputs.issue_number }}"
+                  ISSUE_BODY=$(gh issue view "$ISSUE_NUMBER" --json body -q .body)
+                  ISSUE_TITLE=$(gh issue view "$ISSUE_NUMBER" --json title -q .title)
+                  echo "number=$ISSUE_NUMBER" >> $GITHUB_OUTPUT
+                  echo "title=$ISSUE_TITLE" >> $GITHUB_OUTPUT
+                  # Store body in a file to avoid shell escaping issues
+                  echo "$ISSUE_BODY" > /tmp/issue_body.txt
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+            - name: Create working branch
+              run: |
+                  BRANCH="agent-task/${{ steps.issue.outputs.number }}"
+                  git checkout -b "$BRANCH"
+                  echo "branch=$BRANCH" >> $GITHUB_OUTPUT
+              id: branch
+
+            - name: Run Claude Code
+              id: claude
+              continue-on-error: true
+              run: |
+                  npx @anthropic-ai/claude-code --print \
+                    "You are working on issue #${{ steps.issue.outputs.number }}: ${{ steps.issue.outputs.title }}
+
+                  Issue description:
+                  $(cat /tmp/issue_body.txt)
+
+                  The Lightdash development server is running at:
+                  - Frontend: http://localhost:3000
+                  - Backend API: http://localhost:8080
+
+                  Login credentials: demo@lightdash.com / demo_password!
+
+                  Instructions:
+                  1. Read the issue carefully and understand what needs to be done
+                  2. Make the necessary code changes
+                  3. Run verification: ./agent-harness/verify.sh 1
+                  4. Ensure all checks pass before finishing
+
+                  Do NOT commit or push — the workflow will handle that." \
+                    2>&1 | tee /tmp/claude_output.txt
+                  echo "exit_code=$?" >> $GITHUB_OUTPUT
+              env:
+                  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+            - name: Run verification
+              id: verify
+              continue-on-error: true
+              run: |
+                  # Run typecheck and lint in parallel, then tests
+                  pnpm -F common typecheck &
+                  pnpm -F backend typecheck &
+                  pnpm -F frontend typecheck &
+                  wait
+
+                  pnpm -F common lint &
+                  pnpm -F backend lint &
+                  pnpm -F frontend lint &
+                  wait
+
+                  pnpm -F backend test:dev:nowatch
+                  pnpm -F common test
+
+            - name: Create PR if verification passes
+              if: steps.verify.outcome == 'success'
+              run: |
+                  git add -A
+                  if git diff --cached --quiet; then
+                      echo "No changes to commit"
+                      exit 0
+                  fi
+
+                  git config user.name "github-actions[bot]"
+                  git config user.email "github-actions[bot]@users.noreply.github.com"
+                  git commit -m "feat: address #${{ steps.issue.outputs.number }} — ${{ steps.issue.outputs.title }}"
+                  git push -u origin "${{ steps.branch.outputs.branch }}"
+
+                  gh pr create \
+                      --title "Agent: ${{ steps.issue.outputs.title }}" \
+                      --body "$(cat <<'EOF'
+                  ## Summary
+                  Automated changes for #${{ steps.issue.outputs.number }}.
+
+                  ## Verification
+                  - [x] Typecheck passed
+                  - [x] Lint passed
+                  - [x] Unit tests passed
+
+                  ## Agent Output
+                  <details>
+                  <summary>Claude Code output</summary>
+
+                  $(tail -100 /tmp/claude_output.txt)
+
+                  </details>
+
+                  Closes #${{ steps.issue.outputs.number }}
+                  EOF
+                  )"
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+            - name: Comment on issue
+              if: always()
+              run: |
+                  ISSUE_NUMBER="${{ steps.issue.outputs.number }}"
+                  VERIFY_STATUS="${{ steps.verify.outcome }}"
+                  CLAUDE_STATUS="${{ steps.claude.outputs.exit_code }}"
+
+                  if [ "$VERIFY_STATUS" = "success" ]; then
+                      STATUS_EMOJI="✅"
+                      STATUS_TEXT="All verification checks passed. A PR has been created."
+                  else
+                      STATUS_EMOJI="❌"
+                      STATUS_TEXT="Verification failed. Manual intervention may be needed."
+                  fi
+
+                  gh issue comment "$ISSUE_NUMBER" --body "$STATUS_EMOJI **Agent Task Result**
+
+                  $STATUS_TEXT
+
+                  - Claude exit code: $CLAUDE_STATUS
+                  - Verification: $VERIFY_STATUS
+                  - Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

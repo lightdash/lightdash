@@ -1,0 +1,3 @@
+# Generated per-agent files (created by launch.sh)
+.env.agent.*
+ecosystem.agent.[0-9].config.cjs

@@ -1,0 +1,64 @@
+# Agent Harness — human-friendly command wrapper
+# Usage: just agent <command> [args...]
+#
+# Requires: https://github.com/casey/just
+
+harness_dir := justfile_directory()
+
+# One-time shared infrastructure setup
+setup:
+    {{harness_dir}}/setup-infra.sh
+
+# Launch an agent instance
+launch id:
+    {{harness_dir}}/launch.sh {{id}}
+
+# Launch an agent instance with a git worktree
+launch-worktree id:
+    {{harness_dir}}/launch.sh {{id}} --worktree
+
+# Tear down an agent instance
+teardown id:
+    {{harness_dir}}/teardown.sh {{id}}
+
+# Run quick verification (typecheck + lint + unit tests)
+verify id:
+    {{harness_dir}}/verify.sh {{id}}
+
+# Run full verification (quick + full tests + smoke)
+verify-full id:
+    {{harness_dir}}/verify.sh {{id}} --full
+
+# Show status of all agent PM2 processes
+status:
+    npx pm2 list --sort name 2>/dev/null | grep "agent-" || echo "No agent processes running"
+
+# Launch N agents (default: 3)
+launch-all n="3":
+    #!/usr/bin/env bash
+    for i in $(seq 1 {{n}}); do
+        echo "==> Launching agent $i..."
+        {{harness_dir}}/launch.sh "$i"
+    done
+
+# Tear down all agents
+teardown-all:
+    #!/usr/bin/env bash
+    for i in 1 2 3 4 5; do
+        if npx pm2 list 2>/dev/null | grep -q "agent-${i}-"; then
+            echo "==> Tearing down agent $i..."
+            {{harness_dir}}/teardown.sh "$i"
+        fi
+    done
+
+# Run agent CLI command
+cli id +args:
+    {{harness_dir}}/agent-cli.sh {{id}} {{args}}
+
+# Stop shared infrastructure (preserves data)
+infra-stop:
+    docker compose -p agent-infra -f {{harness_dir}}/docker-compose.agent.yml stop
+
+# Destroy shared infrastructure (removes data)
+infra-destroy:
+    docker compose -p agent-infra -f {{harness_dir}}/docker-compose.agent.yml down -v

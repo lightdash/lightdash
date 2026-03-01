@@ -1,0 +1,71 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    restart: always
+    ports:
+      - "${AGENT_DB_PORT:-15432}:5432"
+    environment:
+      POSTGRES_PASSWORD: password
+    volumes:
+      - agent-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    command:
+      - postgres
+      - -c
+      - shared_preload_libraries=pg_stat_statements
+      - -c
+      - pg_stat_statements.track=all
+    shm_size: 256m
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+  minio:
+    image: coollabsio/minio:latest
+    ports:
+      - "${AGENT_MINIO_PORT:-19000}:9000"
+      - "${AGENT_MINIO_CONSOLE_PORT:-19001}:9001"
+    volumes:
+      - agent-minio-data:/minio/data
+      - ../docker/init-minio.sh:/init-minio.sh
+    entrypoint: /init-minio.sh
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+      MINIO_DEFAULT_BUCKETS: default,results
+      MINIO_BROWSER: "off"
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  headless-browser:
+    image: ghcr.io/browserless/chromium:v2.38.2
+    restart: always
+    ports:
+      - "${AGENT_BROWSER_PORT:-13001}:3000"
+    shm_size: 512m
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+  mailpit:
+    image: axllent/mailpit:latest
+    restart: unless-stopped
+    ports:
+      - "${AGENT_MAILPIT_WEB_PORT:-18025}:8025"
+      - "${AGENT_MAILPIT_SMTP_PORT:-11025}:1025"
+    environment:
+      MP_MAX_MESSAGES: 5000
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+
+volumes:
+  agent-db-data:
+  agent-minio-data:
