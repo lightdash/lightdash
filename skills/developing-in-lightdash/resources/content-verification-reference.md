@@ -10,6 +10,7 @@ Verification is a project-level seal of approval for charts and dashboards. When
 - The **AI agent** sees the verification status and prefers verified content when answering questions
 - **Chart-as-code exports** include the verification metadata (read-only)
 - The **admin panel** lists all verified content for the project
+- Only **Project Admins** and **Organization Admins** can verify or unverify content
 
 Verification is not the same as access control. It signals quality and trust, not permissions.
 
@@ -82,14 +83,20 @@ The AI agent uses these signals to prefer verified content in its responses, giv
 
 ## Managing Verification
 
-### Via the UI
+### Permissions
+
+**Only Project Admins and Organization Admins can verify or unverify content.** Other roles (viewer, editor, developer) can see verification badges but cannot change verification status. The verify/unverify options will not appear in the UI for non-admin users, and API calls will return a 403 Forbidden error.
+
+### Via the UI (Admin only)
 
 1. Open a chart or dashboard
 2. Click the three-dot menu (...)
 3. Select **Verify content** to add verification, or **Remove verification** to unverify
 4. The verification badge appears immediately
 
-### Via the API
+### Via the API (Admin only)
+
+The API key must belong to a Project Admin or Organization Admin.
 
 ```bash
 # Verify a chart
@@ -112,7 +119,7 @@ curl -H "Authorization: ApiKey $LDPAT" \
   "$SITE_URL/api/v1/projects/$PROJECT_UUID/content/verified"
 ```
 
-### Via the Admin Panel
+### Via the Admin Panel (Admin only)
 
 Project admins can view and manage all verified content from the admin panel:
 
