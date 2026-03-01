@@ -37,7 +37,6 @@ import {
     IconPin,
     IconPinnedOff,
     IconSend,
-    IconShieldCheck,
     IconStar,
     IconStarFilled,
     IconTrash,
@@ -455,6 +454,13 @@ const SavedChartsHeader: FC = () => {
                                 >
                                     {savedChart.name}
                                 </Title>
+
+                                {isChartVerified && (
+                                    <IconCircleCheckFilled
+                                        size={16}
+                                        color="var(--mantine-color-green-6)"
+                                    />
+                                )}
 
                                 <ActionIcon
                                     size="xs"

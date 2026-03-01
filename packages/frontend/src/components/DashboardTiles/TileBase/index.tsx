@@ -20,6 +20,7 @@ import { useDebouncedValue, useHover, useToggle } from '@mantine-8/hooks';
 import { clsx } from '@mantine/core';
 import {
     IconArrowAutofitContent,
+    IconCircleCheckFilled,
     IconDots,
     IconEdit,
     IconGripVertical,
@@ -40,6 +41,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     isEditMode,
     title,
     titleLeftIcon,
+    isVerified = false,
     chartName,
     description = null,
     tile,
@@ -331,6 +333,14 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                 </Text>
                             )}
                         </Tooltip>
+                    )}
+
+                    {isVerified && (
+                        <IconCircleCheckFilled
+                            size={14}
+                            color="var(--mantine-color-green-6)"
+                            style={{ flexShrink: 0 }}
+                        />
                     )}
                 </Group>
 

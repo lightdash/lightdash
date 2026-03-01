@@ -39,7 +39,6 @@ import {
     IconSend,
     IconStar,
     IconStarFilled,
-    IconShieldCheck,
     IconTrash,
     IconUpload,
 } from '@tabler/icons-react';
@@ -316,6 +315,13 @@ const DashboardHeader = ({
         >
             <Group gap="xs" flex={1} wrap="nowrap">
                 <Title order={6}>{dashboard.name}</Title>
+
+                {isDashboardVerified && (
+                    <IconCircleCheckFilled
+                        size={16}
+                        color="var(--mantine-color-green-6)"
+                    />
+                )}
 
                 {dashboardUuid && (
                     <ActionIcon
