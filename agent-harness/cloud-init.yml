@@ -1,0 +1,287 @@
+#cloud-config
+# =============================================================================
+# Lightdash Agent Harness — Cloud-Init for VPS Provisioning
+# =============================================================================
+#
+# Provisions a bare VPS (Hetzner, DigitalOcean, Vultr, etc.) with everything
+# needed to run the agent harness: Docker, Node.js 20.x, pnpm, PM2, dbt,
+# just, and the Lightdash repo itself.
+#
+# Usage:
+#   Hetzner CLI:
+#     hcloud server create \
+#       --name lightdash-agents \
+#       --type cpx41 \
+#       --image ubuntu-24.04 \
+#       --ssh-key my-key \
+#       --user-data-from-file agent-harness/cloud-init.yml
+#
+#   Hetzner Console:
+#     Create Server → Cloud config → paste this file
+#
+#   DigitalOcean:
+#     doctl compute droplet create lightdash-agents \
+#       --size s-8vcpu-16gb \
+#       --image ubuntu-24-04-x64 \
+#       --ssh-keys <fingerprint> \
+#       --user-data "$(cat agent-harness/cloud-init.yml)"
+#
+# Recommended instance sizes:
+#   3 agents: 8 vCPU / 16 GB RAM  (Hetzner CPX41, DO s-8vcpu-16gb)
+#   5 agents: 8 vCPU / 32 GB RAM  (Hetzner CPX51, DO s-8vcpu-32gb)
+#
+# After provisioning, SSH in and run:
+#   sudo -iu lightdash
+#   cd /opt/lightdash
+#   ./agent-harness/setup-infra.sh
+#   ./agent-harness/launch.sh 1
+#
+# =============================================================================
+
+# -- System packages ----------------------------------------------------------
+
+package_update: true
+package_upgrade: true
+
+packages:
+  - apt-transport-https
+  - build-essential
+  - ca-certificates
+  - curl
+  - git
+  - gnupg
+  - jq
+  - libpq-dev
+  - lsb-release
+  - python3
+  - python3-dev
+  - python3-pip
+  - python3-venv
+  - software-properties-common
+  - unzip
+
+# -- Swap (safety net for memory-intensive builds) ----------------------------
+
+swap:
+  filename: /swapfile
+  size: 4G
+  maxsize: 4G
+
+# -- Users --------------------------------------------------------------------
+
+users:
+  - default
+  - name: lightdash
+    shell: /bin/bash
+    groups: [docker, sudo]
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    ssh_authorized_keys:
+      # Replace with your actual SSH public key(s), or remove to rely on
+      # the cloud provider's SSH key injection into the default user only.
+      # - ssh-ed25519 AAAA... you@machine
+
+# -- Write config files -------------------------------------------------------
+
+write_files:
+  # Docker daemon config — use overlay2, set log limits
+  - path: /etc/docker/daemon.json
+    permissions: "0644"
+    content: |
+      {
+        "storage-driver": "overlay2",
+        "log-driver": "json-file",
+        "log-opts": {
+          "max-size": "10m",
+          "max-file": "3"
+        }
+      }
+
+  # Sysctl tuning for many concurrent connections and file watchers
+  - path: /etc/sysctl.d/99-lightdash-agents.conf
+    permissions: "0644"
+    content: |
+      # Increase inotify watchers for multiple Vite/tsc processes
+      fs.inotify.max_user_watches=524288
+      fs.inotify.max_user_instances=1024
+      # TCP tuning for many local connections
+      net.core.somaxconn=4096
+      net.ipv4.tcp_max_syn_backlog=4096
+      # VM overcommit — allow optimistic allocation (agents share a lot)
+      vm.overcommit_memory=1
+
+  # Environment for the lightdash user
+  - path: /home/lightdash/.env.agent-harness
+    owner: lightdash:lightdash
+    permissions: "0600"
+    content: |
+      # Agent harness defaults — source this or let setup-infra.sh read it
+      export AGENT_DB_PORT=15432
+      export AGENT_MINIO_PORT=19000
+      export AGENT_MINIO_CONSOLE_PORT=19001
+      export AGENT_BROWSER_PORT=13001
+      export AGENT_MAILPIT_SMTP_PORT=11025
+      export AGENT_MAILPIT_WEB_PORT=18025
+      # Postgres connection for host-side scripts
+      export PGHOST=localhost
+      export PGPORT=15432
+      export PGUSER=postgres
+      export PGPASSWORD=password
+
+  # Bash profile additions for the lightdash user
+  - path: /home/lightdash/.profile.d/agent-harness.sh
+    owner: lightdash:lightdash
+    permissions: "0644"
+    content: |
+      # pnpm
+      export PNPM_HOME="/home/lightdash/.local/share/pnpm"
+      export PATH="$PNPM_HOME:$PATH"
+      # Node via fnm
+      eval "$(fnm env --shell bash)"
+      # dbt venvs
+      if [ -d /opt/lightdash/.venvs/bin ]; then
+        export PATH="/opt/lightdash/.venvs/bin:$PATH"
+      fi
+      # just
+      export PATH="/home/lightdash/.local/bin:$PATH"
+      # Agent harness env
+      if [ -f /home/lightdash/.env.agent-harness ]; then
+        source /home/lightdash/.env.agent-harness
+      fi
+
+  # Source profile.d scripts from .bashrc
+  - path: /home/lightdash/.bashrc.d/agent-harness.sh
+    owner: lightdash:lightdash
+    permissions: "0644"
+    content: |
+      for f in /home/lightdash/.profile.d/*.sh; do
+        [ -r "$f" ] && source "$f"
+      done
+
+# -- Main provisioning script ------------------------------------------------
+
+runcmd:
+  # -- Apply sysctl tuning immediately ----------------------------------------
+  - sysctl --system
+
+  # -- Install Docker CE ------------------------------------------------------
+  - install -m 0755 -d /etc/apt/keyrings
+  - curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+  - chmod a+r /etc/apt/keyrings/docker.asc
+  - |
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] \
+    https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" \
+    > /etc/apt/sources.list.d/docker.list
+  - apt-get update -y
+  - apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+  - systemctl enable --now docker
+
+  # -- Install fnm (Fast Node Manager) and Node.js 20.19 ----------------------
+  - |
+    su - lightdash -c '
+      curl -fsSL https://fnm.vercel.app/install | bash -s -- --install-dir /home/lightdash/.local/share/fnm --skip-shell
+      export PATH="/home/lightdash/.local/share/fnm:$PATH"
+      eval "$(fnm env --shell bash)"
+      fnm install 20.19
+      fnm default 20.19
+    '
+
+  # -- Install pnpm 9.15.5 ----------------------------------------------------
+  - |
+    su - lightdash -c '
+      export PATH="/home/lightdash/.local/share/fnm:$PATH"
+      eval "$(fnm env --shell bash)"
+      corepack enable
+      corepack prepare pnpm@9.15.5 --activate
+    '
+
+  # -- Install PM2 globally ----------------------------------------------------
+  - |
+    su - lightdash -c '
+      export PATH="/home/lightdash/.local/share/fnm:$PATH"
+      eval "$(fnm env --shell bash)"
+      npm install -g pm2
+    '
+
+  # -- Install just (command runner) -------------------------------------------
+  - |
+    su - lightdash -c '
+      mkdir -p /home/lightdash/.local/bin
+      curl -fsSL https://just.systems/install.sh | bash -s -- --to /home/lightdash/.local/bin
+    '
+
+  # -- Set up .bashrc to source profile.d scripts -----------------------------
+  - |
+    su - lightdash -c '
+      mkdir -p /home/lightdash/.profile.d /home/lightdash/.bashrc.d
+      if ! grep -q "bashrc.d/agent-harness.sh" /home/lightdash/.bashrc 2>/dev/null; then
+        echo "[ -f /home/lightdash/.bashrc.d/agent-harness.sh ] && source /home/lightdash/.bashrc.d/agent-harness.sh" \
+          >> /home/lightdash/.bashrc
+      fi
+    '
+
+  # -- Clone the Lightdash repo -----------------------------------------------
+  - |
+    git clone --depth=1 https://github.com/lightdash/lightdash.git /opt/lightdash
+    chown -R lightdash:lightdash /opt/lightdash
+
+  # -- Install Node.js dependencies -------------------------------------------
+  - |
+    su - lightdash -c '
+      export PATH="/home/lightdash/.local/share/fnm:$PATH"
+      eval "$(fnm env --shell bash)"
+      cd /opt/lightdash
+      pnpm install --frozen-lockfile
+    '
+
+  # -- Build common + warehouses (required before backend can start) -----------
+  - |
+    su - lightdash -c '
+      export PATH="/home/lightdash/.local/share/fnm:$PATH"
+      eval "$(fnm env --shell bash)"
+      cd /opt/lightdash
+      pnpm -F common build
+      pnpm -F warehouses build
+    '
+
+  # -- Set up dbt virtual environments ----------------------------------------
+  - |
+    su - lightdash -c '
+      cd /opt/lightdash
+      python3 -m venv .venvs/dbt/1.7.0
+      source .venvs/dbt/1.7.0/bin/activate
+      pip install --disable-pip-version-check \
+        "dbt-core~=1.7.0" \
+        "dbt-postgres~=1.7.0" \
+        "psycopg2-binary==2.9.10" \
+        "pytz"
+      deactivate
+      mkdir -p .venvs/bin
+      ln -sf ../dbt/1.7.0/bin/dbt .venvs/bin/dbt1.7
+      ln -sf dbt1.7 .venvs/bin/dbt
+    '
+
+  # -- Pull Docker images ahead of time ----------------------------------------
+  - |
+    docker pull pgvector/pgvector:pg16
+    docker pull coollabsio/minio:latest
+    docker pull ghcr.io/browserless/chromium:v2.38.2
+    docker pull axllent/mailpit:latest
+
+  # -- Fix ownership (belt and suspenders) -------------------------------------
+  - chown -R lightdash:lightdash /opt/lightdash /home/lightdash
+
+  # -- Signal provisioning complete --------------------------------------------
+  - touch /opt/lightdash/.cloud-init-complete
+  - |
+    echo "============================================="
+    echo " Lightdash Agent Harness provisioning done!"
+    echo " SSH in and run:"
+    echo "   sudo -iu lightdash"
+    echo "   cd /opt/lightdash"
+    echo "   ./agent-harness/setup-infra.sh"
+    echo "   ./agent-harness/launch.sh 1"
+    echo "============================================="
+
+final_message: |
+  Lightdash agent harness provisioning complete after $UPTIME seconds.
+  SSH in and run: sudo -iu lightdash && cd /opt/lightdash && ./agent-harness/setup-infra.sh
