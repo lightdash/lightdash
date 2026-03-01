@@ -95,6 +95,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
         tile.type === DashboardTileTypes.MARKDOWN && !title;
 
     const hasMenuContent = isEditMode || !!extraMenuItems;
+    const hasHeaderContent = hasMenuContent || isVerified;
 
     return (
         <div ref={containerRef} className={styles.tileWrapper}>
@@ -115,7 +116,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
             {((containerHovered && !titleHovered && !chartHovered) ||
                 isMenuOpen ||
                 lockHeaderVisibility) &&
-                hasMenuContent && (
+                hasHeaderContent && (
                     <Paper
                         p={5}
                         className={clsx('non-draggable', styles.tileTooltip)}
@@ -134,6 +135,21 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                             )}
 
                             {extraHeaderElement}
+
+                            {isVerified && (
+                                <Tooltip
+                                    label="Verified by an admin"
+                                    withArrow
+                                >
+                                    <IconCircleCheckFilled
+                                        size={14}
+                                        style={{
+                                            flexShrink: 0,
+                                            color: 'var(--mantine-color-green-6)',
+                                        }}
+                                    />
+                                </Tooltip>
+                            )}
 
                             {hasMenuContent && (
                                 <Menu
@@ -332,17 +348,6 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                     >
                                         {title}
                                     </Text>
-                                )}
-                                {isVerified && (
-                                    <Tooltip label="Verified by an admin" withArrow>
-                                        <IconCircleCheckFilled
-                                            size={14}
-                                            style={{
-                                                flexShrink: 0,
-                                                color: 'var(--mantine-color-green-6)',
-                                            }}
-                                        />
-                                    </Tooltip>
                                 )}
                             </Group>
                         </Tooltip>
