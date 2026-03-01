@@ -307,6 +307,12 @@ hcloud server create \
   --user-data-from-file agent-harness/cloud-init.yml
 ```
 
+Also installs remote access tooling (see [Remote Access Best Practices](#remote-access-best-practices) below):
+- tmux with agent-friendly config (C-a prefix, mouse support, large scrollback)
+- mosh (UDP-based SSH replacement for mobile/roaming connections)
+- Tailscale (zero-config WireGuard VPN — `sudo tailscale up --ssh` after boot)
+- happy-coder (mobile Claude Code client — `happy --auth` to pair with phone)
+
 After provisioning: `sudo -iu lightdash && cd /opt/lightdash && ./agent-harness/setup-infra.sh`
 
 ### 12. `.github/workflows/agent-task.yml`
@@ -372,3 +378,98 @@ Create `.github/workflows/agent-task.yml`. Goal: labelling an issue triggers an 
 
 **3 agents**: ~4-6 GB total. Comfortable on 16 GB machine.
 **5 agents**: ~6-8 GB total. Needs 16+ GB machine.
+
+---
+
+## Remote Access Best Practices
+
+The VPS is headless — you need reliable remote access for monitoring agents, issuing prompts, and recovering from disconnects. The `cloud-init.yml` pre-installs all of these tools.
+
+### Session Persistence: tmux
+
+Every interactive session on the VPS should run inside tmux. If your SSH/mosh connection drops, the session survives and you reattach.
+
+```bash
+# Start a named session for agent work
+tmux new -s agents
+
+# Detach: C-a d (prefix is C-a, not default C-b)
+# Reattach from a new SSH session:
+tmux attach -t agents
+
+# Suggested layout: one window per agent
+tmux new-window -t agents -n agent-1
+tmux new-window -t agents -n agent-2
+```
+
+The pre-installed `.tmux.conf` uses `C-a` as prefix (easier on mobile keyboards), enables mouse support for scroll/click, sets 50K line scrollback, and reduces escape delay for mosh compatibility.
+
+### Roaming-Friendly SSH: mosh
+
+Standard SSH over TCP breaks on Wi-Fi handoffs, mobile network switches, and high-latency links. Mosh uses UDP and handles roaming gracefully — ideal when managing agents from a laptop on the move or tethered to a phone.
+
+```bash
+# Connect (instead of ssh):
+mosh lightdash@<server-ip>
+
+# mosh + tmux is the recommended combo:
+mosh lightdash@<server-ip> -- tmux attach -t agents
+```
+
+Mosh requires UDP ports 60000-61000 open on the server. If using Hetzner's firewall or ufw, ensure these are allowed:
+```bash
+sudo ufw allow 60000:61000/udp
+```
+
+### Private Networking: Tailscale
+
+Tailscale creates a WireGuard-based VPN mesh so the server is accessible by its Tailscale hostname without exposing ports to the public internet. It also provides Tailscale SSH, eliminating SSH key management entirely.
+
+```bash
+# On the server (one-time, after cloud-init completes):
+sudo tailscale up --ssh
+
+# From your laptop/phone (with Tailscale installed):
+ssh lightdash@<tailscale-hostname>
+# or
+mosh lightdash@<tailscale-hostname>
+```
+
+Benefits for agent harness:
+- Agent web UIs (Vite on 3010-3050, API on 8010-8050) are accessible via Tailscale IP without port forwarding
+- MinIO console (19001), Mailpit UI (18025) reachable privately
+- No need to open any ports in the cloud provider's firewall
+- Access from any device on your tailnet (laptop, phone, tablet)
+
+### Mobile Prompting: happy-coder
+
+[Happy Coder](https://happy.engineering) is a free, open-source mobile client purpose-built for Claude Code. Unlike raw SSH terminals on a phone, it provides a native touch UI, handles connection drops gracefully, and supports voice input.
+
+```bash
+# On the server (as lightdash user, inside tmux):
+happy --auth
+# Scan the QR code with the Happy app on your phone (iOS/Android)
+
+# Then from your phone:
+# 1. Open the Happy app
+# 2. Start or resume a conversation
+# 3. Prompts flow to the server, responses stream back in real-time
+```
+
+Why happy-coder over mobile SSH:
+- Claude Code's terminal UI flickers and breaks over SSH on mobile — Happy renders it natively
+- Touch-sized UI with proper text input, autocomplete, and dictation support
+- Push notifications when Claude needs permission approval
+- Offline message queuing — type prompts on the subway, they send when back online
+- End-to-end encrypted (Signal protocol) via relay server — the server never sees plaintext
+
+### Recommended Remote Workflow
+
+1. **Provision** the VPS with `cloud-init.yml`
+2. **Join Tailscale**: `sudo tailscale up --ssh` — server gets a private hostname
+3. **Connect via mosh**: `mosh lightdash@<ts-hostname> -- tmux new -s agents`
+4. **Set up infra**: `./agent-harness/setup-infra.sh`
+5. **Launch agents** in tmux windows: `./agent-harness/launch.sh 1`, etc.
+6. **Pair phone**: `happy --auth` in a tmux pane, scan QR with Happy app
+7. **Go mobile**: monitor and prompt agents from your phone via Happy; long-running work survives in tmux even if you close the app
+8. **Return to laptop**: `mosh lightdash@<ts-hostname> -- tmux attach -t agents` — everything is exactly where you left it

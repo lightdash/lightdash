@@ -30,6 +30,12 @@
 #   3 agents: 8 vCPU / 16 GB RAM  (Hetzner CPX41, DO s-8vcpu-16gb)
 #   5 agents: 8 vCPU / 32 GB RAM  (Hetzner CPX51, DO s-8vcpu-32gb)
 #
+# Remote access tools installed:
+#   tmux   — persistent sessions that survive disconnects
+#   mosh   — mobile-friendly SSH replacement (UDP-based, handles roaming)
+#   tailscale — zero-config WireGuard VPN for private access
+#   happy-coder — mobile-friendly Claude Code client (npm package)
+#
 # After provisioning, SSH in and run:
 #   sudo -iu lightdash
 #   cd /opt/lightdash
@@ -57,7 +63,9 @@ packages:
   - python3-dev
   - python3-pip
   - python3-venv
+  - mosh
   - software-properties-common
+  - tmux
   - unzip
 
 # -- Swap (safety net for memory-intensive builds) ----------------------------
@@ -147,6 +155,32 @@ write_files:
       if [ -f /home/lightdash/.env.agent-harness ]; then
         source /home/lightdash/.env.agent-harness
       fi
+
+  # tmux config — sensible defaults for remote agent work
+  - path: /home/lightdash/.tmux.conf
+    owner: lightdash:lightdash
+    permissions: "0644"
+    content: |
+      # Use C-a as prefix (easier on mobile keyboards)
+      set -g prefix C-a
+      unbind C-b
+      bind C-a send-prefix
+      # Mouse support (for scrolling in mobile SSH clients)
+      set -g mouse on
+      # Larger scrollback
+      set -g history-limit 50000
+      # 256-color support
+      set -g default-terminal "tmux-256color"
+      # Start window numbering at 1
+      set -g base-index 1
+      setw -g pane-base-index 1
+      # Reduce escape delay (important for mosh)
+      set -sg escape-time 10
+      # Status bar with agent info
+      set -g status-right '#H | %H:%M'
+      set -g status-left '[#S] '
+      # Auto-renumber windows
+      set -g renumber-windows on
 
   # Source profile.d scripts from .bashrc
   - path: /home/lightdash/.bashrc.d/agent-harness.sh
@@ -260,6 +294,22 @@ runcmd:
       ln -sf dbt1.7 .venvs/bin/dbt
     '
 
+  # -- Install Tailscale (zero-config VPN for private access) ------------------
+  - |
+    curl -fsSL https://tailscale.com/install.sh | sh
+    systemctl enable tailscaled
+    # Tailscale is installed but NOT joined to a tailnet yet.
+    # After SSH-ing in, run: sudo tailscale up --ssh
+    # This enables Tailscale SSH (no key management needed).
+
+  # -- Install happy-coder (mobile Claude Code client) -------------------------
+  - |
+    su - lightdash -c '
+      export PATH="/home/lightdash/.local/share/fnm:$PATH"
+      eval "$(fnm env --shell bash)"
+      npm install -g happy-coder
+    '
+
   # -- Pull Docker images ahead of time ----------------------------------------
   - |
     docker pull pgvector/pgvector:pg16
@@ -275,13 +325,20 @@ runcmd:
   - |
     echo "============================================="
     echo " Lightdash Agent Harness provisioning done!"
+    echo ""
     echo " SSH in and run:"
     echo "   sudo -iu lightdash"
     echo "   cd /opt/lightdash"
     echo "   ./agent-harness/setup-infra.sh"
     echo "   ./agent-harness/launch.sh 1"
+    echo ""
+    echo " Remote access setup:"
+    echo "   sudo tailscale up --ssh    # Join your tailnet"
+    echo "   tmux new -s agents         # Persistent session"
+    echo "   happy --auth               # Mobile client QR code"
     echo "============================================="
 
 final_message: |
   Lightdash agent harness provisioning complete after $UPTIME seconds.
+  Remote access: tailscale (sudo tailscale up --ssh), mosh, tmux, happy-coder (happy --auth)
   SSH in and run: sudo -iu lightdash && cd /opt/lightdash && ./agent-harness/setup-infra.sh
