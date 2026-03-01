@@ -317,10 +317,12 @@ const DashboardHeader = ({
                 <Title order={6}>{dashboard.name}</Title>
 
                 {isDashboardVerified && (
-                    <IconCircleCheckFilled
-                        size={16}
-                        color="var(--mantine-color-green-6)"
-                    />
+                    <Tooltip label="Verified by an admin" withArrow>
+                        <IconCircleCheckFilled
+                            size={16}
+                            color="var(--mantine-color-green-6)"
+                        />
+                    </Tooltip>
                 )}
 
                 {dashboardUuid && (
