@@ -1,6 +1,7 @@
 import { ContentType, type VerifiedContentListItem } from '@lightdash/common';
 import {
     ActionIcon,
+    Anchor,
     Badge,
     Button,
     Group,
@@ -24,6 +25,7 @@ import {
     type MRT_ColumnDef,
 } from 'mantine-react-table';
 import { useCallback, useMemo, useState, type FC } from 'react';
+import { Link } from 'react-router';
 import MantineIcon from '../common/MantineIcon';
 import MantineModal from '../common/MantineModal';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
@@ -81,11 +83,24 @@ const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
                 header: 'Name',
                 enableSorting: false,
                 size: 250,
-                Cell: ({ row }) => (
-                    <Text fz="sm" fw={500} truncate>
-                        {row.original.name}
-                    </Text>
-                ),
+                Cell: ({ row }) => {
+                    const { contentType, contentUuid, name } = row.original;
+                    const href =
+                        contentType === ContentType.CHART
+                            ? `/projects/${projectUuid}/saved/${contentUuid}`
+                            : `/projects/${projectUuid}/dashboards/${contentUuid}`;
+                    return (
+                        <Anchor
+                            component={Link}
+                            to={href}
+                            fz="sm"
+                            fw={500}
+                            truncate="end"
+                        >
+                            {name}
+                        </Anchor>
+                    );
+                },
             },
             {
                 accessorKey: 'contentType',
