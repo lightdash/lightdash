@@ -157,3 +157,9 @@ To get the best results from the AI agent:
 - Verify your most important and accurate charts and dashboards
 - The agent will prioritize verified content when multiple results match a query
 - Unverify content that becomes outdated so the agent doesn't recommend stale data
+
+## Using Verified Content for Design Patterns
+
+Verified content represents your team's approved analytics standards. You can analyze all verified charts and dashboards to automatically generate a design pattern guide for your project. This guide documents which chart types, metrics, and formatting conventions your team prefers.
+
+See [Design Patterns Reference](./design-patterns-reference.md) for the full workflow.

@@ -18,6 +18,7 @@ Build and deploy Lightdash analytics projects. This skill covers the **semantic 
 | Lint yaml files | `lightdash lint` | [CLI Reference](./resources/cli-reference.md) |
 | Deploy changes | `lightdash deploy` (semantic layer), `lightdash upload` (content) | [CLI Reference](./resources/cli-reference.md) |
 | Verify content | Mark charts/dashboards as trusted | [Content Verification](./resources/content-verification-reference.md) |
+| Generate design patterns | Download verified content, analyze patterns | [Design Patterns](./resources/design-patterns-reference.md) |
 | Test changes | `lightdash preview` | [Workflows](./resources/workflows-reference.md) |
 
 ## Before You Start
@@ -251,6 +252,18 @@ verification:
 
 See [Content Verification Reference](./resources/content-verification-reference.md) for managing verification via the UI, API, and admin panel.
 
+## Design Pattern Generation
+
+You can analyze verified content to automatically generate a company-specific design guide. This documents which chart types, metrics, formatting conventions, and dashboard layouts a team prefers — based on what admins have actually approved.
+
+**Workflow:**
+1. List verified content via the API
+2. Download verified charts and dashboards as YAML
+3. Analyze patterns across the YAML files (chart types, key metrics, formatting, layout)
+4. Generate an editable design guide markdown file
+
+See [Design Patterns Reference](./resources/design-patterns-reference.md) for the full workflow and example output.
+
 ## Exploring the Warehouse
 
 Use `lightdash sql` to explore data when building models:
@@ -303,6 +316,7 @@ See [Workflows Reference](./resources/workflows-reference.md) for detailed examp
 
 ### Content Management
 - [Content Verification Reference](./resources/content-verification-reference.md)
+- [Design Patterns Reference](./resources/design-patterns-reference.md)
 
 ### External
 - [Lightdash Docs](https://docs.lightdash.com)
