@@ -38,11 +38,18 @@ const renderChart = (chart: AllChartsSearchResult, siteUrl: string) => {
             chartSource={chart.chartSource}
             spaceUuid={chart.spaceUuid}
             viewsCount={chart.viewsCount}
+            verified={chart.verification ? 'true' : 'false'}
             href={chartUrl}
         >
             <name>{chart.name}</name>
             {chart.description && (
                 <description>{chart.description}</description>
+            )}
+            {chart.verification && (
+                <verified
+                    verifiedBy={`${chart.verification.verifiedBy.firstName} ${chart.verification.verifiedBy.lastName}`}
+                    verifiedAt={moment(chart.verification.verifiedAt).fromNow()}
+                />
             )}
             {chart.firstViewedAt && (
                 <firstviewedat>
@@ -73,6 +80,7 @@ const renderDashboard = (dashboard: DashboardSearchResult, siteUrl: string) => (
         dashboardUuid={dashboard.uuid}
         spaceUuid={dashboard.spaceUuid}
         viewCount={dashboard.viewsCount}
+        verified={dashboard.verification ? 'true' : 'false'}
         href={`${siteUrl}/projects/${dashboard.projectUuid}/dashboards/${dashboard.uuid}/view#dashboard-link`}
     >
         <name>{dashboard.name}</name>
@@ -80,6 +88,13 @@ const renderDashboard = (dashboard: DashboardSearchResult, siteUrl: string) => (
 
         {dashboard.description && (
             <description>{dashboard.description}</description>
+        )}
+
+        {dashboard.verification && (
+            <verified
+                verifiedBy={`${dashboard.verification.verifiedBy.firstName} ${dashboard.verification.verifiedBy.lastName}`}
+                verifiedAt={moment(dashboard.verification.verifiedAt).fromNow()}
+            />
         )}
 
         {dashboard.firstViewedAt && (

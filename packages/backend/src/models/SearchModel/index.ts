@@ -469,6 +469,7 @@ export class SearchModel {
                   }
                 : null,
             charts: chartsByDashboard[dashboard.uuid] || [],
+            verification: null,
         }));
     }
 
@@ -1230,6 +1231,7 @@ export class SearchModel {
                       userUuid: result.lastUpdatedByUserUuid,
                   }
                 : null,
+            verification: null,
         }));
     }
 

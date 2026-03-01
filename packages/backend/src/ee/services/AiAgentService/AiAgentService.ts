@@ -30,11 +30,13 @@ import {
     ApiUpdateUserAgentPreferences,
     CatalogType,
     CommercialFeatureFlags,
+    ContentType,
     Explore,
     ExploreCompiler,
     filterExploreByTags,
     followUpToolsText,
     ForbiddenError,
+    isDashboardSearchResult,
     isExploreError,
     isSlackPrompt,
     KnexPaginateArgs,
@@ -96,6 +98,7 @@ import {
     CatalogSearchContext,
 } from '../../../models/CatalogModel/CatalogModel';
 import { ChangesetModel } from '../../../models/ChangesetModel';
+import { ContentVerificationModel } from '../../../models/ContentVerificationModel';
 import { GroupsModel } from '../../../models/GroupsModel';
 import { OpenIdIdentityModel } from '../../../models/OpenIdIdentitiesModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
@@ -174,6 +177,7 @@ type AiAgentServiceDependencies = {
     catalogService: CatalogService;
     catalogModel: CatalogModel;
     changesetModel: ChangesetModel;
+    contentVerificationModel: ContentVerificationModel;
     searchModel: SearchModel;
     featureFlagService: FeatureFlagService;
     groupsModel: GroupsModel;
@@ -231,6 +235,8 @@ export class AiAgentService {
 
     private readonly changesetModel: ChangesetModel;
 
+    private readonly contentVerificationModel: ContentVerificationModel;
+
     private readonly featureFlagService: FeatureFlagService;
 
     private readonly groupsModel: GroupsModel;
@@ -270,6 +276,7 @@ export class AiAgentService {
         this.catalogService = dependencies.catalogService;
         this.catalogModel = dependencies.catalogModel;
         this.changesetModel = dependencies.changesetModel;
+        this.contentVerificationModel = dependencies.contentVerificationModel;
         this.searchModel = dependencies.searchModel;
         this.featureFlagService = dependencies.featureFlagService;
         this.groupsModel = dependencies.groupsModel;
@@ -2774,22 +2781,43 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                     );
 
                 const agentSettings = await this.getAgentSettings(user, prompt);
-                if (
+                let finalResults =
                     !agentSettings.spaceAccess ||
                     agentSettings.spaceAccess.length === 0
-                ) {
-                    return {
-                        content: filteredResults,
-                    };
-                }
+                        ? filteredResults
+                        : filteredResults.filter(({ spaceUuid }) =>
+                              agentSettings.spaceAccess.includes(spaceUuid),
+                          );
+
+                // Enrich results with content verification status
+                const chartUuids = finalResults
+                    .filter((r) => !isDashboardSearchResult(r))
+                    .map((r) => r.uuid);
+                const dashboardUuids = finalResults
+                    .filter((r) => isDashboardSearchResult(r))
+                    .map((r) => r.uuid);
+
+                const [chartVerifications, dashboardVerifications] =
+                    await Promise.all([
+                        this.contentVerificationModel.getByContentUuids(
+                            ContentType.CHART,
+                            chartUuids,
+                        ),
+                        this.contentVerificationModel.getByContentUuids(
+                            ContentType.DASHBOARD,
+                            dashboardUuids,
+                        ),
+                    ]);
+
+                finalResults = finalResults.map((result) => ({
+                    ...result,
+                    verification: isDashboardSearchResult(result)
+                        ? dashboardVerifications.get(result.uuid) ?? null
+                        : chartVerifications.get(result.uuid) ?? null,
+                }));
 
                 return {
-                    content:
-                        agentSettings.spaceAccess.length === 0
-                            ? filteredResults
-                            : filteredResults.filter(({ spaceUuid }) =>
-                                  agentSettings.spaceAccess.includes(spaceUuid),
-                              ),
+                    content: finalResults,
                 };
             });
 
