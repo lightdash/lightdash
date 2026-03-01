@@ -231,6 +231,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         repository.getAdminNotificationService(),
                     spacePermissionService:
                         repository.getSpacePermissionService(),
+                    databricksOAuthService:
+                        repository.getDatabricksOAuthService(),
                 }),
             instanceConfigurationService: ({
                 models,
@@ -317,6 +319,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         repository.getAdminNotificationService(),
                     spacePermissionService:
                         repository.getSpacePermissionService(),
+                    databricksOAuthService:
+                        repository.getDatabricksOAuthService(),
                 }),
             cacheService: ({ models, context, clients }) =>
                 new CommercialCacheService({

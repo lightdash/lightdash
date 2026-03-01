@@ -17,6 +17,7 @@ import { CommentService } from './CommentService/CommentService';
 import { ContentService } from './ContentService/ContentService';
 import { CsvService } from './CsvService/CsvService';
 import { DashboardService } from './DashboardService/DashboardService';
+import { DatabricksOAuthService } from './DatabricksOAuthService/DatabricksOAuthService';
 import { DeployService } from './DeployService';
 import { DownloadFileService } from './DownloadFileService/DownloadFileService';
 import { FavoritesService } from './FavoritesService/FavoritesService';
@@ -71,6 +72,7 @@ interface ServiceManifest {
     commentService: CommentService;
     csvService: CsvService;
     dashboardService: DashboardService;
+    databricksOAuthService: DatabricksOAuthService;
     deployService: DeployService;
     downloadFileService: DownloadFileService;
     favoritesService: FavoritesService;
@@ -367,6 +369,19 @@ export class ServiceRepository
         );
     }
 
+    public getDatabricksOAuthService(): DatabricksOAuthService {
+        return this.getService(
+            'databricksOAuthService',
+            () =>
+                new DatabricksOAuthService({
+                    lightdashConfig: this.context.lightdashConfig,
+                    userWarehouseCredentialsModel:
+                        this.models.getUserWarehouseCredentialsModel(),
+                    projectModel: this.models.getProjectModel(),
+                }),
+        );
+    }
+
     public getDeployService(): DeployService {
         return this.getService(
             'deployService',
@@ -641,6 +656,7 @@ export class ServiceRepository
                     adminNotificationService:
                         this.getAdminNotificationService(),
                     spacePermissionService: this.getSpacePermissionService(),
+                    databricksOAuthService: this.getDatabricksOAuthService(),
                 }),
         );
     }
@@ -705,6 +721,7 @@ export class ServiceRepository
                     adminNotificationService:
                         this.getAdminNotificationService(),
                     spacePermissionService: this.getSpacePermissionService(),
+                    databricksOAuthService: this.getDatabricksOAuthService(),
                 }),
         );
     }

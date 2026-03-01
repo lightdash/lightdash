@@ -56,6 +56,7 @@ import { warehouseClientMock } from '../../utils/QueryBuilder/MetricQueryBuilder
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
 import type { ICacheService } from '../CacheService/ICacheService';
 import { CacheHitCacheResult, MissCacheResult } from '../CacheService/types';
+import { DatabricksOAuthService } from '../DatabricksOAuthService/DatabricksOAuthService';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
 import { PersistentDownloadFileService } from '../PersistentDownloadFileService/PersistentDownloadFileService';
 import { PivotTableService } from '../PivotTableService/PivotTableService';
@@ -225,6 +226,7 @@ const getMockedAsyncQueryService = (
         preAggregateDailyStatsModel: {
             upsert: jest.fn(),
         } as unknown as import('../../models/PreAggregateDailyStatsModel').PreAggregateDailyStatsModel,
+        databricksOAuthService: {} as DatabricksOAuthService,
         ...overrides,
     });
 

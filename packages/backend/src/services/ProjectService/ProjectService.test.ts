@@ -45,6 +45,7 @@ import {
     warehouseClientMock,
 } from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
+import { DatabricksOAuthService } from '../DatabricksOAuthService/DatabricksOAuthService';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { UserService } from '../UserService';
 import { ProjectService } from './ProjectService';
@@ -184,6 +185,7 @@ const getMockedProjectService = (lightdashConfig: LightdashConfig) =>
             notifyConnectionSettingsChange: jest.fn(async () => undefined),
         } as unknown as AdminNotificationService,
         spacePermissionService: {} as SpacePermissionService,
+        databricksOAuthService: {} as DatabricksOAuthService,
     });
 
 const account = buildAccount({
