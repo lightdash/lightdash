@@ -11,6 +11,7 @@ import {
     createVirtualView,
     CreateVirtualViewPayload,
     CreateWarehouseCredentials,
+    DatabricksAuthenticationType,
     DbtProjectConfig,
     DEFAULT_USER_SPACES_PARENT_NAME,
     Explore,
@@ -869,6 +870,13 @@ export class ProjectModel {
                     authenticationType: SnowflakeAuthenticationType.PRIVATE_KEY,
                 };
             }
+            case WarehouseTypes.DATABRICKS:
+                return {
+                    ...nonSensitiveCredentials,
+                    authenticationType:
+                        nonSensitiveCredentials.authenticationType ??
+                        DatabricksAuthenticationType.PERSONAL_ACCESS_TOKEN,
+                };
             default:
                 return nonSensitiveCredentials;
         }

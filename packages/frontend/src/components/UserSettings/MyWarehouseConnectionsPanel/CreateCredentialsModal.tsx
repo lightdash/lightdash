@@ -1,4 +1,5 @@
 import {
+    DatabricksAuthenticationType,
     WarehouseTypes,
     type UpsertUserWarehouseCredentials,
     type UserWarehouseCredentials,
@@ -55,7 +56,8 @@ const defaultCredentials: Record<
     },
     [WarehouseTypes.DATABRICKS]: {
         type: WarehouseTypes.DATABRICKS,
-        personalAccessToken: '',
+        authenticationType: DatabricksAuthenticationType.OAUTH_U2M,
+        refreshToken: '',
     },
     [WarehouseTypes.CLICKHOUSE]: {
         type: WarehouseTypes.CLICKHOUSE,

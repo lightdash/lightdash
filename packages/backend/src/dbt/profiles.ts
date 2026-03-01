@@ -4,6 +4,7 @@ import {
     AthenaAuthenticationType,
     BigqueryAuthenticationType,
     CreateWarehouseCredentials,
+    DatabricksAuthenticationType,
     ParameterError,
     SnowflakeAuthenticationType,
     WarehouseTypes,
@@ -202,8 +203,21 @@ const credentialsTarget = (
             return result;
         }
         case WarehouseTypes.DATABRICKS: {
-            const tokenValue =
-                credentials.token ?? credentials.personalAccessToken;
+            let tokenValue: string | undefined;
+            if (
+                !credentials.authenticationType ||
+                credentials.authenticationType ===
+                    DatabricksAuthenticationType.PERSONAL_ACCESS_TOKEN
+            ) {
+                tokenValue = credentials.personalAccessToken;
+            } else if (
+                credentials.authenticationType ===
+                    DatabricksAuthenticationType.OAUTH_M2M ||
+                credentials.authenticationType ===
+                    DatabricksAuthenticationType.OAUTH_U2M
+            ) {
+                tokenValue = credentials.token;
+            }
             if (!tokenValue) {
                 throw new Error(
                     'Databricks credentials must have either token or personalAccessToken',
@@ -220,10 +234,7 @@ const credentialsTarget = (
                     http_path: credentials.httpPath,
                 },
                 environment: {
-                    [envVar('token')]:
-                        credentials.personalAccessToken ||
-                        credentials.token ||
-                        '',
+                    [envVar('token')]: tokenValue,
                 },
             };
         }

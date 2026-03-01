@@ -6,7 +6,7 @@ import {
     AnyType,
     AuthTokenPrefix,
     cleanColorArray,
-    CreateDatabricksCredentials,
+    DatabricksPATCredentials,
     DbtGithubProjectConfig,
     DbtProjectType,
     DbtVersionOption,
@@ -324,12 +324,12 @@ const parseEnum = <T>(
 };
 
 const getInitialSetupConfig = (): LightdashConfig['initialSetup'] => {
-    const parseCompute = (): CreateDatabricksCredentials['compute'] => {
+    const parseCompute = (): DatabricksPATCredentials['compute'] => {
         // This is a stringified array of objects, in JSON format
         // If format is not correct, it will throw an error
         const compute = process.env.LD_SETUP_PROJECT_COMPUTE;
         if (!compute) return undefined;
-        return JSON.parse(compute) as CreateDatabricksCredentials['compute'];
+        return JSON.parse(compute) as DatabricksPATCredentials['compute'];
     };
 
     try {
@@ -965,7 +965,7 @@ export type LightdashConfig = {
             token: string;
             expirationTime: Date | null;
         };
-        project: CreateDatabricksCredentials & {
+        project: DatabricksPATCredentials & {
             name: string;
             dbtVersion: DbtVersionOption;
         };
@@ -987,9 +987,9 @@ export type LightdashConfig = {
             personal_access_token?: string;
         };
         project: {
-            httpPath?: CreateDatabricksCredentials['httpPath'];
+            httpPath?: DatabricksPATCredentials['httpPath'];
             dbtVersion?: DbtVersionOption;
-            personalAccessToken?: CreateDatabricksCredentials['personalAccessToken'];
+            personalAccessToken?: DatabricksPATCredentials['personalAccessToken'];
         };
         serviceAccount?: {
             token: string;
