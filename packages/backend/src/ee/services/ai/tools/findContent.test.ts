@@ -33,6 +33,7 @@ const makeMockDashboard = (chartCount: number): DashboardSearchResult => ({
     lastUpdatedBy: null,
     validationErrors: [],
     charts: Array.from({ length: chartCount }, (_, i) => makeMockChart(i)),
+    verification: null,
 });
 
 type FindContentTool = ReturnType<typeof getFindContent>;

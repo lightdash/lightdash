@@ -22,6 +22,8 @@ import {
     IconAlertCircle,
     IconArrowBack,
     IconBell,
+    IconCircleCheck,
+    IconCircleCheckFilled,
     IconCirclePlus,
     IconCirclesRelation,
     IconCopy,
@@ -76,6 +78,10 @@ import { useFavoriteMutation } from '../../../hooks/favorites/useFavoriteMutatio
 import { useFavorites } from '../../../hooks/favorites/useFavorites';
 import { useChartPinningMutation } from '../../../hooks/pinning/useChartPinningMutation';
 import { useContentAction } from '../../../hooks/useContent';
+import {
+    useUnverifyChartMutation,
+    useVerifyChartMutation,
+} from '../../../hooks/useContentVerification';
 import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
 import { useProject } from '../../../hooks/useProject';
 import { useUpdateMutation } from '../../../hooks/useSavedQuery';
@@ -324,6 +330,20 @@ const SavedChartsHeader: FC = () => {
         }),
     );
 
+    const canManageContentVerification =
+        user.data?.ability?.can(
+            'manage',
+            subject('ContentVerification', {
+                organizationUuid: user.data?.organizationUuid,
+                projectUuid,
+            }),
+        ) === true;
+
+    const { mutate: verifyChart } = useVerifyChartMutation();
+    const { mutate: unverifyChart } = useUnverifyChartMutation();
+
+    const isChartVerified = savedChart?.verification !== null && savedChart?.verification !== undefined;
+
     const userCanCreateDeliveriesAndAlerts = user.data?.ability?.can(
         'create',
         subject('ScheduledDeliveries', {
@@ -434,6 +454,20 @@ const SavedChartsHeader: FC = () => {
                                 >
                                     {savedChart.name}
                                 </Title>
+
+                                {isChartVerified && (
+                                    <Tooltip
+                                        label="Verified by an admin"
+                                        withArrow
+                                    >
+                                        <IconCircleCheckFilled
+                                            size={16}
+                                            style={{
+                                                color: 'var(--mantine-color-green-6)',
+                                            }}
+                                        />
+                                    </Tooltip>
+                                )}
 
                                 <ActionIcon
                                     size="xs"
@@ -723,6 +757,39 @@ const SavedChartsHeader: FC = () => {
                                     </Tooltip>
                                 }
 
+                                {canManageContentVerification &&
+                                    savedChart?.uuid && (
+                                        <Menu.Item
+                                            leftSection={
+                                                isChartVerified ? (
+                                                    <IconCircleCheckFilled
+                                                        size={18}
+                                                        color="var(--mantine-color-green-6)"
+                                                    />
+                                                ) : (
+                                                    <IconCircleCheck
+                                                        size={18}
+                                                    />
+                                                )
+                                            }
+                                            onClick={() => {
+                                                if (isChartVerified) {
+                                                    unverifyChart(
+                                                        savedChart.uuid,
+                                                    );
+                                                } else {
+                                                    verifyChart(
+                                                        savedChart.uuid,
+                                                    );
+                                                }
+                                            }}
+                                        >
+                                            {isChartVerified
+                                                ? 'Remove verification'
+                                                : 'Verify'}
+                                        </Menu.Item>
+                                    )}
+
                                 <Menu.Divider />
                                 <Menu.Label>Integrations</Menu.Label>
                                 {userCanCreateDeliveriesAndAlerts && (
@@ -930,6 +997,7 @@ const SavedChartsHeader: FC = () => {
                                           firstViewedAt:
                                               chartViewStats.data.firstViewedAt,
                                           views: chartViewStats.data.views,
+                                          verification: null,
                                       },
                                       type: ResourceViewItemType.CHART,
                                   } satisfies ResourceViewChartItem,

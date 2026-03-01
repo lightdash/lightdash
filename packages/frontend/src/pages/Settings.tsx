@@ -27,6 +27,7 @@ import {
     IconUsers,
     IconUserShield,
     IconVariable,
+    IconShieldCheck,
 } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import {
@@ -955,6 +956,26 @@ const Settings: FC = () => {
                                             leftSection={
                                                 <MantineIcon
                                                     icon={IconChecklist}
+                                                />
+                                            }
+                                        />
+                                    ) : null}
+
+                                    {user.ability?.can(
+                                        'manage',
+                                        subject('ContentVerification', {
+                                            organizationUuid:
+                                                project.organizationUuid,
+                                            projectUuid: project.projectUuid,
+                                        }),
+                                    ) ? (
+                                        <RouterNavLink
+                                            label="Verified content"
+                                            exact
+                                            to={`/generalSettings/projectManagement/${project.projectUuid}/verifiedContent`}
+                                            leftSection={
+                                                <MantineIcon
+                                                    icon={IconShieldCheck}
                                                 />
                                             }
                                         />

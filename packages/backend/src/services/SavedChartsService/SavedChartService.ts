@@ -9,8 +9,10 @@ import {
     ChartSummary,
     ChartType,
     ChartVersion,
+    ContentType,
     countCustomDimensionsInMetricQuery,
     countTotalFilterRules,
+    type ContentVerificationInfo,
     CreateSavedChart,
     CreateSavedChartVersion,
     CreateSchedulerAndTargetsWithoutIds,
@@ -64,8 +66,11 @@ import { GoogleDriveClient } from '../../clients/Google/GoogleDriveClient';
 import { SlackClient } from '../../clients/Slack/SlackClient';
 import { LightdashConfig } from '../../config/parseConfig';
 import { getSchedulerTargetType } from '../../database/entities/scheduler';
+import { CaslAuditWrapper } from '../../logging/caslAuditWrapper';
+import { logAuditEvent } from '../../logging/winston';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
+import { ContentVerificationModel } from '../../models/ContentVerificationModel';
 import { getChartFieldUsageChanges } from '../../models/CatalogModel/utils';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
@@ -98,6 +103,7 @@ type SavedChartServiceArguments = {
     slackClient: SlackClient;
     dashboardModel: DashboardModel;
     catalogModel: CatalogModel;
+    contentVerificationModel: ContentVerificationModel;
     permissionsService: PermissionsService;
     googleDriveClient: GoogleDriveClient;
     userService: UserService;
@@ -134,6 +140,8 @@ export class SavedChartService
 
     private readonly catalogModel: CatalogModel;
 
+    private readonly contentVerificationModel: ContentVerificationModel;
+
     private readonly permissionsService: PermissionsService;
 
     private readonly googleDriveClient: GoogleDriveClient;
@@ -157,6 +165,7 @@ export class SavedChartService
         this.slackClient = args.slackClient;
         this.dashboardModel = args.dashboardModel;
         this.catalogModel = args.catalogModel;
+        this.contentVerificationModel = args.contentVerificationModel;
         this.permissionsService = args.permissionsService;
         this.googleDriveClient = args.googleDriveClient;
         this.userService = args.userService;
@@ -190,6 +199,104 @@ export class SavedChartService
             );
         }
         return savedChart;
+    }
+
+    async verifyChart(
+        user: SessionUser,
+        chartUuid: string,
+    ): Promise<ContentVerificationInfo> {
+        const savedChart = await this.savedChartModel.getSummary(chartUuid);
+        const { organizationUuid, projectUuid } = savedChart;
+
+        const auditedAbility = new CaslAuditWrapper(user.ability, user, {
+            auditLogger: logAuditEvent,
+        });
+
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('ContentVerification', {
+                    organizationUuid,
+                    projectUuid,
+                    uuid: projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'Only admins can verify charts',
+            );
+        }
+
+        await this.contentVerificationModel.verify(
+            ContentType.CHART,
+            chartUuid,
+            projectUuid,
+            user.userUuid,
+        );
+
+        const verification =
+            await this.contentVerificationModel.getByContent(
+                ContentType.CHART,
+                chartUuid,
+            );
+
+        if (!verification) {
+            throw new Error('Failed to verify chart');
+        }
+
+        this.analytics.track({
+            event: 'content_verification.created',
+            userId: user.userUuid,
+            properties: {
+                projectId: projectUuid,
+                contentType: ContentType.CHART,
+                contentId: chartUuid,
+            },
+        });
+
+        return verification;
+    }
+
+    async unverifyChart(
+        user: SessionUser,
+        chartUuid: string,
+    ): Promise<void> {
+        const savedChart = await this.savedChartModel.getSummary(chartUuid);
+        const { organizationUuid, projectUuid } = savedChart;
+
+        const auditedAbility = new CaslAuditWrapper(user.ability, user, {
+            auditLogger: logAuditEvent,
+        });
+
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('ContentVerification', {
+                    organizationUuid,
+                    projectUuid,
+                    uuid: projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'Only admins can remove chart verification',
+            );
+        }
+
+        await this.contentVerificationModel.unverify(
+            ContentType.CHART,
+            chartUuid,
+        );
+
+        this.analytics.track({
+            event: 'content_verification.deleted',
+            userId: user.userUuid,
+            properties: {
+                projectId: projectUuid,
+                contentType: ContentType.CHART,
+                contentId: chartUuid,
+            },
+        });
     }
 
     private async checkCreateScheduledDeliveryAccess(
@@ -476,6 +583,12 @@ export class SavedChartService
             user,
         );
 
+        // Auto-remove verification when chart content is edited
+        await this.contentVerificationModel.unverify(
+            ContentType.CHART,
+            savedChartUuid,
+        );
+
         this.analytics.track({
             event: 'saved_chart_version.created',
             userId: user.userUuid,
@@ -560,6 +673,12 @@ export class SavedChartService
         const savedChart = await this.savedChartModel.update(
             savedChartUuid,
             data,
+        );
+
+        // Auto-remove verification when chart metadata is edited
+        await this.contentVerificationModel.unverify(
+            ContentType.CHART,
+            savedChartUuid,
         );
 
         const cachedExplore = await this.projectModel.getExploreFromCache(

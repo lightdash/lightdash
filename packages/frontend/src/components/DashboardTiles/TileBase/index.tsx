@@ -20,6 +20,7 @@ import { useDebouncedValue, useHover, useToggle } from '@mantine-8/hooks';
 import { clsx } from '@mantine/core';
 import {
     IconArrowAutofitContent,
+    IconCircleCheckFilled,
     IconDots,
     IconEdit,
     IconGripVertical,
@@ -40,6 +41,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     isEditMode,
     title,
     titleLeftIcon,
+    isVerified = false,
     chartName,
     description = null,
     tile,
@@ -93,6 +95,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
         tile.type === DashboardTileTypes.MARKDOWN && !title;
 
     const hasMenuContent = isEditMode || !!extraMenuItems;
+    const hasHeaderContent = hasMenuContent || isVerified;
 
     return (
         <div ref={containerRef} className={styles.tileWrapper}>
@@ -113,7 +116,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
             {((containerHovered && !titleHovered && !chartHovered) ||
                 isMenuOpen ||
                 lockHeaderVisibility) &&
-                hasMenuContent && (
+                hasHeaderContent && (
                     <Paper
                         p={5}
                         className={clsx('non-draggable', styles.tileTooltip)}
@@ -132,6 +135,21 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                             )}
 
                             {extraHeaderElement}
+
+                            {isVerified && (
+                                <Tooltip
+                                    label="Verified by an admin"
+                                    withArrow
+                                >
+                                    <IconCircleCheckFilled
+                                        size={14}
+                                        style={{
+                                            flexShrink: 0,
+                                            color: 'var(--mantine-color-green-6)',
+                                        }}
+                                    />
+                                </Tooltip>
+                            )}
 
                             {hasMenuContent && (
                                 <Menu
@@ -307,29 +325,31 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                             withinPortal
                             maw={400}
                         >
-                            {isEditMode ||
-                            tile.type === DashboardTileTypes.MARKDOWN ? (
-                                <Text
-                                    className={styles.tileTitle}
-                                    data-hidden={hideTitle}
-                                    c="foreground"
-                                >
-                                    {title}
-                                </Text>
-                            ) : (
-                                <Text
-                                    component="a"
-                                    className={styles.tileTitle}
-                                    data-hidden={hideTitle}
-                                    data-hovered={titleHovered}
-                                    href={titleHref}
-                                    onMouseEnter={() => setTitleHovered(true)}
-                                    onMouseLeave={() => setTitleHovered(false)}
-                                    target="_blank"
-                                >
-                                    {title}
-                                </Text>
-                            )}
+                            <Group gap={4} wrap="nowrap" style={{ width: '100%' }}>
+                                {isEditMode ||
+                                tile.type === DashboardTileTypes.MARKDOWN ? (
+                                    <Text
+                                        className={styles.tileTitle}
+                                        data-hidden={hideTitle}
+                                        c="foreground"
+                                    >
+                                        {title}
+                                    </Text>
+                                ) : (
+                                    <Text
+                                        component="a"
+                                        className={styles.tileTitle}
+                                        data-hidden={hideTitle}
+                                        data-hovered={titleHovered}
+                                        href={titleHref}
+                                        onMouseEnter={() => setTitleHovered(true)}
+                                        onMouseLeave={() => setTitleHovered(false)}
+                                        target="_blank"
+                                    >
+                                        {title}
+                                    </Text>
+                                )}
+                            </Group>
                         </Tooltip>
                     )}
                 </Group>

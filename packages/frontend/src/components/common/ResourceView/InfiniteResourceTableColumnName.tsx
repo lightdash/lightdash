@@ -3,12 +3,14 @@ import {
     isResourceViewItemChart,
     isResourceViewItemDashboard,
     isResourceViewSpaceItem,
+    type ContentVerificationInfo,
     type ResourceViewItem,
 } from '@lightdash/common';
 import { Anchor, Box, Group, Stack, Text, Tooltip } from '@mantine-8/core';
 import {
     IconAlertTriangle,
     IconChartBar,
+    IconCircleCheckFilled,
     IconFolder,
     IconLayoutDashboard,
 } from '@tabler/icons-react';
@@ -91,6 +93,50 @@ const ResourceValidationErrorIndicator = ({
     );
 };
 
+type ResourceVerifiedIndicatorProps = {
+    verification: ContentVerificationInfo | null;
+    children: React.ReactNode;
+};
+
+/**
+ * Wraps the provided children with a verified indicator if the resource is verified.
+ * Should NOT be used when validation errors are present (errors take precedence).
+ */
+const ResourceVerifiedIndicator = ({
+    verification,
+    children,
+}: ResourceVerifiedIndicatorProps) => {
+    if (!verification) {
+        return children;
+    }
+
+    const verifiedDate = new Date(verification.verifiedAt).toLocaleDateString();
+
+    return (
+        <ResourceIndicator
+            iconProps={{
+                icon: IconCircleCheckFilled,
+                color: 'green.6',
+            }}
+            tooltipProps={{
+                maw: 300,
+                withinPortal: true,
+                multiline: true,
+                offset: -2,
+                position: 'bottom',
+            }}
+            tooltipLabel={
+                <>
+                    Verified by {verification.verifiedBy.firstName}{' '}
+                    {verification.verifiedBy.lastName} on {verifiedDate}
+                </>
+            }
+        >
+            {children}
+        </ResourceIndicator>
+    );
+};
+
 type InfiniteResourceTableColumnNameProps = {
     item: ResourceViewItem;
     projectUuid: string;
@@ -120,6 +166,11 @@ const InfiniteResourceTableColumnName = ({
         ? item.data.validationErrors![0].validationId
         : undefined;
 
+    const verification =
+        isChartOrDashboard && !hasValidationErrors
+            ? item.data.verification
+            : null;
+
     return (
         <Anchor
             component={Link}
@@ -137,7 +188,9 @@ const InfiniteResourceTableColumnName = ({
                     canUserManageValidation={canUserManageValidation}
                     validationId={validationId}
                 >
-                    <ResourceIcon item={item} />
+                    <ResourceVerifiedIndicator verification={verification}>
+                        <ResourceIcon item={item} />
+                    </ResourceVerifiedIndicator>
                 </ResourceValidationErrorIndicator>
 
                 <Stack gap={2}>

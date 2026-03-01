@@ -1,4 +1,6 @@
 import {
+    ApiContentVerificationDeleteResponse,
+    ApiContentVerificationResponse,
     ApiErrorPayload,
     ApiPromoteDashboardResponse,
     ApiPromotionChangesResponse,
@@ -9,6 +11,7 @@ import {
     type ApiGetDashboardHistoryResponse,
 } from '@lightdash/common';
 import {
+    Delete,
     Deprecated,
     Get,
     Middlewares,
@@ -187,6 +190,53 @@ export class DashboardController extends BaseController {
             results: await this.services
                 .getDashboardService()
                 .createScheduler(req.user!, dashboardUuid, req.body),
+        };
+    }
+
+    /**
+     * Verify a dashboard
+     * @summary Verify dashboard
+     * @param dashboardUuid The uuid of the dashboard to verify
+     * @param req
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated, unauthorisedInDemo])
+    @SuccessResponse('200', 'Success')
+    @Post('verification')
+    @OperationId('verifyDashboard')
+    async verifyDashboard(
+        @Path() dashboardUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiContentVerificationResponse> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getDashboardService()
+                .verifyDashboard(req.user!, dashboardUuid),
+        };
+    }
+
+    /**
+     * Remove verification from a dashboard
+     * @summary Unverify dashboard
+     * @param dashboardUuid The uuid of the dashboard to unverify
+     * @param req
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated, unauthorisedInDemo])
+    @SuccessResponse('200', 'Success')
+    @Delete('verification')
+    @OperationId('unverifyDashboard')
+    async unverifyDashboard(
+        @Path() dashboardUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiContentVerificationDeleteResponse> {
+        this.setStatus(200);
+        await this.services
+            .getDashboardService()
+            .unverifyDashboard(req.user!, dashboardUuid);
+        return {
+            status: 'ok',
+            results: undefined,
         };
     }
 }

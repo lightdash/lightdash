@@ -6,6 +6,7 @@ export type TileBaseProps<T> = {
     belongsToDashboard?: boolean;
     title: string;
     titleLeftIcon?: ReactNode;
+    isVerified?: boolean;
     chartName?: string;
     titleHref?: string;
     description?: string | null;

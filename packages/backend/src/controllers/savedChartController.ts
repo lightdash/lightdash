@@ -1,6 +1,8 @@
 import {
     AnyType,
     ApiCalculateTotalResponse,
+    ApiContentVerificationDeleteResponse,
+    ApiContentVerificationResponse,
     ApiErrorPayload,
     ApiExportChartImageResponse,
     ApiGetChartHistoryResponse,
@@ -18,6 +20,7 @@ import {
 } from '@lightdash/common';
 import {
     Body,
+    Delete,
     Deprecated,
     Get,
     Middlewares,
@@ -484,6 +487,53 @@ export class SavedChartController extends BaseController {
             results: await this.services
                 .getUnfurlService()
                 .exportChart(chartUuid, req.user!),
+        };
+    }
+
+    /**
+     * Verify a chart
+     * @summary Verify chart
+     * @param chartUuid The uuid of the chart to verify
+     * @param req
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated, unauthorisedInDemo])
+    @SuccessResponse('200', 'Success')
+    @Post('verification')
+    @OperationId('verifyChart')
+    async verifyChart(
+        @Path() chartUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiContentVerificationResponse> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getSavedChartService()
+                .verifyChart(req.user!, chartUuid),
+        };
+    }
+
+    /**
+     * Remove verification from a chart
+     * @summary Unverify chart
+     * @param chartUuid The uuid of the chart to unverify
+     * @param req
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated, unauthorisedInDemo])
+    @SuccessResponse('200', 'Success')
+    @Delete('verification')
+    @OperationId('unverifyChart')
+    async unverifyChart(
+        @Path() chartUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiContentVerificationDeleteResponse> {
+        this.setStatus(200);
+        await this.services
+            .getSavedChartService()
+            .unverifyChart(req.user!, chartUuid);
+        return {
+            status: 'ok',
+            results: undefined,
         };
     }
 }
