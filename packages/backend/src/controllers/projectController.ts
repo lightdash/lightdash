@@ -47,9 +47,9 @@ import {
     type CalculateSubtotalsFromQuery,
     type CreateDashboard,
     type CreateDashboardWithCharts,
+    type ApiVerifiedContentListResponse,
     type DuplicateDashboardParams,
     type Tag,
-    type ApiVerifiedContentListResponse,
     type UpdateMultipleDashboards,
     type UpdateSchedulerSettings,
 } from '@lightdash/common';
