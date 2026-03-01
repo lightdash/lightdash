@@ -49,6 +49,7 @@ import {
     type CreateDashboardWithCharts,
     type DuplicateDashboardParams,
     type Tag,
+    type ApiVerifiedContentListResponse,
     type UpdateMultipleDashboards,
     type UpdateSchedulerSettings,
 } from '@lightdash/common';
@@ -1303,6 +1304,27 @@ export class ProjectController extends BaseController {
                     projectUuid,
                     preAggExploreName,
                 ),
+        };
+    }
+
+    /**
+     * List all verified content (charts and dashboards) in a project
+     * @summary List verified content
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('{projectUuid}/content-verification')
+    @OperationId('listVerifiedContent')
+    async listVerifiedContent(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiVerifiedContentListResponse> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getContentVerificationService()
+                .listVerifiedContent(req.user!, projectUuid),
         };
     }
 }

@@ -794,6 +794,7 @@ export type SavedChart = {
     access: SpaceAccess[];
     /** Unique identifier slug for this chart */
     slug: string;
+    verification: ContentVerificationInfo | null;
     deletedAt?: Date;
     deletedBy?: {
         userUuid: string;
@@ -845,6 +846,7 @@ export type CreateSavedChartVersion = Omit<
     | 'isPrivate'
     | 'access'
     | 'slug'
+    | 'verification'
 > &
     // For Charts created within a dashboard
     Partial<Pick<SavedChart, 'dashboardUuid' | 'dashboardName'>>;

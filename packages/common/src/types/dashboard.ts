@@ -196,6 +196,7 @@ export type Dashboard = {
     isPrivate: boolean | null;
     access: SpaceAccess[] | null;
     slug: string;
+    verification: ContentVerificationInfo | null;
     config?: DashboardConfig;
     deletedAt?: Date;
     deletedBy?: {

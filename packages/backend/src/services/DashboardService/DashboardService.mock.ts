@@ -127,6 +127,7 @@ export const dashboard: Dashboard = {
     isPrivate: false,
     access: [],
     tabs: [],
+    verification: null,
 };
 
 export const chart: SavedChart = {
@@ -162,6 +163,7 @@ export const chart: SavedChart = {
     colorPalette: [],
     isPrivate: false,
     access: [],
+    verification: null,
 };
 
 export const dashboardsDetails: DashboardBasicDetails[] = [

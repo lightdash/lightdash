@@ -21,6 +21,8 @@ import {
 import { useDisclosure } from '@mantine/hooks';
 import {
     IconBolt,
+    IconCircleCheck,
+    IconCircleCheckFilled,
     IconCopy,
     IconDatabase,
     IconDatabaseExport,
@@ -56,7 +58,10 @@ import { getSchedulerUuidFromUrlParams } from '../../../features/scheduler/utils
 import { useFavoriteMutation } from '../../../hooks/favorites/useFavoriteMutation';
 import { useFavorites } from '../../../hooks/favorites/useFavorites';
 import { useDashboardPinningMutation } from '../../../hooks/pinning/useDashboardPinningMutation';
-import { useVerifyDashboardMutation } from '../../../hooks/useContentVerification';
+import {
+    useUnverifyDashboardMutation,
+    useVerifyDashboardMutation,
+} from '../../../hooks/useContentVerification';
 import { useProject } from '../../../hooks/useProject';
 import { useClientFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
@@ -264,6 +269,9 @@ const DashboardHeader = ({
         ) === true;
 
     const { mutate: verifyDashboard } = useVerifyDashboardMutation();
+    const { mutate: unverifyDashboard } = useUnverifyDashboardMutation();
+
+    const isDashboardVerified = dashboard.verification !== null;
 
     const userCanPromoteDashboard = user.data?.ability?.can(
         'promote',
@@ -740,15 +748,32 @@ const DashboardHeader = ({
                                     dashboardUuid && (
                                         <Menu.Item
                                             leftSection={
-                                                <MantineIcon
-                                                    icon={IconShieldCheck}
-                                                />
+                                                isDashboardVerified ? (
+                                                    <IconCircleCheckFilled
+                                                        size={18}
+                                                        color="var(--mantine-color-green-6)"
+                                                    />
+                                                ) : (
+                                                    <IconCircleCheck
+                                                        size={18}
+                                                    />
+                                                )
                                             }
-                                            onClick={() =>
-                                                verifyDashboard(dashboardUuid)
-                                            }
+                                            onClick={() => {
+                                                if (isDashboardVerified) {
+                                                    unverifyDashboard(
+                                                        dashboardUuid,
+                                                    );
+                                                } else {
+                                                    verifyDashboard(
+                                                        dashboardUuid,
+                                                    );
+                                                }
+                                            }}
                                         >
-                                            Verify
+                                            {isDashboardVerified
+                                                ? 'Remove verification'
+                                                : 'Verify'}
                                         </Menu.Item>
                                     )}
 

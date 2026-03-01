@@ -79,6 +79,7 @@ import {
     SavedChartVersionFieldsTableName,
     SavedChartVersionsTableName,
 } from '../database/entities/savedCharts';
+import { ContentVerificationTableName } from '../database/entities/contentVerification';
 import { SpaceTableName } from '../database/entities/spaces';
 import { UserTableName } from '../database/entities/users';
 import KnexPaginate from '../database/pagination';
@@ -1137,6 +1138,42 @@ export class SavedChartModel {
                     return ECHARTS_DEFAULT_COLORS;
                 };
 
+                // Fetch verification status
+                const verificationRow = await this.database(
+                    ContentVerificationTableName,
+                )
+                    .leftJoin(
+                        UserTableName,
+                        `${ContentVerificationTableName}.verified_by_user_uuid`,
+                        `${UserTableName}.user_uuid`,
+                    )
+                    .where(
+                        `${ContentVerificationTableName}.content_type`,
+                        ContentType.CHART,
+                    )
+                    .where(
+                        `${ContentVerificationTableName}.content_uuid`,
+                        savedQuery.saved_query_uuid,
+                    )
+                    .select(
+                        `${ContentVerificationTableName}.verified_at`,
+                        `${UserTableName}.user_uuid`,
+                        `${UserTableName}.first_name`,
+                        `${UserTableName}.last_name`,
+                    )
+                    .first();
+
+                const verification = verificationRow
+                    ? {
+                          verifiedBy: {
+                              userUuid: verificationRow.user_uuid,
+                              firstName: verificationRow.first_name,
+                              lastName: verificationRow.last_name,
+                          },
+                          verifiedAt: verificationRow.verified_at,
+                      }
+                    : null;
+
                 return {
                     uuid: savedQuery.saved_query_uuid,
                     projectUuid: savedQuery.project_uuid,
@@ -1228,6 +1265,7 @@ export class SavedChartModel {
                     dashboardName: savedQuery.dashboardName,
                     colorPalette: getColorPalette(),
                     slug: savedQuery.slug,
+                    verification,
                     // Soft delete fields (only populated when deleted: true)
                     ...(savedQuery.deleted_at
                         ? {

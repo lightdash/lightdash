@@ -1,5 +1,6 @@
 import {
     assertUnreachable,
+    ContentType,
     CreateDashboard,
     CreateDashboardChartTile,
     CreateDashboardHeadingTile,
@@ -69,6 +70,7 @@ import {
     SavedChartsTableName,
     SavedChartTable,
 } from '../../database/entities/savedCharts';
+import { ContentVerificationTableName } from '../../database/entities/contentVerification';
 import { SavedSqlTableName } from '../../database/entities/savedSql';
 import { SpaceTableName } from '../../database/entities/spaces';
 import { UserTable, UserTableName } from '../../database/entities/users';
@@ -825,6 +827,42 @@ export class DashboardModel {
             throw new NotFoundError('Dashboard not found');
         }
 
+        // Fetch verification status
+        const verificationRow = await this.database(
+            ContentVerificationTableName,
+        )
+            .leftJoin(
+                UserTableName,
+                `${ContentVerificationTableName}.verified_by_user_uuid`,
+                `${UserTableName}.user_uuid`,
+            )
+            .where(
+                `${ContentVerificationTableName}.content_type`,
+                ContentType.DASHBOARD,
+            )
+            .where(
+                `${ContentVerificationTableName}.content_uuid`,
+                dashboard.dashboard_uuid,
+            )
+            .select(
+                `${ContentVerificationTableName}.verified_at`,
+                `${UserTableName}.user_uuid`,
+                `${UserTableName}.first_name`,
+                `${UserTableName}.last_name`,
+            )
+            .first();
+
+        const verification = verificationRow
+            ? {
+                  verifiedBy: {
+                      userUuid: verificationRow.user_uuid,
+                      firstName: verificationRow.first_name,
+                      lastName: verificationRow.last_name,
+                  },
+                  verifiedAt: verificationRow.verified_at,
+              }
+            : null;
+
         const [view] = await this.database(DashboardViewsTableName)
             .select('*')
             .orderBy(`${DashboardViewsTableName}.created_at`, 'desc')
@@ -1136,6 +1174,7 @@ export class DashboardModel {
                 lastName: dashboard.last_name,
             },
             slug: dashboard.slug,
+            verification,
             config: dashboard?.config,
             ...(dashboard.deleted_at
                 ? {
@@ -1733,6 +1772,42 @@ export class DashboardModel {
             throw new NotFoundError('Dashboard version not found');
         }
 
+        // Fetch verification status
+        const versionVerificationRow = await this.database(
+            ContentVerificationTableName,
+        )
+            .leftJoin(
+                UserTableName,
+                `${ContentVerificationTableName}.verified_by_user_uuid`,
+                `${UserTableName}.user_uuid`,
+            )
+            .where(
+                `${ContentVerificationTableName}.content_type`,
+                ContentType.DASHBOARD,
+            )
+            .where(
+                `${ContentVerificationTableName}.content_uuid`,
+                dashboard.dashboard_uuid,
+            )
+            .select(
+                `${ContentVerificationTableName}.verified_at`,
+                `${UserTableName}.user_uuid`,
+                `${UserTableName}.first_name`,
+                `${UserTableName}.last_name`,
+            )
+            .first();
+
+        const versionVerification = versionVerificationRow
+            ? {
+                  verifiedBy: {
+                      userUuid: versionVerificationRow.user_uuid,
+                      firstName: versionVerificationRow.first_name,
+                      lastName: versionVerificationRow.last_name,
+                  },
+                  verifiedAt: versionVerificationRow.verified_at,
+              }
+            : null;
+
         const [view] = await this.database(DashboardViewsTableName)
             .select('*')
             .orderBy(`${DashboardViewsTableName}.created_at`, 'desc')
@@ -2040,6 +2115,7 @@ export class DashboardModel {
                 lastName: dashboard.last_name,
             },
             slug: dashboard.slug,
+            verification: versionVerification,
             config: dashboard?.config,
         };
     }

@@ -22,6 +22,8 @@ import {
     IconAlertCircle,
     IconArrowBack,
     IconBell,
+    IconCircleCheck,
+    IconCircleCheckFilled,
     IconCirclePlus,
     IconCirclesRelation,
     IconCopy,
@@ -77,7 +79,10 @@ import { useFavoriteMutation } from '../../../hooks/favorites/useFavoriteMutatio
 import { useFavorites } from '../../../hooks/favorites/useFavorites';
 import { useChartPinningMutation } from '../../../hooks/pinning/useChartPinningMutation';
 import { useContentAction } from '../../../hooks/useContent';
-import { useVerifyChartMutation } from '../../../hooks/useContentVerification';
+import {
+    useUnverifyChartMutation,
+    useVerifyChartMutation,
+} from '../../../hooks/useContentVerification';
 import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
 import { useProject } from '../../../hooks/useProject';
 import { useUpdateMutation } from '../../../hooks/useSavedQuery';
@@ -336,6 +341,9 @@ const SavedChartsHeader: FC = () => {
         ) === true;
 
     const { mutate: verifyChart } = useVerifyChartMutation();
+    const { mutate: unverifyChart } = useUnverifyChartMutation();
+
+    const isChartVerified = savedChart?.verification !== null && savedChart?.verification !== undefined;
 
     const userCanCreateDeliveriesAndAlerts = user.data?.ability?.can(
         'create',
@@ -740,15 +748,32 @@ const SavedChartsHeader: FC = () => {
                                     savedChart?.uuid && (
                                         <Menu.Item
                                             leftSection={
-                                                <MantineIcon
-                                                    icon={IconShieldCheck}
-                                                />
+                                                isChartVerified ? (
+                                                    <IconCircleCheckFilled
+                                                        size={18}
+                                                        color="var(--mantine-color-green-6)"
+                                                    />
+                                                ) : (
+                                                    <IconCircleCheck
+                                                        size={18}
+                                                    />
+                                                )
                                             }
                                             onClick={() => {
-                                                verifyChart(savedChart.uuid);
+                                                if (isChartVerified) {
+                                                    unverifyChart(
+                                                        savedChart.uuid,
+                                                    );
+                                                } else {
+                                                    verifyChart(
+                                                        savedChart.uuid,
+                                                    );
+                                                }
                                             }}
                                         >
-                                            Verify
+                                            {isChartVerified
+                                                ? 'Remove verification'
+                                                : 'Verify'}
                                         </Menu.Item>
                                     )}
 

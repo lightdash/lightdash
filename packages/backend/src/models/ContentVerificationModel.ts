@@ -1,12 +1,16 @@
 import {
     ContentType,
     type ContentVerificationInfo,
+    type VerifiedContentListItem,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import {
     ContentVerificationTableName,
     type CreateDbContentVerification,
 } from '../database/entities/contentVerification';
+import { DashboardsTableName } from '../database/entities/dashboards';
+import { SavedChartsTableName } from '../database/entities/savedCharts';
+import { SpaceTableName } from '../database/entities/spaces';
 import { UserTableName } from '../database/entities/users';
 
 type ContentVerificationModelArguments = {
@@ -132,5 +136,102 @@ export class ContentVerificationModel {
                 content_uuid: contentUuid,
             })
             .delete();
+    }
+
+    async getAllForProject(
+        projectUuid: string,
+    ): Promise<VerifiedContentListItem[]> {
+        const chartRows = await this.database(ContentVerificationTableName)
+            .innerJoin(
+                SavedChartsTableName,
+                `${ContentVerificationTableName}.content_uuid`,
+                `${SavedChartsTableName}.saved_query_uuid`,
+            )
+            .innerJoin(
+                SpaceTableName,
+                `${SavedChartsTableName}.space_id`,
+                `${SpaceTableName}.space_id`,
+            )
+            .leftJoin(
+                UserTableName,
+                `${ContentVerificationTableName}.verified_by_user_uuid`,
+                `${UserTableName}.user_uuid`,
+            )
+            .where(
+                `${ContentVerificationTableName}.project_uuid`,
+                projectUuid,
+            )
+            .where(
+                `${ContentVerificationTableName}.content_type`,
+                ContentType.CHART,
+            )
+            .whereNull(`${SavedChartsTableName}.deleted_at`)
+            .whereNull(`${SpaceTableName}.deleted_at`)
+            .select(
+                `${ContentVerificationTableName}.content_verification_uuid`,
+                `${ContentVerificationTableName}.content_type`,
+                `${ContentVerificationTableName}.content_uuid`,
+                `${SavedChartsTableName}.name`,
+                `${SpaceTableName}.space_uuid`,
+                this.database.ref(`${SpaceTableName}.name`).as('space_name'),
+                `${UserTableName}.user_uuid`,
+                `${UserTableName}.first_name`,
+                `${UserTableName}.last_name`,
+                `${ContentVerificationTableName}.verified_at`,
+            );
+
+        const dashboardRows = await this.database(ContentVerificationTableName)
+            .innerJoin(
+                DashboardsTableName,
+                `${ContentVerificationTableName}.content_uuid`,
+                `${DashboardsTableName}.dashboard_uuid`,
+            )
+            .innerJoin(
+                SpaceTableName,
+                `${DashboardsTableName}.space_id`,
+                `${SpaceTableName}.space_id`,
+            )
+            .leftJoin(
+                UserTableName,
+                `${ContentVerificationTableName}.verified_by_user_uuid`,
+                `${UserTableName}.user_uuid`,
+            )
+            .where(
+                `${ContentVerificationTableName}.project_uuid`,
+                projectUuid,
+            )
+            .where(
+                `${ContentVerificationTableName}.content_type`,
+                ContentType.DASHBOARD,
+            )
+            .whereNull(`${DashboardsTableName}.deleted_at`)
+            .whereNull(`${SpaceTableName}.deleted_at`)
+            .select(
+                `${ContentVerificationTableName}.content_verification_uuid`,
+                `${ContentVerificationTableName}.content_type`,
+                `${ContentVerificationTableName}.content_uuid`,
+                `${DashboardsTableName}.name`,
+                `${SpaceTableName}.space_uuid`,
+                this.database.ref(`${SpaceTableName}.name`).as('space_name'),
+                `${UserTableName}.user_uuid`,
+                `${UserTableName}.first_name`,
+                `${UserTableName}.last_name`,
+                `${ContentVerificationTableName}.verified_at`,
+            );
+
+        return [...chartRows, ...dashboardRows].map((row) => ({
+            uuid: row.content_verification_uuid,
+            contentType: row.content_type as ContentType,
+            contentUuid: row.content_uuid,
+            name: row.name,
+            spaceUuid: row.space_uuid,
+            spaceName: row.space_name,
+            verifiedBy: {
+                userUuid: row.user_uuid,
+                firstName: row.first_name,
+                lastName: row.last_name,
+            },
+            verifiedAt: row.verified_at,
+        }));
     }
 }
