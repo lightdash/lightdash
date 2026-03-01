@@ -1273,6 +1273,23 @@ export class DashboardModel {
         );
     }
 
+    async permanentlyDeleteExpiredBatch(
+        retentionDays: number,
+        limit: number,
+    ): Promise<number> {
+        const subquery = this.database(DashboardsTableName)
+            .select('dashboard_id')
+            .whereNotNull('deleted_at')
+            .andWhereRaw('deleted_at < NOW() - make_interval(days => ?)', [
+                retentionDays,
+            ])
+            .orderBy('deleted_at', 'asc')
+            .limit(limit);
+        return this.database(DashboardsTableName)
+            .whereIn('dashboard_id', subquery)
+            .delete();
+    }
+
     async permanentDelete(dashboardUuid: string): Promise<DashboardDAO> {
         const dashboard = await this.getByIdOrSlug(dashboardUuid);
         await this.database(DashboardsTableName)

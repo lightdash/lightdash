@@ -66,6 +66,7 @@ export const SCHEDULER_TASKS = {
     RENAME_RESOURCES: 'renameResources',
     MATERIALIZE_PRE_AGGREGATE: 'materializePreAggregate',
     CLEAN_QUERY_HISTORY: 'cleanQueryHistory',
+    CLEAN_SOFT_DELETED_CONTENT: 'cleanSoftDeletedContent',
     DOWNLOAD_ASYNC_QUERY_RESULTS: 'downloadAsyncQueryResults',
     SYNC_SLACK_CHANNELS: 'syncSlackChannels',
     GENERATE_SLACK_CHANNEL_SYNC_JOBS: 'generateSlackChannelSyncJobs',
@@ -105,6 +106,7 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.RENAME_RESOURCES]: RenameResourcesPayload;
     [SCHEDULER_TASKS.MATERIALIZE_PRE_AGGREGATE]: MaterializePreAggregatePayload;
     [SCHEDULER_TASKS.CLEAN_QUERY_HISTORY]: TraceTaskBase;
+    [SCHEDULER_TASKS.CLEAN_SOFT_DELETED_CONTENT]: TraceTaskBase;
     [SCHEDULER_TASKS.DOWNLOAD_ASYNC_QUERY_RESULTS]: DownloadAsyncQueryResultsPayload;
     [SCHEDULER_TASKS.SYNC_SLACK_CHANNELS]: SyncSlackChannelsPayload;
     [SCHEDULER_TASKS.GENERATE_SLACK_CHANNEL_SYNC_JOBS]: TraceTaskBase;
