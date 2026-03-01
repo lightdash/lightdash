@@ -274,7 +274,42 @@ Human-friendly wrapper:
 - `just agent teardown-all` — Destroy all
 - `just agent cli <id> <command...>` — CLI shortcut
 
-### 11. `.github/workflows/agent-task.yml`
+### 11. `agent-harness/cloud-init.yml` *(done)*
+
+Cloud-init config for provisioning a bare VPS (Hetzner, DigitalOcean, Vultr) with the full agent harness stack. Pass as `--user-data` when creating the server.
+
+Installs:
+- Docker CE + compose plugin
+- Node.js 20.19 (via fnm), pnpm 9.15.5 (via corepack), PM2
+- Python 3 + dbt 1.7 with postgres adapter (in venv)
+- just (command runner)
+- Clones the repo, runs `pnpm install`, builds common + warehouses
+- Pre-pulls all Docker images (pgvector, minio, chromium, mailpit)
+
+Configures:
+- `lightdash` user with Docker group and sudo access
+- 4 GB swap, sysctl tuning (524K inotify watchers, TCP backlog, VM overcommit)
+- Docker log rotation
+- `.env.agent-harness` with shared infra port defaults
+- PATH setup for pnpm, fnm, dbt venvs, just
+
+Recommended instance sizes:
+- 3 agents: 8 vCPU / 16 GB (Hetzner CPX41)
+- 5 agents: 8 vCPU / 32 GB (Hetzner CPX51)
+
+Usage:
+```bash
+hcloud server create \
+  --name lightdash-agents \
+  --type cpx41 \
+  --image ubuntu-24.04 \
+  --ssh-key my-key \
+  --user-data-from-file agent-harness/cloud-init.yml
+```
+
+After provisioning: `sudo -iu lightdash && cd /opt/lightdash && ./agent-harness/setup-infra.sh`
+
+### 12. `.github/workflows/agent-task.yml`
 
 GitHub Actions workflow triggered by `agent-task` issue label.
 
@@ -294,6 +329,9 @@ Steps:
 ---
 
 ## Sequence of Implementation
+
+### Phase 0: Cloud Provisioning *(done)*
+`cloud-init.yml` is ready. Provisions a VPS with all system-level dependencies so subsequent phases only need to create application-level scripts. After the server boots, SSH in as the `lightdash` user — Node.js, pnpm, Docker, dbt, and the repo are all pre-installed.
 
 ### Phase 1: Docker Compose + Infra Setup
 Create `docker-compose.agent.yml` and `setup-infra.sh`. Goal: `./agent-harness/setup-infra.sh` starts shared infra and creates the template database.
