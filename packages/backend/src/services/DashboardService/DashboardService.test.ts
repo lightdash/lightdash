@@ -129,9 +129,9 @@ describe('DashboardService', () => {
         slackClient: {} as SlackClient,
         schedulerClient: {} as SchedulerClient,
         catalogModel: {} as CatalogModel,
+        contentVerificationModel: { unverify: jest.fn() } as any,
         spacePermissionService:
             spacePermissionService as unknown as SpacePermissionService,
-        contentVerificationModel: { unverify: jest.fn() } as any,
     });
     afterEach(() => {
         jest.clearAllMocks();

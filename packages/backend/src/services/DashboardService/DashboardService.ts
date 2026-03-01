@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     AbilityAction,
     BulkActionable,
+    ContentType,
     CreateDashboard,
     CreateDashboardWithCharts,
     CreateSavedChart,
@@ -31,7 +32,6 @@ import {
     SchedulerAndTargets,
     SchedulerFormat,
     SessionUser,
-    ContentType,
     type ContentVerificationInfo,
     TogglePinnedItemInfo,
     UpdateDashboard,
