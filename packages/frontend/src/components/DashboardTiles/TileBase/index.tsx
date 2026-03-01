@@ -337,8 +337,10 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                     <Tooltip label="Verified by an admin" withArrow>
                                         <IconCircleCheckFilled
                                             size={14}
-                                            color="var(--mantine-color-green-6)"
-                                            style={{ flexShrink: 0 }}
+                                            style={{
+                                                flexShrink: 0,
+                                                color: 'var(--mantine-color-green-6)',
+                                            }}
                                         />
                                     </Tooltip>
                                 )}

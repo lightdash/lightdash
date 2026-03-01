@@ -462,7 +462,9 @@ const SavedChartsHeader: FC = () => {
                                     >
                                         <IconCircleCheckFilled
                                             size={16}
-                                            color="var(--mantine-color-green-6)"
+                                            style={{
+                                                color: 'var(--mantine-color-green-6)',
+                                            }}
                                         />
                                     </Tooltip>
                                 )}
