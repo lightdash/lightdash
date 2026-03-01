@@ -13,9 +13,7 @@ FROM node:20-bookworm-slim AS pnpm-base
 
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
-RUN npm i -g corepack@latest
-RUN corepack enable
-RUN corepack prepare pnpm@9.15.5 --activate
+RUN npm i -g pnpm@10.30.3
 RUN pnpm config set store-dir /pnpm/store
 
 WORKDIR /usr/app
