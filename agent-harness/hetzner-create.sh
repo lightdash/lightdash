@@ -138,14 +138,24 @@ fi
 
 log "Using SSH key: $SSH_KEY_PATH"
 
-# Check if key is already in Hetzner
-EXISTING_KEY=$(hcloud ssh-key list -o noheader -o columns=name | grep -x "$SSH_KEY_NAME" || true)
-if [[ -n "$EXISTING_KEY" ]]; then
-    log "SSH key '$SSH_KEY_NAME' already exists in Hetzner"
+# Get fingerprint of local key
+LOCAL_FINGERPRINT=$(ssh-keygen -lf "$SSH_KEY_PATH" | awk '{print $2}')
+log "Local key fingerprint: $LOCAL_FINGERPRINT"
+
+# Check if this exact key (by fingerprint) is already in Hetzner
+EXISTING_KEY_NAME=$(hcloud ssh-key list -o noheader -o columns=name,fingerprint | grep "$LOCAL_FINGERPRINT" | awk '{print $1}' || true)
+
+if [[ -n "$EXISTING_KEY_NAME" ]]; then
+    SSH_KEY_NAME="$EXISTING_KEY_NAME"
+    log "SSH key already in Hetzner as '$SSH_KEY_NAME'"
 else
-    log "Uploading SSH key to Hetzner..."
+    # Key not in Hetzner - upload it with a unique name based on fingerprint
+    SHORT_FP=$(echo "$LOCAL_FINGERPRINT" | sed 's/SHA256://' | cut -c1-8)
+    SSH_KEY_NAME="lightdash-${SHORT_FP}"
+
+    log "Uploading SSH key to Hetzner as '$SSH_KEY_NAME'..."
     hcloud ssh-key create --name "$SSH_KEY_NAME" --public-key-from-file "$SSH_KEY_PATH"
-    success "SSH key '$SSH_KEY_NAME' uploaded"
+    success "SSH key uploaded"
 fi
 
 # ── Step 4: Check if server already exists ────────────────────────────────────
