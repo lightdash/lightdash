@@ -90,7 +90,7 @@ export interface IndexFunctionCall extends BaseFunctionCall {
 export interface OffsetFunctionCall extends BaseFunctionCall {
     type: TableCalculationFunctionType.OFFSET;
     column: string; // The column to offset
-    rowOffset: number; // Number of rows to offset (negative = previous, positive = next)
+    rowOffset: string; // Number of rows to offset (negative = previous, positive = next) or expression
 }
 
 export interface OffsetListFunctionCall extends BaseFunctionCall {
@@ -302,7 +302,9 @@ export function parseTableCalculationFunctions(
     }
 
     // Parse offset function calls (but not pivot_offset)
-    const offsetRegex = /\boffset\s*\(\s*([^,()]+)\s*,\s*(-?\d+)\s*\)/gi;
+    // Updated regex to capture any expression as the second argument
+    const offsetRegex =
+        /\boffset\s*\(\s*([^,()]+(?:\([^)]*\))?[^,()]*)\s*,\s*([^)]+)\s*\)/gi;
     match = offsetRegex.exec(sql);
     while (match !== null) {
         // Skip if this is actually a pivot_offset
@@ -312,7 +314,7 @@ export function parseTableCalculationFunctions(
             functions.push({
                 type: TableCalculationFunctionType.OFFSET,
                 column: match[1].trim(),
-                rowOffset: parseInt(match[2], 10),
+                rowOffset: match[2].trim(),
                 rawSql: match[0],
             });
         }
@@ -777,16 +779,25 @@ export class TableCalculationFunctionCompiler {
 
     private static compileOffset(
         column: string,
-        rowOffset: number,
+        rowOffset: string,
         orderByClause?: string,
     ): string {
-        if (rowOffset === 0) {
-            return column;
+        // Try to parse the offset as a number
+        const offsetNum = parseInt(rowOffset, 10);
+
+        if (!Number.isNaN(offsetNum)) {
+            // It's a valid number, use the original logic
+            if (offsetNum === 0) {
+                return column;
+            }
+            const windowFunction = offsetNum < 0 ? 'LAG' : 'LEAD';
+            const offsetValue = Math.abs(offsetNum);
+            return `${windowFunction}(${column}, ${offsetValue}) ${TableCalculationFunctionCompiler.buildOrderByWindow(orderByClause)}`;
         }
 
-        const windowFunction = rowOffset < 0 ? 'LAG' : 'LEAD';
-        const offsetValue = Math.abs(rowOffset);
-        return `${windowFunction}(${column}, ${offsetValue}) ${TableCalculationFunctionCompiler.buildOrderByWindow(orderByClause)}`;
+        // Not a number - it's an expression, assume negative offset (LAG)
+        // Most dynamic offsets are for period-over-period comparisons (looking backwards)
+        return `LAG(${column}, ${rowOffset}) ${TableCalculationFunctionCompiler.buildOrderByWindow(orderByClause)}`;
     }
 
     private static compileIndex(
