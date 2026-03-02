@@ -1,3 +1,10 @@
+## [0.2545.3](https://github.com/lightdash/lightdash/compare/0.2545.2...0.2545.3) (2026-03-02)
+
+
+### Bug Fixes
+
+* patch deferred model schemas when using --defer ([#20672](https://github.com/lightdash/lightdash/issues/20672)) ([1443efa](https://github.com/lightdash/lightdash/commit/1443efa45f2f33988566a457d207a82c577755df))
+
 ## [0.2545.2](https://github.com/lightdash/lightdash/compare/0.2545.1...0.2545.2) (2026-03-02)
 
 
