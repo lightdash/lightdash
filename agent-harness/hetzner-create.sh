@@ -10,11 +10,12 @@
 #   ./agent-harness/hetzner-create.sh [options]
 #
 # Options:
-#   --name NAME       Instance name (default: lightdash-agents)
-#   --type TYPE       Server type (default: cpx42 - 8 vCPU, 16GB RAM)
-#   --location LOC    Location (default: nbg1 - Nuremberg)
-#   --ssh-key PATH    Path to SSH public key (default: ~/.ssh/id_ed25519.pub)
-#   --help            Show this help message
+#   --name NAME           Instance name (default: lightdash-agents)
+#   --type TYPE           Server type (default: cpx42 - 8 vCPU, 16GB RAM)
+#   --location LOC        Location (default: nbg1 - Nuremberg)
+#   --ssh-key PATH        Path to SSH public key (default: ~/.ssh/id_ed25519.pub)
+#   --tailscale-key KEY   Tailscale auth key for auto-join (enables private access)
+#   --help                Show this help message
 #
 # Examples:
 #   ./agent-harness/hetzner-create.sh
@@ -30,6 +31,7 @@ SERVER_TYPE="cpx42"  # 8 vCPU, 16GB RAM - good for 3 agents
 LOCATION="nbg1"      # Nuremberg, Germany
 SSH_KEY_PATH=""
 SSH_KEY_NAME="lightdash-agent-harness"
+TAILSCALE_KEY=""     # Optional: auto-join Tailscale
 
 # ── Colors ────────────────────────────────────────────────────────────────────
 RED='\033[0;31m'
@@ -50,6 +52,7 @@ while [[ $# -gt 0 ]]; do
         --type) SERVER_TYPE="$2"; shift 2 ;;
         --location) LOCATION="$2"; shift 2 ;;
         --ssh-key) SSH_KEY_PATH="$2"; shift 2 ;;
+        --tailscale-key) TAILSCALE_KEY="$2"; shift 2 ;;
         --help)
             head -30 "$0" | grep "^#" | cut -c3-
             echo ""
@@ -65,6 +68,11 @@ while [[ $# -gt 0 ]]; do
             echo "  ash    Ashburn, VA (US East)"
             echo "  hil    Hillsboro, OR (US West)"
             echo "  sin    Singapore (Asia)"
+            echo ""
+            echo "Tailscale (optional):"
+            echo "  --tailscale-key tskey-auth-xxxxx"
+            echo "  Generate a reusable auth key at: https://login.tailscale.com/admin/settings/keys"
+            echo "  This enables private SSH via Tailscale - no public SSH needed."
             exit 0
             ;;
         *) error "Unknown option: $1"; exit 1 ;;
@@ -197,12 +205,31 @@ log "Creating server '$SERVER_NAME'..."
 echo "  Type:     $SERVER_TYPE"
 echo "  Location: $LOCATION"
 echo "  SSH Key:  $SSH_KEY_NAME"
+if [[ -n "$TAILSCALE_KEY" ]]; then
+    echo "  Tailscale: auto-join enabled"
+fi
 echo ""
 
 CLOUD_INIT_FILE="$SCRIPT_DIR/cloud-init.yml"
 if [[ ! -f "$CLOUD_INIT_FILE" ]]; then
     error "cloud-init.yml not found at: $CLOUD_INIT_FILE"
     exit 1
+fi
+
+# If Tailscale key provided, create modified cloud-init with auto-join
+CLOUD_INIT_FINAL="$CLOUD_INIT_FILE"
+if [[ -n "$TAILSCALE_KEY" ]]; then
+    log "Configuring Tailscale auto-join..."
+    CLOUD_INIT_FINAL=$(mktemp)
+    trap "rm -f $CLOUD_INIT_FINAL" EXIT
+
+    # Copy original and add Tailscale auth command before the final_message
+    sed '/^final_message:/i\
+  # -- Auto-join Tailscale with SSH enabled ------------------------------------\
+  - |\
+    tailscale up --authkey='"$TAILSCALE_KEY"' --ssh --accept-routes\
+    echo "Tailscale: joined network with SSH enabled"\
+' "$CLOUD_INIT_FILE" > "$CLOUD_INIT_FINAL"
 fi
 
 # Create the server
@@ -212,7 +239,7 @@ OUTPUT=$(hcloud server create \
     --image ubuntu-24.04 \
     --location "$LOCATION" \
     --ssh-key "$SSH_KEY_NAME" \
-    --user-data-from-file "$CLOUD_INIT_FILE" 2>&1)
+    --user-data-from-file "$CLOUD_INIT_FINAL" 2>&1)
 
 echo "$OUTPUT"
 
@@ -228,37 +255,49 @@ success "Server created successfully!"
 echo ""
 
 # ── Step 7: Print next steps ──────────────────────────────────────────────────
-cat << EOF
-╔══════════════════════════════════════════════════════════════════════════════╗
-║                        Lightdash Agent Harness                               ║
-╠══════════════════════════════════════════════════════════════════════════════╣
-║  Server: $SERVER_NAME
-║  IP:     $SERVER_IP
-║  Type:   $SERVER_TYPE
-╠══════════════════════════════════════════════════════════════════════════════╣
-║  Cloud-init is now running (takes ~5 minutes).                               ║
-║                                                                              ║
-║  Monitor progress:                                                           ║
-║    ssh root@$SERVER_IP 'tail -f /var/log/cloud-init-output.log'
-║                                                                              ║
-║  Once complete, run:                                                         ║
-║    ssh root@$SERVER_IP
-║    sudo -iu lightdash                                                        ║
-║    cd /opt/lightdash                                                         ║
-║    ./agent-harness/setup-infra.sh                                            ║
-║    ./agent-harness/launch.sh 1                                               ║
-║                                                                              ║
-║  Remote access setup:                                                        ║
-║    sudo tailscale up --ssh    # Join your Tailscale network                  ║
-║    happy --auth               # Mobile Claude Code client                    ║
-║    mosh root@$SERVER_IP       # Roaming-friendly SSH
-╠══════════════════════════════════════════════════════════════════════════════╣
-║  Useful commands:                                                            ║
-║    hcloud server ssh $SERVER_NAME              # SSH via hcloud
-║    hcloud server delete $SERVER_NAME           # Delete server
-║    hcloud server list                                    # List all servers  ║
-╚══════════════════════════════════════════════════════════════════════════════╝
-EOF
+echo "╔══════════════════════════════════════════════════════════════════════════════╗"
+echo "║                        Lightdash Agent Harness                               ║"
+echo "╠══════════════════════════════════════════════════════════════════════════════╣"
+echo "║  Server: $SERVER_NAME"
+echo "║  IP:     $SERVER_IP"
+echo "║  Type:   $SERVER_TYPE"
+if [[ -n "$TAILSCALE_KEY" ]]; then
+echo "║  Tailscale: auto-join enabled (will join your tailnet automatically)"
+fi
+echo "╠══════════════════════════════════════════════════════════════════════════════╣"
+echo "║  Cloud-init is now running (takes ~5 minutes).                               ║"
+echo "║                                                                              ║"
+echo "║  Monitor progress:                                                           ║"
+echo "║    ssh root@$SERVER_IP 'tail -f /var/log/cloud-init-output.log'"
+echo "║                                                                              ║"
+echo "║  Once complete, run:                                                         ║"
+if [[ -n "$TAILSCALE_KEY" ]]; then
+echo "║    ssh root@<tailscale-hostname>     # or use public IP                      ║"
+else
+echo "║    ssh root@$SERVER_IP"
+fi
+echo "║    sudo -iu lightdash                                                        ║"
+echo "║    cd /opt/lightdash                                                         ║"
+echo "║    ./agent-harness/setup-infra.sh                                            ║"
+echo "║    ./agent-harness/launch.sh 1                                               ║"
+echo "║                                                                              ║"
+if [[ -z "$TAILSCALE_KEY" ]]; then
+echo "║  Remote access setup:                                                        ║"
+echo "║    sudo tailscale up --ssh    # Join your Tailscale network                  ║"
+echo "║    happy --auth               # Mobile Claude Code client                    ║"
+echo "║    mosh root@$SERVER_IP       # Roaming-friendly SSH"
+else
+echo "║  Tailscale SSH is auto-enabled. Once cloud-init completes:                   ║"
+echo "║    - Find hostname: tailscale status | grep $SERVER_IP"
+echo "║    - SSH via Tailscale: ssh root@<tailscale-hostname>                        ║"
+echo "║    - You can now disable public SSH if desired                               ║"
+fi
+echo "╠══════════════════════════════════════════════════════════════════════════════╣"
+echo "║  Useful commands:                                                            ║"
+echo "║    hcloud server ssh $SERVER_NAME              # SSH via hcloud"
+echo "║    hcloud server delete $SERVER_NAME           # Delete server"
+echo "║    hcloud server list                          # List all servers            ║"
+echo "╚══════════════════════════════════════════════════════════════════════════════╝"
 
 # ── Optional: Wait for cloud-init ─────────────────────────────────────────────
 echo ""

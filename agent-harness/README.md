@@ -64,7 +64,16 @@ This script will:
 ./agent-harness/hetzner-create.sh --type cpx52        # Use larger server (12 vCPU, 24GB)
 ./agent-harness/hetzner-create.sh --location ash      # Use US East location
 ./agent-harness/hetzner-create.sh --name my-agents    # Custom server name
+./agent-harness/hetzner-create.sh --tailscale-key tskey-auth-xxxxx  # Auto-join Tailscale
 ```
+
+**Private access with Tailscale (recommended):**
+
+Generate a reusable auth key at https://login.tailscale.com/admin/settings/keys, then:
+```bash
+./agent-harness/hetzner-create.sh --tailscale-key tskey-auth-xxxxx
+```
+This auto-joins your Tailscale network with SSH enabled. You can then disable public SSH entirely.
 
 **Server sizes:**
 | Type | vCPU | RAM | Cost | Recommended for |
