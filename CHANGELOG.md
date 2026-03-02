@@ -1,3 +1,10 @@
+# [0.2550.0](https://github.com/lightdash/lightdash/compare/0.2549.1...0.2550.0) (2026-03-02)
+
+
+### Features
+
+* improve SyncModalForm styling and add TruncatedText for GoogleSheetButton ([#20759](https://github.com/lightdash/lightdash/issues/20759)) ([40063e2](https://github.com/lightdash/lightdash/commit/40063e228ba4b7e4b400c1aae1aa93a2d9a3ed62))
+
 ## [0.2549.1](https://github.com/lightdash/lightdash/compare/0.2549.0...0.2549.1) (2026-03-02)
 
 
