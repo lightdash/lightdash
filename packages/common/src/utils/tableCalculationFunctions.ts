@@ -28,6 +28,10 @@ export enum TableCalculationFunctionType {
     PIVOT_OFFSET_LIST = 'pivot_offset_list',
     PIVOT_ROW = 'pivot_row',
     PIVOT_WHERE = 'pivot_where',
+
+    // Aggregate functions (reference column/row totals)
+    TOTAL = 'total',
+    ROW_TOTAL = 'row_total',
 }
 
 // ============================================================================
@@ -59,6 +63,15 @@ export const PIVOT_FUNCTIONS = [
     TableCalculationFunctionType.PIVOT_OFFSET_LIST,
     TableCalculationFunctionType.PIVOT_ROW,
     TableCalculationFunctionType.PIVOT_WHERE,
+] as const;
+
+/**
+ * Aggregate functions - reference column or row totals
+ * Pre-processed in MetricQueryBuilder before function compilation.
+ */
+export const AGGREGATE_FUNCTIONS = [
+    TableCalculationFunctionType.TOTAL,
+    TableCalculationFunctionType.ROW_TOTAL,
 ] as const;
 
 // ============================================================================
@@ -151,6 +164,19 @@ export interface PivotWhereFunctionCall extends BaseFunctionCall {
 }
 
 /**
+ * Aggregate function call types
+ */
+export interface TotalFunctionCall extends BaseFunctionCall {
+    type: TableCalculationFunctionType.TOTAL;
+    expression: string; // The metric field reference to total
+}
+
+export interface RowTotalFunctionCall extends BaseFunctionCall {
+    type: TableCalculationFunctionType.ROW_TOTAL;
+    expression: string; // The metric field reference to row-total
+}
+
+/**
  * Union type for all function calls
  */
 export type TableCalculationFunctionCall =
@@ -167,7 +193,10 @@ export type TableCalculationFunctionCall =
     | PivotOffsetFunctionCall
     | PivotOffsetListFunctionCall
     | PivotRowFunctionCall
-    | PivotWhereFunctionCall;
+    | PivotWhereFunctionCall
+    // Aggregate functions
+    | TotalFunctionCall
+    | RowTotalFunctionCall;
 
 // ============================================================================
 // Parser Functions
@@ -350,6 +379,73 @@ export function parseTableCalculationFunctions(
             rawSql: match[0],
         });
         match = pivotRowRegex.exec(sql);
+    }
+
+    // Parse row_total function calls (before total to avoid partial match)
+    const rowTotalStartRegex = /\brow_total\s*\(/gi;
+    let rowTotalMatch = rowTotalStartRegex.exec(sql);
+    while (rowTotalMatch !== null) {
+        const argsStart = rowTotalMatch.index + rowTotalMatch[0].length;
+        let parenCount = 1;
+        let endIdx = -1;
+
+        for (let i = argsStart; i < sql.length; i += 1) {
+            if (sql[i] === '(') {
+                parenCount += 1;
+            } else if (sql[i] === ')') {
+                parenCount -= 1;
+                if (parenCount === 0) {
+                    endIdx = i;
+                    break;
+                }
+            }
+        }
+
+        if (endIdx !== -1) {
+            const expression = sql.slice(argsStart, endIdx).trim();
+            functions.push({
+                type: TableCalculationFunctionType.ROW_TOTAL,
+                expression,
+                rawSql: sql.slice(rowTotalMatch.index, endIdx + 1),
+            });
+        }
+        rowTotalMatch = rowTotalStartRegex.exec(sql);
+    }
+
+    // Parse total function calls (uses \b to avoid matching row_total)
+    const totalStartRegex = /\btotal\s*\(/gi;
+    let totalMatch = totalStartRegex.exec(sql);
+    while (totalMatch !== null) {
+        // Skip if this is actually row_total
+        const startIdx = totalMatch.index;
+        const beforeMatch = sql.slice(Math.max(0, startIdx - 4), startIdx);
+        if (!beforeMatch.endsWith('row_')) {
+            const argsStart = startIdx + totalMatch[0].length;
+            let parenCount = 1;
+            let endIdx = -1;
+
+            for (let i = argsStart; i < sql.length; i += 1) {
+                if (sql[i] === '(') {
+                    parenCount += 1;
+                } else if (sql[i] === ')') {
+                    parenCount -= 1;
+                    if (parenCount === 0) {
+                        endIdx = i;
+                        break;
+                    }
+                }
+            }
+
+            if (endIdx !== -1) {
+                const expression = sql.slice(argsStart, endIdx).trim();
+                functions.push({
+                    type: TableCalculationFunctionType.TOTAL,
+                    expression,
+                    rawSql: sql.slice(startIdx, endIdx + 1),
+                });
+            }
+        }
+        totalMatch = totalStartRegex.exec(sql);
     }
 
     // Parse row function calls
@@ -568,6 +664,78 @@ export function hasRowFunctions(
     functions: TableCalculationFunctionCall[],
 ): boolean {
     return functions.some((f) => isRowFunction(f.type));
+}
+
+/**
+ * Checks if the given function type is an aggregate function (total/row_total).
+ */
+export function isAggregateFunction(
+    type: TableCalculationFunctionType,
+): boolean {
+    return (
+        AGGREGATE_FUNCTIONS as readonly TableCalculationFunctionType[]
+    ).includes(type);
+}
+
+/**
+ * Checks if any of the parsed functions are aggregate functions (total/row_total).
+ */
+export function hasAggregateFunctions(
+    functions: TableCalculationFunctionCall[],
+): boolean {
+    return functions.some((f) => isAggregateFunction(f.type));
+}
+
+/**
+ * Extracts field IDs referenced by total() and row_total() calls in compiled table calculations.
+ * Scans compiledSql for patterns like total("field_id") and row_total("field_id").
+ * Works with any quote character (", `, etc.).
+ */
+export function extractTotalReferences(
+    compiledTableCalcs: {
+        compiledSql: string;
+    }[],
+): {
+    totalFields: string[];
+    rowTotalFields: string[];
+} {
+    const totalFields = new Set<string>();
+    const rowTotalFields = new Set<string>();
+
+    // Match total("field_id") or total(`field_id`) — any single quote char
+    const totalRegex = /\btotal\s*\(\s*["'`]([^"'`]+)["'`]\s*\)/gi;
+    const rowTotalRegex = /\brow_total\s*\(\s*["'`]([^"'`]+)["'`]\s*\)/gi;
+
+    for (const tc of compiledTableCalcs) {
+        let m;
+        // Extract row_total references
+        rowTotalRegex.lastIndex = 0;
+        m = rowTotalRegex.exec(tc.compiledSql);
+        while (m !== null) {
+            rowTotalFields.add(m[1]);
+            m = rowTotalRegex.exec(tc.compiledSql);
+        }
+
+        // Extract total references (skip row_total matches)
+        totalRegex.lastIndex = 0;
+        m = totalRegex.exec(tc.compiledSql);
+        while (m !== null) {
+            const startIdx = m.index;
+            const before = tc.compiledSql.slice(
+                Math.max(0, startIdx - 4),
+                startIdx,
+            );
+            if (!before.endsWith('row_')) {
+                totalFields.add(m[1]);
+            }
+            m = totalRegex.exec(tc.compiledSql);
+        }
+    }
+
+    return {
+        totalFields: [...totalFields],
+        rowTotalFields: [...rowTotalFields],
+    };
 }
 
 // ============================================================================

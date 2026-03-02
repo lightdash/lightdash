@@ -3510,6 +3510,264 @@ describe('Query Structure Tests', () => {
         // Verify that the raw pivot_offset function is not in the query
         expect(result.query).not.toContain('pivot_offset');
     });
+
+    test('Should build column_totals CTE when total() is used', () => {
+        const metricQueryWithTotal = {
+            ...METRIC_QUERY,
+            tableCalculations: [
+                {
+                    name: 'pct_of_total',
+                    displayName: 'Pct of Total',
+                    sql: '${table1.metric1} / total(${table1.metric1})',
+                },
+            ],
+            compiledTableCalculations: [
+                {
+                    name: 'pct_of_total',
+                    displayName: 'Pct of Total',
+                    sql: '${table1.metric1} / total(${table1.metric1})',
+                    compiledSql: '"table1_metric1" / total("table1_metric1")',
+                    dependsOn: [],
+                },
+            ],
+        };
+
+        const result = buildQuery({
+            explore: EXPLORE,
+            compiledMetricQuery: metricQueryWithTotal,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+
+        // Should have the column_totals CTE
+        expect(result.query).toContain('column_totals AS (');
+        // Should use the metric's compiledSql for aggregation
+        expect(result.query).toContain(
+            'MAX("table1".number_column) AS "table1_metric1__total"',
+        );
+        // Should have with_totals CTE joining column_totals
+        expect(result.query).toContain('with_totals AS (');
+        expect(result.query).toContain('CROSS JOIN column_totals');
+        // Should replace total() with column alias in table calc
+        expect(result.query).toContain('"table1_metric1__total"');
+        // Should NOT contain the raw total() call
+        expect(result.query).not.toContain('total("table1_metric1")');
+    });
+
+    test('Should build row_totals CTE when row_total() is used with pivot', () => {
+        const metricQueryWithRowTotal = {
+            ...METRIC_QUERY,
+            tableCalculations: [
+                {
+                    name: 'pct_of_row',
+                    displayName: 'Pct of Row',
+                    sql: '${table1.metric1} / row_total(${table1.metric1})',
+                },
+            ],
+            compiledTableCalculations: [
+                {
+                    name: 'pct_of_row',
+                    displayName: 'Pct of Row',
+                    sql: '${table1.metric1} / row_total(${table1.metric1})',
+                    compiledSql:
+                        '"table1_metric1" / row_total("table1_metric1")',
+                    dependsOn: [],
+                },
+            ],
+        };
+
+        const result = buildQuery({
+            explore: EXPLORE,
+            compiledMetricQuery: metricQueryWithRowTotal,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            pivotConfiguration: {
+                indexColumn: [
+                    {
+                        reference: 'table1_dim1',
+                        type: VizIndexType.CATEGORY,
+                    },
+                ],
+                valuesColumns: [],
+                groupByColumns: undefined,
+                sortBy: undefined,
+            },
+        });
+
+        // Should have the row_totals CTE
+        expect(result.query).toContain('row_totals AS (');
+        // Should use the metric's compiledSql for aggregation
+        expect(result.query).toContain(
+            'MAX("table1".number_column) AS "table1_metric1__row_total"',
+        );
+        // Should GROUP BY the non-pivot dimension
+        expect(result.query).toContain('GROUP BY 1');
+        // Should have with_totals CTE with LEFT JOIN on dimension
+        expect(result.query).toContain('with_totals AS (');
+        expect(result.query).toContain('LEFT JOIN row_totals ON');
+        // Should replace row_total() with column alias
+        expect(result.query).toContain('"table1_metric1__row_total"');
+        expect(result.query).not.toContain('row_total("table1_metric1")');
+    });
+
+    test('Should build both column_totals and row_totals when both are used', () => {
+        const metricQueryWithBothTotals = {
+            ...METRIC_QUERY,
+            tableCalculations: [
+                {
+                    name: 'pct_total',
+                    displayName: 'Pct Total',
+                    sql: '${table1.metric1} / total(${table1.metric1})',
+                },
+                {
+                    name: 'pct_row',
+                    displayName: 'Pct Row',
+                    sql: '${table1.metric1} / row_total(${table1.metric1})',
+                },
+            ],
+            compiledTableCalculations: [
+                {
+                    name: 'pct_total',
+                    displayName: 'Pct Total',
+                    sql: '${table1.metric1} / total(${table1.metric1})',
+                    compiledSql: '"table1_metric1" / total("table1_metric1")',
+                    dependsOn: [],
+                },
+                {
+                    name: 'pct_row',
+                    displayName: 'Pct Row',
+                    sql: '${table1.metric1} / row_total(${table1.metric1})',
+                    compiledSql:
+                        '"table1_metric1" / row_total("table1_metric1")',
+                    dependsOn: [],
+                },
+            ],
+        };
+
+        const result = buildQuery({
+            explore: EXPLORE,
+            compiledMetricQuery: metricQueryWithBothTotals,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            pivotConfiguration: {
+                indexColumn: [
+                    {
+                        reference: 'table1_dim1',
+                        type: VizIndexType.CATEGORY,
+                    },
+                ],
+                valuesColumns: [],
+                groupByColumns: undefined,
+                sortBy: undefined,
+            },
+        });
+
+        // Should have both totals CTEs
+        expect(result.query).toContain('column_totals AS (');
+        expect(result.query).toContain('row_totals AS (');
+        expect(result.query).toContain('with_totals AS (');
+
+        // Should have CROSS JOIN for column_totals and LEFT JOIN for row_totals
+        expect(result.query).toContain('CROSS JOIN column_totals');
+        expect(result.query).toContain('LEFT JOIN row_totals ON');
+
+        // Both replacements should be present
+        expect(result.query).toContain('"table1_metric1__total"');
+        expect(result.query).toContain('"table1_metric1__row_total"');
+    });
+
+    test('Should handle total() in dependent table calculations', () => {
+        const metricQueryWithTotalDependentCalc = {
+            ...METRIC_QUERY,
+            tableCalculations: [
+                {
+                    name: 'pct_total',
+                    displayName: 'Pct Total',
+                    sql: '${table1.metric1} / total(${table1.metric1})',
+                },
+                {
+                    name: 'double_pct',
+                    displayName: 'Double Pct',
+                    sql: '${pct_total} * 2',
+                },
+            ],
+            compiledTableCalculations: [
+                {
+                    name: 'pct_total',
+                    displayName: 'Pct Total',
+                    sql: '${table1.metric1} / total(${table1.metric1})',
+                    compiledSql: '"table1_metric1" / total("table1_metric1")',
+                    dependsOn: [],
+                },
+                {
+                    name: 'double_pct',
+                    displayName: 'Double Pct',
+                    sql: '${pct_total} * 2',
+                    compiledSql: '"pct_total" * 2',
+                    dependsOn: ['pct_total'],
+                },
+            ],
+        };
+
+        const result = buildQuery({
+            explore: EXPLORE,
+            compiledMetricQuery: metricQueryWithTotalDependentCalc,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        // Should have column_totals and with_totals CTEs
+        expect(result.query).toContain('column_totals AS (');
+        expect(result.query).toContain('with_totals AS (');
+
+        // Should have dependent table calc CTE
+        expect(result.query).toContain('tc_pct_total AS (');
+        expect(result.query).toContain('tc_double_pct AS (');
+
+        // total() should be replaced in the dependent CTE
+        expect(result.query).toContain('"table1_metric1__total"');
+        expect(result.query).not.toContain('total("table1_metric1")');
+    });
+
+    test('Should not build totals CTEs when total() is not used', () => {
+        const metricQueryWithoutTotal = {
+            ...METRIC_QUERY,
+            tableCalculations: [
+                {
+                    name: 'simple_calc',
+                    displayName: 'Simple Calc',
+                    sql: '${table1.metric1} + 100',
+                },
+            ],
+            compiledTableCalculations: [
+                {
+                    name: 'simple_calc',
+                    displayName: 'Simple Calc',
+                    sql: '${table1.metric1} + 100',
+                    compiledSql: '"table1_metric1" + 100',
+                    dependsOn: [],
+                },
+            ],
+        };
+
+        const result = buildQuery({
+            explore: EXPLORE,
+            compiledMetricQuery: metricQueryWithoutTotal,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        // Should NOT have any totals CTEs
+        expect(result.query).not.toContain('column_totals AS (');
+        expect(result.query).not.toContain('row_totals AS (');
+        expect(result.query).not.toContain('with_totals AS (');
+    });
 });
 
 describe('Date zoom with filters', () => {

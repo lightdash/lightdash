@@ -1,5 +1,7 @@
 import type { WarehouseSqlBuilder } from '../types/warehouse';
 import {
+    AGGREGATE_FUNCTIONS,
+    extractTotalReferences,
     parseTableCalculationFunctions,
     PIVOT_FUNCTIONS,
     ROW_FUNCTIONS,
@@ -1183,6 +1185,206 @@ describe('tableCalculationFunctions', () => {
             expect(PIVOT_FUNCTIONS).toContain(
                 TableCalculationFunctionType.PIVOT_WHERE,
             );
+        });
+
+        it('should include aggregate functions', () => {
+            expect(AGGREGATE_FUNCTIONS).toContain(
+                TableCalculationFunctionType.TOTAL,
+            );
+            expect(AGGREGATE_FUNCTIONS).toContain(
+                TableCalculationFunctionType.ROW_TOTAL,
+            );
+        });
+    });
+
+    describe('total parsing', () => {
+        it('should parse simple total call', () => {
+            const sql = 'total("revenue")';
+            const result = parseTableCalculationFunctions(sql);
+
+            expect(result).toHaveLength(1);
+            expect(result[0].type).toBe(TableCalculationFunctionType.TOTAL);
+            if (result[0].type === TableCalculationFunctionType.TOTAL) {
+                expect(result[0].expression).toBe('"revenue"');
+                expect(result[0].rawSql).toBe('total("revenue")');
+            }
+        });
+
+        it('should parse total with whitespace', () => {
+            const sql = 'total ( "orders_revenue" )';
+            const result = parseTableCalculationFunctions(sql);
+
+            expect(result).toHaveLength(1);
+            expect(result[0].type).toBe(TableCalculationFunctionType.TOTAL);
+            if (result[0].type === TableCalculationFunctionType.TOTAL) {
+                expect(result[0].expression).toBe('"orders_revenue"');
+            }
+        });
+
+        it('should parse multiple total calls', () => {
+            const sql =
+                '"revenue" / total("revenue") + "users" / total("users")';
+            const result = parseTableCalculationFunctions(sql);
+
+            const totalCalls = result.filter(
+                (f) => f.type === TableCalculationFunctionType.TOTAL,
+            );
+            expect(totalCalls).toHaveLength(2);
+        });
+
+        it('should not match row_total as total', () => {
+            const sql = 'row_total("revenue")';
+            const result = parseTableCalculationFunctions(sql);
+
+            const totalCalls = result.filter(
+                (f) => f.type === TableCalculationFunctionType.TOTAL,
+            );
+            expect(totalCalls).toHaveLength(0);
+
+            const rowTotalCalls = result.filter(
+                (f) => f.type === TableCalculationFunctionType.ROW_TOTAL,
+            );
+            expect(rowTotalCalls).toHaveLength(1);
+        });
+
+        it('should parse total with backtick-quoted field', () => {
+            const sql = 'total(`revenue`)';
+            const result = parseTableCalculationFunctions(sql);
+
+            expect(result).toHaveLength(1);
+            expect(result[0].type).toBe(TableCalculationFunctionType.TOTAL);
+            if (result[0].type === TableCalculationFunctionType.TOTAL) {
+                expect(result[0].expression).toBe('`revenue`');
+            }
+        });
+    });
+
+    describe('row_total parsing', () => {
+        it('should parse simple row_total call', () => {
+            const sql = 'row_total("count")';
+            const result = parseTableCalculationFunctions(sql);
+
+            expect(result).toHaveLength(1);
+            expect(result[0].type).toBe(TableCalculationFunctionType.ROW_TOTAL);
+            if (result[0].type === TableCalculationFunctionType.ROW_TOTAL) {
+                expect(result[0].expression).toBe('"count"');
+                expect(result[0].rawSql).toBe('row_total("count")');
+            }
+        });
+
+        it('should parse row_total with whitespace', () => {
+            const sql = 'row_total ( "unique_users" )';
+            const result = parseTableCalculationFunctions(sql);
+
+            expect(result).toHaveLength(1);
+            expect(result[0].type).toBe(TableCalculationFunctionType.ROW_TOTAL);
+            if (result[0].type === TableCalculationFunctionType.ROW_TOTAL) {
+                expect(result[0].expression).toBe('"unique_users"');
+            }
+        });
+
+        it('should parse both total and row_total in same expression', () => {
+            const sql = '"revenue" / total("revenue") + row_total("revenue")';
+            const result = parseTableCalculationFunctions(sql);
+
+            const totalCalls = result.filter(
+                (f) => f.type === TableCalculationFunctionType.TOTAL,
+            );
+            const rowTotalCalls = result.filter(
+                (f) => f.type === TableCalculationFunctionType.ROW_TOTAL,
+            );
+            expect(totalCalls).toHaveLength(1);
+            expect(rowTotalCalls).toHaveLength(1);
+        });
+
+        it('should parse total combined with offset', () => {
+            const sql = 'total("revenue") + offset("revenue", -1)';
+            const result = parseTableCalculationFunctions(sql);
+
+            const totalCalls = result.filter(
+                (f) => f.type === TableCalculationFunctionType.TOTAL,
+            );
+            const offsetCalls = result.filter(
+                (f) => f.type === TableCalculationFunctionType.OFFSET,
+            );
+            expect(totalCalls).toHaveLength(1);
+            expect(offsetCalls).toHaveLength(1);
+        });
+    });
+
+    describe('extractTotalReferences', () => {
+        it('should extract total field references', () => {
+            const result = extractTotalReferences([
+                {
+                    compiledSql: '"revenue" / total("revenue")',
+                },
+            ]);
+            expect(result.totalFields).toEqual(['revenue']);
+            expect(result.rowTotalFields).toEqual([]);
+        });
+
+        it('should extract row_total field references', () => {
+            const result = extractTotalReferences([
+                {
+                    compiledSql: 'row_total("unique_users")',
+                },
+            ]);
+            expect(result.totalFields).toEqual([]);
+            expect(result.rowTotalFields).toEqual(['unique_users']);
+        });
+
+        it('should extract both total and row_total references', () => {
+            const result = extractTotalReferences([
+                {
+                    compiledSql:
+                        '"revenue" / total("revenue") + row_total("count")',
+                },
+            ]);
+            expect(result.totalFields).toEqual(['revenue']);
+            expect(result.rowTotalFields).toEqual(['count']);
+        });
+
+        it('should deduplicate field references across table calcs', () => {
+            const result = extractTotalReferences([
+                { compiledSql: 'total("revenue")' },
+                { compiledSql: '"cost" / total("revenue")' },
+            ]);
+            expect(result.totalFields).toEqual(['revenue']);
+        });
+
+        it('should handle multiple distinct field references', () => {
+            const result = extractTotalReferences([
+                {
+                    compiledSql: 'total("revenue") + total("cost")',
+                },
+            ]);
+            expect(result.totalFields).toEqual(
+                expect.arrayContaining(['revenue', 'cost']),
+            );
+            expect(result.totalFields).toHaveLength(2);
+        });
+
+        it('should handle backtick-quoted fields', () => {
+            const result = extractTotalReferences([
+                { compiledSql: 'total(`revenue`)' },
+            ]);
+            expect(result.totalFields).toEqual(['revenue']);
+        });
+
+        it('should not match row_total as total', () => {
+            const result = extractTotalReferences([
+                { compiledSql: 'row_total("revenue")' },
+            ]);
+            expect(result.totalFields).toEqual([]);
+            expect(result.rowTotalFields).toEqual(['revenue']);
+        });
+
+        it('should return empty arrays when no totals present', () => {
+            const result = extractTotalReferences([
+                { compiledSql: '"revenue" * 2' },
+            ]);
+            expect(result.totalFields).toEqual([]);
+            expect(result.rowTotalFields).toEqual([]);
         });
     });
 });
