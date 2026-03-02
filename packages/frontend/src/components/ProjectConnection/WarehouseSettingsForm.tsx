@@ -1,5 +1,5 @@
 import { WarehouseTypes } from '@lightdash/common';
-import { Select } from '@mantine/core';
+import { Select } from '@mantine-8/core';
 import { type FC } from 'react';
 import { useFormContext } from './formContext';
 import AthenaForm from './WarehouseForms/AthenaForm';
@@ -66,11 +66,12 @@ const WarehouseSettingsForm: FC<WarehouseSettingsFormProps> = ({
                     )}
                     required
                     {...form.getInputProps('warehouse.type')}
-                    onChange={(value: WarehouseTypes) => {
-                        if (!value) return;
+                    onChange={(value) => {
+                        const warehouseType = value as WarehouseTypes;
+                        if (!warehouseType) return;
 
                         form.setValues({
-                            warehouse: warehouseDefaultValues[value],
+                            warehouse: warehouseDefaultValues[warehouseType],
                         });
                     }}
                     disabled={disabled}

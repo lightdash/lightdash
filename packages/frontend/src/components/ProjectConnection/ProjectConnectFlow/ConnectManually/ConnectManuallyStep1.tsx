@@ -1,4 +1,4 @@
-import { Button, Stack, Text, Tooltip } from '@mantine/core';
+import { Button, Stack, Text, Tooltip } from '@mantine-8/core';
 import { Prism } from '@mantine/prism';
 import { IconChevronLeft, IconChevronRight } from '@tabler/icons-react';
 import { type FC } from 'react';

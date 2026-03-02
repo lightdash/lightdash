@@ -3,7 +3,7 @@ import {
     TimeFrames,
     type OrganizationProject,
 } from '@lightdash/common';
-import { Avatar, Button, LoadingOverlay, Stack, Text } from '@mantine/core';
+import { Avatar, Button, LoadingOverlay, Stack, Text } from '@mantine-8/core';
 import { Prism } from '@mantine/prism';
 import { IconChevronLeft, IconClock } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';

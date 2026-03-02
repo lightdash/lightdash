@@ -4,7 +4,7 @@ import {
     getLatestSupportDbtVersion,
     SupportedDbtVersions,
 } from '@lightdash/common';
-import { Select } from '@mantine/core';
+import { Select } from '@mantine-8/core';
 import React, { type FC } from 'react';
 import { useFormContext } from '../formContext';
 

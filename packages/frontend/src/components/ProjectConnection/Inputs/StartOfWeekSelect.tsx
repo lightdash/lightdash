@@ -1,4 +1,4 @@
-import { Alert, Select, Text } from '@mantine/core';
+import { Alert, Select, Text } from '@mantine-8/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import React, { type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';

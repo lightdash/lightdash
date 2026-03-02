@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import { ProjectType } from '@lightdash/common';
-import { Alert, SimpleGrid, Stack, Text } from '@mantine/core';
+import { Alert, SimpleGrid, Stack, Text } from '@mantine-8/core';
+import { clsx } from '@mantine/core';
 import { IconAlertTriangle } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
@@ -11,6 +12,7 @@ import OnboardingButton from './common/OnboardingButton';
 import { OnboardingConnectTitle } from './common/OnboardingTitle';
 import OnboardingWrapper from './common/OnboardingWrapper';
 import InviteExpertFooter from './InviteExpertFooter';
+import classes from './SelectWarehouse.module.css';
 import { type SelectedWarehouse } from './types';
 import { getWarehouseIcon, WarehouseTypeLabels } from './utils';
 
@@ -63,7 +65,7 @@ const SelectWarehouse: FC<SelectWarehouseProps> = ({
                         </Alert>
                     )}
 
-                    <Text color="dimmed">Select your warehouse:</Text>
+                    <Text c="dimmed">Select your warehouse:</Text>
 
                     <SimpleGrid cols={2} spacing="sm">
                         {WarehouseTypeLabels.map((item) => (
@@ -75,14 +77,10 @@ const SelectWarehouse: FC<SelectWarehouseProps> = ({
                                         ? undefined
                                         : () => onSelect(item.key)
                                 }
-                                style={{
-                                    opacity:
-                                        canCreateProject === false ? 0.5 : 1,
-                                    cursor:
-                                        canCreateProject === false
-                                            ? 'not-allowed'
-                                            : 'pointer',
-                                }}
+                                className={clsx(
+                                    canCreateProject === false &&
+                                        classes.disabled,
+                                )}
                             >
                                 {item.label}
                             </OnboardingButton>

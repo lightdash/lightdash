@@ -1,4 +1,4 @@
-import { Avatar, Button, Stack, Text } from '@mantine/core';
+import { Avatar, Button, Stack, Text } from '@mantine-8/core';
 import {
     IconChecklist,
     IconChevronLeft,

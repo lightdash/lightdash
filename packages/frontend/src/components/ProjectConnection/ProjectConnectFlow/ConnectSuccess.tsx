@@ -1,4 +1,4 @@
-import { Box, Button, createStyles, keyframes, Stack } from '@mantine/core';
+import { Box, Button, Stack } from '@mantine-8/core';
 import { IconCheck } from '@tabler/icons-react';
 import confetti from 'canvas-confetti';
 import { type FC } from 'react';
@@ -7,36 +7,17 @@ import MantineIcon from '../../common/MantineIcon';
 import { ProjectCreationCard } from '../../common/Settings/SettingsCard';
 import { OnboardingTitle } from './common/OnboardingTitle';
 import OnboardingWrapper from './common/OnboardingWrapper';
-
-const animate = keyframes({
-    '0%': { opacity: 0, transform: 'scale(.3)' },
-    '50%': { opacity: 1, transform: 'scale(1.05)' },
-    '70%': { opacity: 1, transform: 'scale(.8)' },
-    '100%': { opacity: 1, transform: 'scale(1)' },
-});
-
-const useStyles = createStyles(() => ({
-    container: {
-        opacity: 0,
-        textAlign: 'center',
-        animationName: animate,
-        animationDuration: '700ms',
-        animationDelay: '500ms',
-        animationFillMode: 'forwards',
-    },
-}));
+import classes from './ConnectSuccess.module.css';
 
 interface ConnectSuccessProps {
     projectUuid: string;
 }
 
 const ConnectSuccess: FC<ConnectSuccessProps> = ({ projectUuid }) => {
-    const { classes } = useStyles();
-
     return (
         <OnboardingWrapper>
             <ProjectCreationCard>
-                <Stack align="center" spacing="xl">
+                <Stack align="center" gap="xl">
                     <OnboardingTitle>
                         Your project's been created!
                     </OnboardingTitle>
@@ -46,7 +27,6 @@ const ConnectSuccess: FC<ConnectSuccessProps> = ({ projectUuid }) => {
                         className={classes.container}
                         p="sm"
                         bg="green.6"
-                        sx={{ borderRadius: 999 }}
                         ref={(el) => {
                             if (!el) return;
 

@@ -1,0 +1,4 @@
+.stickyCard {
+    z-index: 1;
+    bottom: calc(var(--mantine-spacing-xl) * -1);
+}

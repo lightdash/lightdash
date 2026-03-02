@@ -6,7 +6,7 @@ import {
     PasswordInput,
     Stack,
     TextInput,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import React, { useCallback, useState, type FC } from 'react';
 import useApp from '../../../providers/App/useApp';

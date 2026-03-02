@@ -6,7 +6,7 @@ import {
     Select,
     Stack,
     TextInput,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import React, { type FC } from 'react';
 import { useToggle } from 'react-use';
 import FormCollapseButton from '../FormCollapseButton';

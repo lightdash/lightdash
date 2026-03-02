@@ -6,7 +6,7 @@ import {
     Select,
     Stack,
     TextInput,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import { useEffect, type FC } from 'react';
 import { useToggle } from 'react-use';
 import useHealth from '../../../hooks/health/useHealth';

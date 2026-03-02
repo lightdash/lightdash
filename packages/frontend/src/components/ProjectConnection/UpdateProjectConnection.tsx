@@ -6,7 +6,7 @@ import {
     type CreateWarehouseCredentials,
     type Project,
 } from '@lightdash/common';
-import { Alert, Anchor, Box, Button, Card, Flex } from '@mantine/core';
+import { Alert, Anchor, Box, Button, Card, Flex } from '@mantine-8/core';
 import { IconExclamationCircle, IconExternalLink } from '@tabler/icons-react';
 import { type FC } from 'react';
 import {
@@ -14,6 +14,7 @@ import {
     useUpdateMutation,
     useUpdateWarehouseCredentialsMutation,
 } from '../../hooks/useProject';
+import updateClasses from './UpdateProjectConnection.module.css';
 import { useProjectCompileLogs } from '../../hooks/useProjectCompileLogs';
 import { useAbilityContext } from '../../providers/Ability/useAbilityContext';
 import useApp from '../../providers/App/useApp';
@@ -165,24 +166,19 @@ const UpdateProjectConnection: FC<{
                     )}
 
                     <Card
-                        component={Flex}
-                        justify="space-between"
-                        align="center"
                         pos="sticky"
                         withBorder
                         shadow="sm"
-                        sx={(theme) => ({
-                            zIndex: 1,
-                            bottom: `-${theme.spacing.xl}`,
-                        })}
+                        className={updateClasses.stickyCard}
                     >
-                        <Box>
+                        <Flex justify="space-between" align="center">
+                            <Box>
                             {latestCompilationLog && (
                                 <Button
                                     variant="subtle"
                                     color="gray"
                                     size="xs"
-                                    rightIcon={
+                                    rightSection={
                                         <MantineIcon icon={IconExternalLink} />
                                     }
                                     component="a"
@@ -217,6 +213,7 @@ const UpdateProjectConnection: FC<{
                                     ? 'Save and test'
                                     : 'Test & deploy project'}
                             </Button>
+                            </Flex>
                         </Flex>
                     </Card>
                 </FormContainer>

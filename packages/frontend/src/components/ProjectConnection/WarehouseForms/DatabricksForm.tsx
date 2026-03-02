@@ -13,7 +13,7 @@ import {
     Text,
     TextInput,
     Tooltip,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import { IconCheck, IconPlus, IconTrash } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useToggle } from 'react-use';

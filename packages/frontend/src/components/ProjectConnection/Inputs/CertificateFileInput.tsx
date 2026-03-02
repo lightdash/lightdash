@@ -1,4 +1,4 @@
-import { CloseButton, FileInput } from '@mantine/core';
+import { CloseButton, FileInput } from '@mantine-8/core';
 import React, { useState, type FC } from 'react';
 import { useFormContext } from '../formContext';
 
