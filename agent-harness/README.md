@@ -109,31 +109,41 @@ hcloud server create \
 
 Cloud-init takes ~5 minutes. The script can optionally wait for it to complete.
 
-### 3. Sync credentials and set up Tailscale
+### 3. Sync credentials
 
-Once cloud-init completes, sync your API keys and set up Tailscale from your local machine:
+Once cloud-init completes, sync your API keys from your local machine:
 
 ```bash
-# Required: set your API keys as environment variables
-export ANTHROPIC_API_KEY="sk-ant-..."
-export TAILSCALE_AUTH_KEY="tskey-auth-..."  # Get from https://login.tailscale.com/admin/settings/keys
+# 1. Create your credentials file from the template
+cp agent-harness/credentials.env.template agent-harness/credentials.env
 
-# Sync credentials, set up Tailscale, and block public SSH
-./agent-harness/sync-credentials.sh <server-ip> --setup-tailscale --secure
+# 2. Edit with your API keys (ANTHROPIC_API_KEY is required)
+#    Get yours at: https://console.anthropic.com/settings/keys
+
+# 3. Sync credentials to the server
+./agent-harness/sync-credentials.sh <server-ip>
 ```
 
-This script:
-- Uploads your API keys securely via SSH (not baked into cloud-init)
-- Joins the server to your Tailscale network with SSH enabled
-- Applies a Hetzner firewall to block public SSH (only Tailscale IPs allowed)
+The credentials are stored in `/home/lightdash/.credentials` (mode 600) and automatically loaded in interactive bash sessions.
 
-The credentials are stored in `/home/lightdash/.credentials` and automatically loaded in interactive bash sessions.
-
-### 4. SSH in and start agents
+### 4. Set up Tailscale (optional but recommended)
 
 ```bash
-# SSH via Tailscale (public SSH is now blocked)
-ssh lightdash@<tailscale-hostname>
+# On the server:
+ssh root@<server-ip>
+tailscale up --ssh
+
+# Once connected, you can block public SSH (Hetzner only):
+./agent-harness/hetzner-secure.sh lightdash-agents
+```
+
+After this, SSH is only accessible via Tailscale (100.64.0.0/10).
+
+### 5. SSH in and start agents
+
+```bash
+# SSH via Tailscale (if set up) or public IP
+ssh lightdash@<tailscale-hostname>  # or ssh root@<server-ip>
 cd /opt/lightdash
 
 ./agent-harness/setup-infra.sh
@@ -144,7 +154,7 @@ cd /opt/lightdash
 claude
 ```
 
-### 5. Remote access tools
+### 6. Remote access tools
 
 The VPS comes with remote access tools pre-installed for a seamless experience, especially from mobile devices.
 
@@ -281,22 +291,34 @@ Creates a Hetzner Cloud server with cloud-init. Handles SSH key setup, API token
 
 ### `sync-credentials.sh <server> [options]`
 
-Syncs API keys from your local environment to the server via SSH. Credentials are stored securely and available in interactive bash sessions.
+Syncs credentials from `credentials.env` to the server via SSH. Provider-agnostic (works with any server that has SSH).
 
 ```bash
-# Basic: sync Anthropic API key only
-ANTHROPIC_API_KEY=sk-xxx ./agent-harness/sync-credentials.sh 1.2.3.4
+# 1. Create credentials file
+cp agent-harness/credentials.env.template agent-harness/credentials.env
+# Edit credentials.env with your API keys
 
-# Full setup: sync credentials + Tailscale + block public SSH
-ANTHROPIC_API_KEY=sk-xxx TAILSCALE_AUTH_KEY=tskey-xxx \
-  ./agent-harness/sync-credentials.sh 1.2.3.4 --setup-tailscale --secure
+# 2. Sync to server
+./agent-harness/sync-credentials.sh 1.2.3.4
+./agent-harness/sync-credentials.sh my-server.tail1234.ts.net  # Works with Tailscale hostnames too
 ```
 
 | Option | Description |
 |--------|-------------|
-| `--setup-tailscale` | Run `tailscale up` with the auth key |
-| `--secure` | Apply Hetzner firewall to block public SSH (requires `--setup-tailscale`) |
+| `--env FILE` | Path to credentials file (default: `agent-harness/credentials.env`) |
 | `--user USER` | SSH user (default: root) |
+
+### `hetzner-secure.sh <server-name>`
+
+Applies a Hetzner firewall to block public SSH. Run this after setting up Tailscale.
+
+```bash
+# First, set up Tailscale on the server
+ssh root@<ip> 'tailscale up --ssh'
+
+# Then apply the firewall
+./agent-harness/hetzner-secure.sh lightdash-agents
+```
 
 ### `hetzner-destroy.sh [--name NAME]`
 
