@@ -49,14 +49,19 @@ else
     TEMPLATE_PSQL="psql -h localhost -p $DB_PORT -U postgres -d $TEMPLATE_DB"
 
     log "Running migrations..."
+    LIGHTDASH_SECRET=template-secret \
     PGHOST=localhost PGPORT="$DB_PORT" PGUSER=postgres PGPASSWORD=password PGDATABASE="$TEMPLATE_DB" \
         pnpm --dir "$REPO_ROOT" -F backend migrate
 
     log "Seeding Lightdash..."
+    LIGHTDASH_SECRET=template-secret \
+    DBT_DEMO_DIR="$REPO_ROOT/examples/full-jaffle-shop-demo" \
     PGHOST=localhost PGPORT="$DB_PORT" PGUSER=postgres PGPASSWORD=password PGDATABASE="$TEMPLATE_DB" \
         pnpm --dir "$REPO_ROOT" -F backend seed
 
     log "Seeding Jaffle Shop (dbt models)..."
+    LIGHTDASH_SECRET=template-secret \
+    DBT_DEMO_DIR="$REPO_ROOT/examples/full-jaffle-shop-demo" \
     PGHOST=localhost PGPORT="$DB_PORT" PGUSER=postgres PGPASSWORD=password PGDATABASE="$TEMPLATE_DB" \
         "$REPO_ROOT/scripts/seed-jaffle.sh"
 

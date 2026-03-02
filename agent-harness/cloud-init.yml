@@ -116,81 +116,7 @@ write_files:
       # VM overcommit — allow optimistic allocation (agents share a lot)
       vm.overcommit_memory=1
 
-  # Environment for the lightdash user
-  - path: /home/lightdash/.env.agent-harness
-    owner: lightdash:lightdash
-    permissions: "0600"
-    content: |
-      # Agent harness defaults — source this or let setup-infra.sh read it
-      export AGENT_DB_PORT=15432
-      export AGENT_MINIO_PORT=19000
-      export AGENT_MINIO_CONSOLE_PORT=19001
-      export AGENT_BROWSER_PORT=13001
-      export AGENT_MAILPIT_SMTP_PORT=11025
-      export AGENT_MAILPIT_WEB_PORT=18025
-      # Postgres connection for host-side scripts
-      export PGHOST=localhost
-      export PGPORT=15432
-      export PGUSER=postgres
-      export PGPASSWORD=password
-
-  # Bash profile additions for the lightdash user
-  - path: /home/lightdash/.profile.d/agent-harness.sh
-    owner: lightdash:lightdash
-    permissions: "0644"
-    content: |
-      # pnpm
-      export PNPM_HOME="/home/lightdash/.local/share/pnpm"
-      export PATH="$PNPM_HOME:$PATH"
-      # Node via fnm
-      eval "$(fnm env --shell bash)"
-      # dbt venvs
-      if [ -d /opt/lightdash/.venvs/bin ]; then
-        export PATH="/opt/lightdash/.venvs/bin:$PATH"
-      fi
-      # just
-      export PATH="/home/lightdash/.local/bin:$PATH"
-      # Agent harness env
-      if [ -f /home/lightdash/.env.agent-harness ]; then
-        source /home/lightdash/.env.agent-harness
-      fi
-
-  # tmux config — sensible defaults for remote agent work
-  - path: /home/lightdash/.tmux.conf
-    owner: lightdash:lightdash
-    permissions: "0644"
-    content: |
-      # Use C-a as prefix (easier on mobile keyboards)
-      set -g prefix C-a
-      unbind C-b
-      bind C-a send-prefix
-      # Mouse support (for scrolling in mobile SSH clients)
-      set -g mouse on
-      # Larger scrollback
-      set -g history-limit 50000
-      # 256-color support
-      set -g default-terminal "tmux-256color"
-      # Start window numbering at 1
-      set -g base-index 1
-      setw -g pane-base-index 1
-      # Reduce escape delay (important for mosh)
-      set -sg escape-time 10
-      # Status bar with agent info
-      set -g status-right '#H | %H:%M'
-      set -g status-left '[#S] '
-      # Auto-renumber windows
-      set -g renumber-windows on
-
-  # Base .bashrc for lightdash user
-  - path: /home/lightdash/.bashrc
-    owner: lightdash:lightdash
-    permissions: "0644"
-    content: |
-      # ~/.bashrc: executed by bash(1) for non-login shells.
-      # Source profile.d scripts
-      for f in /home/lightdash/.profile.d/*.sh; do
-        [ -r "$f" ] && source "$f"
-      done
+  # Note: User home directory files are created in runcmd after the user exists
 
 # -- Main provisioning script ------------------------------------------------
 
@@ -244,11 +170,84 @@ runcmd:
       curl -fsSL https://just.systems/install.sh | bash -s -- --to /home/lightdash/.local/bin
     '
 
-  # -- Set up profile.d directory -----------------------------
+  # -- Create config files for lightdash user ----------------------------------
   - |
-    su - lightdash -c '
-      mkdir -p /home/lightdash/.profile.d
-    '
+    mkdir -p /home/lightdash/.profile.d /home/lightdash/.local/bin
+
+    # .bashrc
+    cat > /home/lightdash/.bashrc << 'BASHRC'
+    # ~/.bashrc: executed by bash(1) for non-login shells.
+    # Source profile.d scripts
+    for f in /home/lightdash/.profile.d/*.sh; do
+      [ -r "$f" ] && source "$f"
+    done
+    BASHRC
+
+    # .env.agent-harness
+    cat > /home/lightdash/.env.agent-harness << 'ENVFILE'
+    # Agent harness defaults
+    export AGENT_DB_PORT=15432
+    export AGENT_MINIO_PORT=19000
+    export AGENT_MINIO_CONSOLE_PORT=19001
+    export AGENT_BROWSER_PORT=13001
+    export AGENT_MAILPIT_SMTP_PORT=11025
+    export AGENT_MAILPIT_WEB_PORT=18025
+    # Postgres connection for host-side scripts
+    export PGHOST=localhost
+    export PGPORT=15432
+    export PGUSER=postgres
+    export PGPASSWORD=password
+    ENVFILE
+
+    # .profile.d/agent-harness.sh
+    cat > /home/lightdash/.profile.d/agent-harness.sh << 'PROFILE'
+    # fnm (Fast Node Manager) - must be first to get node/npm/pnpm
+    export PATH="/home/lightdash/.local/share/fnm:$PATH"
+    if command -v fnm &> /dev/null; then
+      eval "$(fnm env --shell bash)"
+    fi
+    # pnpm
+    export PNPM_HOME="/home/lightdash/.local/share/pnpm"
+    export PATH="$PNPM_HOME:$PATH"
+    # dbt venvs
+    if [ -d /opt/lightdash/.venvs/bin ]; then
+      export PATH="/opt/lightdash/.venvs/bin:$PATH"
+    fi
+    # just
+    export PATH="/home/lightdash/.local/bin:$PATH"
+    # Agent harness env
+    if [ -f /home/lightdash/.env.agent-harness ]; then
+      source /home/lightdash/.env.agent-harness
+    fi
+    PROFILE
+
+    # .tmux.conf
+    cat > /home/lightdash/.tmux.conf << 'TMUX'
+    # Use C-a as prefix (easier on mobile keyboards)
+    set -g prefix C-a
+    unbind C-b
+    bind C-a send-prefix
+    # Mouse support
+    set -g mouse on
+    # Larger scrollback
+    set -g history-limit 50000
+    # 256-color support
+    set -g default-terminal "tmux-256color"
+    # Start window numbering at 1
+    set -g base-index 1
+    setw -g pane-base-index 1
+    # Reduce escape delay (important for mosh)
+    set -sg escape-time 10
+    # Status bar
+    set -g status-right '#H | %H:%M'
+    set -g status-left '[#S] '
+    # Auto-renumber windows
+    set -g renumber-windows on
+    TMUX
+
+    # Fix ownership and permissions
+    chown -R lightdash:lightdash /home/lightdash
+    chmod 600 /home/lightdash/.env.agent-harness
 
   # -- Clone the Lightdash repo -----------------------------------------------
   - |
