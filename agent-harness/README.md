@@ -160,7 +160,7 @@ The VPS comes with remote access tools pre-installed for a seamless experience, 
 
 #### Tailscale — Private VPN
 
-Already set up by `sync-credentials.sh --setup-tailscale`. Agent web UIs are accessible from any device on your tailnet:
+If you ran `tailscale up --ssh` on the server, agent web UIs are accessible from any device on your tailnet:
 
 ```
 http://<tailscale-ip>:3010  # Agent 1 frontend
@@ -468,7 +468,7 @@ The agent's database (`agent_2`) is fully isolated, so this won't affect other a
 <details>
 <summary><strong>What if Tailscale doesn't come online?</strong></summary>
 
-If you used `sync-credentials.sh --setup-tailscale --secure` and public SSH is blocked:
+If you used `hetzner-secure.sh` and public SSH is blocked:
 
 1. **Remove the firewall temporarily:**
    ```bash

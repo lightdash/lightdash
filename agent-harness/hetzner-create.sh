@@ -20,9 +20,10 @@
 #   ./agent-harness/hetzner-create.sh
 #   ./agent-harness/hetzner-create.sh --name my-agents --type cpx52 --location ash
 #
-# After creation, sync credentials and set up Tailscale:
-#   ANTHROPIC_API_KEY=sk-xxx TAILSCALE_AUTH_KEY=tskey-xxx \
-#     ./agent-harness/sync-credentials.sh <server-ip> --setup-tailscale --secure
+# After creation, sync credentials:
+#   cp agent-harness/credentials.env.template agent-harness/credentials.env
+#   # Edit credentials.env with your ANTHROPIC_API_KEY
+#   ./agent-harness/sync-credentials.sh <server-ip>
 #
 set -euo pipefail
 
