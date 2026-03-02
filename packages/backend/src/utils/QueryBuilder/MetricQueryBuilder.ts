@@ -2466,17 +2466,21 @@ export class MetricQueryBuilder {
         for (const tc of sortedTableCalcs) {
             const cteName = `tc_${tc.name}`;
 
-            let { compiledSql } = tc;
-            const functions = parseTableCalculationFunctions(compiledSql);
-            if (hasRowFunctions(functions)) {
+            let compiledSql: string | null;
+            const functions = parseTableCalculationFunctions(tc.compiledSql);
+            if (hasPivotFunctions(functions)) {
+                compiledSql = null;
+            } else if (hasRowFunctions(functions)) {
                 const compiler = new TableCalculationFunctionCompiler(
                     warehouseSqlBuilder,
                 );
                 compiledSql = compiler.compileFunctions(
-                    compiledSql,
+                    tc.compiledSql,
                     functions,
                     orderByClause,
                 );
+            } else {
+                compiledSql = tc.compiledSql;
             }
 
             const parts = [

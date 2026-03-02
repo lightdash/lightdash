@@ -1142,7 +1142,8 @@ export class PivotQueryBuilder {
                 '', // todo: explore base table
             );
             const fieldId = getItemId({ table: refTable, name: refName });
-            return fieldAliasMap[fieldId] || fullmatch;
+            // First field match, second table calculation match, fallback
+            return fieldAliasMap[fieldId] || fieldAliasMap[ref] || fullmatch;
         });
     }
 

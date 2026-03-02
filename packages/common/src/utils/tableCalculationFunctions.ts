@@ -182,17 +182,48 @@ export function parseTableCalculationFunctions(
     const functions: TableCalculationFunctionCall[] = [];
     let match;
 
-    // Parse pivot_offset function calls
-    const pivotOffsetRegex =
-        /pivot_offset\s*\(\s*([^,()]+(?:\([^)]*\))?[^,()]*)\s*,\s*(-?\d+)\s*\)/gi;
+    // Parse pivot_offset function calls with proper nested parentheses handling
+    const pivotOffsetRegex = /pivot_offset\s*\(/gi;
     match = pivotOffsetRegex.exec(sql);
     while (match !== null) {
-        functions.push({
-            type: TableCalculationFunctionType.PIVOT_OFFSET,
-            expression: match[1].trim(),
-            columnOffset: parseInt(match[2], 10),
-            rawSql: match[0],
-        });
+        const startIdx = match.index;
+        const argsStart = match.index + match[0].length;
+
+        // Find the matching closing parenthesis
+        let parenCount = 1;
+        let endIdx = -1;
+        let commaIdx = -1;
+
+        for (let i = argsStart; i < sql.length; i += 1) {
+            if (sql[i] === '(') {
+                parenCount += 1;
+            } else if (sql[i] === ')') {
+                parenCount -= 1;
+                if (parenCount === 0) {
+                    endIdx = i;
+                    break;
+                }
+            } else if (sql[i] === ',' && parenCount === 1 && commaIdx === -1) {
+                // Found the comma separating the two arguments at the top level
+                commaIdx = i;
+            }
+        }
+
+        if (endIdx !== -1 && commaIdx !== -1) {
+            const expression = sql.slice(argsStart, commaIdx).trim();
+            const offsetStr = sql.slice(commaIdx + 1, endIdx).trim();
+            const columnOffset = parseInt(offsetStr, 10);
+
+            if (!Number.isNaN(columnOffset)) {
+                functions.push({
+                    type: TableCalculationFunctionType.PIVOT_OFFSET,
+                    expression,
+                    columnOffset,
+                    rawSql: sql.slice(startIdx, endIdx + 1),
+                });
+            }
+        }
+
         match = pivotOffsetRegex.exec(sql);
     }
 
@@ -207,17 +238,48 @@ export function parseTableCalculationFunctions(
         match = pivotColumnRegex.exec(sql);
     }
 
-    // Parse pivot_index function calls
-    const pivotIndexRegex =
-        /pivot_index\s*\(\s*([^,()]+(?:\([^)]*\))?[^,()]*)\s*,\s*(\d+)\s*\)/gi;
+    // Parse pivot_index function calls with proper nested parentheses handling
+    const pivotIndexRegex = /pivot_index\s*\(/gi;
     match = pivotIndexRegex.exec(sql);
     while (match !== null) {
-        functions.push({
-            type: TableCalculationFunctionType.PIVOT_INDEX,
-            expression: match[1].trim(),
-            pivotIndex: parseInt(match[2], 10),
-            rawSql: match[0],
-        });
+        const startIdx = match.index;
+        const argsStart = match.index + match[0].length;
+
+        // Find the matching closing parenthesis
+        let parenCount = 1;
+        let endIdx = -1;
+        let commaIdx = -1;
+
+        for (let i = argsStart; i < sql.length; i += 1) {
+            if (sql[i] === '(') {
+                parenCount += 1;
+            } else if (sql[i] === ')') {
+                parenCount -= 1;
+                if (parenCount === 0) {
+                    endIdx = i;
+                    break;
+                }
+            } else if (sql[i] === ',' && parenCount === 1 && commaIdx === -1) {
+                // Found the comma separating the two arguments at the top level
+                commaIdx = i;
+            }
+        }
+
+        if (endIdx !== -1 && commaIdx !== -1) {
+            const expression = sql.slice(argsStart, commaIdx).trim();
+            const indexStr = sql.slice(commaIdx + 1, endIdx).trim();
+            const pivotIndex = parseInt(indexStr, 10);
+
+            if (!Number.isNaN(pivotIndex)) {
+                functions.push({
+                    type: TableCalculationFunctionType.PIVOT_INDEX,
+                    expression,
+                    pivotIndex,
+                    rawSql: sql.slice(startIdx, endIdx + 1),
+                });
+            }
+        }
+
         match = pivotIndexRegex.exec(sql);
     }
 
