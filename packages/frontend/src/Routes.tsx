@@ -1,7 +1,6 @@
 import { Stack } from '@mantine/core';
 import { Navigate, Outlet, type RouteObject } from 'react-router';
 import AppRoute from './components/AppRoute';
-import DashboardLayout from './components/common/DashboardLayout';
 import ProjectLayout from './components/common/ProjectLayout';
 import ForbiddenPanel from './components/ForbiddenPanel';
 import JobDetailsDrawer from './components/JobDetailsDrawer';
@@ -192,11 +191,11 @@ const DASHBOARD_LIST_ROUTES: RouteObject[] = [
     },
 ];
 
-// Dashboard view routes (use DashboardLayout with non-fixed NavBar)
+// Dashboard view routes (use handle.navBarFixed=false for non-fixed NavBar)
 const DASHBOARD_VIEW_ROUTES: RouteObject[] = [
     {
         path: 'dashboards/:dashboardUuid',
-        element: <DashboardLayout />,
+        handle: { navBarFixed: false },
         children: [
             {
                 path: ':mode?',
@@ -390,13 +389,14 @@ const APP_ROUTES: RouteObject[] = [
                         path: 'sqlRunner',
                         element: <LegacySqlRunner />,
                     },
-                    // Routes with fixed NavBar via ProjectLayout
+                    // All project routes share ProjectLayout (NavBar + SourceCodeDrawer)
                     {
                         element: <ProjectLayout />,
-                        children: PROJECT_LAYOUT_ROUTES,
+                        children: [
+                            ...PROJECT_LAYOUT_ROUTES,
+                            ...DASHBOARD_VIEW_ROUTES,
+                        ],
                     },
-                    // Dashboard view routes with non-fixed NavBar via DashboardLayout
-                    ...DASHBOARD_VIEW_ROUTES,
                 ],
             },
         ],
