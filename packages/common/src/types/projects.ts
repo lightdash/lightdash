@@ -194,6 +194,8 @@ export type CreateAthenaCredentials = {
     authenticationType?: AthenaAuthenticationType;
     accessKeyId?: string;
     secretAccessKey?: string;
+    assumeRoleArn?: string;
+    assumeRoleExternalId?: string;
     workGroup?: string;
     threads?: number;
     numRetries?: number;
