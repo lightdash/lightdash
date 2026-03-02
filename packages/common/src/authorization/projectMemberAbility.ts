@@ -209,6 +209,10 @@ export const projectMemberAbilities: Record<
             projectUuid: member.projectUuid,
         });
 
+        can('manage', 'DeployProject', {
+            projectUuid: member.projectUuid,
+        });
+
         can('delete', 'Project', {
             projectUuid: member.projectUuid,
             type: ProjectType.PREVIEW,

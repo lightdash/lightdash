@@ -303,6 +303,13 @@ const scopes: Scope[] = [
         getConditions: addDefaultUuidCondition,
     },
     {
+        name: 'manage:DeployProject',
+        description: 'Deploy dbt projects via CLI',
+        isEnterprise: false,
+        group: ScopeGroup.PROJECT_MANAGEMENT,
+        getConditions: addDefaultUuidCondition,
+    },
+    {
         name: 'manage:Validation',
         description: 'Manage data validation rules',
         isEnterprise: false,
