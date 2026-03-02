@@ -3,7 +3,7 @@
 # Run this AFTER setting up Tailscale on the server.
 #
 # Usage:
-#   ./agent-harness/hetzner-secure.sh <server-name>
+#   ./agent-harness/cloud/hetzner/secure.sh <server-name>
 #
 # Prerequisites:
 #   - Tailscale must be running on the server: ssh lightdash@<ip> 'sudo tailscale up --ssh'
@@ -16,7 +16,7 @@
 #   2. Applies the firewall to the specified server
 #
 # Examples:
-#   ./agent-harness/hetzner-secure.sh lightdash-agents
+#   ./agent-harness/cloud/hetzner/secure.sh lightdash-agents
 #
 set -euo pipefail
 

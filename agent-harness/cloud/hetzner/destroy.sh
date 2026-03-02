@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Destroys a Hetzner Cloud instance created by hetzner-create.sh
+# Destroys a Hetzner Cloud instance created by create.sh
 #
 # Usage:
-#   ./agent-harness/hetzner-destroy.sh [--name NAME]
+#   ./agent-harness/cloud/hetzner/destroy.sh [--name NAME]
 #
 # Options:
 #   --name NAME    Instance name (default: lightdash-agents)

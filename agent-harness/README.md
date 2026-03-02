@@ -60,7 +60,7 @@ For running agents on a cloud server — ideal for always-on agents or mobile pr
 The easiest way is to use the provided script:
 
 ```bash
-./agent-harness/hetzner-create.sh
+./agent-harness/cloud/hetzner/create.sh
 ```
 
 This script will:
@@ -70,10 +70,10 @@ This script will:
 
 **Options:**
 ```bash
-./agent-harness/hetzner-create.sh --help              # Show all options
-./agent-harness/hetzner-create.sh --type cpx52        # Use larger server (12 vCPU, 24GB)
-./agent-harness/hetzner-create.sh --location ash      # Use US East location
-./agent-harness/hetzner-create.sh --name my-agents    # Custom server name
+./agent-harness/cloud/hetzner/create.sh --help              # Show all options
+./agent-harness/cloud/hetzner/create.sh --type cpx52        # Use larger server (12 vCPU, 24GB)
+./agent-harness/cloud/hetzner/create.sh --location ash      # Use US East location
+./agent-harness/cloud/hetzner/create.sh --name my-agents    # Custom server name
 ```
 
 **Server sizes:**
@@ -134,7 +134,7 @@ ssh lightdash@<server-ip>
 sudo tailscale up --ssh
 
 # Once connected, you can block public SSH (Hetzner only):
-./agent-harness/hetzner-secure.sh lightdash-agents
+./agent-harness/cloud/hetzner/secure.sh lightdash-agents
 ```
 
 After this, SSH is only accessible via Tailscale (100.64.0.0/10).
@@ -277,16 +277,16 @@ PostgreSQL's `CREATE DATABASE ... TEMPLATE` copies the fully-migrated, seeded te
 
 ## Scripts Reference
 
-### `hetzner-create.sh [options]`
+### `cloud/hetzner/create.sh [options]`
 
 Creates a Hetzner Cloud server with cloud-init. Handles SSH key setup, API token configuration, and server provisioning.
 
 ```bash
-./agent-harness/hetzner-create.sh                    # Use defaults
-./agent-harness/hetzner-create.sh --type cpx52       # Larger server
-./agent-harness/hetzner-create.sh --location ash     # US East
-./agent-harness/hetzner-create.sh --name my-agents   # Custom server name
-./agent-harness/hetzner-create.sh --help             # Show all options
+./agent-harness/cloud/hetzner/create.sh                    # Use defaults
+./agent-harness/cloud/hetzner/create.sh --type cpx52       # Larger server
+./agent-harness/cloud/hetzner/create.sh --location ash     # US East
+./agent-harness/cloud/hetzner/create.sh --name my-agents   # Custom server name
+./agent-harness/cloud/hetzner/create.sh --help             # Show all options
 ```
 
 ### `sync-credentials.sh <server> [options]`
@@ -308,7 +308,7 @@ cp agent-harness/credentials.env.template agent-harness/credentials.env
 | `--env FILE` | Path to credentials file (default: `agent-harness/credentials.env`) |
 | `--user USER` | SSH user (default: root) |
 
-### `hetzner-secure.sh <server-name>`
+### `cloud/hetzner/secure.sh <server-name>`
 
 Applies a Hetzner firewall to block public SSH. Run this after setting up Tailscale.
 
@@ -317,17 +317,17 @@ Applies a Hetzner firewall to block public SSH. Run this after setting up Tailsc
 ssh lightdash@<ip> 'sudo tailscale up --ssh'
 
 # Then apply the firewall
-./agent-harness/hetzner-secure.sh lightdash-agents
+./agent-harness/cloud/hetzner/secure.sh lightdash-agents
 ```
 
-### `hetzner-destroy.sh [--name NAME]`
+### `cloud/hetzner/destroy.sh [--name NAME]`
 
-Destroys a Hetzner Cloud server created by `hetzner-create.sh`.
+Destroys a Hetzner Cloud server created by `cloud/hetzner/create.sh`.
 
 ```bash
-./agent-harness/hetzner-destroy.sh                   # Delete default server
-./agent-harness/hetzner-destroy.sh --name my-agents  # Delete specific server
-./agent-harness/hetzner-destroy.sh --yes             # Skip confirmation
+./agent-harness/cloud/hetzner/destroy.sh                   # Delete default server
+./agent-harness/cloud/hetzner/destroy.sh --name my-agents  # Delete specific server
+./agent-harness/cloud/hetzner/destroy.sh --yes             # Skip confirmation
 ```
 
 ### `setup-infra.sh`

@@ -7,7 +7,7 @@
 #   - A Hetzner Cloud account: https://console.hetzner.cloud
 #
 # Usage:
-#   ./agent-harness/hetzner-create.sh [options]
+#   ./agent-harness/cloud/hetzner/create.sh [options]
 #
 # Options:
 #   --name NAME           Instance name (default: lightdash-agents)
@@ -17,8 +17,8 @@
 #   --help                Show this help message
 #
 # Examples:
-#   ./agent-harness/hetzner-create.sh
-#   ./agent-harness/hetzner-create.sh --name my-agents --type cpx52 --location ash
+#   ./agent-harness/cloud/hetzner/create.sh
+#   ./agent-harness/cloud/hetzner/create.sh --name my-agents --type cpx52 --location ash
 #
 # After creation, sync credentials:
 #   cp agent-harness/credentials.env.template agent-harness/credentials.env
@@ -206,7 +206,7 @@ echo "  Location: $LOCATION"
 echo "  SSH Key:  $SSH_KEY_NAME"
 echo ""
 
-CLOUD_INIT_FILE="$SCRIPT_DIR/cloud-init.yml"
+CLOUD_INIT_FILE="$SCRIPT_DIR/../../cloud-init.yml"
 if [[ ! -f "$CLOUD_INIT_FILE" ]]; then
     error "cloud-init.yml not found at: $CLOUD_INIT_FILE"
     exit 1
@@ -303,5 +303,5 @@ if [[ "$WAIT_RESPONSE" =~ ^[Yy]$ ]]; then
     echo ""
     echo "Then optionally set up Tailscale and secure SSH:"
     echo "  ssh lightdash@$SERVER_IP 'sudo tailscale up --ssh'"
-    echo "  ./agent-harness/hetzner-secure.sh $SERVER_NAME"
+    echo "  ./agent-harness/cloud/hetzner/secure.sh $SERVER_NAME"
 fi
