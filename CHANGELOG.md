@@ -1,3 +1,10 @@
+## [0.2550.1](https://github.com/lightdash/lightdash/compare/0.2550.0...0.2550.1) (2026-03-02)
+
+
+### Bug Fixes
+
+* handle interdependent table calculations with pivot functions ([#20761](https://github.com/lightdash/lightdash/issues/20761)) ([00c36c8](https://github.com/lightdash/lightdash/commit/00c36c87d9cea1d182089f4f2680dfddcefbfa63))
+
 # [0.2550.0](https://github.com/lightdash/lightdash/compare/0.2549.1...0.2550.0) (2026-03-02)
 
 
