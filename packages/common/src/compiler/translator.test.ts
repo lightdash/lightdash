@@ -23,6 +23,7 @@ import {
     LIGHTDASH_TABLE_WITH_AI_HINT_ARRAY,
     LIGHTDASH_TABLE_WITH_AI_HINT_FROM_CONFIG,
     LIGHTDASH_TABLE_WITH_COMPOSITE_PRIMARY_KEY,
+    LIGHTDASH_TABLE_WITH_CUSTOM_SQL_SORTS,
     LIGHTDASH_TABLE_WITH_CUSTOM_TIME_INTERVAL_DIMENSIONS,
     LIGHTDASH_TABLE_WITH_DBT_METRICS,
     LIGHTDASH_TABLE_WITH_DBT_V9_METRICS,
@@ -49,6 +50,7 @@ import {
     MODEL_WITH_AI_HINT_ARRAY,
     MODEL_WITH_AI_HINT_IN_CONFIG,
     MODEL_WITH_COMPOSITE_PRIMARY_KEY,
+    MODEL_WITH_CUSTOM_SQL_SORTS,
     MODEL_WITH_CUSTOM_TIME_INTERVAL_DIMENSIONS,
     MODEL_WITH_DEFAULT_SHOW_UNDERLYING_VALUES,
     MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS,
@@ -539,6 +541,29 @@ describe('convert tables from dbt models', () => {
                 DEFAULT_SPOTLIGHT_CONFIG,
             ),
         ).toStrictEqual(LIGHTDASH_TABLE_WITH_DIMENSION_AI_HINT);
+    });
+
+    it('should convert dbt model with custom_sql_sorts on dimension', () => {
+        expect(
+            convertTable(
+                SupportedDbtAdapter.BIGQUERY,
+                MODEL_WITH_CUSTOM_SQL_SORTS,
+                [],
+                DEFAULT_SPOTLIGHT_CONFIG,
+            ),
+        ).toStrictEqual(LIGHTDASH_TABLE_WITH_CUSTOM_SQL_SORTS);
+    });
+
+    it('should not include customSqlSorts when not defined in dbt meta', () => {
+        const result = convertTable(
+            SupportedDbtAdapter.BIGQUERY,
+            model,
+            [],
+            DEFAULT_SPOTLIGHT_CONFIG,
+        );
+        expect(result.dimensions.myColumnName).not.toHaveProperty(
+            'customSqlSorts',
+        );
     });
 
     it('should convert dbt model with metric ai.hint', () => {

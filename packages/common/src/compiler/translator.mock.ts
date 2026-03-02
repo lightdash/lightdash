@@ -2315,3 +2315,65 @@ export const MODEL_WITH_METRIC_DRIVERS: DbtModelNode & {
         },
     },
 };
+
+export const MODEL_WITH_CUSTOM_SQL_SORTS: DbtModelNode & {
+    relation_name: string;
+} = {
+    ...model,
+    columns: {
+        status: {
+            name: 'status',
+            data_type: DimensionType.STRING,
+            meta: {
+                dimension: {
+                    custom_sql_sorts: [
+                        {
+                            name: 'Priority',
+                            sql: "CASE WHEN ${TABLE}.status = 'critical' THEN 1 WHEN ${TABLE}.status = 'high' THEN 2 WHEN ${TABLE}.status = 'medium' THEN 3 ELSE 4 END",
+                        },
+                        { name: 'Alphabetical', sql: '${TABLE}.status' },
+                    ],
+                },
+            },
+        },
+    },
+};
+
+export const LIGHTDASH_TABLE_WITH_CUSTOM_SQL_SORTS: Omit<
+    Table,
+    'lineageGraph'
+> = {
+    ...BASE_LIGHTDASH_TABLE,
+    dimensions: {
+        status: {
+            fieldType: FieldType.DIMENSION,
+            requiredAttributes: undefined,
+            anyAttributes: undefined,
+            description: undefined,
+            type: DimensionType.STRING,
+            sql: '${TABLE}.status',
+            name: 'status',
+            label: 'Status',
+            table: 'myTable',
+            tableLabel: 'My table',
+            source: undefined,
+            timeInterval: undefined,
+            timeIntervalBaseDimensionName: undefined,
+            hidden: false,
+            format: undefined,
+            round: undefined,
+            compact: undefined,
+            groups: [],
+            colors: undefined,
+            index: 0,
+            isIntervalBase: false,
+            customSqlSorts: [
+                {
+                    name: 'Priority',
+                    sql: "CASE WHEN ${TABLE}.status = 'critical' THEN 1 WHEN ${TABLE}.status = 'high' THEN 2 WHEN ${TABLE}.status = 'medium' THEN 3 ELSE 4 END",
+                },
+                { name: 'Alphabetical', sql: '${TABLE}.status' },
+            ],
+        },
+    },
+};
