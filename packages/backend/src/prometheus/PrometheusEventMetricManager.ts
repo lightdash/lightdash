@@ -117,7 +117,7 @@ export class PrometheusEventMetricManager {
                     );
                 }
 
-                this.counters.set(metricConfig.eventName, counter);
+                this.counters.set(metricConfig.metricName, counter);
 
                 Logger.info(
                     `Registered Prometheus counter: ${metricConfig.metricName} for event: ${metricConfig.eventName}`,
@@ -173,7 +173,7 @@ export class PrometheusEventMetricManager {
     ): void {
         const eventName = payload.event;
         for (const metricConfig of metricConfigs) {
-            const counter = this.counters.get(metricConfig.eventName);
+            const counter = this.counters.get(metricConfig.metricName);
 
             if (counter) {
                 try {
@@ -194,7 +194,7 @@ export class PrometheusEventMetricManager {
                 }
             } else {
                 Logger.warn(
-                    `Counter not found for event: ${metricConfig.eventName}`,
+                    `Counter not found for metric: ${metricConfig.metricName}`,
                 );
             }
         }

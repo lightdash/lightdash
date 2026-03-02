@@ -9,6 +9,7 @@ import http from 'http';
 import { Knex } from 'knex';
 import { performance } from 'perf_hooks';
 import prometheus from 'prom-client';
+import { z } from 'zod';
 import { PreAggregateMaterializationsTableName } from '../database/entities/preAggregates';
 import path from 'path';
 import * as fs from 'fs';
@@ -19,6 +20,19 @@ import {
     PrometheusEventMetricManager,
     PrometheusEventMetricManagerConfig,
 } from './PrometheusEventMetricManager';
+
+const prometheusEventMetricsConfigSchema = z.object({
+    metrics: z.array(
+        z
+            .object({
+                eventName: z.string().min(1),
+                metricName: z.string().min(1),
+                help: z.string().min(1),
+                labelNames: z.array(z.string().min(1)),
+            })
+            .strict(),
+    ),
+});
 
 export default class PrometheusMetrics {
     private readonly config: LightdashConfig['prometheus'];
@@ -545,19 +559,35 @@ export default class PrometheusMetrics {
             }
 
             const configContent = fs.readFileSync(fullPath, 'utf-8');
-            const jsonConfig = JSON.parse(configContent);
-
-            // Validate config structure
-            if (!jsonConfig.metrics || !Array.isArray(jsonConfig.metrics)) {
+            let jsonConfig: unknown;
+            try {
+                jsonConfig = JSON.parse(configContent);
+            } catch (parseError) {
                 Logger.error(
-                    'PrometheusEventMetricManager config must have a "metrics" array',
+                    `Failed to parse PrometheusEventMetricManager config JSON from ${fullPath}`,
+                    parseError,
+                );
+                return;
+            }
+
+            const parsedConfig =
+                prometheusEventMetricsConfigSchema.safeParse(jsonConfig);
+            if (!parsedConfig.success) {
+                Logger.error(
+                    `Invalid PrometheusEventMetricManager config from ${fullPath}`,
+                    {
+                        errors: parsedConfig.error.errors.map((issue) => ({
+                            message: issue.message,
+                            path: issue.path.join('.'),
+                        })),
+                    },
                 );
                 return;
             }
 
             // Merge with prometheus config from lightdashConfig
             const config: PrometheusEventMetricManagerConfig = {
-                metrics: jsonConfig.metrics,
+                metrics: parsedConfig.data.metrics,
                 prometheusConfig: this.config,
             };
 
