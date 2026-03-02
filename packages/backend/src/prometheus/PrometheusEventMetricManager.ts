@@ -28,18 +28,6 @@ export type MetricConfig = {
      * These will be extracted from the event payload properties
      */
     labelNames: string[];
-
-    /**
-     * Optional function to extract label values from the event payload
-     * If not provided, labels will be extracted directly from payload.properties
-     * using the labelNames as keys
-     */
-    extractLabels?: (payload: {
-        event: string;
-        userId?: string;
-        anonymousId?: string;
-        properties?: Record<string, unknown>;
-    }) => Record<string, string>;
 };
 
 /**
@@ -219,40 +207,7 @@ export class PrometheusEventMetricManager {
         metricConfig: MetricConfig,
         payload: Parameters<LightdashAnalytics['track']>[0],
     ): Record<string, string> {
-        // Use custom extractor if provided
-        if (metricConfig.extractLabels) {
-            const extracted = metricConfig.extractLabels({
-                event: payload.event,
-                userId: payload.userId,
-                anonymousId: payload.anonymousId,
-                properties: payload.properties,
-            });
-            const extractedEntries = Object.entries(extracted);
-
-            if (
-                extractedEntries.some(
-                    ([, value]) =>
-                        typeof value !== 'string' ||
-                        value.length === 0 ||
-                        value.length > 200,
-                )
-            ) {
-                Logger.warn(
-                    `Invalid label values returned by extractLabels for event ${payload.event}, falling back to "unknown"`,
-                );
-                return metricConfig.labelNames.reduce(
-                    (acc, labelName) => ({
-                        ...acc,
-                        [labelName]: 'unknown',
-                    }),
-                    {} as Record<string, string>,
-                );
-            }
-
-            return extracted;
-        }
-
-        // Default: extract from payload.properties using labelNames as keys
+        // Extract from payload.properties using labelNames as keys
         const labelValues: Record<string, string> = {};
 
         for (const labelName of metricConfig.labelNames) {

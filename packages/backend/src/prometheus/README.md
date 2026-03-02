@@ -47,7 +47,6 @@ export CUSTOM_METRICS_CONFIG_PATH=/path/to/your/config.json
 - **metricName**: The Prometheus metric name (must follow Prometheus naming conventions)
 - **help**: Help text for the Prometheus metric
 - **labelNames**: Array of label names to extract from the event payload. These must match the exact property keys in `payload.properties` (e.g., `loginProvider`, `projectId`, `context`)
-- **extractLabels** (optional): Custom function to extract labels (not supported in JSON, would need to be added programmatically)
 
 ### Label Extraction
 
