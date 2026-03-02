@@ -1,3 +1,10 @@
+# [0.2547.0](https://github.com/lightdash/lightdash/compare/0.2546.0...0.2547.0) (2026-03-02)
+
+
+### Features
+
+* revert update case sensitivity in INCLUDE filters to be consistent with the other string filters ([8876bb6](https://github.com/lightdash/lightdash/commit/8876bb680ed920ef554c3ab5def2998603fc0858))
+
 # [0.2546.0](https://github.com/lightdash/lightdash/compare/0.2545.3...0.2546.0) (2026-03-02)
 
 
