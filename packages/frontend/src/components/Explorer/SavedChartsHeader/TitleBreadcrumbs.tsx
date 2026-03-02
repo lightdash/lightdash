@@ -41,7 +41,7 @@ export const TitleBreadCrumbs: FC<Props> = ({
                             label={
                                 <Text fz="xs">
                                     Space:{' '}
-                                    <Text span fw={500}>
+                                    <Text span fz="xs" fw="bold">
                                         {spaceName}
                                     </Text>
                                 </Text>
@@ -91,7 +91,7 @@ export const TitleBreadCrumbs: FC<Props> = ({
                         label={
                             <Text fz="xs">
                                 Dashboard:{' '}
-                                <Text span fw={500}>
+                                <Text span fz="xs" fw="bold">
                                     {dashboardName}
                                 </Text>
                             </Text>
