@@ -584,5 +584,8 @@ export default class PrometheusMetrics {
         if (this.server) {
             this.server.close();
         }
+        this.eventMetricManager?.cleanup();
+    }
+        }
     }
 }
