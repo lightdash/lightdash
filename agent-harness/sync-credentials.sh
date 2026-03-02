@@ -124,13 +124,17 @@ success "Credentials loaded"
 
 # ── Test SSH connection ───────────────────────────────────────────────────────
 log "Testing SSH connection to $SSH_USER@$SERVER..."
-if ! ssh -o ConnectTimeout=10 -o BatchMode=yes "$SSH_USER@$SERVER" "exit" 2>/dev/null; then
+# Use StrictHostKeyChecking=accept-new to auto-accept new hosts but warn on changed keys
+if ! ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=accept-new "$SSH_USER@$SERVER" "exit" 2>/dev/null; then
     error "Cannot connect to $SSH_USER@$SERVER"
     echo ""
     echo "Make sure:"
     echo "  1. The server is running and SSH is available"
     echo "  2. Your SSH key is authorized on the server"
     echo "  3. Any firewall allows SSH from your IP"
+    echo ""
+    echo "If you recreated the server, remove the old host key:"
+    echo "  ssh-keygen -R $SERVER"
     exit 1
 fi
 success "SSH connection successful"
@@ -138,7 +142,7 @@ success "SSH connection successful"
 # ── Upload credentials ────────────────────────────────────────────────────────
 log "Uploading credentials to server..."
 
-ssh "$SSH_USER@$SERVER" bash <<EOF
+ssh -o StrictHostKeyChecking=accept-new "$SSH_USER@$SERVER" bash <<EOF
 # Write credentials file
 cat > /home/lightdash/.credentials << 'CREDENTIALS'
 ${CREDENTIALS_CONTENT}
