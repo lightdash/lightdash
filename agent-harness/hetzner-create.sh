@@ -15,6 +15,7 @@
 #   --location LOC        Location (default: nbg1 - Nuremberg)
 #   --ssh-key PATH        Path to SSH public key (default: ~/.ssh/id_ed25519.pub)
 #   --tailscale-key KEY   Tailscale auth key for auto-join (enables private access)
+#   --disable-public-ssh  Block public SSH via firewall (auto-enabled with --tailscale-key)
 #   --help                Show this help message
 #
 # Examples:
@@ -32,6 +33,8 @@ LOCATION="nbg1"      # Nuremberg, Germany
 SSH_KEY_PATH=""
 SSH_KEY_NAME="lightdash-agent-harness"
 TAILSCALE_KEY=""     # Optional: auto-join Tailscale
+DISABLE_PUBLIC_SSH=false  # Block public SSH via firewall
+FIREWALL_NAME="lightdash-tailscale-only"
 
 # ── Colors ────────────────────────────────────────────────────────────────────
 RED='\033[0;31m'
@@ -52,7 +55,8 @@ while [[ $# -gt 0 ]]; do
         --type) SERVER_TYPE="$2"; shift 2 ;;
         --location) LOCATION="$2"; shift 2 ;;
         --ssh-key) SSH_KEY_PATH="$2"; shift 2 ;;
-        --tailscale-key) TAILSCALE_KEY="$2"; shift 2 ;;
+        --tailscale-key) TAILSCALE_KEY="$2"; DISABLE_PUBLIC_SSH=true; shift 2 ;;
+        --disable-public-ssh) DISABLE_PUBLIC_SSH=true; shift ;;
         --help)
             head -30 "$0" | grep "^#" | cut -c3-
             echo ""
@@ -72,7 +76,12 @@ while [[ $# -gt 0 ]]; do
             echo "Tailscale (optional):"
             echo "  --tailscale-key tskey-auth-xxxxx"
             echo "  Generate a reusable auth key at: https://login.tailscale.com/admin/settings/keys"
-            echo "  This enables private SSH via Tailscale - no public SSH needed."
+            echo "  This enables private SSH via Tailscale and auto-disables public SSH."
+            echo ""
+            echo "Firewall:"
+            echo "  --disable-public-ssh"
+            echo "  Blocks public SSH (port 22) via Hetzner firewall. SSH only via Tailscale (100.64.0.0/10)."
+            echo "  Automatically enabled when using --tailscale-key."
             exit 0
             ;;
         *) error "Unknown option: $1"; exit 1 ;;
@@ -146,9 +155,9 @@ fi
 
 log "Using SSH key: $SSH_KEY_PATH"
 
-# Get fingerprint of local key
-LOCAL_FINGERPRINT=$(ssh-keygen -lf "$SSH_KEY_PATH" | awk '{print $2}')
-log "Local key fingerprint: $LOCAL_FINGERPRINT"
+# Get MD5 fingerprint of local key (Hetzner uses MD5 format without colons)
+LOCAL_FINGERPRINT=$(ssh-keygen -lf "$SSH_KEY_PATH" -E md5 | awk '{print $2}' | sed 's/MD5://' | tr -d ':')
+log "Local key fingerprint (MD5): $LOCAL_FINGERPRINT"
 
 # Check if this exact key (by fingerprint) is already in Hetzner
 EXISTING_KEY_NAME=$(hcloud ssh-key list -o noheader -o columns=name,fingerprint | grep "$LOCAL_FINGERPRINT" | awk '{print $1}' || true)
@@ -158,7 +167,7 @@ if [[ -n "$EXISTING_KEY_NAME" ]]; then
     log "SSH key already in Hetzner as '$SSH_KEY_NAME'"
 else
     # Key not in Hetzner - upload it with a unique name based on fingerprint
-    SHORT_FP=$(echo "$LOCAL_FINGERPRINT" | sed 's/SHA256://' | cut -c1-8)
+    SHORT_FP=$(echo "$LOCAL_FINGERPRINT" | cut -c1-8)
     SSH_KEY_NAME="lightdash-${SHORT_FP}"
 
     log "Uploading SSH key to Hetzner as '$SSH_KEY_NAME'..."
@@ -200,13 +209,97 @@ if ! hcloud location describe "$LOCATION" &> /dev/null; then
     exit 1
 fi
 
-# ── Step 6: Create the server ─────────────────────────────────────────────────
+# ── Step 6: Create or reuse firewall (if --disable-public-ssh) ───────────────
+FIREWALL_FLAG=""
+if [[ "$DISABLE_PUBLIC_SSH" == true ]]; then
+    log "Setting up firewall to block public SSH..."
+
+    # Check if firewall already exists
+    if hcloud firewall describe "$FIREWALL_NAME" &> /dev/null; then
+        log "Firewall '$FIREWALL_NAME' already exists, reusing it."
+    else
+        log "Creating firewall '$FIREWALL_NAME'..."
+        # Create firewall with rules:
+        # - SSH (22) only from Tailscale IPs (100.64.0.0/10)
+        # - mosh (60000-61000/udp) from anywhere
+        # - All other TCP inbound allowed (HTTP, HTTPS, agent ports)
+        hcloud firewall create --name "$FIREWALL_NAME"
+
+        # Allow SSH only from Tailscale CGNAT range
+        hcloud firewall add-rule "$FIREWALL_NAME" \
+            --direction in \
+            --protocol tcp \
+            --port 22 \
+            --source-ips 100.64.0.0/10 \
+            --description "SSH from Tailscale only"
+
+        # Allow mosh UDP ports from anywhere
+        hcloud firewall add-rule "$FIREWALL_NAME" \
+            --direction in \
+            --protocol udp \
+            --port 60000-61000 \
+            --source-ips 0.0.0.0/0 \
+            --source-ips ::/0 \
+            --description "mosh UDP"
+
+        # Allow HTTP/HTTPS from anywhere
+        hcloud firewall add-rule "$FIREWALL_NAME" \
+            --direction in \
+            --protocol tcp \
+            --port 80 \
+            --source-ips 0.0.0.0/0 \
+            --source-ips ::/0 \
+            --description "HTTP"
+
+        hcloud firewall add-rule "$FIREWALL_NAME" \
+            --direction in \
+            --protocol tcp \
+            --port 443 \
+            --source-ips 0.0.0.0/0 \
+            --source-ips ::/0 \
+            --description "HTTPS"
+
+        # Allow agent ports (3010-3050 frontend, 8010-8050 API)
+        hcloud firewall add-rule "$FIREWALL_NAME" \
+            --direction in \
+            --protocol tcp \
+            --port 3010-3050 \
+            --source-ips 0.0.0.0/0 \
+            --source-ips ::/0 \
+            --description "Agent frontends"
+
+        hcloud firewall add-rule "$FIREWALL_NAME" \
+            --direction in \
+            --protocol tcp \
+            --port 8010-8050 \
+            --source-ips 0.0.0.0/0 \
+            --source-ips ::/0 \
+            --description "Agent APIs"
+
+        # Allow ICMP (ping)
+        hcloud firewall add-rule "$FIREWALL_NAME" \
+            --direction in \
+            --protocol icmp \
+            --source-ips 0.0.0.0/0 \
+            --source-ips ::/0 \
+            --description "ICMP ping"
+
+        success "Firewall '$FIREWALL_NAME' created"
+    fi
+
+    FIREWALL_FLAG="--firewall $FIREWALL_NAME"
+fi
+
+# ── Step 7: Create the server ────────────────────────────────────────────────
 log "Creating server '$SERVER_NAME'..."
 echo "  Type:     $SERVER_TYPE"
 echo "  Location: $LOCATION"
 echo "  SSH Key:  $SSH_KEY_NAME"
 if [[ -n "$TAILSCALE_KEY" ]]; then
     echo "  Tailscale: auto-join enabled"
+fi
+if [[ "$DISABLE_PUBLIC_SSH" == true ]]; then
+    echo "  Firewall: $FIREWALL_NAME (public SSH blocked)"
 fi
 echo ""
 
@@ -239,6 +332,7 @@ OUTPUT=$(hcloud server create \
     --image ubuntu-24.04 \
     --location "$LOCATION" \
     --ssh-key "$SSH_KEY_NAME" \
+    $FIREWALL_FLAG \
     --user-data-from-file "$CLOUD_INIT_FINAL" 2>&1)
 
 echo "$OUTPUT"

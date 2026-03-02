@@ -73,7 +73,7 @@ Generate a reusable auth key at https://login.tailscale.com/admin/settings/keys,
 ```bash
 ./agent-harness/hetzner-create.sh --tailscale-key tskey-auth-xxxxx
 ```
-This auto-joins your Tailscale network with SSH enabled. You can then disable public SSH entirely.
+This auto-joins your Tailscale network with SSH enabled and **automatically blocks public SSH** via Hetzner firewall. SSH is only allowed from Tailscale IPs (100.64.0.0/10).
 
 **Server sizes:**
 | Type | vCPU | RAM | Cost | Recommended for |
@@ -252,10 +252,12 @@ PostgreSQL's `CREATE DATABASE ... TEMPLATE` copies the fully-migrated, seeded te
 Creates a Hetzner Cloud server with cloud-init. Handles SSH key setup, API token configuration, and server provisioning.
 
 ```bash
-./agent-harness/hetzner-create.sh                    # Use defaults
-./agent-harness/hetzner-create.sh --type cpx52       # Larger server
-./agent-harness/hetzner-create.sh --location ash     # US East
-./agent-harness/hetzner-create.sh --help             # Show all options
+./agent-harness/hetzner-create.sh                              # Use defaults
+./agent-harness/hetzner-create.sh --type cpx52                 # Larger server
+./agent-harness/hetzner-create.sh --location ash               # US East
+./agent-harness/hetzner-create.sh --tailscale-key tskey-xxx    # Auto-join Tailscale + block public SSH
+./agent-harness/hetzner-create.sh --disable-public-ssh         # Block public SSH without Tailscale auto-join
+./agent-harness/hetzner-create.sh --help                       # Show all options
 ```
 
 ### `hetzner-destroy.sh [--name NAME]`
