@@ -1,3 +1,10 @@
+# [0.2548.0](https://github.com/lightdash/lightdash/compare/0.2547.0...0.2548.0) (2026-03-02)
+
+
+### Features
+
+* add average metric support for pre-aggregations ([#20712](https://github.com/lightdash/lightdash/issues/20712)) ([96a1a69](https://github.com/lightdash/lightdash/commit/96a1a69f296098ba4505f0c0296f54d2b03c0599))
+
 # [0.2547.0](https://github.com/lightdash/lightdash/compare/0.2546.0...0.2547.0) (2026-03-02)
 
 
