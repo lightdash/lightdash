@@ -363,12 +363,18 @@ fi
 echo "╠══════════════════════════════════════════════════════════════════════════════╣"
 echo "║  Cloud-init is now running (takes ~5 minutes).                               ║"
 echo "║                                                                              ║"
+if [[ "$DISABLE_PUBLIC_SSH" == true ]]; then
+echo "║  Monitor progress (via Tailscale once it joins):                             ║"
+echo "║    tailscale status | grep -i lightdash                                      ║"
+echo "║    ssh root@<tailscale-hostname> 'tail -f /var/log/cloud-init-output.log'    ║"
+else
 echo "║  Monitor progress:                                                           ║"
 echo "║    ssh root@$SERVER_IP 'tail -f /var/log/cloud-init-output.log'"
+fi
 echo "║                                                                              ║"
 echo "║  Once complete, run:                                                         ║"
 if [[ -n "$TAILSCALE_KEY" ]]; then
-echo "║    ssh root@<tailscale-hostname>     # or use public IP                      ║"
+echo "║    ssh root@<tailscale-hostname>                                             ║"
 else
 echo "║    ssh root@$SERVER_IP"
 fi
@@ -397,38 +403,52 @@ echo "╚═══════════════════════�
 
 # ── Optional: Wait for cloud-init ─────────────────────────────────────────────
 echo ""
-read -p "Wait for cloud-init to complete? [y/N] " WAIT_RESPONSE
-if [[ "$WAIT_RESPONSE" =~ ^[Yy]$ ]]; then
-    log "Waiting for cloud-init to complete..."
-    echo "  (This typically takes 4-6 minutes)"
-    echo ""
 
-    # Wait for SSH to be available
-    log "Waiting for SSH..."
-    for i in {1..30}; do
-        if ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 -o BatchMode=yes \
-            root@"$SERVER_IP" "exit" 2>/dev/null; then
-            break
-        fi
-        sleep 5
-    done
-
-    # Wait for cloud-init complete marker
-    log "Waiting for cloud-init to finish..."
-    while true; do
-        if ssh -o StrictHostKeyChecking=no root@"$SERVER_IP" \
-            "test -f /opt/lightdash/.cloud-init-complete" 2>/dev/null; then
-            break
-        fi
-        sleep 10
-        echo -n "."
-    done
+# Can't wait via public SSH if it's blocked by firewall
+if [[ "$DISABLE_PUBLIC_SSH" == true ]]; then
+    log "Public SSH is blocked. To check cloud-init progress:"
+    echo "  1. Wait for server to appear in your tailnet (~2-3 min):"
+    echo "     tailscale status | grep -i lightdash"
     echo ""
-
-    success "Cloud-init complete!"
+    echo "  2. SSH via Tailscale and check cloud-init:"
+    echo "     ssh root@<tailscale-hostname> 'tail -f /var/log/cloud-init-output.log'"
     echo ""
-    echo "You can now SSH in and run:"
-    echo "  ssh root@$SERVER_IP"
-    echo "  sudo -iu lightdash"
-    echo "  cd /opt/lightdash && ./agent-harness/setup-infra.sh && ./agent-harness/launch.sh 1"
+    echo "  3. Or wait for .cloud-init-complete marker:"
+    echo "     ssh root@<tailscale-hostname> 'test -f /opt/lightdash/.cloud-init-complete && echo done'"
+else
+    read -p "Wait for cloud-init to complete? [y/N] " WAIT_RESPONSE
+    if [[ "$WAIT_RESPONSE" =~ ^[Yy]$ ]]; then
+        log "Waiting for cloud-init to complete..."
+        echo "  (This typically takes 4-6 minutes)"
+        echo ""
+
+        # Wait for SSH to be available
+        log "Waiting for SSH..."
+        for i in {1..30}; do
+            if ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 -o BatchMode=yes \
+                root@"$SERVER_IP" "exit" 2>/dev/null; then
+                break
+            fi
+            sleep 5
+        done
+
+        # Wait for cloud-init complete marker
+        log "Waiting for cloud-init to finish..."
+        while true; do
+            if ssh -o StrictHostKeyChecking=no root@"$SERVER_IP" \
+                "test -f /opt/lightdash/.cloud-init-complete" 2>/dev/null; then
+                break
+            fi
+            sleep 10
+            echo -n "."
+        done
+        echo ""
+
+        success "Cloud-init complete!"
+        echo ""
+        echo "You can now SSH in and run:"
+        echo "  ssh root@$SERVER_IP"
+        echo "  sudo -iu lightdash"
+        echo "  cd /opt/lightdash && ./agent-harness/setup-infra.sh && ./agent-harness/launch.sh 1"
+    fi
 fi
