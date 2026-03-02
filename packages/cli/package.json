@@ -70,6 +70,6 @@
     "@vercel/ncc": "^0.38.4",
     "@yao-pkg/pkg": "^6.6.0",
     "ts-node": "^10.9.2",
-    "typescript": "5.5.4"
+    "typescript": "6.0.0-beta"
   }
 }
