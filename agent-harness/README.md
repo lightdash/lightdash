@@ -32,34 +32,74 @@ Built for AI coding agents (Claude Code, etc.) but works just as well for parall
 
 For running agents on a cloud server — ideal for always-on agents or mobile prompting.
 
-### 1. Provision a VPS
+### Prerequisites
 
-Use `cloud-init.yml` to provision a server with everything pre-installed (Docker, Node.js, pnpm, PM2, dbt, the repo, and all remote access tools).
+- **Hetzner Cloud account**: Sign up at https://console.hetzner.cloud
+- **hcloud CLI**: Install with `brew install hcloud` (macOS) or see [hcloud releases](https://github.com/hetznercloud/cli/releases)
 
-**Hetzner** (recommended):
+### 1. Create a Hetzner API Token
+
+1. Go to https://console.hetzner.cloud
+2. Create a project (or select existing)
+3. Go to **Security → API Tokens → Generate API Token**
+4. Give it **Read & Write** permissions
+5. Copy the token (you'll need it in the next step)
+
+### 2. Provision the Server
+
+The easiest way is to use the provided script:
+
 ```bash
+./agent-harness/hetzner-create.sh
+```
+
+This script will:
+- Set up your Hetzner CLI context (prompts for API token on first run)
+- Create/upload an SSH key if needed
+- Create the server with cloud-init
+
+**Options:**
+```bash
+./agent-harness/hetzner-create.sh --help              # Show all options
+./agent-harness/hetzner-create.sh --type cpx52        # Use larger server (12 vCPU, 24GB)
+./agent-harness/hetzner-create.sh --location ash      # Use US East location
+./agent-harness/hetzner-create.sh --name my-agents    # Custom server name
+```
+
+**Server sizes:**
+| Type | vCPU | RAM | Cost | Recommended for |
+|------|------|-----|------|-----------------|
+| cpx42 | 8 | 16 GB | ~€35/mo | 3 agents |
+| cpx52 | 12 | 24 GB | ~€65/mo | 5 agents |
+| cpx62 | 16 | 32 GB | ~€95/mo | 5+ agents |
+
+**Locations:** `nbg1` (Nuremberg), `fsn1` (Falkenstein), `hel1` (Helsinki), `ash` (US East), `hil` (US West), `sin` (Singapore)
+
+<details>
+<summary>Manual setup (without the script)</summary>
+
+```bash
+# 1. Set up hcloud CLI
+hcloud context create lightdash-dev
+# Enter your API token when prompted
+
+# 2. Upload your SSH key
+hcloud ssh-key create --name my-key --public-key-from-file ~/.ssh/id_ed25519.pub
+
+# 3. Create the server
 hcloud server create \
   --name lightdash-agents \
-  --type cpx41 \
+  --type cpx42 \
   --image ubuntu-24.04 \
+  --location nbg1 \
   --ssh-key my-key \
   --user-data-from-file agent-harness/cloud-init.yml
 ```
+</details>
 
-**DigitalOcean**:
-```bash
-doctl compute droplet create lightdash-agents \
-  --size s-8vcpu-16gb \
-  --image ubuntu-24-04-x64 \
-  --ssh-keys <fingerprint> \
-  --user-data "$(cat agent-harness/cloud-init.yml)"
-```
+Cloud-init takes ~5 minutes. The script can optionally wait for it to complete.
 
-**Recommended sizes**: 8 vCPU / 16 GB for 3 agents, 8 vCPU / 32 GB for 5 agents.
-
-Cloud-init takes 5–10 minutes. Check progress with `tail -f /var/log/cloud-init-output.log`.
-
-### 2. SSH in and start agents
+### 3. SSH in and start agents
 
 ```bash
 ssh root@<server-ip>
@@ -71,7 +111,7 @@ cd /opt/lightdash
 ./agent-harness/launch.sh 2
 ```
 
-### 3. Set up remote access
+### 4. Set up remote access
 
 The VPS comes with four remote access tools pre-installed for a seamless experience, especially from mobile devices.
 
@@ -197,6 +237,27 @@ Shared infrastructure uses non-standard ports to avoid conflicts with normal dev
 PostgreSQL's `CREATE DATABASE ... TEMPLATE` copies the fully-migrated, seeded template database in milliseconds. No per-agent migration or seed runs needed.
 
 ## Scripts Reference
+
+### `hetzner-create.sh [options]`
+
+Creates a Hetzner Cloud server with cloud-init. Handles SSH key setup, API token configuration, and server provisioning.
+
+```bash
+./agent-harness/hetzner-create.sh                    # Use defaults
+./agent-harness/hetzner-create.sh --type cpx52       # Larger server
+./agent-harness/hetzner-create.sh --location ash     # US East
+./agent-harness/hetzner-create.sh --help             # Show all options
+```
+
+### `hetzner-destroy.sh [--name NAME]`
+
+Destroys a Hetzner Cloud server created by `hetzner-create.sh`.
+
+```bash
+./agent-harness/hetzner-destroy.sh                   # Delete default server
+./agent-harness/hetzner-destroy.sh --name my-agents  # Delete specific server
+./agent-harness/hetzner-destroy.sh --yes             # Skip confirmation
+```
 
 ### `setup-infra.sh`
 
