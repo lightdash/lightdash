@@ -130,8 +130,8 @@ The credentials are stored in `/home/lightdash/.credentials` (mode 600) and auto
 
 ```bash
 # On the server:
-ssh root@<server-ip>
-tailscale up --ssh
+ssh lightdash@<server-ip>
+sudo tailscale up --ssh
 
 # Once connected, you can block public SSH (Hetzner only):
 ./agent-harness/hetzner-secure.sh lightdash-agents
@@ -143,7 +143,7 @@ After this, SSH is only accessible via Tailscale (100.64.0.0/10).
 
 ```bash
 # SSH via Tailscale (if set up) or public IP
-ssh lightdash@<tailscale-hostname>  # or ssh root@<server-ip>
+ssh lightdash@<tailscale-hostname>  # or ssh lightdash@<server-ip>
 cd /opt/lightdash
 
 ./agent-harness/setup-infra.sh
@@ -314,7 +314,7 @@ Applies a Hetzner firewall to block public SSH. Run this after setting up Tailsc
 
 ```bash
 # First, set up Tailscale on the server
-ssh root@<ip> 'tailscale up --ssh'
+ssh lightdash@<ip> 'sudo tailscale up --ssh'
 
 # Then apply the firewall
 ./agent-harness/hetzner-secure.sh lightdash-agents
@@ -478,9 +478,9 @@ If you used `hetzner-secure.sh` and public SSH is blocked:
 
 2. **SSH in and debug:**
    ```bash
-   ssh root@<public-ip>
+   ssh lightdash@<public-ip>
    tail -100 /var/log/cloud-init-output.log
-   systemctl status tailscaled
+   sudo systemctl status tailscaled
    ```
 
 3. **Re-add the firewall once fixed:**

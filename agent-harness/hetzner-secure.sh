@@ -6,7 +6,7 @@
 #   ./agent-harness/hetzner-secure.sh <server-name>
 #
 # Prerequisites:
-#   - Tailscale must be running on the server: ssh root@<ip> 'tailscale up --ssh'
+#   - Tailscale must be running on the server: ssh lightdash@<ip> 'sudo tailscale up --ssh'
 #   - hcloud CLI must be configured
 #
 # What this does:

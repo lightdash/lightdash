@@ -302,6 +302,6 @@ if [[ "$WAIT_RESPONSE" =~ ^[Yy]$ ]]; then
     echo "  ./agent-harness/sync-credentials.sh $SERVER_IP"
     echo ""
     echo "Then optionally set up Tailscale and secure SSH:"
-    echo "  ssh root@$SERVER_IP 'tailscale up --ssh'"
+    echo "  ssh lightdash@$SERVER_IP 'sudo tailscale up --ssh'"
     echo "  ./agent-harness/hetzner-secure.sh $SERVER_NAME"
 fi

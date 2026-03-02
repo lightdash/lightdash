@@ -37,7 +37,7 @@
 #   happy-coder — mobile-friendly Claude Code client (npm package)
 #
 # After provisioning, SSH in and run:
-#   sudo -iu lightdash
+#   ssh lightdash@<server-ip>
 #   cd /opt/lightdash
 #   ./agent-harness/setup-infra.sh
 #   ./agent-harness/launch.sh 1
@@ -84,8 +84,8 @@ users:
     shell: /bin/bash
     groups: [docker, sudo]
     sudo: ALL=(ALL) NOPASSWD:ALL
-    # SSH keys are injected by the cloud provider into the default user.
-    # The lightdash user can be accessed via: sudo -iu lightdash
+    # SSH keys are copied from root to lightdash during provisioning.
+    # SSH directly: ssh lightdash@<server-ip>
 
 # -- Write config files -------------------------------------------------------
 
@@ -322,6 +322,14 @@ runcmd:
     docker pull coollabsio/minio:latest
     docker pull ghcr.io/browserless/chromium:v2.38.2
     docker pull axllent/mailpit:latest
+
+  # -- Copy SSH keys to lightdash user so they can SSH directly ----------------
+  - |
+    mkdir -p /home/lightdash/.ssh
+    cp /root/.ssh/authorized_keys /home/lightdash/.ssh/authorized_keys
+    chown -R lightdash:lightdash /home/lightdash/.ssh
+    chmod 700 /home/lightdash/.ssh
+    chmod 600 /home/lightdash/.ssh/authorized_keys
 
   # -- Fix ownership (belt and suspenders) -------------------------------------
   - chown -R lightdash:lightdash /opt/lightdash /home/lightdash
