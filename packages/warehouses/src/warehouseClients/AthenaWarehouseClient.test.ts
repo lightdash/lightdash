@@ -16,7 +16,7 @@ jest.mock('@aws-sdk/credential-providers', () => ({
     fromTemporaryCredentials: mockFromTemporaryCredentials,
 }));
 
-// Must import after mocks are set up
+// eslint-disable-next-line import/first -- Must import after mocks are set up
 import { AthenaWarehouseClient } from './AthenaWarehouseClient';
 
 const baseCredentials: CreateAthenaCredentials = {
