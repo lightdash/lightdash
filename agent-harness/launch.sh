@@ -190,7 +190,7 @@ if [ "$USE_CLAUDE" = true ]; then
 
     # Create new tmux session with Claude Code
     log "Creating tmux session '$TMUX_SESSION' with $CLAUDE_CMD..."
-    tmux new-session -d -s "$TMUX_SESSION" -c "$WORK_DIR" "$CLAUDE_CMD -p \"$INITIAL_PROMPT\""
+    tmux new-session -d -s "$TMUX_SESSION" -c "$WORK_DIR" "$CLAUDE_CMD --dangerously-skip-permissions --append-system-prompt \"$INITIAL_PROMPT\""
 
     log ""
     log "Claude Code is running in tmux session '$TMUX_SESSION'"
