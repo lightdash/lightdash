@@ -1,3 +1,11 @@
+## [0.2549.1](https://github.com/lightdash/lightdash/compare/0.2549.0...0.2549.1) (2026-03-02)
+
+
+### Bug Fixes
+
+* apply query filters to PoP pop_metrics, shifting time filters to prior period ([#20751](https://github.com/lightdash/lightdash/issues/20751)) ([80bc0f0](https://github.com/lightdash/lightdash/commit/80bc0f01d882aeb0d673d59b24da3b3e65c2a849))
+* types, format, lint ([#20731](https://github.com/lightdash/lightdash/issues/20731)) ([b432473](https://github.com/lightdash/lightdash/commit/b4324734fa383cf687bb74568b0c35e1364238a5))
+
 # [0.2549.0](https://github.com/lightdash/lightdash/compare/0.2548.0...0.2549.0) (2026-03-02)
 
 
