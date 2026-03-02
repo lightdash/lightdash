@@ -1,5 +1,5 @@
 import { assertUnreachable, ChartType } from '@lightdash/common';
-import { Anchor, Text } from '@mantine/core';
+import { Anchor, Text } from '@mantine-8/core';
 import { IconChartBarOff } from '@tabler/icons-react';
 import { forwardRef, Fragment, lazy, memo, Suspense } from 'react';
 import { EmptyState } from '../common/EmptyState';
@@ -76,7 +76,6 @@ const LightdashVisualization = memo(
                                     </Text>
                                     {apiErrorDetail.data.documentationUrl && (
                                         <Fragment>
-                                            <br />
                                             <Anchor
                                                 href={
                                                     apiErrorDetail.data
@@ -84,6 +83,8 @@ const LightdashVisualization = memo(
                                                 }
                                                 target="_blank"
                                                 rel="noreferrer"
+                                                fz="xs"
+                                                fw="bold"
                                             >
                                                 Learn how to resolve this in our
                                                 documentation →

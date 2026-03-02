@@ -10,8 +10,7 @@ import {
     type ResultValue,
     type TableCalculation,
 } from '@lightdash/common';
-import { Menu } from '@mantine-8/core';
-import { Text } from '@mantine/core';
+import { Menu, Text } from '@mantine-8/core';
 import { useClipboard } from '@mantine/hooks';
 import { IconCopy, IconEye, IconFilter, IconStack } from '@tabler/icons-react';
 import mapValues from 'lodash/mapValues';
@@ -177,9 +176,11 @@ const CellContextMenu: FC<
                         leftSection={<MantineIcon icon={IconFilter} />}
                         onClick={handleFilterByValue}
                     >
-                        Filter by{' '}
-                        <Text span fw={500}>
-                            {value.formatted}
+                        <Text fz="sm">
+                            Filter by{' '}
+                            <Text span fz="sm" fw="bold">
+                                {value.formatted}
+                            </Text>
                         </Text>
                     </Menu.Item>
                 )}
