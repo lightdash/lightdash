@@ -48,7 +48,7 @@ export const getDbtContext = async ({
     } catch (e: unknown) {
         if (projectDir !== path.parse(projectDir).root) {
             const parentDir = path.join(projectDir, '..');
-            return await getDbtContext({
+            return getDbtContext({
                 projectDir: parentDir,
                 initialProjectDir: initialProjectDir || projectDir,
                 targetPath,

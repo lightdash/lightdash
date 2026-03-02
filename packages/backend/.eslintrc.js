@@ -2,7 +2,6 @@ module.exports = {
     ignorePatterns: ['src/ee/services/McpService/mcp-chart-app/**'],
     parserOptions: {
         project: './tsconfig.json',
-        createDefaultProgram: true,
     },
     extends: [
         './../../.eslintrc.js',
@@ -31,6 +30,8 @@ module.exports = {
         'no-restricted-syntax': 'off',
         eqeqeq: 'error',
         '@typescript-eslint/no-floating-promises': 'error',
+        '@typescript-eslint/no-throw-literal': 'error',
+        '@typescript-eslint/only-throw-error': 'error',
     },
     overrides: [
         {

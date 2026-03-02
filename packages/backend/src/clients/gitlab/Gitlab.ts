@@ -326,7 +326,13 @@ export const getDirectoryContents = async ({
     path: string;
     installationId?: string;
 }): Promise<
-    Array<{ name: string; path: string; type: string; size: number; sha: string }>
+    Array<{
+        name: string;
+        path: string;
+        type: string;
+        size: number;
+        sha: string;
+    }>
 > => {
     const projectId = getProjectId(owner, repo);
     const encodedPath = path ? encodeURIComponent(path) : '';
@@ -339,7 +345,12 @@ export const getDirectoryContents = async ({
     try {
         const items = await makeGitlabRequest(url, token);
         return items.map(
-            (item: { name: string; path: string; type: string; id: string }) => ({
+            (item: {
+                name: string;
+                path: string;
+                type: string;
+                id: string;
+            }) => ({
                 name: item.name,
                 path: item.path,
                 type: item.type === 'tree' ? 'dir' : 'file',
