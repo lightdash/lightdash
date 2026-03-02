@@ -1841,6 +1841,7 @@ export class AsyncQueryService extends ProjectService {
             parameters,
             availableParameterDefinitions,
             pivotConfiguration,
+            pivotDimensions: metricQuery.pivotDimensions,
         });
 
         const fieldsWithOverrides: ItemsMap = Object.fromEntries(

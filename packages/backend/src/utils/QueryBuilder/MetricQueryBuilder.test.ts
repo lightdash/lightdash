@@ -3599,9 +3599,13 @@ describe('Query Structure Tests', () => {
 
         // Should have the row_totals CTE
         expect(result.query).toContain('row_totals AS (');
-        // Should use the metric's compiledSql for aggregation
+        // Should SUM the already-computed metric values (row totals are always SUM)
         expect(result.query).toContain(
-            'MAX("table1".number_column) AS "table1_metric1__row_total"',
+            'SUM("table1_metric1") AS "table1_metric1__row_total"',
+        );
+        // Should read from the grouped results CTE, not from raw tables
+        expect(result.query).not.toMatch(
+            /row_totals AS \([^)]*FROM "postgres"\."schema"\."table1"/s,
         );
         // Should GROUP BY the non-pivot dimension
         expect(result.query).toContain('GROUP BY 1');
@@ -3807,6 +3811,55 @@ describe('Query Structure Tests', () => {
         expect(result.query).not.toContain('column_totals AS (');
         expect(result.query).not.toContain('row_totals AS (');
         expect(result.query).not.toContain('with_totals AS (');
+    });
+
+    test('Should build row_totals CTE using pivotDimensions (lightweight alternative to pivotConfiguration)', () => {
+        const metricQueryWithRowTotal = {
+            ...METRIC_QUERY,
+            tableCalculations: [
+                {
+                    name: 'pct_of_row',
+                    displayName: 'Pct of Row',
+                    sql: '${table1.metric1} / row_total(${table1.metric1})',
+                },
+            ],
+            compiledTableCalculations: [
+                {
+                    name: 'pct_of_row',
+                    displayName: 'Pct of Row',
+                    sql: '${table1.metric1} / row_total(${table1.metric1})',
+                    compiledSql:
+                        '"table1_metric1" / row_total("table1_metric1")',
+                    dependsOn: [],
+                },
+            ],
+        };
+
+        const result = buildQuery({
+            explore: EXPLORE,
+            compiledMetricQuery: metricQueryWithRowTotal,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            // Use pivotDimensions instead of pivotConfiguration
+            pivotDimensions: ['table1_dim2'],
+        });
+
+        // Should have the row_totals CTE
+        expect(result.query).toContain('row_totals AS (');
+        // Should SUM from grouped results
+        expect(result.query).toContain(
+            'SUM("table1_metric1") AS "table1_metric1__row_total"',
+        );
+        // Non-pivot dim (table1_dim1) should be in GROUP BY
+        expect(result.query).toContain('"table1_dim1"');
+        expect(result.query).toContain('GROUP BY 1');
+        // Should have with_totals CTE
+        expect(result.query).toContain('with_totals AS (');
+        expect(result.query).toContain('LEFT JOIN row_totals ON');
+        // Should replace row_total() with column alias
+        expect(result.query).toContain('"table1_metric1__row_total"');
+        expect(result.query).not.toContain('row_total("table1_metric1")');
     });
 });
 

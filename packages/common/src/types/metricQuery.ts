@@ -192,6 +192,9 @@ export type MetricQuery = {
     dimensionOverrides?: DimensionOverrides;
     /** Timezone for date/time values (e.g., 'America/Los_Angeles', 'UTC') */
     timezone?: string;
+    /** Dimension field IDs used as pivot columns (from chart's pivotConfig.columns).
+     * Used by row_total() to determine non-pivot dimensions for GROUP BY. */
+    pivotDimensions?: FieldId[];
     metadata?: {
         hasADateDimension: Pick<CompiledDimension, 'label' | 'name' | 'table'>;
     };
@@ -295,6 +298,7 @@ export type MetricQueryRequest = {
     dateZoom?: DateZoom;
     metadata?: MetricQuery['metadata'];
     timezone?: string;
+    pivotDimensions?: FieldId[];
     metricOverrides?: MetricOverrides;
     dimensionOverrides?: DimensionOverrides;
 };

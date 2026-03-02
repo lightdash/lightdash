@@ -2897,6 +2897,7 @@ export class ProjectService extends BaseService {
         parameters,
         availableParameterDefinitions,
         pivotConfiguration,
+        pivotDimensions,
         continueOnError,
     }: {
         metricQuery: MetricQuery;
@@ -2909,6 +2910,7 @@ export class ProjectService extends BaseService {
         parameters?: ParametersValuesMap;
         availableParameterDefinitions: ParameterDefinitions;
         pivotConfiguration?: PivotConfiguration;
+        pivotDimensions?: string[];
         continueOnError?: boolean;
     }): Promise<CompiledQuery> {
         const availableParameters = Object.keys(availableParameterDefinitions);
@@ -2938,6 +2940,7 @@ export class ProjectService extends BaseService {
             parameters,
             parameterDefinitions: availableParameterDefinitions,
             pivotConfiguration,
+            pivotDimensions,
             continueOnError,
             originalExplore: dateZoom ? explore : undefined,
         });
@@ -2970,13 +2973,19 @@ export class ProjectService extends BaseService {
             body: MetricQuery & {
                 parameters?: ParametersValuesMap;
                 pivotConfiguration?: PivotConfiguration;
+                pivotDimensions?: string[];
             };
             projectUuid: string;
         } & ({ exploreName: string } | { explore: Explore }),
     ) {
         const {
             account,
-            body: { parameters, pivotConfiguration, ...metricQuery },
+            body: {
+                parameters,
+                pivotConfiguration,
+                pivotDimensions,
+                ...metricQuery
+            },
             projectUuid,
         } = args;
 
@@ -3035,6 +3044,7 @@ export class ProjectService extends BaseService {
             parameters,
             availableParameterDefinitions,
             pivotConfiguration,
+            pivotDimensions,
             continueOnError: true, // Return SQL even with compilation errors for debugging
         });
 
@@ -3858,6 +3868,7 @@ export class ProjectService extends BaseService {
                         dateZoom,
                         parameters,
                         availableParameterDefinitions,
+                        pivotDimensions: metricQueryWithLimit.pivotDimensions,
                     });
 
                     const { query } = fullQuery;

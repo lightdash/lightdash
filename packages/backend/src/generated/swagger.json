@@ -3732,6 +3732,13 @@
                         "required": ["hasADateDimension"],
                         "type": "object"
                     },
+                    "pivotDimensions": {
+                        "items": {
+                            "$ref": "#/components/schemas/FieldId"
+                        },
+                        "type": "array",
+                        "description": "Dimension field IDs used as pivot columns (from chart's pivotConfig.columns).\nUsed by row_total() to determine non-pivot dimensions for GROUP BY."
+                    },
                     "timezone": {
                         "type": "string",
                         "description": "Timezone for date/time values (e.g., 'America/Los_Angeles', 'UTC')"
@@ -7272,6 +7279,12 @@
                     },
                     "metricOverrides": {
                         "$ref": "#/components/schemas/MetricOverrides"
+                    },
+                    "pivotDimensions": {
+                        "items": {
+                            "$ref": "#/components/schemas/FieldId"
+                        },
+                        "type": "array"
                     },
                     "timezone": {
                         "type": "string"
@@ -19282,6 +19295,13 @@
                         "type": "string",
                         "description": "Timezone for date/time values (e.g., 'America/Los_Angeles', 'UTC')"
                     },
+                    "pivotDimensions": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "Dimension field IDs used as pivot columns (from chart's pivotConfig.columns).\nUsed by row_total() to determine non-pivot dimensions for GROUP BY."
+                    },
                     "metadata": {
                         "properties": {
                             "hasADateDimension": {
@@ -25317,6 +25337,12 @@
                     },
                     "timezone": {
                         "type": "string"
+                    },
+                    "pivotDimensions": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
                     },
                     "metadata": {
                         "properties": {

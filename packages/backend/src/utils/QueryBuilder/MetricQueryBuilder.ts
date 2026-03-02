@@ -98,6 +98,13 @@ export type BuildQueryProps = {
     parameterDefinitions: ParameterDefinitions;
     intrinsicUserAttributes: IntrinsicUserAttributes;
     pivotConfiguration?: PivotConfiguration;
+    /**
+     * List of dimension field IDs used as pivot columns (e.g., from chart's pivotConfig.columns).
+     * Used by row_total() to determine non-pivot dimensions for GROUP BY.
+     * This is a lightweight alternative to pivotConfiguration — when pivotConfiguration is
+     * not available (e.g., feature flag off), pivotDimensions still lets row_total() work correctly.
+     */
+    pivotDimensions?: string[];
     timezone: string;
     /**
      * When true, compilation errors (e.g., invalid filter values) are collected
@@ -2570,12 +2577,24 @@ export class MetricQueryBuilder {
     }
 
     private getNonPivotDimensionIds(): string[] {
+        // First try: use PivotConfiguration.indexColumn (available when SQL pivot is enabled)
         const pivot = this.args.pivotConfiguration;
-        if (!pivot?.indexColumn) return [];
-        const indexColumns = Array.isArray(pivot.indexColumn)
-            ? pivot.indexColumn
-            : [pivot.indexColumn];
-        return indexColumns.map((col) => col.reference);
+        if (pivot?.indexColumn) {
+            const indexColumns = Array.isArray(pivot.indexColumn)
+                ? pivot.indexColumn
+                : [pivot.indexColumn];
+            return indexColumns.map((col) => col.reference);
+        }
+        // Fallback: derive from pivotDimensions (lightweight — just the list of pivoted dimension IDs)
+        const { pivotDimensions } = this.args;
+        if (pivotDimensions && pivotDimensions.length > 0) {
+            const allDimensions =
+                this.args.compiledMetricQuery.dimensions || [];
+            return allDimensions.filter(
+                (dim) => !pivotDimensions.includes(dim),
+            );
+        }
+        return [];
     }
 
     private replaceTotalReferences(compiledSql: string): string {
@@ -2584,8 +2603,10 @@ export class MetricQueryBuilder {
 
         let result = compiledSql;
         // Replace row_total first to avoid partial match
-        // When no pivotConfiguration, row_total(field) = field (only one column, so row total is the value itself)
-        const hasPivot = !!this.args.pivotConfiguration;
+        // When no pivot info, row_total(field) = field (only one column, so row total is the value itself)
+        const hasPivot =
+            !!this.args.pivotConfiguration ||
+            (this.args.pivotDimensions && this.args.pivotDimensions.length > 0);
         result = result.replace(
             new RegExp(
                 `\\brow_total\\s*\\(\\s*${escapedQ}([^${escapedQ}]+)${escapedQ}\\s*\\)`,
@@ -2634,16 +2655,22 @@ export class MetricQueryBuilder {
             );
         }
 
-        // row_totals CTE: totals grouped by non-pivot dimensions
-        if (opts.rowTotalFields.length > 0 && this.args.pivotConfiguration) {
+        // row_totals CTE: SUM of metric values grouped by non-pivot dimensions
+        // Per spec, row totals are always a SUM of the numeric values in each row,
+        // so we read from the already-grouped results (currentCteName) rather than
+        // re-aggregating from raw data like column_totals does.
+        const hasPivotInfo =
+            !!this.args.pivotConfiguration ||
+            (this.args.pivotDimensions && this.args.pivotDimensions.length > 0);
+        if (opts.rowTotalFields.length > 0 && hasPivotInfo) {
             const nonPivotDimIds = this.getNonPivotDimensionIds();
             const dimSelects = nonPivotDimIds
                 .filter((dimId) => dimId in opts.dimensionSelects)
-                .map((dimId) => `  ${opts.dimensionSelects[dimId]}`);
-            const rowTotalSelects = opts.rowTotalFields.map((fieldId) => {
-                const metric = this.getMetricFromId(fieldId);
-                return `  ${metric.compiledSql} AS ${fieldQuoteChar}${fieldId}__row_total${fieldQuoteChar}`;
-            });
+                .map((dimId) => `  ${fieldQuoteChar}${dimId}${fieldQuoteChar}`);
+            const rowTotalSelects = opts.rowTotalFields.map(
+                (fieldId) =>
+                    `  SUM(${fieldQuoteChar}${fieldId}${fieldQuoteChar}) AS ${fieldQuoteChar}${fieldId}__row_total${fieldQuoteChar}`,
+            );
             const groupByIndices =
                 dimSelects.length > 0
                     ? `GROUP BY ${dimSelects.map((_, i) => i + 1).join(', ')}`
@@ -2651,10 +2678,7 @@ export class MetricQueryBuilder {
             ctes.push(
                 MetricQueryBuilder.wrapAsCte('row_totals', [
                     `SELECT\n${[...dimSelects, ...rowTotalSelects].join(',\n')}`,
-                    opts.sqlFrom,
-                    opts.joinsSql,
-                    ...opts.dimensionJoins,
-                    opts.dimensionFilters,
+                    `FROM ${opts.currentCteName}`,
                     groupByIndices,
                 ]),
             );
@@ -2674,7 +2698,7 @@ export class MetricQueryBuilder {
             joinClauses.push('CROSS JOIN column_totals');
         }
 
-        if (opts.rowTotalFields.length > 0 && this.args.pivotConfiguration) {
+        if (opts.rowTotalFields.length > 0 && hasPivotInfo) {
             const nonPivotDimIds = this.getNonPivotDimensionIds().filter(
                 (dimId) => dimId in opts.dimensionSelects,
             );
@@ -3046,7 +3070,9 @@ export class MetricQueryBuilder {
         const { totalFields, rowTotalFields } = extractTotalReferences(
             this.args.compiledMetricQuery.compiledTableCalculations,
         );
-        const hasPivot = !!this.args.pivotConfiguration;
+        const hasPivot =
+            !!this.args.pivotConfiguration ||
+            (this.args.pivotDimensions && this.args.pivotDimensions.length > 0);
         const needsTotalsCtes =
             totalFields.length > 0 || (rowTotalFields.length > 0 && hasPivot);
 

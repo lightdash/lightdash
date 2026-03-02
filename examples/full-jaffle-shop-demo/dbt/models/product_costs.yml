@@ -1,0 +1,75 @@
+version: 2
+models:
+  - name: product_costs
+    description: |
+      Cost breakdown for products across regions and quarters.
+      Each row represents a single cost component (product cost, import cost, or taxes)
+      for a product in a specific region and quarter.
+    config:
+      tags: ["core"]
+      meta:
+        spotlight:
+          categories:
+            - sales
+    columns:
+      - name: cost_entry_id
+        description: Unique identifier for each cost entry
+        tests:
+          - unique
+          - not_null
+        meta:
+          dimension:
+            type: number
+            hidden: true
+
+      - name: product_name
+        description: Name of the product
+        meta:
+          dimension:
+            type: string
+
+      - name: category
+        description: Product category
+        meta:
+          dimension:
+            type: string
+
+      - name: region
+        description: Geographic region
+        meta:
+          dimension:
+            type: string
+
+      - name: quarter
+        description: Fiscal quarter (e.g., 2024-Q3)
+        meta:
+          dimension:
+            type: string
+
+      - name: cost_type
+        description: Type of cost (product_cost, import_cost, or taxes)
+        meta:
+          dimension:
+            type: string
+
+      - name: amount
+        description: Cost amount in USD
+        tests:
+          - not_null
+        config:
+          meta:
+            metrics:
+              total_cost:
+                type: sum
+                format: usd
+                round: 2
+                label: Total Cost
+              average_cost:
+                type: average
+                format: usd
+                round: 2
+                label: Average Cost
+        meta:
+          dimension:
+            type: number
+            format: usd
