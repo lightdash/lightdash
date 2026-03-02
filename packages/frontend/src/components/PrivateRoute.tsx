@@ -1,4 +1,4 @@
-import React, { useEffect, type FC } from 'react';
+import React, { useEffect, useState, type FC } from 'react';
 import { Navigate, useLocation } from 'react-router';
 import { useEmailStatus } from '../hooks/useEmailVerification';
 import { useAbilityContext } from '../providers/Ability/useAbilityContext';
@@ -14,10 +14,16 @@ const PrivateRoute: FC<React.PropsWithChildren> = ({ children }) => {
     const ability = useAbilityContext();
     const emailStatus = useEmailStatus(!!health.data?.isAuthenticated);
     const isEmailServerConfigured = health.data?.hasEmailClient;
+    // Initialize based on whether ability already has rules (e.g., from previous navigation)
+    // This prevents a loading flash when navigating between pages
+    const [abilityInitialized, setAbilityInitialized] = useState(
+        () => ability.rules.length > 0,
+    );
 
     useEffect(() => {
         if (data) {
             ability.update(data.abilityRules);
+            setAbilityInitialized(true);
         }
     }, [ability, data]);
 
@@ -36,7 +42,11 @@ const PrivateRoute: FC<React.PropsWithChildren> = ({ children }) => {
         );
     }
 
-    if (isInitialLoading || emailStatus.isInitialLoading) {
+    if (
+        isInitialLoading ||
+        emailStatus.isInitialLoading ||
+        (data && !abilityInitialized)
+    ) {
         return <PageSpinner />;
     }
 
