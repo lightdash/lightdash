@@ -1,3 +1,10 @@
+## [0.2545.2](https://github.com/lightdash/lightdash/compare/0.2545.1...0.2545.2) (2026-03-02)
+
+
+### Bug Fixes
+
+* update case sensitivity in INCLUDE filters to be consistent with the other string filters ([#20713](https://github.com/lightdash/lightdash/issues/20713)) ([861daa4](https://github.com/lightdash/lightdash/commit/861daa482317f53018750781d18b51688330c78a))
+
 ## [0.2545.1](https://github.com/lightdash/lightdash/compare/0.2545.0...0.2545.1) (2026-03-02)
 
 
