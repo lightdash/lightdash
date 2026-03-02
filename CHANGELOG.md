@@ -1,3 +1,15 @@
+# [0.2549.0](https://github.com/lightdash/lightdash/compare/0.2548.0...0.2549.0) (2026-03-02)
+
+
+### Bug Fixes
+
+* add missing indexes for saved chart validation queries ([#20745](https://github.com/lightdash/lightdash/issues/20745)) ([856a9b0](https://github.com/lightdash/lightdash/commit/856a9b0010522be3eb41ee89203d5c7a752aabc4))
+
+
+### Features
+
+* **athena:** support IAM assume role for Athena warehouse ([#20315](https://github.com/lightdash/lightdash/issues/20315)) ([129b2af](https://github.com/lightdash/lightdash/commit/129b2af9efc16258286cedebfad2302036acda16))
+
 # [0.2548.0](https://github.com/lightdash/lightdash/compare/0.2547.0...0.2548.0) (2026-03-02)
 
 
