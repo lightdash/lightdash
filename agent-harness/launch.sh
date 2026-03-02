@@ -2,9 +2,10 @@
 # Launches a single agent instance with isolated ports, database, and PM2 processes.
 # Idempotent — safe to run multiple times for the same agent.
 #
-# Usage: ./agent-harness/launch.sh <agent-id> [--worktree]
+# Usage: ./agent-harness/launch.sh <agent-id> [--worktree] [--claude]
 #   agent-id: integer 1-5
 #   --worktree: create a git worktree for isolated file changes
+#   --claude: start a tmux session with Claude Code (or happy if available)
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -13,10 +14,12 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 # ── Parse arguments ────────────────────────────────────────────────────────
 AGENT_ID="${1:-}"
 USE_WORKTREE=false
+USE_CLAUDE=false
 
 for arg in "$@"; do
     case "$arg" in
         --worktree) USE_WORKTREE=true ;;
+        --claude) USE_CLAUDE=true ;;
     esac
 done
 
@@ -158,3 +161,39 @@ log "  ./agent-harness/agent-cli.sh $AGENT_ID status"
 log "  ./agent-harness/agent-cli.sh $AGENT_ID logs api"
 log "  ./agent-harness/verify.sh $AGENT_ID"
 log "  ./agent-harness/teardown.sh $AGENT_ID"
+
+# ── Step 10: Start Claude Code in tmux (optional) ────────────────────────
+if [ "$USE_CLAUDE" = true ]; then
+    TMUX_SESSION="agent-${AGENT_ID}"
+
+    # Detect if 'happy' (happy engineering) is available, otherwise use 'claude'
+    if command -v happy &>/dev/null; then
+        CLAUDE_CMD="happy"
+        log "Using 'happy' (happy engineering) for Claude Code"
+    elif command -v claude &>/dev/null; then
+        CLAUDE_CMD="claude"
+        log "Using 'claude' for Claude Code"
+    else
+        log "Error: Neither 'happy' nor 'claude' command found in PATH"
+        log "Install Claude Code: https://github.com/anthropics/claude-code"
+        exit 1
+    fi
+
+    # Initial prompt to load the agent-harness skill
+    INITIAL_PROMPT="Run /agent-harness to understand your environment. You are agent ${AGENT_ID} working in an isolated harness with your own database, ports, and optionally your own worktree. Always use the agent-harness skill commands to check status, view logs, and verify your work."
+
+    # Kill existing session if present
+    if tmux has-session -t "$TMUX_SESSION" 2>/dev/null; then
+        log "Killing existing tmux session '$TMUX_SESSION'..."
+        tmux kill-session -t "$TMUX_SESSION"
+    fi
+
+    # Create new tmux session with Claude Code
+    log "Creating tmux session '$TMUX_SESSION' with $CLAUDE_CMD..."
+    tmux new-session -d -s "$TMUX_SESSION" -c "$WORK_DIR" "$CLAUDE_CMD -p \"$INITIAL_PROMPT\""
+
+    log ""
+    log "Claude Code is running in tmux session '$TMUX_SESSION'"
+    log "  Attach:  tmux attach -t $TMUX_SESSION"
+    log "  Or use:  ./agent-harness/attach.sh $AGENT_ID"
+fi
