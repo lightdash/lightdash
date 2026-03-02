@@ -59,6 +59,7 @@ packages:
   - jq
   - libpq-dev
   - lsb-release
+  - postgresql-client
   - python3
   - python3-dev
   - python3-pip
@@ -83,10 +84,8 @@ users:
     shell: /bin/bash
     groups: [docker, sudo]
     sudo: ALL=(ALL) NOPASSWD:ALL
-    ssh_authorized_keys:
-      # Replace with your actual SSH public key(s), or remove to rely on
-      # the cloud provider's SSH key injection into the default user only.
-      # - ssh-ed25519 AAAA... you@machine
+    # SSH keys are injected by the cloud provider into the default user.
+    # The lightdash user can be accessed via: sudo -iu lightdash
 
 # -- Write config files -------------------------------------------------------
 
@@ -182,11 +181,13 @@ write_files:
       # Auto-renumber windows
       set -g renumber-windows on
 
-  # Source profile.d scripts from .bashrc
-  - path: /home/lightdash/.bashrc.d/agent-harness.sh
+  # Base .bashrc for lightdash user
+  - path: /home/lightdash/.bashrc
     owner: lightdash:lightdash
     permissions: "0644"
     content: |
+      # ~/.bashrc: executed by bash(1) for non-login shells.
+      # Source profile.d scripts
       for f in /home/lightdash/.profile.d/*.sh; do
         [ -r "$f" ] && source "$f"
       done
@@ -243,20 +244,17 @@ runcmd:
       curl -fsSL https://just.systems/install.sh | bash -s -- --to /home/lightdash/.local/bin
     '
 
-  # -- Set up .bashrc to source profile.d scripts -----------------------------
+  # -- Set up profile.d directory -----------------------------
   - |
     su - lightdash -c '
-      mkdir -p /home/lightdash/.profile.d /home/lightdash/.bashrc.d
-      if ! grep -q "bashrc.d/agent-harness.sh" /home/lightdash/.bashrc 2>/dev/null; then
-        echo "[ -f /home/lightdash/.bashrc.d/agent-harness.sh ] && source /home/lightdash/.bashrc.d/agent-harness.sh" \
-          >> /home/lightdash/.bashrc
-      fi
+      mkdir -p /home/lightdash/.profile.d
     '
 
   # -- Clone the Lightdash repo -----------------------------------------------
   - |
-    git clone --depth=1 https://github.com/lightdash/lightdash.git /opt/lightdash
+    git clone --depth=1 --branch claude/implement-plan-L2z7h https://github.com/lightdash/lightdash.git /opt/lightdash
     chown -R lightdash:lightdash /opt/lightdash
+    chmod +x /opt/lightdash/agent-harness/*.sh
 
   # -- Install Node.js dependencies -------------------------------------------
   - |
