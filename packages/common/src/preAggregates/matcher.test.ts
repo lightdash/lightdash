@@ -114,6 +114,10 @@ const baseExplore = (): Explore => ({
                     name: 'custom_metric',
                     type: MetricType.NUMBER,
                 }),
+                avg_order_amount: makeMetric({
+                    name: 'avg_order_amount',
+                    type: MetricType.AVERAGE,
+                }),
             },
             lineageGraph: {},
         },
@@ -331,6 +335,33 @@ describe('findMatch', () => {
         expect(result.miss).toStrictEqual({
             reason: PreAggregateMissReason.CUSTOM_SQL_METRIC,
             fieldId: 'orders_custom_metric',
+        });
+    });
+
+    it('returns hit for decomposable average metrics in a covering pre-aggregate', () => {
+        const explore = {
+            ...baseExplore(),
+            preAggregates: [
+                {
+                    name: 'orders_summary',
+                    dimensions: ['status'],
+                    metrics: ['avg_order_amount'],
+                },
+            ],
+        };
+
+        const result = findMatch(
+            makeMetricQuery({
+                dimensions: ['orders_status'],
+                metrics: ['orders_avg_order_amount'],
+            }),
+            explore,
+        );
+
+        expect(result).toStrictEqual({
+            hit: true,
+            preAggregateName: 'orders_summary',
+            miss: null,
         });
     });
 
