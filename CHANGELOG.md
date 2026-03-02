@@ -1,3 +1,15 @@
+# [0.2546.0](https://github.com/lightdash/lightdash/compare/0.2545.3...0.2546.0) (2026-03-02)
+
+
+### Features
+
+* add organization and project UUID configuration for setup ([#20746](https://github.com/lightdash/lightdash/issues/20746)) ([d072359](https://github.com/lightdash/lightdash/commit/d07235928aabb3eaaeebc0f0f144acaedc4ef314))
+
+
+### Performance Improvements
+
+* replace correlated subquery with derived table JOIN in chart CTE ([#20743](https://github.com/lightdash/lightdash/issues/20743)) ([b626e88](https://github.com/lightdash/lightdash/commit/b626e880026e50efa6e00986f5dea00f0c86a3c9))
+
 ## [0.2545.3](https://github.com/lightdash/lightdash/compare/0.2545.2...0.2545.3) (2026-03-02)
 
 
