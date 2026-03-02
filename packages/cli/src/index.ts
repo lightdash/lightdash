@@ -19,6 +19,7 @@ import GlobalState from './globalState';
 import { compileHandler } from './handlers/compile';
 import { refreshHandler } from './handlers/dbt/refresh';
 import { dbtRunHandler } from './handlers/dbt/run';
+import { deleteHandler } from './handlers/delete';
 import { deployHandler } from './handlers/deploy';
 import { diagnosticsHandler } from './handlers/diagnostics';
 import { downloadHandler, uploadHandler } from './handlers/download';
@@ -757,6 +758,58 @@ program
     )
     .option('--validate', 'Validate charts and dashboards after upload', false)
     .action(uploadHandler);
+
+program
+    .command('delete')
+    .description(
+        'Deletes charts and dashboards from the server and removes local files',
+    )
+    .addHelpText(
+        'after',
+        `
+${styles.bold('Examples:')}
+  ${styles.title('⚡')}️lightdash ${styles.bold(
+            'delete',
+        )} -c my-chart ${styles.secondary('-- deletes a chart by slug')}
+  ${styles.title('⚡')}️lightdash ${styles.bold(
+            'delete',
+        )} -d my-dashboard ${styles.secondary('-- deletes a dashboard by slug')}
+  ${styles.title('⚡')}️lightdash ${styles.bold(
+            'delete',
+        )} -c chart1 chart2 -d dash1 ${styles.secondary(
+            '-- deletes multiple items',
+        )}
+  ${styles.title('⚡')}️lightdash ${styles.bold(
+            'delete',
+        )} -c my-chart --force ${styles.secondary(
+            '-- deletes without confirmation prompt',
+        )}
+`,
+    )
+    .option('--verbose', undefined, false)
+    .option(
+        '-c, --charts <charts...>',
+        'specify chart slugs, uuids, or urls to delete',
+        [],
+    )
+    .option(
+        '-d, --dashboards <dashboards...>',
+        'specify dashboard slugs, uuids, or urls to delete',
+        [],
+    )
+    .option('-f, --force', 'Skip confirmation prompt', false)
+    .option(
+        '-p, --path <path>',
+        'specify a custom path where local chart-as-code files are stored',
+        undefined,
+    )
+    .option(
+        '--project <project uuid>',
+        'specify a project UUID',
+        parseProjectArgument,
+        undefined,
+    )
+    .action(deleteHandler);
 
 program
     .command('deploy')
