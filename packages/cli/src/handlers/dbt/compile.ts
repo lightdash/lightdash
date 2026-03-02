@@ -163,10 +163,20 @@ export async function dbtList(options: DbtCompileOptions): Promise<string[]> {
     }
 }
 
+export type CompileModelsResult = {
+    compiledModelIds: string[] | undefined;
+    /**
+     * The model IDs from the user's original selection (e.g. --select "tag:lightdash").
+     * When --defer is used, models NOT in this list were pulled in via joins
+     * and should use the production schema from the state manifest.
+     */
+    originallySelectedModelIds: string[] | undefined;
+};
+
 export async function maybeCompileModelsAndJoins(
     loadManifestOpts: LoadManifestArgs,
     initialOptions: DbtCompileOptions,
-): Promise<string[] | undefined> {
+): Promise<CompileModelsResult> {
     const dbtVersion = await getDbtVersion();
     let options = initialOptions;
     if (dbtVersion.isDbtCloudCLI) {
@@ -192,7 +202,10 @@ export async function maybeCompileModelsAndJoins(
             );
         }
         GlobalState.debug('> Skipping dbt compile');
-        return undefined;
+        return {
+            compiledModelIds: undefined,
+            originallySelectedModelIds: undefined,
+        };
     }
 
     // do initial compilation so we can get the list of models that are compiled after this command (e.g. selecting/excluding by tags)
@@ -205,7 +218,10 @@ export async function maybeCompileModelsAndJoins(
 
     // If no models are explicitly selected or excluded, we don't need to explicitly find joined models
     if (!options.select && !options.exclude) {
-        return compiledModelIds;
+        return {
+            compiledModelIds,
+            originallySelectedModelIds: undefined,
+        };
     }
 
     // Load manifest and get all models
@@ -214,6 +230,11 @@ export async function maybeCompileModelsAndJoins(
     const currCompiledModels = getCompiledModels(
         allManifestModels,
         compiledModelIds,
+    );
+
+    // Save the originally selected model IDs (before join expansion)
+    const originallySelectedModelIds = currCompiledModels.map(
+        (model) => model.unique_id,
     );
 
     // Get models and their joined models
@@ -240,16 +261,22 @@ export async function maybeCompileModelsAndJoins(
             )}`,
         );
         if (options.useDbtList) {
-            return dbtList({
-                ...options,
-                select: requiredModelsNames,
-            });
+            return {
+                compiledModelIds: await dbtList({
+                    ...options,
+                    select: requiredModelsNames,
+                }),
+                originallySelectedModelIds,
+            };
         }
         await dbtCompile({
             ...options,
             select: requiredModelsNames,
         });
-        return undefined;
+        return {
+            compiledModelIds: undefined,
+            originallySelectedModelIds,
+        };
     }
-    return compiledModelIds;
+    return { compiledModelIds, originallySelectedModelIds };
 }
