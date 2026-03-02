@@ -117,3 +117,4 @@ http-client.private.env.json
 # HAR replay
 scripts/har-replay-server.ts
 *.har
+agent-harness/cloud/credentials.env

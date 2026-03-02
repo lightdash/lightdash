@@ -1,0 +1,358 @@
+#cloud-config
+# =============================================================================
+# Lightdash Agent Harness — Cloud-Init for VPS Provisioning
+# =============================================================================
+#
+# Provisions a bare VPS (Hetzner, DigitalOcean, Vultr, etc.) with everything
+# needed to run the agent harness: Docker, Node.js 20.x, pnpm, PM2, dbt,
+# just, and the Lightdash repo itself.
+#
+# Usage:
+#   Hetzner CLI:
+#     hcloud server create \
+#       --name lightdash-agents \
+#       --type cpx41 \
+#       --image ubuntu-24.04 \
+#       --ssh-key my-key \
+#       --user-data-from-file agent-harness/cloud-init.yml
+#
+#   Hetzner Console:
+#     Create Server → Cloud config → paste this file
+#
+#   DigitalOcean:
+#     doctl compute droplet create lightdash-agents \
+#       --size s-8vcpu-16gb \
+#       --image ubuntu-24-04-x64 \
+#       --ssh-keys <fingerprint> \
+#       --user-data "$(cat agent-harness/cloud-init.yml)"
+#
+# Recommended instance sizes:
+#   3 agents: 8 vCPU / 16 GB RAM  (Hetzner CPX41, DO s-8vcpu-16gb)
+#   5 agents: 8 vCPU / 32 GB RAM  (Hetzner CPX51, DO s-8vcpu-32gb)
+#
+# Remote access tools installed:
+#   tmux   — persistent sessions that survive disconnects
+#   mosh   — mobile-friendly SSH replacement (UDP-based, handles roaming)
+#   tailscale — zero-config WireGuard VPN for private access
+#   happy-coder — mobile-friendly Claude Code client (npm package)
+#
+# After provisioning, SSH in and run:
+#   ssh lightdash@<server-ip>
+#   cd /opt/lightdash
+#   ./agent-harness/setup-infra.sh
+#   ./agent-harness/launch.sh 1
+#
+# =============================================================================
+
+# -- System packages ----------------------------------------------------------
+
+package_update: true
+package_upgrade: true
+
+packages:
+  - apt-transport-https
+  - build-essential
+  - ca-certificates
+  - curl
+  - git
+  - gnupg
+  - jq
+  - libpq-dev
+  - lsb-release
+  - postgresql-client
+  - python3
+  - python3-dev
+  - python3-pip
+  - python3-venv
+  - mosh
+  - software-properties-common
+  - tmux
+  - unzip
+
+# -- Swap (safety net for memory-intensive builds) ----------------------------
+
+swap:
+  filename: /swapfile
+  size: 4G
+  maxsize: 4G
+
+# -- Users --------------------------------------------------------------------
+
+users:
+  - default
+  - name: lightdash
+    shell: /bin/bash
+    groups: [docker, sudo]
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    # SSH keys are copied from root to lightdash during provisioning.
+    # SSH directly: ssh lightdash@<server-ip>
+
+# -- Write config files -------------------------------------------------------
+
+write_files:
+  # Docker daemon config — use overlay2, set log limits
+  - path: /etc/docker/daemon.json
+    permissions: "0644"
+    content: |
+      {
+        "storage-driver": "overlay2",
+        "log-driver": "json-file",
+        "log-opts": {
+          "max-size": "10m",
+          "max-file": "3"
+        }
+      }
+
+  # Sysctl tuning for many concurrent connections and file watchers
+  - path: /etc/sysctl.d/99-lightdash-agents.conf
+    permissions: "0644"
+    content: |
+      # Increase inotify watchers for multiple Vite/tsc processes
+      fs.inotify.max_user_watches=524288
+      fs.inotify.max_user_instances=1024
+      # TCP tuning for many local connections
+      net.core.somaxconn=4096
+      net.ipv4.tcp_max_syn_backlog=4096
+      # VM overcommit — allow optimistic allocation (agents share a lot)
+      vm.overcommit_memory=1
+
+  # Note: User home directory files are created in runcmd after the user exists
+
+# -- Main provisioning script ------------------------------------------------
+
+runcmd:
+  # -- Apply sysctl tuning immediately ----------------------------------------
+  - sysctl --system
+
+  # -- Install Docker CE ------------------------------------------------------
+  - install -m 0755 -d /etc/apt/keyrings
+  - curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+  - chmod a+r /etc/apt/keyrings/docker.asc
+  - |
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] \
+    https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" \
+    > /etc/apt/sources.list.d/docker.list
+  - apt-get update -y
+  - apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+  - systemctl enable --now docker
+
+  # -- Install fnm (Fast Node Manager) and Node.js 20.19 ----------------------
+  - |
+    su - lightdash -c '
+      curl -fsSL https://fnm.vercel.app/install | bash -s -- --install-dir /home/lightdash/.local/share/fnm --skip-shell
+      export PATH="/home/lightdash/.local/share/fnm:$PATH"
+      eval "$(fnm env --shell bash)"
+      fnm install 20.19
+      fnm default 20.19
+    '
+
+  # -- Install pnpm 9.15.5 ----------------------------------------------------
+  - |
+    su - lightdash -c '
+      export PATH="/home/lightdash/.local/share/fnm:$PATH"
+      eval "$(fnm env --shell bash)"
+      corepack enable
+      corepack prepare pnpm@9.15.5 --activate
+    '
+
+  # -- Install PM2 globally ----------------------------------------------------
+  - |
+    su - lightdash -c '
+      export PATH="/home/lightdash/.local/share/fnm:$PATH"
+      eval "$(fnm env --shell bash)"
+      npm install -g pm2
+    '
+
+  # -- Install just (command runner) -------------------------------------------
+  - |
+    su - lightdash -c '
+      mkdir -p /home/lightdash/.local/bin
+      curl -fsSL https://just.systems/install.sh | bash -s -- --to /home/lightdash/.local/bin
+    '
+
+  # -- Create config files for lightdash user ----------------------------------
+  - |
+    mkdir -p /home/lightdash/.profile.d /home/lightdash/.local/bin
+
+    # .bashrc
+    cat > /home/lightdash/.bashrc << 'BASHRC'
+    # ~/.bashrc: executed by bash(1) for non-login shells.
+    # Source profile.d scripts
+    for f in /home/lightdash/.profile.d/*.sh; do
+      [ -r "$f" ] && source "$f"
+    done
+    BASHRC
+
+    # .env.agent-harness
+    cat > /home/lightdash/.env.agent-harness << 'ENVFILE'
+    # Agent harness defaults
+    export AGENT_DB_PORT=15432
+    export AGENT_MINIO_PORT=19000
+    export AGENT_MINIO_CONSOLE_PORT=19001
+    export AGENT_BROWSER_PORT=13001
+    export AGENT_MAILPIT_SMTP_PORT=11025
+    export AGENT_MAILPIT_WEB_PORT=18025
+    # Postgres connection for host-side scripts
+    export PGHOST=localhost
+    export PGPORT=15432
+    export PGUSER=postgres
+    export PGPASSWORD=password
+    ENVFILE
+
+    # .profile.d/agent-harness.sh
+    cat > /home/lightdash/.profile.d/agent-harness.sh << 'PROFILE'
+    # fnm (Fast Node Manager) - must be first to get node/npm/pnpm
+    export PATH="/home/lightdash/.local/share/fnm:$PATH"
+    if command -v fnm &> /dev/null; then
+      eval "$(fnm env --shell bash)"
+    fi
+    # pnpm
+    export PNPM_HOME="/home/lightdash/.local/share/pnpm"
+    export PATH="$PNPM_HOME:$PATH"
+    # dbt venvs
+    if [ -d /opt/lightdash/.venvs/bin ]; then
+      export PATH="/opt/lightdash/.venvs/bin:$PATH"
+    fi
+    # just
+    export PATH="/home/lightdash/.local/bin:$PATH"
+    # Agent harness env
+    if [ -f /home/lightdash/.env.agent-harness ]; then
+      source /home/lightdash/.env.agent-harness
+    fi
+    PROFILE
+
+    # .tmux.conf
+    cat > /home/lightdash/.tmux.conf << 'TMUX'
+    # Use C-a as prefix (easier on mobile keyboards)
+    set -g prefix C-a
+    unbind C-b
+    bind C-a send-prefix
+    # Mouse support
+    set -g mouse on
+    # Larger scrollback
+    set -g history-limit 50000
+    # 256-color support
+    set -g default-terminal "tmux-256color"
+    # Start window numbering at 1
+    set -g base-index 1
+    setw -g pane-base-index 1
+    # Reduce escape delay (important for mosh)
+    set -sg escape-time 10
+    # Status bar
+    set -g status-right '#H | %H:%M'
+    set -g status-left '[#S] '
+    # Auto-renumber windows
+    set -g renumber-windows on
+    TMUX
+
+    # Fix ownership and permissions
+    chown -R lightdash:lightdash /home/lightdash
+    chmod 600 /home/lightdash/.env.agent-harness
+
+  # -- Clone the Lightdash repo -----------------------------------------------
+  - |
+    git clone --depth=1 https://github.com/lightdash/lightdash.git /opt/lightdash
+    chown -R lightdash:lightdash /opt/lightdash
+    chmod +x /opt/lightdash/agent-harness/*.sh
+
+  # -- Install Node.js dependencies -------------------------------------------
+  - |
+    su - lightdash -c '
+      export PATH="/home/lightdash/.local/share/fnm:$PATH"
+      eval "$(fnm env --shell bash)"
+      cd /opt/lightdash
+      pnpm install --frozen-lockfile
+    '
+
+  # -- Build common + warehouses (required before backend can start) -----------
+  - |
+    su - lightdash -c '
+      export PATH="/home/lightdash/.local/share/fnm:$PATH"
+      eval "$(fnm env --shell bash)"
+      cd /opt/lightdash
+      pnpm -F common build
+      pnpm -F warehouses build
+    '
+
+  # -- Set up dbt virtual environments ----------------------------------------
+  - |
+    su - lightdash -c '
+      cd /opt/lightdash
+      python3 -m venv .venvs/dbt/1.7.0
+      source .venvs/dbt/1.7.0/bin/activate
+      pip install --disable-pip-version-check \
+        "dbt-core~=1.7.0" \
+        "dbt-postgres~=1.7.0" \
+        "psycopg2-binary==2.9.10" \
+        "pytz"
+      deactivate
+      mkdir -p .venvs/bin
+      ln -sf ../dbt/1.7.0/bin/dbt .venvs/bin/dbt1.7
+      ln -sf dbt1.7 .venvs/bin/dbt
+    '
+
+  # -- Install Tailscale (zero-config VPN for private access) ------------------
+  - |
+    curl -fsSL https://tailscale.com/install.sh | sh
+    systemctl enable tailscaled
+    # Tailscale is installed but NOT joined to a tailnet yet.
+    # After SSH-ing in, run: sudo tailscale up --ssh
+    # This enables Tailscale SSH (no key management needed).
+
+  # -- Install Claude Code CLI ------------------------------------------------
+  - |
+    su - lightdash -c '
+      export PATH="/home/lightdash/.local/share/fnm:$PATH"
+      eval "$(fnm env --shell bash)"
+      npm install -g @anthropic-ai/claude-code
+      claude install --yes
+    '
+
+  # -- Install happy-coder (mobile Claude Code client) -------------------------
+  - |
+    su - lightdash -c '
+      export PATH="/home/lightdash/.local/share/fnm:$PATH"
+      eval "$(fnm env --shell bash)"
+      npm install -g happy-coder
+    '
+
+  # -- Pull Docker images ahead of time ----------------------------------------
+  - |
+    docker pull pgvector/pgvector:pg16
+    docker pull coollabsio/minio:latest
+    docker pull ghcr.io/browserless/chromium:v2.38.2
+    docker pull axllent/mailpit:latest
+
+  # -- Copy SSH keys to lightdash user so they can SSH directly ----------------
+  - |
+    mkdir -p /home/lightdash/.ssh
+    cp /root/.ssh/authorized_keys /home/lightdash/.ssh/authorized_keys
+    chown -R lightdash:lightdash /home/lightdash/.ssh
+    chmod 700 /home/lightdash/.ssh
+    chmod 600 /home/lightdash/.ssh/authorized_keys
+
+  # -- Fix ownership (belt and suspenders) -------------------------------------
+  - chown -R lightdash:lightdash /opt/lightdash /home/lightdash
+
+  # -- Signal provisioning complete --------------------------------------------
+  - touch /opt/lightdash/.cloud-init-complete
+  - |
+    echo "============================================="
+    echo " Lightdash Agent Harness provisioning done!"
+    echo ""
+    echo " From your local machine, sync credentials:"
+    echo "   ANTHROPIC_API_KEY=sk-xxx TAILSCALE_AUTH_KEY=tskey-xxx \\"
+    echo "     ./agent-harness/sync-credentials.sh <server-ip> --setup-tailscale --secure"
+    echo ""
+    echo " Then SSH via Tailscale and start agents:"
+    echo "   ssh lightdash@<tailscale-hostname>"
+    echo "   cd /opt/lightdash"
+    echo "   ./agent-harness/setup-infra.sh"
+    echo "   ./agent-harness/launch.sh 1"
+    echo "   claude  # Start Claude Code"
+    echo "============================================="
+
+final_message: |
+  Lightdash agent harness provisioning complete after $UPTIME seconds.
+  Next: Run sync-credentials.sh from your local machine to set up Tailscale and API keys.
+  Then SSH via Tailscale and run: ./agent-harness/setup-infra.sh && ./agent-harness/launch.sh 1
