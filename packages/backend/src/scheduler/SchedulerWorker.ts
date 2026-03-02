@@ -115,6 +115,18 @@ export class SchedulerWorker extends SchedulerTask {
                         maxAttempts: 3,
                     },
                 },
+                ...(this.lightdashConfig.softDelete.enabled
+                    ? [
+                          {
+                              task: SCHEDULER_TASKS.CLEAN_SOFT_DELETED_CONTENT,
+                              pattern: '0 3 * * *', // 3 AM UTC
+                              options: {
+                                  backfillPeriod: 24 * 3600 * 1000,
+                                  maxAttempts: 3,
+                              },
+                          },
+                      ]
+                    : []),
             ]),
             taskList: traceTasks(this.getTaskList()),
             events: schedulerWorkerEventEmitter,
@@ -1083,6 +1095,73 @@ export class SchedulerWorker extends SchedulerTask {
             },
             [SCHEDULER_TASKS.CHECK_FOR_STUCK_JOBS]: async () => {
                 await this.schedulerService.checkForStuckJobs();
+            },
+            [SCHEDULER_TASKS.CLEAN_SOFT_DELETED_CONTENT]: async () => {
+                if (!this.lightdashConfig.softDelete.enabled) {
+                    Logger.info(
+                        'Soft delete cleanup job skipped: soft delete is disabled',
+                    );
+                    return;
+                }
+
+                Logger.info('Starting soft delete cleanup job');
+
+                const { retentionDays, cleanup: cleanupConfig } =
+                    this.lightdashConfig.softDelete;
+
+                Logger.info(
+                    `Cleaning soft-deleted content older than ${retentionDays} days`,
+                );
+
+                try {
+                    const results: Record<
+                        string,
+                        { totalDeleted: number; batchCount: number }
+                    > = {};
+
+                    results.spaces =
+                        await this.spaceService.permanentDeleteExpired(
+                            retentionDays,
+                            cleanupConfig,
+                        );
+                    results.dashboards =
+                        await this.dashboardService.permanentDeleteExpired(
+                            retentionDays,
+                            cleanupConfig,
+                        );
+                    results.charts =
+                        await this.savedChartService.permanentDeleteExpired(
+                            retentionDays,
+                            cleanupConfig,
+                        );
+                    results.sqlCharts =
+                        await this.savedSqlService.permanentDeleteExpired(
+                            retentionDays,
+                            cleanupConfig,
+                        );
+                    results.schedulers =
+                        await this.schedulerService.permanentDeleteExpired(
+                            retentionDays,
+                            cleanupConfig,
+                        );
+
+                    const totalDeleted = Object.values(results).reduce(
+                        (sum, r) => sum + r.totalDeleted,
+                        0,
+                    );
+
+                    Logger.info(
+                        `Soft delete cleanup completed. Total deleted: ${totalDeleted} ` +
+                            `(spaces: ${results.spaces.totalDeleted}, ` +
+                            `dashboards: ${results.dashboards.totalDeleted}, ` +
+                            `charts: ${results.charts.totalDeleted}, ` +
+                            `sqlCharts: ${results.sqlCharts.totalDeleted}, ` +
+                            `schedulers: ${results.schedulers.totalDeleted})`,
+                    );
+                } catch (error) {
+                    Logger.error('Error during soft delete cleanup:', error);
+                    throw error;
+                }
             },
         };
     }

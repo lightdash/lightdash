@@ -1111,6 +1111,24 @@ export class SpaceModel {
         };
     }
 
+    async permanentlyDeleteExpiredBatch(
+        retentionDays: number,
+        limit: number,
+    ): Promise<number> {
+        // Shallowest first so parent cascade removes children before next batch
+        const subquery = this.database(SpaceTableName)
+            .select('space_id')
+            .whereNotNull('deleted_at')
+            .andWhereRaw('deleted_at < NOW() - make_interval(days => ?)', [
+                retentionDays,
+            ])
+            .orderByRaw('nlevel(path) ASC')
+            .limit(limit);
+        return this.database(SpaceTableName)
+            .whereIn('space_id', subquery)
+            .delete();
+    }
+
     async permanentDelete(spaceUuid: string): Promise<void> {
         await this.database(SpaceTableName)
             .where('space_uuid', spaceUuid)

@@ -67,7 +67,12 @@ import { UserModel } from '../../models/UserModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { getAdjustedCronByOffset } from '../../utils/cronUtils';
 import { BaseService } from '../BaseService';
-import type { SoftDeleteOptions } from '../SoftDeletableService';
+import {
+    batchDeleteExpired,
+    type CleanupConfig,
+    type CleanupResult,
+    type SoftDeleteOptions,
+} from '../SoftDeletableService';
 import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { UserService } from '../UserService';
 
@@ -1649,5 +1654,12 @@ export class SchedulerService extends BaseService {
         );
 
         return { runningCount: runningJobs.length, warningCount, errorCount };
+    }
+
+    async permanentDeleteExpired(
+        retentionDays: number,
+        config: CleanupConfig,
+    ): Promise<CleanupResult> {
+        return batchDeleteExpired(this.schedulerModel, retentionDays, config);
     }
 }

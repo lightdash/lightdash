@@ -77,6 +77,9 @@ const schedulerWorkerFactory = (context: {
         preAggregateModel: context.models.getPreAggregateModel(),
         preAggregateMaterializationService:
             context.serviceRepository.getPreAggregateMaterializationService(),
+        spaceService: context.serviceRepository.getSpaceService(),
+        savedChartService: context.serviceRepository.getSavedChartService(),
+        savedSqlService: context.serviceRepository.getSavedSqlService(),
     });
 
 export default class SchedulerApp {

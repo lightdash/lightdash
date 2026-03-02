@@ -408,6 +408,23 @@ export class SavedSqlModel {
         }
     }
 
+    async permanentlyDeleteExpiredBatch(
+        retentionDays: number,
+        limit: number,
+    ): Promise<number> {
+        const subquery = this.database(SavedSqlTableName)
+            .select('saved_sql_uuid')
+            .whereNotNull('deleted_at')
+            .andWhereRaw('deleted_at < NOW() - make_interval(days => ?)', [
+                retentionDays,
+            ])
+            .orderBy('deleted_at', 'asc')
+            .limit(limit);
+        return this.database(SavedSqlTableName)
+            .whereIn('saved_sql_uuid', subquery)
+            .delete();
+    }
+
     async permanentDelete(savedSqlUuid: string): Promise<void> {
         await this.database(SavedSqlTableName)
             .where('saved_sql_uuid', savedSqlUuid)

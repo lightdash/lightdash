@@ -9,6 +9,17 @@ export type SoftDeleteOptions = {
     bypassPermissions?: boolean;
 };
 
+export type CleanupConfig = {
+    batchSize: number;
+    delayMs: number;
+    maxBatches: number;
+};
+
+export type CleanupResult = {
+    totalDeleted: number;
+    batchCount: number;
+};
+
 /**
  * Standard interface for services that support soft-delete lifecycle:
  *
@@ -44,4 +55,39 @@ export interface SoftDeletableService {
         uuid: string,
         options?: SoftDeleteOptions,
     ): Promise<void>;
+
+    permanentDeleteExpired(
+        retentionDays: number,
+        config: CleanupConfig,
+    ): Promise<CleanupResult>;
+}
+
+interface SoftDeletableModel {
+    permanentlyDeleteExpiredBatch(
+        retentionDays: number,
+        limit: number,
+    ): Promise<number>;
+}
+
+export async function batchDeleteExpired(
+    model: SoftDeletableModel,
+    retentionDays: number,
+    config: CleanupConfig,
+): Promise<CleanupResult> {
+    let totalDeleted = 0;
+    let batchCount = 0;
+    /* eslint-disable no-await-in-loop */
+    for (; batchCount < config.maxBatches; batchCount += 1) {
+        const deleted = await model.permanentlyDeleteExpiredBatch(
+            retentionDays,
+            config.batchSize,
+        );
+        totalDeleted += deleted;
+        if (deleted < config.batchSize) break;
+        await new Promise<void>((r) => {
+            setTimeout(r, config.delayMs);
+        });
+    }
+    /* eslint-enable no-await-in-loop */
+    return { totalDeleted, batchCount };
 }

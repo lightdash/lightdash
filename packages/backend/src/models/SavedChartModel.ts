@@ -729,6 +729,23 @@ export class SavedChartModel {
         );
     }
 
+    async permanentlyDeleteExpiredBatch(
+        retentionDays: number,
+        limit: number,
+    ): Promise<number> {
+        const subquery = this.database(SavedChartsTableName)
+            .select('saved_query_id')
+            .whereNotNull('deleted_at')
+            .andWhereRaw('deleted_at < NOW() - make_interval(days => ?)', [
+                retentionDays,
+            ])
+            .orderBy('deleted_at', 'asc')
+            .limit(limit);
+        return this.database(SavedChartsTableName)
+            .whereIn('saved_query_id', subquery)
+            .delete();
+    }
+
     async permanentDelete(savedChartUuid: string): Promise<SavedChartDAO> {
         const savedChart = await this.get(savedChartUuid);
         await this.database(SavedChartsTableName)

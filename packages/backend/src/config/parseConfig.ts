@@ -1047,6 +1047,11 @@ export type LightdashConfig = {
     softDelete: {
         enabled: boolean;
         retentionDays: number;
+        cleanup: {
+            batchSize: number;
+            delayMs: number;
+            maxBatches: number;
+        };
     };
     preAggregates: {
         enabled: boolean;
@@ -1916,6 +1921,20 @@ export const parseConfig = (): LightdashConfig => {
                 getIntegerFromEnvironmentVariable(
                     'SOFT_DELETE_RETENTION_DAYS',
                 ) ?? 30,
+            cleanup: {
+                batchSize:
+                    getIntegerFromEnvironmentVariable(
+                        'SOFT_DELETE_CLEANUP_BATCH_SIZE',
+                    ) ?? 100,
+                delayMs:
+                    getIntegerFromEnvironmentVariable(
+                        'SOFT_DELETE_CLEANUP_DELAY_MS',
+                    ) ?? 100,
+                maxBatches:
+                    getIntegerFromEnvironmentVariable(
+                        'SOFT_DELETE_CLEANUP_MAX_BATCHES',
+                    ) ?? 100,
+            },
         },
         preAggregates: {
             enabled:

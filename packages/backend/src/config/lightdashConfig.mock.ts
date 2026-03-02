@@ -337,6 +337,11 @@ export const lightdashConfigMock: LightdashConfig = {
     softDelete: {
         enabled: false,
         retentionDays: 30,
+        cleanup: {
+            batchSize: 100,
+            delayMs: 100,
+            maxBatches: 100,
+        },
     },
     preAggregates: {
         enabled: false,
