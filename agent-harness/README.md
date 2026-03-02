@@ -4,6 +4,16 @@ Run multiple isolated Lightdash development environments on a single machine. Ea
 
 Built for AI coding agents (Claude Code, etc.) but works just as well for parallel human development.
 
+## For AI Agents (Claude Code)
+
+If you're an AI agent running in the harness, use the `/agent-harness` skill to get started:
+
+```
+/agent-harness
+```
+
+This skill guides you through discovering your agent ID, finding your ports, managing your stack, and running verification. It covers everything you need to be productive immediately.
+
 ## Quick Start (Local)
 
 ```bash
@@ -64,16 +74,7 @@ This script will:
 ./agent-harness/hetzner-create.sh --type cpx52        # Use larger server (12 vCPU, 24GB)
 ./agent-harness/hetzner-create.sh --location ash      # Use US East location
 ./agent-harness/hetzner-create.sh --name my-agents    # Custom server name
-./agent-harness/hetzner-create.sh --tailscale-key tskey-auth-xxxxx  # Auto-join Tailscale
 ```
-
-**Private access with Tailscale (recommended):**
-
-Generate a reusable auth key at https://login.tailscale.com/admin/settings/keys, then:
-```bash
-./agent-harness/hetzner-create.sh --tailscale-key tskey-auth-xxxxx
-```
-This auto-joins your Tailscale network with SSH enabled and **automatically blocks public SSH** via Hetzner firewall. SSH is only allowed from Tailscale IPs (100.64.0.0/10).
 
 **Server sizes:**
 | Type | vCPU | RAM | Cost | Recommended for |
@@ -108,33 +109,52 @@ hcloud server create \
 
 Cloud-init takes ~5 minutes. The script can optionally wait for it to complete.
 
-### 3. SSH in and start agents
+### 3. Sync credentials and set up Tailscale
+
+Once cloud-init completes, sync your API keys and set up Tailscale from your local machine:
 
 ```bash
-ssh root@<server-ip>
-sudo -iu lightdash
+# Required: set your API keys as environment variables
+export ANTHROPIC_API_KEY="sk-ant-..."
+export TAILSCALE_AUTH_KEY="tskey-auth-..."  # Get from https://login.tailscale.com/admin/settings/keys
+
+# Sync credentials, set up Tailscale, and block public SSH
+./agent-harness/sync-credentials.sh <server-ip> --setup-tailscale --secure
+```
+
+This script:
+- Uploads your API keys securely via SSH (not baked into cloud-init)
+- Joins the server to your Tailscale network with SSH enabled
+- Applies a Hetzner firewall to block public SSH (only Tailscale IPs allowed)
+
+The credentials are stored in `/home/lightdash/.credentials` and automatically loaded in interactive bash sessions.
+
+### 4. SSH in and start agents
+
+```bash
+# SSH via Tailscale (public SSH is now blocked)
+ssh lightdash@<tailscale-hostname>
 cd /opt/lightdash
 
 ./agent-harness/setup-infra.sh
 ./agent-harness/launch.sh 1
 ./agent-harness/launch.sh 2
+
+# Start Claude Code
+claude
 ```
 
-### 4. Set up remote access
+### 5. Remote access tools
 
-The VPS comes with four remote access tools pre-installed for a seamless experience, especially from mobile devices.
+The VPS comes with remote access tools pre-installed for a seamless experience, especially from mobile devices.
 
-#### Tailscale — Private VPN (recommended first step)
+#### Tailscale — Private VPN
 
-Tailscale creates a WireGuard VPN so the server is reachable by hostname without exposing ports to the public internet. Agent web UIs become accessible from any device on your tailnet.
+Already set up by `sync-credentials.sh --setup-tailscale`. Agent web UIs are accessible from any device on your tailnet:
 
-```bash
-# On the server:
-sudo tailscale up --ssh
-
-# From your laptop/phone (with Tailscale installed):
-ssh lightdash@<tailscale-hostname>
-# Agent UIs are now accessible at http://<tailscale-ip>:3010, :3020, etc.
+```
+http://<tailscale-ip>:3010  # Agent 1 frontend
+http://<tailscale-ip>:8010  # Agent 1 API
 ```
 
 #### tmux — Session persistence
@@ -252,13 +272,31 @@ PostgreSQL's `CREATE DATABASE ... TEMPLATE` copies the fully-migrated, seeded te
 Creates a Hetzner Cloud server with cloud-init. Handles SSH key setup, API token configuration, and server provisioning.
 
 ```bash
-./agent-harness/hetzner-create.sh                              # Use defaults
-./agent-harness/hetzner-create.sh --type cpx52                 # Larger server
-./agent-harness/hetzner-create.sh --location ash               # US East
-./agent-harness/hetzner-create.sh --tailscale-key tskey-xxx    # Auto-join Tailscale + block public SSH
-./agent-harness/hetzner-create.sh --disable-public-ssh         # Block public SSH without Tailscale auto-join
-./agent-harness/hetzner-create.sh --help                       # Show all options
+./agent-harness/hetzner-create.sh                    # Use defaults
+./agent-harness/hetzner-create.sh --type cpx52       # Larger server
+./agent-harness/hetzner-create.sh --location ash     # US East
+./agent-harness/hetzner-create.sh --name my-agents   # Custom server name
+./agent-harness/hetzner-create.sh --help             # Show all options
 ```
+
+### `sync-credentials.sh <server> [options]`
+
+Syncs API keys from your local environment to the server via SSH. Credentials are stored securely and available in interactive bash sessions.
+
+```bash
+# Basic: sync Anthropic API key only
+ANTHROPIC_API_KEY=sk-xxx ./agent-harness/sync-credentials.sh 1.2.3.4
+
+# Full setup: sync credentials + Tailscale + block public SSH
+ANTHROPIC_API_KEY=sk-xxx TAILSCALE_AUTH_KEY=tskey-xxx \
+  ./agent-harness/sync-credentials.sh 1.2.3.4 --setup-tailscale --secure
+```
+
+| Option | Description |
+|--------|-------------|
+| `--setup-tailscale` | Run `tailscale up` with the auth key |
+| `--secure` | Apply Hetzner firewall to block public SSH (requires `--setup-tailscale`) |
+| `--user USER` | SSH user (default: root) |
 
 ### `hetzner-destroy.sh [--name NAME]`
 
@@ -408,7 +446,7 @@ The agent's database (`agent_2`) is fully isolated, so this won't affect other a
 <details>
 <summary><strong>What if Tailscale doesn't come online?</strong></summary>
 
-If you used `--tailscale-key` and public SSH is blocked:
+If you used `sync-credentials.sh --setup-tailscale --secure` and public SSH is blocked:
 
 1. **Remove the firewall temporarily:**
    ```bash

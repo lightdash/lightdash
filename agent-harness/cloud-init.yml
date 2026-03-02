@@ -299,6 +299,14 @@ runcmd:
     # After SSH-ing in, run: sudo tailscale up --ssh
     # This enables Tailscale SSH (no key management needed).
 
+  # -- Install Claude Code CLI ------------------------------------------------
+  - |
+    su - lightdash -c '
+      export PATH="/home/lightdash/.local/share/fnm:$PATH"
+      eval "$(fnm env --shell bash)"
+      npm install -g @anthropic-ai/claude-code
+    '
+
   # -- Install happy-coder (mobile Claude Code client) -------------------------
   - |
     su - lightdash -c '
@@ -323,19 +331,19 @@ runcmd:
     echo "============================================="
     echo " Lightdash Agent Harness provisioning done!"
     echo ""
-    echo " SSH in and run:"
-    echo "   sudo -iu lightdash"
+    echo " From your local machine, sync credentials:"
+    echo "   ANTHROPIC_API_KEY=sk-xxx TAILSCALE_AUTH_KEY=tskey-xxx \\"
+    echo "     ./agent-harness/sync-credentials.sh <server-ip> --setup-tailscale --secure"
+    echo ""
+    echo " Then SSH via Tailscale and start agents:"
+    echo "   ssh lightdash@<tailscale-hostname>"
     echo "   cd /opt/lightdash"
     echo "   ./agent-harness/setup-infra.sh"
     echo "   ./agent-harness/launch.sh 1"
-    echo ""
-    echo " Remote access setup:"
-    echo "   sudo tailscale up --ssh    # Join your tailnet"
-    echo "   tmux new -s agents         # Persistent session"
-    echo "   happy --auth               # Mobile client QR code"
+    echo "   claude  # Start Claude Code"
     echo "============================================="
 
 final_message: |
   Lightdash agent harness provisioning complete after $UPTIME seconds.
-  Remote access: tailscale (sudo tailscale up --ssh), mosh, tmux, happy-coder (happy --auth)
-  SSH in and run: sudo -iu lightdash && cd /opt/lightdash && ./agent-harness/setup-infra.sh
+  Next: Run sync-credentials.sh from your local machine to set up Tailscale and API keys.
+  Then SSH via Tailscale and run: ./agent-harness/setup-infra.sh && ./agent-harness/launch.sh 1
