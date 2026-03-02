@@ -1,3 +1,12 @@
+## [0.2545.1](https://github.com/lightdash/lightdash/compare/0.2545.0...0.2545.1) (2026-03-02)
+
+
+### Bug Fixes
+
+* prevent event propagation on comment menu dropdown ([#20739](https://github.com/lightdash/lightdash/issues/20739)) ([c136958](https://github.com/lightdash/lightdash/commit/c13695855cbdb4cf6972e578647efe4e7c225432))
+* upgrade @sentry/vite-plugin 3.2.2→5.0.0 ([#20642](https://github.com/lightdash/lightdash/issues/20642)) ([8fd2c6f](https://github.com/lightdash/lightdash/commit/8fd2c6f43fa71ab27096ae337398f68928d69f8e))
+* upgrade bcrypt 5.1.1→6.0.0 and duckdb-async 0.10.2→1.2.0 ([#20643](https://github.com/lightdash/lightdash/issues/20643)) ([bf39c5c](https://github.com/lightdash/lightdash/commit/bf39c5c05899f841a20dd3f5fe53dae59968be9d))
+
 # [0.2545.0](https://github.com/lightdash/lightdash/compare/0.2544.1...0.2545.0) (2026-03-02)
 
 
