@@ -586,6 +586,4 @@ export default class PrometheusMetrics {
         }
         this.eventMetricManager?.cleanup();
     }
-        }
-    }
 }

@@ -8,7 +8,7 @@ import {
 } from '@lightdash/common';
 import { PreAggregateModel } from '../../models/PreAggregateModel';
 import { type QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
-import type PrometheusMetrics from '../../prometheus';
+import type PrometheusMetrics from '../../prometheus/PrometheusMetrics';
 import { type AsyncQueryService } from '../AsyncQueryService/AsyncQueryService';
 
 const QUERY_POLL_INTERVAL_MS = 1000;
