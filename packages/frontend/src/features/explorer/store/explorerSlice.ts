@@ -1,6 +1,7 @@
 import {
     ChartType,
     convertFieldRefToFieldId,
+    type CreateSavedChartVersion,
     getFieldRef,
     getItemId,
     isSqlTableCalculation,
@@ -941,6 +942,14 @@ const explorerSlice = createSlice({
                 draft.unsavedChartVersion.tableName = tableName;
                 draft.unsavedChartVersion.metricQuery.exploreName = tableName;
             });
+        },
+
+        // Set the entire unsavedChartVersion at once (used by history undo)
+        setUnsavedChartVersion: (
+            state,
+            action: PayloadAction<CreateSavedChartVersion>,
+        ) => {
+            state.unsavedChartVersion = action.payload;
         },
 
         // Map extent - updated on pan/zoom, read at save time
