@@ -442,6 +442,8 @@ export const getUpdateSetupConfig = (): LightdashConfig['updateSetup'] => {
     }
 
     return {
+        organizationUuid: process.env.LD_SETUP_ORGANIZATION_UUID,
+        projectUuid: process.env.LD_SETUP_PROJECT_UUID,
         organization: {
             admin: {
                 email: process.env.LD_SETUP_ADMIN_EMAIL,
@@ -972,6 +974,8 @@ export type LightdashConfig = {
         dbt: DbtGithubProjectConfig;
     };
     updateSetup?: {
+        organizationUuid?: string;
+        projectUuid?: string;
         organization?: {
             admin: {
                 email?: string;
