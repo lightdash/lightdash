@@ -10,12 +10,10 @@
         "cypress:run": "cypress run",
         "linter": "eslint -c .eslintrc.js --ignore-path ./../../.gitignore",
         "formatter": "oxfmt",
-        "lint": "pnpm run linter ./cypress ./api-tests",
-        "fix-lint": "pnpm run linter ./cypress ./api-tests --fix",
-        "format": "oxfmt ./cypress ./api-tests --check",
-        "fix-format": "oxfmt ./cypress ./api-tests",
-        "test:api": "vitest run --config vitest.config.ts",
-        "test:api:watch": "vitest watch --config vitest.config.ts"
+        "lint": "pnpm run linter ./cypress",
+        "fix-lint": "pnpm run linter ./cypress --fix",
+        "format": "oxfmt ./cypress --check",
+        "fix-format": "oxfmt ./cypress"
     },
     "dependencies": {
         "@lightdash/common": "workspace:*",
@@ -27,7 +25,6 @@
         "js-yaml": "^4.1.1"
     },
     "devDependencies": {
-        "typescript": "6.0.0-beta",
-        "vitest": "^3.0.5"
+        "typescript": "6.0.0-beta"
     }
 }
