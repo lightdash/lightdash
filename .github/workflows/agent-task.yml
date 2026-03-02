@@ -175,7 +175,6 @@ jobs:
               id: verify
               continue-on-error: true
               run: |
-                  set +e
                   pnpm -F common typecheck && \
                   pnpm -F backend typecheck && \
                   pnpm -F frontend typecheck && \
@@ -184,7 +183,6 @@ jobs:
                   pnpm -F frontend lint && \
                   pnpm -F common test && \
                   pnpm -F backend test:dev:nowatch
-                  echo "verify_status=$?" >> $GITHUB_OUTPUT
 
             - name: Create PR if verification passes
               if: steps.verify.outcome == 'success'

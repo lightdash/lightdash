@@ -251,7 +251,7 @@ runcmd:
 
   # -- Clone the Lightdash repo -----------------------------------------------
   - |
-    git clone --depth=1 --branch claude/implement-plan-L2z7h https://github.com/lightdash/lightdash.git /opt/lightdash
+    git clone --depth=1 https://github.com/lightdash/lightdash.git /opt/lightdash
     chown -R lightdash:lightdash /opt/lightdash
     chmod +x /opt/lightdash/agent-harness/*.sh
 
