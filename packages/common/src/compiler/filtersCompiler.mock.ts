@@ -429,12 +429,12 @@ export const stringFilterRuleMocks = {
         ...stringSingleValueFilter,
         operator: FilterOperator.INCLUDE,
     },
-    includeFilterWithSingleValSQL: `(${stringFilterDimension}) LIKE '%Bob%'`,
+    includeFilterWithSingleValSQL: `LOWER(${stringFilterDimension}) LIKE LOWER('%Bob%')`,
     includeFilterWithMultiVal: {
         ...stringMultiValueFilter,
         operator: FilterOperator.INCLUDE,
     },
-    includeFilterWithMultiValSQL: `((${stringFilterDimension}) LIKE '%Tom%'\n  OR\n  (${stringFilterDimension}) LIKE '%Jerry%')`,
+    includeFilterWithMultiValSQL: `(LOWER(${stringFilterDimension}) LIKE LOWER('%Tom%')\n  OR\n  LOWER(${stringFilterDimension}) LIKE LOWER('%Jerry%'))`,
     includeFilterWithNoVal: {
         ...noValueFilter,
         operator: FilterOperator.INCLUDE,
@@ -444,12 +444,12 @@ export const stringFilterRuleMocks = {
         ...stringSingleValueFilter,
         operator: FilterOperator.NOT_INCLUDE,
     },
-    notIncludeFilterWithSingleValSQL: `(${stringFilterDimension}) NOT LIKE '%Bob%'`,
+    notIncludeFilterWithSingleValSQL: `LOWER(${stringFilterDimension}) NOT LIKE LOWER('%Bob%')`,
     notIncludeFilterWithMultiVal: {
         ...stringMultiValueFilter,
         operator: FilterOperator.NOT_INCLUDE,
     },
-    notIncludeFilterWithMultiValSQL: `(${stringFilterDimension}) NOT LIKE '%Tom%'\n  AND\n  (${stringFilterDimension}) NOT LIKE '%Jerry%'`,
+    notIncludeFilterWithMultiValSQL: `LOWER(${stringFilterDimension}) NOT LIKE LOWER('%Tom%')\n  AND\n  LOWER(${stringFilterDimension}) NOT LIKE LOWER('%Jerry%')`,
     notIncludeFilterWithNoVal: {
         ...noValueFilter,
         operator: FilterOperator.NOT_INCLUDE,
@@ -509,7 +509,7 @@ export const stringFilterRuleMocks = {
         ...mixedEmptyStringFilter,
         operator: FilterOperator.INCLUDE,
     },
-    includeFilterWithMixedEmptyStringsSQL: `((${stringFilterDimension}) LIKE '%Bob's%'\n  OR\n  (${stringFilterDimension}) LIKE '%Tom's%')`,
+    includeFilterWithMixedEmptyStringsSQL: `(LOWER(${stringFilterDimension}) LIKE LOWER('%Bob's%')\n  OR\n  LOWER(${stringFilterDimension}) LIKE LOWER('%Tom's%'))`,
 
     equalsFilterWithEmptyString: {
         ...emptyStringFilter,
