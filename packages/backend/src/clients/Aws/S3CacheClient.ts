@@ -21,14 +21,15 @@ import { S3BaseClient } from './S3BaseClient';
 
 export type S3CacheClientArguments = {
     lightdashConfig: LightdashConfig;
+    s3Config?: LightdashConfig['results']['s3'];
 };
 
 export class S3CacheClient extends S3BaseClient {
     configuration: LightdashConfig['results']['s3'];
 
-    constructor({ lightdashConfig }: S3CacheClientArguments) {
-        super(lightdashConfig.results.s3);
-        this.configuration = lightdashConfig.results.s3;
+    constructor({ lightdashConfig, s3Config }: S3CacheClientArguments) {
+        super(s3Config ?? lightdashConfig.results.s3);
+        this.configuration = s3Config ?? lightdashConfig.results.s3;
 
         if (this.s3) {
             Logger.debug('Initialized S3 results cache client');

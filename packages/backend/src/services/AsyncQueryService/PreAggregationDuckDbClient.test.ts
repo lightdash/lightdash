@@ -16,7 +16,7 @@ describe('PreAggregationDuckDbClient', () => {
         activeMaterialization = {
             materializationUuid: 'mat-1',
             queryUuid: 'mat-query-1',
-            resultsFileName: 'abc123',
+            materializationUri: 's3://mock_preagg_bucket/abc123.jsonl',
             format: 'jsonl' as const,
             columns: null,
             materializedAt: new Date('2024-01-01T00:00:00.000Z'),
@@ -118,16 +118,13 @@ describe('PreAggregationDuckDbClient', () => {
         expect(projectModel.getExploreFromCache).not.toHaveBeenCalled();
     });
 
-    test('returns unresolved when results S3 bucket config is missing', async () => {
+    test('returns unresolved when pre-aggregate S3 config is missing', async () => {
         const { client, preAggregateModel } = getClient({
             lightdashConfig: {
                 ...lightdashConfigMock,
                 preAggregates: {
                     ...lightdashConfigMock.preAggregates,
                     enabled: true,
-                },
-                results: {
-                    ...lightdashConfigMock.results,
                     s3: undefined,
                 },
             },
@@ -137,7 +134,7 @@ describe('PreAggregationDuckDbClient', () => {
 
         expect(result).toEqual({
             resolved: false,
-            reason: 'missing_results_s3_bucket',
+            reason: 'missing_pre_aggregate_s3_config',
         });
         expect(
             preAggregateModel.getActiveMaterialization,
@@ -161,11 +158,11 @@ describe('PreAggregationDuckDbClient', () => {
                     tables: expect.objectContaining({
                         a: expect.objectContaining({
                             sqlTable:
-                                "read_json_auto('s3://mock_bucket/abc123.jsonl')",
+                                "read_json_auto('s3://mock_preagg_bucket/abc123.jsonl')",
                         }),
                         b: expect.objectContaining({
                             sqlTable:
-                                "read_json_auto('s3://mock_bucket/abc123.jsonl')",
+                                "read_json_auto('s3://mock_preagg_bucket/abc123.jsonl')",
                         }),
                     }),
                 }),
@@ -179,7 +176,7 @@ describe('PreAggregationDuckDbClient', () => {
             activeMaterialization: {
                 materializationUuid: 'mat-1',
                 queryUuid: 'mat-query-1',
-                resultsFileName: 'abc123',
+                materializationUri: 's3://mock_preagg_bucket/abc123.jsonl',
                 format: 'jsonl',
                 columns: {
                     a_dim1: {
@@ -206,10 +203,10 @@ describe('PreAggregationDuckDbClient', () => {
                 explore: expect.objectContaining({
                     tables: expect.objectContaining({
                         a: expect.objectContaining({
-                            sqlTable: `read_json('s3://mock_bucket/abc123.jsonl', columns={"a_dim1": 'VARCHAR', "a_met_count": 'DOUBLE', "a_created_at": 'TIMESTAMP'}, format='newline_delimited')`,
+                            sqlTable: `read_json('s3://mock_preagg_bucket/abc123.jsonl', columns={"a_dim1": 'VARCHAR', "a_met_count": 'DOUBLE', "a_created_at": 'TIMESTAMP'}, format='newline_delimited')`,
                         }),
                         b: expect.objectContaining({
-                            sqlTable: `read_json('s3://mock_bucket/abc123.jsonl', columns={"a_dim1": 'VARCHAR', "a_met_count": 'DOUBLE', "a_created_at": 'TIMESTAMP'}, format='newline_delimited')`,
+                            sqlTable: `read_json('s3://mock_preagg_bucket/abc123.jsonl', columns={"a_dim1": 'VARCHAR', "a_met_count": 'DOUBLE', "a_created_at": 'TIMESTAMP'}, format='newline_delimited')`,
                         }),
                     }),
                 }),
@@ -222,7 +219,7 @@ describe('PreAggregationDuckDbClient', () => {
             activeMaterialization: {
                 materializationUuid: 'mat-1',
                 queryUuid: 'mat-query-1',
-                resultsFileName: 'abc123',
+                materializationUri: 's3://mock_preagg_bucket/abc123.jsonl',
                 format: 'jsonl',
                 columns: {
                     a_avg_revenue__sum: {
@@ -245,10 +242,10 @@ describe('PreAggregationDuckDbClient', () => {
                 explore: expect.objectContaining({
                     tables: expect.objectContaining({
                         a: expect.objectContaining({
-                            sqlTable: `read_json('s3://mock_bucket/abc123.jsonl', columns={"a_avg_revenue__sum": 'DOUBLE', "a_avg_revenue__count": 'DOUBLE'}, format='newline_delimited')`,
+                            sqlTable: `read_json('s3://mock_preagg_bucket/abc123.jsonl', columns={"a_avg_revenue__sum": 'DOUBLE', "a_avg_revenue__count": 'DOUBLE'}, format='newline_delimited')`,
                         }),
                         b: expect.objectContaining({
-                            sqlTable: `read_json('s3://mock_bucket/abc123.jsonl', columns={"a_avg_revenue__sum": 'DOUBLE', "a_avg_revenue__count": 'DOUBLE'}, format='newline_delimited')`,
+                            sqlTable: `read_json('s3://mock_preagg_bucket/abc123.jsonl', columns={"a_avg_revenue__sum": 'DOUBLE', "a_avg_revenue__count": 'DOUBLE'}, format='newline_delimited')`,
                         }),
                     }),
                 }),

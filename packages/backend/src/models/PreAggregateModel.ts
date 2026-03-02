@@ -17,10 +17,6 @@ import {
     type DbPreAggregateMaterialization,
 } from '../database/entities/preAggregates';
 import { CachedExploreTableName } from '../database/entities/projects';
-import {
-    QueryHistoryTableName,
-    type DbQueryHistory,
-} from '../database/entities/queryHistory';
 
 type DbPreAggregateDefinitionWithExploreName = DbPreAggregateDefinition & {
     pre_agg_explore_name: string;
@@ -50,6 +46,7 @@ const toPreAggregateMaterialization = (
     status: row.status,
     trigger: row.trigger,
     queryUuid: row.query_uuid,
+    materializationUri: row.materialization_uri,
     materializedAt: row.materialized_at,
     rowCount: row.row_count,
     columns: row.columns,
@@ -217,6 +214,7 @@ export class PreAggregateModel {
                 status: 'in_progress',
                 trigger: args.trigger,
                 query_uuid: null,
+                materialization_uri: null,
                 materialized_at: null,
                 row_count: null,
                 columns: null,
@@ -261,6 +259,7 @@ export class PreAggregateModel {
     async promoteToActive(args: {
         materializationUuid: string;
         queryUuid: string;
+        materializationUri: string;
         materializedAt: Date;
         rowCount: number | null;
         columns: ResultColumns | null;
@@ -299,6 +298,7 @@ export class PreAggregateModel {
 
                 const commonUpdate = {
                     query_uuid: args.queryUuid,
+                    materialization_uri: args.materializationUri,
                     materialized_at: args.materializedAt,
                     row_count: args.rowCount,
                     columns: args.columns,
@@ -358,6 +358,7 @@ export class PreAggregateModel {
             await this.database(PreAggregateMaterializationsTableName)
                 .update({
                     query_uuid: args.queryUuid,
+                    materialization_uri: args.materializationUri,
                     materialized_at: args.materializedAt,
                     row_count: args.rowCount,
                     columns: args.columns,
@@ -389,11 +390,6 @@ export class PreAggregateModel {
                 `${PreAggregateDefinitionsTableName}.pre_agg_cached_explore_uuid`,
                 `${CachedExploreTableName}.cached_explore_uuid`,
             )
-            .innerJoin(
-                QueryHistoryTableName,
-                `${PreAggregateMaterializationsTableName}.query_uuid`,
-                `${QueryHistoryTableName}.query_uuid`,
-            )
             .where(
                 `${PreAggregateMaterializationsTableName}.project_uuid`,
                 projectUuid,
@@ -405,20 +401,20 @@ export class PreAggregateModel {
             )
             .whereNotNull(`${PreAggregateMaterializationsTableName}.query_uuid`)
             .select<
-                (Pick<
+                Pick<
                     DbPreAggregateMaterialization,
                     | 'pre_aggregate_materialization_uuid'
                     | 'query_uuid'
+                    | 'materialization_uri'
                     | 'columns'
                     | 'materialized_at'
-                > &
-                    Pick<DbQueryHistory, 'results_file_name'>)[]
+                >[]
             >([
                 `${PreAggregateMaterializationsTableName}.pre_aggregate_materialization_uuid`,
                 `${PreAggregateMaterializationsTableName}.query_uuid`,
+                `${PreAggregateMaterializationsTableName}.materialization_uri`,
                 `${PreAggregateMaterializationsTableName}.columns`,
                 `${PreAggregateMaterializationsTableName}.materialized_at`,
-                `${QueryHistoryTableName}.results_file_name`,
             ])
             .orderBy(
                 `${PreAggregateMaterializationsTableName}.materialized_at`,
@@ -429,7 +425,7 @@ export class PreAggregateModel {
         if (
             !row ||
             !row.query_uuid ||
-            !row.results_file_name ||
+            !row.materialization_uri ||
             !row.materialized_at
         ) {
             return undefined;
@@ -438,7 +434,7 @@ export class PreAggregateModel {
         return {
             materializationUuid: row.pre_aggregate_materialization_uuid,
             queryUuid: row.query_uuid,
-            resultsFileName: row.results_file_name,
+            materializationUri: row.materialization_uri,
             format: 'jsonl',
             columns: row.columns,
             materializedAt: row.materialized_at,

@@ -7,7 +7,6 @@ import {
 export type PreAggregateDuckdbLocator = {
     storage: 's3';
     format: 'jsonl';
-    key: string;
     uri: string;
 };
 
@@ -37,38 +36,16 @@ const resultFieldTypeToDuckdbType = (type: DimensionType): string => {
 };
 
 export const getPreAggregateDuckdbLocator = ({
-    bucket,
-    resultsFileName,
+    uri,
     format,
 }: {
-    bucket: string;
-    resultsFileName: string;
+    uri: string;
     format: 'jsonl';
-}): PreAggregateDuckdbLocator => {
-    const trimmedBucket = bucket.trim();
-    const trimmedResultsFileName = resultsFileName.trim();
-
-    if (trimmedBucket.length === 0) {
-        throw new Error(
-            'Cannot build pre-aggregate DuckDB locator without S3 bucket',
-        );
-    }
-
-    if (trimmedResultsFileName.length === 0) {
-        throw new Error(
-            'Cannot build pre-aggregate DuckDB locator without results file name',
-        );
-    }
-
-    const key = `${trimmedResultsFileName}.${format}`;
-
-    return {
-        storage: 's3',
-        format,
-        key,
-        uri: `s3://${trimmedBucket}/${key}`,
-    };
-};
+}): PreAggregateDuckdbLocator => ({
+    storage: 's3',
+    format,
+    uri,
+});
 
 export const getDuckdbPreAggregateSqlTable = (
     locator: PreAggregateDuckdbLocator,

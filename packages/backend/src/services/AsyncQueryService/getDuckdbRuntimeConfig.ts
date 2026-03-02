@@ -36,24 +36,20 @@ const parseDuckdbS3Endpoint = (
 };
 
 export const getDuckdbRuntimeConfig = (
-    lightdashConfig: Pick<LightdashConfig, 'results'>,
+    s3Config: LightdashConfig['preAggregates']['s3'],
 ): DuckdbRuntimeConfig | undefined => {
-    const resultsS3Config = lightdashConfig.results.s3;
-
-    if (!resultsS3Config) {
+    if (!s3Config) {
         return undefined;
     }
 
-    const { endpoint, useSsl } = parseDuckdbS3Endpoint(
-        resultsS3Config.endpoint,
-    );
+    const { endpoint, useSsl } = parseDuckdbS3Endpoint(s3Config.endpoint);
 
     return {
         endpoint,
-        region: resultsS3Config.region,
-        accessKey: resultsS3Config.accessKey,
-        secretKey: resultsS3Config.secretKey,
-        forcePathStyle: resultsS3Config.forcePathStyle === true,
+        region: s3Config.region,
+        accessKey: s3Config.accessKey,
+        secretKey: s3Config.secretKey,
+        forcePathStyle: s3Config.forcePathStyle === true,
         useSsl,
     };
 };

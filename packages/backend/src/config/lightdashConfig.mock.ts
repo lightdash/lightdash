@@ -341,5 +341,10 @@ export const lightdashConfigMock: LightdashConfig = {
     preAggregates: {
         enabled: false,
         debug: false,
+        s3: {
+            endpoint: 'mock_endpoint',
+            bucket: 'mock_preagg_bucket',
+            region: 'mock_region',
+        },
     },
 };

@@ -24,7 +24,7 @@ export type PreAggregateMaterializationStatus =
 export type ActiveMaterializationDetails = {
     materializationUuid: string;
     queryUuid: string;
-    resultsFileName: string;
+    materializationUri: string;
     format: 'jsonl';
     columns: ResultColumns | null;
     materializedAt: Date;
@@ -120,6 +120,7 @@ export type PreAggregateMaterialization = {
     status: PreAggregateMaterializationStatus;
     trigger: PreAggregateMaterializationTrigger;
     queryUuid: string | null;
+    materializationUri: string | null;
     materializedAt: Date | null;
     rowCount: number | null;
     columns: ResultColumns | null;
