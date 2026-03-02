@@ -3034,6 +3034,7 @@ export class ProjectService extends BaseService {
             timezone: this.lightdashConfig.query.timezone || 'UTC',
             parameters,
             availableParameterDefinitions,
+            pivotConfiguration,
             continueOnError: true, // Return SQL even with compilation errors for debugging
         });
 

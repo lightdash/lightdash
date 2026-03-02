@@ -2584,12 +2584,14 @@ export class MetricQueryBuilder {
 
         let result = compiledSql;
         // Replace row_total first to avoid partial match
+        // When no pivotConfiguration, row_total(field) = field (only one column, so row total is the value itself)
+        const hasPivot = !!this.args.pivotConfiguration;
         result = result.replace(
             new RegExp(
                 `\\brow_total\\s*\\(\\s*${escapedQ}([^${escapedQ}]+)${escapedQ}\\s*\\)`,
                 'g',
             ),
-            `${q}$1__row_total${q}`,
+            hasPivot ? `${q}$1__row_total${q}` : `${q}$1${q}`,
         );
         result = result.replace(
             new RegExp(
@@ -3044,8 +3046,9 @@ export class MetricQueryBuilder {
         const { totalFields, rowTotalFields } = extractTotalReferences(
             this.args.compiledMetricQuery.compiledTableCalculations,
         );
+        const hasPivot = !!this.args.pivotConfiguration;
         const needsTotalsCtes =
-            totalFields.length > 0 || rowTotalFields.length > 0;
+            totalFields.length > 0 || (rowTotalFields.length > 0 && hasPivot);
 
         if (needsPostAgg) {
             const ctesToAdd: string[] = [];

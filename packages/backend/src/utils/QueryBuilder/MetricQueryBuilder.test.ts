@@ -3734,6 +3734,46 @@ describe('Query Structure Tests', () => {
         expect(result.query).not.toContain('total("table1_metric1")');
     });
 
+    test('Should fall back row_total() to field reference when no pivot configuration', () => {
+        const metricQueryWithRowTotalNoPivot = {
+            ...METRIC_QUERY,
+            tableCalculations: [
+                {
+                    name: 'pct_of_row',
+                    displayName: 'Pct of Row',
+                    sql: '${table1.metric1} / row_total(${table1.metric1})',
+                },
+            ],
+            compiledTableCalculations: [
+                {
+                    name: 'pct_of_row',
+                    displayName: 'Pct of Row',
+                    sql: '${table1.metric1} / row_total(${table1.metric1})',
+                    compiledSql:
+                        '"table1_metric1" / row_total("table1_metric1")',
+                    dependsOn: [],
+                },
+            ],
+        };
+
+        // No pivotConfiguration passed
+        const result = buildQuery({
+            explore: EXPLORE,
+            compiledMetricQuery: metricQueryWithRowTotalNoPivot,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        // Should NOT build row_totals CTE
+        expect(result.query).not.toContain('row_totals AS (');
+        // row_total("field") should be replaced with just "field" (identity fallback)
+        expect(result.query).not.toContain('row_total("table1_metric1")');
+        expect(result.query).not.toContain('"table1_metric1__row_total"');
+        // The field reference itself should still be present
+        expect(result.query).toContain('"table1_metric1"');
+    });
+
     test('Should not build totals CTEs when total() is not used', () => {
         const metricQueryWithoutTotal = {
             ...METRIC_QUERY,
