@@ -28,10 +28,12 @@ import { z } from 'zod';
 import {
     explorerActions,
     selectCustomDimensions,
+    selectUnsavedChartVersion,
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { useOptimisticExplorerUrlUpdate } from '../../../hooks/useExplorerRoute';
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
 
@@ -53,6 +55,8 @@ export const CustomBinDimensionModal: FC<{
     const { showToastSuccess } = useToaster();
     const dispatch = useExplorerDispatch();
     const customDimensions = useExplorerSelector(selectCustomDimensions);
+    const unsavedChartVersion = useExplorerSelector(selectUnsavedChartVersion);
+    const updateUrlOptimistically = useOptimisticExplorerUrlUpdate();
 
     const toggleModal = () =>
         dispatch(explorerActions.toggleCustomDimensionModal());
@@ -178,6 +182,18 @@ export const CustomBinDimensionModal: FC<{
                 const updatedDimensions = (customDimensions ?? []).map((dim) =>
                     dim.id === item.id ? updatedDimension : dim,
                 );
+
+                // Optimistically update URL BEFORE dispatching Redux action
+                // This prevents race condition where component remounts before URL sync
+                const updatedChartVersion = {
+                    ...unsavedChartVersion,
+                    metricQuery: {
+                        ...unsavedChartVersion.metricQuery,
+                        customDimensions: updatedDimensions,
+                    },
+                };
+                updateUrlOptimistically(updatedChartVersion);
+
                 dispatch(
                     explorerActions.setCustomDimensions(updatedDimensions),
                 );
@@ -186,19 +202,40 @@ export const CustomBinDimensionModal: FC<{
                     title: 'Custom dimension edited successfully',
                 });
             } else {
-                dispatch(
-                    explorerActions.addCustomDimension({
-                        id: sanitizedId,
-                        name: values.customDimensionLabel,
-                        type: CustomDimensionType.BIN,
-                        dimensionId: getItemId(item),
-                        binType: values.binType,
-                        binNumber: values.binConfig.fixedNumber.binNumber,
-                        binWidth: values.binConfig.fixedWidth.binWidth,
-                        table: item.table,
-                        customRange: values.binConfig.customRange,
-                    }),
-                );
+                const newCustomDimension: CustomBinDimension = {
+                    id: sanitizedId,
+                    name: values.customDimensionLabel,
+                    type: CustomDimensionType.BIN,
+                    dimensionId: getItemId(item),
+                    binType: values.binType,
+                    binNumber: values.binConfig.fixedNumber.binNumber,
+                    binWidth: values.binConfig.fixedWidth.binWidth,
+                    table: item.table,
+                    customRange: values.binConfig.customRange,
+                };
+
+                // Optimistically update URL BEFORE dispatching Redux action
+                // This prevents race condition where component remounts before URL sync
+                const newCustomDimensions = [
+                    ...(customDimensions ?? []),
+                    newCustomDimension,
+                ];
+                const customDimensionId = getItemId(newCustomDimension);
+                const newDimensions = unsavedChartVersion.metricQuery.dimensions.includes(customDimensionId)
+                    ? unsavedChartVersion.metricQuery.dimensions
+                    : [...unsavedChartVersion.metricQuery.dimensions, customDimensionId];
+
+                const updatedChartVersion = {
+                    ...unsavedChartVersion,
+                    metricQuery: {
+                        ...unsavedChartVersion.metricQuery,
+                        customDimensions: newCustomDimensions,
+                        dimensions: newDimensions,
+                    },
+                };
+                updateUrlOptimistically(updatedChartVersion);
+
+                dispatch(explorerActions.addCustomDimension(newCustomDimension));
 
                 showToastSuccess({
                     title: 'Custom dimension added successfully',
