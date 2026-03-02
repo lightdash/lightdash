@@ -113,10 +113,10 @@ while IFS= read -r line || [[ -n "$line" ]]; do
     fi
 done < "$ENV_FILE"
 
-# Check that we have at least ANTHROPIC_API_KEY
-if ! grep -q "ANTHROPIC_API_KEY=" "$ENV_FILE" 2>/dev/null || \
-   grep "ANTHROPIC_API_KEY=" "$ENV_FILE" | grep -q "ANTHROPIC_API_KEY=$"; then
-    error "ANTHROPIC_API_KEY is not set in $ENV_FILE"
+# Check that we have at least ANTHROPIC_AUTH_TOKEN
+if ! grep -q "ANTHROPIC_AUTH_TOKEN=" "$ENV_FILE" 2>/dev/null || \
+   grep "ANTHROPIC_AUTH_TOKEN=" "$ENV_FILE" | grep -q "ANTHROPIC_AUTH_TOKEN=$"; then
+    error "ANTHROPIC_AUTH_TOKEN is not set in $ENV_FILE"
     exit 1
 fi
 
@@ -173,7 +173,7 @@ echo ""
 echo "  To verify, SSH in and check:"
 echo "    ssh ${SSH_USER}@${SERVER}"
 echo "    sudo -iu lightdash"
-echo "    echo \$ANTHROPIC_API_KEY"
+echo "    echo \$ANTHROPIC_AUTH_TOKEN"
 echo ""
 echo "  To start Claude Code:"
 echo "    claude"

@@ -22,7 +22,7 @@
 #
 # After creation, sync credentials:
 #   cp agent-harness/credentials.env.template agent-harness/credentials.env
-#   # Edit credentials.env with your ANTHROPIC_API_KEY
+#   # Edit credentials.env with your ANTHROPIC_AUTH_TOKEN
 #   ./agent-harness/sync-credentials.sh <server-ip>
 #
 set -euo pipefail
@@ -249,7 +249,7 @@ echo "║    ssh root@$SERVER_IP 'tail -f /var/log/cloud-init-output.log'"
 echo "║                                                                              ║"
 echo "║  Once complete, sync credentials:                                              ║"
 echo "║    cp agent-harness/credentials.env.template agent-harness/credentials.env   ║"
-echo "║    # Edit credentials.env with your ANTHROPIC_API_KEY                        ║"
+echo "║    # Edit credentials.env with your ANTHROPIC_AUTH_TOKEN                        ║"
 echo "║    ./agent-harness/sync-credentials.sh $SERVER_IP"
 echo "║                                                                              ║"
 echo "║  Then SSH in and start agents:                                               ║"
@@ -298,7 +298,7 @@ if [[ "$WAIT_RESPONSE" =~ ^[Yy]$ ]]; then
     echo ""
     echo "Now sync your credentials:"
     echo "  cp agent-harness/credentials.env.template agent-harness/credentials.env"
-    echo "  # Edit credentials.env with your ANTHROPIC_API_KEY"
+    echo "  # Edit credentials.env with your ANTHROPIC_AUTH_TOKEN"
     echo "  ./agent-harness/sync-credentials.sh $SERVER_IP"
     echo ""
     echo "Then optionally set up Tailscale and secure SSH:"

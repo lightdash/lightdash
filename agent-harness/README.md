@@ -117,7 +117,7 @@ Once cloud-init completes, sync your API keys from your local machine:
 # 1. Create your credentials file from the template
 cp agent-harness/credentials.env.template agent-harness/credentials.env
 
-# 2. Edit with your API keys (ANTHROPIC_API_KEY is required)
+# 2. Edit with your API keys (ANTHROPIC_AUTH_TOKEN is required)
 #    Get yours at: https://console.anthropic.com/settings/keys
 
 # 3. Sync credentials to the server
