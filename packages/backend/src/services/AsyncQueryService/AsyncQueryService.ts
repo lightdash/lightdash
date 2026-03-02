@@ -305,11 +305,17 @@ export class AsyncQueryService extends ProjectService {
         metricQuery,
         explore,
         context,
+        invalidateCache,
     }: {
         metricQuery: MetricQuery;
         explore: Explore;
         context: QueryExecutionContext;
+        invalidateCache?: boolean;
     }): PreAggregationRoutingDecision {
+        if (invalidateCache) {
+            return { target: 'warehouse' };
+        }
+
         if (
             !this.lightdashConfig.preAggregates.enabled ||
             (explore.preAggregates || []).length === 0
@@ -2124,6 +2130,7 @@ export class AsyncQueryService extends ProjectService {
                     void (async () => {
                         const preAggResolution =
                             this.lightdashConfig.preAggregates.enabled &&
+                            !args.invalidateCache &&
                             preAggregationRoute &&
                             userAccessControls &&
                             availableParameterDefinitions
@@ -2304,6 +2311,7 @@ export class AsyncQueryService extends ProjectService {
             metricQuery,
             explore,
             context,
+            invalidateCache,
         });
 
         if (routingDecision.preAggregateMetadata) {
@@ -2530,6 +2538,7 @@ export class AsyncQueryService extends ProjectService {
             metricQuery: metricQueryWithLimit,
             explore,
             context,
+            invalidateCache,
         });
 
         if (routingDecision.preAggregateMetadata) {
@@ -2821,6 +2830,7 @@ export class AsyncQueryService extends ProjectService {
             metricQuery: metricQueryWithLimit,
             explore,
             context,
+            invalidateCache,
         });
 
         if (routingDecision.preAggregateMetadata) {
@@ -3129,6 +3139,7 @@ export class AsyncQueryService extends ProjectService {
                     sql,
                     originalColumns: undefined,
                     missingParameterReferences,
+                    parameters: combinedParameters,
                 },
                 requestParameters,
             );

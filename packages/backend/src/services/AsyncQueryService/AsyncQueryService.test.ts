@@ -759,6 +759,52 @@ describe('AsyncQueryService', () => {
             expect(resolveSpy).not.toHaveBeenCalled();
             expect(runAsyncWarehouseQuerySpy).toHaveBeenCalledTimes(1);
         });
+
+        test('does not resolve pre-aggregates when invalidateCache is true', async () => {
+            const resolveSpy = jest.fn(async () => ({
+                resolved: false as const,
+                reason: 'should_not_be_called',
+            }));
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            (service as AnyType).preAggregationDuckDbClient = {
+                resolve: resolveSpy,
+            } as unknown as PreAggregationDuckDbClient;
+
+            const runAsyncWarehouseQuerySpy = jest
+                .spyOn(service, 'runAsyncWarehouseQuery')
+                .mockResolvedValue();
+
+            await service.executeAsyncQuery(
+                {
+                    account: sessionAccount,
+                    projectUuid,
+                    metricQuery: metricQueryMock,
+                    context: QueryExecutionContext.EXPLORE,
+                    dateZoom: undefined,
+                    queryTags: {
+                        query_context: QueryExecutionContext.EXPLORE,
+                    },
+                    explore: validExplore,
+                    invalidateCache: true,
+                    sql: 'SELECT * FROM test',
+                    fields: {},
+                    missingParameterReferences: [],
+                    preAggregationRoute: {
+                        sourceExploreName: metricQueryMock.exploreName,
+                        preAggregateName: 'orders_daily',
+                    },
+                    userAccessControls: {
+                        userAttributes: {},
+                        intrinsicUserAttributes: {},
+                    },
+                    availableParameterDefinitions: {},
+                },
+                { query: metricQueryMock, invalidateCache: true },
+            );
+
+            expect(resolveSpy).not.toHaveBeenCalled();
+            expect(runAsyncWarehouseQuerySpy).toHaveBeenCalledTimes(1);
+        });
     });
 
     describe('getAsyncQueryResults', () => {
