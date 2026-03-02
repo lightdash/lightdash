@@ -1586,8 +1586,8 @@ export const parseConfig = (): LightdashConfig => {
                 'LIGHTDASH_PROMETHEUS_LABELS',
             ),
             eventMetricsEnabled:
-                process.env.LIGHTDASH_PROMETHEUS_EVENT_METRICS_ENABLED !==
-                'false', // defaults to false
+                process.env.LIGHTDASH_PROMETHEUS_EVENT_METRICS_ENABLED ===
+                'true', // defaults to false
             eventMetricsConfigPath:
                 process.env.LIGHTDASH_CUSTOM_METRICS_CONFIG_PATH ||
                 process.env.CUSTOM_METRICS_CONFIG_PATH,
