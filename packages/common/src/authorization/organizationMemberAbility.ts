@@ -381,6 +381,7 @@ const applyOrganizationMemberStaticAbilities: Record<
         });
         can('impersonate', 'User', {
             organizationUuid: member.organizationUuid,
+            isActive: true,
         });
     },
 };

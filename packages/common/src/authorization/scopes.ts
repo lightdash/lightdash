@@ -495,6 +495,15 @@ const scopes: Scope[] = [
         group: ScopeGroup.ORGANIZATION_MANAGEMENT,
         getConditions: addDefaultUuidCondition,
     },
+    {
+        name: 'impersonate:User',
+        description: 'Impersonate other users in the organization',
+        isEnterprise: false,
+        group: ScopeGroup.ORGANIZATION_MANAGEMENT,
+        getConditions: (context) => [
+            { ...addUuidCondition(context), isActive: true },
+        ],
+    },
 
     // Data Scopes
     {

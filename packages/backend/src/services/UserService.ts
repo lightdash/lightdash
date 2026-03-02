@@ -2336,23 +2336,19 @@ export class UserService extends BaseService {
         const targetUser =
             await this.userModel.getUserDetailsByUuid(targetUserUuid);
 
-        // Check permissions using CASL
+        // Check permissions using CASL (includes org match and isActive)
         if (
             adminUser.ability.cannot(
                 'impersonate',
                 subject('User', {
                     organizationUuid: targetUser.organizationUuid,
+                    isActive: targetUser.isActive,
                 }),
             )
         ) {
             throw new ForbiddenError(
-                "You don't have permissions to impersonate users",
+                "You don't have permissions to impersonate this user",
             );
-        }
-
-        // Target must be active
-        if (!targetUser.isActive) {
-            throw new ForbiddenError('Cannot impersonate an inactive user');
         }
 
         setImpersonation({
@@ -2392,6 +2388,8 @@ export class UserService extends BaseService {
         const adminUser =
             await this.userModel.getUserDetailsByUuid(adminUserUuid);
 
+        clearImpersonation();
+
         this.analytics.track({
             event: 'user.impersonation_stopped',
             userId: adminUserUuid,
@@ -2401,7 +2399,5 @@ export class UserService extends BaseService {
                 organizationUuid: adminUser.organizationUuid!,
             },
         });
-
-        clearImpersonation();
     }
 }
