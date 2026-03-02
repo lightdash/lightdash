@@ -1,3 +1,10 @@
+# [0.2545.0](https://github.com/lightdash/lightdash/compare/0.2544.1...0.2545.0) (2026-03-02)
+
+
+### Features
+
+* add fix-vulnerability skill for Snyk PR analysis ([#20736](https://github.com/lightdash/lightdash/issues/20736)) ([610fbc5](https://github.com/lightdash/lightdash/commit/610fbc5fc186bdf02e590dbb007d42ba35b5770f))
+
 ## [0.2544.1](https://github.com/lightdash/lightdash/compare/0.2544.0...0.2544.1) (2026-02-27)
 
 
