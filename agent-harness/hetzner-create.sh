@@ -155,19 +155,21 @@ fi
 
 log "Using SSH key: $SSH_KEY_PATH"
 
-# Get MD5 fingerprint of local key (Hetzner uses MD5 format without colons)
-LOCAL_FINGERPRINT=$(ssh-keygen -lf "$SSH_KEY_PATH" -E md5 | awk '{print $2}' | sed 's/MD5://' | tr -d ':')
+# Get MD5 fingerprint of local key (Hetzner uses MD5 format with colons)
+LOCAL_FINGERPRINT=$(ssh-keygen -lf "$SSH_KEY_PATH" -E md5 | awk '{print $2}' | sed 's/MD5://')
 log "Local key fingerprint (MD5): $LOCAL_FINGERPRINT"
 
 # Check if this exact key (by fingerprint) is already in Hetzner
-EXISTING_KEY_NAME=$(hcloud ssh-key list -o noheader -o columns=name,fingerprint | grep "$LOCAL_FINGERPRINT" | awk '{print $1}' || true)
+# Remove colons for comparison since hcloud output has colons but we want flexible matching
+LOCAL_FP_NOCOLONS=$(echo "$LOCAL_FINGERPRINT" | tr -d ':')
+EXISTING_KEY_NAME=$(hcloud ssh-key list -o noheader -o columns=name,fingerprint | tr -d ':' | grep "$LOCAL_FP_NOCOLONS" | awk '{print $1}' || true)
 
 if [[ -n "$EXISTING_KEY_NAME" ]]; then
     SSH_KEY_NAME="$EXISTING_KEY_NAME"
     log "SSH key already in Hetzner as '$SSH_KEY_NAME'"
 else
     # Key not in Hetzner - upload it with a unique name based on fingerprint
-    SHORT_FP=$(echo "$LOCAL_FINGERPRINT" | cut -c1-8)
+    SHORT_FP=$(echo "$LOCAL_FP_NOCOLONS" | cut -c1-8)
     SSH_KEY_NAME="lightdash-${SHORT_FP}"
 
     log "Uploading SSH key to Hetzner as '$SSH_KEY_NAME'..."
