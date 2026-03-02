@@ -268,6 +268,42 @@ describe('tableCalculationFunctions', () => {
                     );
                 }
             });
+
+            it('should parse offset with nested parentheses in expression', () => {
+                const sql = 'offset(revenue, COALESCE(offset_var, ABS(-1)))';
+                const result = parseTableCalculationFunctions(sql);
+
+                expect(result).toHaveLength(1);
+                expect(result[0].type).toBe(
+                    TableCalculationFunctionType.OFFSET,
+                );
+                if (result[0].type === TableCalculationFunctionType.OFFSET) {
+                    expect(result[0].column).toBe('revenue');
+                    expect(result[0].rowOffset).toBe(
+                        'COALESCE(offset_var, ABS(-1))',
+                    );
+                    expect(result[0].rawSql).toBe(
+                        'offset(revenue, COALESCE(offset_var, ABS(-1)))',
+                    );
+                }
+            });
+
+            it('should parse multiple offsets with complex expressions', () => {
+                const sql =
+                    'offset(a, ROUND(b * 2)) + offset(c, IF(d > 0, 1, -1))';
+                const result = parseTableCalculationFunctions(sql);
+
+                expect(result).toHaveLength(2);
+                // Functions are parsed last to first
+                if (result[0].type === TableCalculationFunctionType.OFFSET) {
+                    expect(result[0].column).toBe('c');
+                    expect(result[0].rowOffset).toBe('IF(d > 0, 1, -1)');
+                }
+                if (result[1].type === TableCalculationFunctionType.OFFSET) {
+                    expect(result[1].column).toBe('a');
+                    expect(result[1].rowOffset).toBe('ROUND(b * 2)');
+                }
+            });
         });
 
         describe('index parsing (row function)', () => {

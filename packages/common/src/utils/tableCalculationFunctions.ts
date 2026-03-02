@@ -301,21 +301,46 @@ export function parseTableCalculationFunctions(
         match = rowRegex.exec(sql);
     }
 
-    // Parse offset function calls (but not pivot_offset)
-    // Updated regex to capture any expression as the second argument
-    const offsetRegex =
-        /\boffset\s*\(\s*([^,()]+(?:\([^)]*\))?[^,()]*)\s*,\s*([^)]+)\s*\)/gi;
+    // Parse offset function calls
+    // The \b word boundary ensures we don't match pivot_offset
+    const offsetRegex = /\boffset\(/gi;
     match = offsetRegex.exec(sql);
     while (match !== null) {
-        // Skip if this is actually a pivot_offset
         const startIdx = match.index;
-        const beforeMatch = sql.slice(Math.max(0, startIdx - 6), startIdx);
-        if (!beforeMatch.endsWith('pivot_')) {
+
+        // Parse the function arguments properly, handling nested parentheses
+        let parenDepth = 1;
+        let i = startIdx + match[0].length;
+        const argStart = i;
+        let firstArgEnd = -1;
+        let secondArgStart = -1;
+
+        while (i < sql.length && parenDepth > 0) {
+            if (sql[i] === '(') {
+                parenDepth += 1;
+            } else if (sql[i] === ')') {
+                parenDepth -= 1;
+            } else if (
+                sql[i] === ',' &&
+                parenDepth === 1 &&
+                firstArgEnd === -1
+            ) {
+                firstArgEnd = i;
+                secondArgStart = i + 1;
+            }
+            i += 1;
+        }
+
+        if (firstArgEnd !== -1 && parenDepth === 0) {
+            const column = sql.slice(argStart, firstArgEnd).trim();
+            const rowOffset = sql.slice(secondArgStart, i - 1).trim();
+            const rawSql = sql.slice(startIdx, i);
+
             functions.push({
                 type: TableCalculationFunctionType.OFFSET,
-                column: match[1].trim(),
-                rowOffset: match[2].trim(),
-                rawSql: match[0],
+                column,
+                rowOffset,
+                rawSql,
             });
         }
         match = offsetRegex.exec(sql);
