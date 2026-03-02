@@ -362,3 +362,110 @@ The `agent-task.yml` workflow runs automatically when an issue is labeled `agent
 
 **3 agents**: ~4–6 GB total (comfortable on 16 GB)
 **5 agents**: ~6–8 GB total (needs 16+ GB)
+
+## FAQ
+
+<details>
+<summary><strong>How do migrations and seeds work?</strong></summary>
+
+`setup-infra.sh` runs migrations and seeds **once** to create a PostgreSQL template database (`lightdash_template`). When you launch an agent, `launch.sh` creates its database using `CREATE DATABASE agent_X TEMPLATE lightdash_template`, which is a near-instant copy operation.
+
+This means:
+- All agents start with identical database state
+- No per-agent migration or seed runs needed
+- Template creation includes: migrations → Lightdash seed → Jaffle Shop dbt models
+
+</details>
+
+<details>
+<summary><strong>Can agents run different migration versions?</strong></summary>
+
+**Not by default.** All agents share the same template, so they all start with the same migration state.
+
+**Workaround with `--worktree`:**
+
+1. Launch an agent with an isolated worktree:
+   ```bash
+   ./agent-harness/launch.sh 2 --worktree
+   ```
+
+2. Switch to a branch with different migrations:
+   ```bash
+   cd ~/worktrees/agent-2
+   git checkout feature-branch-with-new-migrations
+   ```
+
+3. Manually run migrations on that agent's database:
+   ```bash
+   source .env.agent.2
+   pnpm -F backend migrate
+   ```
+
+The agent's database (`agent_2`) is fully isolated, so this won't affect other agents.
+
+</details>
+
+<details>
+<summary><strong>What if Tailscale doesn't come online?</strong></summary>
+
+If you used `--tailscale-key` and public SSH is blocked:
+
+1. **Remove the firewall temporarily:**
+   ```bash
+   hcloud firewall remove-from-resource lightdash-tailscale-only \
+     --type server --server lightdash-agents
+   ```
+
+2. **SSH in and debug:**
+   ```bash
+   ssh root@<public-ip>
+   tail -100 /var/log/cloud-init-output.log
+   systemctl status tailscaled
+   ```
+
+3. **Re-add the firewall once fixed:**
+   ```bash
+   hcloud firewall apply-to-resource lightdash-tailscale-only \
+     --type server --server lightdash-agents
+   ```
+
+Alternatively, use Hetzner's web console (Security → Reset Root Password to get console access).
+
+</details>
+
+<details>
+<summary><strong>How do I reset an agent's database?</strong></summary>
+
+Tear down and relaunch the agent:
+
+```bash
+./agent-harness/teardown.sh 1
+./agent-harness/launch.sh 1
+```
+
+This drops the database and recreates it fresh from the template.
+
+</details>
+
+<details>
+<summary><strong>How do I update the template database?</strong></summary>
+
+If you've added new migrations or changed seeds:
+
+1. Drop the existing template:
+   ```bash
+   psql -h localhost -p 15432 -U postgres -c "DROP DATABASE lightdash_template"
+   ```
+
+2. Re-run setup:
+   ```bash
+   ./agent-harness/setup-infra.sh
+   ```
+
+3. Tear down and relaunch agents to pick up the new template:
+   ```bash
+   ./agent-harness/teardown.sh 1
+   ./agent-harness/launch.sh 1
+   ```
+
+</details>
