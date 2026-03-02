@@ -181,6 +181,12 @@ runcmd:
     for f in /home/lightdash/.profile.d/*.sh; do
       [ -r "$f" ] && source "$f"
     done
+    # Default to lightdash repo directory
+    cd /opt/lightdash 2>/dev/null || true
+    # Claude Code alias with agent harness defaults
+    CLAUDE_HARNESS_ARGS='--dangerously-skip-permissions --append-system-prompt "Run /agent-harness to understand your environment. You are working in an isolated harness with shared infrastructure. Use agent-harness skill commands to check status, view logs, and verify your work."'
+    alias claude="command claude $CLAUDE_HARNESS_ARGS"
+    alias happy="command happy $CLAUDE_HARNESS_ARGS"
     BASHRC
 
     # .env.agent-harness
