@@ -3018,6 +3018,60 @@ describe('Query Structure Tests', () => {
         expect(result.query).not.toContain('pivot_offset(revenue, -1)');
         expect(result.query).not.toContain('pivot_column()');
     });
+
+    test('Should return NULL for interdependent table calculations with pivot functions', () => {
+        const metricQueryWithInterdependentPivotCalc = {
+            ...METRIC_QUERY,
+            tableCalculations: [
+                {
+                    name: 'impressions',
+                    displayName: 'Impressions',
+                    sql: 'COALESCE(${table1.metric1}, 0)',
+                },
+                {
+                    name: 'impressions_delta',
+                    displayName: 'Impressions Delta',
+                    sql: '${impressions} - pivot_offset(${impressions}, -1)',
+                },
+            ],
+            compiledTableCalculations: [
+                {
+                    name: 'impressions',
+                    displayName: 'Impressions',
+                    sql: 'COALESCE(${table1.metric1}, 0)',
+                    compiledSql: 'COALESCE(table1_metric1, 0)',
+                    dependsOn: [],
+                },
+                {
+                    name: 'impressions_delta',
+                    displayName: 'Impressions Delta',
+                    sql: '${impressions} - pivot_offset(${impressions}, -1)',
+                    compiledSql: 'impressions - pivot_offset(impressions, -1)',
+                    dependsOn: ['impressions'],
+                },
+            ],
+        };
+
+        const result = buildQuery({
+            explore: EXPLORE,
+            compiledMetricQuery: metricQueryWithInterdependentPivotCalc,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        // Should contain the base impressions calculation
+        expect(result.query).toContain('COALESCE(table1_metric1, 0)');
+        expect(result.query).toContain('"impressions"');
+
+        // Should return NULL for the interdependent pivot calc
+        expect(result.query.toLowerCase()).toContain(
+            'null as "impressions_delta"',
+        );
+
+        // Verify that the raw pivot_offset function is not in the query
+        expect(result.query).not.toContain('pivot_offset');
+    });
 });
 
 describe('Date zoom with filters', () => {

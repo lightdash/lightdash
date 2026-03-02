@@ -3,6 +3,7 @@ import {
     CustomDimensionType,
     DimensionType,
     FieldType,
+    MetricType,
     ParameterError,
     SortByDirection,
     SupportedDbtAdapter,
@@ -2384,6 +2385,154 @@ SELECT * FROM group_by_query LIMIT 50`);
             expect(result.toLowerCase()).toContain(
                 'dense_rank() over (order by g."amount_binned_amount_order" asc, g."orders_category" desc)',
             );
+        });
+    });
+
+    describe('Table calculations with pivot functions', () => {
+        test('Should inline table calculation references in pivot calculations', () => {
+            const itemsMap: ItemsMap = {
+                revenue: {
+                    name: 'revenue',
+                    label: 'Revenue',
+                    fieldType: FieldType.METRIC,
+                    table: 'orders',
+                    tableLabel: 'Orders',
+                    type: MetricType.SUM,
+                    sql: '${TABLE}.revenue',
+                    hidden: false,
+                },
+                impressions: {
+                    name: 'impressions',
+                    displayName: 'Impressions',
+                    sql: 'COALESCE(${revenue}, 0)',
+                },
+                impressions_delta: {
+                    name: 'impressions_delta',
+                    displayName: 'Impressions Delta',
+                    sql: '${impressions} - pivot_offset(${impressions}, -1)',
+                },
+            };
+
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'impressions_delta',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                groupByColumns: [{ reference: 'category' }],
+                sortBy: [{ reference: 'date', direction: SortByDirection.ASC }],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                itemsMap,
+            );
+
+            const result = builder.toSql();
+
+            // Should contain the pivot table calculations CTE
+            expect(result.toLowerCase()).toContain(
+                'pivot_table_calculations as',
+            );
+
+            // Should have inlined the ${impressions} reference with its SQL
+            expect(result).toContain('COALESCE');
+
+            // Should have compiled pivot_offset to window function SQL
+            expect(result).toContain('LAG');
+            expect(result).toContain('PARTITION BY "column_index"');
+            expect(result).toContain('ORDER BY "row_index"');
+
+            // Should have the final calculation as impressions_delta_any
+            expect(result).toContain('"impressions_delta_any"');
+
+            // Verify that ${impressions} reference has been replaced
+            expect(result).not.toContain('${impressions}');
+
+            // Verify that pivot_offset has been compiled (no raw function remains)
+            expect(result).not.toContain('pivot_offset(');
+        });
+
+        test('Should handle nested table calculation references with pivot functions', () => {
+            const itemsMap: ItemsMap = {
+                revenue: {
+                    name: 'revenue',
+                    label: 'Revenue',
+                    fieldType: FieldType.METRIC,
+                    table: 'orders',
+                    tableLabel: 'Orders',
+                    type: MetricType.SUM,
+                    sql: '${TABLE}.revenue',
+                    hidden: false,
+                },
+                base_metric: {
+                    name: 'base_metric',
+                    displayName: 'Base Metric',
+                    sql: '${revenue} * 1.1',
+                },
+                adjusted_metric: {
+                    name: 'adjusted_metric',
+                    displayName: 'Adjusted Metric',
+                    sql: '${base_metric} + 100',
+                },
+                pivot_calc: {
+                    name: 'pivot_calc',
+                    displayName: 'Pivot Calculation',
+                    sql: 'pivot_offset(${adjusted_metric}, -1)',
+                },
+            };
+
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'pivot_calc',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                groupByColumns: [{ reference: 'category' }],
+                sortBy: [{ reference: 'date', direction: SortByDirection.ASC }],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                itemsMap,
+            );
+
+            const result = builder.toSql();
+
+            // Should have compiled pivot_offset to window function SQL
+            expect(result).toContain('LAG');
+            expect(result).toContain('PARTITION BY "column_index"');
+
+            // Table calculations should reference each other by column name, not inline their SQL
+            // pivot_calc should reference "adjusted_metric_any" column
+            expect(result).toContain('"adjusted_metric_any"');
+
+            // Base calcs should have their SQL processed
+            // base_metric: ${revenue} * 1.1
+            expect(result).toContain('* 1.1');
+            // adjusted_metric: ${base_metric} + 100 -> "base_metric_any" + 100
+            expect(result).toContain('"base_metric_any" + 100');
+
+            // Should not contain any unreplaced table calc references
+            expect(result).not.toContain('${base_metric}');
+            expect(result).not.toContain('${adjusted_metric}');
+            expect(result).not.toContain('${revenue}'); // Should be replaced with field alias
+
+            // Should have the final calculation
+            expect(result).toContain('"pivot_calc_any"');
+
+            // Verify that pivot_offset has been compiled (no raw function remains)
+            expect(result).not.toContain('pivot_offset(');
         });
     });
 });
