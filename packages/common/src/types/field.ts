@@ -607,6 +607,15 @@ export enum DimensionType {
     BOOLEAN = 'boolean',
 }
 
+export type CustomSqlSort = {
+    name: string;
+    sql: string;
+};
+
+export type CompiledCustomSqlSort = CustomSqlSort & {
+    compiledSql: string;
+};
+
 export interface Dimension extends Field {
     fieldType: FieldType.DIMENSION;
     type: DimensionType;
@@ -634,6 +643,7 @@ export interface Dimension extends Field {
         filterBy?: boolean;
         segmentBy?: boolean;
     };
+    customSqlSorts?: CustomSqlSort[];
 }
 
 /**
@@ -660,7 +670,10 @@ type CompiledProperties = {
     compiledValueSql?: string; // raw value expression before aggregation (for sum_distinct CTE)
     compiledDistinctKeys?: string[]; // compiled SQL for distinct keys (sum_distinct only)
 };
-export type CompiledDimension = Dimension & CompiledProperties;
+export type CompiledDimension = Dimension &
+    CompiledProperties & {
+        compiledCustomSqlSorts?: CompiledCustomSqlSort[];
+    };
 export type CompiledMetric = Metric & CompiledProperties;
 
 /**
