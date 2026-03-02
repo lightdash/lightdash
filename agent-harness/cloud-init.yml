@@ -305,6 +305,7 @@ runcmd:
       export PATH="/home/lightdash/.local/share/fnm:$PATH"
       eval "$(fnm env --shell bash)"
       npm install -g @anthropic-ai/claude-code
+      claude install --yes
     '
 
   # -- Install happy-coder (mobile Claude Code client) -------------------------
