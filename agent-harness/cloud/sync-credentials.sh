@@ -3,25 +3,25 @@
 # Credentials are written to ~/.credentials which is sourced in interactive bash sessions.
 #
 # Usage:
-#   ./agent-harness/sync-credentials.sh <server> [options]
+#   ./agent-harness/cloud/sync-credentials.sh <server> [options]
 #
 # Arguments:
 #   server              IP address, hostname, or Tailscale hostname
 #
 # Options:
-#   --env FILE          Path to credentials file (default: agent-harness/credentials.env)
+#   --env FILE          Path to credentials file (default: agent-harness/cloud/credentials.env)
 #   --user USER         SSH user (default: root)
 #   --help              Show this help message
 #
 # Setup:
-#   1. Copy the template:  cp agent-harness/credentials.env.template agent-harness/credentials.env
+#   1. Copy the template:  cp agent-harness/cloud/credentials.env.template agent-harness/cloud/credentials.env
 #   2. Edit credentials.env with your API keys
-#   3. Run this script:    ./agent-harness/sync-credentials.sh <server-ip>
+#   3. Run this script:    ./agent-harness/cloud/sync-credentials.sh <server-ip>
 #
 # Examples:
-#   ./agent-harness/sync-credentials.sh 1.2.3.4
-#   ./agent-harness/sync-credentials.sh my-server.tail1234.ts.net
-#   ./agent-harness/sync-credentials.sh 1.2.3.4 --env ~/my-credentials.env
+#   ./agent-harness/cloud/sync-credentials.sh 1.2.3.4
+#   ./agent-harness/cloud/sync-credentials.sh my-server.tail1234.ts.net
+#   ./agent-harness/cloud/sync-credentials.sh 1.2.3.4 --env ~/my-credentials.env
 #
 set -euo pipefail
 
@@ -75,7 +75,7 @@ if [[ -z "$SERVER" ]]; then
     echo "Usage: $0 <server> [options]"
     echo ""
     echo "Setup:"
-    echo "  1. cp agent-harness/credentials.env.template agent-harness/credentials.env"
+    echo "  1. cp agent-harness/cloud/credentials.env.template agent-harness/cloud/credentials.env"
     echo "  2. Edit credentials.env with your API keys"
     echo "  3. $0 <server-ip>"
     echo ""
@@ -88,7 +88,7 @@ if [[ ! -f "$ENV_FILE" ]]; then
     error "Credentials file not found: $ENV_FILE"
     echo ""
     echo "Create it from the template:"
-    echo "  cp agent-harness/credentials.env.template agent-harness/credentials.env"
+    echo "  cp agent-harness/cloud/credentials.env.template agent-harness/cloud/credentials.env"
     echo "  # Edit credentials.env with your API keys"
     exit 1
 fi

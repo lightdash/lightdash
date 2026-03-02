@@ -115,13 +115,13 @@ Once cloud-init completes, sync your API keys from your local machine:
 
 ```bash
 # 1. Create your credentials file from the template
-cp agent-harness/credentials.env.template agent-harness/credentials.env
+cp agent-harness/cloud/credentials.env.template agent-harness/cloud/credentials.env
 
 # 2. Edit with your API keys (ANTHROPIC_AUTH_TOKEN is required)
 #    Get yours by running: claude setup-token
 
 # 3. Sync credentials to the server
-./agent-harness/sync-credentials.sh <server-ip>
+./agent-harness/cloud/sync-credentials.sh <server-ip>
 ```
 
 The credentials are stored in `/home/lightdash/.credentials` (mode 600) and automatically loaded in interactive bash sessions.
@@ -289,23 +289,23 @@ Creates a Hetzner Cloud server with cloud-init. Handles SSH key setup, API token
 ./agent-harness/cloud/hetzner/create.sh --help             # Show all options
 ```
 
-### `sync-credentials.sh <server> [options]`
+### `cloud/sync-credentials.sh <server> [options]`
 
 Syncs credentials from `credentials.env` to the server via SSH. Provider-agnostic (works with any server that has SSH).
 
 ```bash
 # 1. Create credentials file
-cp agent-harness/credentials.env.template agent-harness/credentials.env
+cp agent-harness/cloud/credentials.env.template agent-harness/cloud/credentials.env
 # Edit credentials.env with your API keys
 
 # 2. Sync to server
-./agent-harness/sync-credentials.sh 1.2.3.4
-./agent-harness/sync-credentials.sh my-server.tail1234.ts.net  # Works with Tailscale hostnames too
+./agent-harness/cloud/sync-credentials.sh 1.2.3.4
+./agent-harness/cloud/sync-credentials.sh my-server.tail1234.ts.net  # Works with Tailscale hostnames too
 ```
 
 | Option | Description |
 |--------|-------------|
-| `--env FILE` | Path to credentials file (default: `agent-harness/credentials.env`) |
+| `--env FILE` | Path to credentials file (default: `agent-harness/cloud/credentials.env`) |
 | `--user USER` | SSH user (default: root) |
 
 ### `cloud/hetzner/secure.sh <server-name>`

@@ -21,9 +21,9 @@
 #   ./agent-harness/cloud/hetzner/create.sh --name my-agents --type cpx52 --location ash
 #
 # After creation, sync credentials:
-#   cp agent-harness/credentials.env.template agent-harness/credentials.env
+#   cp agent-harness/cloud/credentials.env.template agent-harness/cloud/credentials.env
 #   # Edit credentials.env with your ANTHROPIC_AUTH_TOKEN
-#   ./agent-harness/sync-credentials.sh <server-ip>
+#   ./agent-harness/cloud/sync-credentials.sh <server-ip>
 #
 set -euo pipefail
 
@@ -206,7 +206,7 @@ echo "  Location: $LOCATION"
 echo "  SSH Key:  $SSH_KEY_NAME"
 echo ""
 
-CLOUD_INIT_FILE="$SCRIPT_DIR/../../cloud-init.yml"
+CLOUD_INIT_FILE="$SCRIPT_DIR/../cloud-init.yml"
 if [[ ! -f "$CLOUD_INIT_FILE" ]]; then
     error "cloud-init.yml not found at: $CLOUD_INIT_FILE"
     exit 1
@@ -248,9 +248,9 @@ echo "║  Monitor progress:                                                    
 echo "║    ssh root@$SERVER_IP 'tail -f /var/log/cloud-init-output.log'"
 echo "║                                                                              ║"
 echo "║  Once complete, sync credentials:                                              ║"
-echo "║    cp agent-harness/credentials.env.template agent-harness/credentials.env   ║"
+echo "║    cp agent-harness/cloud/credentials.env.template agent-harness/cloud/credentials.env"
 echo "║    # Edit credentials.env with your ANTHROPIC_AUTH_TOKEN                        ║"
-echo "║    ./agent-harness/sync-credentials.sh $SERVER_IP"
+echo "║    ./agent-harness/cloud/sync-credentials.sh $SERVER_IP"
 echo "║                                                                              ║"
 echo "║  Then SSH in and start agents:                                               ║"
 echo "║    ssh lightdash@<tailscale-hostname>                                        ║"
@@ -297,9 +297,9 @@ if [[ "$WAIT_RESPONSE" =~ ^[Yy]$ ]]; then
     success "Cloud-init complete!"
     echo ""
     echo "Now sync your credentials:"
-    echo "  cp agent-harness/credentials.env.template agent-harness/credentials.env"
+    echo "  cp agent-harness/cloud/credentials.env.template agent-harness/cloud/credentials.env"
     echo "  # Edit credentials.env with your ANTHROPIC_AUTH_TOKEN"
-    echo "  ./agent-harness/sync-credentials.sh $SERVER_IP"
+    echo "  ./agent-harness/cloud/sync-credentials.sh $SERVER_IP"
     echo ""
     echo "Then optionally set up Tailscale and secure SSH:"
     echo "  ssh lightdash@$SERVER_IP 'sudo tailscale up --ssh'"
