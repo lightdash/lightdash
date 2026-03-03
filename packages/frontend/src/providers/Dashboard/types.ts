@@ -68,7 +68,7 @@ export type DashboardContextType = {
         filter: DashboardFilterRule,
         index: number,
         isTemporary: boolean,
-        isEditMode: boolean,
+        isInEditMode: boolean,
     ) => void;
     removeDimensionDashboardFilter: (
         index: number,

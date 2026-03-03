@@ -266,7 +266,7 @@ export const DateZoom: FC<Props> = ({ isEditMode }) => {
                                 ) : null
                             }
                         >
-                            Default
+                            None
                         </Menu.Item>
 
                         {dateZoomGranularities.map((granularity) => (

@@ -96,13 +96,16 @@ const DashboardProvider: React.FC<
     const navigate = useNavigate();
     const { showToastWarning } = useToaster();
 
-    const { dashboardUuid, tabUuid } = useParams<{
+    const { dashboardUuid, tabUuid, mode } = useParams<{
         dashboardUuid: string;
         tabUuid?: string;
+        mode?: string;
     }>() as {
         dashboardUuid: string;
         tabUuid?: string;
+        mode?: string;
     };
+    const isEditMode = mode === 'edit';
 
     const {
         mutateAsync: versionRefresh,
@@ -871,13 +874,18 @@ const DashboardProvider: React.FC<
         }
     });
 
-    // Apply default date zoom granularity when dashboard loads (if no URL override)
+    // Apply default date zoom granularity when dashboard loads (if no URL override).
+    // Uses a ref for `search` so URL changes don't re-trigger this effect —
+    // it should only fire when the configured default changes (initial load + after saves).
+    const searchRef = useRef(search);
+    searchRef.current = search;
     useEffect(() => {
+        if (isEditMode) return;
         if (
             dashboard?.config?.defaultDateZoomGranularity &&
             !isDateZoomDisabled
         ) {
-            const searchParams = new URLSearchParams(search);
+            const searchParams = new URLSearchParams(searchRef.current);
             const dateZoomParam = searchParams.get('dateZoom');
             // Only apply default if no URL override is present
             if (!dateZoomParam) {
@@ -889,7 +897,7 @@ const DashboardProvider: React.FC<
     }, [
         dashboard?.config?.defaultDateZoomGranularity,
         isDateZoomDisabled,
-        search,
+        isEditMode,
         setDateZoomGranularity,
     ]);
 
@@ -1071,7 +1079,7 @@ const DashboardProvider: React.FC<
             item: DashboardFilterRule,
             index: number,
             isTemporary: boolean,
-            isEditMode: boolean,
+            isInEditMode: boolean,
         ) => {
             const setFunction = isTemporary
                 ? setDashboardTemporaryFilters
@@ -1085,7 +1093,7 @@ const DashboardProvider: React.FC<
 
             setFunction((previousFilters) => {
                 if (!isTemporary) {
-                    if (isEditMode) {
+                    if (isInEditMode) {
                         removeSavedFilterOverride(item);
                     } else {
                         const isReverted =
