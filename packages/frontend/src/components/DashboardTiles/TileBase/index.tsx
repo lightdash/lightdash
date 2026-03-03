@@ -331,31 +331,29 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                             withinPortal
                             maw={400}
                         >
-                            <Group gap={4} wrap="nowrap" style={{ width: '100%' }}>
-                                {isEditMode ||
-                                tile.type === DashboardTileTypes.MARKDOWN ? (
-                                    <Text
-                                        className={styles.tileTitle}
-                                        data-hidden={hideTitle}
-                                        c="foreground"
-                                    >
-                                        {title}
-                                    </Text>
-                                ) : (
-                                    <Text
-                                        component="a"
-                                        className={styles.tileTitle}
-                                        data-hidden={hideTitle}
-                                        data-hovered={titleHovered}
-                                        href={titleHref}
-                                        onMouseEnter={() => setTitleHovered(true)}
-                                        onMouseLeave={() => setTitleHovered(false)}
-                                        target="_blank"
-                                    >
-                                        {title}
-                                    </Text>
-                                )}
-                            </Group>
+                            {isEditMode ||
+                            tile.type === DashboardTileTypes.MARKDOWN ? (
+                                <Text
+                                    className={styles.tileTitle}
+                                    data-hidden={hideTitle}
+                                    c="foreground"
+                                >
+                                    {title}
+                                </Text>
+                            ) : (
+                                <Text
+                                    component="a"
+                                    className={styles.tileTitle}
+                                    data-hidden={hideTitle}
+                                    data-hovered={titleHovered}
+                                    href={titleHref}
+                                    onMouseEnter={() => setTitleHovered(true)}
+                                    onMouseLeave={() => setTitleHovered(false)}
+                                    target="_blank"
+                                >
+                                    {title}
+                                </Text>
+                            )}
                         </Tooltip>
                     )}
                 </Group>

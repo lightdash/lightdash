@@ -92,7 +92,7 @@ export class SearchModel {
             .select(
                 `${ContentVerificationTableName}.content_uuid`,
                 `${ContentVerificationTableName}.verified_at`,
-                `${UserTableName}.user_uuid`,
+                `${ContentVerificationTableName}.verified_by_user_uuid`,
                 `${UserTableName}.first_name`,
                 `${UserTableName}.last_name`,
             );
@@ -102,7 +102,7 @@ export class SearchModel {
                 row.content_uuid,
                 {
                     verifiedBy: {
-                        userUuid: row.user_uuid,
+                        userUuid: row.verified_by_user_uuid,
                         firstName: row.first_name ?? '',
                         lastName: row.last_name ?? '',
                     },
