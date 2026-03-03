@@ -751,6 +751,11 @@ program
     )
     .option('--public', 'Create new spaces as public instead of private', false)
     .option(
+        '--concurrency <number>',
+        'Number of parallel uploads (default: 1)',
+        '1',
+    )
+    .option(
         '--include-charts',
         'Include charts updates when uploading dashboards',
         false,
