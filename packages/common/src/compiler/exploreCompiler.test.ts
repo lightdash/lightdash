@@ -1,6 +1,12 @@
 import { SupportedDbtAdapter } from '../types/dbt';
 import { CompileError } from '../types/errors';
-import { DimensionType, FieldType, friendlyName } from '../types/field';
+import { type Table } from '../types/explore';
+import {
+    DimensionType,
+    FieldType,
+    friendlyName,
+    type Dimension,
+} from '../types/field';
 import {
     ExploreCompiler,
     parseAllReferences,
@@ -1075,5 +1081,255 @@ describe('sqlContainsAggregation', () => {
         test('should return false for null', () => {
             expect(sqlContainsAggregation(null)).toBe(false);
         });
+    });
+});
+
+describe('Compiled custom SQL sorts', () => {
+    const makeTable = (dimensions: Record<string, Dimension>): Table => ({
+        name: 'a',
+        label: 'a',
+        database: 'database',
+        schema: 'schema',
+        sqlTable: 'test.table',
+        sqlWhere: undefined,
+        dimensions,
+        metrics: {},
+        lineageGraph: {},
+        groupLabel: undefined,
+    });
+
+    const baseDimension: Dimension = {
+        fieldType: FieldType.DIMENSION,
+        type: DimensionType.STRING,
+        name: 'first_name',
+        label: 'First name',
+        table: 'a',
+        tableLabel: 'a',
+        sql: '${TABLE}.first_name',
+        hidden: false,
+    };
+
+    const lastNameDimension: Dimension = {
+        fieldType: FieldType.DIMENSION,
+        type: DimensionType.STRING,
+        name: 'last_name',
+        label: 'Last name',
+        table: 'a',
+        tableLabel: 'a',
+        sql: '${TABLE}.last_name',
+        hidden: false,
+    };
+
+    test('should compile dimension with customSqlSorts referencing other dimensions', () => {
+        const dimensionWithSorts: Dimension = {
+            ...baseDimension,
+            customSqlSorts: [
+                {
+                    name: 'by_last_name',
+                    sql: '${last_name}',
+                },
+            ],
+        };
+
+        const tables: Record<string, Table> = {
+            a: makeTable({
+                first_name: dimensionWithSorts,
+                last_name: lastNameDimension,
+            }),
+        };
+
+        const result = compiler.compileDimension(
+            dimensionWithSorts,
+            tables,
+            [],
+        );
+
+        expect(result.compiledCustomSqlSorts).toEqual([
+            {
+                name: 'by_last_name',
+                sql: '${last_name}',
+                compiledSql: '("a".last_name)',
+            },
+        ]);
+    });
+
+    test('should compile dimension with customSqlSorts using TABLE reference', () => {
+        const dimensionWithSorts: Dimension = {
+            ...baseDimension,
+            customSqlSorts: [
+                {
+                    name: 'by_uppercase',
+                    sql: 'UPPER(${TABLE}.first_name)',
+                },
+            ],
+        };
+
+        const tables: Record<string, Table> = {
+            a: makeTable({
+                first_name: dimensionWithSorts,
+            }),
+        };
+
+        const result = compiler.compileDimension(
+            dimensionWithSorts,
+            tables,
+            [],
+        );
+
+        expect(result.compiledCustomSqlSorts).toEqual([
+            {
+                name: 'by_uppercase',
+                sql: 'UPPER(${TABLE}.first_name)',
+                compiledSql: 'UPPER("a".first_name)',
+            },
+        ]);
+    });
+
+    test('should not include compiledCustomSqlSorts when dimension has no customSqlSorts', () => {
+        const tables: Record<string, Table> = {
+            a: makeTable({
+                first_name: baseDimension,
+            }),
+        };
+
+        const result = compiler.compileDimension(baseDimension, tables, []);
+
+        expect(result.compiledCustomSqlSorts).toBeUndefined();
+        expect(result.compiledSql).toBe('"a".first_name');
+    });
+
+    test('should merge table references from custom sort expressions', () => {
+        const tableBDimension: Dimension = {
+            fieldType: FieldType.DIMENSION,
+            type: DimensionType.STRING,
+            name: 'sort_key',
+            label: 'Sort key',
+            table: 'b',
+            tableLabel: 'b',
+            sql: '${TABLE}.sort_key',
+            hidden: false,
+        };
+
+        const dimensionWithCrossTableSort: Dimension = {
+            ...baseDimension,
+            customSqlSorts: [
+                {
+                    name: 'by_sort_key',
+                    sql: '${b.sort_key}',
+                },
+            ],
+        };
+
+        const tables: Record<string, Table> = {
+            a: makeTable({
+                first_name: dimensionWithCrossTableSort,
+            }),
+            b: {
+                name: 'b',
+                label: 'b',
+                database: 'database',
+                schema: 'schema',
+                sqlTable: 'test.other_table',
+                sqlWhere: undefined,
+                dimensions: {
+                    sort_key: tableBDimension,
+                },
+                metrics: {},
+                lineageGraph: {},
+                groupLabel: undefined,
+            },
+        };
+
+        const result = compiler.compileDimension(
+            dimensionWithCrossTableSort,
+            tables,
+            [],
+        );
+
+        expect(result.compiledCustomSqlSorts).toEqual([
+            {
+                name: 'by_sort_key',
+                sql: '${b.sort_key}',
+                compiledSql: '("b".sort_key)',
+            },
+        ]);
+        // Table references should include both 'a' (from the dimension itself) and 'b' (from the custom sort)
+        expect(result.tablesReferences).toContain('a');
+        expect(result.tablesReferences).toContain('b');
+    });
+
+    test('should compile multiple custom SQL sorts', () => {
+        const dimensionWithMultipleSorts: Dimension = {
+            ...baseDimension,
+            customSqlSorts: [
+                {
+                    name: 'by_last_name',
+                    sql: '${last_name}',
+                },
+                {
+                    name: 'by_uppercase',
+                    sql: 'UPPER(${TABLE}.first_name)',
+                },
+            ],
+        };
+
+        const tables: Record<string, Table> = {
+            a: makeTable({
+                first_name: dimensionWithMultipleSorts,
+                last_name: lastNameDimension,
+            }),
+        };
+
+        const result = compiler.compileDimension(
+            dimensionWithMultipleSorts,
+            tables,
+            [],
+        );
+
+        expect(result.compiledCustomSqlSorts).toHaveLength(2);
+        expect(result.compiledCustomSqlSorts![0]).toEqual({
+            name: 'by_last_name',
+            sql: '${last_name}',
+            compiledSql: '("a".last_name)',
+        });
+        expect(result.compiledCustomSqlSorts![1]).toEqual({
+            name: 'by_uppercase',
+            sql: 'UPPER(${TABLE}.first_name)',
+            compiledSql: 'UPPER("a".first_name)',
+        });
+    });
+
+    test('should allow custom sort SQL to reference its own dimension', () => {
+        const statusDimension: Dimension = {
+            fieldType: FieldType.DIMENSION,
+            type: DimensionType.STRING,
+            name: 'status',
+            label: 'Status',
+            table: 'a',
+            tableLabel: 'a',
+            sql: '${TABLE}.status',
+            hidden: false,
+            customSqlSorts: [
+                {
+                    name: 'lifecycle_stage',
+                    sql: "CASE WHEN ${status} = 'placed' THEN 1 WHEN ${status} = 'shipped' THEN 2 WHEN ${status} = 'completed' THEN 3 ELSE 0 END",
+                },
+            ],
+        };
+
+        const tables: Record<string, Table> = {
+            a: makeTable({ status: statusDimension }),
+        };
+
+        const result = compiler.compileDimension(statusDimension, tables, []);
+
+        expect(result.compiledCustomSqlSorts).toEqual([
+            {
+                name: 'lifecycle_stage',
+                sql: "CASE WHEN ${status} = 'placed' THEN 1 WHEN ${status} = 'shipped' THEN 2 WHEN ${status} = 'completed' THEN 3 ELSE 0 END",
+                compiledSql:
+                    'CASE WHEN ("a".status) = \'placed\' THEN 1 WHEN ("a".status) = \'shipped\' THEN 2 WHEN ("a".status) = \'completed\' THEN 3 ELSE 0 END',
+            },
+        ]);
     });
 });

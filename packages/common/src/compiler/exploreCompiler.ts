@@ -17,6 +17,7 @@ import {
     MetricType,
     type CompiledCustomDimension,
     type CompiledCustomSqlDimension,
+    type CompiledCustomSqlSort,
     type CompiledDimension,
     type CompiledMetric,
     type CustomDimension,
@@ -1061,6 +1062,30 @@ export class ExploreCompiler {
 
         const compiledSql = compiledDimension.sql;
 
+        // Compile custom SQL sorts
+        // Uses a dedicated method that allows self-references (e.g., ${status}
+        // in a custom sort defined on the "status" dimension is valid).
+        let compiledCustomSqlSorts: CompiledCustomSqlSort[] | undefined;
+        if (dimension.customSqlSorts && dimension.customSqlSorts.length > 0) {
+            compiledCustomSqlSorts = dimension.customSqlSorts.map(
+                (customSort) => {
+                    const compiled = this.compileCustomSortSql(
+                        dimension,
+                        customSort.sql,
+                        tables,
+                    );
+                    // Merge table references from custom sorts
+                    compiled.tablesReferences.forEach((ref) => {
+                        compiledDimension.tablesReferences.add(ref);
+                    });
+                    return {
+                        ...customSort,
+                        compiledSql: compiled.sql,
+                    };
+                },
+            );
+        }
+
         // Extract parameter references from both SQL and format string
         const parameterReferences = getParameterReferencesFromSqlAndFormat(
             compiledSql,
@@ -1084,6 +1109,7 @@ export class ExploreCompiler {
                 ? { tablesAnyAttributes }
                 : {}),
             ...(parameterReferences.length > 0 ? { parameterReferences } : {}),
+            ...(compiledCustomSqlSorts ? { compiledCustomSqlSorts } : {}),
         };
     }
 
@@ -1104,6 +1130,33 @@ export class ExploreCompiler {
                 );
             }
             // eslint-disable-next-line @typescript-eslint/no-use-before-define
+            const compiledReference = this.compileDimensionReference(
+                p1,
+                tables,
+                dimension.table,
+                { fieldType: 'dimension', fieldName: dimension.name },
+            );
+            tablesReferences = new Set([
+                ...tablesReferences,
+                ...compiledReference.tablesReferences,
+            ]);
+            return compiledReference.sql;
+        });
+        return { sql, tablesReferences };
+    }
+
+    /**
+     * Compile a custom sort SQL expression for a dimension.
+     * Unlike compileDimensionSql, this allows references to the dimension itself
+     * (e.g., ${status} in a custom sort on the "status" dimension).
+     */
+    compileCustomSortSql(
+        dimension: Dimension,
+        sortSql: string,
+        tables: Record<string, Table>,
+    ): { sql: string; tablesReferences: Set<string> } {
+        let tablesReferences = new Set([dimension.table]);
+        const sql = sortSql.replace(lightdashVariablePattern, (_, p1) => {
             const compiledReference = this.compileDimensionReference(
                 p1,
                 tables,
