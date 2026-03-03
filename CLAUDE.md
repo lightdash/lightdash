@@ -106,6 +106,32 @@ pnpm -F backend rollback-last
 -   Authorization logic with CASL
 -   Published as `@lightdash/common`
 
+## Authorization & Custom Roles
+
+**When adding a new permission scope**, you must update all the relevant ability layers:
+
+1. **`packages/common/src/authorization/types.ts`** - Add the new CASL subject name to `CaslSubjectNames`
+2. **`packages/common/src/authorization/scopes.ts`** - Define the scope (name, description, group, conditions)
+3. **`packages/common/src/authorization/projectMemberAbility.ts`** - Add to the appropriate system role function (e.g., `developer`, `admin`)
+4. **`packages/common/src/authorization/organizationMemberAbility.ts`** - Add to org-level roles if needed (note: org-level abilities are additive and **cannot** be restricted by project-level custom roles)
+5. **`packages/common/src/authorization/roleToScopeMapping.ts`** - Add to the appropriate system role in `BASE_ROLE_SCOPES` (must stay in sync with `projectMemberAbility.ts`)
+6. **`packages/common/src/authorization/serviceAccountAbility.ts`** - Add to `ORG_ADMIN` (or other service account scopes) if service accounts need this permission. **Forgetting this breaks CI/CD pipelines.**
+
+**Key files:**
+
+-   `projectMemberAbility.ts` - System role abilities at project level
+-   `organizationMemberAbility.ts` - System role abilities at org level
+-   `serviceAccountAbility.ts` - Service account abilities (enterprise, used for CI/CD)
+-   `roleToScopeMapping.ts` - Maps system roles to scopes (used by custom roles system and parity tests)
+-   `scopeAbilityBuilder.ts` - Builds CASL abilities from scope lists (custom roles path)
+-   `index.ts` - Main ability builder that chooses between system role vs custom role path
+
+**Important behavior:**
+
+-   CASL abilities are **additive** - org-level permissions cannot be revoked by project-level custom roles
+-   If a permission should be restrictable via custom roles, do NOT add it to org-level developer/editor abilities
+-   The parity test (`roleToScopeParity.test.ts`) ensures `projectMemberAbility.ts` and `roleToScopeMapping.ts` stay in sync
+
 ## TypeScript Project References
 
 **Important**: After SDK build changes, packages use TypeScript project references for proper IDE support:
