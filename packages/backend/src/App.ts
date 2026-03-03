@@ -66,6 +66,7 @@ import { sessionAccountMiddleware } from './middlewares/accountMiddleware';
 import { jwtAuthMiddleware } from './middlewares/jwtAuthMiddleware';
 import { ModelProviderMap, ModelRepository } from './models/ModelRepository';
 import { postHogClient } from './postHog';
+import PrometheusMetrics from './prometheus/PrometheusMetrics';
 import { apiV1Router } from './routers/apiV1Router';
 import {
     oauthAuthorizationServerHandler,
@@ -80,7 +81,6 @@ import {
 } from './services/ServiceRepository';
 import { UtilProviderMap, UtilRepository } from './utils/UtilRepository';
 import { VERSION } from './version';
-import PrometheusMetrics from './prometheus/PrometheusMetrics';
 
 // We need to override this interface to have our user typing
 declare global {
@@ -384,7 +384,8 @@ export default class App {
             if (this.lightdashConfig.security.contentSecurityPolicy.reportUri) {
                 reportUris.push(
                     new URL(
-                        this.lightdashConfig.security.contentSecurityPolicy.reportUri,
+                        this.lightdashConfig.security.contentSecurityPolicy
+                            .reportUri,
                     ),
                 );
             }

@@ -7417,10 +7417,10 @@ export class ProjectService extends BaseService {
     }
 
     async replaceProjectDefaults({
-                                     user,
-                                     projectUuid,
-                                     defaults,
-                                 }: {
+        user,
+        projectUuid,
+        defaults,
+    }: {
         user: SessionUser;
         projectUuid: string;
         defaults: ProjectDefaults;
