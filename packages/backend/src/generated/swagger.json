@@ -26256,28 +26256,46 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "ApiAddDeployBatchRequest": {
+            "Tsoa.TypeStringLiteral": {
+                "type": "string",
+                "enum": [
+                    "string",
+                    "boolean",
+                    "double",
+                    "float",
+                    "file",
+                    "integer",
+                    "long",
+                    "enum",
+                    "array",
+                    "datetime",
+                    "date",
+                    "binary",
+                    "buffer",
+                    "byte",
+                    "void",
+                    "object",
+                    "any",
+                    "refEnum",
+                    "refObject",
+                    "refAlias",
+                    "nestedObjectLiteral",
+                    "union",
+                    "intersection",
+                    "undefined"
+                ]
+            },
+            "Tsoa.AnyType": {
                 "properties": {
-                    "batchNumber": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "explores": {
-                        "items": {
-                            "anyOf": [
-                                {
-                                    "$ref": "#/components/schemas/Explore"
-                                },
-                                {
-                                    "$ref": "#/components/schemas/ExploreError"
-                                }
-                            ]
-                        },
-                        "type": "array"
+                    "dataType": {
+                        "type": "string",
+                        "enum": ["any"],
+                        "nullable": false
                     }
                 },
-                "required": ["batchNumber", "explores"],
-                "type": "object"
+                "required": ["dataType"],
+                "type": "object",
+                "additionalProperties": true
             },
             "DeploySessionStatus": {
                 "enum": ["uploading", "finalizing", "completed", "failed"],
@@ -45144,7 +45162,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/ApiAddDeployBatchRequest"
+                                "$ref": "#/components/schemas/Tsoa.AnyType"
                             }
                         }
                     }
