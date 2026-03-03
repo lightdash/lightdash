@@ -1,3 +1,10 @@
+# [0.2557.0](https://github.com/lightdash/lightdash/compare/0.2556.3...0.2557.0) (2026-03-03)
+
+
+### Features
+
+* add project-level defaults for case sensitivity configuration ([#20798](https://github.com/lightdash/lightdash/issues/20798)) ([2c1a9ee](https://github.com/lightdash/lightdash/commit/2c1a9ee3f866cfe6ebe54f56ded26b90180608c4))
+
 ## [0.2556.3](https://github.com/lightdash/lightdash/compare/0.2556.2...0.2556.3) (2026-03-03)
 
 
