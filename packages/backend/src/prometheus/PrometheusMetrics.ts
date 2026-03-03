@@ -549,37 +549,35 @@ export default class PrometheusMetrics {
         }
 
         try {
-            // Validate and sanitize the config path to prevent path traversal attacks
-            const sanitizedPath = path
-                .normalize(configPath)
-                .replace(/^(\.\.[/\\])+/, '');
-            const fullPath = path.isAbsolute(sanitizedPath)
-                ? sanitizedPath
-                : path.join(process.cwd(), sanitizedPath);
+            // Validate the config path to prevent path traversal attacks
+            // Resolve to absolute path first, then validate against base directory
+            const resolvedPath = path.resolve(process.cwd(), configPath);
+            const basePath = path.resolve(process.cwd());
 
             // Ensure the resolved path doesn't escape the working directory
-            const resolvedPath = path.resolve(fullPath);
-            const basePath = path.resolve(process.cwd());
-            if (!resolvedPath.startsWith(basePath)) {
+            if (
+                !resolvedPath.startsWith(basePath + path.sep) &&
+                resolvedPath !== basePath
+            ) {
                 throw new Error(
                     'Invalid configuration path: path traversal detected',
                 );
             }
 
-            if (!fs.existsSync(fullPath)) {
+            if (!fs.existsSync(resolvedPath)) {
                 Logger.warn(
-                    `PrometheusEventMetricManager config file not found: ${fullPath}`,
+                    `PrometheusEventMetricManager config file not found: ${resolvedPath}`,
                 );
                 return;
             }
 
-            const configContent = fs.readFileSync(fullPath, 'utf-8');
+            const configContent = fs.readFileSync(resolvedPath, 'utf-8');
             let jsonConfig: unknown;
             try {
                 jsonConfig = JSON.parse(configContent);
             } catch (parseError) {
                 Logger.error(
-                    `Failed to parse PrometheusEventMetricManager config JSON from ${fullPath}`,
+                    `Failed to parse PrometheusEventMetricManager config JSON from ${resolvedPath}`,
                     parseError,
                 );
                 return;
@@ -589,7 +587,7 @@ export default class PrometheusMetrics {
                 prometheusEventMetricsConfigSchema.safeParse(jsonConfig);
             if (!parsedConfig.success) {
                 Logger.error(
-                    `Invalid PrometheusEventMetricManager config from ${fullPath}`,
+                    `Invalid PrometheusEventMetricManager config from ${resolvedPath}`,
                     {
                         errors: parsedConfig.error.errors.map((issue) => ({
                             message: issue.message,
@@ -615,7 +613,7 @@ export default class PrometheusMetrics {
             this.eventMetricManager.initialize();
 
             Logger.info(
-                `PrometheusEventMetricManager loaded from ${fullPath} with ${config.metrics.length} metrics`,
+                `PrometheusEventMetricManager loaded from ${resolvedPath} with ${config.metrics.length} metrics`,
             );
         } catch (error) {
             Logger.error(
