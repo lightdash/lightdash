@@ -14,6 +14,7 @@ import {
     IconHistory,
     IconIdBadge2,
     IconKey,
+    IconLayersIntersect,
     IconLock,
     IconPalette,
     IconPlug,
@@ -479,7 +480,7 @@ const Settings: FC = () => {
             ) &&
             !matchPath(
                 {
-                    path: '/generalSettings/projectManagement/:projectUuid/preAggregateAudit',
+                    path: '/generalSettings/projectManagement/:projectUuid/preAggregates/*',
                 },
                 location.pathname,
             ) &&
@@ -840,15 +841,41 @@ const Settings: FC = () => {
 
                                     {health.preAggregates.enabled && (
                                         <RouterNavLink
-                                            label="Pre-aggregate analytics"
+                                            label="Pre-aggregates"
                                             exact
-                                            to={`/generalSettings/projectManagement/${project.projectUuid}/preAggregateAudit`}
+                                            to={`/generalSettings/projectManagement/${project.projectUuid}/preAggregates`}
                                             leftSection={
                                                 <MantineIcon
-                                                    icon={IconReportAnalytics}
+                                                    icon={IconLayersIntersect}
                                                 />
                                             }
-                                        />
+                                            defaultOpened={location.pathname.includes(
+                                                `/projectManagement/${project.projectUuid}/preAggregates`,
+                                            )}
+                                        >
+                                            <RouterNavLink
+                                                label="Materializations"
+                                                exact
+                                                to={`/generalSettings/projectManagement/${project.projectUuid}/preAggregates/materializations`}
+                                                leftSection={
+                                                    <MantineIcon
+                                                        icon={IconDatabase}
+                                                    />
+                                                }
+                                            />
+                                            <RouterNavLink
+                                                label="Analytics"
+                                                exact
+                                                to={`/generalSettings/projectManagement/${project.projectUuid}/preAggregates/audit`}
+                                                leftSection={
+                                                    <MantineIcon
+                                                        icon={
+                                                            IconReportAnalytics
+                                                        }
+                                                    />
+                                                }
+                                            />
+                                        </RouterNavLink>
                                     )}
 
                                     <RouterNavLink

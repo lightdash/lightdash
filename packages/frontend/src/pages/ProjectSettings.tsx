@@ -10,6 +10,7 @@ import CompilationHistory from '../components/CompilationHistory';
 import { DataOps } from '../components/DataOps';
 import { DefaultUserSpaces } from '../components/DefaultUserSpaces';
 import PreAggregateAudit from '../components/PreAggregateAudit';
+import PreAggregateMaterializations from '../components/PreAggregateMaterializations';
 import ProjectUserAccess from '../components/ProjectAccess';
 import { UpdateProjectConnection } from '../components/ProjectConnection';
 import ProjectParameters from '../components/ProjectParameters';
@@ -106,8 +107,32 @@ const ProjectSettings: FC = () => {
                 element: <CompilationHistory projectUuid={projectUuid} />,
             },
             {
-                path: `/preAggregateAudit`,
-                element: <PreAggregateAudit projectUuid={projectUuid} />,
+                path: `/preAggregates`,
+                children: [
+                    {
+                        index: true,
+                        element: (
+                            <Navigate
+                                to={`/generalSettings/projectManagement/${projectUuid}/preAggregates/audit`}
+                                replace
+                            />
+                        ),
+                    },
+                    {
+                        path: `materializations`,
+                        element: (
+                            <PreAggregateMaterializations
+                                projectUuid={projectUuid}
+                            />
+                        ),
+                    },
+                    {
+                        path: `audit`,
+                        element: (
+                            <PreAggregateAudit projectUuid={projectUuid} />
+                        ),
+                    },
+                ],
             },
             {
                 path: '*',
