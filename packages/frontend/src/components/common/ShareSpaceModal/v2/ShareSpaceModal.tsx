@@ -154,7 +154,7 @@ const UserAccessAuditList: FC<UserAccessAuditListProps> = ({
                                     user.email,
                                 )}
                                 {isSessionUser ? (
-                                    <Text fw={400} span c="ldGray.6">
+                                    <Text fw={400} fz="sm" span c="ldGray.6">
                                         {' '}
                                         (you)
                                     </Text>
