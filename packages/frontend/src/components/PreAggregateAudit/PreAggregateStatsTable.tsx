@@ -222,7 +222,7 @@ const PreAggregateStatsTable: FC<Props> = ({
             },
             {
                 id: 'queries',
-                header: 'Queries',
+                header: 'Cache',
                 enableSorting: true,
                 size: 160,
                 accessorFn: (row) => row.hitCount + row.missCount,
@@ -236,8 +236,8 @@ const PreAggregateStatsTable: FC<Props> = ({
                     const { hitCount, missCount } = row.original;
                     return (
                         <Group gap={8} wrap="nowrap">
-                            <Text size="xs" c="ldGray.6" ff="monospace">
-                                {hitCount} hit{hitCount !== 1 ? 's' : ''}
+                            <Text size="xs" c="green.7" ff="monospace">
+                                {hitCount} cached
                             </Text>
                             <Text size="xs" c="ldGray.4" ff="monospace">
                                 /
@@ -245,10 +245,10 @@ const PreAggregateStatsTable: FC<Props> = ({
                             <Text
                                 size="xs"
                                 ff="monospace"
-                                c={missCount > 0 ? 'ldGray.8' : 'ldGray.4'}
+                                c={missCount > 0 ? 'orange.7' : 'ldGray.4'}
                                 fw={missCount > 0 ? 500 : 400}
                             >
-                                {missCount} miss{missCount !== 1 ? 'es' : ''}
+                                {missCount} uncached
                             </Text>
                         </Group>
                     );

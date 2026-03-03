@@ -1353,19 +1353,31 @@ export class SavedChartModel {
         qb: Knex.QueryBuilder,
         projectUuid: string,
     ) {
-        const maxVersionSubquery =
-            '(SELECT MAX(sqv.saved_queries_version_id) FROM saved_queries_versions sqv WHERE sqv.saved_query_id = sq.saved_query_id)';
+        // Use a derived table for MAX version instead of a correlated subquery per row.
+        // This lets PostgreSQL compute all max versions in a single pass (HashAggregate)
+        // rather than doing N index lookups for N charts.
+        const latestVersions = this.database
+            .select('saved_query_id')
+            .max('saved_queries_version_id as max_version_id')
+            .from(SavedChartVersionsTableName)
+            .groupBy('saved_query_id')
+            .as('latest');
+
         return qb.unionAll([
             // First part of UNION - charts in space
             this.database
                 .select({
                     saved_query_uuid: 'sq.saved_query_uuid',
                     name: 'sq.name',
-                    saved_queries_version_id:
-                        this.database.raw(maxVersionSubquery),
+                    saved_queries_version_id: 'latest.max_version_id',
                     dashboard_uuid: 'sq.dashboard_uuid',
                 })
                 .from(`${SavedChartsTableName} as sq`)
+                .innerJoin(
+                    latestVersions,
+                    'latest.saved_query_id',
+                    'sq.saved_query_id',
+                )
                 .innerJoin(
                     `${SpaceTableName} as s`,
                     's.space_id',
@@ -1384,11 +1396,15 @@ export class SavedChartModel {
                 .select({
                     saved_query_uuid: 'sq.saved_query_uuid',
                     name: 'sq.name',
-                    saved_queries_version_id:
-                        this.database.raw(maxVersionSubquery),
+                    saved_queries_version_id: 'latest.max_version_id',
                     dashboard_uuid: 'sq.dashboard_uuid',
                 })
                 .from(`${SavedChartsTableName} as sq`)
+                .innerJoin(
+                    latestVersions,
+                    'latest.saved_query_id',
+                    'sq.saved_query_id',
+                )
                 .innerJoin(
                     `${DashboardsTableName} as d`,
                     'd.dashboard_uuid',

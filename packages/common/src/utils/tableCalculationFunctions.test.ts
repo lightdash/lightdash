@@ -215,7 +215,7 @@ describe('tableCalculationFunctions', () => {
                 );
                 if (result[0].type === TableCalculationFunctionType.OFFSET) {
                     expect(result[0].column).toBe('revenue');
-                    expect(result[0].rowOffset).toBe(-1);
+                    expect(result[0].rowOffset).toBe('-1');
                     expect(result[0].rawSql).toBe('offset(revenue, -1)');
                 }
             });
@@ -232,6 +232,77 @@ describe('tableCalculationFunctions', () => {
                 expect(result[1].type).toBe(
                     TableCalculationFunctionType.OFFSET,
                 );
+            });
+
+            it('should parse offset with dynamic expression', () => {
+                const sql = 'offset(revenue, ${y_oy_calculation_offset})';
+                const result = parseTableCalculationFunctions(sql);
+
+                expect(result).toHaveLength(1);
+                expect(result[0].type).toBe(
+                    TableCalculationFunctionType.OFFSET,
+                );
+                if (result[0].type === TableCalculationFunctionType.OFFSET) {
+                    expect(result[0].column).toBe('revenue');
+                    expect(result[0].rowOffset).toBe(
+                        '${y_oy_calculation_offset}',
+                    );
+                    expect(result[0].rawSql).toBe(
+                        'offset(revenue, ${y_oy_calculation_offset})',
+                    );
+                }
+            });
+
+            it('should parse offset with CASE expression', () => {
+                const sql = `offset(customers, CASE WHEN date_part='Month' THEN 12 ELSE 1 END)`;
+                const result = parseTableCalculationFunctions(sql);
+
+                expect(result).toHaveLength(1);
+                expect(result[0].type).toBe(
+                    TableCalculationFunctionType.OFFSET,
+                );
+                if (result[0].type === TableCalculationFunctionType.OFFSET) {
+                    expect(result[0].column).toBe('customers');
+                    expect(result[0].rowOffset).toBe(
+                        `CASE WHEN date_part='Month' THEN 12 ELSE 1 END`,
+                    );
+                }
+            });
+
+            it('should parse offset with nested parentheses in expression', () => {
+                const sql = 'offset(revenue, COALESCE(offset_var, ABS(-1)))';
+                const result = parseTableCalculationFunctions(sql);
+
+                expect(result).toHaveLength(1);
+                expect(result[0].type).toBe(
+                    TableCalculationFunctionType.OFFSET,
+                );
+                if (result[0].type === TableCalculationFunctionType.OFFSET) {
+                    expect(result[0].column).toBe('revenue');
+                    expect(result[0].rowOffset).toBe(
+                        'COALESCE(offset_var, ABS(-1))',
+                    );
+                    expect(result[0].rawSql).toBe(
+                        'offset(revenue, COALESCE(offset_var, ABS(-1)))',
+                    );
+                }
+            });
+
+            it('should parse multiple offsets with complex expressions', () => {
+                const sql =
+                    'offset(a, ROUND(b * 2)) + offset(c, IF(d > 0, 1, -1))';
+                const result = parseTableCalculationFunctions(sql);
+
+                expect(result).toHaveLength(2);
+                // Functions are parsed last to first
+                if (result[0].type === TableCalculationFunctionType.OFFSET) {
+                    expect(result[0].column).toBe('c');
+                    expect(result[0].rowOffset).toBe('IF(d > 0, 1, -1)');
+                }
+                if (result[1].type === TableCalculationFunctionType.OFFSET) {
+                    expect(result[1].column).toBe('a');
+                    expect(result[1].rowOffset).toBe('ROUND(b * 2)');
+                }
             });
         });
 
@@ -900,6 +971,34 @@ describe('tableCalculationFunctions', () => {
                     );
                     expect(compiled).toBe(
                         'revenue - LAG(revenue, 1) OVER (ORDER BY "date" ASC)',
+                    );
+                });
+
+                it('should compile offset with dynamic expression', () => {
+                    const sql = 'offset(revenue, ${y_oy_calculation_offset})';
+                    const functions = parseTableCalculationFunctions(sql);
+                    const compiled = compiler.compileFunctions(
+                        sql,
+                        functions,
+                        '"date"',
+                    );
+                    // Dynamic offsets compile to LAG (assume looking backwards for period comparisons)
+                    expect(compiled).toBe(
+                        'LAG(revenue, ${y_oy_calculation_offset}) OVER (ORDER BY "date")',
+                    );
+                });
+
+                it('should compile offset with CASE expression', () => {
+                    const sql = `offset(customers, CASE WHEN period='Month' THEN 12 ELSE 1 END)`;
+                    const functions = parseTableCalculationFunctions(sql);
+                    const compiled = compiler.compileFunctions(
+                        sql,
+                        functions,
+                        '"date"',
+                    );
+                    // CASE expressions compile to LAG (assume looking backwards for period comparisons)
+                    expect(compiled).toBe(
+                        `LAG(customers, CASE WHEN period='Month' THEN 12 ELSE 1 END) OVER (ORDER BY "date")`,
                     );
                 });
             });

@@ -1,6 +1,7 @@
 import {
     DimensionType,
     FieldType,
+    FilterOperator,
     MetricType,
     SupportedDbtAdapter,
     TimeFrames,
@@ -77,6 +78,40 @@ const getSourceExplore = (): Explore =>
                         compiledSql: 'count(*)',
                         tablesReferences: ['orders'],
                     },
+                    avg_order_amount: {
+                        fieldType: FieldType.METRIC,
+                        type: MetricType.AVERAGE,
+                        name: 'avg_order_amount',
+                        label: 'Average order amount',
+                        table: 'orders',
+                        tableLabel: 'Orders',
+                        sql: '${TABLE}.amount',
+                        hidden: false,
+                        compiledSql: 'AVG("orders".amount)',
+                        tablesReferences: ['orders'],
+                        filters: [
+                            {
+                                id: 'avg-order-amount-filter',
+                                target: {
+                                    fieldRef: 'status',
+                                },
+                                operator: FilterOperator.EQUALS,
+                                values: ['completed'],
+                            },
+                        ],
+                    },
+                    avg_order_amount__sum: {
+                        fieldType: FieldType.METRIC,
+                        type: MetricType.SUM,
+                        name: 'avg_order_amount__sum',
+                        label: 'Average order amount sum collision',
+                        table: 'orders',
+                        tableLabel: 'Orders',
+                        sql: '${TABLE}.amount',
+                        hidden: false,
+                        compiledSql: 'SUM("orders".amount)',
+                        tablesReferences: ['orders'],
+                    },
                 },
                 lineageGraph: {},
             },
@@ -145,10 +180,91 @@ describe('buildMaterializationMetricQuery', () => {
                 orders_order_count: [
                     {
                         componentFieldId: 'orders_order_count',
-                        aggregation: 'sum',
+                        aggregation: MetricType.SUM,
                     },
                 ],
             });
         },
     );
+
+    it('decomposes average metrics into hidden sum and count component metrics', () => {
+        const preAggregateDef: PreAggregateDef = {
+            name: 'orders_rollup',
+            dimensions: ['status'],
+            metrics: ['avg_order_amount'],
+        };
+
+        const result = buildMaterializationMetricQuery({
+            sourceExplore: getSourceExplore(),
+            preAggregateDef,
+        });
+
+        expect(result.metricQuery.metrics).toEqual([
+            'orders_avg_order_amount__sum',
+            'orders_avg_order_amount__count',
+        ]);
+        expect(result.metricQuery.additionalMetrics).toEqual([
+            {
+                name: 'avg_order_amount__sum',
+                table: 'orders',
+                type: MetricType.SUM,
+                sql: '${TABLE}.amount',
+                hidden: true,
+                filters: [
+                    {
+                        id: 'avg-order-amount-filter',
+                        target: {
+                            fieldRef: 'status',
+                        },
+                        operator: FilterOperator.EQUALS,
+                        values: ['completed'],
+                    },
+                ],
+            },
+            {
+                name: 'avg_order_amount__count',
+                table: 'orders',
+                type: MetricType.COUNT,
+                sql: '${TABLE}.amount',
+                hidden: true,
+                filters: [
+                    {
+                        id: 'avg-order-amount-filter',
+                        target: {
+                            fieldRef: 'status',
+                        },
+                        operator: FilterOperator.EQUALS,
+                        values: ['completed'],
+                    },
+                ],
+            },
+        ]);
+        expect(result.metricComponents).toEqual({
+            orders_avg_order_amount: [
+                {
+                    componentFieldId: 'orders_avg_order_amount__sum',
+                    aggregation: MetricType.SUM,
+                },
+                {
+                    componentFieldId: 'orders_avg_order_amount__count',
+                    aggregation: MetricType.SUM,
+                },
+            ],
+        });
+    });
+
+    it('throws when generated average metric component field IDs collide with selected metrics', () => {
+        expect(() =>
+            buildMaterializationMetricQuery({
+                sourceExplore: getSourceExplore(),
+                preAggregateDef: {
+                    name: 'orders_rollup',
+                    dimensions: ['status'],
+                    metrics: ['avg_order_amount', 'avg_order_amount__sum'],
+                },
+            }),
+        ).toThrow(
+            'Pre-aggregate "orders_rollup" generates duplicate materialization metric field ID "orders_avg_order_amount__sum"',
+        );
+    });
 });

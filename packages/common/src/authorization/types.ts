@@ -29,6 +29,7 @@ export type CaslSubjectNames =
     | 'ContentVerification'
     | 'CustomSql'
     | 'Dashboard'
+    | 'DeployProject'
     | 'DashboardComments'
     | 'DashboardCsv'
     | 'DashboardImage'

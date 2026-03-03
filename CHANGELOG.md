@@ -1,3 +1,134 @@
+## [0.2554.1](https://github.com/lightdash/lightdash/compare/0.2554.0...0.2554.1) (2026-03-03)
+
+
+### Bug Fixes
+
+* use AnyType for deploy batch request body to handle large payloads ([#20780](https://github.com/lightdash/lightdash/issues/20780)) ([c96dbef](https://github.com/lightdash/lightdash/commit/c96dbefc03dabc4585a520dc46c820ced2cb58ad))
+
+# [0.2554.0](https://github.com/lightdash/lightdash/compare/0.2553.0...0.2554.0) (2026-03-03)
+
+
+### Bug Fixes
+
+* add passport to backend tsconfig types to fix knex migrate ([#20777](https://github.com/lightdash/lightdash/issues/20777)) ([131b739](https://github.com/lightdash/lightdash/commit/131b739bb6d88091b18ede8a3cf0268d8fa15030))
+* conditionally render tiles panel only when tab is selected ([#20773](https://github.com/lightdash/lightdash/issues/20773)) ([99b438f](https://github.com/lightdash/lightdash/commit/99b438fa648d78087331008b9987a9e520009bc3))
+
+
+### Features
+
+* migrate validator table to use mantine-react-table ([#20775](https://github.com/lightdash/lightdash/issues/20775)) ([9aeb3c9](https://github.com/lightdash/lightdash/commit/9aeb3c90842dd8b62be3c6feacdac506c989b578))
+
+# [0.2553.0](https://github.com/lightdash/lightdash/compare/0.2552.0...0.2553.0) (2026-03-03)
+
+
+### Features
+
+* add DeployProject manage permission for service accounts ([#20776](https://github.com/lightdash/lightdash/issues/20776)) ([00c696a](https://github.com/lightdash/lightdash/commit/00c696a31e43ff4fc879adee0beb6a26482b3e23))
+
+# [0.2552.0](https://github.com/lightdash/lightdash/compare/0.2551.0...0.2552.0) (2026-03-03)
+
+
+### Features
+
+* support dynamic expressions in offset table calculation functions ([#20762](https://github.com/lightdash/lightdash/issues/20762)) ([6f85f7b](https://github.com/lightdash/lightdash/commit/6f85f7b7014bc040488ba3629ab276a2b31bd189))
+
+# [0.2551.0](https://github.com/lightdash/lightdash/compare/0.2550.1...0.2551.0) (2026-03-03)
+
+
+### Features
+
+* add DeployProject permission scope for dbt CLI deployment ([#20755](https://github.com/lightdash/lightdash/issues/20755)) ([037b906](https://github.com/lightdash/lightdash/commit/037b906581ee2fd3cee5194730c13e6abc526679))
+
+## [0.2550.1](https://github.com/lightdash/lightdash/compare/0.2550.0...0.2550.1) (2026-03-02)
+
+
+### Bug Fixes
+
+* handle interdependent table calculations with pivot functions ([#20761](https://github.com/lightdash/lightdash/issues/20761)) ([00c36c8](https://github.com/lightdash/lightdash/commit/00c36c87d9cea1d182089f4f2680dfddcefbfa63))
+
+# [0.2550.0](https://github.com/lightdash/lightdash/compare/0.2549.1...0.2550.0) (2026-03-02)
+
+
+### Features
+
+* improve SyncModalForm styling and add TruncatedText for GoogleSheetButton ([#20759](https://github.com/lightdash/lightdash/issues/20759)) ([40063e2](https://github.com/lightdash/lightdash/commit/40063e228ba4b7e4b400c1aae1aa93a2d9a3ed62))
+
+## [0.2549.1](https://github.com/lightdash/lightdash/compare/0.2549.0...0.2549.1) (2026-03-02)
+
+
+### Bug Fixes
+
+* apply query filters to PoP pop_metrics, shifting time filters to prior period ([#20751](https://github.com/lightdash/lightdash/issues/20751)) ([80bc0f0](https://github.com/lightdash/lightdash/commit/80bc0f01d882aeb0d673d59b24da3b3e65c2a849))
+* types, format, lint ([#20731](https://github.com/lightdash/lightdash/issues/20731)) ([b432473](https://github.com/lightdash/lightdash/commit/b4324734fa383cf687bb74568b0c35e1364238a5))
+
+# [0.2549.0](https://github.com/lightdash/lightdash/compare/0.2548.0...0.2549.0) (2026-03-02)
+
+
+### Bug Fixes
+
+* add missing indexes for saved chart validation queries ([#20745](https://github.com/lightdash/lightdash/issues/20745)) ([856a9b0](https://github.com/lightdash/lightdash/commit/856a9b0010522be3eb41ee89203d5c7a752aabc4))
+
+
+### Features
+
+* **athena:** support IAM assume role for Athena warehouse ([#20315](https://github.com/lightdash/lightdash/issues/20315)) ([129b2af](https://github.com/lightdash/lightdash/commit/129b2af9efc16258286cedebfad2302036acda16))
+
+# [0.2548.0](https://github.com/lightdash/lightdash/compare/0.2547.0...0.2548.0) (2026-03-02)
+
+
+### Features
+
+* add average metric support for pre-aggregations ([#20712](https://github.com/lightdash/lightdash/issues/20712)) ([96a1a69](https://github.com/lightdash/lightdash/commit/96a1a69f296098ba4505f0c0296f54d2b03c0599))
+
+# [0.2547.0](https://github.com/lightdash/lightdash/compare/0.2546.0...0.2547.0) (2026-03-02)
+
+
+### Features
+
+* revert update case sensitivity in INCLUDE filters to be consistent with the other string filters ([8876bb6](https://github.com/lightdash/lightdash/commit/8876bb680ed920ef554c3ab5def2998603fc0858))
+
+# [0.2546.0](https://github.com/lightdash/lightdash/compare/0.2545.3...0.2546.0) (2026-03-02)
+
+
+### Features
+
+* add organization and project UUID configuration for setup ([#20746](https://github.com/lightdash/lightdash/issues/20746)) ([d072359](https://github.com/lightdash/lightdash/commit/d07235928aabb3eaaeebc0f0f144acaedc4ef314))
+
+
+### Performance Improvements
+
+* replace correlated subquery with derived table JOIN in chart CTE ([#20743](https://github.com/lightdash/lightdash/issues/20743)) ([b626e88](https://github.com/lightdash/lightdash/commit/b626e880026e50efa6e00986f5dea00f0c86a3c9))
+
+## [0.2545.3](https://github.com/lightdash/lightdash/compare/0.2545.2...0.2545.3) (2026-03-02)
+
+
+### Bug Fixes
+
+* patch deferred model schemas when using --defer ([#20672](https://github.com/lightdash/lightdash/issues/20672)) ([1443efa](https://github.com/lightdash/lightdash/commit/1443efa45f2f33988566a457d207a82c577755df))
+
+## [0.2545.2](https://github.com/lightdash/lightdash/compare/0.2545.1...0.2545.2) (2026-03-02)
+
+
+### Bug Fixes
+
+* update case sensitivity in INCLUDE filters to be consistent with the other string filters ([#20713](https://github.com/lightdash/lightdash/issues/20713)) ([861daa4](https://github.com/lightdash/lightdash/commit/861daa482317f53018750781d18b51688330c78a))
+
+## [0.2545.1](https://github.com/lightdash/lightdash/compare/0.2545.0...0.2545.1) (2026-03-02)
+
+
+### Bug Fixes
+
+* prevent event propagation on comment menu dropdown ([#20739](https://github.com/lightdash/lightdash/issues/20739)) ([c136958](https://github.com/lightdash/lightdash/commit/c13695855cbdb4cf6972e578647efe4e7c225432))
+* upgrade @sentry/vite-plugin 3.2.2→5.0.0 ([#20642](https://github.com/lightdash/lightdash/issues/20642)) ([8fd2c6f](https://github.com/lightdash/lightdash/commit/8fd2c6f43fa71ab27096ae337398f68928d69f8e))
+* upgrade bcrypt 5.1.1→6.0.0 and duckdb-async 0.10.2→1.2.0 ([#20643](https://github.com/lightdash/lightdash/issues/20643)) ([bf39c5c](https://github.com/lightdash/lightdash/commit/bf39c5c05899f841a20dd3f5fe53dae59968be9d))
+
+# [0.2545.0](https://github.com/lightdash/lightdash/compare/0.2544.1...0.2545.0) (2026-03-02)
+
+
+### Features
+
+* add fix-vulnerability skill for Snyk PR analysis ([#20736](https://github.com/lightdash/lightdash/issues/20736)) ([610fbc5](https://github.com/lightdash/lightdash/commit/610fbc5fc186bdf02e590dbb007d42ba35b5770f))
+
 ## [0.2544.1](https://github.com/lightdash/lightdash/compare/0.2544.0...0.2544.1) (2026-02-27)
 
 

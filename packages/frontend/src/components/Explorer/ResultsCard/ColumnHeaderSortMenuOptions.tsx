@@ -5,8 +5,7 @@ import {
     type SortField,
     type TableCalculation,
 } from '@lightdash/common';
-import { Menu } from '@mantine-8/core';
-import { Text } from '@mantine/core';
+import { Menu, Text } from '@mantine-8/core';
 import { IconCheck } from '@tabler/icons-react';
 import { useCallback, type FC } from 'react';
 import {
@@ -72,7 +71,7 @@ const ColumnHeaderSortMenuOptions: FC<Props> = ({ item, sort }) => {
                         onClick={() => handleSortClick(sortDirection)}
                     >
                         Sort{' '}
-                        <Text span fw={500}>
+                        <Text span fz="sm" fw="bold">
                             {getSortLabel(item, sortDirection)}
                         </Text>
                     </Menu.Item>

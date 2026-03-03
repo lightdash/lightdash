@@ -283,5 +283,4 @@ export class FeatureFlagModel {
             enabled: this.lightdashConfig.defaultUserSpaces.enabled,
         };
     }
-
 }

@@ -96,7 +96,10 @@ export const CommentDetail: FC<Props> = ({
                                             />
                                         </ActionIcon>
                                     </Menu.Target>
-                                    <Menu.Dropdown p={0}>
+                                    <Menu.Dropdown
+                                        p={0}
+                                        onMouseDown={(e) => e.stopPropagation()}
+                                    >
                                         <Menu.Item
                                             p="xs"
                                             fz="xs"

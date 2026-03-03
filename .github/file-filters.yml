@@ -19,7 +19,7 @@ frontend:
 backend:
   - "packages/backend/**/*"
   - "packages/warehouses/**/*"
-  - "packages/e2e/api-tests/**/*"
+  - "packages/api-tests/**/*"
   - "packages/common/**/*"
 
 timezone:

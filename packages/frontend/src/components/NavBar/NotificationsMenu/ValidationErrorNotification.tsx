@@ -1,5 +1,5 @@
 import { type ValidationResponse } from '@lightdash/common';
-import { Text } from '@mantine/core';
+import { Text } from '@mantine-8/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link } from 'react-router';
@@ -13,7 +13,7 @@ const ValidationErrorNotificationDescription: FC<{
     const validationTimeAgo = useTimeAgo(lastValidatedAt);
 
     return (
-        <Text>
+        <Text fz="xs">
             New validation completed {validationTimeAgo} with {numberOfErrors}{' '}
             errors
         </Text>

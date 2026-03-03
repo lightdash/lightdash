@@ -1410,6 +1410,56 @@ describe('pre-aggregate virtual explore generation', () => {
         ).toBe(MODEL_WITH_METRIC.relation_name);
     });
 
+    it('generates an internal pre-aggregate explore for average metrics without warnings', async () => {
+        process.env.PRE_AGGREGATES_ENABLED = 'true';
+
+        const explores = await convertExplores(
+            [
+                {
+                    ...MODEL_WITH_DEFAULT_SHOW_UNDERLYING_VALUES,
+                    meta: {
+                        ...MODEL_WITH_DEFAULT_SHOW_UNDERLYING_VALUES.meta,
+                        pre_aggregates: [
+                            {
+                                name: 'avg_rollup',
+                                dimensions: ['user_id'],
+                                metrics: ['average_revenue'],
+                            },
+                        ],
+                    },
+                },
+            ],
+            false,
+            SupportedDbtAdapter.POSTGRES,
+            [],
+            warehouseClientMock,
+            {
+                spotlight: DEFAULT_SPOTLIGHT_CONFIG,
+            },
+        );
+
+        expect(explores).toHaveLength(2);
+
+        const baseExplore = explores.find(
+            (explore) => !('errors' in explore) && explore.name === 'myTable',
+        ) as Explore;
+        const preAggregateExplore = explores.find(
+            (explore) =>
+                !('errors' in explore) &&
+                explore.name === '__preagg__myTable__avg_rollup',
+        ) as Explore;
+
+        expect(baseExplore).toBeDefined();
+        expect(preAggregateExplore).toBeDefined();
+        expect(baseExplore.warnings).toBeUndefined();
+        expect(
+            preAggregateExplore.tables.myTable.metrics.average_revenue
+                .compiledSql,
+        ).toBe(
+            'CAST(SUM(myTable.myTable_average_revenue__sum) AS DOUBLE) / CAST(NULLIF(SUM(myTable.myTable_average_revenue__count), 0) AS DOUBLE)',
+        );
+    });
+
     it('keeps the base explore when pre-aggregate generation fails', async () => {
         process.env.PRE_AGGREGATES_ENABLED = 'true';
 
@@ -1478,7 +1528,7 @@ describe('pre-aggregate virtual explore generation', () => {
         expect((explores[0] as Explore).warnings).toContainEqual({
             type: InlineErrorType.FIELD_ERROR,
             message:
-                'Pre-aggregate "broken_rollup" references unsupported metrics: "myTable_user_count" (count_distinct). Supported metric types: sum, count, min, max',
+                'Pre-aggregate "broken_rollup" references unsupported metrics: "myTable_user_count" (count_distinct). Supported metric types: sum, count, min, max, average',
         });
     });
 });

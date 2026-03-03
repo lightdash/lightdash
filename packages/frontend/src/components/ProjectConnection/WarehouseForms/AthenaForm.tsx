@@ -202,6 +202,23 @@ const AthenaForm: FC<{
                 <FormSection isOpen={isOpen} name="advanced">
                     <Stack mt="sm">
                         <TextInput
+                            name="warehouse.assumeRoleArn"
+                            label="Assume Role ARN"
+                            description="Optional IAM role ARN to assume after authenticating. Works with any authentication type."
+                            {...form.getInputProps('warehouse.assumeRoleArn')}
+                            placeholder="arn:aws:iam::123456789012:role/my-athena-role"
+                            disabled={disabled}
+                        />
+                        <TextInput
+                            name="warehouse.assumeRoleExternalId"
+                            label="Assume Role External ID"
+                            description="Optional external ID for the assume role trust policy."
+                            {...form.getInputProps(
+                                'warehouse.assumeRoleExternalId',
+                            )}
+                            disabled={disabled}
+                        />
+                        <TextInput
                             name="warehouse.workGroup"
                             label="Workgroup"
                             description="The Athena workgroup to use for queries."

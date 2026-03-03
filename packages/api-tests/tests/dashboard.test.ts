@@ -4,6 +4,7 @@ import {
     CreateDashboard,
     Dashboard,
     DashboardChartTile,
+    DashboardTile,
     DashboardTileTypes,
     isDashboardVersionedFields,
     SavedChart,
@@ -182,14 +183,16 @@ describe('Lightdash dashboard', () => {
 
         expect(updatedDashboard2.tiles.length).toBe(2);
         const firstTile = updatedDashboard2.tiles.find(
-            ({ properties }: DashboardChartTile) =>
-                properties.savedChartUuid === newChart.uuid &&
-                properties.belongsToDashboard,
+            (t: DashboardTile) =>
+                t.type === DashboardTileTypes.SAVED_CHART &&
+                t.properties.savedChartUuid === newChart.uuid &&
+                t.properties.belongsToDashboard,
         );
         const secondTile = updatedDashboard2.tiles.find(
-            ({ properties }: DashboardChartTile) =>
-                properties.savedChartUuid === newChart2.uuid &&
-                properties.belongsToDashboard,
+            (t: DashboardTile) =>
+                t.type === DashboardTileTypes.SAVED_CHART &&
+                t.properties.savedChartUuid === newChart2.uuid &&
+                t.properties.belongsToDashboard,
         );
         expect(firstTile).toBeDefined();
         expect(secondTile).toBeDefined();
@@ -216,7 +219,8 @@ describe('Lightdash dashboard', () => {
 
         const tileWithChartInDashboard =
             dashboardResponse.body.results.tiles.find(
-                (tile: DashboardChartTile) =>
+                (tile: DashboardTile) =>
+                    tile.type === DashboardTileTypes.SAVED_CHART &&
                     tile.properties.belongsToDashboard,
             );
 
@@ -259,7 +263,8 @@ describe('Lightdash dashboard', () => {
 
         const tileWithChartInDashboard =
             dashboardResponse.body.results.tiles.find(
-                (tile: DashboardChartTile) =>
+                (tile: DashboardTile) =>
+                    tile.type === DashboardTileTypes.SAVED_CHART &&
                     tile.properties.belongsToDashboard,
             );
         expect(tileWithChartInDashboard).toBeDefined();

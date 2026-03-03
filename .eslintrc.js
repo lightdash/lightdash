@@ -1,5 +1,8 @@
 module.exports = {
     parser: '@typescript-eslint/parser',
+    parserOptions: {
+        warnOnUnsupportedTypeScriptVersion: false,
+    },
     plugins: ['@typescript-eslint', 'perfectionist'],
     rules: {
         // Import declaration ordering is handled by oxfmt's sortImports.

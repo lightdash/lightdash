@@ -16,6 +16,7 @@ import { CronInternalInputs } from '../../../components/CronInput';
 import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
 import { useProject } from '../../../hooks/useProject';
 import { SelectGoogleSheetButton } from './SelectGoogleSheetButton';
+import classes from './SyncModalForm.module.css';
 import {
     useSyncModalFormContext,
     type SyncModalFormValues,
@@ -41,7 +42,11 @@ export const SyncModalForm: FC<Props> = ({ id, onSubmit }) => {
     const form = useSyncModalFormContext();
 
     return (
-        <form id={id} onSubmit={form.onSubmit(onSubmit)}>
+        <form
+            id={id}
+            onSubmit={form.onSubmit(onSubmit)}
+            className={classes.form}
+        >
             <Stack>
                 <TextInput
                     label="Name the Sync"

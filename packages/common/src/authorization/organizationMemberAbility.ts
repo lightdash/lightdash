@@ -269,6 +269,9 @@ const applyOrganizationMemberStaticAbilities: Record<
         can('update', 'Project', {
             organizationUuid: member.organizationUuid,
         });
+        can('manage', 'DeployProject', {
+            organizationUuid: member.organizationUuid,
+        });
         can('delete', 'Project', {
             organizationUuid: member.organizationUuid,
             type: ProjectType.PREVIEW,
@@ -308,6 +311,7 @@ const applyOrganizationMemberStaticAbilities: Record<
             organizationUuid: member.organizationUuid,
             type: { $in: [ProjectType.DEFAULT, ProjectType.PREVIEW] },
         });
+
         can('delete', 'Project', {
             organizationUuid: member.organizationUuid,
         });

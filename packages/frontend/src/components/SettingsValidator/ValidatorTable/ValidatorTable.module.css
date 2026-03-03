@@ -1,7 +1,144 @@
+.paper {
+    @mixin dark {
+        border-color: var(--mantine-color-ldDark-4);
+    }
+    @mixin light {
+        border-color: var(--mantine-color-ldGray-2);
+    }
+    border-radius: var(--mantine-spacing-sm);
+    box-shadow: var(--mantine-shadow-subtle);
+    display: flex;
+    flex-direction: column;
+}
+
+.tableContainer {
+    max-height: calc(100dvh - 370px);
+}
+
+.headerRow {
+    box-shadow: none;
+}
+
+.headerCell {
+    padding: 6px var(--mantine-spacing-md);
+
+    @mixin dark {
+        background-color: var(--mantine-color-background);
+        color: var(--mantine-color-ldDark-7);
+    }
+    @mixin light {
+        background-color: var(--mantine-color-ldGray-0);
+        color: var(--mantine-color-ldGray-7);
+    }
+    font-weight: 600;
+    font-size: var(--mantine-font-size-xs);
+    justify-content: center;
+    border-top: none;
+    border-left: none;
+    border-right: none;
+    @mixin dark {
+        border-bottom-color: var(--mantine-color-ldDark-4);
+    }
+    @mixin light {
+        border-bottom-color: var(--mantine-color-ldGray-2);
+    }
+    user-select: none;
+}
+
+.headerCell:last-of-type {
+    border-right: none;
+}
+
+.bodyCell {
+    padding: 6px var(--mantine-spacing-md);
+    font-size: var(--mantine-font-size-xs);
+
+    @mixin dark {
+        color: var(--mantine-color-ldDark-7);
+    }
+    @mixin light {
+        color: var(--mantine-color-ldGray-7);
+    }
+    border-top: none;
+    border-left: none;
+    border-right: none;
+    @mixin dark {
+        border-bottom-color: var(--mantine-color-ldDark-4);
+    }
+    @mixin light {
+        border-bottom-color: var(--mantine-color-ldGray-2);
+    }
+}
+
+.bodyCell:last-of-type {
+    border-right: none;
+}
+
+.row {
+    cursor: default;
+}
+
+.row:hover td {
+    @mixin dark {
+        background-color: var(--mantine-color-ldDark-3);
+    }
+    @mixin light {
+        background-color: var(--mantine-color-ldGray-0);
+    }
+}
+
+.row .actions {
+    display: none;
+}
+
+.row:hover .actions {
+    display: flex;
+}
+
+.pinnedRow .actions {
+    display: flex;
+}
+
 .pinnedRow {
     border-left: 3px solid var(--mantine-color-yellow-5);
+    animation: highlight 4s ease-in-out 2;
 }
 
 .pinnedRow td:first-child {
     padding-left: calc(var(--mantine-spacing-md) - 3px);
+}
+
+@keyframes highlight {
+    0% {
+        background-color: transparent;
+    }
+    50% {
+        background-color: var(--mantine-color-yellow-1);
+    }
+    100% {
+        background-color: transparent;
+    }
+}
+
+@mixin dark {
+    @keyframes highlight {
+        0% {
+            background-color: transparent;
+        }
+        50% {
+            background-color: var(--mantine-color-yellow-9);
+        }
+        100% {
+            background-color: transparent;
+        }
+    }
+}
+
+.anchor {
+    color: unset;
+}
+
+.anchor:hover {
+    color: unset;
+    text-decoration: none;
 }

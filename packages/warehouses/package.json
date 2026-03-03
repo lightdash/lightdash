@@ -1,6 +1,6 @@
 {
   "name": "@lightdash/warehouses",
-  "version": "0.2544.1",
+  "version": "0.2554.1",
   "description": "Warehouse connectors for Lightdash",
   "license": "MIT",
   "repository": {
@@ -28,6 +28,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-athena": "^3.972.0",
+    "@aws-sdk/credential-providers": "^3.972.0",
     "@clickhouse/client": "^1.12.1",
     "@databricks/sql": "1.8.4",
     "@duckdb/node-api": "^1.4.4-r.1",
@@ -46,6 +47,7 @@
     "@types/pg": "^8.11.10",
     "@types/pg-cursor": "^2.7.0",
     "@types/ssh2": "^1.11.15",
-    "copyfiles": "^2.4.1"
+    "copyfiles": "^2.4.1",
+    "typescript": "6.0.0-beta"
   }
 }

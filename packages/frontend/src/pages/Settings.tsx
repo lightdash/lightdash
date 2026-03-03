@@ -483,6 +483,12 @@ const Settings: FC = () => {
                     path: '/generalSettings/projectManagement/:projectUuid/preAggregateAudit',
                 },
                 location.pathname,
+            ) &&
+            !matchPath(
+                {
+                    path: '/generalSettings/projectManagement/:projectUuid/validator',
+                },
+                location.pathname,
             )
         );
     }, [location.pathname]);
@@ -835,7 +841,7 @@ const Settings: FC = () => {
 
                                     {health.preAggregates.enabled && (
                                         <RouterNavLink
-                                            label="Pre-aggregate audit"
+                                            label="Pre-aggregate analytics"
                                             exact
                                             to={`/generalSettings/projectManagement/${project.projectUuid}/preAggregateAudit`}
                                             leftSection={

@@ -3,9 +3,11 @@ import {
     CustomDimensionType,
     DimensionType,
     FieldType,
+    MetricType,
     ParameterError,
     SortByDirection,
     SupportedDbtAdapter,
+    TableCalculationType,
     TimeFrames,
     VizAggregationOptions,
     VizIndexType,
@@ -2383,6 +2385,82 @@ SELECT * FROM group_by_query LIMIT 50`);
             // row_index should use _order for bin dim and regular ref for category
             expect(result.toLowerCase()).toContain(
                 'dense_rank() over (order by g."amount_binned_amount_order" asc, g."orders_category" desc)',
+            );
+        });
+    });
+
+    describe('Table calculations with interdependencies', () => {
+        test('Should handle interdependent table calculations in pivot queries', () => {
+            // Mock ItemsMap with interdependent table calculations
+            const itemsMapWithTableCalcs: ItemsMap = {
+                impressions: {
+                    name: 'impressions',
+                    table: 'table1',
+                    tableLabel: 'Table 1',
+                    type: TableCalculationType.NUMBER,
+                    displayName: 'Impressions',
+                    sql: 'COALESCE(${table1.metric1}, 0)',
+                },
+                impressions_delta: {
+                    name: 'impressions_delta',
+                    table: 'table1',
+                    tableLabel: 'Table 1',
+                    type: TableCalculationType.NUMBER,
+                    displayName: 'Impressions Delta',
+                    sql: '${impressions} - pivot_offset(${impressions}, -1)',
+                },
+            };
+
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'metric1',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                    {
+                        reference: 'impressions',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                    {
+                        reference: 'impressions_delta',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                groupByColumns: [{ reference: 'category' }],
+                sortBy: [{ reference: 'date', direction: SortByDirection.ASC }],
+            };
+
+            const builder = new PivotQueryBuilder(
+                'SELECT date, category, metric1 FROM events',
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                itemsMapWithTableCalcs,
+            );
+
+            const result = builder.toSql();
+
+            // The SQL should contain the table calculations handled in pivot_table_calculations CTE
+            expect(result).toContain('pivot_table_calculations');
+
+            // The impressions_delta calculation uses LAG function with proper reference replacement
+            // The key fix being tested: When replacing field references, it now also checks
+            // fieldAliasMap[ref] to handle interdependent table calculation references
+            expect(result).toContain(
+                'impressions_any - CASE WHEN LAG("row_index", 1)',
+            );
+            expect(result).toContain('LAG(impressions_any, 1)');
+
+            // Verify that table calculations with pivot functions are properly included
+            expect(result).toContain('impressions_delta_any');
+
+            // The group_by_query should include the aggregations for the table calculations
+            expect(result).toContain(
+                '(ARRAY_AGG("impressions"))[1] AS "impressions_any"',
+            );
+            expect(result).toContain(
+                '(ARRAY_AGG("impressions_delta"))[1] AS "impressions_delta_any"',
             );
         });
     });

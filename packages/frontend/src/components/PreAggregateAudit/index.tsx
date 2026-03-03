@@ -82,9 +82,9 @@ const PreAggregateAudit: FC<PreAggregateAuditProps> = ({ projectUuid }) => {
             <Stack gap="md">
                 <Group justify="space-between">
                     <Stack gap={2}>
-                        <Title order={5}>Pre-Aggregate Audit</Title>
+                        <Title order={5}>Pre-Aggregate Analytics</Title>
                         <Text c="dimmed" size="xs">
-                            Track how often your pre-aggregates are being used.
+                            Track cache performance for your pre-aggregates.
                             Data is retained for 3 days.
                         </Text>
                     </Stack>
@@ -102,7 +102,7 @@ const PreAggregateAudit: FC<PreAggregateAuditProps> = ({ projectUuid }) => {
                 <SimpleGrid cols={3}>
                     <Card withBorder p="md">
                         <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
-                            Hit Rate (3 days)
+                            Cache Rate (3 days)
                         </Text>
                         <Text size="xl" fw={700}>
                             {summary.totalQueries > 0
