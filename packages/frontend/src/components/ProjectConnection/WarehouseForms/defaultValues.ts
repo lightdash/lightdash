@@ -115,6 +115,7 @@ export const SnowflakeDefaultValues: CreateSnowflakeCredentials = {
     authenticationType: undefined,
     privateKey: '',
     privateKeyPass: '',
+    timeoutSeconds: 300,
 };
 
 export const TrinoDefaultValues: CreateTrinoCredentials = {
