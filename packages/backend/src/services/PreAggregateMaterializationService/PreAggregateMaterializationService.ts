@@ -4,6 +4,9 @@ import {
     QueryHistoryStatus,
     type Account,
     type ActiveMaterializationDetails,
+    type ApiPreAggregateMaterializationsResults,
+    type KnexPaginateArgs,
+    type KnexPaginatedData,
     type PreAggregateMaterializationTrigger,
 } from '@lightdash/common';
 import { type LightdashConfig } from '../../config/parseConfig';
@@ -223,6 +226,16 @@ export class PreAggregateMaterializationService {
 
             throw error;
         }
+    }
+
+    async getMaterializations(
+        projectUuid: string,
+        paginateArgs?: KnexPaginateArgs,
+    ): Promise<KnexPaginatedData<ApiPreAggregateMaterializationsResults>> {
+        return this.preAggregateModel.getDefinitionsWithLatestMaterialization(
+            projectUuid,
+            paginateArgs,
+        );
     }
 
     async getActiveMaterialization(
