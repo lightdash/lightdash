@@ -1,3 +1,10 @@
+## [0.2554.1](https://github.com/lightdash/lightdash/compare/0.2554.0...0.2554.1) (2026-03-03)
+
+
+### Bug Fixes
+
+* use AnyType for deploy batch request body to handle large payloads ([#20780](https://github.com/lightdash/lightdash/issues/20780)) ([c96dbef](https://github.com/lightdash/lightdash/commit/c96dbefc03dabc4585a520dc46c820ced2cb58ad))
+
 # [0.2554.0](https://github.com/lightdash/lightdash/compare/0.2553.0...0.2554.0) (2026-03-03)
 
 
