@@ -24,7 +24,10 @@ import {
     WarehouseTypes,
 } from '@lightdash/common';
 import { WarehouseCatalog } from '../types';
-import { processPromisesInBatches } from '../utils/processPromisesInBatches';
+import {
+    DEFAULT_BATCH_SIZE,
+    processPromisesInBatches,
+} from '../utils/processPromisesInBatches';
 import { normalizeUnicode } from '../utils/sql';
 import WarehouseBaseClient from './WarehouseBaseClient';
 import WarehouseBaseSqlBuilder from './WarehouseBaseSqlBuilder';
