@@ -16,6 +16,7 @@ import {
     Route,
     SuccessResponse,
     Tags,
+    Tsoa,
 } from '@tsoa/runtime';
 import express from 'express';
 import {
@@ -24,6 +25,7 @@ import {
     unauthorisedInDemo,
 } from '../authentication';
 import { BaseController } from '../baseController';
+import AnyType = Tsoa.AnyType;
 
 @Route('/api/v2/projects/{projectUuid}/deploy')
 @Response<ApiErrorPayload>('default', 'Error')
@@ -71,7 +73,7 @@ export class DeployController extends BaseController {
         @Request() req: express.Request,
         @Path() projectUuid: string,
         @Path() sessionUuid: string,
-        @Body() body: ApiAddDeployBatchRequest,
+        @Body() body: AnyType, // ApiAddDeployBatchRequest,
     ): Promise<ApiAddDeployBatchResponse> {
         this.setStatus(200);
         const result = await this.services
@@ -80,8 +82,8 @@ export class DeployController extends BaseController {
                 req.user!,
                 projectUuid,
                 sessionUuid,
-                body.explores,
-                body.batchNumber,
+                (body as unknown as ApiAddDeployBatchRequest).explores,
+                (body as unknown as ApiAddDeployBatchRequest).batchNumber,
             );
         return {
             status: 'ok',
