@@ -480,7 +480,7 @@ const FilterConfiguration: FC<Props> = ({
                     </Stack>
                 </Tabs.Panel>
 
-                {draftFilterRule && (
+                {draftFilterRule && selectedTabId === FilterTabs.TILES && (
                     <Tabs.Panel
                         value={FilterTabs.TILES}
                         w={500}
