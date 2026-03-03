@@ -145,6 +145,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                             : 'Verified'
                                     }
                                     withArrow
+                                    withinPortal
                                 >
                                     <IconCircleCheckFilled
                                         size={14}
