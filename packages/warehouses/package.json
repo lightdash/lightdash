@@ -27,7 +27,7 @@
     "release": "pnpm publish --no-git-checks --access public"
   },
   "dependencies": {
-    "@aws-sdk/client-athena": "^3.972.0",
+    "@aws-sdk/client-athena": "^3.974.0",
     "@aws-sdk/credential-providers": "^3.972.0",
     "@clickhouse/client": "^1.12.1",
     "@databricks/sql": "1.8.4",
