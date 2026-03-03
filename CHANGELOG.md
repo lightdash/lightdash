@@ -1,3 +1,10 @@
+## [0.2556.1](https://github.com/lightdash/lightdash/compare/0.2556.0...0.2556.1) (2026-03-03)
+
+
+### Bug Fixes
+
+* require linked Lightdash account to vote on AI Agent responses ([#20778](https://github.com/lightdash/lightdash/issues/20778)) ([752a3fa](https://github.com/lightdash/lightdash/commit/752a3facfd37c9f24f98d59815b4909798f9b009))
+
 # [0.2556.0](https://github.com/lightdash/lightdash/compare/0.2555.1...0.2556.0) (2026-03-03)
 
 
