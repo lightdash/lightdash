@@ -736,8 +736,7 @@ const upsertSingleItem = async <T extends ChartAsCode | DashboardAsCode>(
             GlobalState.debug(
                 `Skipping ${type} "${item.slug}" with no local changes`,
             );
-            changes[`${type} skipped`] =
-                (changes[`${type} skipped`] ?? 0) + 1;
+            changes[`${type} skipped`] = (changes[`${type} skipped`] ?? 0) + 1;
             return;
         }
         GlobalState.debug(`Upserting ${type} ${item.slug}`);
@@ -833,8 +832,7 @@ const upsertSingleItem = async <T extends ChartAsCode | DashboardAsCode>(
                     `Skipping ${type} "${item.slug}" because space "${item.spaceSlug}" does not exist and --skip-space-create is true`,
                 ),
             );
-            changes[`${type} skipped`] =
-                (changes[`${type} skipped`] ?? 0) + 1;
+            changes[`${type} skipped`] = (changes[`${type} skipped`] ?? 0) + 1;
         } else {
             changes[`${type} with errors`] =
                 (changes[`${type} with errors`] ?? 0) + 1;
@@ -896,9 +894,7 @@ const upsertResources = async <T extends ChartAsCode | DashboardAsCode>(
             (slug) => !items.find((item) => item.slug === slug),
         );
         missingItems.forEach((slug) => {
-            GlobalState.log(
-                styles.warning(`No ${type} with slug: "${slug}"`),
-            );
+            GlobalState.log(styles.warning(`No ${type} with slug: "${slug}"`));
         });
     }
 
@@ -1076,7 +1072,18 @@ export const uploadHandler = async (
               )
             : options.charts;
 
-        const concurrency = parseInt(String(options.concurrency), 10) || 1;
+        const concurrency = Math.min(
+            Math.max(1, parseInt(String(options.concurrency), 10) || 1),
+            1000,
+        );
+
+        if (parseInt(String(options.concurrency), 10) > 1000) {
+            GlobalState.log(
+                styles.warning(
+                    `Concurrency limit exceeded. Using maximum of 1000 instead of ${options.concurrency}`,
+                ),
+            );
+        }
 
         if (hasFilters && chartSlugs.length === 0) {
             GlobalState.log(
