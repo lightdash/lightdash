@@ -264,7 +264,12 @@ export const ValidatorTable: FC<ValidatorTableProps> = ({
                         validationError.validationId;
 
                     return (
-                        <Flex gap="xs" justify="flex-end" align="center">
+                        <Flex
+                            gap="xs"
+                            justify="flex-end"
+                            align="center"
+                            className={classes.actions}
+                        >
                             {isChartValidationError(validationError) && (
                                 <Button
                                     variant="default"

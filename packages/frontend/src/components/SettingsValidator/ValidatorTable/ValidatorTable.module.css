@@ -52,6 +52,19 @@
     cursor: default;
 }
 
+.row .actions {
+    opacity: 0;
+    transition: opacity 150ms ease;
+}
+
+.row:hover .actions {
+    opacity: 1;
+}
+
+.pinnedRow .actions {
+    opacity: 1;
+}
+
 .pinnedRow {
     border-left: 3px solid var(--mantine-color-yellow-5);
     animation: highlight 4s ease-in-out 2;
