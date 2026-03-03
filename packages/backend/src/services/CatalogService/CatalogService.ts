@@ -1435,6 +1435,68 @@ export class CatalogService<
         return getAvailableCompareMetrics(allMetrics);
     }
 
+    async getCatalogMetricsWithTimeDimensionsPaginated(
+        user: SessionUser,
+        projectUuid: string,
+        context: CatalogSearchContext,
+        paginateArgs?: KnexPaginateArgs,
+        tableName?: string,
+    ): Promise<KnexPaginatedData<MetricWithAssociatedTimeDimension[]>> {
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const userAttributes =
+            await this.userAttributesModel.getAttributeValuesForOrgMember({
+                organizationUuid,
+                userUuid: user.userUuid,
+            });
+
+        const paginatedCatalogMetrics = await this.catalogModel.search({
+            projectUuid,
+            userAttributes,
+            ...(tableName ? { exploreName: tableName } : {}),
+            context,
+            catalogSearch: {
+                type: CatalogType.Field,
+                filter: CatalogFilter.Metrics,
+            },
+            tablesConfiguration:
+                await this.projectModel.getTablesConfiguration(projectUuid),
+            paginateArgs,
+            hasTimeDimension: true,
+        });
+
+        const filteredMetrics = paginatedCatalogMetrics.data.filter(
+            (c): c is CatalogField => c.type === CatalogType.Field,
+        );
+
+        const allMetrics = await this.getMetrics({
+            user,
+            projectUuid,
+            metrics: filteredMetrics.map((m) => ({
+                tableName: m.tableName,
+                metricName: m.name,
+            })),
+            userAttributes,
+            addDefaultTimeDimension: false,
+        });
+
+        const enrichedMetrics = getAvailableCompareMetrics(allMetrics);
+
+        return {
+            data: enrichedMetrics,
+            pagination: paginatedCatalogMetrics.pagination,
+        };
+    }
+
     async getFilterDimensions(
         user: SessionUser,
         projectUuid: string,

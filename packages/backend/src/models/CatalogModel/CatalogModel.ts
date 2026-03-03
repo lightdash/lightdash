@@ -438,6 +438,7 @@ export class CatalogModel {
                                             spotlight_show: true,
                                             joined_tables: [],
                                             owner_user_uuid: null,
+                                            has_time_dimension: false,
                                         })
                                         .returning('*');
 
@@ -763,6 +764,7 @@ export class CatalogModel {
         fullTextSearchOperator = 'AND',
         filteredExplores,
         changeset,
+        hasTimeDimension,
     }: {
         projectUuid: string;
         exploreName?: string;
@@ -776,6 +778,7 @@ export class CatalogModel {
         fullTextSearchOperator?: 'OR' | 'AND';
         filteredExplores?: Explore[];
         changeset?: ChangesetWithChanges;
+        hasTimeDimension?: boolean;
     }): Promise<KnexPaginatedData<CatalogItem[]>> {
         // Use websearch_to_tsquery for AI Agent queries for better natural language support
         const useWebSearch =
@@ -1189,6 +1192,13 @@ export class CatalogModel {
             }
         }
 
+        if (hasTimeDimension !== undefined) {
+            catalogItemsQuery = catalogItemsQuery.andWhere(
+                `${CatalogTableName}.has_time_dimension`,
+                hasTimeDimension,
+            );
+        }
+
         catalogItemsQuery = catalogItemsQuery.orderBy('search_rank', 'desc');
 
         if (sortArgs) {
@@ -1205,10 +1215,7 @@ export class CatalogModel {
             catalogItemsQuery.select<
                 (DbCatalog & { explore: Explore; search_rank: number })[]
             >(),
-            {
-                page: paginateArgs?.page ?? 1,
-                pageSize: paginateArgs?.pageSize ?? 50,
-            },
+            paginateArgs,
         );
 
         const tagsPerItem = await this.getTagsPerItem(

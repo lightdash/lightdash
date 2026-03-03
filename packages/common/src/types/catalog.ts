@@ -460,6 +460,11 @@ export type ApiMetricsWithAssociatedTimeDimensionResponse = {
     results: MetricWithAssociatedTimeDimension[];
 };
 
+export type ApiPaginatedMetricsWithTimeDimensionResponse = {
+    status: 'ok';
+    results: KnexPaginatedData<MetricWithAssociatedTimeDimension[]>;
+};
+
 export type ApiSegmentDimensionsResponse = {
     status: 'ok';
     results: CompiledDimension[];
