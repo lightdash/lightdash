@@ -1,3 +1,10 @@
+# [0.2553.0](https://github.com/lightdash/lightdash/compare/0.2552.0...0.2553.0) (2026-03-03)
+
+
+### Features
+
+* add DeployProject manage permission for service accounts ([#20776](https://github.com/lightdash/lightdash/issues/20776)) ([00c696a](https://github.com/lightdash/lightdash/commit/00c696a31e43ff4fc879adee0beb6a26482b3e23))
+
 # [0.2552.0](https://github.com/lightdash/lightdash/compare/0.2551.0...0.2552.0) (2026-03-03)
 
 
