@@ -107,16 +107,6 @@ export class PrometheusEventMetricManager {
                     labelNames: metricConfig.labelNames,
                 });
 
-                // Register with global Prometheus registry
-                try {
-                    prometheus.register.registerMetric(counter);
-                } catch (error) {
-                    Logger.warn(
-                        `Prometheus counter already registered: ${metricConfig.metricName}`,
-                        error,
-                    );
-                }
-
                 this.counters.set(metricConfig.metricName, counter);
 
                 Logger.info(
@@ -131,7 +121,10 @@ export class PrometheusEventMetricManager {
                 `PrometheusEventMetricManager initialized with ${this.config.metrics.length} metrics`,
             );
         } catch (error) {
-            Logger.error('Error initializing PrometheusEventMetricManager', error);
+            Logger.error(
+                'Error initializing PrometheusEventMetricManager',
+                error,
+            );
             throw error;
         }
     }
@@ -146,9 +139,8 @@ export class PrometheusEventMetricManager {
         }
 
         for (const [eventName, metricConfigs] of metricsByEvent) {
-            const eventKey = PrometheusEventMetricManager.toAnalyticsEventKey(
-                eventName,
-            );
+            const eventKey =
+                PrometheusEventMetricManager.toAnalyticsEventKey(eventName);
             const handler = (
                 payload: Parameters<LightdashAnalytics['track']>[0],
             ) => {
@@ -180,9 +172,9 @@ export class PrometheusEventMetricManager {
                     // Extract label values
                     const labelValues =
                         PrometheusEventMetricManager.extractLabelValues(
-                        metricConfig,
-                        payload,
-                    );
+                            metricConfig,
+                            payload,
+                        );
 
                     // Increment the counter
                     counter.inc(labelValues);
@@ -231,6 +223,15 @@ export class PrometheusEventMetricManager {
             this.eventEmitter.off(eventKey, handler);
         }
         this.eventListeners.clear();
+
+        const { prefix } = this.config.prometheusConfig;
+        for (const [metricName] of this.counters) {
+            prometheus.register.removeSingleMetric(
+                `${prefix ?? ''}${metricName}`,
+            );
+        }
+        this.counters.clear();
+
         this.isInitialized = false;
     }
 }
