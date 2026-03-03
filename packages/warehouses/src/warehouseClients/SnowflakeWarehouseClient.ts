@@ -517,6 +517,15 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             `ALTER SESSION SET QUOTED_IDENTIFIERS_IGNORE_CASE = FALSE;`,
         );
 
+        if (this.credentials.timeoutSeconds !== undefined) {
+            console.debug(
+                `Setting Snowflake session STATEMENT_TIMEOUT_IN_SECONDS = ${this.credentials.timeoutSeconds}`,
+            );
+            sqlStatements.push(
+                `ALTER SESSION SET STATEMENT_TIMEOUT_IN_SECONDS = ${this.credentials.timeoutSeconds};`,
+            );
+        }
+
         await this.executeStatements(
             connection,
             sqlStatements.join('\n'),

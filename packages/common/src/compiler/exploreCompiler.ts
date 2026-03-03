@@ -145,6 +145,7 @@ export type UncompiledExplore = {
     projectParameters?: LightdashProjectConfig['parameters'];
     preAggregates?: PreAggregateDef[];
     caseSensitive?: boolean;
+    projectDefaults?: LightdashProjectConfig['defaults'];
 };
 
 const getReferencedTable = (
@@ -203,6 +204,7 @@ export class ExploreCompiler {
         projectParameters,
         preAggregates,
         caseSensitive,
+        projectDefaults,
     }: UncompiledExplore): Explore {
         // Check that base table exists (always required)
         if (!tables[baseTable]) {
@@ -503,7 +505,10 @@ export class ExploreCompiler {
             ymlPath,
             sqlPath,
             databricksCompute,
-            ...(caseSensitive !== undefined ? { caseSensitive } : {}),
+            // Use explore-level caseSensitive if set, otherwise fall back to project defaults
+            ...(caseSensitive !== undefined || projectDefaults?.case_sensitive !== undefined
+                ? { caseSensitive: caseSensitive ?? projectDefaults?.case_sensitive }
+                : {}),
             ...(aiHint ? { aiHint } : {}),
             ...getSpotlightConfigurationForResource({
                 visibility: spotlightVisibility,

@@ -105,7 +105,7 @@ import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { SearchModel } from '../../../models/SearchModel';
 import { UserAttributesModel } from '../../../models/UserAttributesModel';
 import { UserModel } from '../../../models/UserModel';
-import PrometheusMetrics from '../../../prometheus';
+import PrometheusMetrics from '../../../prometheus/PrometheusMetrics';
 import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
 import { CatalogService } from '../../../services/CatalogService/CatalogService';
 import { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
@@ -3740,9 +3740,30 @@ Use them as a reference, but do all the due dilligence and follow the instructio
     public handlePromptUpvote(app: App) {
         app.action(
             'prompt_human_score.upvote',
-            async ({ ack, body, respond, context }) => {
+            async ({ ack, body, respond, context, client }) => {
                 await ack();
                 const { user } = body;
+                const { teamId } = context;
+
+                // Auth check: require linked Lightdash account to vote
+                const openIdIdentity =
+                    await this.openIdIdentityModel.findIdentityByOpenId(
+                        OpenIdIdentityIssuerType.SLACK,
+                        user.id,
+                        teamId,
+                    );
+
+                if (!openIdIdentity) {
+                    if (body.type === 'block_actions' && body.channel?.id) {
+                        await client.chat.postEphemeral({
+                            channel: body.channel.id,
+                            user: user.id,
+                            text: 'You need to link your Slack account to Lightdash to vote on AI responses. Please use the AI Agent first to complete the OAuth linking process.',
+                        });
+                    }
+                    return;
+                }
+
                 const newBlock = {
                     type: 'context',
                     elements: [
@@ -3759,7 +3780,6 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                         if (!promptUuid) {
                             return;
                         }
-                        const { teamId } = context;
                         const organizationUuid = teamId
                             ? await this.slackAuthenticationModel.getOrganizationUuidFromTeamId(
                                   teamId,
@@ -3796,6 +3816,27 @@ Use them as a reference, but do all the due dilligence and follow the instructio
             async ({ ack, body, respond, client, context }) => {
                 await ack();
                 const { user } = body;
+                const { teamId } = context;
+
+                // Auth check: require linked Lightdash account to vote
+                const openIdIdentity =
+                    await this.openIdIdentityModel.findIdentityByOpenId(
+                        OpenIdIdentityIssuerType.SLACK,
+                        user.id,
+                        teamId,
+                    );
+
+                if (!openIdIdentity) {
+                    if (body.type === 'block_actions' && body.channel?.id) {
+                        await client.chat.postEphemeral({
+                            channel: body.channel.id,
+                            user: user.id,
+                            text: 'You need to link your Slack account to Lightdash to vote on AI responses. Please use the AI Agent first to complete the OAuth linking process.',
+                        });
+                    }
+                    return;
+                }
+
                 const newBlock = {
                     type: 'context',
                     elements: [
@@ -3812,7 +3853,6 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                         if (!promptUuid) {
                             return;
                         }
-                        const { teamId } = context;
 
                         const organizationUuid = teamId
                             ? await this.slackAuthenticationModel.getOrganizationUuidFromTeamId(

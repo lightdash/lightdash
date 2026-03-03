@@ -96,6 +96,7 @@ export const lightdashConfigMock: LightdashConfig = {
         enabled: false,
         port: 9090,
         path: '/metrics',
+        eventMetricsEnabled: false,
     },
     chart: { versionHistory: { daysLimit: 0 } },
     dashboard: {

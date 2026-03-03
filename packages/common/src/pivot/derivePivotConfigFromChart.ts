@@ -13,7 +13,7 @@ import {
     type ItemsMap,
 } from '../types/field';
 import type { MetricQuery } from '../types/metricQuery';
-import type { PivotConfiguration } from '../types/pivot';
+import type { PivotConfig, PivotConfiguration } from '../types/pivot';
 import {
     ChartType,
     isCartesianChartConfig,
@@ -363,4 +363,27 @@ export function derivePivotConfigurationFromChart(
     }
 
     return undefined;
+}
+
+/**
+ * Derives a PivotConfiguration from a PivotConfig (the lightweight UI config)
+ * without requiring a full SavedChartDAO shape. Use this when you have a PivotConfig
+ * from a non-chart context (e.g. ad-hoc exports).
+ */
+export function derivePivotConfigurationFromPivotConfig(
+    pivotConfig: PivotConfig,
+    metricQuery: MetricQuery,
+    fields: ItemsMap,
+): PivotConfiguration | undefined {
+    return derivePivotConfigurationFromChart(
+        {
+            chartConfig: {
+                type: ChartType.TABLE,
+                config: { metricsAsRows: pivotConfig.metricsAsRows },
+            },
+            pivotConfig: { columns: pivotConfig.pivotDimensions },
+        },
+        metricQuery,
+        fields,
+    );
 }

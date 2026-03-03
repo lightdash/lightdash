@@ -61,7 +61,14 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
     );
     const isV2 = !!nestedSpacesPermissionsFlag?.enabled;
 
-    const [usersSelected, setUsersSelected] = useState<string[]>([]);
+    const [selectedItems, setSelectedItems] = useState<{
+        users: string[];
+        groups: string[];
+    }>({ users: [], groups: [] });
+    const selectedValues = useMemo(
+        () => [...selectedItems.users, ...selectedItems.groups],
+        [selectedItems],
+    );
     const [searchQuery, setSearchQuery] = useState<string>('');
     const [debouncedSearchQuery] = useDebouncedValue(searchQuery, 300);
     const { data: projectAccess } = useProjectAccess(projectUuid);
@@ -117,9 +124,24 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
         );
     }, [infiniteOrganizationUsers?.pages]);
 
-    const groups = useMemo(
-        () => infiniteOrganizationGroups?.pages.map((p) => p.data).flat(),
-        [infiniteOrganizationGroups?.pages],
+    // Accumulate groups across searches so previously selected groups
+    // remain resolvable even when the search query changes.
+    const [allSearchedGroups, setAllSearchedGroups] = useState<
+        NonNullable<typeof infiniteOrganizationGroups>['pages'][number]['data']
+    >([]);
+    useEffect(() => {
+        const allPages =
+            infiniteOrganizationGroups?.pages.map((p) => p.data).flat() ?? [];
+
+        setAllSearchedGroups((previousState) =>
+            uniqBy([...previousState, ...allPages], 'uuid'),
+        );
+    }, [infiniteOrganizationGroups?.pages]);
+
+    // Set of all known group UUIDs for O(1) lookups
+    const groupUuidsSet = useMemo(
+        () => new Set(allSearchedGroups.map((g) => g.uuid)),
+        [allSearchedGroups],
     );
 
     const organizationUsers = useMemo(
@@ -143,14 +165,16 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
         new Map(),
     );
 
-    const groupItemsMap = useRef<Map<string, string>>(new Map());
-
     const data = useMemo(() => {
         // Update user ref synchronously so renderOption has access in the same render cycle
         for (const user of allSearchedOrganizationUsers) {
             allUsersRef.current.set(user.userUuid, user);
         }
-        const userUuidsAndSelected = uniq([...userUuids, ...usersSelected]);
+
+        const userUuidsAndSelected = uniq([
+            ...userUuids,
+            ...selectedItems.users,
+        ]);
 
         const usersSet = userUuidsAndSelected
             .map((userUuid): ComboboxItem | null => {
@@ -187,17 +211,12 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
             .filter((item): item is ComboboxItem => item !== null);
 
         const groupsFiltered =
-            groups?.filter(
+            allSearchedGroups.filter(
                 (group) =>
                     !space.groupsAccess.some(
                         (ga) => ga.groupUuid === group.uuid,
                     ),
             ) ?? [];
-
-        // Track which values are group items for the Share button
-        groupItemsMap.current = new Map(
-            groupsFiltered.map((g) => [g.uuid, g.name]),
-        );
 
         const groupItems: ComboboxItem[] = groupsFiltered.map((group) => ({
             value: group.uuid,
@@ -226,8 +245,8 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
     }, [
         isV2,
         userUuids,
-        usersSelected,
-        groups,
+        selectedItems.users,
+        allSearchedGroups,
         allSearchedOrganizationUsers,
         space.access,
         space.groupsAccess,
@@ -263,7 +282,7 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
 
     const renderOption = useCallback(
         ({ option }: ComboboxLikeRenderOptionInput<ComboboxItem>) => {
-            if (groupItemsMap.current.has(option.value)) {
+            if (groupUuidsSet.has(option.value)) {
                 return (
                     <Group gap="sm" wrap="nowrap">
                         <LightdashUserAvatar size="sm" radius="xl" color="blue">
@@ -346,8 +365,56 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                 </Group>
             );
         },
-        [space.access],
+        [space.access, groupUuidsSet],
     );
+
+    const handleSelectionChange = useCallback(
+        (newValue: string[]) => {
+            setSelectedItems((prev) => {
+                const prevAll = new Set([...prev.users, ...prev.groups]);
+                const remaining = new Set(newValue);
+                const added = newValue.filter((uuid) => !prevAll.has(uuid));
+
+                return {
+                    users: [
+                        ...prev.users.filter((uuid) => remaining.has(uuid)),
+                        ...added.filter((uuid) => !groupUuidsSet.has(uuid)),
+                    ],
+                    groups: [
+                        ...prev.groups.filter((uuid) => remaining.has(uuid)),
+                        ...added.filter((uuid) => groupUuidsSet.has(uuid)),
+                    ],
+                };
+            });
+            setSearchQuery('');
+        },
+        [groupUuidsSet],
+    );
+
+    const handleShare = useCallback(async () => {
+        for (const uuid of selectedItems.groups) {
+            const role = isV2
+                ? (space.access.find((a) => a.userUuid === uuid)?.role ??
+                  SpaceMemberRole.VIEWER)
+                : 'viewer';
+            await shareGroupSpaceMutation([uuid, role]);
+        }
+        for (const uuid of selectedItems.users) {
+            // v2: preserve inherited role so direct access isn't a downgrade
+            const role = isV2
+                ? (space.access.find((a) => a.userUuid === uuid)?.role ??
+                  SpaceMemberRole.VIEWER)
+                : 'viewer';
+            await shareSpaceMutation([uuid, role]);
+        }
+        setSelectedItems({ users: [], groups: [] });
+    }, [
+        selectedItems,
+        isV2,
+        space.access,
+        shareGroupSpaceMutation,
+        shareSpaceMutation,
+    ]);
 
     return (
         <Group>
@@ -360,11 +427,8 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                 nothingFoundMessage="No users found"
                 searchValue={searchQuery}
                 onSearchChange={setSearchQuery}
-                value={usersSelected}
-                onChange={(newValue) => {
-                    setUsersSelected(newValue);
-                    setSearchQuery('');
-                }}
+                value={selectedValues}
+                onChange={handleSelectionChange}
                 data={data}
                 renderOption={renderOption}
                 maxDropdownHeight={300}
@@ -378,25 +442,8 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
             />
 
             <Button
-                disabled={disabled || usersSelected.length === 0}
-                onClick={async () => {
-                    for (const uuid of usersSelected) {
-                        const isGroup = groupItemsMap.current.has(uuid);
-
-                        // v2: preserve inherited role so direct access isn't a downgrade
-                        const role = isV2
-                            ? (space.access.find((a) => a.userUuid === uuid)
-                                  ?.role ?? SpaceMemberRole.VIEWER)
-                            : 'viewer';
-
-                        if (isGroup) {
-                            await shareGroupSpaceMutation([uuid, role]);
-                        } else {
-                            await shareSpaceMutation([uuid, role]);
-                        }
-                    }
-                    setUsersSelected([]);
-                }}
+                disabled={disabled || selectedValues.length === 0}
+                onClick={handleShare}
             >
                 Share
             </Button>

@@ -240,6 +240,39 @@ describe('Explores with a base table and joined table', () => {
         ).toStrictEqual(compiledJoinedExploreOverridingJoinDescription);
     });
 });
+describe('Case sensitivity with project defaults', () => {
+    test('should use project defaults when explore caseSensitive is not set', () => {
+        const exploreWithProjectDefaults: UncompiledExplore = {
+            ...exploreOneEmptyTable,
+            projectDefaults: {
+                case_sensitive: false,
+            },
+        };
+        const compiled = compiler.compileExplore(exploreWithProjectDefaults);
+        expect(compiled.caseSensitive).toBe(false);
+    });
+
+    test('should use explore caseSensitive over project defaults', () => {
+        const exploreWithBothSettings: UncompiledExplore = {
+            ...exploreOneEmptyTable,
+            caseSensitive: true, // Explore level setting
+            projectDefaults: {
+                case_sensitive: false, // Project level setting
+            },
+        };
+        const compiled = compiler.compileExplore(exploreWithBothSettings);
+        expect(compiled.caseSensitive).toBe(true);
+    });
+
+    test('should not set caseSensitive when neither explore nor project defaults are set', () => {
+        const exploreWithNoSettings: UncompiledExplore = {
+            ...exploreOneEmptyTable,
+        };
+        const compiled = compiler.compileExplore(exploreWithNoSettings);
+        expect(compiled.caseSensitive).toBeUndefined();
+    });
+});
+
 describe('Default field labels render correctly for various input formats', () => {
     test('should handle uppercase field names', () => {
         expect(friendlyName('MYFIELDID')).toEqual('Myfieldid');
