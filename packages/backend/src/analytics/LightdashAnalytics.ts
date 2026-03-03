@@ -28,6 +28,7 @@ import {
 import Analytics, {
     Track as AnalyticsTrack,
 } from '@rudderstack/rudder-sdk-node';
+import { EventEmitter } from 'events';
 import { Request } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { LightdashConfig } from '../config/parseConfig';
@@ -1700,6 +1701,7 @@ type LightdashAnalyticsArguments = {
     writeKey: string;
     dataPlaneUrl: string;
     options?: ConstructorParameters<typeof Analytics>[1];
+    eventEmitter?: EventEmitter;
 };
 
 export class LightdashAnalytics extends Analytics {
@@ -1707,15 +1709,19 @@ export class LightdashAnalytics extends Analytics {
 
     private readonly lightdashContext: Record<string, AnyType>;
 
+    private readonly eventEmitter?: EventEmitter;
+
     constructor({
         lightdashConfig,
         writeKey,
         dataPlaneUrl,
         options,
+        eventEmitter,
     }: LightdashAnalyticsArguments) {
         super(writeKey, { ...options, dataPlaneUrl });
 
         this.lightdashConfig = lightdashConfig;
+        this.eventEmitter = eventEmitter;
         this.lightdashContext = {
             app: {
                 namespace: 'lightdash',
@@ -1747,6 +1753,16 @@ export class LightdashAnalytics extends Analytics {
     }
 
     track<T extends BaseTrack>(payload: TypedEvent | UntypedEvent<T>) {
+        if (
+            this.lightdashConfig.prometheus.enabled &&
+            this.lightdashConfig.prometheus.eventMetricsEnabled
+        ) {
+            this.eventEmitter?.emit(
+                `analytics.track.${payload.event}`,
+                payload,
+            );
+        }
+
         if (!this.lightdashConfig.rudder.writeKey) return; // Tracking disabled
         if (isUserUpdatedEvent(payload)) {
             const basicEventProperties = {

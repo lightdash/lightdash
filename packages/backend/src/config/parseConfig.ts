@@ -813,6 +813,8 @@ export type LightdashConfig = {
         gcDurationBuckets?: number[];
         eventLoopMonitoringPrecision?: number;
         labels?: Object;
+        eventMetricsEnabled: boolean;
+        eventMetricsConfigPath?: string;
     };
     database: {
         connectionUri: string | undefined;
@@ -1583,6 +1585,12 @@ export const parseConfig = (): LightdashConfig => {
             labels: getObjectFromEnvironmentVariable(
                 'LIGHTDASH_PROMETHEUS_LABELS',
             ),
+            eventMetricsEnabled:
+                process.env.LIGHTDASH_PROMETHEUS_EVENT_METRICS_ENABLED ===
+                'true', // defaults to false
+            eventMetricsConfigPath:
+                process.env.LIGHTDASH_CUSTOM_METRICS_CONFIG_PATH ||
+                process.env.CUSTOM_METRICS_CONFIG_PATH,
         },
         allowMultiOrgs: process.env.ALLOW_MULTIPLE_ORGS === 'true',
         maxPayloadSize: process.env.LIGHTDASH_MAX_PAYLOAD || '5mb',

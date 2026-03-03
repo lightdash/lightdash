@@ -4,6 +4,7 @@ import express from 'express';
 import http from 'http';
 import knex, { Knex } from 'knex';
 import refresh from 'passport-oauth2-refresh';
+import { EventEmitter } from 'events';
 import { LightdashAnalytics } from './analytics/LightdashAnalytics';
 import {
     ClientProviderMap,
@@ -15,7 +16,7 @@ import { databricksPassportStrategy } from './controllers/authentication/strateg
 import { snowflakePassportStrategy } from './controllers/authentication/strategies/snowflakeStrategy';
 import Logger from './logging/logger';
 import { ModelProviderMap, ModelRepository } from './models/ModelRepository';
-import PrometheusMetrics from './prometheus';
+import PrometheusMetrics from './prometheus/PrometheusMetrics';
 import { SchedulerWorker } from './scheduler/SchedulerWorker';
 import { IGNORE_ERRORS } from './sentry';
 import {
@@ -102,10 +103,13 @@ export default class SchedulerApp {
 
     private readonly schedulerWorkerFactory: typeof schedulerWorkerFactory;
 
+    private readonly analyticsEventEmitter: EventEmitter;
+
     constructor(args: SchedulerAppArguments) {
         this.lightdashConfig = args.lightdashConfig;
         this.port = args.port;
         this.environment = args.environment || 'production';
+        this.analyticsEventEmitter = new EventEmitter();
         this.analytics = new LightdashAnalytics({
             lightdashConfig: this.lightdashConfig,
             writeKey: this.lightdashConfig.rudder.writeKey || 'notrack',
@@ -117,6 +121,7 @@ export default class SchedulerApp {
                     this.lightdashConfig.rudder.writeKey &&
                     this.lightdashConfig.rudder.dataPlaneUrl,
             },
+            eventEmitter: this.analyticsEventEmitter,
         });
 
         this.database = knex(
@@ -180,6 +185,7 @@ export default class SchedulerApp {
         this.prometheusMetrics.start();
         this.prometheusMetrics.monitorDatabase(this.database);
         this.prometheusMetrics.monitorPreAggregates(this.database);
+        this.prometheusMetrics.monitorEventMetrics(this.analyticsEventEmitter);
         // @ts-ignore
         // eslint-disable-next-line no-extend-native, func-names
         BigInt.prototype.toJSON = function () {
