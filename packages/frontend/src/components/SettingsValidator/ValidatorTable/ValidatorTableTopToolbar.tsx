@@ -13,7 +13,7 @@ import {
     TextInput,
     Tooltip,
 } from '@mantine-8/core';
-import { IconFilter, IconSearch, IconTrash } from '@tabler/icons-react';
+import { IconArrowBack, IconFilter, IconSearch } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';
 import classes from './ValidatorTableTopToolbar.module.css';
@@ -163,25 +163,31 @@ export const ValidatorTableTopToolbar: FC<ValidatorTableTopToolbarProps> = ({
                     </Popover.Dropdown>
                 </Popover>
 
-                <Switch
-                    checked={showConfigWarnings}
-                    onChange={(e) =>
-                        setShowConfigWarnings(e.currentTarget.checked)
-                    }
-                    label="Warnings"
-                    size="xs"
-                    classNames={{ label: classes.switchLabel }}
-                />
+                <Tooltip
+                    withinPortal
+                    variant="xs"
+                    label="Include chart configuration warnings"
+                >
+                    <Switch
+                        checked={showConfigWarnings}
+                        onChange={(e) =>
+                            setShowConfigWarnings(e.currentTarget.checked)
+                        }
+                        label="Warnings"
+                        size="xs"
+                        classNames={{ label: classes.switchLabel }}
+                    />
+                </Tooltip>
 
                 {hasActiveFilters && (
-                    <Tooltip label="Clear all filters">
+                    <Tooltip label="Reset filters">
                         <ActionIcon
                             variant="subtle"
                             size="sm"
                             color="gray"
                             onClick={resetFilters}
                         >
-                            <MantineIcon icon={IconTrash} />
+                            <MantineIcon icon={IconArrowBack} />
                         </ActionIcon>
                     </Tooltip>
                 )}
