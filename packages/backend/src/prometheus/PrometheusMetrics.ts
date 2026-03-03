@@ -3,20 +3,45 @@ import {
     PreAggregateMissReason,
     QueryHistoryStatus,
 } from '@lightdash/common';
+import { EventEmitter } from 'events';
 import express from 'express';
+import * as fs from 'fs';
 import http from 'http';
 import { Knex } from 'knex';
+import path from 'path';
 import { performance } from 'perf_hooks';
 import prometheus from 'prom-client';
-import { LightdashConfig } from './config/parseConfig';
-import { PreAggregateMaterializationsTableName } from './database/entities/preAggregates';
-import Logger from './logging/logger';
-import { SchedulerClient } from './scheduler/SchedulerClient';
+import { z } from 'zod';
+import { LightdashConfig } from '../config/parseConfig';
+import { PreAggregateMaterializationsTableName } from '../database/entities/preAggregates';
+import Logger from '../logging/logger';
+import { SchedulerClient } from '../scheduler/SchedulerClient';
+import {
+    PrometheusEventMetricManager,
+    PrometheusEventMetricManagerConfig,
+} from './PrometheusEventMetricManager';
+
+const prometheusEventMetricsConfigSchema = z.object({
+    metrics: z.array(
+        z
+            .object({
+                eventName: z.string().min(1),
+                metricName: z.string().min(1),
+                help: z.string().min(1),
+                labelNames: z.array(
+                    z.string().regex(/^[a-zA-Z_][a-zA-Z0-9_]*$/),
+                ),
+            })
+            .strict(),
+    ),
+});
 
 export default class PrometheusMetrics {
     private readonly config: LightdashConfig['prometheus'];
 
     private server: http.Server | null = null;
+
+    private eventMetricManager: PrometheusEventMetricManager | null = null;
 
     // Add query status metrics
     public queryStatusCounter: prometheus.Counter<string> | null = null;
@@ -49,7 +74,7 @@ export default class PrometheusMetrics {
     }
 
     public start() {
-        const { enabled, port, path, ...rest } = this.config;
+        const { enabled, port, path: metricsPath, ...rest } = this.config;
         if (enabled) {
             try {
                 prometheus.collectDefaultMetrics({
@@ -218,13 +243,13 @@ export default class PrometheusMetrics {
 
                 const app = express();
                 this.server = http.createServer(app);
-                app.get(path, async (req, res) => {
+                app.get(metricsPath, async (req, res) => {
                     res.set('Content-Type', prometheus.register.contentType);
                     res.end(await prometheus.register.metrics());
                 });
                 this.server.listen(port, () => {
                     Logger.info(
-                        `Prometheus metrics available at localhost:${port}${path}`,
+                        `Prometheus metrics available at localhost:${port}${metricsPath}`,
                     );
                 });
             } catch (e) {
@@ -509,9 +534,99 @@ export default class PrometheusMetrics {
         });
     }
 
+    public monitorEventMetrics(eventEmitter: EventEmitter) {
+        if (!this.config.enabled || !this.config.eventMetricsEnabled) {
+            return;
+        }
+
+        const configPath = this.config.eventMetricsConfigPath;
+
+        if (!configPath) {
+            Logger.debug(
+                'PrometheusEventMetricManager config path not set, skipping initialization',
+            );
+            return;
+        }
+
+        try {
+            // Validate the config path to prevent path traversal attacks
+            // Resolve to absolute path first, then validate against base directory
+            const resolvedPath = path.resolve(process.cwd(), configPath);
+            const basePath = path.resolve(process.cwd());
+
+            // Ensure the resolved path doesn't escape the working directory
+            if (
+                !resolvedPath.startsWith(basePath + path.sep) &&
+                resolvedPath !== basePath
+            ) {
+                throw new Error(
+                    'Invalid configuration path: path traversal detected',
+                );
+            }
+
+            if (!fs.existsSync(resolvedPath)) {
+                Logger.warn(
+                    `PrometheusEventMetricManager config file not found: ${resolvedPath}`,
+                );
+                return;
+            }
+
+            const configContent = fs.readFileSync(resolvedPath, 'utf-8');
+            let jsonConfig: unknown;
+            try {
+                jsonConfig = JSON.parse(configContent);
+            } catch (parseError) {
+                Logger.error(
+                    `Failed to parse PrometheusEventMetricManager config JSON from ${resolvedPath}`,
+                    parseError,
+                );
+                return;
+            }
+
+            const parsedConfig =
+                prometheusEventMetricsConfigSchema.safeParse(jsonConfig);
+            if (!parsedConfig.success) {
+                Logger.error(
+                    `Invalid PrometheusEventMetricManager config from ${resolvedPath}`,
+                    {
+                        errors: parsedConfig.error.errors.map((issue) => ({
+                            message: issue.message,
+                            path: issue.path.join('.'),
+                        })),
+                    },
+                );
+                return;
+            }
+
+            // Merge with prometheus config from lightdashConfig
+            const config: PrometheusEventMetricManagerConfig = {
+                metrics: parsedConfig.data.metrics,
+                prometheusConfig: this.config,
+            };
+
+            this.eventMetricManager = new PrometheusEventMetricManager(
+                config,
+                eventEmitter,
+            );
+
+            Logger.info('Initializing PrometheusEventMetricManager');
+            this.eventMetricManager.initialize();
+
+            Logger.info(
+                `PrometheusEventMetricManager loaded from ${resolvedPath} with ${config.metrics.length} metrics`,
+            );
+        } catch (error) {
+            Logger.error(
+                `Error loading PrometheusEventMetricManager config from ${configPath}`,
+                error,
+            );
+        }
+    }
+
     public stop() {
         if (this.server) {
             this.server.close();
         }
+        this.eventMetricManager?.cleanup();
     }
 }

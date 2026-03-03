@@ -18,6 +18,7 @@ import * as Sentry from '@sentry/node';
 import flash from 'connect-flash';
 import connectSessionKnex from 'connect-session-knex';
 import cors from 'cors';
+import { EventEmitter } from 'events';
 import express, { Express, NextFunction, Request, Response } from 'express';
 import expressSession from 'express-session';
 import expressStaticGzip from 'express-static-gzip';
@@ -65,7 +66,6 @@ import { sessionAccountMiddleware } from './middlewares/accountMiddleware';
 import { jwtAuthMiddleware } from './middlewares/jwtAuthMiddleware';
 import { ModelProviderMap, ModelRepository } from './models/ModelRepository';
 import { postHogClient } from './postHog';
-import PrometheusMetrics from './prometheus';
 import { apiV1Router } from './routers/apiV1Router';
 import {
     oauthAuthorizationServerHandler,
@@ -80,6 +80,7 @@ import {
 } from './services/ServiceRepository';
 import { UtilProviderMap, UtilRepository } from './utils/UtilRepository';
 import { VERSION } from './version';
+import PrometheusMetrics from './prometheus/PrometheusMetrics';
 
 // We need to override this interface to have our user typing
 declare global {
@@ -186,10 +187,13 @@ export default class App {
 
     private readonly customExpressMiddlewares: Array<(app: Express) => void>;
 
+    private readonly analyticsEventEmitter: EventEmitter;
+
     constructor(args: AppArguments) {
         this.lightdashConfig = args.lightdashConfig;
         this.port = args.port;
         this.environment = args.environment || 'production';
+        this.analyticsEventEmitter = new EventEmitter();
         this.analytics = new LightdashAnalytics({
             lightdashConfig: this.lightdashConfig,
             writeKey: this.lightdashConfig.rudder.writeKey || 'notrack',
@@ -201,6 +205,7 @@ export default class App {
                     this.lightdashConfig.rudder.writeKey &&
                     this.lightdashConfig.rudder.dataPlaneUrl,
             },
+            eventEmitter: this.analyticsEventEmitter,
         });
         this.database = knex(
             this.environment === 'production'
@@ -229,6 +234,7 @@ export default class App {
         this.prometheusMetrics = new PrometheusMetrics(
             this.lightdashConfig.prometheus,
         );
+
         this.serviceRepository = new ServiceRepository({
             serviceProviders: args.serviceProviders,
             context: new OperationContext({
@@ -250,6 +256,7 @@ export default class App {
         this.prometheusMetrics.start();
         this.prometheusMetrics.monitorDatabase(this.database);
         this.prometheusMetrics.monitorPreAggregates(this.database);
+        this.prometheusMetrics.monitorEventMetrics(this.analyticsEventEmitter);
         // @ts-ignore
         // eslint-disable-next-line no-extend-native, func-names
         BigInt.prototype.toJSON = function () {
@@ -377,8 +384,7 @@ export default class App {
             if (this.lightdashConfig.security.contentSecurityPolicy.reportUri) {
                 reportUris.push(
                     new URL(
-                        this.lightdashConfig.security.contentSecurityPolicy
-                            .reportUri,
+                        this.lightdashConfig.security.contentSecurityPolicy.reportUri,
                     ),
                 );
             }
