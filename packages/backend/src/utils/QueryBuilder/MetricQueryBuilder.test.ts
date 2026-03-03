@@ -3512,37 +3512,36 @@ describe('Date zoom with filters', () => {
     });
 
     describe('customSqlSorts in queries', () => {
-        it('should always include custom sort columns in SELECT', () => {
-            const exploreWithCustomSorts: Explore = {
-                ...EXPLORE,
-                tables: {
-                    ...EXPLORE.tables,
-                    table1: {
-                        ...EXPLORE.tables.table1,
-                        dimensions: {
-                            ...EXPLORE.tables.table1.dimensions,
-                            dim1: {
-                                ...EXPLORE.tables.table1.dimensions.dim1,
-                                customSqlSorts: [
-                                    {
-                                        name: 'by_length',
-                                        sql: 'LENGTH(${TABLE}.dim1)',
-                                    },
-                                ],
-                                compiledCustomSqlSorts: [
-                                    {
-                                        name: 'by_length',
-                                        sql: 'LENGTH(${TABLE}.dim1)',
-                                        compiledSql:
-                                            'LENGTH("table1".dim1)',
-                                    },
-                                ],
-                            },
+        const exploreWithCustomSorts: Explore = {
+            ...EXPLORE,
+            tables: {
+                ...EXPLORE.tables,
+                table1: {
+                    ...EXPLORE.tables.table1,
+                    dimensions: {
+                        ...EXPLORE.tables.table1.dimensions,
+                        dim1: {
+                            ...EXPLORE.tables.table1.dimensions.dim1,
+                            customSqlSorts: [
+                                {
+                                    name: 'by_length',
+                                    sql: 'LENGTH(${TABLE}.dim1)',
+                                },
+                            ],
+                            compiledCustomSqlSorts: [
+                                {
+                                    name: 'by_length',
+                                    sql: 'LENGTH(${TABLE}.dim1)',
+                                    compiledSql: 'LENGTH("table1".dim1)',
+                                },
+                            ],
                         },
                     },
                 },
-            };
+            },
+        };
 
+        it('should always include custom sort columns in SELECT', () => {
             const result = buildQuery({
                 explore: exploreWithCustomSorts,
                 compiledMetricQuery: METRIC_QUERY,
@@ -3553,6 +3552,76 @@ describe('Date zoom with filters', () => {
 
             expect(result.query).toContain(
                 'LENGTH("table1".dim1) AS "table1_dim1__by_length"',
+            );
+        });
+
+        it('should ORDER BY custom sort column when customSortName is set', () => {
+            const result = buildQuery({
+                explore: exploreWithCustomSorts,
+                compiledMetricQuery: {
+                    ...METRIC_QUERY,
+                    sorts: [
+                        {
+                            fieldId: 'table1_dim1',
+                            descending: false,
+                            customSortName: 'by_length',
+                        },
+                    ],
+                },
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+
+            expect(result.query).toContain(
+                'ORDER BY "table1_dim1__by_length"',
+            );
+        });
+
+        it('should ORDER BY default dimension when customSortName is not set', () => {
+            const result = buildQuery({
+                explore: exploreWithCustomSorts,
+                compiledMetricQuery: {
+                    ...METRIC_QUERY,
+                    sorts: [
+                        {
+                            fieldId: 'table1_dim1',
+                            descending: false,
+                        },
+                    ],
+                },
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+
+            expect(result.query).toContain('ORDER BY "table1_dim1"');
+            expect(result.query).not.toContain(
+                'ORDER BY "table1_dim1__by_length"',
+            );
+        });
+
+        it('should ORDER BY custom sort column DESC with NULLS LAST', () => {
+            const result = buildQuery({
+                explore: exploreWithCustomSorts,
+                compiledMetricQuery: {
+                    ...METRIC_QUERY,
+                    sorts: [
+                        {
+                            fieldId: 'table1_dim1',
+                            descending: true,
+                            customSortName: 'by_length',
+                            nullsFirst: false,
+                        },
+                    ],
+                },
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+
+            expect(result.query).toContain(
+                'ORDER BY "table1_dim1__by_length" DESC NULLS LAST',
             );
         });
     });

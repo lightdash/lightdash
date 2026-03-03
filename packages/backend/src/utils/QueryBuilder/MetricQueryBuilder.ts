@@ -1229,7 +1229,13 @@ export class MetricQueryBuilder {
                 (d) => getItemId(d) === sort.fieldId,
             );
 
-            if (
+            // Check for custom SQL sort
+            if (sort.customSortName && sortedDimension) {
+                const customSortColumnId = `${sort.fieldId}__${sort.customSortName}`;
+                fieldSort = `${fieldQuoteChar}${customSortColumnId}${fieldQuoteChar}${
+                    sort.descending ? ' DESC' : ''
+                }${MetricQueryBuilder.getNullsFirstLast(sort)}`;
+            } else if (
                 compiledCustomDimensions &&
                 compiledCustomDimensions.find(
                     (customDimension) =>
