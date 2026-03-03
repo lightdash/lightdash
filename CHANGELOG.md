@@ -1,3 +1,10 @@
+## [0.2556.3](https://github.com/lightdash/lightdash/compare/0.2556.2...0.2556.3) (2026-03-03)
+
+
+### Bug Fixes
+
+* better query duration tracking for duckdb client ([#20788](https://github.com/lightdash/lightdash/issues/20788)) ([6655668](https://github.com/lightdash/lightdash/commit/6655668af3a0374a88886dff7754173270e86c49))
+
 ## [0.2556.2](https://github.com/lightdash/lightdash/compare/0.2556.1...0.2556.2) (2026-03-03)
 
 
