@@ -310,6 +310,19 @@ const scopes: Scope[] = [
         getConditions: addDefaultUuidCondition,
     },
     {
+        name: 'manage:DeployProject@self',
+        description: 'Deploy to preview projects created by the user',
+        isEnterprise: false,
+        group: ScopeGroup.PROJECT_MANAGEMENT,
+        getConditions: (context) => [
+            {
+                projectUuid: context.projectUuid,
+                createdByUserUuid: context.userUuid || false,
+                type: ProjectType.PREVIEW,
+            },
+        ],
+    },
+    {
         name: 'manage:Validation',
         description: 'Manage data validation rules',
         isEnterprise: false,

@@ -2107,12 +2107,17 @@ export class ProjectService extends BaseService {
     ): Promise<void> {
         const project =
             await this.projectModel.getWithSensitiveFields(projectUuid);
+
+        // manage:DeployProject for non-preview projects (restrictable via custom roles)
+        // manage:DeployProject@self for preview projects created by the user
         if (
             user.ability.cannot(
                 'manage',
                 subject('DeployProject', {
                     projectUuid,
                     organizationUuid: project.organizationUuid,
+                    type: project.type,
+                    createdByUserUuid: project.createdByUserUuid,
                 }),
             )
         ) {

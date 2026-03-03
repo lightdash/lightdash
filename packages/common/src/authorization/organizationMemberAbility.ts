@@ -271,6 +271,8 @@ const applyOrganizationMemberStaticAbilities: Record<
         });
         can('manage', 'DeployProject', {
             organizationUuid: member.organizationUuid,
+            type: ProjectType.PREVIEW,
+            createdByUserUuid: member.userUuid,
         });
         can('delete', 'Project', {
             organizationUuid: member.organizationUuid,
@@ -349,6 +351,9 @@ const applyOrganizationMemberStaticAbilities: Record<
             organizationUuid: member.organizationUuid,
         });
         can('manage', 'GitIntegration', {
+            organizationUuid: member.organizationUuid,
+        });
+        can('manage', 'DeployProject', {
             organizationUuid: member.organizationUuid,
         });
     },

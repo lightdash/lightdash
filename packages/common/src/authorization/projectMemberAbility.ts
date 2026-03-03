@@ -212,6 +212,11 @@ export const projectMemberAbilities: Record<
         can('manage', 'DeployProject', {
             projectUuid: member.projectUuid,
         });
+        can('manage', 'DeployProject', {
+            projectUuid: member.projectUuid,
+            type: ProjectType.PREVIEW,
+            createdByUserUuid: member.userUuid,
+        });
 
         can('delete', 'Project', {
             projectUuid: member.projectUuid,
