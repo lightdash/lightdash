@@ -1,4 +1,5 @@
 import {
+    AnyType,
     ApiAddDeployBatchRequest,
     ApiAddDeployBatchResponse,
     ApiErrorPayload,
@@ -16,7 +17,6 @@ import {
     Route,
     SuccessResponse,
     Tags,
-    Tsoa,
 } from '@tsoa/runtime';
 import express from 'express';
 import {
@@ -25,7 +25,6 @@ import {
     unauthorisedInDemo,
 } from '../authentication';
 import { BaseController } from '../baseController';
-import AnyType = Tsoa.AnyType;
 
 @Route('/api/v2/projects/{projectUuid}/deploy')
 @Response<ApiErrorPayload>('default', 'Error')
