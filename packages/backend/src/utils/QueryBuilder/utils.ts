@@ -27,7 +27,6 @@ import {
     MetricType,
     parseAllReferences,
     QueryWarning,
-    SortField,
     SupportedDbtAdapter,
     UserAttributeValueMap,
     WeekDay,
@@ -558,14 +557,12 @@ export const getCustomBinDimensionSql = ({
     customDimensions,
     intrinsicUserAttributes,
     userAttributes = {},
-    sorts = [],
 }: {
     warehouseSqlBuilder: WarehouseSqlBuilder;
     explore: Explore;
     customDimensions: CustomBinDimension[] | undefined;
     intrinsicUserAttributes: IntrinsicUserAttributes;
     userAttributes: UserAttributeValueMap | undefined;
-    sorts: SortField[] | undefined;
 }):
     | {
           ctes: string[];
@@ -674,13 +671,9 @@ export const getCustomBinDimensionSql = ({
         const quotedDimensionOrder = `${fieldQuoteChar}${orderDimensionId}${fieldQuoteChar}`;
         const cte = `${getCteReference(customDimension)}`;
 
-        // If a custom dimension is sorted, we need to generate a special SQL select that returns a number
-        // and not the range as a string
-        const isSorted =
-            sorts.length > 0 &&
-            sorts.find(
-                (sortField) => getItemId(customDimension) === sortField.fieldId,
-            );
+        // Always generate the `_order` column alongside the bin dimension label.
+        // Table calculation templates reference `{field}_order` for ORDER BY/PARTITION BY
+        // regardless of whether the bin dimension has a query-level sort.
         const quoteChar = warehouseSqlBuilder.getStringQuoteChar();
         const dash = `${quoteChar} - ${quoteChar}`;
 
@@ -701,10 +694,8 @@ export const getCustomBinDimensionSql = ({
 
                 selects[dimensionId] = widthSql;
 
-                if (isSorted) {
-                    selects[orderDimensionId] =
-                        `FLOOR(${dimension.compiledSql} / ${width}) * ${width} AS ${quotedDimensionOrder}`;
-                }
+                selects[orderDimensionId] =
+                    `FLOOR(${dimension.compiledSql} / ${width}) * ${width} AS ${quotedDimensionOrder}`;
                 break;
             case BinType.FIXED_NUMBER:
                 if (!customDimension.binNumber) {
@@ -762,30 +753,26 @@ export const getCustomBinDimensionSql = ({
                     END
                     AS ${quotedDimensionName}`;
 
-                if (isSorted) {
-                    const sortBinWhens = Array.from(
-                        Array(customDimension.binNumber).keys(),
-                    ).map((i) => {
-                        if (i !== customDimension.binNumber! - 1) {
-                            return `WHEN ${dimension.compiledSql} >= ${from(
-                                i,
-                            )} AND ${dimension.compiledSql} < ${to(
-                                i,
-                            )} THEN ${i}`;
-                        }
-                        return `ELSE ${i}`;
-                    });
+                const sortBinWhens = Array.from(
+                    Array(customDimension.binNumber).keys(),
+                ).map((i) => {
+                    if (i !== customDimension.binNumber! - 1) {
+                        return `WHEN ${dimension.compiledSql} >= ${from(
+                            i,
+                        )} AND ${dimension.compiledSql} < ${to(i)} THEN ${i}`;
+                    }
+                    return `ELSE ${i}`;
+                });
 
-                    const sortWhens = [
-                        `WHEN ${dimension.compiledSql} IS NULL THEN ${customDimension.binNumber}`,
-                        ...sortBinWhens,
-                    ];
+                const sortWhens = [
+                    `WHEN ${dimension.compiledSql} IS NULL THEN ${customDimension.binNumber}`,
+                    ...sortBinWhens,
+                ];
 
-                    selects[orderDimensionId] = `CASE
+                selects[orderDimensionId] = `CASE
                         ${sortWhens.join('\n')}
                         END
                         AS ${quotedDimensionOrder}`;
-                }
                 break;
             case BinType.CUSTOM_RANGE:
                 if (!customDimension.customRange) {
@@ -802,30 +789,28 @@ export const getCustomBinDimensionSql = ({
 
                 selects[dimensionId] = customRangeSql;
 
-                if (isSorted) {
-                    const sortedRangeWhens = customDimension.customRange.map(
-                        (range, i) => {
-                            if (range.from === undefined) {
-                                return `WHEN ${dimension.compiledSql} < ${range.to} THEN ${i}`;
-                            }
-                            if (range.to === undefined) {
-                                return `ELSE ${i}`;
-                            }
+                const sortedRangeWhens = customDimension.customRange.map(
+                    (range, i) => {
+                        if (range.from === undefined) {
+                            return `WHEN ${dimension.compiledSql} < ${range.to} THEN ${i}`;
+                        }
+                        if (range.to === undefined) {
+                            return `ELSE ${i}`;
+                        }
 
-                            return `WHEN ${dimension.compiledSql} >= ${range.from} AND ${dimension.compiledSql} < ${range.to} THEN ${i}`;
-                        },
-                    );
+                        return `WHEN ${dimension.compiledSql} >= ${range.from} AND ${dimension.compiledSql} < ${range.to} THEN ${i}`;
+                    },
+                );
 
-                    const sortedWhens = [
-                        `WHEN ${dimension.compiledSql} IS NULL THEN ${customDimension.customRange.length}`,
-                        ...sortedRangeWhens,
-                    ];
+                const sortedWhens = [
+                    `WHEN ${dimension.compiledSql} IS NULL THEN ${customDimension.customRange.length}`,
+                    ...sortedRangeWhens,
+                ];
 
-                    selects[orderDimensionId] = `CASE
+                selects[orderDimensionId] = `CASE
                     ${sortedWhens.join('\n')}
                     END
                     AS ${quotedDimensionOrder}`;
-                }
                 break;
 
             default:
