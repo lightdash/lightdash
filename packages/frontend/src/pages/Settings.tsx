@@ -840,7 +840,7 @@ const Settings: FC = () => {
 
                                     {health.preAggregates.enabled && (
                                         <RouterNavLink
-                                            label="Pre-aggregate audit"
+                                            label="Pre-aggregate analytics"
                                             exact
                                             to={`/generalSettings/projectManagement/${project.projectUuid}/preAggregateAudit`}
                                             leftSection={
