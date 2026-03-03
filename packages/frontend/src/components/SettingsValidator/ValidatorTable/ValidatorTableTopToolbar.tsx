@@ -6,9 +6,9 @@ import {
     Checkbox,
     Group,
     Popover,
-    Radio,
     ScrollArea,
     Stack,
+    Switch,
     Text,
     TextInput,
     Tooltip,
@@ -103,10 +103,10 @@ export const ValidatorTableTopToolbar: FC<ValidatorTableTopToolbarProps> = ({
                             label="Filter by source type"
                         >
                             <Button
-                                h={32}
+                                h={30}
                                 c="foreground"
                                 fw={500}
-                                fz="sm"
+                                fz="xs"
                                 variant="default"
                                 radius="md"
                                 px="sm"
@@ -163,41 +163,15 @@ export const ValidatorTableTopToolbar: FC<ValidatorTableTopToolbarProps> = ({
                     </Popover.Dropdown>
                 </Popover>
 
-                <Tooltip
-                    withinPortal
-                    variant="xs"
-                    label="Include chart configuration warnings"
-                >
-                    <Button
-                        h={32}
-                        c="foreground"
-                        fw={500}
-                        fz="sm"
-                        variant="default"
-                        radius="md"
-                        px="sm"
-                        className={
-                            showConfigWarnings
-                                ? classes.filterButtonSelected
-                                : classes.filterButton
-                        }
-                        onClick={() => setShowConfigWarnings(!showConfigWarnings)}
-                        rightSection={
-                            showConfigWarnings ? (
-                                <Badge
-                                    size="xs"
-                                    variant="filled"
-                                    color="indigo.6"
-                                    circle
-                                >
-                                    1
-                                </Badge>
-                            ) : null
-                        }
-                    >
-                        Warnings
-                    </Button>
-                </Tooltip>
+                <Switch
+                    checked={showConfigWarnings}
+                    onChange={(e) =>
+                        setShowConfigWarnings(e.currentTarget.checked)
+                    }
+                    label="Warnings"
+                    size="xs"
+                    classNames={{ label: classes.switchLabel }}
+                />
 
                 {hasActiveFilters && (
                     <Tooltip label="Clear all filters">

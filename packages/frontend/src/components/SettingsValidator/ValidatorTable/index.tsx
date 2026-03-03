@@ -198,8 +198,8 @@ export const ValidatorTable: FC<ValidatorTableProps> = ({
                         >
                             <Flex gap="sm" align="center">
                                 <Icon validationError={validationError} />
-                                <Stack gap={4}>
-                                    <Text fw={600}>
+                                <Stack gap={2}>
+                                    <Text fz="xs" fw={600}>
                                         {getErrorName(validationError)}
                                     </Text>
                                     {(isChartValidationError(validationError) ||
@@ -207,7 +207,7 @@ export const ValidatorTable: FC<ValidatorTableProps> = ({
                                             validationError,
                                         )) &&
                                         !isDeleted(validationError) && (
-                                            <Text fz={11} c="ldGray.6">
+                                            <Text fz={10} c="ldGray.5">
                                                 {getViews(validationError)} view
                                                 {getViews(validationError) === 1
                                                     ? ''
@@ -216,7 +216,11 @@ export const ValidatorTable: FC<ValidatorTableProps> = ({
                                                     <>
                                                         {' • '}
                                                         Last edited by{' '}
-                                                        <Text span fw={500}>
+                                                        <Text
+                                                            span
+                                                            fw={500}
+                                                            fz={10}
+                                                        >
                                                             {
                                                                 validationError.lastUpdatedBy
                                                             }
