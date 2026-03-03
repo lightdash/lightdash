@@ -4,6 +4,7 @@ import {
     Button,
     FileInput,
     Group,
+    NumberInput,
     PasswordInput,
     Radio,
     Select,
@@ -617,6 +618,27 @@ const SnowflakeForm: FC<{
                                         'warehouse.disableTimestampConversion',
                                         { type: 'checkbox' },
                                     )}
+                                />
+                                <NumberInput
+                                    name="warehouse.timeoutSeconds"
+                                    {...form.getInputProps(
+                                        'warehouse.timeoutSeconds',
+                                    )}
+                                    label="Timeout in seconds"
+                                    defaultValue={
+                                        SnowflakeDefaultValues.timeoutSeconds
+                                    }
+                                    description={
+                                        <p>
+                                            Sets the maximum execution time for
+                                            queries. If a query takes longer
+                                            than this timeout, Snowflake will
+                                            cancel it. This uses Snowflake's
+                                            STATEMENT_TIMEOUT_IN_SECONDS session
+                                            parameter.
+                                        </p>
+                                    }
+                                    disabled={disabled}
                                 />
                             </Stack>
                         </FormSection>

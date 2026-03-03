@@ -1,5 +1,6 @@
 import {
     Anchor,
+    NumberInput,
     Select,
     Stack,
     Switch,
@@ -211,6 +212,14 @@ export const SnowflakeCredentialsForm: FC<Props> = ({
                                 value ? parseInt(value) : null,
                             )
                         }
+                    />
+
+                    <NumberInput
+                        size="xs"
+                        label="Timeout in seconds"
+                        description="Sets the maximum execution time for queries. If a query takes longer than this timeout, Snowflake will cancel it."
+                        disabled={disabled}
+                        {...form.getInputProps('credentials.timeoutSeconds')}
                     />
                 </Stack>
             </FormSection>
