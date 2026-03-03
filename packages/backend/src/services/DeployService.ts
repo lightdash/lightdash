@@ -51,22 +51,20 @@ export class DeployService extends BaseService {
         user: SessionUser,
         projectUuid: string,
     ): Promise<{ deploySessionUuid: string }> {
-        // Check permissions - same as setExplores in original ProjectService
+        // Check deploy-specific permission
         const project =
             await this.projectModel.getWithSensitiveFields(projectUuid);
         if (
             user.ability.cannot(
-                'update',
-                subject('Project', {
+                'manage',
+                subject('DeployProject', {
                     projectUuid,
                     organizationUuid: project.organizationUuid,
-                    type: project.type,
-                    createdByUserUuid: project.createdByUserUuid,
                 }),
             )
         ) {
             throw new ForbiddenError(
-                `User does not have permission to update project`,
+                `User does not have permission to deploy to this project`,
             );
         }
 
