@@ -175,8 +175,11 @@ const useTableConfig = (
     );
 
     const getColumnWidth = useCallback(
-        (fieldId: string) => columnProperties[fieldId]?.width,
-        [columnProperties],
+        (fieldId: string) =>
+            isColumnCustomizationEnabled
+                ? columnProperties[fieldId]?.width
+                : undefined,
+        [columnProperties, isColumnCustomizationEnabled],
     );
 
     const isPivotTableEnabled =
@@ -609,6 +612,21 @@ const useTableConfig = (
         resultsData,
     ]);
 
+    // Strip `width` from column properties when the feature flag is off.
+    // Column customization was previously released but reverted due to side
+    // effects. Some users set manual widths to work around those issues. Without
+    // this filter, users with the flag disabled would suddenly get those saved
+    // widths back, causing unexpected layout changes.
+    const exposedColumnProperties: Record<string, ColumnProperties> =
+        useMemo(() => {
+            if (isColumnCustomizationEnabled) return columnProperties;
+            return Object.fromEntries(
+                Object.entries(columnProperties).map(
+                    ([key, { width, ...rest }]) => [key, rest],
+                ),
+            );
+        }, [columnProperties, isColumnCustomizationEnabled]);
+
     const validConfig: TableChart = useMemo(
         () => ({
             showColumnCalculation,
@@ -652,7 +670,7 @@ const useTableConfig = (
             showSubtotals,
             setShowSubtotals,
             isColumnCustomizationEnabled,
-            columnProperties,
+            columnProperties: exposedColumnProperties,
             setColumnProperties,
             updateColumnProperty,
             columns,
@@ -689,7 +707,7 @@ const useTableConfig = (
             showSubtotals,
             setShowSubtotals,
             isColumnCustomizationEnabled,
-            columnProperties,
+            exposedColumnProperties,
             setColumnProperties,
             updateColumnProperty,
             columns,
