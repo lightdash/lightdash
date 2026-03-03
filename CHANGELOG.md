@@ -1,3 +1,10 @@
+# [0.2556.0](https://github.com/lightdash/lightdash/compare/0.2555.1...0.2556.0) (2026-03-03)
+
+
+### Features
+
+* map analytics events to prometheus metrics ([#19825](https://github.com/lightdash/lightdash/issues/19825)) ([d1dbc35](https://github.com/lightdash/lightdash/commit/d1dbc354df1956ea920e4c774dd19354cb745621))
+
 ## [0.2555.1](https://github.com/lightdash/lightdash/compare/0.2555.0...0.2555.1) (2026-03-03)
 
 
