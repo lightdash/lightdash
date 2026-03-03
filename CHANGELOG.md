@@ -1,3 +1,10 @@
+## [0.2557.1](https://github.com/lightdash/lightdash/compare/0.2557.0...0.2557.1) (2026-03-03)
+
+
+### Bug Fixes
+
+* update AnyType import and regenerate TSOA routes ([#20802](https://github.com/lightdash/lightdash/issues/20802)) ([91034bf](https://github.com/lightdash/lightdash/commit/91034bf248fbb6dde43d95deed1687e3b3d5f9e4))
+
 # [0.2557.0](https://github.com/lightdash/lightdash/compare/0.2556.3...0.2557.0) (2026-03-03)
 
 
