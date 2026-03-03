@@ -1,5 +1,6 @@
 import moment from 'moment/moment';
-import { FilterOperator, UnitOfTime } from '../types/filter';
+import { SupportedDbtAdapter } from '../types/dbt';
+import { FilterOperator, UnitOfTime, type FilterRule } from '../types/filter';
 import { WeekDay } from '../utils/timeFrames';
 import {
     renderBooleanFilterSql,
@@ -840,6 +841,75 @@ describe('Filter SQL', () => {
                 "'",
             ),
         ).toBe(stringFilterRuleMocks.endsWithFilterWithNoValSQL);
+    });
+
+    describe('case sensitivity hierarchy', () => {
+        const caseFilter: FilterRule = {
+            id: '1',
+            target: { fieldId: 'testField' },
+            operator: FilterOperator.EQUALS,
+            values: ['TestValue'],
+        };
+
+        const mockDimension = disabledFilterMock.field;
+
+        test('should be case sensitive by default', () => {
+            const sql = renderStringFilterSql(
+                'field_name',
+                caseFilter,
+                '\'',
+                true, // case sensitive (default)
+            );
+            expect(sql).toBe(`(field_name) IN ('TestValue')`);
+        });
+
+        test('should be case insensitive when caseSensitive is false', () => {
+            const sql = renderStringFilterSql(
+                'field_name',
+                caseFilter,
+                '\'',
+                false, // case insensitive
+            );
+            expect(sql).toBe(`(UPPER(field_name)) IN ('TESTVALUE')`);
+        });
+
+        test('field-level caseSensitive overrides explore-level', () => {
+            const fieldWithCaseSensitive = {
+                ...mockDimension,
+                caseSensitive: false, // field-level setting
+            };
+            const sql = renderFilterRuleSqlFromField(
+                caseFilter,
+                fieldWithCaseSensitive,
+                '"',
+                '\'',
+                (str: string) => str,
+                WeekDay.MONDAY,
+                SupportedDbtAdapter.POSTGRES,
+                'UTC',
+                true, // explore-level setting (should be overridden)
+            );
+            expect(sql).toContain('UPPER');
+        });
+
+        test('explore-level caseSensitive is used when field has no override', () => {
+            const fieldWithoutCaseSensitive = {
+                ...mockDimension,
+                // No caseSensitive property
+            };
+            const sql = renderFilterRuleSqlFromField(
+                caseFilter,
+                fieldWithoutCaseSensitive,
+                '"',
+                '\'',
+                (str: string) => str,
+                WeekDay.MONDAY,
+                SupportedDbtAdapter.POSTGRES,
+                'UTC',
+                false, // explore-level setting
+            );
+            expect(sql).toContain('UPPER');
+        });
     });
 
     test('should return 1=1 if filter is disabled', () => {

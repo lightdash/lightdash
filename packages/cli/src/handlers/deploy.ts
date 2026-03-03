@@ -86,6 +86,19 @@ const replaceProjectParameters = async (
     });
 };
 
+const replaceProjectDefaults = async (
+    projectUuid: string,
+    lightdashProjectConfig: LightdashProjectConfig,
+) => {
+    if (lightdashProjectConfig.defaults) {
+        await lightdashApi<null>({
+            method: 'PUT',
+            url: `/api/v2/projects/${projectUuid}/defaults`,
+            body: JSON.stringify(lightdashProjectConfig.defaults),
+        });
+    }
+};
+
 const deployBatched = async (
     explores: (Explore | ExploreError)[],
     options: DeployArgs,
@@ -268,6 +281,19 @@ export const deploy = async (
         console.error(
             styles.warning(
                 `\nError replacing project parameters: ${getErrorMessage(e)}\n`,
+            ),
+        );
+    }
+
+    try {
+        await replaceProjectDefaults(
+            options.projectUuid,
+            lightdashProjectConfig,
+        );
+    } catch (e) {
+        console.error(
+            styles.warning(
+                `\nError replacing project defaults: ${getErrorMessage(e)}\n`,
             ),
         );
     }

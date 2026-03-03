@@ -1,4 +1,5 @@
 import { type WeekDay } from '../utils/timeFrames';
+import { type ProjectDefaults } from './lightdashProjectConfig';
 import { type ProjectGroupAccess } from './projectGroupAccess';
 
 export enum ProjectType {
@@ -560,6 +561,7 @@ export type Project = {
     createdByUserUuid: string | null;
     organizationWarehouseCredentialsUuid?: string;
     hasDefaultUserSpaces: boolean;
+    projectDefaults?: ProjectDefaults;
 };
 
 export type ProjectSummary = Pick<

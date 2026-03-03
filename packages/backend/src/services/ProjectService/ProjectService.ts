@@ -114,6 +114,7 @@ import {
     PivotValuesColumn,
     Project,
     ProjectCatalog,
+    ProjectDefaults,
     ProjectGroupAccess,
     ProjectMemberProfile,
     ProjectMemberRole,
@@ -7403,6 +7404,37 @@ export class ProjectService extends BaseService {
         );
     }
 
+    async replaceProjectDefaults({
+                                     user,
+                                     projectUuid,
+                                     defaults,
+                                 }: {
+        user: SessionUser;
+        projectUuid: string;
+        defaults: ProjectDefaults;
+    }) {
+        const { organizationUuid, type, createdByUserUuid } =
+            await this.projectModel.getWithSensitiveFields(projectUuid);
+
+        if (
+            user.ability.cannot(
+                'update',
+                subject('Project', {
+                    projectUuid,
+                    organizationUuid,
+                    type,
+                    createdByUserUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                `User does not have permission to update project defaults`,
+            );
+        }
+
+        await this.projectModel.updateProjectDefaults(projectUuid, defaults);
+    }
+
     async replaceYamlTags(
         user: SessionUser,
         projectUuid: string,
@@ -7637,6 +7669,7 @@ export class ProjectService extends BaseService {
                 spotlight: {
                     default_visibility: 'hide', // todo: pass correct config
                 },
+                defaults: project.projectDefaults,
             },
             disableTimestampConversion,
         );
