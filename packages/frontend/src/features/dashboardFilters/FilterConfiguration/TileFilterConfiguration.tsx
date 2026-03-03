@@ -137,11 +137,41 @@ const TileFilterConfiguration: FC<Props> = ({
     }, [sortTilesByFieldMatch, availableTileFilters]);
 
     const tileTargetList = useMemo(() => {
+        // Pre-build lookup maps for O(1) field access instead of repeated O(N) scans
+        const fieldIdMaps = new Map<string, Map<string, Field>>();
+        const typeFilteredFieldsCache = new Map<
+            string,
+            Field[] | undefined
+        >();
+
+        for (const [tileUuid, filters] of Object.entries(
+            availableTileFilters,
+        )) {
+            // Build fieldId -> Field map for each tile
+            const idMap = new Map<string, Field>();
+            filters?.forEach((f) => idMap.set(getItemId(f), f));
+            fieldIdMaps.set(tileUuid, idMap);
+
+            // Cache type-filtered and sorted fields per tile
+            if (field && filters) {
+                const typeFiltered = filters.filter(matchFieldByType(field));
+                typeFiltered
+                    .sort((a, b) =>
+                        sortFieldsByMatch(matchFieldByTypeAndName, a, b),
+                    )
+                    .sort((a, b) =>
+                        sortFieldsByMatch(matchFieldExact, a, b),
+                    );
+                typeFilteredFieldsCache.set(tileUuid, typeFiltered);
+            }
+        }
+
         const tileWithTargetFields =
             sortedTileWithFilters.map<TileWithTargetFields>(
                 ([tileUuid, filters], index) => {
                     const tile = tiles.find((t) => t.uuid === tileUuid);
                     const tabUuidFromTile = tile?.tabUuid;
+                    const idMap = fieldIdMaps.get(tileUuid);
 
                     // Use shared utility to determine filter-tile relationship
                     const { relation, tileConfig } = getFilterTileRelation(
@@ -149,17 +179,14 @@ const TileFilterConfiguration: FC<Props> = ({
                         tileUuid,
                     );
 
-                    let selectedField;
+                    let selectedFieldForTile;
                     let invalidField: string | undefined;
                     if (relation !== 'disabled') {
-                        selectedField =
+                        selectedFieldForTile =
                             relation === 'mapped' &&
                             tileConfig &&
                             isDashboardFieldTarget(tileConfig)
-                                ? filters?.find(
-                                      (f) =>
-                                          tileConfig?.fieldId === getItemId(f),
-                                  )
+                                ? idMap?.get(tileConfig.fieldId) // O(1) instead of .find()
                                 : field
                                   ? filters?.find((f) =>
                                         matchFieldExact(f)(field),
@@ -172,28 +199,18 @@ const TileFilterConfiguration: FC<Props> = ({
                             tileConfig &&
                             isDashboardFieldTarget(tileConfig) &&
                             tileConfig?.fieldId !== undefined &&
-                            selectedField === undefined
+                            selectedFieldForTile === undefined
                                 ? tileConfig?.fieldId
                                 : undefined;
                     }
 
                     const isFilterAvailable = field
-                        ? (filters?.some(matchFieldByType(field)) ?? false)
+                        ? (typeFilteredFieldsCache.get(tileUuid)?.length ??
+                              0) > 0 // O(1) instead of .some()
                         : false;
 
                     const sortedFilters = field
-                        ? filters
-                              ?.filter(matchFieldByType(field))
-                              .sort((a, b) =>
-                                  sortFieldsByMatch(
-                                      matchFieldByTypeAndName,
-                                      a,
-                                      b,
-                                  ),
-                              )
-                              .sort((a, b) =>
-                                  sortFieldsByMatch(matchFieldExact, a, b),
-                              )
+                        ? typeFilteredFieldsCache.get(tileUuid) // Reuse cached result instead of filter+sort+sort
                         : filters;
 
                     const tileWithoutTitle =
@@ -220,7 +237,8 @@ const TileFilterConfiguration: FC<Props> = ({
                     return {
                         key: tileUuid + index,
                         label: tileLabel,
-                        checked: !!selectedField || !!invalidField,
+                        checked:
+                            !!selectedFieldForTile || !!invalidField,
                         disabled: !isFilterAvailable,
                         invalidField,
                         tileUuid,
@@ -231,7 +249,7 @@ const TileFilterConfiguration: FC<Props> = ({
                                     undefined,
                             }),
                         sortedFilters,
-                        selectedField,
+                        selectedField: selectedFieldForTile,
                         tabUuid: tabUuidFromTile,
                         hasExactMatch,
                     };
@@ -311,6 +329,7 @@ const TileFilterConfiguration: FC<Props> = ({
         filterRule,
         field,
         sortFieldsByMatch,
+        availableTileFilters,
     ]);
 
     const filteredTileTargetList = (tabUUid: string) => {
