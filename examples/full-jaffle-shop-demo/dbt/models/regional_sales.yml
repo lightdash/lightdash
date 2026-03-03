@@ -65,6 +65,7 @@ models:
               format: usd
               round: 0
               label: Total Revenue
+              description: Sum of regional sales revenue
             avg_revenue:
               type: average
               format: usd

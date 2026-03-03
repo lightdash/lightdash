@@ -254,7 +254,7 @@ describe('Lightdash catalog search', () => {
         expect(resp.status).toBe(200);
 
         const { data } = resp.body.results;
-        expect(data).toHaveLength(5);
+        expect(data).toHaveLength(6);
 
         const expectedDescriptions = [
             'Total revenue',
@@ -262,6 +262,7 @@ describe('Lightdash catalog search', () => {
             'Sum of all payments',
             'Sum of Revenue attributed',
             'Sum of annual revenue across offices',
+            'Sum of regional sales revenue',
         ];
 
         const actualDescriptions = data.map(
