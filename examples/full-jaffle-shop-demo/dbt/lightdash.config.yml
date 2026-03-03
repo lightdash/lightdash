@@ -85,3 +85,5 @@ parameters:
     description: "The first date in comparing who's moved from segment to segment"
     default: '2025-08-06'
     type: date
+defaults:
+  case_sensitive: true

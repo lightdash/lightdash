@@ -24,6 +24,7 @@ import {
     ParameterError,
     PreviewContentMapping,
     Project,
+    ProjectDefaults,
     ProjectGroupAccess,
     ProjectMemberProfile,
     ProjectMemberRole,
@@ -541,6 +542,17 @@ export class ProjectModel {
         });
     }
 
+    async updateProjectDefaults(
+        projectUuid: string,
+        projectDefaults: ProjectDefaults,
+    ): Promise<void> {
+        await this.database('projects')
+            .update({
+                project_defaults: projectDefaults,
+            })
+            .where('project_uuid', projectUuid);
+    }
+
     async update(projectUuid: string, data: UpdateProject): Promise<void> {
         // Invalidate warehouse credentials cache
         warehouseCredentialsCache?.del(projectUuid);
@@ -563,6 +575,7 @@ export class ProjectModel {
                     dbt_version: data.dbtVersion,
                     organization_warehouse_credentials_uuid:
                         data.organizationWarehouseCredentialsUuid,
+                    project_defaults: data.projectDefaults ?? null,
                 })
                 .where('project_uuid', projectUuid)
                 .returning('*');
@@ -635,6 +648,7 @@ export class ProjectModel {
                   created_by_user_uuid: string | null;
                   organization_warehouse_credentials_uuid: string | null;
                   has_default_user_spaces: boolean;
+                  project_defaults: ProjectDefaults | null;
               }
             | {
                   name: string;
@@ -650,6 +664,7 @@ export class ProjectModel {
                   created_by_user_uuid: string | null;
                   organization_warehouse_credentials_uuid: string | null;
                   has_default_user_spaces: boolean;
+                  project_defaults: ProjectDefaults | null;
               }
         )[];
         return wrapSentryTransaction(
@@ -710,6 +725,9 @@ export class ProjectModel {
                         this.database
                             .ref('has_default_user_spaces')
                             .withSchema(ProjectTableName),
+                        this.database
+                            .ref('project_defaults')
+                            .withSchema(ProjectTableName),
                     ])
                     .select<QueryResult>()
                     .where('projects.project_uuid', projectUuid);
@@ -750,6 +768,7 @@ export class ProjectModel {
                         project.organization_warehouse_credentials_uuid ??
                         undefined,
                     hasDefaultUserSpaces: project.has_default_user_spaces,
+                    projectDefaults: project.project_defaults ?? undefined,
                 };
 
                 // If project uses organization warehouse credentials, load them
