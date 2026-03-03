@@ -1,4 +1,5 @@
 import {
+    assertUnreachable,
     WarehouseTypes,
     type UpsertUserWarehouseCredentials,
     type UserWarehouseCredentials,
@@ -35,8 +36,27 @@ const getCredentialsWithPlaceholders = (
                 ...credentials,
                 personalAccessToken: '',
             };
+        case WarehouseTypes.CLICKHOUSE:
+            return {
+                ...credentials,
+                password: '',
+            };
+        case WarehouseTypes.ATHENA:
+            return {
+                ...credentials,
+                accessKeyId: '',
+                secretAccessKey: '',
+            };
+        case WarehouseTypes.DUCKDB:
+            return {
+                ...credentials,
+                token: undefined,
+            };
         default:
-            throw new Error(`Credential type not supported`);
+            return assertUnreachable(
+                credentials,
+                'Credential type not supported',
+            );
     }
 };
 

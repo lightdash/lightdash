@@ -1,4 +1,5 @@
 import {
+    assertUnreachable,
     CreateWarehouseCredentials,
     UnexpectedServerError,
     WarehouseTypes,
@@ -8,6 +9,7 @@ import { AthenaWarehouseClient } from './warehouseClients/AthenaWarehouseClient'
 import { BigqueryWarehouseClient } from './warehouseClients/BigqueryWarehouseClient';
 import { ClickhouseWarehouseClient } from './warehouseClients/ClickhouseWarehouseClient';
 import { DatabricksWarehouseClient } from './warehouseClients/DatabricksWarehouseClient';
+import { DuckdbWarehouseClient } from './warehouseClients/DuckdbWarehouseClient';
 import { PostgresWarehouseClient } from './warehouseClients/PostgresWarehouseClient';
 import { RedshiftWarehouseClient } from './warehouseClients/RedshiftWarehouseClient';
 import { SnowflakeWarehouseClient } from './warehouseClients/SnowflakeWarehouseClient';
@@ -33,10 +35,14 @@ export const warehouseClientFromCredentials = (
             return new ClickhouseWarehouseClient(credentials);
         case WarehouseTypes.ATHENA:
             return new AthenaWarehouseClient(credentials);
+        case WarehouseTypes.DUCKDB:
+            return new DuckdbWarehouseClient(credentials);
         default:
-            const never: never = credentials;
-            throw new UnexpectedServerError(
-                'Warehouse credentials type were not recognised',
+            return assertUnreachable(
+                credentials,
+                new UnexpectedServerError(
+                    'Warehouse credentials type were not recognised',
+                ),
             );
     }
 };

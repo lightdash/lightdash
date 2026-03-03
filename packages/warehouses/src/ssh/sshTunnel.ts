@@ -287,6 +287,7 @@ export class SshTunnel<T extends CreateWarehouseCredentials> {
             case WarehouseTypes.BIGQUERY:
             case WarehouseTypes.CLICKHOUSE:
             case WarehouseTypes.ATHENA:
+            case WarehouseTypes.DUCKDB:
                 break;
             default:
                 assertUnreachable(type, new Error('Unknown warehouse type'));

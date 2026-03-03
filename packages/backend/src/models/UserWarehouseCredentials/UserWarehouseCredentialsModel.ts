@@ -89,6 +89,7 @@ export class UserWarehouseCredentialsModel {
                 case WarehouseTypes.BIGQUERY:
                 case WarehouseTypes.DATABRICKS:
                 case WarehouseTypes.ATHENA:
+                case WarehouseTypes.DUCKDB:
                     credentials = {
                         type: credentialsWithSecrets.type,
                     };
