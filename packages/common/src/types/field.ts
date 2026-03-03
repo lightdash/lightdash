@@ -616,6 +616,39 @@ export type CompiledCustomSqlSort = CustomSqlSort & {
     compiledSql: string;
 };
 
+/**
+ * Separator used in custom sort column IDs: `{fieldId}__{sortName}`
+ */
+export const CUSTOM_SORT_COLUMN_SEPARATOR = '__';
+
+/**
+ * Checks if a column ID is a custom sort column by verifying it matches the pattern
+ * `{existingFieldId}__{sortName}` where the prefix before `__` matches a known field.
+ *
+ * @param columnId - The column ID to check
+ * @param knownFieldIds - Set or array of known field IDs in the query results
+ * @returns true if the column is a custom sort column
+ */
+export function isCustomSortColumn(
+    columnId: string,
+    knownFieldIds: Set<string> | string[],
+): boolean {
+    const separatorIndex = columnId.indexOf(CUSTOM_SORT_COLUMN_SEPARATOR);
+    if (separatorIndex <= 0) return false;
+
+    const prefix = columnId.substring(0, separatorIndex);
+    const suffix = columnId.substring(
+        separatorIndex + CUSTOM_SORT_COLUMN_SEPARATOR.length,
+    );
+
+    // Must have both a prefix (matching a known field) and a non-empty suffix (sort name)
+    if (!suffix) return false;
+
+    return knownFieldIds instanceof Set
+        ? knownFieldIds.has(prefix)
+        : knownFieldIds.includes(prefix);
+}
+
 export interface Dimension extends Field {
     fieldType: FieldType.DIMENSION;
     type: DimensionType;

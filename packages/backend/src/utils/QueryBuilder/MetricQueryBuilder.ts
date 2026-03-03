@@ -6,6 +6,7 @@ import {
     CompiledTableCalculation,
     CompileError,
     createFilterRuleFromModelRequiredFilterRule,
+    CUSTOM_SORT_COLUMN_SEPARATOR,
     Explore,
     ExploreCompiler,
     FieldReferenceError,
@@ -716,6 +717,19 @@ export class MetricQueryBuilder {
             selects[id] = `  ${dimension.compiledSql} AS ${quotedAlias}`;
         });
 
+        // Add custom SQL sort columns for dimensions that have them
+        dimensionsObjects.forEach((dimension) => {
+            if (dimension.compiledCustomSqlSorts) {
+                dimension.compiledCustomSqlSorts.forEach((customSort) => {
+                    const dimId = getItemId(dimension);
+                    const sortColumnId = `${dimId}${CUSTOM_SORT_COLUMN_SEPARATOR}${customSort.name}`;
+                    const quotedAlias = `${fieldQuoteChar}${sortColumnId}${fieldQuoteChar}`;
+                    selects[sortColumnId] =
+                        `  ${customSort.compiledSql} AS ${quotedAlias}`;
+                });
+            }
+        });
+
         if (customBinDimensionSql?.selects) {
             Object.assign(selects, customBinDimensionSql.selects);
         }
@@ -1216,7 +1230,13 @@ export class MetricQueryBuilder {
                 (d) => getItemId(d) === sort.fieldId,
             );
 
-            if (
+            // Check for custom SQL sort
+            if (sort.customSortName && sortedDimension) {
+                const customSortColumnId = `${sort.fieldId}${CUSTOM_SORT_COLUMN_SEPARATOR}${sort.customSortName}`;
+                fieldSort = `${fieldQuoteChar}${customSortColumnId}${fieldQuoteChar}${
+                    sort.descending ? ' DESC' : ''
+                }${MetricQueryBuilder.getNullsFirstLast(sort)}`;
+            } else if (
                 compiledCustomDimensions &&
                 compiledCustomDimensions.find(
                     (customDimension) =>
