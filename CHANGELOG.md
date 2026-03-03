@@ -1,3 +1,10 @@
+## [0.2556.2](https://github.com/lightdash/lightdash/compare/0.2556.1...0.2556.2) (2026-03-03)
+
+
+### Bug Fixes
+
+* combine users and groups correctly in share ([#20785](https://github.com/lightdash/lightdash/issues/20785)) ([da54e31](https://github.com/lightdash/lightdash/commit/da54e31a4905c8c22b83a2b65a2a1b6c1555ca25))
+
 ## [0.2556.1](https://github.com/lightdash/lightdash/compare/0.2556.0...0.2556.1) (2026-03-03)
 
 
