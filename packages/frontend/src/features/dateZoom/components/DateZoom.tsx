@@ -12,7 +12,8 @@ import {
     IconCheck,
     IconChevronDown,
     IconChevronUp,
-    IconStarFilled,
+    IconPin,
+    IconPinFilled,
     IconX,
 } from '@tabler/icons-react';
 import { useCallback, useEffect, useState, type FC } from 'react';
@@ -206,15 +207,11 @@ export const DateZoom: FC<Props> = ({ isEditMode }) => {
                                                         ? 'Remove default'
                                                         : 'Set as default'
                                                 }
-                                                position="right"
+                                                position="top"
                                             >
                                                 <ActionIcon
                                                     size="xs"
-                                                    variant={
-                                                        isDefault
-                                                            ? 'filled'
-                                                            : 'subtle'
-                                                    }
+                                                    variant="subtle"
                                                     color={
                                                         isDefault
                                                             ? 'blue'
@@ -228,8 +225,12 @@ export const DateZoom: FC<Props> = ({ isEditMode }) => {
                                                     }}
                                                 >
                                                     <MantineIcon
-                                                        icon={IconStarFilled}
-                                                        size={12}
+                                                        icon={
+                                                            isDefault
+                                                                ? IconPinFilled
+                                                                : IconPin
+                                                        }
+                                                        size="sm"
                                                     />
                                                 </ActionIcon>
                                             </Tooltip>

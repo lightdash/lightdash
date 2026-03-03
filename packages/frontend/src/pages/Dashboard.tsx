@@ -296,6 +296,8 @@ const Dashboard: FC = () => {
             setHaveTilesChanged(false);
             setHaveFiltersChanged(false);
             setHavePinnedParametersChanged(false);
+            setHaveDateZoomGranularitiesChanged(false);
+            setHasDefaultDateZoomGranularityChanged(false);
             setDashboardTemporaryFilters({
                 dimensions: [],
                 metrics: [],
@@ -324,6 +326,8 @@ const Dashboard: FC = () => {
         setHaveFiltersChanged,
         setHaveTilesChanged,
         setHavePinnedParametersChanged,
+        setHaveDateZoomGranularitiesChanged,
+        setHasDefaultDateZoomGranularityChanged,
         dashboardTabs,
         activeTab,
     ]);
