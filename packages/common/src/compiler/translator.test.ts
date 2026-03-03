@@ -1530,6 +1530,7 @@ describe('pre-aggregate virtual explore generation', () => {
             message:
                 'Pre-aggregate "broken_rollup" references unsupported metrics: "myTable_user_count" (count_distinct). Supported metric types: sum, count, min, max, average',
         });
+    });
 });
 
 describe('buildRelationName fallback when relation_name is missing', () => {
