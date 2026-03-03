@@ -54,6 +54,9 @@ export const useVerifyChartMutation = () => {
                 await queryClient.invalidateQueries(['spaces']);
                 await queryClient.invalidateQueries(['content']);
                 await queryClient.invalidateQueries(['saved_query']);
+                await queryClient.invalidateQueries([
+                    'dashboard_chart_ready_query',
+                ]);
                 showToastSuccess({
                     title: 'Chart verified',
                 });
@@ -80,6 +83,9 @@ export const useUnverifyChartMutation = () => {
                 await queryClient.invalidateQueries(['spaces']);
                 await queryClient.invalidateQueries(['content']);
                 await queryClient.invalidateQueries(['saved_query']);
+                await queryClient.invalidateQueries([
+                    'dashboard_chart_ready_query',
+                ]);
                 showToastSuccess({
                     title: 'Chart verification removed',
                 });

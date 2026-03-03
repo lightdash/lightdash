@@ -463,6 +463,7 @@ const SavedChartsHeader: FC = () => {
                                                 : 'Verified'
                                         }
                                         withArrow
+                                        withinPortal
                                     >
                                         <IconCircleCheckFilled
                                             size={16}
