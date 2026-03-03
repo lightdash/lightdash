@@ -4,6 +4,10 @@
     justify-content: center;
     flex-grow: 0;
     flex-shrink: 0;
+    background-color: light-dark(
+        var(--mantine-color-ldGray-0),
+        var(--mantine-color-ldDark-5)
+    );
 }
 
 .tooltipPointerEvents {

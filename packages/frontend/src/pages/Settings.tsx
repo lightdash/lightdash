@@ -482,6 +482,12 @@ const Settings: FC = () => {
                     path: '/generalSettings/projectManagement/:projectUuid/preAggregateAudit',
                 },
                 location.pathname,
+            ) &&
+            !matchPath(
+                {
+                    path: '/generalSettings/projectManagement/:projectUuid/validator',
+                },
+                location.pathname,
             )
         );
     }, [location.pathname]);

@@ -321,8 +321,8 @@ export const useDeleteValidation = (projectUuid: string) => {
         {
             mutationKey: ['delete_validation', projectUuid],
             onSuccess: async () => {
-                await queryClient.refetchQueries(['validation']);
-                await queryClient.refetchQueries(['paginatedValidation']);
+                await queryClient.invalidateQueries(['validation']);
+                await queryClient.invalidateQueries(['paginatedValidation']);
                 showToastSuccess({
                     title: 'Validation dismissed',
                 });

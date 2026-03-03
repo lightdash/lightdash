@@ -5,38 +5,47 @@ import {
     type ValidationErrorChartResponse,
     type ValidationErrorDashboardResponse,
     type ValidationResponse,
+    type ValidationSourceType,
 } from '@lightdash/common';
 import {
     ActionIcon,
     Anchor,
-    Box,
     Button,
     Flex,
     Stack,
-    Table,
     Text,
     Tooltip,
-    useMantineTheme,
-} from '@mantine/core';
-import { mergeRefs, useHover } from '@mantine/hooks';
-import { IconLayoutDashboard, IconTable, IconX } from '@tabler/icons-react';
-import { useVirtualizer } from '@tanstack/react-virtual';
+} from '@mantine-8/core';
 import {
-    forwardRef,
+    IconArrowDown,
+    IconArrowsSort,
+    IconArrowUp,
+    IconLayoutDashboard,
+    IconTable,
+    IconX,
+} from '@tabler/icons-react';
+import {
+    MantineReactTable,
+    useMantineReactTable,
+    type MRT_ColumnDef,
+    type MRT_Virtualizer,
+} from 'mantine-react-table';
+import {
     useCallback,
     useEffect,
+    useMemo,
     useRef,
+    useState,
     type FC,
-    type ReactNode,
     type UIEvent,
 } from 'react';
-import { useTableStyles } from '../../../hooks/styles/useTableStyles';
 import { useDeleteValidation } from '../../../hooks/validation/useValidation';
 import MantineIcon from '../../common/MantineIcon';
 import { ChartIcon, IconBox } from '../../common/ResourceIcon';
 import { getLinkToResource } from '../utils/utils';
 import { ErrorMessage } from './ErrorMessage';
-import pinnedStyles from './ValidatorTable.module.css';
+import classes from './ValidatorTable.module.css';
+import { ValidatorTableTopToolbar } from './ValidatorTableTopToolbar';
 
 const isDeleted = (validationError: ValidationResponse) =>
     (isChartValidationError(validationError) && !validationError.chartUuid) ||
@@ -74,19 +83,14 @@ const getViews = (
 const AnchorToResource: FC<{
     validationError: ValidationResponse;
     projectUuid: string;
-    children: ReactNode;
+    children: React.ReactNode;
 }> = ({ validationError, projectUuid, children }) => {
     return (
         <Anchor
             href={getLinkToResource(validationError, projectUuid)}
             target="_blank"
-            sx={{
-                color: 'unset',
-                ':hover': {
-                    color: 'unset',
-                    textDecoration: 'none',
-                },
-            }}
+            c="unset"
+            className={classes.anchor}
             onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
                 e.stopPropagation();
             }}
@@ -96,137 +100,181 @@ const AnchorToResource: FC<{
     );
 };
 
-const TableValidationItem = forwardRef<
-    HTMLTableRowElement,
-    {
-        projectUuid: string;
-        validationError: ValidationResponse;
-        onSelectValidationError: (validationError: ValidationResponse) => void;
-        isPinned?: boolean;
-        onUnpin?: () => void;
-        'data-index'?: number;
-    }
->(
-    (
-        {
-            projectUuid,
-            validationError,
-            onSelectValidationError,
-            isPinned,
-            onUnpin,
-            'data-index': dataIndex,
-        },
-        ref,
-    ) => {
-        const theme = useMantineTheme();
-        const { mutate: deleteValidation } = useDeleteValidation(projectUuid);
-        const highlightRef = useRef<HTMLTableRowElement>(null);
+export type ValidatorTableProps = {
+    data: ValidationResponse[];
+    projectUuid: string;
+    onSelectValidationError: (validationError: ValidationResponse) => void;
+    isFetching: boolean;
+    isLoading: boolean;
+    isError: boolean;
+    totalDBRowCount: number;
+    fetchNextPage: () => void;
+    pinnedValidation?: ValidationResponse | null;
+    onUnpin?: () => void;
+    searchQuery: string;
+    setSearchQuery: (query: string) => void;
+    sourceTypeFilter: ValidationSourceType[];
+    setSourceTypeFilter: (types: ValidationSourceType[]) => void;
+    showConfigWarnings: boolean;
+    setShowConfigWarnings: (show: boolean) => void;
+    lastValidatedAt: Date | null;
+};
 
-        const { hovered, ref: isHoveredRef } = useHover<HTMLTableRowElement>();
+export const ValidatorTable: FC<ValidatorTableProps> = ({
+    data,
+    projectUuid,
+    onSelectValidationError,
+    isFetching,
+    isLoading,
+    isError,
+    totalDBRowCount,
+    fetchNextPage,
+    pinnedValidation,
+    onUnpin,
+    searchQuery,
+    setSearchQuery,
+    sourceTypeFilter,
+    setSourceTypeFilter,
+    showConfigWarnings,
+    setShowConfigWarnings,
+    lastValidatedAt,
+}) => {
+    const tableContainerRef = useRef<HTMLDivElement>(null);
+    const rowVirtualizerInstanceRef =
+        useRef<MRT_Virtualizer<HTMLDivElement, HTMLTableRowElement>>(null);
 
-        useEffect(() => {
-            if (isPinned && highlightRef.current) {
-                highlightRef.current.animate(
-                    [
-                        {
-                            backgroundColor: 'transparent',
-                            borderRadius: theme.radius.sm,
-                        },
-                        {
-                            backgroundColor: theme.colors.yellow[1],
-                            borderRadius: theme.radius.sm,
-                        },
-                        {
-                            backgroundColor: 'transparent',
-                            borderRadius: theme.radius.sm,
-                        },
-                    ],
-                    { duration: 4000, iterations: 2 },
-                );
+    const { mutate: deleteValidation } = useDeleteValidation(projectUuid);
+
+    // Combine pinned validation with data for display
+    const tableData = useMemo(() => {
+        if (pinnedValidation) {
+            return [pinnedValidation, ...data];
+        }
+        return data;
+    }, [data, pinnedValidation]);
+
+    // Workaround for memoization issue with mantine-react-table
+    const [displayData, setDisplayData] = useState<ValidationResponse[]>([]);
+    useEffect(() => {
+        setDisplayData(tableData);
+    }, [tableData]);
+
+    const totalFetched = data.length;
+
+    const fetchMoreOnBottomReached = useCallback(
+        (containerRefElement?: HTMLDivElement | null) => {
+            if (containerRefElement) {
+                const { scrollHeight, scrollTop, clientHeight } =
+                    containerRefElement;
+                if (
+                    scrollHeight - scrollTop - clientHeight < 400 &&
+                    !isFetching &&
+                    totalFetched < totalDBRowCount
+                ) {
+                    void fetchNextPage();
+                }
             }
-        }, [isPinned, theme.colors.yellow, theme.radius.sm]);
+        },
+        [fetchNextPage, isFetching, totalFetched, totalDBRowCount],
+    );
 
-        const showDismiss = isPinned || hovered;
+    useEffect(() => {
+        fetchMoreOnBottomReached(tableContainerRef.current);
+    }, [fetchMoreOnBottomReached]);
 
-        return (
-            <tr
-                ref={mergeRefs(ref, isHoveredRef, highlightRef)}
-                data-index={dataIndex}
-                className={isPinned ? pinnedStyles.pinnedRow : undefined}
-            >
-                <td>
-                    <AnchorToResource
-                        validationError={validationError}
-                        projectUuid={projectUuid}
-                    >
-                        <Flex gap="sm" align="center">
-                            <Icon validationError={validationError} />
-
-                            <Stack spacing={4}>
-                                <Text fw={600}>
-                                    {getErrorName(validationError)}
-                                </Text>
-
-                                {(isChartValidationError(validationError) ||
-                                    isDashboardValidationError(
-                                        validationError,
-                                    )) &&
-                                    !isDeleted(validationError) && (
-                                        <Text fz={11} color="ldGray.6">
-                                            {getViews(validationError)} view
-                                            {getViews(validationError) === 1
-                                                ? ''
-                                                : 's'}
-                                            {validationError.lastUpdatedBy ? (
-                                                <>
-                                                    {' • '}
-                                                    Last edited by{' '}
-                                                    <Text span fw={500}>
-                                                        {
-                                                            validationError.lastUpdatedBy
-                                                        }
-                                                    </Text>
-                                                </>
-                                            ) : null}
-                                        </Text>
-                                    )}
-                            </Stack>
-                        </Flex>
-                    </AnchorToResource>
-                </td>
-                <td>
-                    <AnchorToResource
-                        validationError={validationError}
-                        projectUuid={projectUuid}
-                    >
-                        <ErrorMessage validationError={validationError} />
-                    </AnchorToResource>
-                </td>
-                <td>
-                    <Box w={24}>
-                        {(isPinned || hovered) &&
-                            isChartValidationError(validationError) && (
-                                <Button
-                                    variant="outline"
-                                    onClick={(
-                                        e: React.MouseEvent<HTMLButtonElement>,
-                                    ) => {
-                                        onSelectValidationError(
+    const columns: MRT_ColumnDef<ValidationResponse>[] = useMemo(
+        () => [
+            {
+                accessorKey: 'name',
+                header: 'Name',
+                enableSorting: false,
+                size: 300,
+                Cell: ({ row }) => {
+                    const validationError = row.original;
+                    return (
+                        <AnchorToResource
+                            validationError={validationError}
+                            projectUuid={projectUuid}
+                        >
+                            <Flex gap="sm" align="flex-start">
+                                <Icon validationError={validationError} />
+                                <Stack gap={2}>
+                                    <Text fz="xs" fw={600}>
+                                        {getErrorName(validationError)}
+                                    </Text>
+                                    {(isChartValidationError(validationError) ||
+                                        isDashboardValidationError(
                                             validationError,
-                                        );
-                                        e.stopPropagation();
-                                    }}
-                                >
-                                    Fix
-                                </Button>
-                            )}
-                    </Box>
-                </td>
-                <td>
-                    <Tooltip label="Dismiss error" position="top">
-                        <Box w={24}>
-                            {showDismiss && (
+                                        )) &&
+                                        !isDeleted(validationError) && (
+                                            <Text fz={10} c="ldGray.6">
+                                                {getViews(validationError)} view
+                                                {getViews(validationError) === 1
+                                                    ? ''
+                                                    : 's'}
+                                                {validationError.lastUpdatedBy ? (
+                                                    <>
+                                                        {' • '}
+                                                        Last edited by{' '}
+                                                        <Text
+                                                            span
+                                                            fw={500}
+                                                            fz={10}
+                                                        >
+                                                            {
+                                                                validationError.lastUpdatedBy
+                                                            }
+                                                        </Text>
+                                                    </>
+                                                ) : null}
+                                            </Text>
+                                        )}
+                                </Stack>
+                            </Flex>
+                        </AnchorToResource>
+                    );
+                },
+            },
+            {
+                accessorKey: 'error',
+                header: 'Error',
+                enableSorting: false,
+                size: 400,
+                Cell: ({ row }) => {
+                    const validationError = row.original;
+                    return (
+                        <AnchorToResource
+                            validationError={validationError}
+                            projectUuid={projectUuid}
+                        >
+                            <ErrorMessage validationError={validationError} />
+                        </AnchorToResource>
+                    );
+                },
+            },
+            {
+                id: 'actions',
+                header: '',
+                enableSorting: false,
+                size: 70,
+                Cell: ({ row }) => {
+                    const validationError = row.original;
+                    const isPinned =
+                        pinnedValidation?.validationId ===
+                        validationError.validationId;
+
+                    return (
+                        <Flex
+                            gap="xs"
+                            justify="flex-end"
+                            align="center"
+                            className={classes.actions}
+                        >
+                            <Tooltip label="Dismiss Error" position="top">
                                 <ActionIcon
+                                    variant="subtle"
+                                    color="gray"
+                                    size="xs"
                                     onClick={(
                                         e: React.MouseEvent<HTMLButtonElement>,
                                     ) => {
@@ -246,156 +294,121 @@ const TableValidationItem = forwardRef<
                                         color="ldGray.6"
                                     />
                                 </ActionIcon>
+                            </Tooltip>
+                            {isChartValidationError(validationError) && (
+                                <Button
+                                    variant="default"
+                                    size="compact-xs"
+                                    onClick={(
+                                        e: React.MouseEvent<HTMLButtonElement>,
+                                    ) => {
+                                        onSelectValidationError(
+                                            validationError,
+                                        );
+                                        e.stopPropagation();
+                                    }}
+                                >
+                                    Fix
+                                </Button>
                             )}
-                        </Box>
-                    </Tooltip>
-                </td>
-            </tr>
-        );
-    },
-);
-
-export const ValidatorTable: FC<{
-    data: ValidationResponse[];
-    projectUuid: string;
-    onSelectValidationError: (validationError: ValidationResponse) => void;
-    isFetching: boolean;
-    isLoading: boolean;
-    isError: boolean;
-    totalDBRowCount: number;
-    fetchNextPage: () => void;
-    pinnedValidation?: ValidationResponse | null;
-    onUnpin?: () => void;
-}> = ({
-    data,
-    projectUuid,
-    onSelectValidationError,
-    isFetching,
-    totalDBRowCount,
-    fetchNextPage,
-    pinnedValidation,
-    onUnpin,
-}) => {
-    const { cx, classes } = useTableStyles();
-    const tableContainerRef = useRef<HTMLDivElement>(null);
-
-    const fetchMoreOnBottomReached = useCallback(
-        (containerRefElement?: HTMLDivElement | null) => {
-            if (containerRefElement) {
-                const { scrollHeight, scrollTop, clientHeight } =
-                    containerRefElement;
-                if (
-                    scrollHeight - scrollTop - clientHeight < 400 &&
-                    !isFetching &&
-                    data.length < totalDBRowCount
-                ) {
-                    void fetchNextPage();
-                }
-            }
-        },
-        [fetchNextPage, isFetching, data.length, totalDBRowCount],
+                        </Flex>
+                    );
+                },
+            },
+        ],
+        [
+            projectUuid,
+            pinnedValidation,
+            onSelectValidationError,
+            onUnpin,
+            deleteValidation,
+        ],
     );
 
-    useEffect(() => {
-        fetchMoreOnBottomReached(tableContainerRef.current);
-    }, [fetchMoreOnBottomReached]);
-
-    const rowVirtualizer = useVirtualizer({
-        count: data.length,
-        getScrollElement: () => tableContainerRef.current,
-        estimateSize: () => 65,
-        overscan: 10,
+    const table = useMantineReactTable({
+        columns,
+        data: displayData,
+        enableColumnResizing: false,
+        enableRowNumbers: false,
+        enablePagination: false,
+        enableFilters: false,
+        enableFullScreenToggle: false,
+        enableDensityToggle: false,
+        enableColumnActions: false,
+        enableColumnFilters: false,
+        enableHiding: false,
+        enableGlobalFilterModes: false,
+        enableSorting: false,
+        enableRowVirtualization: true,
+        enableTopToolbar: true,
+        enableBottomToolbar: false,
+        enableRowActions: false,
+        getRowId: (row) => String(row.validationId),
+        renderTopToolbar: () => (
+            <ValidatorTableTopToolbar
+                searchQuery={searchQuery}
+                setSearchQuery={setSearchQuery}
+                sourceTypeFilter={sourceTypeFilter}
+                setSourceTypeFilter={setSourceTypeFilter}
+                showConfigWarnings={showConfigWarnings}
+                setShowConfigWarnings={setShowConfigWarnings}
+                totalResults={totalDBRowCount}
+                lastValidatedAt={lastValidatedAt}
+                isFetching={isFetching || isLoading}
+            />
+        ),
+        mantinePaperProps: {
+            shadow: undefined,
+            className: classes.paper,
+        },
+        mantineTableHeadRowProps: {
+            className: classes.headerRow,
+        },
+        mantineTableContainerProps: {
+            ref: tableContainerRef,
+            className: classes.tableContainer,
+            onScroll: (event: UIEvent<HTMLDivElement>) =>
+                fetchMoreOnBottomReached(event.target as HTMLDivElement),
+        },
+        mantineTableProps: {
+            highlightOnHover: true,
+            withColumnBorders: false,
+        },
+        mantineTableBodyRowProps: ({ row }) => {
+            const isPinned =
+                pinnedValidation?.validationId === row.original.validationId;
+            return {
+                className: isPinned ? classes.pinnedRow : classes.row,
+            };
+        },
+        mantineTableHeadCellProps: {
+            h: '3xl',
+            pos: 'relative',
+            className: classes.headerCell,
+        },
+        mantineTableBodyCellProps: {
+            className: classes.bodyCell,
+        },
+        icons: {
+            IconArrowsSort: () => (
+                <MantineIcon icon={IconArrowsSort} size="md" color="ldGray.5" />
+            ),
+            IconSortAscending: () => (
+                <MantineIcon icon={IconArrowUp} size="md" color="blue.6" />
+            ),
+            IconSortDescending: () => (
+                <MantineIcon icon={IconArrowDown} size="md" color="blue.6" />
+            ),
+        },
+        rowVirtualizerInstanceRef,
+        rowVirtualizerProps: { overscan: 10 },
+        state: {
+            isLoading,
+            showAlertBanner: isError,
+            showProgressBars: isFetching,
+            density: 'md',
+        },
     });
 
-    const virtualRows = rowVirtualizer.getVirtualItems();
-    const totalSize = rowVirtualizer.getTotalSize();
-    const paddingTop = virtualRows.length > 0 ? virtualRows[0].start : 0;
-    const paddingBottom =
-        virtualRows.length > 0
-            ? totalSize - virtualRows[virtualRows.length - 1].end
-            : 0;
-
-    return (
-        <div
-            ref={tableContainerRef}
-            style={{
-                overflowY: 'auto',
-                maxHeight: 'calc(100dvh - 350px)',
-            }}
-            onScroll={(event: UIEvent<HTMLDivElement>) =>
-                fetchMoreOnBottomReached(event.target as HTMLDivElement)
-            }
-        >
-            <Table
-                className={cx(
-                    classes.root,
-                    classes.smallPadding,
-                    classes.stickyHeader,
-                    classes.noRoundedCorners,
-                )}
-                fontSize="xs"
-                highlightOnHover
-            >
-                <thead>
-                    <tr>
-                        <th>Name</th>
-                        <th>Error</th>
-                        <th></th>
-                        <th></th>
-                    </tr>
-                </thead>
-                {pinnedValidation && onUnpin && (
-                    <tbody>
-                        <TableValidationItem
-                            projectUuid={projectUuid}
-                            validationError={pinnedValidation}
-                            onSelectValidationError={onSelectValidationError}
-                            isPinned
-                            onUnpin={onUnpin}
-                        />
-                    </tbody>
-                )}
-                <tbody>
-                    {paddingTop > 0 && (
-                        <tr>
-                            <td
-                                colSpan={4}
-                                style={{
-                                    height: paddingTop,
-                                    padding: 0,
-                                    border: 'none',
-                                }}
-                            />
-                        </tr>
-                    )}
-                    {virtualRows.map((virtualRow) => {
-                        const validationError = data[virtualRow.index];
-                        return (
-                            <TableValidationItem
-                                key={validationError.validationId}
-                                data-index={virtualRow.index}
-                                projectUuid={projectUuid}
-                                validationError={validationError}
-                                onSelectValidationError={
-                                    onSelectValidationError
-                                }
-                            />
-                        );
-                    })}
-                    {paddingBottom > 0 && (
-                        <tr>
-                            <td
-                                colSpan={4}
-                                style={{
-                                    height: paddingBottom,
-                                    padding: 0,
-                                    border: 'none',
-                                }}
-                            />
-                        </tr>
-                    )}
-                </tbody>
-            </Table>
-        </div>
-    );
+    return <MantineReactTable table={table} />;
 };
