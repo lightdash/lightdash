@@ -2,10 +2,10 @@ import {
     isChartValidationError,
     isDashboardValidationError,
     isTableValidationError,
-    ValidationSourceType,
     type ValidationErrorChartResponse,
     type ValidationErrorDashboardResponse,
     type ValidationResponse,
+    type ValidationSourceType,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -207,7 +207,7 @@ export const ValidatorTable: FC<ValidatorTableProps> = ({
                                             validationError,
                                         )) &&
                                         !isDeleted(validationError) && (
-                                            <Text fz={10} c="ldGray.5">
+                                            <Text fz={10} c="ldGray.6">
                                                 {getViews(validationError)} view
                                                 {getViews(validationError) === 1
                                                     ? ''
@@ -256,7 +256,7 @@ export const ValidatorTable: FC<ValidatorTableProps> = ({
                 id: 'actions',
                 header: '',
                 enableSorting: false,
-                size: 120,
+                size: 70,
                 Cell: ({ row }) => {
                     const validationError = row.original;
                     const isPinned =
@@ -270,24 +270,11 @@ export const ValidatorTable: FC<ValidatorTableProps> = ({
                             align="center"
                             className={classes.actions}
                         >
-                            {isChartValidationError(validationError) && (
-                                <Button
-                                    variant="default"
-                                    size="xs"
-                                    onClick={(
-                                        e: React.MouseEvent<HTMLButtonElement>,
-                                    ) => {
-                                        onSelectValidationError(validationError);
-                                        e.stopPropagation();
-                                    }}
-                                >
-                                    Fix
-                                </Button>
-                            )}
-                            <Tooltip label="Dismiss error" position="top">
+                            <Tooltip label="Dismiss Error" position="top">
                                 <ActionIcon
                                     variant="subtle"
                                     color="gray"
+                                    size="xs"
                                     onClick={(
                                         e: React.MouseEvent<HTMLButtonElement>,
                                     ) => {
@@ -308,6 +295,22 @@ export const ValidatorTable: FC<ValidatorTableProps> = ({
                                     />
                                 </ActionIcon>
                             </Tooltip>
+                            {isChartValidationError(validationError) && (
+                                <Button
+                                    variant="default"
+                                    size="compact-xs"
+                                    onClick={(
+                                        e: React.MouseEvent<HTMLButtonElement>,
+                                    ) => {
+                                        onSelectValidationError(
+                                            validationError,
+                                        );
+                                        e.stopPropagation();
+                                    }}
+                                >
+                                    Fix
+                                </Button>
+                            )}
                         </Flex>
                     );
                 },

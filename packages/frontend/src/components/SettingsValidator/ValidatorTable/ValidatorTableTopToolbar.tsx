@@ -2,6 +2,7 @@ import { ValidationSourceType } from '@lightdash/common';
 import {
     ActionIcon,
     Badge,
+    Box,
     Button,
     Checkbox,
     Group,
@@ -45,7 +46,6 @@ export const ValidatorTableTopToolbar: FC<ValidatorTableTopToolbarProps> = ({
     setShowConfigWarnings,
     totalResults,
     lastValidatedAt,
-    isFetching,
 }) => {
     const hasActiveFilters =
         sourceTypeFilter.length > 0 || showConfigWarnings || searchQuery !== '';
@@ -163,21 +163,19 @@ export const ValidatorTableTopToolbar: FC<ValidatorTableTopToolbarProps> = ({
                     </Popover.Dropdown>
                 </Popover>
 
-                <Tooltip
-                    withinPortal
-                    variant="xs"
-                    label="Include chart configuration warnings"
-                >
-                    <Switch
-                        checked={showConfigWarnings}
-                        onChange={(e) =>
-                            setShowConfigWarnings(e.currentTarget.checked)
-                        }
-                        label="Warnings"
-                        size="xs"
-                        classNames={{ label: classes.switchLabel }}
-                    />
-                </Tooltip>
+                <Switch
+                    checked={showConfigWarnings}
+                    onChange={(e) =>
+                        setShowConfigWarnings(e.currentTarget.checked)
+                    }
+                    label={
+                        <Tooltip label="Include chart configuration warnings">
+                            <Box c="ldGray.6">Warnings</Box>
+                        </Tooltip>
+                    }
+                    size="xs"
+                    classNames={{ label: classes.switchLabel }}
+                />
 
                 {hasActiveFilters && (
                     <Tooltip label="Reset filters">
