@@ -83,6 +83,16 @@ const Sorting = forwardRef<HTMLDivElement, Props>(({ sorts, isEditMode }) => {
         [dispatch, sorts],
     );
 
+    const setCustomSortName = useCallback(
+        (fieldId: string, customSortName: string | undefined) => {
+            const newSorts = sorts.map((s) =>
+                s.fieldId === fieldId ? { ...s, customSortName } : s,
+            );
+            dispatch(explorerActions.setSortFields(newSorts));
+        },
+        [dispatch, sorts],
+    );
+
     const onDragEnd = (result: DropResult) => {
         if (!result.destination) return;
         if (result.destination.index === result.source.index) return;
@@ -155,6 +165,14 @@ const Sorting = forwardRef<HTMLDivElement, Props>(({ sorts, isEditMode }) => {
                                                 setSortFieldNullsFirst(
                                                     sort.fieldId,
                                                     payload,
+                                                );
+                                            }}
+                                            onSetCustomSortName={(
+                                                customSortName,
+                                            ) => {
+                                                setCustomSortName(
+                                                    sort.fieldId,
+                                                    customSortName,
                                                 );
                                             }}
                                         />
