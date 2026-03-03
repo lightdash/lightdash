@@ -53,16 +53,15 @@
 }
 
 .row .actions {
-    opacity: 0;
-    transition: opacity 150ms ease;
+    display: none;
 }
 
 .row:hover .actions {
-    opacity: 1;
+    display: flex;
 }
 
 .pinnedRow .actions {
-    opacity: 1;
+    display: flex;
 }
 
 .pinnedRow {
