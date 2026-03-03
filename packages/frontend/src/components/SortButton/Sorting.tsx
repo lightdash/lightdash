@@ -39,6 +39,10 @@ const Sorting = forwardRef<HTMLDivElement, Props>(({ sorts, isEditMode }) => {
                 ...(existingSort?.nullsFirst !== undefined && {
                     nullsFirst: existingSort.nullsFirst,
                 }),
+                // Preserve customSortName if it exists
+                ...(existingSort?.customSortName !== undefined && {
+                    customSortName: existingSort.customSortName,
+                }),
             };
 
             if (existingSort) {

@@ -115,6 +115,7 @@ const SortItem = forwardRef<HTMLDivElement, SortItemProps>(
                                 disabled={!isEditMode}
                                 size="xs"
                                 w={160}
+                                comboboxProps={{ withinPortal: false }}
                                 value={sort.customSortName ?? '__default__'}
                                 data={[
                                     {
@@ -130,7 +131,7 @@ const SortItem = forwardRef<HTMLDivElement, SortItemProps>(
                                     onSetCustomSortName(
                                         value === '__default__'
                                             ? undefined
-                                            : value ?? undefined,
+                                            : (value ?? undefined),
                                     );
                                 }}
                             />
