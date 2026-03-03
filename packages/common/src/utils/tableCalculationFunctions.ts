@@ -90,7 +90,7 @@ export interface IndexFunctionCall extends BaseFunctionCall {
 export interface OffsetFunctionCall extends BaseFunctionCall {
     type: TableCalculationFunctionType.OFFSET;
     column: string; // The column to offset
-    rowOffset: number; // Number of rows to offset (negative = previous, positive = next)
+    rowOffset: string; // Number of rows to offset (negative = previous, positive = next) or expression
 }
 
 export interface OffsetListFunctionCall extends BaseFunctionCall {
@@ -363,19 +363,46 @@ export function parseTableCalculationFunctions(
         match = rowRegex.exec(sql);
     }
 
-    // Parse offset function calls (but not pivot_offset)
-    const offsetRegex = /\boffset\s*\(\s*([^,()]+)\s*,\s*(-?\d+)\s*\)/gi;
+    // Parse offset function calls
+    // The \b word boundary ensures we don't match pivot_offset
+    const offsetRegex = /\boffset\(/gi;
     match = offsetRegex.exec(sql);
     while (match !== null) {
-        // Skip if this is actually a pivot_offset
         const startIdx = match.index;
-        const beforeMatch = sql.slice(Math.max(0, startIdx - 6), startIdx);
-        if (!beforeMatch.endsWith('pivot_')) {
+
+        // Parse the function arguments properly, handling nested parentheses
+        let parenDepth = 1;
+        let i = startIdx + match[0].length;
+        const argStart = i;
+        let firstArgEnd = -1;
+        let secondArgStart = -1;
+
+        while (i < sql.length && parenDepth > 0) {
+            if (sql[i] === '(') {
+                parenDepth += 1;
+            } else if (sql[i] === ')') {
+                parenDepth -= 1;
+            } else if (
+                sql[i] === ',' &&
+                parenDepth === 1 &&
+                firstArgEnd === -1
+            ) {
+                firstArgEnd = i;
+                secondArgStart = i + 1;
+            }
+            i += 1;
+        }
+
+        if (firstArgEnd !== -1 && parenDepth === 0) {
+            const column = sql.slice(argStart, firstArgEnd).trim();
+            const rowOffset = sql.slice(secondArgStart, i - 1).trim();
+            const rawSql = sql.slice(startIdx, i);
+
             functions.push({
                 type: TableCalculationFunctionType.OFFSET,
-                column: match[1].trim(),
-                rowOffset: parseInt(match[2], 10),
-                rawSql: match[0],
+                column,
+                rowOffset,
+                rawSql,
             });
         }
         match = offsetRegex.exec(sql);
@@ -839,16 +866,25 @@ export class TableCalculationFunctionCompiler {
 
     private static compileOffset(
         column: string,
-        rowOffset: number,
+        rowOffset: string,
         orderByClause?: string,
     ): string {
-        if (rowOffset === 0) {
-            return column;
+        // Try to parse the offset as a number
+        const offsetNum = parseInt(rowOffset, 10);
+
+        if (!Number.isNaN(offsetNum)) {
+            // It's a valid number, use the original logic
+            if (offsetNum === 0) {
+                return column;
+            }
+            const windowFunction = offsetNum < 0 ? 'LAG' : 'LEAD';
+            const offsetValue = Math.abs(offsetNum);
+            return `${windowFunction}(${column}, ${offsetValue}) ${TableCalculationFunctionCompiler.buildOrderByWindow(orderByClause)}`;
         }
 
-        const windowFunction = rowOffset < 0 ? 'LAG' : 'LEAD';
-        const offsetValue = Math.abs(rowOffset);
-        return `${windowFunction}(${column}, ${offsetValue}) ${TableCalculationFunctionCompiler.buildOrderByWindow(orderByClause)}`;
+        // Not a number - it's an expression, assume negative offset (LAG)
+        // Most dynamic offsets are for period-over-period comparisons (looking backwards)
+        return `LAG(${column}, ${rowOffset}) ${TableCalculationFunctionCompiler.buildOrderByWindow(orderByClause)}`;
     }
 
     private static compileIndex(
