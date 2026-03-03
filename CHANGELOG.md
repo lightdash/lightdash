@@ -1,3 +1,10 @@
+## [0.2555.1](https://github.com/lightdash/lightdash/compare/0.2555.0...0.2555.1) (2026-03-03)
+
+
+### Bug Fixes
+
+* upgrade @aws-sdk/client-athena 3.972.0→3.974.0 ([#20519](https://github.com/lightdash/lightdash/issues/20519)) ([49dad66](https://github.com/lightdash/lightdash/commit/49dad66553f2bc0a2c45e669f518b44170f22fa0))
+
 # [0.2555.0](https://github.com/lightdash/lightdash/compare/0.2554.1...0.2555.0) (2026-03-03)
 
 
