@@ -643,7 +643,6 @@ export class MetricQueryBuilder {
                 selectedCustomDimensions?.filter(isCustomBinDimension),
             intrinsicUserAttributes,
             userAttributes,
-            sorts,
         });
         const customSqlDimensionSql = getCustomSqlDimensionSql({
             warehouseSqlBuilder,
