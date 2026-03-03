@@ -1,3 +1,10 @@
+# [0.2551.0](https://github.com/lightdash/lightdash/compare/0.2550.1...0.2551.0) (2026-03-03)
+
+
+### Features
+
+* add DeployProject permission scope for dbt CLI deployment ([#20755](https://github.com/lightdash/lightdash/issues/20755)) ([037b906](https://github.com/lightdash/lightdash/commit/037b906581ee2fd3cee5194730c13e6abc526679))
+
 ## [0.2550.1](https://github.com/lightdash/lightdash/compare/0.2550.0...0.2550.1) (2026-03-02)
 
 
