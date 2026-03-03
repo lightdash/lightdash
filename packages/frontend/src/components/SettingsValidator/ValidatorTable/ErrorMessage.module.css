@@ -1,4 +1,8 @@
 .mark {
     text-transform: none;
     border-radius: 2px;
+
+    @mixin dark {
+        background-color: var(--mantine-color-ldDark-4);
+    }
 }
