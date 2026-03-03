@@ -1313,6 +1313,7 @@ export class AsyncQueryService extends ProjectService {
                   unpivotedColumns = getUnpivotedColumns(
                       unpivotedColumns,
                       fields,
+                      itemsMap,
                   );
 
                   const { indexColumn, valuesColumns, groupByColumns } =
@@ -1433,6 +1434,7 @@ export class AsyncQueryService extends ProjectService {
                   unpivotedColumns = getUnpivotedColumns(
                       unpivotedColumns,
                       fields,
+                      itemsMap,
                   );
                   await write?.(rows);
               };
