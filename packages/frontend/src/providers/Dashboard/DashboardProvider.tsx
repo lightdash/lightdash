@@ -240,6 +240,23 @@ const DashboardProvider: React.FC<
     const [havePinnedParametersChanged, setHavePinnedParametersChanged] =
         useState<boolean>(false);
 
+    // Date zoom granularities state
+    const allGranularities = useMemo(() => Object.values(DateGranularity), []);
+
+    const [dateZoomGranularities, setDateZoomGranularitiesState] =
+        useState<DateGranularity[]>(allGranularities);
+    const [
+        haveDateZoomGranularitiesChanged,
+        setHaveDateZoomGranularitiesChanged,
+    ] = useState<boolean>(false);
+
+    const [defaultDateZoomGranularity, setDefaultDateZoomGranularityState] =
+        useState<DateGranularity | undefined>(undefined);
+    const [
+        hasDefaultDateZoomGranularityChanged,
+        setHasDefaultDateZoomGranularityChanged,
+    ] = useState<boolean>(false);
+
     // Set parameters to saved parameters when they are loaded
     useEffect(() => {
         if (savedParameters) {
@@ -256,6 +273,28 @@ const DashboardProvider: React.FC<
             setPinnedParametersState([]);
         }
     }, [dashboard?.config?.pinnedParameters, dashboard?.config]);
+
+    // Sync date zoom granularities from dashboard config
+    useEffect(() => {
+        if (dashboard?.config?.dateZoomGranularities !== undefined) {
+            setDateZoomGranularitiesState(
+                dashboard.config.dateZoomGranularities,
+            );
+        } else {
+            setDateZoomGranularitiesState(allGranularities);
+        }
+    }, [dashboard?.config?.dateZoomGranularities, allGranularities]);
+
+    // Sync default date zoom granularity from dashboard config
+    useEffect(() => {
+        if (dashboard?.config?.defaultDateZoomGranularity !== undefined) {
+            setDefaultDateZoomGranularityState(
+                dashboard.config.defaultDateZoomGranularity,
+            );
+        } else {
+            setDefaultDateZoomGranularityState(undefined);
+        }
+    }, [dashboard?.config?.defaultDateZoomGranularity]);
 
     // Set active tab when dashboard and tabs are loaded
     useEffect(() => {
@@ -337,6 +376,22 @@ const DashboardProvider: React.FC<
         });
         setHavePinnedParametersChanged(true);
     }, []);
+
+    const setDateZoomGranularities = useCallback(
+        (granularities: DateGranularity[]) => {
+            setDateZoomGranularitiesState(granularities);
+            setHaveDateZoomGranularitiesChanged(true);
+        },
+        [],
+    );
+
+    const setDefaultDateZoomGranularity = useCallback(
+        (granularity: DateGranularity | undefined) => {
+            setDefaultDateZoomGranularityState(granularity);
+            setHasDefaultDateZoomGranularityChanged(true);
+        },
+        [],
+    );
 
     const parameterValues = useMemo(() => {
         return Object.entries(parameters).reduce((acc, [key, parameter]) => {
@@ -816,6 +871,24 @@ const DashboardProvider: React.FC<
         }
     });
 
+    // Apply default date zoom granularity when dashboard loads (if no URL override)
+    useEffect(() => {
+        if (
+            dashboard?.config?.defaultDateZoomGranularity &&
+            !isDateZoomDisabled
+        ) {
+            const searchParams = new URLSearchParams(search);
+            const dateZoomParam = searchParams.get('dateZoom');
+            // Only apply default if no URL override is present
+            if (!dateZoomParam) {
+                setDateZoomGranularity(
+                    dashboard.config.defaultDateZoomGranularity,
+                );
+            }
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [dashboard?.config?.defaultDateZoomGranularity]);
+
     const {
         isInitialLoading: isLoadingDashboardFilters,
         isFetching: isFetchingDashboardFilters,
@@ -1293,6 +1366,14 @@ const DashboardProvider: React.FC<
         toggleParameterPin,
         havePinnedParametersChanged,
         setHavePinnedParametersChanged,
+        dateZoomGranularities,
+        setDateZoomGranularities,
+        haveDateZoomGranularitiesChanged,
+        setHaveDateZoomGranularitiesChanged,
+        defaultDateZoomGranularity,
+        setDefaultDateZoomGranularity,
+        hasDefaultDateZoomGranularityChanged,
+        setHasDefaultDateZoomGranularityChanged,
         addParameterDefinitions,
         tileNamesById,
         preAggregateStatuses,

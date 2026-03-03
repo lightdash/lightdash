@@ -131,6 +131,16 @@ export type DashboardContextType = {
     toggleParameterPin: (parameterKey: string) => void;
     havePinnedParametersChanged: boolean;
     setHavePinnedParametersChanged: Dispatch<SetStateAction<boolean>>;
+    dateZoomGranularities: DateGranularity[];
+    setDateZoomGranularities: (granularities: DateGranularity[]) => void;
+    haveDateZoomGranularitiesChanged: boolean;
+    setHaveDateZoomGranularitiesChanged: Dispatch<SetStateAction<boolean>>;
+    defaultDateZoomGranularity: DateGranularity | undefined;
+    setDefaultDateZoomGranularity: (
+        granularity: DateGranularity | undefined,
+    ) => void;
+    hasDefaultDateZoomGranularityChanged: boolean;
+    setHasDefaultDateZoomGranularityChanged: Dispatch<SetStateAction<boolean>>;
     tileNamesById: Record<string, string>;
     preAggregateStatuses: Record<string, TilePreAggregateStatus>;
     addPreAggregateStatus: (
