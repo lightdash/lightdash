@@ -2,12 +2,14 @@ import {
     AnyType,
     applyDimensionOverrides,
     assertUnreachable,
+    ChartType,
     CompileProjectPayload,
     convertReplaceableFieldMatchMapToReplaceCustomFields,
     CreateProject,
     CreateSchedulerAndTargets,
     CreateSchedulerLog,
     CreateSchedulerTarget,
+    derivePivotConfigurationFromChart,
     DownloadCsvPayload,
     DownloadFileType,
     EmailNotificationPayload,
@@ -90,10 +92,11 @@ import {
     type DownloadAsyncQueryResultsPayload,
     type EmailBatchNotificationPayload,
     type MaterializePreAggregatePayload,
+    type MetricQuery,
     type MsTeamsBatchNotificationPayload,
     type MsTeamsNotificationPayload,
     type PartialFailure,
-    type RunQueryTags,
+    type PivotConfiguration,
     type SchedulerIndexCatalogJobPayload,
     type SlackBatchNotificationPayload,
 } from '@lightdash/common';
@@ -2103,23 +2106,53 @@ export default class SchedulerTask {
                 userId: payload.userUuid,
                 properties: analyticsProperties,
             });
-            const queryTags: RunQueryTags = {
-                project_uuid: payload.projectUuid,
-                user_uuid: payload.userUuid,
-                organization_uuid: payload.organizationUuid,
-                explore_name: payload.exploreId,
-                query_context: QueryExecutionContext.GSHEETS,
+            // Build MetricQuery with exploreName (required by executeAsyncMetricQuery)
+            const metricQuery: MetricQuery = {
+                ...payload.metricQuery,
+                exploreName: payload.exploreId,
             };
 
-            const { rows } = await this.projectService.runMetricQuery({
+            // Build PivotConfiguration if pivotConfig is present
+            let pivotConfiguration: PivotConfiguration | undefined;
+            if (payload.pivotConfig) {
+                const explore = await this.projectService.getExplore(
+                    account,
+                    payload.projectUuid,
+                    payload.exploreId,
+                );
+                const fields = getItemMap(
+                    explore,
+                    metricQuery.additionalMetrics,
+                    metricQuery.tableCalculations,
+                );
+                pivotConfiguration = derivePivotConfigurationFromChart(
+                    {
+                        chartConfig: {
+                            type: ChartType.TABLE,
+                            config: {
+                                metricsAsRows:
+                                    payload.pivotConfig.metricsAsRows,
+                            },
+                        },
+                        pivotConfig: {
+                            columns: payload.pivotConfig.pivotDimensions,
+                        },
+                    },
+                    metricQuery,
+                    fields,
+                );
+            }
+
+            const {
+                rows,
+                fields: itemMap,
+                pivotDetails,
+            } = await this.asyncQueryService.executeMetricQueryAndGetResults({
                 account,
-                metricQuery: payload.metricQuery,
                 projectUuid: payload.projectUuid,
-                exploreName: payload.exploreId,
-                csvLimit: undefined,
+                metricQuery,
                 context: QueryExecutionContext.GSHEETS,
-                chartUuid: undefined,
-                queryTags,
+                pivotConfiguration,
             });
 
             const refreshToken = await this.userService.getRefreshToken(
@@ -2135,16 +2168,6 @@ export default class SchedulerTask {
                 throw new Error('Unable to create new sheet');
             }
 
-            const explore = await this.projectService.getExplore(
-                account,
-                payload.projectUuid,
-                payload.exploreId,
-            );
-            const itemMap = getItemMap(
-                explore,
-                payload.metricQuery.additionalMetrics,
-                payload.metricQuery.tableCalculations,
-            );
             if (payload.pivotConfig) {
                 // PivotQueryResults expects a formatted ResultRow[] type, so we need to convert it first
                 // TODO: refactor pivotQueryResults to accept a Record<string, any>[] simple row type for performance
@@ -2159,7 +2182,7 @@ export default class SchedulerTask {
                     onlyRaw: true,
                     maxColumnLimit:
                         this.lightdashConfig.pivotTable.maxColumnLimit,
-                    pivotDetails: null, // TODO: this is using old way of running queries + pivoting, therefore pivotDetails is not available
+                    pivotDetails,
                 });
 
                 await this.googleDriveClient.appendCsvToSheet(
@@ -2171,7 +2194,9 @@ export default class SchedulerTask {
                 await this.googleDriveClient.appendToSheet(
                     refreshToken,
                     spreadsheetId,
-                    rows,
+                    // Warehouse rows contain string values at runtime; the Record<string, unknown> type
+                    // from the async pipeline is more conservative than needed here.
+                    rows as Record<string, string>[],
                     itemMap,
                     payload.showTableNames,
                     undefined, // tabName

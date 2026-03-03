@@ -502,7 +502,7 @@ export class AsyncQueryService extends ProjectService {
      * @param queryHistory Query history
      * @returns Pivot details
      */
-    private static getPivotDetailsFromQueryHistory(
+    static getPivotDetailsFromQueryHistory(
         queryHistory: QueryHistory,
     ): ReadyQueryResultsPage['pivotDetails'] {
         const {
@@ -3713,6 +3713,7 @@ export class AsyncQueryService extends ProjectService {
         rows: Record<string, unknown>[];
         cacheMetadata: CacheMetadata;
         fields: ItemsMap;
+        pivotDetails: ReadyQueryResultsPage['pivotDetails'];
     }> {
         const { account, projectUuid } = args;
 
@@ -3739,7 +3740,13 @@ export class AsyncQueryService extends ProjectService {
             },
         });
 
-        return { rows, cacheMetadata, fields };
+        return {
+            rows,
+            cacheMetadata,
+            fields,
+            pivotDetails:
+                AsyncQueryService.getPivotDetailsFromQueryHistory(queryHistory),
+        };
     }
 
     async getPreAggregateStats(
