@@ -251,6 +251,9 @@ const applyServiceAccountStaticAbilities: Record<
             organizationUuid,
             type: ProjectType.PREVIEW,
         });
+        can('manage', 'DeployProject', {
+            organizationUuid,
+        });
         can('update', 'Project', {
             organizationUuid,
         });
