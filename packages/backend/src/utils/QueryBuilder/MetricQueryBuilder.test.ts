@@ -3510,4 +3510,50 @@ describe('Date zoom with filters', () => {
         expect(result.query).toContain('"orders".created_at');
         expect(result.query).not.toContain('DATE_TRUNC');
     });
+
+    describe('customSqlSorts in queries', () => {
+        it('should always include custom sort columns in SELECT', () => {
+            const exploreWithCustomSorts: Explore = {
+                ...EXPLORE,
+                tables: {
+                    ...EXPLORE.tables,
+                    table1: {
+                        ...EXPLORE.tables.table1,
+                        dimensions: {
+                            ...EXPLORE.tables.table1.dimensions,
+                            dim1: {
+                                ...EXPLORE.tables.table1.dimensions.dim1,
+                                customSqlSorts: [
+                                    {
+                                        name: 'by_length',
+                                        sql: 'LENGTH(${TABLE}.dim1)',
+                                    },
+                                ],
+                                compiledCustomSqlSorts: [
+                                    {
+                                        name: 'by_length',
+                                        sql: 'LENGTH(${TABLE}.dim1)',
+                                        compiledSql:
+                                            'LENGTH("table1".dim1)',
+                                    },
+                                ],
+                            },
+                        },
+                    },
+                },
+            };
+
+            const result = buildQuery({
+                explore: exploreWithCustomSorts,
+                compiledMetricQuery: METRIC_QUERY,
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+
+            expect(result.query).toContain(
+                'LENGTH("table1".dim1) AS "table1_dim1__by_length"',
+            );
+        });
+    });
 });

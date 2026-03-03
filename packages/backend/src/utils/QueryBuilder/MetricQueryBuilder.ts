@@ -716,6 +716,19 @@ export class MetricQueryBuilder {
             selects[id] = `  ${dimension.compiledSql} AS ${quotedAlias}`;
         });
 
+        // Add custom SQL sort columns for dimensions that have them
+        dimensionsObjects.forEach((dimension) => {
+            if (dimension.compiledCustomSqlSorts) {
+                dimension.compiledCustomSqlSorts.forEach((customSort) => {
+                    const dimId = getItemId(dimension);
+                    const sortColumnId = `${dimId}__${customSort.name}`;
+                    const quotedAlias = `${fieldQuoteChar}${sortColumnId}${fieldQuoteChar}`;
+                    selects[sortColumnId] =
+                        `  ${customSort.compiledSql} AS ${quotedAlias}`;
+                });
+            }
+        });
+
         if (customBinDimensionSql?.selects) {
             Object.assign(selects, customBinDimensionSql.selects);
         }
