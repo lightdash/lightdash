@@ -283,6 +283,7 @@ export const useDashboardChartReadyQuery = (
 
     return {
         ...queryResult,
+        chartQuery,
         error: chartQuery.error || exploreError || queryResult.error,
     };
 };

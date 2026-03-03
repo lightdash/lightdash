@@ -1979,6 +1979,23 @@ const DashboardChartTile: FC<DashboardChartTileProps> = (props) => {
         props.tile.properties?.savedChartUuid,
     );
 
+    // Use fresh chart data from useSavedQuery (which is properly cache-invalidated
+    // on verify/unverify) to keep verification status up-to-date without requiring
+    // a full page refresh. The composite dashboard_chart_ready_query caches a
+    // snapshot of the chart data that can become stale for non-query metadata.
+    const readyQueryDataWithFreshVerification = useMemo(() => {
+        if (!readyQuery.data) return undefined;
+        const freshChart = readyQuery.chartQuery?.data;
+        if (!freshChart) return readyQuery.data;
+        return {
+            ...readyQuery.data,
+            chart: {
+                ...readyQuery.data.chart,
+                verification: freshChart.verification,
+            },
+        };
+    }, [readyQuery.data, readyQuery.chartQuery?.data]);
+
     const resultsData = useInfiniteQueryResults(
         readyQuery.data?.chart.projectUuid,
         readyQuery.data?.executeQueryResponse.queryUuid,
@@ -2007,7 +2024,7 @@ const DashboardChartTile: FC<DashboardChartTileProps> = (props) => {
             {...props}
             isLoading={isLoading}
             resultsData={resultsData}
-            dashboardChartReadyQuery={readyQuery.data}
+            dashboardChartReadyQuery={readyQueryDataWithFreshVerification}
             error={orphanedChartError ?? readyQuery.error ?? resultsData.error}
         />
     );

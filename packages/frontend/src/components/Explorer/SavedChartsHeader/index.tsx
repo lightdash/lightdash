@@ -464,6 +464,7 @@ const SavedChartsHeader: FC = () => {
                                         }
                                         withArrow
                                         withinPortal
+                                        zIndex={10000}
                                     >
                                         <IconCircleCheckFilled
                                             size={16}
