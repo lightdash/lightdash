@@ -106,6 +106,9 @@ export const useVerifyDashboardMutation = () => {
                 await queryClient.invalidateQueries(['spaces']);
                 await queryClient.invalidateQueries(['content']);
                 await queryClient.invalidateQueries(['dashboards']);
+                await queryClient.invalidateQueries([
+                    'saved_dashboard_query',
+                ]);
                 showToastSuccess({
                     title: 'Dashboard verified',
                 });
@@ -132,6 +135,9 @@ export const useUnverifyDashboardMutation = () => {
                 await queryClient.invalidateQueries(['spaces']);
                 await queryClient.invalidateQueries(['content']);
                 await queryClient.invalidateQueries(['dashboards']);
+                await queryClient.invalidateQueries([
+                    'saved_dashboard_query',
+                ]);
                 showToastSuccess({
                     title: 'Dashboard verification removed',
                 });

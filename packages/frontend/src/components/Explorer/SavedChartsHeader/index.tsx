@@ -457,7 +457,11 @@ const SavedChartsHeader: FC = () => {
 
                                 {isChartVerified && (
                                     <Tooltip
-                                        label="Verified by an admin"
+                                        label={
+                                            savedChart?.verification?.verifiedBy
+                                                ? `Verified by ${savedChart.verification.verifiedBy.firstName} ${savedChart.verification.verifiedBy.lastName}`
+                                                : 'Verified'
+                                        }
                                         withArrow
                                     >
                                         <IconCircleCheckFilled

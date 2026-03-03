@@ -317,7 +317,14 @@ const DashboardHeader = ({
                 <Title order={6}>{dashboard.name}</Title>
 
                 {isDashboardVerified && (
-                    <Tooltip label="Verified by an admin" withArrow>
+                    <Tooltip
+                        label={
+                            dashboard.verification?.verifiedBy
+                                ? `Verified by ${dashboard.verification.verifiedBy.firstName} ${dashboard.verification.verifiedBy.lastName}`
+                                : 'Verified'
+                        }
+                        withArrow
+                    >
                         <IconCircleCheckFilled
                             size={16}
                             style={{

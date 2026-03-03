@@ -1,4 +1,8 @@
-import { type ChartKind, type DashboardTab } from '@lightdash/common';
+import {
+    type ChartKind,
+    type ContentVerificationInfo,
+    type DashboardTab,
+} from '@lightdash/common';
 import { type ReactNode } from 'react';
 
 export type TileBaseProps<T> = {
@@ -6,7 +10,7 @@ export type TileBaseProps<T> = {
     belongsToDashboard?: boolean;
     title: string;
     titleLeftIcon?: ReactNode;
-    isVerified?: boolean;
+    verification?: ContentVerificationInfo | null;
     chartName?: string;
     titleHref?: string;
     description?: string | null;

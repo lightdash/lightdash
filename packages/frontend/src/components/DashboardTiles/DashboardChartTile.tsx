@@ -1211,7 +1211,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                 }
                 title={title || chart.name || ''}
                 chartName={chart.name}
-                isVerified={chart.verification !== null && chart.verification !== undefined}
+                verification={chart.verification ?? null}
                 titleHref={`/projects/${projectUuid}/saved/${savedChartUuid}/`}
                 description={chart.description}
                 belongsToDashboard={belongsToDashboard}

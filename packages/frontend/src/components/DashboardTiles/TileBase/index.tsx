@@ -41,7 +41,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     isEditMode,
     title,
     titleLeftIcon,
-    isVerified = false,
+    verification = null,
     chartName,
     description = null,
     tile,
@@ -95,6 +95,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
         tile.type === DashboardTileTypes.MARKDOWN && !title;
 
     const hasMenuContent = isEditMode || !!extraMenuItems;
+    const isVerified = verification !== null && verification !== undefined;
     const hasHeaderContent = hasMenuContent || isVerified;
 
     return (
@@ -138,7 +139,11 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
 
                             {isVerified && (
                                 <Tooltip
-                                    label="Verified by an admin"
+                                    label={
+                                        verification?.verifiedBy
+                                            ? `Verified by ${verification.verifiedBy.firstName} ${verification.verifiedBy.lastName}`
+                                            : 'Verified'
+                                    }
                                     withArrow
                                 >
                                     <IconCircleCheckFilled

@@ -70,6 +70,7 @@ export type SavedChartSearchResult = Pick<
         lastName: string;
         userUuid: string;
     } | null;
+    verification: ContentVerificationInfo | null;
 } & RankedItem;
 
 export type SqlChartSearchResult = Pick<
@@ -94,6 +95,7 @@ export type SqlChartSearchResult = Pick<
         lastName: string;
         userUuid: string;
     } | null;
+    verification: ContentVerificationInfo | null;
 } & RankedItem;
 
 export type AllChartsSearchResult = Pick<

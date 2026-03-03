@@ -1,6 +1,8 @@
 import {
     AllChartsSearchResult,
     ChartKind,
+    type ContentVerificationInfo,
+    ContentType,
     DashboardSearchResult,
     DashboardTabResult,
     Explore,
@@ -23,6 +25,7 @@ import {
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { type LightdashConfig } from '../../config/parseConfig';
+import { ContentVerificationTableName } from '../../database/entities/contentVerification';
 import {
     DashboardsTableName,
     DashboardTabsTableName,
@@ -64,6 +67,49 @@ export class SearchModel {
     constructor(args: SearchModelArguments) {
         this.database = args.database;
         this.lightdashConfig = args.lightdashConfig;
+    }
+
+    private async getVerificationForUuids(
+        contentType: ContentType,
+        contentUuids: string[],
+    ): Promise<Map<string, ContentVerificationInfo>> {
+        if (contentUuids.length === 0) return new Map();
+
+        const rows = await this.database(ContentVerificationTableName)
+            .leftJoin(
+                UserTableName,
+                `${ContentVerificationTableName}.verified_by_user_uuid`,
+                `${UserTableName}.user_uuid`,
+            )
+            .where(
+                `${ContentVerificationTableName}.content_type`,
+                contentType,
+            )
+            .whereIn(
+                `${ContentVerificationTableName}.content_uuid`,
+                contentUuids,
+            )
+            .select(
+                `${ContentVerificationTableName}.content_uuid`,
+                `${ContentVerificationTableName}.verified_at`,
+                `${UserTableName}.user_uuid`,
+                `${UserTableName}.first_name`,
+                `${UserTableName}.last_name`,
+            );
+
+        return new Map(
+            rows.map((row) => [
+                row.content_uuid,
+                {
+                    verifiedBy: {
+                        userUuid: row.user_uuid,
+                        firstName: row.first_name ?? '',
+                        lastName: row.last_name ?? '',
+                    },
+                    verifiedAt: row.verified_at,
+                },
+            ]),
+        );
     }
 
     private async searchSpaces(
@@ -331,6 +377,11 @@ export class SearchModel {
 
         const dashboardUuids = dashboards.map((dashboard) => dashboard.uuid);
 
+        const verificationMap = await this.getVerificationForUuids(
+            ContentType.DASHBOARD,
+            dashboardUuids,
+        );
+
         const validationErrors = await this.database('validations')
             .where('project_uuid', projectUuid)
             .whereNull('job_id')
@@ -469,7 +520,7 @@ export class SearchModel {
                   }
                 : null,
             charts: chartsByDashboard[dashboard.uuid] || [],
-            verification: null,
+            verification: verificationMap.get(dashboard.uuid) ?? null,
         }));
     }
 
@@ -913,6 +964,12 @@ export class SearchModel {
 
         const chartUuids = savedCharts.map((chart) => chart.uuid);
 
+        const savedChartVerificationMap =
+            await this.getVerificationForUuids(
+                ContentType.CHART,
+                chartUuids,
+            );
+
         const validationErrors = await this.database('validations')
             .where('project_uuid', projectUuid)
             .whereNull('job_id')
@@ -954,6 +1011,8 @@ export class SearchModel {
                       userUuid: chart.lastUpdatedByUserUuid,
                   }
                 : null,
+            verification:
+                savedChartVerificationMap.get(chart.uuid) ?? null,
         }));
     }
 
@@ -1204,6 +1263,12 @@ export class SearchModel {
             .orderBy('search_rank', 'desc')
             .limit(20);
 
+        const chartUuids = results.map((r) => r.uuid);
+        const chartVerificationMap = await this.getVerificationForUuids(
+            ContentType.CHART,
+            chartUuids,
+        );
+
         return results.map((result) => ({
             uuid: result.uuid,
             slug: result.slug,
@@ -1231,7 +1296,7 @@ export class SearchModel {
                       userUuid: result.lastUpdatedByUserUuid,
                   }
                 : null,
-            verification: null,
+            verification: chartVerificationMap.get(result.uuid) ?? null,
         }));
     }
 
