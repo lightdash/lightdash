@@ -117,7 +117,7 @@ describe('SpacePermissionService', () => {
 
             const result = await service.getAllSpaceAccessContext(spaceUuid);
 
-            expect(result.isPrivate).toBe(false);
+            expect(result.inheritsFromOrgOrProject).toBe(true);
             expect(result.projectUuid).toBe(projectUuid);
             // Project access was fetched for the root space
             expect(
@@ -191,7 +191,7 @@ describe('SpacePermissionService', () => {
 
             const result = await service.getAllSpaceAccessContext(spaceUuid);
 
-            expect(result.isPrivate).toBe(true);
+            expect(result.inheritsFromOrgOrProject).toBe(false);
             expect(result.access).toHaveLength(1);
             expect(result.access[0].userUuid).toBe(userUuid);
             expect(result.access[0].role).toBe(SpaceMemberRole.EDITOR);
@@ -391,7 +391,7 @@ describe('SpacePermissionService', () => {
 
             const result = await service.getAllSpaceAccessContext(spaceUuid);
 
-            expect(result.isPrivate).toBe(false);
+            expect(result.inheritsFromOrgOrProject).toBe(true);
             // Project access fetched for the root space (last in chain)
             expect(
                 mockPermissionModel.getProjectSpaceAccess,
@@ -447,7 +447,7 @@ describe('SpacePermissionService', () => {
 
             const result = await service.getAllSpaceAccessContext(spaceUuid);
 
-            expect(result.isPrivate).toBe(true);
+            expect(result.inheritsFromOrgOrProject).toBe(false);
             // User gets admin via parent's group access
             expect(result.access).toHaveLength(1);
             expect(result.access[0].role).toBe(SpaceMemberRole.ADMIN);

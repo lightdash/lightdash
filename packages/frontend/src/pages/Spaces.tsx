@@ -50,7 +50,7 @@ const Spaces: FC = () => {
             subject('Space', {
                 organizationUuid: user.data?.organizationUuid,
                 projectUuid,
-                isPrivate: false,
+                inheritsFromOrgOrProject: true,
             }),
         )
     ) {

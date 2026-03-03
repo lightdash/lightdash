@@ -297,7 +297,7 @@ export class AsyncQueryService extends ProjectService {
                 subject('SavedChart', {
                     organizationUuid: savedChart.organization.organizationUuid,
                     projectUuid: savedChart.project.projectUuid,
-                    isPrivate: ctx.isPrivate,
+                    inheritsFromOrgOrProject: ctx.inheritsFromOrgOrProject,
                     access: ctx.access,
                 }),
             )
@@ -2418,7 +2418,7 @@ export class AsyncQueryService extends ProjectService {
         }
 
         let access;
-        let spaceIsPrivate;
+        let inheritsFromOrgOrProject;
         if (isJwtUser(account)) {
             if (!ProjectService.isChartEmbed(account)) {
                 throw new ForbiddenError();
@@ -2434,16 +2434,18 @@ export class AsyncQueryService extends ProjectService {
             // TODO: Get all chartUuids for a given dashboard in the middleware.
             //       https://linear.app/lightdash/issue/CENG-110/front-load-available-charts-for-dashboard-requests
             access = [{ chartUuid: savedChart.uuid }];
-            const space =
-                await this.spaceModel.getSpaceSummary(savedChartSpaceUuid);
-            spaceIsPrivate = space.isPrivate;
+            const spaceCtx =
+                await this.spacePermissionService.getAllSpaceAccessContext(
+                    savedChartSpaceUuid,
+                );
+            inheritsFromOrgOrProject = spaceCtx.inheritsFromOrgOrProject;
         } else {
             const ctx = await this.spacePermissionService.getSpaceAccessContext(
                 account.user.id,
                 savedChartSpaceUuid,
             );
             access = ctx.access;
-            spaceIsPrivate = ctx.isPrivate;
+            inheritsFromOrgOrProject = ctx.inheritsFromOrgOrProject;
         }
 
         if (
@@ -2452,7 +2454,7 @@ export class AsyncQueryService extends ProjectService {
                 subject('SavedChart', {
                     organizationUuid: savedChartOrganizationUuid,
                     projectUuid,
-                    isPrivate: spaceIsPrivate,
+                    inheritsFromOrgOrProject,
                     access,
                 }),
             ) ||
@@ -2641,7 +2643,7 @@ export class AsyncQueryService extends ProjectService {
                     subject('SavedChart', {
                         organizationUuid: space.organizationUuid,
                         projectUuid,
-                        isPrivate: ctx.isPrivate,
+                        inheritsFromOrgOrProject: ctx.inheritsFromOrgOrProject,
                         access: ctx.access,
                     }),
                 )

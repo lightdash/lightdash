@@ -165,7 +165,10 @@ export type DashboardTabWithUrls = DashboardTab & {
     selfUrl: string;
 };
 
-export type DashboardDAO = Omit<Dashboard, 'isPrivate' | 'access'>;
+export type DashboardDAO = Omit<
+    Dashboard,
+    'isPrivate' | 'inheritsFromOrgOrProject' | 'access'
+>;
 
 export type DashboardConfig = {
     isDateZoomDisabled: boolean;
@@ -193,6 +196,7 @@ export type Dashboard = {
     pinnedListOrder: number | null;
     tabs: DashboardTab[];
     isPrivate: boolean | null;
+    inheritsFromOrgOrProject: boolean;
     access: SpaceAccess[] | null;
     slug: string;
     config?: DashboardConfig;

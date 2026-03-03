@@ -28,11 +28,11 @@ const applyServiceAccountStaticAbilities: Record<
 
         can('view', 'Dashboard', {
             organizationUuid,
-            isPrivate: false,
+            inheritsFromOrgOrProject: true,
         });
         can('view', 'SavedChart', {
             organizationUuid,
-            isPrivate: false,
+            inheritsFromOrgOrProject: true,
         });
         can('view', 'Dashboard', {
             organizationUuid,
@@ -49,7 +49,7 @@ const applyServiceAccountStaticAbilities: Record<
         });
         can('view', 'Space', {
             organizationUuid,
-            isPrivate: false,
+            inheritsFromOrgOrProject: true,
         });
         can('view', 'Space', {
             organizationUuid,
@@ -181,7 +181,7 @@ const applyServiceAccountStaticAbilities: Record<
         });
         can('manage', 'Space', {
             organizationUuid,
-            isPrivate: false,
+            inheritsFromOrgOrProject: true,
         });
         can('create', 'Space', {
             organizationUuid,

@@ -335,14 +335,15 @@ export class DashboardService
         const dashboardDao =
             await this.dashboardModel.getByIdOrSlug(dashboardUuidOrSlug);
 
-        const { isPrivate, access } =
+        const { inheritsFromOrgOrProject, access } =
             await this.spacePermissionService.getSpaceAccessContext(
                 user.userUuid,
                 dashboardDao.spaceUuid,
             );
         const dashboard = {
             ...dashboardDao,
-            isPrivate,
+            isPrivate: !inheritsFromOrgOrProject,
+            inheritsFromOrgOrProject,
             access,
         };
 
@@ -424,7 +425,7 @@ export class DashboardService
             ));
         const space = await this.spaceModel.get(resolvedSpaceUuid);
 
-        const { isPrivate, access } =
+        const { inheritsFromOrgOrProject, access } =
             await this.spacePermissionService.getSpaceAccessContext(
                 user.userUuid,
                 space.uuid,
@@ -436,7 +437,7 @@ export class DashboardService
                 subject('Dashboard', {
                     organizationUuid: space.organizationUuid,
                     projectUuid,
-                    isPrivate,
+                    inheritsFromOrgOrProject,
                     access,
                 }),
             )
@@ -467,7 +468,8 @@ export class DashboardService
 
         return {
             ...dashboardDao,
-            isPrivate,
+            isPrivate: !inheritsFromOrgOrProject,
+            inheritsFromOrgOrProject,
             access,
         };
     }
@@ -480,14 +482,15 @@ export class DashboardService
     ): Promise<Dashboard> {
         const dashboardDao =
             await this.dashboardModel.getByIdOrSlug(dashboardUuid);
-        const { isPrivate, access } =
+        const { inheritsFromOrgOrProject, access } =
             await this.spacePermissionService.getSpaceAccessContext(
                 user.userUuid,
                 dashboardDao.spaceUuid,
             );
         const dashboard = {
             ...dashboardDao,
-            isPrivate,
+            isPrivate: !inheritsFromOrgOrProject,
+            inheritsFromOrgOrProject,
             access,
         };
 
@@ -593,7 +596,8 @@ export class DashboardService
 
         return {
             ...updatedNewDashboard,
-            isPrivate,
+            isPrivate: !inheritsFromOrgOrProject,
+            inheritsFromOrgOrProject,
             access,
         };
     }
@@ -798,7 +802,8 @@ export class DashboardService
 
         return {
             ...updatedNewDashboard,
-            isPrivate: updatedSpace.isPrivate,
+            isPrivate: !updatedSpace.inheritsFromOrgOrProject,
+            inheritsFromOrgOrProject: updatedSpace.inheritsFromOrgOrProject,
             access: updatedSpace.access,
         };
     }
@@ -809,14 +814,15 @@ export class DashboardService
     ): Promise<TogglePinnedItemInfo> {
         const existingDashboardDao =
             await this.dashboardModel.getByIdOrSlug(dashboardUuid);
-        const { isPrivate, access } =
+        const { inheritsFromOrgOrProject, access } =
             await this.spacePermissionService.getSpaceAccessContext(
                 user.userUuid,
                 existingDashboardDao.spaceUuid,
             );
         const existingDashboard = {
             ...existingDashboardDao,
-            isPrivate,
+            isPrivate: !inheritsFromOrgOrProject,
+            inheritsFromOrgOrProject,
             access,
         };
 
@@ -941,7 +947,9 @@ export class DashboardService
                     );
                 return {
                     ...dashboard,
-                    isPrivate: dashboardSpaceContext.isPrivate,
+                    isPrivate: !dashboardSpaceContext.inheritsFromOrgOrProject,
+                    inheritsFromOrgOrProject:
+                        dashboardSpaceContext.inheritsFromOrgOrProject,
                     access: dashboardSpaceContext.access,
                 };
             },
@@ -961,7 +969,7 @@ export class DashboardService
             dashboardToDelete;
 
         if (!options?.bypassPermissions) {
-            const { isPrivate, access } =
+            const { inheritsFromOrgOrProject, access } =
                 await this.spacePermissionService.getSpaceAccessContext(
                     user.userUuid,
                     spaceUuid,
@@ -972,7 +980,7 @@ export class DashboardService
                     subject('Dashboard', {
                         organizationUuid,
                         projectUuid,
-                        isPrivate,
+                        inheritsFromOrgOrProject,
                         access,
                     }),
                 )
@@ -1061,7 +1069,7 @@ export class DashboardService
         if (!options?.bypassPermissions) {
             const dashboard =
                 await this.dashboardModel.getByIdOrSlug(dashboardUuid);
-            const { isPrivate, access } =
+            const { inheritsFromOrgOrProject, access } =
                 await this.spacePermissionService.getSpaceAccessContext(
                     user.userUuid,
                     dashboard.spaceUuid,
@@ -1072,7 +1080,7 @@ export class DashboardService
                     subject('Dashboard', {
                         organizationUuid: dashboard.organizationUuid,
                         projectUuid: dashboard.projectUuid,
-                        isPrivate,
+                        inheritsFromOrgOrProject,
                         access,
                     }),
                 )
@@ -1284,14 +1292,15 @@ export class DashboardService
     ): Promise<Dashboard> {
         const dashboardDao =
             await this.dashboardModel.getByIdOrSlug(dashboardUuid);
-        const { isPrivate, access } =
+        const { inheritsFromOrgOrProject, access } =
             await this.spacePermissionService.getSpaceAccessContext(
                 user.userUuid,
                 dashboardDao.spaceUuid,
             );
         const dashboard = {
             ...dashboardDao,
-            isPrivate,
+            isPrivate: !inheritsFromOrgOrProject,
+            inheritsFromOrgOrProject,
             access,
         };
         const { organizationUuid, projectUuid } = dashboard;
@@ -1314,8 +1323,6 @@ export class DashboardService
 
         return {
             ...dashboard,
-            isPrivate,
-            access,
         };
     }
 
@@ -1333,7 +1340,7 @@ export class DashboardService
         const dashboard = await this.dashboardModel.getByIdOrSlug(
             resource.dashboardUuid,
         );
-        const { isPrivate, access } =
+        const { inheritsFromOrgOrProject, access } =
             await this.spacePermissionService.getSpaceAccessContext(
                 actor.user.userUuid,
                 dashboard.spaceUuid,
@@ -1344,7 +1351,7 @@ export class DashboardService
             subject('Dashboard', {
                 organizationUuid: actor.user.organizationUuid,
                 projectUuid: actor.projectUuid,
-                isPrivate,
+                inheritsFromOrgOrProject,
                 access,
             }),
         );
@@ -1368,7 +1375,8 @@ export class DashboardService
                     subject('Dashboard', {
                         organizationUuid: newSpace.organizationUuid,
                         projectUuid: actor.projectUuid,
-                        isPrivate: newSpace.isPrivate,
+                        inheritsFromOrgOrProject:
+                            newSpace.inheritsFromOrgOrProject,
                         access: newSpace.access,
                     }),
                 );
@@ -1387,7 +1395,7 @@ export class DashboardService
     ): Promise<DashboardHistory> {
         const dashboardDao =
             await this.dashboardModel.getByIdOrSlug(dashboardUuid);
-        const { isPrivate, access } =
+        const { inheritsFromOrgOrProject, access } =
             await this.spacePermissionService.getSpaceAccessContext(
                 user.userUuid,
                 dashboardDao.spaceUuid,
@@ -1397,7 +1405,7 @@ export class DashboardService
                 'manage',
                 subject('Dashboard', {
                     ...dashboardDao,
-                    isPrivate,
+                    inheritsFromOrgOrProject,
                     access,
                 }),
             )
@@ -1430,7 +1438,7 @@ export class DashboardService
     ): Promise<void> {
         const dashboardDao =
             await this.dashboardModel.getByIdOrSlug(dashboardUuid);
-        const { isPrivate, access } =
+        const { inheritsFromOrgOrProject, access } =
             await this.spacePermissionService.getSpaceAccessContext(
                 user.userUuid,
                 dashboardDao.spaceUuid,
@@ -1440,7 +1448,7 @@ export class DashboardService
                 'manage',
                 subject('Dashboard', {
                     ...dashboardDao,
-                    isPrivate,
+                    inheritsFromOrgOrProject,
                     access,
                 }),
             )

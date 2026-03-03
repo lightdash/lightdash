@@ -76,18 +76,21 @@ const spaceContexts = {
         organizationUuid: space.organization_uuid,
         projectUuid: publicSpace.projectUuid,
         isPrivate: space.is_private,
+        inheritsFromOrgOrProject: space.inherit_parent_permissions,
         access: [],
     },
     [privateSpace.uuid]: {
         organizationUuid: privateSpace.organizationUuid,
         projectUuid: privateSpace.projectUuid,
         isPrivate: privateSpace.isPrivate,
+        inheritsFromOrgOrProject: privateSpace.inheritParentPermissions,
         access: [],
     },
     [publicSpace.uuid]: {
         organizationUuid: publicSpace.organizationUuid,
         projectUuid: publicSpace.projectUuid,
         isPrivate: publicSpace.isPrivate,
+        inheritsFromOrgOrProject: publicSpace.inheritParentPermissions,
         access: publicSpace.access,
     },
 };
@@ -138,7 +141,10 @@ describe('DashboardService', () => {
     test('should get dashboard by uuid', async () => {
         const result = await service.getByIdOrSlug(user, dashboard.uuid);
 
-        expect(result).toEqual(dashboard);
+        expect(result).toEqual({
+            ...dashboard,
+            inheritsFromOrgOrProject: dashboard.inheritsFromOrgOrProject,
+        });
         expect(dashboardModel.getByIdOrSlug).toHaveBeenCalledTimes(1);
         expect(dashboardModel.getByIdOrSlug).toHaveBeenCalledWith(
             dashboard.uuid,

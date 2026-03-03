@@ -72,7 +72,6 @@ export const HeaderView: FC = () => {
         subject('SavedChart', {
             organizationUuid: user.data?.organizationUuid,
             projectUuid,
-            isPrivate: savedSqlChart?.space.isPrivate,
             access: savedSqlChart?.space.userAccess
                 ? [savedSqlChart.space.userAccess]
                 : [],
@@ -84,7 +83,6 @@ export const HeaderView: FC = () => {
         subject('SavedChart', {
             organizationUuid: user.data?.organizationUuid,
             projectUuid,
-            isPrivate: savedSqlChart?.space.isPrivate,
             access: savedSqlChart?.space.userAccess
                 ? [savedSqlChart.space.userAccess]
                 : [],

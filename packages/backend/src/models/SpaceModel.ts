@@ -266,7 +266,12 @@ export class SpaceModel {
     ): Promise<
         Omit<
             Space,
-            'queries' | 'dashboards' | 'access' | 'groupsAccess' | 'childSpaces'
+            | 'queries'
+            | 'dashboards'
+            | 'access'
+            | 'groupsAccess'
+            | 'childSpaces'
+            | 'inheritsFromOrgOrProject'
         >
     > {
         const [row] = await this.database(SpaceTableName)
@@ -1049,7 +1054,17 @@ export class SpaceModel {
             projectUuid: string;
             path?: string;
         },
-    ): Promise<Space> {
+    ): Promise<
+        Omit<
+            Space,
+            | 'queries'
+            | 'dashboards'
+            | 'access'
+            | 'groupsAccess'
+            | 'childSpaces'
+            | 'inheritsFromOrgOrProject'
+        >
+    > {
         const [project] = await trx(ProjectTableName)
             .select('project_id')
             .where('project_uuid', projectUuid);
@@ -1094,14 +1109,9 @@ export class SpaceModel {
         return {
             organizationUuid: space.organization_uuid,
             name: space.name,
-            queries: [],
             isPrivate: space.is_private,
             uuid: space.space_uuid,
             projectUuid,
-            dashboards: [],
-            childSpaces: [],
-            access: [],
-            groupsAccess: [],
             pinnedListUuid: null,
             pinnedListOrder: null,
             slug: space.slug,

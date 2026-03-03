@@ -47,12 +47,10 @@ type SpaceServiceArguments = {
 
 export const hasDirectAccessToSpace = (
     user: SessionUser,
-    space:
-        | Pick<SpaceSummary, 'isPrivate' | 'access'>
-        | {
-              isPrivate: boolean;
-              access: SpaceAccess[];
-          },
+    space: {
+        inheritsFromOrgOrProject: boolean;
+        access: SpaceAccess[];
+    },
 ): boolean => {
     const userUuidsWithDirectAccess = space.access.reduce<string[]>(
         (acc, access) => {
@@ -67,10 +65,10 @@ export const hasDirectAccessToSpace = (
         [],
     );
 
-    const hasAccess =
-        !space.isPrivate || userUuidsWithDirectAccess?.includes(user.userUuid);
-
-    return hasAccess;
+    return (
+        space.inheritsFromOrgOrProject ||
+        userUuidsWithDirectAccess?.includes(user.userUuid)
+    );
 };
 
 export class SpaceService
@@ -172,6 +170,7 @@ export class SpaceService
 
         return {
             ...space,
+            inheritsFromOrgOrProject: ctx.inheritsFromOrgOrProject,
             queries,
             dashboards,
             childSpaces,
@@ -276,7 +275,7 @@ export class SpaceService
                 isNested: !!space.parentSpaceUuid,
             },
         });
-        return newSpace;
+        return this.assembleFullSpace(newSpace.uuid, user);
     }
 
     async updateSpace(
