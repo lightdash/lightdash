@@ -275,7 +275,32 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
             WarehouseBaseClient<CreatePostgresCredentials>['executeAsyncQuery']
         >
     ) {
-        return super.executeAsyncQuery(...args);
+        const [queryArgs, resultsStreamCallback] = args;
+        const startTime = performance.now();
+        let callbackTimeMs = 0;
+
+        const result = await super.executeAsyncQuery(
+            queryArgs,
+            resultsStreamCallback
+                ? async (rows, fields) => {
+                      const callbackStartTime = performance.now();
+                      try {
+                          await resultsStreamCallback(rows, fields);
+                      } finally {
+                          callbackTimeMs +=
+                              performance.now() - callbackStartTime;
+                      }
+                  }
+                : undefined,
+        );
+
+        return {
+            ...result,
+            durationMs: Math.max(
+                0,
+                performance.now() - startTime - callbackTimeMs,
+            ),
+        };
     }
 
     async runQuery(
