@@ -196,7 +196,7 @@ export const ValidatorTable: FC<ValidatorTableProps> = ({
                             validationError={validationError}
                             projectUuid={projectUuid}
                         >
-                            <Flex gap="sm" align="center">
+                            <Flex gap="sm" align="flex-start">
                                 <Icon validationError={validationError} />
                                 <Stack gap={2}>
                                     <Text fz="xs" fw={600}>
