@@ -3,17 +3,17 @@ import {
     PreAggregateMissReason,
     QueryHistoryStatus,
 } from '@lightdash/common';
-import express from 'express';
 import { EventEmitter } from 'events';
+import express from 'express';
+import * as fs from 'fs';
 import http from 'http';
 import { Knex } from 'knex';
+import path from 'path';
 import { performance } from 'perf_hooks';
 import prometheus from 'prom-client';
 import { z } from 'zod';
-import { PreAggregateMaterializationsTableName } from '../database/entities/preAggregates';
-import path from 'path';
-import * as fs from 'fs';
 import { LightdashConfig } from '../config/parseConfig';
+import { PreAggregateMaterializationsTableName } from '../database/entities/preAggregates';
 import Logger from '../logging/logger';
 import { SchedulerClient } from '../scheduler/SchedulerClient';
 import {
@@ -28,7 +28,9 @@ const prometheusEventMetricsConfigSchema = z.object({
                 eventName: z.string().min(1),
                 metricName: z.string().min(1),
                 help: z.string().min(1),
-                labelNames: z.array(z.string().min(1)),
+                labelNames: z.array(
+                    z.string().regex(/^[a-zA-Z_][a-zA-Z0-9_]*$/),
+                ),
             })
             .strict(),
     ),
@@ -72,7 +74,7 @@ export default class PrometheusMetrics {
     }
 
     public start() {
-        const { enabled, port, path, ...rest } = this.config;
+        const { enabled, port, path: metricsPath, ...rest } = this.config;
         if (enabled) {
             try {
                 prometheus.collectDefaultMetrics({
@@ -241,13 +243,13 @@ export default class PrometheusMetrics {
 
                 const app = express();
                 this.server = http.createServer(app);
-                app.get(path, async (req, res) => {
+                app.get(metricsPath, async (req, res) => {
                     res.set('Content-Type', prometheus.register.contentType);
                     res.end(await prometheus.register.metrics());
                 });
                 this.server.listen(port, () => {
                     Logger.info(
-                        `Prometheus metrics available at localhost:${port}${path}`,
+                        `Prometheus metrics available at localhost:${port}${metricsPath}`,
                     );
                 });
             } catch (e) {

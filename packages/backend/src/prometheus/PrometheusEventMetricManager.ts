@@ -125,6 +125,7 @@ export class PrometheusEventMetricManager {
                 'Error initializing PrometheusEventMetricManager',
                 error,
             );
+            this.cleanup();
             throw error;
         }
     }

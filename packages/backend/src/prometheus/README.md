@@ -5,6 +5,7 @@ A configuration-driven Prometheus metrics system that automatically tracks Light
 ## Overview
 
 The `PrometheusEventMetricManager` allows you to define Prometheus metrics in a JSON configuration file. It automatically:
+
 1. Creates Prometheus counters for each configured event
 2. Subscribes to LightdashAnalytics track calls
 3. Extracts labels from event payloads
@@ -24,20 +25,20 @@ export CUSTOM_METRICS_CONFIG_PATH=/path/to/your/config.json
 
 ```json
 {
-  "metrics": [
-    {
-      "eventName": "user.logged_in",
-      "metricName": "lightdash_user_login_total",
-      "help": "Total number of user login events",
-      "labelNames": ["login_provider"]
-    },
-    {
-      "eventName": "query.executed",
-      "metricName": "lightdash_query_executed_total",
-      "help": "Total number of query executions",
-      "labelNames": ["context", "project_id"]
-    }
-  ]
+    "metrics": [
+        {
+            "eventName": "user.logged_in",
+            "metricName": "lightdash_user_login_total",
+            "help": "Total number of user login events",
+            "labelNames": ["login_provider"]
+        },
+        {
+            "eventName": "query.executed",
+            "metricName": "lightdash_query_executed_total",
+            "help": "Total number of query executions",
+            "labelNames": ["context", "project_id"]
+        }
+    ]
 }
 ```
 
@@ -53,21 +54,23 @@ export CUSTOM_METRICS_CONFIG_PATH=/path/to/your/config.json
 By default, labels are extracted from `payload.properties` using the `labelNames` as keys. If a property is missing, the label value will be set to `"unknown"`.
 
 For example, if you configure:
+
 ```json
 {
-  "eventName": "query.executed",
-  "labelNames": ["context", "projectId"]
+    "eventName": "query.executed",
+    "labelNames": ["context", "projectId"]
 }
 ```
 
 And an event is tracked with:
+
 ```typescript
 analytics.track({
-  event: 'query.executed',
-  properties: {
-    context: 'api',
-    projectId: 'project-123'
-  }
+    event: 'query.executed',
+    properties: {
+        context: 'api',
+        projectId: 'project-123',
+    },
 });
 ```
 
@@ -95,6 +98,7 @@ See `packages/backend/src/analytics/LightdashAnalytics.ts` for the full list of 
 ## Implementation Details
 
 The PrometheusEventMetricManager:
+
 - Hooks into `LightdashAnalytics.track()` method to intercept events
 - Uses the global Prometheus registry (`prom-client`)
 - Automatically registers counters with Prometheus
@@ -105,4 +109,3 @@ The PrometheusEventMetricManager:
 - The manager only initializes if Prometheus is enabled in Lightdash config
 - If the config file is not found or invalid, the manager will log warnings and skip initialization
 - The manager must be initialized after Prometheus metrics start (handled automatically in `App.start()`)
-

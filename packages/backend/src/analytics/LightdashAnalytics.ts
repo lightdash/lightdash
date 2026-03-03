@@ -1754,7 +1754,10 @@ export class LightdashAnalytics extends Analytics {
 
     track<T extends BaseTrack>(payload: TypedEvent | UntypedEvent<T>) {
         if (this.lightdashConfig.prometheus.eventMetricsEnabled) {
-            this.eventEmitter?.emit(`analytics.track.${payload.event}`, payload);
+            this.eventEmitter?.emit(
+                `analytics.track.${payload.event}`,
+                payload,
+            );
         }
 
         if (!this.lightdashConfig.rudder.writeKey) return; // Tracking disabled
