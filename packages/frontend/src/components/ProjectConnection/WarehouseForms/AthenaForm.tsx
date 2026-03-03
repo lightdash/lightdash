@@ -152,7 +152,9 @@ const AthenaForm: FC<{
                             schemas,
                         );
                         const invalid = schemas.filter(
-                            (s: string) => !/^[a-zA-Z0-9_*?-]+$/.test(s),
+                            (s: string) =>
+                                s.length > 1000 ||
+                                !/^[a-zA-Z0-9_*?-]{1,1000}$/.test(s),
                         );
                         if (invalid.length > 0) {
                             form.setFieldError(
@@ -160,9 +162,7 @@ const AthenaForm: FC<{
                                 `Invalid pattern: ${invalid.join(', ')}. Only alphanumeric characters, underscores, hyphens, *, and ? are allowed.`,
                             );
                         } else {
-                            form.clearFieldError(
-                                'warehouse.accessibleSchemas',
-                            );
+                            form.clearFieldError('warehouse.accessibleSchemas');
                         }
                     }}
                     error={form.errors['warehouse.accessibleSchemas']}
