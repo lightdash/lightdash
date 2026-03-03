@@ -2158,7 +2158,7 @@ export default class SchedulerTask {
 
             if (payload.pivotConfig) {
                 // PivotQueryResults expects a formatted ResultRow[] type, so we need to convert it first
-                // TODO: refactor pivotQueryResults to accept a Record<string, any>[] simple row type for performance
+                // TODO: refactor pivotQueryResults to accept a Record<string, unknown>[] simple row type for performance
                 const formattedRows = formatRows(rows, itemMap);
 
                 const pivotedResults = pivotResultsAsCsv({
@@ -2730,7 +2730,7 @@ export default class SchedulerTask {
                     isTableChartConfig(chart.chartConfig.config)
                 ) {
                     // PivotQueryResults expects a formatted ResultRow[] type, so we need to convert it first
-                    // TODO: refactor pivotQueryResults to accept a Record<string, any>[] simple row type for performance
+                    // TODO: refactor pivotQueryResults to accept a Record<string, unknown>[] simple row type for performance
                     const formattedRows = formatRows(rows, itemMap);
 
                     const pivotedResults = pivotResultsAsCsv({
@@ -2878,7 +2878,7 @@ export default class SchedulerTask {
                             isTableChartConfig(chart.chartConfig.config)
                         ) {
                             // PivotQueryResults expects a formatted ResultRow[] type, so we need to convert it first
-                            // TODO: refactor pivotQueryResults to accept a Record<string, any>[] simple row type for performance
+                            // TODO: refactor pivotQueryResults to accept a Record<string, unknown>[] simple row type for performance
                             const formattedRows = formatRows(rows, itemMap);
 
                             const pivotedResults = pivotResultsAsCsv({
