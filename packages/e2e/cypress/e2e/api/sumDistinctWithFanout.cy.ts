@@ -119,4 +119,74 @@ describe('SQL fanout deduplication', () => {
             );
         });
     });
+
+    it('sum_distinct grouped by dimension should return correct per-group values', () => {
+        // Query 1: Ground truth — direct SUM on payments table grouped by payment_method (no fan-out)
+        const paymentsQuery = {
+            exploreName: 'payments',
+            dimensions: ['payments_payment_method'],
+            metrics: ['payments_total_revenue'],
+            filters: {},
+            sorts: [
+                {
+                    fieldId: 'payments_payment_method',
+                    descending: false,
+                },
+            ],
+            limit: 500,
+            tableCalculations: [],
+            additionalMetrics: [],
+            metricOverrides: {},
+        };
+
+        // Query 2: sum_distinct on the wide table grouped by payment_method
+        // Before the fix, PARTITION BY excluded payment_method, zeroing out all but one row per payment_id
+        const wideTableQuery = {
+            exploreName: 'customer_order_payments',
+            dimensions: ['customer_order_payments_payment_method'],
+            metrics: ['customer_order_payments_total_payment_amount_deduped'],
+            filters: {},
+            sorts: [
+                {
+                    fieldId: 'customer_order_payments_payment_method',
+                    descending: false,
+                },
+            ],
+            limit: 500,
+            tableCalculations: [],
+            additionalMetrics: [],
+            metricOverrides: {},
+        };
+
+        runMetricQuery(projectUuid, paymentsQuery).then((paymentsRows) => {
+            expect(paymentsRows.length).to.be.greaterThan(1);
+
+            // Build lookup: payment_method → total_revenue
+            const expectedByMethod: Record<string, number> = {};
+            paymentsRows.forEach((row) => {
+                const method = String(row.payments_payment_method);
+                expectedByMethod[method] = Number(row.payments_total_revenue);
+            });
+
+            runMetricQuery(projectUuid, wideTableQuery).then(
+                (wideTableRows) => {
+                    expect(wideTableRows.length).to.eq(paymentsRows.length);
+
+                    wideTableRows.forEach((row) => {
+                        const method = String(
+                            row.customer_order_payments_payment_method,
+                        );
+                        const deduped = Number(
+                            row.customer_order_payments_total_payment_amount_deduped,
+                        );
+                        const expected = expectedByMethod[method];
+
+                        expect(deduped, `payment_method=${method}`).to.eq(
+                            expected,
+                        );
+                    });
+                },
+            );
+        });
+    });
 });

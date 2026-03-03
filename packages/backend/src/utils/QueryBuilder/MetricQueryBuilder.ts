@@ -2243,6 +2243,17 @@ export class MetricQueryBuilder {
         const sdJoins: string[] = [];
         const sdMetricSelects: string[] = [];
 
+        // Extract raw SQL expressions from dimension selects (strip " AS alias" suffix)
+        const dimensionExprs = Object.entries(dimensionSelects).map(
+            ([id, selectStr]) => {
+                const suffix = ` AS ${fieldQuoteChar}${id}${fieldQuoteChar}`;
+                const idx = selectStr.lastIndexOf(suffix);
+                return idx > -1
+                    ? selectStr.substring(0, idx).trim()
+                    : selectStr.trim();
+            },
+        );
+
         for (const metricId of sdMetricIds) {
             const metric = this.getMetricFromId(metricId);
             if (
@@ -2251,11 +2262,18 @@ export class MetricQueryBuilder {
             ) {
                 const sdCteName = `sd_${snakeCaseName(metricId)}`;
 
+                // Include selected dimensions in PARTITION BY so each
+                // (distinct_key, dimension) combination gets its own rn=1
+                const partitionExprs = [
+                    ...metric.compiledDistinctKeys,
+                    ...dimensionExprs,
+                ];
+
                 // Inner subquery: raw data + ROW_NUMBER
                 const innerSelects = [
                     ...Object.values(dimensionSelects),
                     `  ${metric.compiledValueSql} AS __sd_val`,
-                    `  ROW_NUMBER() OVER (PARTITION BY ${metric.compiledDistinctKeys.join(', ')} ORDER BY ${metric.compiledValueSql}) AS __sd_rn`,
+                    `  ROW_NUMBER() OVER (PARTITION BY ${partitionExprs.join(', ')} ORDER BY ${metric.compiledValueSql}) AS __sd_rn`,
                 ];
 
                 const innerSubquery = MetricQueryBuilder.assembleSqlParts([
