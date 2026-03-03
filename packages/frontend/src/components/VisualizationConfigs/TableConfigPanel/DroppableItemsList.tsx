@@ -3,11 +3,13 @@ import {
     Droppable,
     type DraggableStateSnapshot,
 } from '@hello-pangea/dnd';
-import { Group, Stack, Text } from '@mantine/core';
+import { clsx } from '@mantine/core';
+import { Group, Stack, Text } from '@mantine-8/core';
 import React, { type FC } from 'react';
 import { createPortal } from 'react-dom';
 import { GrabIcon } from '../common/GrabIcon';
 import ColumnConfiguration from './ColumnConfiguration';
+import classes from './DroppableItemsList.module.css';
 
 type DraggablePortalHandlerProps = {
     snapshot: DraggableStateSnapshot;
@@ -37,31 +39,25 @@ const DroppableItemsList: FC<DroppableItemsListProps> = ({
 }) => {
     const hasItems = itemIds.length > 0;
     return (
-        <Stack
-            spacing="xs"
-            sx={(theme) => ({
-                padding: theme.spacing.xs,
-                backgroundColor: theme.colors.ldGray['0'],
-                borderRadius: theme.radius.sm,
-            })}
-        >
+        <Stack gap="xs" className={classes.droppableContainer}>
             <Droppable droppableId={droppableId}>
                 {(dropProps, droppableSnapshot) => (
                     <Stack
                         {...dropProps.droppableProps}
-                        spacing="xs"
+                        gap="xs"
                         ref={dropProps.innerRef}
                         mih={isDragging ? '30px' : undefined}
-                        bg={
-                            droppableSnapshot.isDraggingOver
-                                ? 'ldGray.1'
-                                : isDragging
-                                  ? 'ldGray.0'
-                                  : undefined
-                        }
+                        className={clsx(
+                            classes.droppableArea,
+                            droppableSnapshot.isDraggingOver &&
+                                classes.droppableAreaDraggingOver,
+                            isDragging &&
+                                !droppableSnapshot.isDraggingOver &&
+                                classes.droppableAreaDragging,
+                        )}
                     >
                         {!isDragging && !hasItems ? (
-                            <Text size="xs" color="ldGray.6" m="xs" ta="center">
+                            <Text fz="xs" c="ldGray.6" m="xs" ta="center">
                                 {placeholder}
                             </Text>
                         ) : null}
@@ -81,19 +77,20 @@ const DroppableItemsList: FC<DroppableItemsListProps> = ({
                                 ) => (
                                     <DraggablePortalHandler snapshot={snapshot}>
                                         <Group
-                                            noWrap
-                                            spacing="xs"
+                                            wrap="nowrap"
+                                            gap="xs"
                                             ref={innerRef}
                                             {...draggableProps}
-                                            style={{
-                                                visibility:
-                                                    isDragging &&
+                                            style={draggableProps.style}
+                                            className={clsx(
+                                                classes.draggableItem,
+                                                snapshot.isDragging &&
+                                                    classes.draggableItemDragging,
+                                                isDragging &&
                                                     disableReorder &&
-                                                    !snapshot.isDragging
-                                                        ? 'hidden'
-                                                        : undefined,
-                                                ...draggableProps.style,
-                                            }}
+                                                    !snapshot.isDragging &&
+                                                    classes.draggableItemHidden,
+                                            )}
                                         >
                                             <GrabIcon
                                                 dragHandleProps={

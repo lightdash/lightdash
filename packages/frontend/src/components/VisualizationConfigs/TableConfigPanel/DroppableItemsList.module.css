@@ -1,0 +1,36 @@
+.droppableContainer {
+    padding: var(--mantine-spacing-xs);
+    background-color: var(--mantine-color-ldGray-0);
+    border-radius: var(--mantine-radius-sm);
+}
+
+.droppableArea {
+    transition: background-color 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.droppableAreaDraggingOver {
+    background-color: var(--mantine-color-ldGray-1);
+}
+
+.droppableAreaDragging {
+    background-color: var(--mantine-color-ldGray-0);
+}
+
+.draggableItem {
+    will-change: transform;
+    transition:
+        opacity 180ms cubic-bezier(0.22, 1, 0.36, 1),
+        filter 180ms cubic-bezier(0.22, 1, 0.36, 1),
+        transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.draggableItemDragging {
+    opacity: 0.98;
+    filter: drop-shadow(0 8px 18px rgb(20 25 35 / 22%));
+    background-color: var(--mantine-color-body);
+    border-radius: var(--mantine-radius-sm);
+}
+
+.draggableItemHidden {
+    visibility: hidden;
+}
