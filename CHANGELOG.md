@@ -1,3 +1,17 @@
+# [0.2555.0](https://github.com/lightdash/lightdash/compare/0.2554.1...0.2555.0) (2026-03-03)
+
+
+### Bug Fixes
+
+* improve pre-aggregate analytics copy ([#20783](https://github.com/lightdash/lightdash/issues/20783)) ([209c17c](https://github.com/lightdash/lightdash/commit/209c17c297b71e4a7f08c8d9d5aa4adce14c846d))
+* use CREATE INDEX CONCURRENTLY in soft-delete migrations ([#20742](https://github.com/lightdash/lightdash/issues/20742)) ([6aedd2e](https://github.com/lightdash/lightdash/commit/6aedd2e7cd41a5ba7f4929c39e32c0b9fb05e042))
+
+
+### Features
+
+* add DeployProject@self permission scope for preview projects ([#20784](https://github.com/lightdash/lightdash/issues/20784)) ([60e1ea9](https://github.com/lightdash/lightdash/commit/60e1ea9495d3893d8d6c7433444f97a7a0b5228a))
+* **cli:** add --concurrency flag to parallelize upload ([#20779](https://github.com/lightdash/lightdash/issues/20779)) ([142761e](https://github.com/lightdash/lightdash/commit/142761e47d351e2e3c30c691f9eff2495ba43dc4))
+
 ## [0.2554.1](https://github.com/lightdash/lightdash/compare/0.2554.0...0.2554.1) (2026-03-03)
 
 
