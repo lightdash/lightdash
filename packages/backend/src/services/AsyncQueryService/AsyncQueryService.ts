@@ -502,7 +502,7 @@ export class AsyncQueryService extends ProjectService {
      * @param queryHistory Query history
      * @returns Pivot details
      */
-    static getPivotDetailsFromQueryHistory(
+    private static getPivotDetailsFromQueryHistory(
         queryHistory: QueryHistory,
     ): ReadyQueryResultsPage['pivotDetails'] {
         const {

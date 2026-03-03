@@ -2,14 +2,13 @@ import {
     AnyType,
     applyDimensionOverrides,
     assertUnreachable,
-    ChartType,
     CompileProjectPayload,
     convertReplaceableFieldMatchMapToReplaceCustomFields,
     CreateProject,
     CreateSchedulerAndTargets,
     CreateSchedulerLog,
     CreateSchedulerTarget,
-    derivePivotConfigurationFromChart,
+    derivePivotConfigurationFromPivotConfig,
     DownloadCsvPayload,
     DownloadFileType,
     EmailNotificationPayload,
@@ -2125,19 +2124,8 @@ export default class SchedulerTask {
                     metricQuery.additionalMetrics,
                     metricQuery.tableCalculations,
                 );
-                pivotConfiguration = derivePivotConfigurationFromChart(
-                    {
-                        chartConfig: {
-                            type: ChartType.TABLE,
-                            config: {
-                                metricsAsRows:
-                                    payload.pivotConfig.metricsAsRows,
-                            },
-                        },
-                        pivotConfig: {
-                            columns: payload.pivotConfig.pivotDimensions,
-                        },
-                    },
+                pivotConfiguration = derivePivotConfigurationFromPivotConfig(
+                    payload.pivotConfig,
                     metricQuery,
                     fields,
                 );
@@ -2194,9 +2182,7 @@ export default class SchedulerTask {
                 await this.googleDriveClient.appendToSheet(
                     refreshToken,
                     spreadsheetId,
-                    // Warehouse rows contain string values at runtime; the Record<string, unknown> type
-                    // from the async pipeline is more conservative than needed here.
-                    rows as Record<string, string>[],
+                    rows,
                     itemMap,
                     payload.showTableNames,
                     undefined, // tabName

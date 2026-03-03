@@ -366,7 +366,7 @@ export class GoogleDriveClient {
     async appendToSheet(
         refreshToken: string,
         fileId: string,
-        csvContent: Record<string, string>[],
+        csvContent: Record<string, unknown>[],
         itemMap: ItemsMap,
         showTableNames: boolean,
 
