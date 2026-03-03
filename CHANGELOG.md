@@ -1,3 +1,16 @@
+# [0.2554.0](https://github.com/lightdash/lightdash/compare/0.2553.0...0.2554.0) (2026-03-03)
+
+
+### Bug Fixes
+
+* add passport to backend tsconfig types to fix knex migrate ([#20777](https://github.com/lightdash/lightdash/issues/20777)) ([131b739](https://github.com/lightdash/lightdash/commit/131b739bb6d88091b18ede8a3cf0268d8fa15030))
+* conditionally render tiles panel only when tab is selected ([#20773](https://github.com/lightdash/lightdash/issues/20773)) ([99b438f](https://github.com/lightdash/lightdash/commit/99b438fa648d78087331008b9987a9e520009bc3))
+
+
+### Features
+
+* migrate validator table to use mantine-react-table ([#20775](https://github.com/lightdash/lightdash/issues/20775)) ([9aeb3c9](https://github.com/lightdash/lightdash/commit/9aeb3c90842dd8b62be3c6feacdac506c989b578))
+
 # [0.2553.0](https://github.com/lightdash/lightdash/compare/0.2552.0...0.2553.0) (2026-03-03)
 
 
