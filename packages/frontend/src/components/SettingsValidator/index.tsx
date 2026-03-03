@@ -4,18 +4,9 @@ import {
     ValidationSourceType,
     type ValidationErrorChartResponse,
 } from '@lightdash/common';
-import {
-    Button,
-    Checkbox,
-    Group,
-    Loader,
-    MultiSelect,
-    Paper,
-    Text,
-    TextInput,
-} from '@mantine-8/core';
+import { Button, Group, Loader, Paper, Text } from '@mantine-8/core';
 import { useDebouncedValue } from '@mantine/hooks';
-import { IconCheck, IconSearch } from '@tabler/icons-react';
+import { IconCheck } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import useSearchParams from '../../hooks/useSearchParams';
@@ -26,16 +17,9 @@ import {
 } from '../../hooks/validation/useValidation';
 import useApp from '../../providers/App/useApp';
 import MantineIcon from '../common/MantineIcon';
-import { formatTime } from '../SchedulersView/SchedulersViewUtils';
 import { ValidatorTable } from './ValidatorTable';
 import { ChartConfigurationErrorModal } from './ValidatorTable/ChartConfigurationErrorModal';
 import { FixValidationErrorModal } from './ValidatorTable/FixValidationErrorModal';
-
-const SOURCE_TYPE_OPTIONS = [
-    { value: ValidationSourceType.Chart, label: 'Chart' },
-    { value: ValidationSourceType.Dashboard, label: 'Dashboard' },
-    { value: ValidationSourceType.Table, label: 'Table' },
-];
 
 export const SettingsValidator: FC<{ projectUuid: string }> = ({
     projectUuid,
@@ -43,7 +27,9 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
     const [isValidating, setIsValidating] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [debouncedSearch] = useDebouncedValue(searchQuery, 300);
-    const [sourceTypeFilter, setSourceTypeFilter] = useState<string[]>([]);
+    const [sourceTypeFilter, setSourceTypeFilter] = useState<
+        ValidationSourceType[]
+    >([]);
     const [showConfigWarnings, setShowConfigWarnings] = useState(false);
 
     const targetValidationId = useSearchParams('validationId');
@@ -66,9 +52,7 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
             pageSize: 20,
             searchQuery: debouncedSearch || undefined,
             sourceTypes:
-                sourceTypeFilter.length > 0
-                    ? (sourceTypeFilter as ValidationSourceType[])
-                    : undefined,
+                sourceTypeFilter.length > 0 ? sourceTypeFilter : undefined,
             includeChartConfigWarnings: showConfigWarnings,
         });
 
@@ -120,7 +104,7 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
                     setSelectedConfigError(undefined);
                 }}
             />
-            <Group gap="md" justify="space-between">
+            <Group gap="md" justify="space-between" mb="md">
                 <Text c="dimmed">
                     Use the project validator to check what content is broken in
                     your project.
@@ -137,90 +121,53 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
                 </Button>
             </Group>
 
-            <Paper withBorder shadow="sm">
-                <Group justify="space-between" p="md">
-                    <Group gap="md" w="100%">
-                        <TextInput
-                            flex={1}
-                            size="xs"
-                            placeholder="Search by name or error..."
-                            leftSection={<IconSearch size={14} />}
-                            value={searchQuery}
-                            onChange={(e) =>
-                                setSearchQuery(e.currentTarget.value)
-                            }
-                            w={250}
-                        />
-                        <MultiSelect
-                            size="xs"
-                            placeholder="All sources"
-                            data={SOURCE_TYPE_OPTIONS}
-                            value={sourceTypeFilter}
-                            onChange={setSourceTypeFilter}
-                            clearable
-                            w={200}
-                        />
-                        <Checkbox
-                            size="xs"
-                            label="Show config warnings"
-                            checked={showConfigWarnings}
-                            onChange={(e) =>
-                                setShowConfigWarnings(e.currentTarget.checked)
-                            }
-                        />
-                    </Group>
-                    <Group gap="md">
-                        {lastValidatedAt && (
-                            <Text fw={500} fz="xs" c="ldGray.6">
-                                Last validated at: {formatTime(lastValidatedAt)}
-                            </Text>
-                        )}
-                        {totalDBRowCount > 0 && (
-                            <Text fz="xs" c="ldGray.6">
-                                {totalDBRowCount} error
-                                {totalDBRowCount === 1 ? '' : 's'}
-                            </Text>
-                        )}
-                    </Group>
-                </Group>
-
-                {isLoading ? (
+            {isLoading ? (
+                <Paper withBorder shadow="sm">
                     <Group justify="center" gap="xs" p="md">
                         <Loader color="gray" />
                     </Group>
-                ) : flatData.length > 0 || pinnedValidation ? (
-                    <ValidatorTable
-                        data={deduplicatedData}
-                        projectUuid={projectUuid}
-                        onSelectValidationError={(validationError) => {
-                            if (isChartValidationError(validationError)) {
-                                if (
-                                    validationError.errorType ===
-                                    ValidationErrorType.ChartConfiguration
-                                ) {
-                                    setSelectedConfigError(validationError);
-                                } else {
-                                    setSelectedValidationError(validationError);
-                                }
+                </Paper>
+            ) : flatData.length > 0 || pinnedValidation ? (
+                <ValidatorTable
+                    data={deduplicatedData}
+                    projectUuid={projectUuid}
+                    onSelectValidationError={(validationError) => {
+                        if (isChartValidationError(validationError)) {
+                            if (
+                                validationError.errorType ===
+                                ValidationErrorType.ChartConfiguration
+                            ) {
+                                setSelectedConfigError(validationError);
+                            } else {
+                                setSelectedValidationError(validationError);
                             }
-                        }}
-                        isFetching={isFetching}
-                        isLoading={isLoading}
-                        isError={isError}
-                        totalDBRowCount={totalDBRowCount}
-                        fetchNextPage={fetchNextPage}
-                        pinnedValidation={pinnedValidation}
-                        onUnpin={handleUnpin}
-                    />
-                ) : (
+                        }
+                    }}
+                    isFetching={isFetching}
+                    isLoading={isLoading}
+                    isError={isError}
+                    totalDBRowCount={totalDBRowCount}
+                    fetchNextPage={fetchNextPage}
+                    pinnedValidation={pinnedValidation}
+                    onUnpin={handleUnpin}
+                    searchQuery={searchQuery}
+                    setSearchQuery={setSearchQuery}
+                    sourceTypeFilter={sourceTypeFilter}
+                    setSourceTypeFilter={setSourceTypeFilter}
+                    showConfigWarnings={showConfigWarnings}
+                    setShowConfigWarnings={setShowConfigWarnings}
+                    lastValidatedAt={lastValidatedAt}
+                />
+            ) : (
+                <Paper withBorder shadow="sm">
                     <Group justify="center" gap="xs" p="md">
                         <MantineIcon icon={IconCheck} color="green" />
                         <Text fw={500} c="ldGray.7">
                             No validation errors found
                         </Text>
                     </Group>
-                )}
-            </Paper>
+                </Paper>
+            )}
         </>
     );
 };
