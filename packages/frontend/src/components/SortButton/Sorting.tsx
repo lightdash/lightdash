@@ -39,6 +39,10 @@ const Sorting = forwardRef<HTMLDivElement, Props>(({ sorts, isEditMode }) => {
                 ...(existingSort?.nullsFirst !== undefined && {
                     nullsFirst: existingSort.nullsFirst,
                 }),
+                // Preserve customSortName if it exists
+                ...(existingSort?.customSortName !== undefined && {
+                    customSortName: existingSort.customSortName,
+                }),
             };
 
             if (existingSort) {
@@ -77,6 +81,16 @@ const Sorting = forwardRef<HTMLDivElement, Props>(({ sorts, isEditMode }) => {
         (fieldId: string, nullsFirst: boolean | undefined) => {
             const newSorts = sorts.map((s) =>
                 s.fieldId === fieldId ? { ...s, nullsFirst } : s,
+            );
+            dispatch(explorerActions.setSortFields(newSorts));
+        },
+        [dispatch, sorts],
+    );
+
+    const setCustomSortName = useCallback(
+        (fieldId: string, customSortName: string | undefined) => {
+            const newSorts = sorts.map((s) =>
+                s.fieldId === fieldId ? { ...s, customSortName } : s,
             );
             dispatch(explorerActions.setSortFields(newSorts));
         },
@@ -155,6 +169,14 @@ const Sorting = forwardRef<HTMLDivElement, Props>(({ sorts, isEditMode }) => {
                                                 setSortFieldNullsFirst(
                                                     sort.fieldId,
                                                     payload,
+                                                );
+                                            }}
+                                            onSetCustomSortName={(
+                                                customSortName,
+                                            ) => {
+                                                setCustomSortName(
+                                                    sort.fieldId,
+                                                    customSortName,
                                                 );
                                             }}
                                         />

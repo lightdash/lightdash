@@ -2,12 +2,18 @@ import {
     type DraggableProvidedDraggableProps,
     type DraggableProvidedDragHandleProps,
 } from '@hello-pangea/dnd';
-import { isField, type SortField } from '@lightdash/common';
+import {
+    friendlyName,
+    isDimension,
+    isField,
+    type SortField,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Box,
     Group,
     SegmentedControl,
+    Select,
     Text,
     Tooltip,
 } from '@mantine-8/core';
@@ -37,6 +43,7 @@ interface SortItemProps {
     onAddSortField: (options: { descending: boolean }) => void;
     onRemoveSortField: () => void;
     onSetSortFieldNullsFirst: (nullsFirst: boolean | undefined) => void;
+    onSetCustomSortName: (customSortName: string | undefined) => void;
 }
 
 const SortItem = forwardRef<HTMLDivElement, SortItemProps>(
@@ -53,6 +60,7 @@ const SortItem = forwardRef<HTMLDivElement, SortItemProps>(
             onAddSortField,
             onRemoveSortField,
             onSetSortFieldNullsFirst,
+            onSetCustomSortName,
         },
         ref,
     ) => {
@@ -99,6 +107,36 @@ const SortItem = forwardRef<HTMLDivElement, SortItemProps>(
                 </Group>
 
                 <Group gap="xs">
+                    {item &&
+                        isDimension(item) &&
+                        item.customSqlSorts &&
+                        item.customSqlSorts.length > 0 && (
+                            <Select
+                                disabled={!isEditMode}
+                                size="xs"
+                                w={160}
+                                comboboxProps={{ withinPortal: false }}
+                                value={sort.customSortName ?? '__default__'}
+                                data={[
+                                    {
+                                        value: '__default__',
+                                        label: 'Default',
+                                    },
+                                    ...item.customSqlSorts.map((cs) => ({
+                                        value: cs.name,
+                                        label: friendlyName(cs.name),
+                                    })),
+                                ]}
+                                onChange={(value) => {
+                                    onSetCustomSortName(
+                                        value === '__default__'
+                                            ? undefined
+                                            : (value ?? undefined),
+                                    );
+                                }}
+                            />
+                        )}
+
                     <SegmentedControl
                         disabled={!isEditMode}
                         value={selectedSortDirection}
