@@ -573,6 +573,7 @@ const getAdapterQuoteChar = (adapterType: SupportedDbtAdapter): string => {
         case SupportedDbtAdapter.TRINO:
         case SupportedDbtAdapter.ATHENA:
         case SupportedDbtAdapter.CLICKHOUSE:
+        case SupportedDbtAdapter.DUCKDB:
             return '"';
         default:
             return assertUnreachable(
