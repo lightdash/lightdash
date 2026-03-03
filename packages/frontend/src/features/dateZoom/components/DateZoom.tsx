@@ -1,4 +1,3 @@
-import { DateGranularity } from '@lightdash/common';
 import { ActionIcon, Button, Group, Menu, Text } from '@mantine-8/core';
 import {
     IconCheck,
@@ -29,6 +28,9 @@ export const DateZoom: FC<Props> = ({ isEditMode }) => {
     const isDateZoomDisabled = useDashboardContext((c) => c.isDateZoomDisabled);
     const setIsDateZoomDisabled = useDashboardContext(
         (c) => c.setIsDateZoomDisabled,
+    );
+    const dateZoomGranularities = useDashboardContext(
+        (c) => c.dateZoomGranularities,
     );
     const { track } = useTracking();
 
@@ -132,7 +134,7 @@ export const DateZoom: FC<Props> = ({ isEditMode }) => {
                     Default
                 </Menu.Item>
 
-                {Object.values(DateGranularity).map((granularity) => (
+                {dateZoomGranularities.map((granularity) => (
                     <Menu.Item
                         fz="xs"
                         key={granularity}

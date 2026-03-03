@@ -889,6 +889,24 @@ const DashboardProvider: React.FC<
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [dashboard?.config?.defaultDateZoomGranularity]);
 
+    // Reset dateZoomGranularity if it's not in the allowed list
+    useEffect(() => {
+        if (
+            dateZoomGranularity &&
+            dateZoomGranularities.length > 0 &&
+            !dateZoomGranularities.includes(dateZoomGranularity)
+        ) {
+            setDateZoomGranularity(
+                dashboard?.config?.defaultDateZoomGranularity ?? undefined,
+            );
+        }
+    }, [
+        dateZoomGranularities,
+        dateZoomGranularity,
+        dashboard?.config?.defaultDateZoomGranularity,
+        setDateZoomGranularity,
+    ]);
+
     const {
         isInitialLoading: isLoadingDashboardFilters,
         isFetching: isFetchingDashboardFilters,
