@@ -267,7 +267,7 @@ export const ValidatorTable: FC<ValidatorTableProps> = ({
                         <Flex gap="xs" justify="flex-end" align="center">
                             {isChartValidationError(validationError) && (
                                 <Button
-                                    variant="outline"
+                                    variant="default"
                                     size="xs"
                                     onClick={(
                                         e: React.MouseEvent<HTMLButtonElement>,
