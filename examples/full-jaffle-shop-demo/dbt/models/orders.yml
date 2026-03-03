@@ -178,6 +178,9 @@ models:
                 # Hex colors are supported in both chart config and echarts
                 "placed": "#e6fa0f"
                 "completed": "#00FF00"
+              custom_sql_sorts:
+                - name: lifecycle_stage
+                  sql: "CASE WHEN ${status} = 'placed' THEN 1 WHEN ${status} = 'shipped' THEN 2 WHEN ${status} = 'completed' THEN 3 WHEN ${status} = 'return_pending' THEN 4 WHEN ${status} = 'returned' THEN 5 ELSE 0 END"
         tests:
           - accepted_values:
               values:
@@ -366,6 +369,10 @@ models:
         description: Priority level assigned to the order
         config:
           meta:
+            dimension:
+              custom_sql_sorts:
+                - name: urgency_level
+                  sql: "CASE WHEN ${order_priority} = 'urgent' THEN 1 WHEN ${order_priority} = 'high' THEN 2 WHEN ${order_priority} = 'normal' THEN 3 ELSE 4 END"
             metrics:
               avg_delivery_time_by_priority:
                 type: average

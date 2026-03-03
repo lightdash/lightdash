@@ -75,6 +75,9 @@ models:
                 "gold": "#FFD700"
                 "platinum": "#E5E4E2"
                 "diamond": "#B9F2FF"
+              custom_sql_sorts:
+                - name: plan_tier
+                  sql: "CASE WHEN ${plan_name} = 'free' THEN 1 WHEN ${plan_name} = 'silver' THEN 2 WHEN ${plan_name} = 'gold' THEN 3 WHEN ${plan_name} = 'platinum' THEN 4 WHEN ${plan_name} = 'diamond' THEN 5 ELSE 0 END"
             metrics:
               subscriptions_by_plan_name:
                 type: count_distinct
