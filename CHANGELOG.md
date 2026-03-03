@@ -1,3 +1,15 @@
+# [0.2558.0](https://github.com/lightdash/lightdash/compare/0.2557.1...0.2558.0) (2026-03-03)
+
+
+### Bug Fixes
+
+* use custom bin _order for table calc ordering ([#20630](https://github.com/lightdash/lightdash/issues/20630)) ([ccd278f](https://github.com/lightdash/lightdash/commit/ccd278fcee8bb5e7f4915988d2fd22e5e132de2a))
+
+
+### Features
+
+* add timeout configuration for Snowflake connections ([#20801](https://github.com/lightdash/lightdash/issues/20801)) ([234b7d2](https://github.com/lightdash/lightdash/commit/234b7d26fd8c0c5f6dc3babef4c8cbeda78c70af))
+
 ## [0.2557.1](https://github.com/lightdash/lightdash/compare/0.2557.0...0.2557.1) (2026-03-03)
 
 
