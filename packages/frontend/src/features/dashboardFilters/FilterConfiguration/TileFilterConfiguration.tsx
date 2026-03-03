@@ -127,13 +127,11 @@ const TileFilterConfiguration: FC<Props> = ({
     );
 
     const sortedTileWithFilters = useMemo(() => {
-        return Object.entries(availableTileFilters)
-            .sort(([, a], [, b]) =>
-                sortTilesByFieldMatch(matchFieldByTypeAndName, a, b),
-            )
-            .sort(([, a], [, b]) =>
-                sortTilesByFieldMatch(matchFieldExact, a, b),
-            );
+        return Object.entries(availableTileFilters).sort(([, a], [, b]) => {
+            const exactResult = sortTilesByFieldMatch(matchFieldExact, a, b);
+            if (exactResult !== 0) return exactResult;
+            return sortTilesByFieldMatch(matchFieldByTypeAndName, a, b);
+        });
     }, [sortTilesByFieldMatch, availableTileFilters]);
 
     const tileTargetList = useMemo(() => {
@@ -184,16 +182,19 @@ const TileFilterConfiguration: FC<Props> = ({
                     const sortedFilters = field
                         ? filters
                               ?.filter(matchFieldByType(field))
-                              .sort((a, b) =>
-                                  sortFieldsByMatch(
+                              .sort((a, b) => {
+                                  const exactResult = sortFieldsByMatch(
+                                      matchFieldExact,
+                                      a,
+                                      b,
+                                  );
+                                  if (exactResult !== 0) return exactResult;
+                                  return sortFieldsByMatch(
                                       matchFieldByTypeAndName,
                                       a,
                                       b,
-                                  ),
-                              )
-                              .sort((a, b) =>
-                                  sortFieldsByMatch(matchFieldExact, a, b),
-                              )
+                                  );
+                              })
                         : filters;
 
                     const tileWithoutTitle =
