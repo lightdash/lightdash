@@ -965,7 +965,7 @@ describe('Query builder', () => {
                                 displayName: '',
                                 sql: '${table1.dim1} + 1',
                                 compiledSql: 'table1_dim1 + 1',
-                                dependsOn: [],
+                                dependsOn: [] as string[],
                             },
                         ],
                     },
@@ -2172,7 +2172,7 @@ LIMIT 10`;
                             displayName: 'Calc 1',
                             sql: '${table1.metric1} * 2',
                             compiledSql: '"table1_metric1" * 2',
-                            dependsOn: [],
+                            dependsOn: [] as string[],
                         },
                     ],
                 },
@@ -2264,7 +2264,7 @@ LIMIT 10`;
                             displayName: 'Calc 1',
                             sql: '${table1.metric1} * 2',
                             compiledSql: '"table1_metric1" * 2',
-                            dependsOn: [],
+                            dependsOn: [] as string[],
                         },
                     ],
                 },
@@ -2365,7 +2365,7 @@ LIMIT 10`;
                         displayName: 'Simple Calc',
                         sql: '${table1.metric1} + 100',
                         compiledSql: '"table1_metric1" + 100',
-                        dependsOn: [],
+                        dependsOn: [] as string[],
                         // No CTE since it doesn't reference other table calculations
                     },
                 ],
@@ -2413,7 +2413,7 @@ LIMIT 10`;
                         displayName: 'Base Calc',
                         sql: '${table1.metric1} + 50',
                         compiledSql: '"table1_metric1" + 50',
-                        dependsOn: [],
+                        dependsOn: [] as string[],
                     },
                     {
                         name: 'dependent_calc',
@@ -2471,7 +2471,7 @@ LIMIT 10`;
                         displayName: 'Simple Calc',
                         sql: '${table1.metric1} / 10',
                         compiledSql: '"table1_metric1" / 10',
-                        dependsOn: [],
+                        dependsOn: [] as string[],
                         // No CTE - not referenced by others
                     },
                     {
@@ -2479,7 +2479,7 @@ LIMIT 10`;
                         displayName: 'Base Calc',
                         sql: '${table1.metric1} + 25',
                         compiledSql: '"table1_metric1" + 25',
-                        dependsOn: [],
+                        dependsOn: [] as string[],
                     },
                     {
                         name: 'dependent_calc',
@@ -2539,14 +2539,14 @@ LIMIT 10`;
                         displayName: 'Calc A',
                         sql: '${table1.metric1} + 10',
                         compiledSql: '"table1_metric1" + 10',
-                        dependsOn: [],
+                        dependsOn: [] as string[],
                     },
                     {
                         name: 'calc_b',
                         displayName: 'Calc B',
                         sql: '${table1.metric1} * 2',
                         compiledSql: '"table1_metric1" * 2',
-                        dependsOn: [],
+                        dependsOn: [] as string[],
                     },
                     {
                         name: 'calc_c',
@@ -2600,7 +2600,7 @@ LIMIT 10`;
                         displayName: 'Filtered Calc',
                         sql: '${table1.metric1} * 1.5',
                         compiledSql: '"table1_metric1" * 1.5',
-                        dependsOn: [],
+                        dependsOn: [] as string[],
                     },
                     {
                         name: 'dependent_calc',
@@ -2866,7 +2866,7 @@ describe('Query Structure Tests', () => {
                         displayName: 'Simple TC',
                         sql: '${table1.metric1}',
                         compiledSql: '"table1_metric1"',
-                        dependsOn: [],
+                        dependsOn: [] as string[],
                         // No CTE - simple table calculation
                     },
                 ],
@@ -2931,7 +2931,7 @@ describe('Query Structure Tests', () => {
                         displayName: 'Simple TC',
                         sql: '${table1.metric1}',
                         compiledSql: '"table1_metric1"',
-                        dependsOn: [],
+                        dependsOn: [] as string[],
                         // No CTE - simple table calculation
                     },
                 ],
@@ -3004,7 +3004,7 @@ describe('Query Structure Tests', () => {
                         displayName: 'Simple TC',
                         sql: '${table1.metric1}',
                         compiledSql: '"table1_metric1"',
-                        dependsOn: [],
+                        dependsOn: [] as string[],
                         // No CTE - simple table calculation
                     },
                     {
@@ -3012,7 +3012,7 @@ describe('Query Structure Tests', () => {
                         displayName: 'Depended On',
                         sql: '${table1.metric1}',
                         compiledSql: '"table1_metric1"',
-                        dependsOn: [],
+                        dependsOn: [] as string[],
                     },
                     {
                         name: 'dependent',
@@ -3104,7 +3104,7 @@ describe('Query Structure Tests', () => {
                         displayName: 'Simple TC',
                         sql: '${table1.metric1}',
                         compiledSql: '"table1_metric1"',
-                        dependsOn: [],
+                        dependsOn: [] as string[],
                         // No CTE - simple table calculation
                     },
                     {
@@ -3112,7 +3112,7 @@ describe('Query Structure Tests', () => {
                         displayName: 'Depended On',
                         sql: '${table1.metric1}',
                         compiledSql: '"table1_metric1"',
-                        dependsOn: [],
+                        dependsOn: [] as string[],
                     },
                     {
                         name: 'dependent',
@@ -3220,7 +3220,7 @@ describe('Query Structure Tests', () => {
                         displayName: 'Simple TC',
                         sql: '${table1.metric1}',
                         compiledSql: '"table1_metric1"',
-                        dependsOn: [],
+                        dependsOn: [] as string[],
                         // No CTE - simple table calculation
                     },
                     {
@@ -3228,7 +3228,7 @@ describe('Query Structure Tests', () => {
                         displayName: 'Depended On',
                         sql: '${table1.metric1}',
                         compiledSql: '"table1_metric1"',
-                        dependsOn: [],
+                        dependsOn: [] as string[],
                     },
                     {
                         name: 'dependent',
@@ -3328,7 +3328,7 @@ describe('Query Structure Tests', () => {
                         displayName: 'TC A',
                         sql: '${table1.metric1} + 1',
                         compiledSql: '"table1_metric1" + 1',
-                        dependsOn: [],
+                        dependsOn: [] as string[],
                     },
                     {
                         name: 'tc_b',
@@ -3404,28 +3404,28 @@ describe('Query Structure Tests', () => {
                     displayName: 'Pivot Calculation with Offset',
                     sql: 'revenue - pivot_offset(revenue, -1)',
                     compiledSql: 'revenue - pivot_offset(revenue, -1)',
-                    dependsOn: [],
+                    dependsOn: [] as string[],
                 },
                 {
                     name: 'pivot_calc_column',
                     displayName: 'Pivot Calculation with Column',
                     sql: 'pivot_column()',
                     compiledSql: 'pivot_column()',
-                    dependsOn: [],
+                    dependsOn: [] as string[],
                 },
                 {
                     name: 'normal_calc',
                     displayName: 'Normal Calculation',
                     sql: '${table1.metric1} * 2',
                     compiledSql: '"table1_metric1" * 2',
-                    dependsOn: [],
+                    dependsOn: [] as string[],
                 },
                 {
                     name: 'row_calc',
                     displayName: 'Row Calculation',
                     sql: 'offset(${table1.metric1}, -1)',
                     compiledSql: 'offset("table1_metric1", -1)',
-                    dependsOn: [],
+                    dependsOn: [] as string[],
                 },
             ],
         };
@@ -3479,7 +3479,7 @@ describe('Query Structure Tests', () => {
                     displayName: 'Impressions',
                     sql: 'COALESCE(${table1.metric1}, 0)',
                     compiledSql: 'COALESCE(table1_metric1, 0)',
-                    dependsOn: [],
+                    dependsOn: [] as string[],
                 },
                 {
                     name: 'impressions_delta',
@@ -3528,7 +3528,7 @@ describe('Query Structure Tests', () => {
                     displayName: 'Pct of Total',
                     sql: '${table1.metric1} / total(${table1.metric1})',
                     compiledSql: '"table1_metric1" / total("table1_metric1")',
-                    dependsOn: [],
+                    dependsOn: [] as string[],
                 },
             ],
         };
@@ -3540,7 +3540,6 @@ describe('Query Structure Tests', () => {
             intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
             timezone: QUERY_BUILDER_UTC_TIMEZONE,
         });
-
 
         // Should have the column_totals CTE
         expect(result.query).toContain('column_totals AS (');
@@ -3574,7 +3573,7 @@ describe('Query Structure Tests', () => {
                     sql: '${table1.metric1} / row_total(${table1.metric1})',
                     compiledSql:
                         '"table1_metric1" / row_total("table1_metric1")',
-                    dependsOn: [],
+                    dependsOn: [] as string[],
                 },
             ],
         };
@@ -3639,7 +3638,7 @@ describe('Query Structure Tests', () => {
                     displayName: 'Pct Total',
                     sql: '${table1.metric1} / total(${table1.metric1})',
                     compiledSql: '"table1_metric1" / total("table1_metric1")',
-                    dependsOn: [],
+                    dependsOn: [] as string[],
                 },
                 {
                     name: 'pct_row',
@@ -3647,7 +3646,7 @@ describe('Query Structure Tests', () => {
                     sql: '${table1.metric1} / row_total(${table1.metric1})',
                     compiledSql:
                         '"table1_metric1" / row_total("table1_metric1")',
-                    dependsOn: [],
+                    dependsOn: [] as string[],
                 },
             ],
         };
@@ -3706,7 +3705,7 @@ describe('Query Structure Tests', () => {
                     displayName: 'Pct Total',
                     sql: '${table1.metric1} / total(${table1.metric1})',
                     compiledSql: '"table1_metric1" / total("table1_metric1")',
-                    dependsOn: [],
+                    dependsOn: [] as string[],
                 },
                 {
                     name: 'double_pct',
@@ -3756,7 +3755,7 @@ describe('Query Structure Tests', () => {
                     sql: '${table1.metric1} / row_total(${table1.metric1})',
                     compiledSql:
                         '"table1_metric1" / row_total("table1_metric1")',
-                    dependsOn: [],
+                    dependsOn: [] as string[],
                 },
             ],
         };
@@ -3795,7 +3794,7 @@ describe('Query Structure Tests', () => {
                     displayName: 'Simple Calc',
                     sql: '${table1.metric1} + 100',
                     compiledSql: '"table1_metric1" + 100',
-                    dependsOn: [],
+                    dependsOn: [] as string[],
                 },
             ],
         };
@@ -3865,7 +3864,7 @@ describe('Query Structure Tests', () => {
                     sql: '${table1.avg_metric} / total(${table1.avg_metric})',
                     compiledSql:
                         '"table1_avg_metric" / total("table1_avg_metric")',
-                    dependsOn: [],
+                    dependsOn: [] as string[],
                 },
             ],
         };
@@ -3938,7 +3937,7 @@ describe('Query Structure Tests', () => {
                     sql: '${table1.unique_users} / total(${table1.unique_users})',
                     compiledSql:
                         '"table1_unique_users" / total("table1_unique_users")',
-                    dependsOn: [],
+                    dependsOn: [] as string[],
                 },
             ],
         };
@@ -4007,7 +4006,7 @@ describe('Query Structure Tests', () => {
                     sql: '${table1.revenue_per_order} / total(${table1.revenue_per_order})',
                     compiledSql:
                         '"table1_revenue_per_order" / total("table1_revenue_per_order")',
-                    dependsOn: [],
+                    dependsOn: [] as string[],
                 },
             ],
         };
@@ -4094,7 +4093,7 @@ describe('Query Structure Tests', () => {
                     sql: '${table1.total_revenue} / total(${table1.total_revenue})',
                     compiledSql:
                         '"table1_total_revenue" / total("table1_total_revenue")',
-                    dependsOn: [],
+                    dependsOn: [] as string[],
                 },
                 {
                     name: 'avg_pct',
@@ -4102,7 +4101,7 @@ describe('Query Structure Tests', () => {
                     sql: '${table1.avg_order_value} / total(${table1.avg_order_value})',
                     compiledSql:
                         '"table1_avg_order_value" / total("table1_avg_order_value")',
-                    dependsOn: [],
+                    dependsOn: [] as string[],
                 },
             ],
         };
@@ -4179,7 +4178,7 @@ describe('Query Structure Tests', () => {
                     displayName: 'Row Sum',
                     sql: 'row_total(${table1.avg_metric})',
                     compiledSql: 'row_total("table1_avg_metric")',
-                    dependsOn: [],
+                    dependsOn: [] as string[],
                 },
             ],
         };
@@ -4230,7 +4229,7 @@ describe('Query Structure Tests', () => {
                     sql: '${table1.metric1} / row_total(${table1.metric1})',
                     compiledSql:
                         '"table1_metric1" / row_total("table1_metric1")',
-                    dependsOn: [],
+                    dependsOn: [] as string[],
                 },
             ],
         };

@@ -2487,8 +2487,9 @@ export class MetricQueryBuilder {
             const cteName = `tc_${tc.name}`;
 
             // Replace total()/row_total() refs with column aliases before function parsing
-            let compiledSql: string | null =
-                this.replaceTotalReferences(tc.compiledSql);
+            let compiledSql: string | null = this.replaceTotalReferences(
+                tc.compiledSql,
+            );
             const functions = parseTableCalculationFunctions(compiledSql);
             if (hasPivotFunctions(functions)) {
                 compiledSql = null;
@@ -2497,12 +2498,10 @@ export class MetricQueryBuilder {
                     warehouseSqlBuilder,
                 );
                 compiledSql = compiler.compileFunctions(
-                    tc.compiledSql,
+                    compiledSql,
                     functions,
                     orderByClause,
                 );
-            } else {
-                compiledSql = tc.compiledSql;
             }
 
             const parts = [
