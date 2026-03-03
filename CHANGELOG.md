@@ -1,3 +1,10 @@
+## [0.2558.1](https://github.com/lightdash/lightdash/compare/0.2558.0...0.2558.1) (2026-03-03)
+
+
+### Bug Fixes
+
+* use async query service for Google Sheets with pivot support ([#20795](https://github.com/lightdash/lightdash/issues/20795)) ([71b6afe](https://github.com/lightdash/lightdash/commit/71b6afe76ac6ce1e8f97a6c3b46578730f7bd999))
+
 # [0.2558.0](https://github.com/lightdash/lightdash/compare/0.2557.1...0.2558.0) (2026-03-03)
 
 
