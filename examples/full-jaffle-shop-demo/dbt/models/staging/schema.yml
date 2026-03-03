@@ -156,6 +156,29 @@ models:
       - name: chronic
         description: Whether condition is chronic
 
+  - name: stg_regional_sales
+    description: Cleaned regional sales data
+    meta:
+      group_label: "staging"
+    columns:
+      - name: sale_id
+        description: Unique sale identifier
+        tests:
+          - unique
+          - not_null
+      - name: sale_date
+        description: Date of the sale
+      - name: region
+        description: Sales region
+      - name: product_category
+        description: Product category
+      - name: units_sold
+        description: Number of units sold
+      - name: revenue
+        description: Sale revenue amount
+      - name: customer_id
+        description: Reference to customer
+
   # Facilities Management staging models - all prefixed with stg_fm_
   - name: stg_fm_work_orders
     description: Service tickets and maintenance requests
