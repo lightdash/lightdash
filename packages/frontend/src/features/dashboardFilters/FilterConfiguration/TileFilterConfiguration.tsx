@@ -22,6 +22,7 @@ import {
     Collapse,
     Flex,
     Select,
+    Skeleton,
     Stack,
     Text,
     Tooltip,
@@ -29,7 +30,14 @@ import {
     type PopoverProps,
 } from '@mantine/core';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
-import { useCallback, useMemo, useState, type FC } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useState,
+    useTransition,
+    type FC,
+} from 'react';
 import FieldSelect from '../../../components/common/FieldSelect';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { getChartIcon } from '../../../components/common/ResourceIcon/utils';
@@ -94,6 +102,20 @@ const TileFilterConfiguration: FC<Props> = ({
     const [collapsedTabs, setCollapsedTabs] = useState<Record<string, boolean>>(
         {},
     );
+
+    // Defer heavy tile target computation to after initial paint so the
+    // dialog can open instantly without blocking the main thread.
+    const [isReady, setIsReady] = useState(false);
+    const [, startTransition] = useTransition();
+    useEffect(() => {
+        const id = requestAnimationFrame(() => {
+            startTransition(() => {
+                setIsReady(true);
+            });
+        });
+        return () => cancelAnimationFrame(id);
+    }, []);
+
     const sqlChartTilesMetadata = useDashboardContext(
         (c) => c.sqlChartTilesMetadata,
     );
@@ -137,6 +159,8 @@ const TileFilterConfiguration: FC<Props> = ({
     }, [sortTilesByFieldMatch, availableTileFilters]);
 
     const tileTargetList = useMemo(() => {
+        if (!isReady) return [];
+
         const tileWithTargetFields =
             sortedTileWithFilters.map<TileWithTargetFields>(
                 ([tileUuid, filters], index) => {
@@ -305,6 +329,7 @@ const TileFilterConfiguration: FC<Props> = ({
 
         return [...tileWithTargetFields, ...tileWithTargetColumns];
     }, [
+        isReady,
         sortedTileWithFilters,
         sqlChartTilesMetadata,
         tiles,
@@ -627,6 +652,17 @@ const TileFilterConfiguration: FC<Props> = ({
         ) : (
             <StackSubComponent tileList={tileTargetList} isNested={false} />
         );
+
+    if (!isReady) {
+        return (
+            <Stack spacing="md" p="md">
+                <Skeleton height={20} width="60%" />
+                <Skeleton height={16} width="80%" />
+                <Skeleton height={16} width="70%" />
+                <Skeleton height={16} width="75%" />
+            </Stack>
+        );
+    }
 
     return (
         <Stack spacing="xl" mah={600} style={{ overflow: 'auto' }}>
