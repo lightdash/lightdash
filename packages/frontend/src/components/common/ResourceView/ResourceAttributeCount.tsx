@@ -11,7 +11,15 @@ const ResourceAttributeCount: React.FC<{
     return (
         <Flex align="center" gap={4}>
             {name ? (
-                <Tooltip withArrow withinPortal label={<Text>{name}</Text>}>
+                <Tooltip
+                    withArrow
+                    withinPortal
+                    label={
+                        <Text fz="xs" fw={600}>
+                            {name}
+                        </Text>
+                    }
+                >
                     <MantineIcon icon={Icon} color="ldGray.6" size={14} />
                 </Tooltip>
             ) : (
