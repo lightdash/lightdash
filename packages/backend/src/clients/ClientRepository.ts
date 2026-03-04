@@ -23,6 +23,7 @@ export interface ClientManifest {
     schedulerClient: SchedulerClient;
     slackClient: SlackClient;
     msTeamsClient: MicrosoftTeamsClient;
+    preAggregateResultsFileStorageClient: S3ResultsFileStorageClient;
     resultsFileStorageClient: S3ResultsFileStorageClient;
 }
 
@@ -188,6 +189,17 @@ export class ClientRepository
             () =>
                 new S3ResultsFileStorageClient({
                     lightdashConfig: this.context.lightdashConfig,
+                }),
+        );
+    }
+
+    public getPreAggregateResultsFileStorageClient(): S3ResultsFileStorageClient {
+        return this.getClient(
+            'preAggregateResultsFileStorageClient',
+            () =>
+                new S3ResultsFileStorageClient({
+                    lightdashConfig: this.context.lightdashConfig,
+                    s3Config: this.context.lightdashConfig.preAggregates.s3,
                 }),
         );
     }

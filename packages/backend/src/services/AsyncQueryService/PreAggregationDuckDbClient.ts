@@ -111,17 +111,16 @@ export class PreAggregationDuckDbClient {
             return { resolved: false, reason: 'pre_aggregates_disabled' };
         }
 
-        const resultsBucket = this.lightdashConfig.results.s3?.bucket;
-        if (!resultsBucket) {
+        const preAggregateS3Config = this.lightdashConfig.preAggregates.s3;
+        if (!preAggregateS3Config) {
             return {
                 resolved: false,
-                reason: 'missing_results_s3_bucket',
+                reason: 'missing_pre_aggregate_s3_config',
             };
         }
 
-        const duckdbRuntimeConfig = getDuckdbRuntimeConfig(
-            this.lightdashConfig,
-        );
+        const duckdbRuntimeConfig =
+            getDuckdbRuntimeConfig(preAggregateS3Config);
         if (!duckdbRuntimeConfig) {
             return {
                 resolved: false,
@@ -148,8 +147,7 @@ export class PreAggregationDuckDbClient {
         }
 
         const locator = getPreAggregateDuckdbLocator({
-            bucket: resultsBucket,
-            resultsFileName: activeMaterialization.resultsFileName,
+            uri: activeMaterialization.materializationUri,
             format: 'jsonl',
         });
         const sqlTable = getDuckdbPreAggregateSqlTable(
