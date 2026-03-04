@@ -1,0 +1,4 @@
+.widthBadge {
+    cursor: pointer;
+    border-radius: var(--mantine-radius-xs);
+}

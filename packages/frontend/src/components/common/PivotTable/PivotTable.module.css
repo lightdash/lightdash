@@ -1,0 +1,9 @@
+.fixedLayout {
+    table-layout: fixed;
+}
+
+.fixedLayout td,
+.fixedLayout th {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}

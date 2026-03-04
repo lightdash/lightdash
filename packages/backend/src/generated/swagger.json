@@ -2801,9 +2801,6 @@
                     "formatOptions": {
                         "$ref": "#/components/schemas/CustomFormat"
                     },
-                    "caseSensitive": {
-                        "type": "boolean"
-                    },
                     "image": {
                         "properties": {
                             "fit": {
@@ -4955,6 +4952,10 @@
             },
             "ColumnProperties": {
                 "properties": {
+                    "width": {
+                        "type": "number",
+                        "format": "double"
+                    },
                     "color": {
                         "type": "string",
                         "description": "Color for bar display style (hex code)"
@@ -5944,9 +5945,6 @@
                     "formatOptions": {
                         "$ref": "#/components/schemas/CustomFormat"
                     },
-                    "caseSensitive": {
-                        "type": "boolean"
-                    },
                     "image": {
                         "properties": {
                             "fit": {
@@ -6539,9 +6537,6 @@
                         },
                         "required": ["visibility"],
                         "type": "object"
-                    },
-                    "caseSensitive": {
-                        "type": "boolean"
                     },
                     "type": {
                         "$ref": "#/components/schemas/ExploreType"
@@ -8939,23 +8934,33 @@
                                             },
                                             {
                                                 "properties": {
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "success",
+                                                            "error"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": ["status"],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
                                                     "ranking": {
                                                         "properties": {
                                                             "topMatchingFields": {
                                                                 "items": {
                                                                     "properties": {
-                                                                        "chartUsage": {
-                                                                            "type": "number",
-                                                                            "format": "double",
-                                                                            "nullable": true
-                                                                        },
                                                                         "searchRank": {
                                                                             "type": "number",
                                                                             "format": "double",
                                                                             "nullable": true
                                                                         },
-                                                                        "fieldType": {
-                                                                            "type": "string"
+                                                                        "chartUsage": {
+                                                                            "type": "number",
+                                                                            "format": "double",
+                                                                            "nullable": true
                                                                         },
                                                                         "tableName": {
                                                                             "type": "string"
@@ -8963,14 +8968,17 @@
                                                                         "label": {
                                                                             "type": "string"
                                                                         },
+                                                                        "fieldType": {
+                                                                            "type": "string"
+                                                                        },
                                                                         "name": {
                                                                             "type": "string"
                                                                         }
                                                                     },
                                                                     "required": [
-                                                                        "fieldType",
                                                                         "tableName",
                                                                         "label",
+                                                                        "fieldType",
                                                                         "name"
                                                                     ],
                                                                     "type": "object"
@@ -9019,8 +9027,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "error",
-                                                            "success"
+                                                            "success",
+                                                            "error"
                                                         ]
                                                     }
                                                 },
@@ -9064,18 +9072,15 @@
                                                                         "results": {
                                                                             "items": {
                                                                                 "properties": {
-                                                                                    "chartUsage": {
-                                                                                        "type": "number",
-                                                                                        "format": "double",
-                                                                                        "nullable": true
-                                                                                    },
                                                                                     "searchRank": {
                                                                                         "type": "number",
                                                                                         "format": "double",
                                                                                         "nullable": true
                                                                                     },
-                                                                                    "fieldType": {
-                                                                                        "type": "string"
+                                                                                    "chartUsage": {
+                                                                                        "type": "number",
+                                                                                        "format": "double",
+                                                                                        "nullable": true
                                                                                     },
                                                                                     "tableName": {
                                                                                         "type": "string"
@@ -9083,14 +9088,17 @@
                                                                                     "label": {
                                                                                         "type": "string"
                                                                                     },
+                                                                                    "fieldType": {
+                                                                                        "type": "string"
+                                                                                    },
                                                                                     "name": {
                                                                                         "type": "string"
                                                                                     }
                                                                                 },
                                                                                 "required": [
-                                                                                    "fieldType",
                                                                                     "tableName",
                                                                                     "label",
+                                                                                    "fieldType",
                                                                                     "name"
                                                                                 ],
                                                                                 "type": "object"
@@ -9118,8 +9126,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "error",
-                                                            "success"
+                                                            "success",
+                                                            "error"
                                                         ]
                                                     }
                                                 },
@@ -10945,12 +10953,6 @@
                     "s3DataDir": {
                         "type": "string"
                     },
-                    "assumeRoleArn": {
-                        "type": "string"
-                    },
-                    "assumeRoleExternalId": {
-                        "type": "string"
-                    },
                     "workGroup": {
                         "type": "string"
                     },
@@ -11660,12 +11662,6 @@
                         "format": "double"
                     },
                     "workGroup": {
-                        "type": "string"
-                    },
-                    "assumeRoleExternalId": {
-                        "type": "string"
-                    },
-                    "assumeRoleArn": {
                         "type": "string"
                     },
                     "secretAccessKey": {
@@ -12432,126 +12428,6 @@
                 },
                 "required": ["status"],
                 "type": "object"
-            },
-            "Pick_ValidationErrorChartResponse.error-or-errorType-or-fieldName-or-name-or-projectUuid-or-chartUuid-or-source-or-chartName_": {
-                "properties": {
-                    "name": {
-                        "type": "string"
-                    },
-                    "projectUuid": {
-                        "type": "string"
-                    },
-                    "error": {
-                        "type": "string"
-                    },
-                    "source": {
-                        "$ref": "#/components/schemas/ValidationSourceType"
-                    },
-                    "errorType": {
-                        "$ref": "#/components/schemas/ValidationErrorType"
-                    },
-                    "fieldName": {
-                        "type": "string"
-                    },
-                    "chartUuid": {
-                        "type": "string"
-                    },
-                    "chartName": {
-                        "type": "string"
-                    }
-                },
-                "required": ["name", "projectUuid", "error", "errorType"],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "CreateChartValidation": {
-                "$ref": "#/components/schemas/Pick_ValidationErrorChartResponse.error-or-errorType-or-fieldName-or-name-or-projectUuid-or-chartUuid-or-source-or-chartName_"
-            },
-            "ApiSuccess__errors-CreateChartValidation-Array__": {
-                "properties": {
-                    "results": {
-                        "properties": {
-                            "errors": {
-                                "items": {
-                                    "$ref": "#/components/schemas/CreateChartValidation"
-                                },
-                                "type": "array"
-                            }
-                        },
-                        "required": ["errors"],
-                        "type": "object"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "ApiChartValidationResponse": {
-                "$ref": "#/components/schemas/ApiSuccess__errors-CreateChartValidation-Array__"
-            },
-            "Pick_ValidationErrorDashboardResponse.error-or-errorType-or-fieldName-or-name-or-projectUuid-or-dashboardUuid-or-chartName-or-source_": {
-                "properties": {
-                    "name": {
-                        "type": "string"
-                    },
-                    "projectUuid": {
-                        "type": "string"
-                    },
-                    "error": {
-                        "type": "string"
-                    },
-                    "source": {
-                        "$ref": "#/components/schemas/ValidationSourceType"
-                    },
-                    "errorType": {
-                        "$ref": "#/components/schemas/ValidationErrorType"
-                    },
-                    "fieldName": {
-                        "type": "string"
-                    },
-                    "chartName": {
-                        "type": "string"
-                    },
-                    "dashboardUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": ["name", "projectUuid", "error", "errorType"],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "CreateDashboardValidation": {
-                "$ref": "#/components/schemas/Pick_ValidationErrorDashboardResponse.error-or-errorType-or-fieldName-or-name-or-projectUuid-or-dashboardUuid-or-chartName-or-source_"
-            },
-            "ApiSuccess__errors-CreateDashboardValidation-Array__": {
-                "properties": {
-                    "results": {
-                        "properties": {
-                            "errors": {
-                                "items": {
-                                    "$ref": "#/components/schemas/CreateDashboardValidation"
-                                },
-                                "type": "array"
-                            }
-                        },
-                        "required": ["errors"],
-                        "type": "object"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "ApiDashboardValidationResponse": {
-                "$ref": "#/components/schemas/ApiSuccess__errors-CreateDashboardValidation-Array__"
             },
             "LightdashUser": {
                 "properties": {
@@ -13394,7 +13270,7 @@
             },
             "url.URL": {
                 "type": "string",
-                "description": "The **`URL`** interface is used to parse, construct, normalize, and encode URL.\n\n[MDN Reference](https://developer.mozilla.org/docs/Web/API/URL)\n`URL` class is a global reference for `import { URL } from 'url'`\nhttps://nodejs.org/api/url.html#the-whatwg-url-api"
+                "description": "The URL interface represents an object providing static methods used for creating object URLs.\n\n[MDN Reference](https://developer.mozilla.org/docs/Web/API/URL)\n`URL` class is a global reference for `import { URL } from 'url'`\nhttps://nodejs.org/api/url.html#the-whatwg-url-api"
             },
             "OauthAuth": {
                 "properties": {
@@ -15239,10 +15115,6 @@
                     "spaceUuid": {
                         "type": "string"
                     },
-                    "dashboardUuid": {
-                        "type": "string",
-                        "nullable": true
-                    },
                     "pinnedListUuid": {
                         "type": "string",
                         "nullable": true
@@ -15316,6 +15188,10 @@
                         "type": "object",
                         "description": "Table view configuration"
                     },
+                    "dashboardUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "dashboardName": {
                         "type": "string",
                         "nullable": true
@@ -15335,7 +15211,6 @@
                     "updatedAt",
                     "chartConfig",
                     "spaceUuid",
-                    "dashboardUuid",
                     "pinnedListUuid",
                     "pinnedListOrder",
                     "slug",
@@ -15343,6 +15218,7 @@
                     "tableName",
                     "metricQuery",
                     "tableConfig",
+                    "dashboardUuid",
                     "dashboardName",
                     "colorPalette"
                 ],
@@ -15688,10 +15564,6 @@
                     "spaceUuid": {
                         "type": "string"
                     },
-                    "dashboardUuid": {
-                        "type": "string",
-                        "nullable": true
-                    },
                     "pinnedListUuid": {
                         "type": "string",
                         "nullable": true
@@ -15702,6 +15574,10 @@
                     },
                     "spaceName": {
                         "type": "string"
+                    },
+                    "dashboardUuid": {
+                        "type": "string",
+                        "nullable": true
                     },
                     "dashboardName": {
                         "type": "string",
@@ -15714,10 +15590,10 @@
                     "organizationUuid",
                     "uuid",
                     "spaceUuid",
-                    "dashboardUuid",
                     "pinnedListUuid",
                     "slug",
                     "spaceName",
+                    "dashboardUuid",
                     "dashboardName"
                 ],
                 "type": "object",
@@ -16110,42 +15986,6 @@
                         "type": "number",
                         "format": "double"
                     },
-                    "dashboards": {
-                        "items": {
-                            "properties": {
-                                "spaceUuid": {
-                                    "type": "string"
-                                },
-                                "name": {
-                                    "type": "string"
-                                },
-                                "uuid": {
-                                    "type": "string"
-                                }
-                            },
-                            "required": ["spaceUuid", "name", "uuid"],
-                            "type": "object"
-                        },
-                        "type": "array"
-                    },
-                    "charts": {
-                        "items": {
-                            "properties": {
-                                "spaceUuid": {
-                                    "type": "string"
-                                },
-                                "name": {
-                                    "type": "string"
-                                },
-                                "uuid": {
-                                    "type": "string"
-                                }
-                            },
-                            "required": ["spaceUuid", "name", "uuid"],
-                            "type": "object"
-                        },
-                        "type": "array"
-                    },
                     "spaces": {
                         "items": {
                             "properties": {
@@ -16157,10 +15997,6 @@
                                     "type": "number",
                                     "format": "double"
                                 },
-                                "parentSpaceUuid": {
-                                    "type": "string",
-                                    "nullable": true
-                                },
                                 "name": {
                                     "type": "string"
                                 },
@@ -16171,7 +16007,6 @@
                             "required": [
                                 "dashboardCount",
                                 "chartCount",
-                                "parentSpaceUuid",
                                 "name",
                                 "uuid"
                             ],
@@ -16180,13 +16015,7 @@
                         "type": "array"
                     }
                 },
-                "required": [
-                    "dashboardCount",
-                    "chartCount",
-                    "dashboards",
-                    "charts",
-                    "spaces"
-                ],
+                "required": ["dashboardCount", "chartCount", "spaces"],
                 "type": "object"
             },
             "ApiSpaceDeleteImpactResponse": {
@@ -18421,21 +18250,8 @@
                     }
                 ]
             },
-            "ProjectDefaults": {
-                "properties": {
-                    "case_sensitive": {
-                        "type": "boolean",
-                        "description": "Default case sensitivity for string filters across the project.\nWhen false, all string filters will be case insensitive by default.\nCan be overridden at explore or field level.\nDefaults to true if not specified."
-                    }
-                },
-                "type": "object",
-                "description": "Project-wide default settings that can be overridden at explore or field level"
-            },
             "Project": {
                 "properties": {
-                    "projectDefaults": {
-                        "$ref": "#/components/schemas/ProjectDefaults"
-                    },
                     "hasDefaultUserSpaces": {
                         "type": "boolean"
                     },
@@ -19792,15 +19608,15 @@
                     "title": {
                         "type": "string"
                     },
-                    "chartName": {
-                        "type": "string",
-                        "nullable": true
-                    },
                     "hideTitle": {
                         "type": "boolean"
                     },
                     "chartSlug": {
                         "type": "string"
+                    },
+                    "chartName": {
+                        "type": "string",
+                        "nullable": true
                     }
                 },
                 "type": "object",
@@ -20528,9 +20344,6 @@
                     },
                     "type": {
                         "$ref": "#/components/schemas/ExploreType"
-                    },
-                    "caseSensitive": {
-                        "type": "boolean"
                     },
                     "spotlight": {
                         "properties": {
@@ -22122,9 +21935,6 @@
                     "dbtVersion": {
                         "$ref": "#/components/schemas/DbtVersionOption"
                     },
-                    "projectDefaults": {
-                        "$ref": "#/components/schemas/ProjectDefaults"
-                    },
                     "copyWarehouseConnectionFromUpstreamProject": {
                         "type": "boolean"
                     },
@@ -23331,9 +23141,6 @@
                     "sqlPath": {
                         "type": "string"
                     },
-                    "caseSensitive": {
-                        "type": "boolean"
-                    },
                     "aiHint": {
                         "anyOf": [
                             {
@@ -24505,12 +24312,12 @@
                     "spaceUuid": {
                         "type": "string"
                     },
+                    "spaceName": {
+                        "type": "string"
+                    },
                     "dashboardUuid": {
                         "type": "string",
                         "nullable": true
-                    },
-                    "spaceName": {
-                        "type": "string"
                     },
                     "dashboardName": {
                         "type": "string",
@@ -24524,8 +24331,8 @@
                     "name",
                     "uuid",
                     "spaceUuid",
-                    "dashboardUuid",
                     "spaceName",
+                    "dashboardUuid",
                     "dashboardName"
                 ],
                 "type": "object",
@@ -25995,151 +25802,6 @@
                 "$ref": "#/components/schemas/Pick_DownloadAsyncQueryResultsRequestParams.Exclude_keyofDownloadAsyncQueryResultsRequestParams.queryUuid__",
                 "description": "Construct a type with the properties of T except for those in type K."
             },
-            "ApiSuccess_ProjectDefaults-or-undefined_": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/ProjectDefaults"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["status"],
-                "type": "object"
-            },
-            "ApiSuccess_undefined_": {
-                "properties": {
-                    "results": {},
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["status"],
-                "type": "object"
-            },
-            "PreAggregateDailyStatResult": {
-                "properties": {
-                    "updatedAt": {
-                        "type": "string"
-                    },
-                    "preAggregateName": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "missReason": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "missCount": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "hitCount": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "queryContext": {
-                        "type": "string"
-                    },
-                    "dashboardName": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "dashboardUuid": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "chartName": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "chartUuid": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "date": {
-                        "type": "string"
-                    },
-                    "exploreName": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "updatedAt",
-                    "preAggregateName",
-                    "missReason",
-                    "missCount",
-                    "hitCount",
-                    "queryContext",
-                    "dashboardName",
-                    "dashboardUuid",
-                    "chartName",
-                    "chartUuid",
-                    "date",
-                    "exploreName"
-                ],
-                "type": "object"
-            },
-            "ApiPreAggregateStatsResults": {
-                "properties": {
-                    "stats": {
-                        "items": {
-                            "$ref": "#/components/schemas/PreAggregateDailyStatResult"
-                        },
-                        "type": "array"
-                    }
-                },
-                "required": ["stats"],
-                "type": "object"
-            },
-            "KnexPaginatedData_ApiPreAggregateStatsResults_": {
-                "properties": {
-                    "pagination": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/KnexPaginateArgs"
-                            },
-                            {
-                                "properties": {
-                                    "totalResults": {
-                                        "type": "number",
-                                        "format": "double"
-                                    },
-                                    "totalPageCount": {
-                                        "type": "number",
-                                        "format": "double"
-                                    }
-                                },
-                                "required": ["totalResults", "totalPageCount"],
-                                "type": "object"
-                            }
-                        ]
-                    },
-                    "data": {
-                        "$ref": "#/components/schemas/ApiPreAggregateStatsResults"
-                    }
-                },
-                "required": ["data"],
-                "type": "object"
-            },
-            "ApiGetPreAggregateStatsResponse": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/KnexPaginatedData_ApiPreAggregateStatsResults_"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
             "ProjectParameterSummary": {
                 "properties": {
                     "modelName": {
@@ -26229,6 +25891,18 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "ApiSuccess_undefined_": {
+                "properties": {
+                    "results": {},
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["status"],
+                "type": "object"
+            },
             "FeatureFlag": {
                 "properties": {
                     "enabled": {
@@ -26284,6 +25958,29 @@
                     }
                 },
                 "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAddDeployBatchRequest": {
+                "properties": {
+                    "batchNumber": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "explores": {
+                        "items": {
+                            "anyOf": [
+                                {
+                                    "$ref": "#/components/schemas/Explore"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/ExploreError"
+                                }
+                            ]
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["batchNumber", "explores"],
                 "type": "object"
             },
             "DeploySessionStatus": {
@@ -27403,7 +27100,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2557.0",
+        "version": "0.2536.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -29829,108 +29526,6 @@
                         "schema": {
                             "format": "double",
                             "type": "number"
-                        }
-                    }
-                ]
-            }
-        },
-        "/api/v1/projects/{projectUuid}/validate/chart/{chartUuid}": {
-            "post": {
-                "operationId": "ValidateChart",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiChartValidationResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Validates a specific chart and updates validation entries in database.",
-                "summary": "Validate specific chart",
-                "tags": ["Projects"],
-                "security": [],
-                "parameters": [
-                    {
-                        "description": "the project UUID",
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "description": "the chart UUID to validate",
-                        "in": "path",
-                        "name": "chartUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ]
-            }
-        },
-        "/api/v1/projects/{projectUuid}/validate/dashboard/{dashboardUuid}": {
-            "post": {
-                "operationId": "ValidateDashboard",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiDashboardValidationResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Validates a specific dashboard and updates validation entries in database.",
-                "summary": "Validate specific dashboard",
-                "tags": ["Projects"],
-                "security": [],
-                "parameters": [
-                    {
-                        "description": "the project UUID",
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "description": "the dashboard UUID to validate",
-                        "in": "path",
-                        "name": "dashboardUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
                         }
                     }
                 ]
@@ -44735,181 +44330,6 @@
                 }
             }
         },
-        "/api/v2/projects/{projectUuid}/defaults": {
-            "get": {
-                "operationId": "getProjectDefaults",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiSuccess_ProjectDefaults-or-undefined_"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Get project defaults configuration",
-                "summary": "Get project defaults",
-                "tags": ["v2", "Projects"],
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ]
-            },
-            "put": {
-                "operationId": "replaceProjectDefaults",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiSuccess_undefined_"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Replace project defaults configuration",
-                "summary": "Replace project defaults",
-                "tags": ["v2", "Projects"],
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/ProjectDefaults"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v2/projects/{projectUuid}/pre-aggregate-stats": {
-            "get": {
-                "operationId": "getPreAggregateStats",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiGetPreAggregateStatsResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Retrieves aggregated pre-aggregate hit/miss statistics for a project",
-                "summary": "Get pre-aggregate stats",
-                "tags": ["v2", "Pre-Aggregates"],
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "in": "query",
-                        "name": "days",
-                        "required": false,
-                        "schema": {
-                            "format": "double",
-                            "type": "number"
-                        }
-                    },
-                    {
-                        "in": "query",
-                        "name": "page",
-                        "required": false,
-                        "schema": {
-                            "format": "double",
-                            "type": "number"
-                        }
-                    },
-                    {
-                        "in": "query",
-                        "name": "pageSize",
-                        "required": false,
-                        "schema": {
-                            "format": "double",
-                            "type": "number"
-                        }
-                    },
-                    {
-                        "in": "query",
-                        "name": "exploreName",
-                        "required": false,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "in": "query",
-                        "name": "queryType",
-                        "required": false,
-                        "schema": {
-                            "type": "string",
-                            "enum": ["chart", "dashboard", "explorer"]
-                        }
-                    }
-                ]
-            }
-        },
         "/api/v2/projects/{projectUuid}/parameters/list": {
             "get": {
                 "operationId": "getProjectParametersList",
@@ -45241,7 +44661,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/AnyType"
+                                "$ref": "#/components/schemas/ApiAddDeployBatchRequest"
                             }
                         }
                     }
