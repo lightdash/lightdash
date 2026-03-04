@@ -16,8 +16,11 @@ ThoughtSpot exports metadata as TML (ThoughtSpot Modeling Language) YAML files. 
 | **Liveboard** (`.liveboard.tml`) | Dashboard | `lightdash/dashboards/<slug>.yml` |
 | **Answer** (`.answer.tml`) | Saved Chart | `lightdash/charts/<slug>.yml` |
 | **Worksheet** (`.worksheet.tml`) | Model YAML (metrics + dimensions) | `models/<model>.yml` |
+| **Model** (`.model.tml`) | Model YAML (metrics + dimensions) | `models/<model>.yml` |
 | **Table** (`.table.tml`) | dbt model / source reference | Used for column mapping |
 | **View** (`.view.tml`) | Model YAML (derived) | `models/<model>.yml` |
+
+> **Note: Worksheet vs Model TML** — ThoughtSpot is deprecating Worksheets in favor of **Models** (v2 schema). Model TML uses `model:` as the top-level key instead of `worksheet:`, and `model_columns:` instead of `worksheet_columns:`, but the structure is otherwise identical. Newer ThoughtSpot exports will produce `.model.tml` files. This skill handles both formats — apply the same translation rules regardless of which you receive.
 
 ## Before You Start
 
@@ -124,26 +127,53 @@ See [TML Liveboard Reference](./resources/tml-liveboard-reference.md) for the fu
 | `GAUGE` | `gauge` | |
 | `WATERFALL` | `cartesian` (bar) | Approximate with stacked bar |
 | `PIVOT_TABLE` | `table` | Use pivot configuration |
+| `SANKEY` | `table` | No Lightdash equivalent — convert to table |
+| `SPIDER_WEB` | `table` | No Lightdash equivalent — convert to table |
+| `CANDLESTICK` | `table` | No Lightdash equivalent — convert to table |
+| `WHISKER_SCATTER` | `cartesian` (scatter) | Use scatter as approximation |
+| `LINE_COLUMN` | `cartesian` | Mixed chart — use bar + line series |
+| `LINE_STACKED_COLUMN` | `cartesian` | Mixed chart — use stacked bar + line series |
+| `HEATMAP` | `table` | No Lightdash equivalent — convert to table |
+| `PARETO` | `cartesian` | Use bar + line series as approximation |
+
+### Headline / KPI Visualizations
+
+ThoughtSpot Liveboards often include headline tiles (single-number KPIs). These appear as embedded answers with `display_headline_column` set instead of a `chart` section. Translate these to Lightdash `big_number` charts:
+
+```yaml
+# ThoughtSpot headline in a Liveboard visualization
+answer:
+  display_headline_column: "Total Revenue"
+  # ...
+
+# → Lightdash big_number chart
+chartConfig:
+  type: big_number
+  config:
+    selectedField: fact_sales_total_revenue
+```
 
 ## Filter Operator Mapping
 
-| ThoughtSpot `oper` | Lightdash `operator` |
-|-------------------|---------------------|
-| `EQ` | `equals` |
-| `NE` | `notEquals` |
-| `LT` | `lessThan` |
-| `LE` | `lessThanOrEqual` |
-| `GT` | `greaterThan` |
-| `GE` | `greaterThanOrEqual` |
-| `IN` | `equals` (with multiple values) |
-| `NOT_IN` | `notEquals` (with multiple values) |
-| `CONTAINS` | `include` |
-| `NOT_CONTAINS` | `doesNotInclude` |
-| `BEGINS_WITH` | `startsWith` |
-| `ENDS_WITH` | `endsWith` |
-| `IS_NULL` | `isNull` |
-| `IS_NOT_NULL` | `notNull` |
-| `BW_INC` / `BW` | `inBetween` |
+ThoughtSpot TML uses different operator formats depending on context. Liveboard/worksheet-level filters typically use short symbols (`=`, `!=`, `in`, `not in`, `between`), while answer-level and newer TML exports may use uppercase enums (`EQ`, `NE`, `IN`). Handle both forms:
+
+| ThoughtSpot `oper` | Alt form | Lightdash `operator` |
+|-------------------|----------|---------------------|
+| `EQ` | `=` | `equals` |
+| `NE` | `!=` | `notEquals` |
+| `LT` | `<` | `lessThan` |
+| `LE` | `<=` | `lessThanOrEqual` |
+| `GT` | `>` | `greaterThan` |
+| `GE` | `>=` | `greaterThanOrEqual` |
+| `IN` | `in` | `equals` (with multiple values) |
+| `NOT_IN` | `not in` | `notEquals` (with multiple values) |
+| `CONTAINS` | `contains` | `include` |
+| `NOT_CONTAINS` | `not contains` | `doesNotInclude` |
+| `BEGINS_WITH` | `begins with` | `startsWith` |
+| `ENDS_WITH` | `ends with` | `endsWith` |
+| `IS_NULL` | `is null` | `isNull` |
+| `IS_NOT_NULL` | `is not null` | `notNull` |
+| `BW_INC` / `BW` | `between` | `inBetween` |
 
 ## Column Type Mapping
 
@@ -203,6 +233,21 @@ your-project/
 
 See [Full Translation Example](./resources/translation-example.md) for a worked end-to-end example showing TML input and Lightdash YAML output.
 
+## Handling `fqn` References
+
+TML files exported with `export_fqn=true` include `fqn` fields containing ThoughtSpot-internal GUIDs on referenced objects (tables, worksheets, connections). **Ignore these during translation** — they are only meaningful within ThoughtSpot and have no Lightdash equivalent. Use the `name` field instead to identify and map objects.
+
+```yaml
+# Example — use `name`, ignore `fqn`
+tables:
+  - name: "Retail - Apparel"     # ← Use this for mapping
+    fqn: "2ea7add9-0ccb-..."     # ← Ignore this
+```
+
+## Handling `client_state` / `client_state_v2`
+
+Answer TML may include a `client_state` or `client_state_v2` field containing a JSON string with detailed visual configuration (colors, legend position, data labels, axis labels, number formatting). This is optional but can be a useful source of additional chart styling information. Parse it if you need to extract specific visual settings, but it's not required for basic translation.
+
 ## Common Pitfalls
 
 1. **Missing `downloadedAt`**: Charts without this field fail on upload. Always include it.
@@ -212,3 +257,20 @@ See [Full Translation Example](./resources/translation-example.md) for a worked 
 5. **Nested table relationships**: ThoughtSpot Worksheets can span 20-30 tables. Map each to the correct dbt model before generating metrics.
 6. **Formula translation**: ThoughtSpot's `group_aggregate` and LOD functions don't have direct Lightdash equivalents. Use SQL metrics or suggest dbt intermediate models.
 7. **Liveboard filters vs chart filters**: ThoughtSpot Liveboard filters apply across visualizations. In Lightdash, dashboard filters target specific fields - map the `column` reference to the correct `fieldId` and `tableName`.
+8. **Formula metrics need model-level `meta`**: ThoughtSpot formulas that combine multiple columns (e.g., `revenue / units_sold`) should become model-level `meta.metrics` with custom SQL, NOT column-level metrics on a fake column name.
+
+## Known Gaps
+
+These ThoughtSpot features cannot be automatically translated and require manual handling:
+
+| ThoughtSpot Feature | Status | Workaround |
+|---------------------|--------|------------|
+| `group_aggregate` / LOD functions | Not supported | Use SQL metrics with window functions, or create dbt intermediate models |
+| Parameters (dynamic runtime values) | Not supported | Hardcode default values or use Lightdash dashboard filters |
+| Row-level security (RLS) rules | Not supported | Configure RLS separately in Lightdash or at the warehouse level |
+| Geo charts (`GEO_AREA`, `GEO_BUBBLE`, `GEO_HEATMAP`) | Partial | Convert to table view; Lightdash has limited geo support |
+| Sankey, Spider Web, Candlestick charts | Not supported | Convert to table or closest alternative chart type |
+| ThoughtSpot search syntax keywords (`daily`, `monthly`, `sort by`, `top`) | Partially handled | `top N` maps to `limit`, time granularity maps to date dimension grouping, but complex search expressions need manual interpretation |
+| `client_state` / `client_state_v2` visual config | Optional | JSON blob with colors, labels, formatting — can be parsed but not required |
+| View TML (`search_query` based) | Partial | The `search_query` must be interpreted and converted to SQL or Lightdash metric definitions |
+| SQL View TML | Partial | `sql_query` can map to Lightdash `sql_from` but column definitions need manual mapping |

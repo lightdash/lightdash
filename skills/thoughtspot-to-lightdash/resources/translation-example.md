@@ -246,15 +246,15 @@ models:
             total_units_sold:
               type: sum
               label: "Total Units Sold"
-      # Revenue per Unit - from ThoughtSpot formula
-      # Original: [sales_1::revenue] / [sales_1::units_sold]
-      - name: revenue_per_unit_metric
-        meta:
-          metrics:
-            revenue_per_unit:
-              type: number
-              label: "Revenue per Unit"
-              sql: "${TABLE}.revenue / NULLIF(${TABLE}.units_sold, 0)"
+    # Revenue per Unit - from ThoughtSpot formula
+    # Original: [sales_1::revenue] / [sales_1::units_sold]
+    # This is a model-level metric (not column-level) because it combines multiple columns
+    meta:
+      metrics:
+        revenue_per_unit:
+          type: number
+          label: "Revenue per Unit"
+          sql: "SUM(${TABLE}.revenue) / NULLIF(SUM(${TABLE}.units_sold), 0)"
 
   - name: dim_products
     columns:
@@ -425,7 +425,7 @@ filters:
 
 2. **Field IDs**: Lightdash field IDs are `tableName_fieldName` in snake_case. Dimensions from joined tables use the join table name: `dim_stores_state` (not `fact_sales_state`).
 
-3. **Formula translation**: ThoughtSpot's `[sales_1::revenue] / [sales_1::units_sold]` became a SQL metric: `${TABLE}.revenue / NULLIF(${TABLE}.units_sold, 0)`. Added `NULLIF` to avoid division by zero.
+3. **Formula translation**: ThoughtSpot's `[sales_1::revenue] / [sales_1::units_sold]` became a model-level SQL metric: `SUM(${TABLE}.revenue) / NULLIF(SUM(${TABLE}.units_sold), 0)`. Note: this is defined under model-level `meta.metrics` (not on a column) because it combines multiple columns. Added `SUM()` aggregation wrappers and `NULLIF` to avoid division by zero.
 
 4. **Filter translation**: ThoughtSpot `oper: IN` with multiple values → Lightdash `operator: equals` with multiple values (Lightdash `equals` with an array acts as IN).
 

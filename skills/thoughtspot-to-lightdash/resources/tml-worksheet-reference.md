@@ -1,6 +1,8 @@
-# TML Worksheet Reference
+# TML Worksheet / Model Reference
 
-A ThoughtSpot Worksheet defines the semantic layer - joins between tables, calculated columns, and column metadata (attributes vs measures). This maps to the Lightdash model YAML where you define dimensions, metrics, and joins.
+A ThoughtSpot Worksheet (or Model in v2 schema) defines the semantic layer - joins between tables, calculated columns, and column metadata (attributes vs measures). This maps to the Lightdash model YAML where you define dimensions, metrics, and joins.
+
+> **Worksheet vs Model**: ThoughtSpot is deprecating Worksheets in favor of **Models** (v2 schema). Model TML files use `model:` as the top-level key instead of `worksheet:`, and `model_columns:` instead of `worksheet_columns:`. The structure is otherwise identical. Apply the same translation rules to both.
 
 ## TML Structure
 

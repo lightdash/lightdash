@@ -99,10 +99,37 @@ answer:
 
 ### `search_query`
 
-ThoughtSpot's search bar syntax. Columns are in brackets. This is the primary way to understand what the Answer queries:
-- `[Column Name]` - a dimension or measure
-- `[Table.Column]` - qualified column reference
-- Aggregations like `sum`, `count`, `average` may prefix columns
+ThoughtSpot's search bar syntax. This is the primary way to understand what the Answer queries. Columns are in brackets, and keywords modify the query behavior:
+
+**Column references:**
+- `[Column Name]` — a dimension or measure
+- `[Table.Column]` — qualified column reference (used when column names are ambiguous)
+
+**Aggregation keywords** (prefix a column):
+- `sum [Revenue]`, `count [Orders]`, `average [Price]`, `count distinct [Customer ID]`
+- `min [Date]`, `max [Date]`
+
+**Limit/sort keywords:**
+- `top 10` or `bottom 5` — maps to Lightdash `metricQuery.limit`
+- `sort by [Column] ascending` / `sort by [Column] descending` — maps to `metricQuery.sorts`
+
+**Time granularity keywords:**
+- `daily [Date]`, `weekly [Date]`, `monthly [Date]`, `quarterly [Date]`, `yearly [Date]`
+- Maps to the dimension's time granularity in Lightdash (e.g., `order_date_month`)
+
+**Filter keywords in search query:**
+- `[Status] = 'Active'` — inline filter, maps to `metricQuery.filters`
+- `[Date] > '2024-01-01'` — date filter
+- `[Region] != 'Other'` — exclusion filter
+
+**Example parsing:**
+```
+search_query: "[Category] [Revenue] top 10 sort by [Revenue] descending monthly [Order Date]"
+```
+→ Dimensions: `category`, `order_date` (with month granularity)
+→ Metrics: `total_revenue`
+→ Limit: 10
+→ Sorts: `total_revenue` descending
 
 ### `answer_columns`
 
