@@ -1,3 +1,10 @@
+# [0.2567.0](https://github.com/lightdash/lightdash/compare/0.2566.0...0.2567.0) (2026-03-04)
+
+
+### Features
+
+* empty state for pre-agg materializations ([#20842](https://github.com/lightdash/lightdash/issues/20842)) ([5c9481a](https://github.com/lightdash/lightdash/commit/5c9481a49faf6a4d8c7deec253211dfa975917aa))
+
 # [0.2566.0](https://github.com/lightdash/lightdash/compare/0.2565.3...0.2566.0) (2026-03-04)
 
 
