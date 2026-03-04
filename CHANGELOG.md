@@ -1,3 +1,10 @@
+## [0.2565.1](https://github.com/lightdash/lightdash/compare/0.2565.0...0.2565.1) (2026-03-04)
+
+
+### Bug Fixes
+
+* update user attributes tests for menu dropdown interaction ([#20833](https://github.com/lightdash/lightdash/issues/20833)) ([902112b](https://github.com/lightdash/lightdash/commit/902112ba5811f019c3f5dee37197bb54de128592))
+
 # [0.2565.0](https://github.com/lightdash/lightdash/compare/0.2564.0...0.2565.0) (2026-03-04)
 
 
