@@ -1,3 +1,10 @@
+# [0.2559.0](https://github.com/lightdash/lightdash/compare/0.2558.1...0.2559.0) (2026-03-04)
+
+
+### Features
+
+* add dedicated S3 storage for pre-aggregate materializations ([#20752](https://github.com/lightdash/lightdash/issues/20752)) ([65e6321](https://github.com/lightdash/lightdash/commit/65e63217169a864270ffd93bb0817ac32172ba02))
+
 ## [0.2558.1](https://github.com/lightdash/lightdash/compare/0.2558.0...0.2558.1) (2026-03-03)
 
 
