@@ -506,12 +506,8 @@ export class ExploreCompiler {
             sqlPath,
             databricksCompute,
             // Use explore-level caseSensitive if set, otherwise fall back to project defaults
-            ...(caseSensitive !== undefined ||
-            projectDefaults?.case_sensitive !== undefined
-                ? {
-                      caseSensitive:
-                          caseSensitive ?? projectDefaults?.case_sensitive,
-                  }
+            ...(caseSensitive !== undefined || projectDefaults?.case_sensitive !== undefined
+                ? { caseSensitive: caseSensitive ?? projectDefaults?.case_sensitive }
                 : {}),
             ...(aiHint ? { aiHint } : {}),
             ...getSpotlightConfigurationForResource({

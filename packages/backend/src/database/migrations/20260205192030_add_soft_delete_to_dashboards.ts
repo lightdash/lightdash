@@ -32,7 +32,9 @@ export async function up(knex: Knex): Promise<void> {
     `);
 
     // Partial index for fast queries on deleted items (Recently Deleted page)
-    await knex.raw(`DROP INDEX CONCURRENTLY IF EXISTS idx_dashboards_deleted`);
+    await knex.raw(
+        `DROP INDEX CONCURRENTLY IF EXISTS idx_dashboards_deleted`,
+    );
     await knex.raw(`
         CREATE INDEX CONCURRENTLY idx_dashboards_deleted
         ON ${DashboardsTableName} (dashboard_uuid)

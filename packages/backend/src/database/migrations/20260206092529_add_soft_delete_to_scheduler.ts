@@ -32,7 +32,9 @@ export async function up(knex: Knex): Promise<void> {
     `);
 
     // Partial index for fast queries on deleted items
-    await knex.raw(`DROP INDEX CONCURRENTLY IF EXISTS idx_scheduler_deleted`);
+    await knex.raw(
+        `DROP INDEX CONCURRENTLY IF EXISTS idx_scheduler_deleted`,
+    );
     await knex.raw(`
         CREATE INDEX CONCURRENTLY idx_scheduler_deleted
         ON ${SchedulerTableName} (scheduler_uuid)
