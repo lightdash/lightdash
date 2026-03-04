@@ -320,6 +320,32 @@ export const getAxisDefaultMaxValue = ({
 const maybeGetAxisDefaultMaxValue = (allowFunction: boolean) =>
     allowFunction ? getAxisDefaultMaxValue : undefined;
 
+/**
+ * Returns an echarts axis-min function that ensures the axis extends down
+ * to include the given reference line value, without ever shrinking the
+ * axis range if the reference line is inside the auto-calculated bounds.
+ */
+const referenceLineMinBound = (refValue: number | string | undefined) => {
+    if (refValue === undefined) return undefined;
+    const numRef =
+        typeof refValue === 'number' ? refValue : parseFloat(refValue);
+    if (isNaN(numRef)) return undefined;
+    return ({ min }: { min: number }) => Math.min(min, numRef);
+};
+
+/**
+ * Returns an echarts axis-max function that ensures the axis extends up
+ * to include the given reference line value, without ever capping the
+ * axis range if the reference line is inside the auto-calculated bounds.
+ */
+const referenceLineMaxBound = (refValue: number | string | undefined) => {
+    if (refValue === undefined) return undefined;
+    const numRef =
+        typeof refValue === 'number' ? refValue : parseFloat(refValue);
+    if (isNaN(numRef)) return undefined;
+    return ({ max }: { max: number }) => Math.max(max, numRef);
+};
+
 const convertPivotValuesColumnsIntoMap = (
     valuesColumns?: PivotValuesColumn[],
 ) => {
@@ -1759,18 +1785,14 @@ const getEchartAxes = ({
         max?: number,
     ) => {
         if (axisType === 'value') {
-            // For bar charts (allowFirstAxisDefaultRange === false), we should NOT use
-            // reference line values to set the axis bounds. This prevents the axis from
-            // being forced to scale to a reference line that's outside the data range.
-            // See: https://github.com/lightdash/lightdash/issues/19822
             const initialBottomAxisMin =
                 xAxisConfiguration?.[0]?.min ??
-                (allowFirstAxisDefaultRange ? referenceLineMinX : undefined) ??
+                referenceLineMinBound(referenceLineMinX) ??
                 maybeGetAxisDefaultMinValue(allowFirstAxisDefaultRange);
 
             const initialBottomAxisMax =
                 xAxisConfiguration?.[0]?.max ??
-                (allowFirstAxisDefaultRange ? referenceLineMaxX : undefined) ??
+                referenceLineMaxBound(referenceLineMaxX) ??
                 maybeGetAxisDefaultMaxValue(allowFirstAxisDefaultRange);
 
             // Apply offset to the min and max values of the axis
@@ -1853,28 +1875,19 @@ const getEchartAxes = ({
                 : bottomAxisBounds.max
             : undefined;
 
-    // For bar charts (allowFirstAxisDefaultRange === false), we should NOT use
-    // reference line values to set the axis bounds. This prevents the axis from
-    // being forced to scale to a reference line that's outside the data range,
-    // which would compress the bars and make the chart misleading.
-    // See: https://github.com/lightdash/lightdash/issues/19822
     const maxYAxisValue =
         leftAxisType === 'value'
             ? shouldStack100 && !validCartesianConfig.layout.flipAxes
                 ? 100 // For 100% stacking without flipped axes, max is always 100
                 : yAxisConfiguration?.[0]?.max ||
-                  (allowFirstAxisDefaultRange
-                      ? referenceLineMaxLeftY
-                      : undefined) ||
+                  referenceLineMaxBound(referenceLineMaxLeftY) ||
                   maybeGetAxisDefaultMaxValue(allowFirstAxisDefaultRange)
             : undefined;
 
     const minYAxisValue =
         leftAxisType === 'value'
             ? yAxisConfiguration?.[0]?.min ||
-              (allowFirstAxisDefaultRange
-                  ? referenceLineMinLeftY
-                  : undefined) ||
+              referenceLineMinBound(referenceLineMinLeftY) ||
               maybeGetAxisDefaultMinValue(allowFirstAxisDefaultRange)
             : undefined;
 
@@ -2092,9 +2105,7 @@ const getEchartAxes = ({
                 min:
                     rightAxisType === 'value'
                         ? yAxisConfiguration?.[1]?.min ||
-                          (allowSecondAxisDefaultRange
-                              ? referenceLineMinRightY
-                              : undefined) ||
+                          referenceLineMinBound(referenceLineMinRightY) ||
                           maybeGetAxisDefaultMinValue(
                               allowSecondAxisDefaultRange,
                           )
@@ -2102,9 +2113,7 @@ const getEchartAxes = ({
                 max:
                     rightAxisType === 'value'
                         ? yAxisConfiguration?.[1]?.max ||
-                          (allowSecondAxisDefaultRange
-                              ? referenceLineMaxRightY
-                              : undefined) ||
+                          referenceLineMaxBound(referenceLineMaxRightY) ||
                           maybeGetAxisDefaultMaxValue(
                               allowSecondAxisDefaultRange,
                           )
