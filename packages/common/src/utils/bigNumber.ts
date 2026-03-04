@@ -14,7 +14,10 @@ export const resolveGranularityInLabel = (
         GRANULARITY_PATTERN,
         (match, fieldBaseId: string) => {
             const granularity = granularityMap[fieldBaseId];
-            return granularity ? granularity.toLowerCase() : match;
+            if (typeof granularity === 'string') {
+                return granularity.toLowerCase();
+            }
+            return match;
         },
     );
 };
