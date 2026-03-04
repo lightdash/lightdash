@@ -915,6 +915,7 @@ export type LightdashConfig = {
     scheduler: {
         enabled: boolean;
         concurrency: number;
+        pollInterval: number;
         jobTimeout: number;
         screenshotTimeout?: number;
         tasks: Array<SchedulerTaskName>;
@@ -1754,6 +1755,9 @@ export const parseConfig = (): LightdashConfig => {
         scheduler: {
             enabled: process.env.SCHEDULER_ENABLED !== 'false',
             concurrency: parseInt(process.env.SCHEDULER_CONCURRENCY || '3', 10),
+            pollInterval:
+                getIntegerFromEnvironmentVariable('SCHEDULER_POLL_INTERVAL') ||
+                1000,
             jobTimeout: process.env.SCHEDULER_JOB_TIMEOUT
                 ? parseInt(process.env.SCHEDULER_JOB_TIMEOUT, 10)
                 : DEFAULT_JOB_TIMEOUT,

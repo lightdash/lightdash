@@ -597,6 +597,22 @@ describe('parseAndSanitizeSchedulerTasks', () => {
     });
 });
 
+describe('scheduler poll interval', () => {
+    test('should default poll interval to 1000', () => {
+        const config = parseConfig();
+
+        expect(config.scheduler.pollInterval).toBe(1000);
+    });
+
+    test('should parse poll interval from environment variable', () => {
+        process.env.SCHEDULER_POLL_INTERVAL = '2500';
+
+        const config = parseConfig();
+
+        expect(config.scheduler.pollInterval).toBe(2500);
+    });
+});
+
 test('should set useSqlPivotResults only when the environment variable is set', () => {
     const undefinedConfig = parseConfig();
     expect(undefinedConfig.query.useSqlPivotResults).toBeUndefined();
