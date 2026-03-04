@@ -1,3 +1,13 @@
+# [0.2564.0](https://github.com/lightdash/lightdash/compare/0.2563.1...0.2564.0) (2026-03-04)
+
+
+### Features
+
+* add materialization detail drawer with clickable rows ([#20817](https://github.com/lightdash/lightdash/issues/20817)) ([9d10a44](https://github.com/lightdash/lightdash/commit/9d10a4476afe395378ba82c15c6422c6b3138051))
+* add search and status filtering to PreAggregateMaterializations ([#20816](https://github.com/lightdash/lightdash/issues/20816)) ([c592b65](https://github.com/lightdash/lightdash/commit/c592b65eb8442ddcdf6c1c76249c21a1d3915836))
+* allow responsive CSS properties in markdown tile sanitization ([#20811](https://github.com/lightdash/lightdash/issues/20811)) ([e225648](https://github.com/lightdash/lightdash/commit/e22564844f185bc9980b6c08983385bf4bad6aa2))
+* pre-aggregate ui and materializations view ([#20804](https://github.com/lightdash/lightdash/issues/20804)) ([0e5cc55](https://github.com/lightdash/lightdash/commit/0e5cc559b4e25724dea5d0ceca1eebd0a8fced0d))
+
 ## [0.2563.1](https://github.com/lightdash/lightdash/compare/0.2563.0...0.2563.1) (2026-03-04)
 
 
