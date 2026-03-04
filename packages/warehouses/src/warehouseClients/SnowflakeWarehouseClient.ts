@@ -461,6 +461,8 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
 
             return { tokenSecret, tokenName };
         } catch (e: unknown) {
+            // Note: External browser connections are not destroyed as they're cached
+            // for the lifetime of the client, but we still need proper error handling
             throw new WarehouseConnectionError(
                 `Failed to create Snowflake PAT: ${getErrorMessage(e)}`,
             );
@@ -670,27 +672,35 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         ) => void | Promise<void>,
     ): Promise<WarehouseExecuteAsyncQuery> {
         const connection = await this.getConnection();
-        await this.prepareWarehouse(connection, {
-            timezone,
-            tags,
-        });
 
-        const { queryId, durationMs, totalRows } =
-            await this.executeAsyncStatement(
+        try {
+            await this.prepareWarehouse(connection, {
+                timezone,
+                tags,
+            });
+
+            const { queryId, durationMs, totalRows } =
+                await this.executeAsyncStatement(
+                    connection,
+                    sql,
+                    resultsStreamCallback,
+                    {
+                        values,
+                    },
+                );
+
+            return {
+                queryId,
+                queryMetadata: null,
+                totalRows,
+                durationMs,
+            };
+        } finally {
+            await this.destroyConnection(
                 connection,
-                sql,
-                resultsStreamCallback,
-                {
-                    values,
-                },
+                this.connectionOptions.authenticator,
             );
-
-        return {
-            queryId,
-            queryMetadata: null,
-            totalRows,
-            durationMs,
-        };
+        }
     }
 
     private async executeAsyncStatement(
