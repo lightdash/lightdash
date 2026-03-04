@@ -17,10 +17,15 @@ import {
     isMetric,
     isNumericItem,
     isTableCalculation,
+    isTimeBasedDimension,
+    resolveGranularityInLabel,
+    timeFrameToDateGranularityMap,
     valueIsNaN,
     type BigNumber,
     type CompactOrAlias,
     type ConditionalFormattingConfig,
+    type DateGranularity,
+    type DateZoom,
     type ItemsMap,
     type ParametersValuesMap,
     type TableCalculationMetadata,
@@ -125,6 +130,7 @@ const useBigNumberConfig = (
     itemsMap: ItemsMap | undefined,
     tableCalculationsMetadata?: TableCalculationMetadata[],
     parameters?: ParametersValuesMap,
+    dateZoom?: DateZoom,
 ) => {
     const availableFieldsIds = useMemo(() => {
         const itemsSortedByType = Object.values(itemsMap || {}).sort((a, b) => {
@@ -418,6 +424,32 @@ const useBigNumberConfig = (
         }
     }, [comparisonValue, comparisonDiff, comparisonField]);
 
+    const resolvedGranularity = useMemo((): DateGranularity | undefined => {
+        if (dateZoom?.granularity) return dateZoom.granularity;
+        // Fallback: derive from the selected field or comparison field's time interval
+        const fieldsToCheck = [item, comparisonItem];
+        for (const field of fieldsToCheck) {
+            if (
+                isTimeBasedDimension(field) &&
+                field.timeInterval &&
+                timeFrameToDateGranularityMap[field.timeInterval]
+            ) {
+                return timeFrameToDateGranularityMap[field.timeInterval];
+            }
+        }
+        return undefined;
+    }, [dateZoom?.granularity, item, comparisonItem]);
+
+    const resolvedBigNumberLabel = useMemo(
+        () => resolveGranularityInLabel(bigNumberLabel, resolvedGranularity),
+        [bigNumberLabel, resolvedGranularity],
+    );
+
+    const resolvedComparisonLabel = useMemo(
+        () => resolveGranularityInLabel(comparisonLabel, resolvedGranularity),
+        [comparisonLabel, resolvedGranularity],
+    );
+
     const bigNumberTextColor = useMemo(() => {
         if (!conditionalFormattings.length || !item || !selectedField)
             return undefined;
@@ -480,6 +512,7 @@ const useBigNumberConfig = (
     return {
         bigNumber,
         bigNumberLabel,
+        resolvedBigNumberLabel,
         defaultLabel: label,
         setBigNumberLabel,
         validConfig,
@@ -503,6 +536,7 @@ const useBigNumberConfig = (
         setFlipColors,
         comparisonTooltip,
         comparisonLabel,
+        resolvedComparisonLabel,
         setComparisonLabel,
         showTableNamesInLabel,
         setShowTableNamesInLabel,
