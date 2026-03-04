@@ -1,12 +1,19 @@
-import { type PreAggregateMaterializationSummary } from '@lightdash/common';
+import {
+    type PreAggregateMaterializationStatus,
+    type PreAggregateMaterializationSummary,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Badge,
     Button,
     Group,
     LoadingOverlay,
+    Popover,
+    Radio,
+    ScrollArea,
     Stack,
     Text,
+    TextInput,
     Title,
     Tooltip,
 } from '@mantine-8/core';
@@ -18,8 +25,11 @@ import {
     IconClock,
     IconColumns,
     IconExternalLink,
+    IconFilter,
+    IconFilterOff,
     IconRefresh,
     IconRowInsertBottom,
+    IconSearch,
     IconTable,
 } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -30,10 +40,11 @@ import {
     type MRT_ColumnDef,
     type MRT_SortingState,
 } from 'mantine-react-table';
-import { useEffect, useMemo, useState, type FC } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { usePreAggregateMaterializations } from '../../hooks/usePreAggregateMaterializations';
 import { useProject } from '../../hooks/useProject';
 import MantineIcon from '../common/MantineIcon';
+import classes from './PreAggregateMaterializations.module.css';
 
 type Props = {
     projectUuid: string;
@@ -117,6 +128,92 @@ const StatusBadge: FC<{
     }
 };
 
+type StatusType = PreAggregateMaterializationStatus;
+
+const STATUS_LABELS: Record<StatusType, string> = {
+    active: 'Active',
+    in_progress: 'In progress',
+    failed: 'Failed',
+    superseded: 'Superseded',
+};
+
+const ALL_STATUSES: StatusType[] = [
+    'active',
+    'in_progress',
+    'failed',
+    'superseded',
+];
+
+const StatusFilter: FC<{
+    selected: StatusType | null;
+    onChange: (value: StatusType | null) => void;
+}> = ({ selected, onChange }) => {
+    const hasSelection = selected !== null;
+
+    return (
+        <Popover width={250} position="bottom-start">
+            <Popover.Target>
+                <Tooltip withinPortal variant="xs" label="Filter by status">
+                    <Button
+                        h={32}
+                        c="foreground"
+                        fw={500}
+                        fz="sm"
+                        variant="default"
+                        radius="md"
+                        px="sm"
+                        className={
+                            hasSelection
+                                ? classes.filterButtonSelected
+                                : classes.filterButton
+                        }
+                        rightSection={
+                            hasSelection ? (
+                                <Badge
+                                    size="xs"
+                                    variant="filled"
+                                    color="indigo.6"
+                                    circle
+                                >
+                                    1
+                                </Badge>
+                            ) : null
+                        }
+                    >
+                        Status
+                    </Button>
+                </Tooltip>
+            </Popover.Target>
+            <Popover.Dropdown p="sm">
+                <Stack gap={4}>
+                    <Text fz="xs" c="ldGray.6" fw={600}>
+                        Filter by status:
+                    </Text>
+                    <ScrollArea.Autosize mah={200} type="always" scrollbars="y">
+                        <Radio.Group
+                            value={selected ?? ''}
+                            onChange={(v) =>
+                                onChange((v as StatusType) || null)
+                            }
+                        >
+                            <Stack gap="xs">
+                                {ALL_STATUSES.map((status) => (
+                                    <Radio
+                                        key={status}
+                                        value={status}
+                                        label={STATUS_LABELS[status]}
+                                        size="xs"
+                                    />
+                                ))}
+                            </Stack>
+                        </Radio.Group>
+                    </ScrollArea.Autosize>
+                </Stack>
+            </Popover.Dropdown>
+        </Popover>
+    );
+};
+
 const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
     const { isLoading: isLoadingProject } = useProject(projectUuid);
     const queryClient = useQueryClient();
@@ -148,15 +245,41 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
     );
 
     const [sorting, setSorting] = useState<MRT_SortingState>([]);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [selectedStatus, setSelectedStatus] = useState<StatusType | null>(
+        null,
+    );
+
+    const hasActiveFilters = selectedStatus !== null || searchQuery !== '';
+    const resetFilters = useCallback(() => {
+        setSelectedStatus(null);
+        setSearchQuery('');
+    }, []);
+
+    const filteredMaterializations = useMemo(() => {
+        let rows = materializations;
+        if (searchQuery) {
+            const query = searchQuery.toLowerCase();
+            rows = rows.filter((r) =>
+                r.preAggregateName.toLowerCase().includes(query),
+            );
+        }
+        if (selectedStatus) {
+            rows = rows.filter(
+                (r) => r.materialization?.status === selectedStatus,
+            );
+        }
+        return rows;
+    }, [materializations, searchQuery, selectedStatus]);
 
     const summary = useMemo(() => {
-        const total = materializations.length;
-        const active = materializations.filter(
+        const total = filteredMaterializations.length;
+        const active = filteredMaterializations.filter(
             (m) => m.materialization?.status === 'active',
         ).length;
 
         return { total, active };
-    }, [materializations]);
+    }, [filteredMaterializations]);
 
     const columns = useMemo<
         MRT_ColumnDef<PreAggregateMaterializationSummary>[]
@@ -344,7 +467,7 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
 
     const table = useMantineReactTable({
         columns,
-        data: materializations,
+        data: filteredMaterializations,
         enableColumnResizing: false,
         enableRowNumbers: false,
         enablePagination: true,
@@ -365,26 +488,59 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
         enableTopToolbar: true,
         renderTopToolbar: () => (
             <Group
-                justify="flex-end"
-                px="md"
+                justify="space-between"
+                px="sm"
                 py="xs"
+                wrap="nowrap"
                 style={{
                     borderBottom: '1px solid var(--mantine-color-ldGray-2)',
                 }}
             >
-                <Text size="xs" c="dimmed">
-                    {summary.active}/{summary.total} active
-                </Text>
-                <Tooltip label="Refresh">
-                    <ActionIcon
-                        variant="subtle"
-                        color="gray"
-                        size="sm"
-                        onClick={handleRefresh}
-                    >
-                        <MantineIcon icon={IconRefresh} />
-                    </ActionIcon>
-                </Tooltip>
+                <Group gap="xs" wrap="nowrap">
+                    <MantineIcon icon={IconFilter} color="ldGray" />
+                    <TextInput
+                        placeholder="Search by name..."
+                        leftSection={
+                            <MantineIcon icon={IconSearch} size="sm" />
+                        }
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.currentTarget.value)}
+                        size="xs"
+                        radius="md"
+                        w={200}
+                    />
+                    <StatusFilter
+                        selected={selectedStatus}
+                        onChange={setSelectedStatus}
+                    />
+                    {hasActiveFilters && (
+                        <Tooltip label="Reset filters">
+                            <ActionIcon
+                                variant="subtle"
+                                size="sm"
+                                color="gray"
+                                onClick={resetFilters}
+                            >
+                                <MantineIcon icon={IconFilterOff} />
+                            </ActionIcon>
+                        </Tooltip>
+                    )}
+                </Group>
+                <Group gap="xs" wrap="nowrap">
+                    <Text size="xs" c="dimmed">
+                        {summary.active}/{summary.total} active
+                    </Text>
+                    <Tooltip label="Refresh">
+                        <ActionIcon
+                            variant="subtle"
+                            color="gray"
+                            size="sm"
+                            onClick={handleRefresh}
+                        >
+                            <MantineIcon icon={IconRefresh} />
+                        </ActionIcon>
+                    </Tooltip>
+                </Group>
             </Group>
         ),
         enableBottomToolbar: true,
@@ -416,7 +572,7 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                 backgroundColor: 'var(--mantine-color-ldGray-0)',
                 fontWeight: 600,
                 fontSize: 'var(--mantine-font-size-xs)',
-                justifyContent: 'center',
+                verticalAlign: 'middle',
                 whiteSpace: 'nowrap',
             },
         },
