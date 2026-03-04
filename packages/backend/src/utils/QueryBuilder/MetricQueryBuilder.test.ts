@@ -43,6 +43,7 @@ import {
     EXPLORE_WITH_DATE_DIMENSION_ZOOMED,
     EXPLORE_WITH_REQUIRED_FILTERS,
     EXPLORE_WITH_SQL_FILTER,
+    EXPLORE_WITH_SUM_DISTINCT,
     EXPLORE_WITHOUT_JOIN_RELATIONSHIPS,
     EXPLORE_WITHOUT_PRIMARY_KEYS,
     INTRINSIC_USER_ATTRIBUTES,
@@ -53,6 +54,8 @@ import {
     METRIC_QUERY_JOIN_CHAIN_SQL,
     METRIC_QUERY_SQL,
     METRIC_QUERY_SQL_BIGQUERY,
+    METRIC_QUERY_SUM_DISTINCT_NO_DIMS,
+    METRIC_QUERY_SUM_DISTINCT_WITH_DIMS,
     METRIC_QUERY_TWO_TABLES,
     METRIC_QUERY_TWO_TABLES_SQL,
     METRIC_QUERY_WITH_ADDITIONAL_METRIC,
@@ -2345,6 +2348,42 @@ LIMIT 10`;
             expect(replaceWhitespace(result.query)).toBe(
                 replaceWhitespace(EXPECTED_SQL_NO_DIMENSIONS_WITH_FILTER),
             );
+        });
+
+        test('sum_distinct should include selected dimensions in PARTITION BY', () => {
+            const result = buildQuery({
+                explore: EXPLORE_WITH_SUM_DISTINCT,
+                compiledMetricQuery: METRIC_QUERY_SUM_DISTINCT_WITH_DIMS,
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+
+            // The PARTITION BY should include both the distinct key and the selected dimensions
+            expect(result.query).toContain(
+                'PARTITION BY "orders".line_item_id, "orders".payment_method, "orders".status',
+            );
+            // Should still have the ROW_NUMBER window function
+            expect(result.query).toContain('ROW_NUMBER() OVER');
+            // Should have the sd CTE
+            expect(result.query).toContain('sd_orders_total_revenue');
+        });
+
+        test('sum_distinct should work with no dimensions selected', () => {
+            const result = buildQuery({
+                explore: EXPLORE_WITH_SUM_DISTINCT,
+                compiledMetricQuery: METRIC_QUERY_SUM_DISTINCT_NO_DIMS,
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+
+            // PARTITION BY should contain only the distinct key (no dimensions)
+            expect(result.query).toContain(
+                'PARTITION BY "orders".line_item_id ORDER BY',
+            );
+            // Should use CROSS JOIN (no dimensions to join on)
+            expect(result.query).not.toContain('INNER JOIN sd_');
         });
     });
 
