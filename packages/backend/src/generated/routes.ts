@@ -97,7 +97,7 @@ import { FeatureFlagController } from './../controllers/v2/FeatureFlagController
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { ParametersController } from './../controllers/v2/ParametersController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-import { PreAggregateStatsController } from './../controllers/v2/PreAggregateStatsController';
+import { PreAggregateController } from './../controllers/v2/PreAggregateController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { ProjectDefaultsController } from './../controllers/v2/ProjectDefaultsController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
@@ -7621,11 +7621,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                     ],
                                                     required: true,
@@ -8103,11 +8103,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                     ],
                                                     required: true,
@@ -8122,11 +8122,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                     ],
                                                     required: true,
@@ -8141,11 +8141,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                     ],
                                                     required: true,
@@ -8160,11 +8160,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                     ],
                                                     required: true,
@@ -8179,11 +8179,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                     ],
                                                     required: true,
@@ -9635,6 +9635,13 @@ const models: TsoaRoute.Models = {
                             { dataType: 'undefined' },
                         ],
                     },
+                    timeoutSeconds: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'double' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
                     override: {
                         dataType: 'union',
                         subSchemas: [
@@ -9705,6 +9712,13 @@ const models: TsoaRoute.Models = {
                             { dataType: 'undefined' },
                         ],
                     },
+                    timeoutSeconds: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'double' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
                     useSshTunnel: {
                         dataType: 'union',
                         subSchemas: [
@@ -9761,13 +9775,6 @@ const models: TsoaRoute.Models = {
                         dataType: 'union',
                         subSchemas: [
                             { dataType: 'boolean' },
-                            { dataType: 'undefined' },
-                        ],
-                    },
-                    timeoutSeconds: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { dataType: 'double' },
                             { dataType: 'undefined' },
                         ],
                     },
@@ -9834,6 +9841,13 @@ const models: TsoaRoute.Models = {
                             { dataType: 'undefined' },
                         ],
                     },
+                    timeoutSeconds: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'double' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
                     useSshTunnel: {
                         dataType: 'union',
                         subSchemas: [
@@ -9883,13 +9897,6 @@ const models: TsoaRoute.Models = {
                         dataType: 'union',
                         subSchemas: [
                             { dataType: 'string' },
-                            { dataType: 'undefined' },
-                        ],
-                    },
-                    timeoutSeconds: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { dataType: 'double' },
                             { dataType: 'undefined' },
                         ],
                     },
@@ -10239,8 +10246,6 @@ const models: TsoaRoute.Models = {
                             { dataType: 'undefined' },
                         ],
                     },
-                    host: { dataType: 'string', required: true },
-                    port: { dataType: 'double', required: true },
                     timeoutSeconds: {
                         dataType: 'union',
                         subSchemas: [
@@ -10248,6 +10253,8 @@ const models: TsoaRoute.Models = {
                             { dataType: 'undefined' },
                         ],
                     },
+                    host: { dataType: 'string', required: true },
+                    port: { dataType: 'double', required: true },
                     secure: {
                         dataType: 'union',
                         subSchemas: [
@@ -10727,6 +10734,7 @@ const models: TsoaRoute.Models = {
             nestedProperties: {
                 organizationWarehouseCredentialsUuid: { dataType: 'string' },
                 override: { dataType: 'boolean' },
+                timeoutSeconds: { dataType: 'double' },
                 disableTimestampConversion: { dataType: 'boolean' },
                 quotedIdentifiersIgnoreCase: { dataType: 'boolean' },
                 startOfWeek: {
@@ -25100,6 +25108,214 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    PreAggregateMaterializationStatus: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['in_progress'] },
+                { dataType: 'enum', enums: ['active'] },
+                { dataType: 'enum', enums: ['superseded'] },
+                { dataType: 'enum', enums: ['failed'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    PreAggregateMaterializationTrigger: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['compile'] },
+                { dataType: 'enum', enums: ['cron'] },
+                { dataType: 'enum', enums: ['manual'] },
+                { dataType: 'enum', enums: ['webhook'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    PreAggregateMaterializationSummary: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                materialization: {
+                    dataType: 'union',
+                    subSchemas: [
+                        {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                trigger: {
+                                    ref: 'PreAggregateMaterializationTrigger',
+                                    required: true,
+                                },
+                                errorMessage: {
+                                    dataType: 'union',
+                                    subSchemas: [
+                                        { dataType: 'string' },
+                                        { dataType: 'enum', enums: [null] },
+                                    ],
+                                    required: true,
+                                },
+                                columns: {
+                                    dataType: 'union',
+                                    subSchemas: [
+                                        { ref: 'ResultColumns' },
+                                        { dataType: 'enum', enums: [null] },
+                                    ],
+                                    required: true,
+                                },
+                                rowCount: {
+                                    dataType: 'union',
+                                    subSchemas: [
+                                        { dataType: 'double' },
+                                        { dataType: 'enum', enums: [null] },
+                                    ],
+                                    required: true,
+                                },
+                                materializedAt: {
+                                    dataType: 'union',
+                                    subSchemas: [
+                                        { dataType: 'datetime' },
+                                        { dataType: 'enum', enums: [null] },
+                                    ],
+                                    required: true,
+                                },
+                                status: {
+                                    ref: 'PreAggregateMaterializationStatus',
+                                    required: true,
+                                },
+                                materializationUuid: {
+                                    dataType: 'string',
+                                    required: true,
+                                },
+                            },
+                        },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                definitionError: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                refreshCron: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                granularity: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'TimeFrames' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                timeDimension: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                metrics: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+                dimensions: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+                sourceExploreName: { dataType: 'string', required: true },
+                preAggregateName: { dataType: 'string', required: true },
+                preAggregateDefinitionUuid: {
+                    dataType: 'string',
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiPreAggregateMaterializationsResults: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                materializations: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'PreAggregateMaterializationSummary',
+                    },
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    KnexPaginatedData_ApiPreAggregateMaterializationsResults_: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                pagination: {
+                    dataType: 'intersection',
+                    subSchemas: [
+                        { ref: 'KnexPaginateArgs' },
+                        {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                totalResults: {
+                                    dataType: 'double',
+                                    required: true,
+                                },
+                                totalPageCount: {
+                                    dataType: 'double',
+                                    required: true,
+                                },
+                            },
+                        },
+                    ],
+                },
+                data: {
+                    ref: 'ApiPreAggregateMaterializationsResults',
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiGetPreAggregateMaterializationsResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: {
+                    ref: 'KnexPaginatedData_ApiPreAggregateMaterializationsResults_',
+                    required: true,
+                },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ProjectParameterSummary: {
         dataType: 'refAlias',
         type: {
@@ -25259,48 +25475,6 @@ const models: TsoaRoute.Models = {
             },
             validators: {},
         },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Tsoa.TypeStringLiteral': {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'union',
-            subSchemas: [
-                { dataType: 'enum', enums: ['string'] },
-                { dataType: 'enum', enums: ['boolean'] },
-                { dataType: 'enum', enums: ['double'] },
-                { dataType: 'enum', enums: ['float'] },
-                { dataType: 'enum', enums: ['file'] },
-                { dataType: 'enum', enums: ['integer'] },
-                { dataType: 'enum', enums: ['long'] },
-                { dataType: 'enum', enums: ['enum'] },
-                { dataType: 'enum', enums: ['array'] },
-                { dataType: 'enum', enums: ['datetime'] },
-                { dataType: 'enum', enums: ['date'] },
-                { dataType: 'enum', enums: ['binary'] },
-                { dataType: 'enum', enums: ['buffer'] },
-                { dataType: 'enum', enums: ['byte'] },
-                { dataType: 'enum', enums: ['void'] },
-                { dataType: 'enum', enums: ['object'] },
-                { dataType: 'enum', enums: ['any'] },
-                { dataType: 'enum', enums: ['refEnum'] },
-                { dataType: 'enum', enums: ['refObject'] },
-                { dataType: 'enum', enums: ['refAlias'] },
-                { dataType: 'enum', enums: ['nestedObjectLiteral'] },
-                { dataType: 'enum', enums: ['union'] },
-                { dataType: 'enum', enums: ['intersection'] },
-                { dataType: 'enum', enums: ['undefined'] },
-            ],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Tsoa.AnyType': {
-        dataType: 'refObject',
-        properties: {
-            dataType: { dataType: 'enum', enums: ['any'], required: true },
-        },
-        additionalProperties: true,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DeploySessionStatus: {
@@ -52378,7 +52552,7 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    const argsPreAggregateStatsController_getPreAggregateStats: Record<
+    const argsPreAggregateController_getPreAggregateStats: Record<
         string,
         TsoaRoute.ParameterSchema
     > = {
@@ -52405,13 +52579,13 @@ export function RegisterRoutes(app: Router) {
         },
     };
     app.get(
-        '/api/v2/projects/:projectUuid/pre-aggregate-stats',
-        ...fetchMiddlewares<RequestHandler>(PreAggregateStatsController),
+        '/api/v2/projects/:projectUuid/pre-aggregates/stats',
+        ...fetchMiddlewares<RequestHandler>(PreAggregateController),
         ...fetchMiddlewares<RequestHandler>(
-            PreAggregateStatsController.prototype.getPreAggregateStats,
+            PreAggregateController.prototype.getPreAggregateStats,
         ),
 
-        async function PreAggregateStatsController_getPreAggregateStats(
+        async function PreAggregateController_getPreAggregateStats(
             request: ExRequest,
             response: ExResponse,
             next: any,
@@ -52421,7 +52595,7 @@ export function RegisterRoutes(app: Router) {
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args: argsPreAggregateStatsController_getPreAggregateStats,
+                    args: argsPreAggregateController_getPreAggregateStats,
                     request,
                     response,
                 });
@@ -52432,8 +52606,8 @@ export function RegisterRoutes(app: Router) {
                         : iocContainer;
 
                 const controller: any =
-                    await container.get<PreAggregateStatsController>(
-                        PreAggregateStatsController,
+                    await container.get<PreAggregateController>(
+                        PreAggregateController,
                     );
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
@@ -52441,6 +52615,69 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'getPreAggregateStats',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsPreAggregateController_getPreAggregateMaterializations: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        page: { in: 'query', name: 'page', dataType: 'double' },
+        pageSize: { in: 'query', name: 'pageSize', dataType: 'double' },
+    };
+    app.get(
+        '/api/v2/projects/:projectUuid/pre-aggregates/materializations',
+        ...fetchMiddlewares<RequestHandler>(PreAggregateController),
+        ...fetchMiddlewares<RequestHandler>(
+            PreAggregateController.prototype.getPreAggregateMaterializations,
+        ),
+
+        async function PreAggregateController_getPreAggregateMaterializations(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsPreAggregateController_getPreAggregateMaterializations,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<PreAggregateController>(
+                        PreAggregateController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getPreAggregateMaterializations',
                     controller,
                     response,
                     next,
@@ -52803,7 +53040,7 @@ export function RegisterRoutes(app: Router) {
             required: true,
             dataType: 'string',
         },
-        body: { in: 'body', name: 'body', required: true, ref: 'Tsoa.AnyType' },
+        body: { in: 'body', name: 'body', required: true, ref: 'AnyType' },
     };
     app.post(
         '/api/v2/projects/:projectUuid/deploy/:sessionUuid/batch',

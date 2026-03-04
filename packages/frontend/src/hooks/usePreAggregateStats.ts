@@ -13,7 +13,7 @@ const getPreAggregateStats = async (
 ) =>
     lightdashApi<ApiGetPreAggregateStatsResponse['results']>({
         version: 'v2',
-        url: `/projects/${projectUuid}/pre-aggregate-stats?days=${days}${
+        url: `/projects/${projectUuid}/pre-aggregates/stats?days=${days}${
             paginateArgs
                 ? `&page=${paginateArgs.page}&pageSize=${paginateArgs.pageSize}`
                 : ''

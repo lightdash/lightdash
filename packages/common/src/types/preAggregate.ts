@@ -151,6 +151,36 @@ export const preAggregateMissReasonLabels: Record<
         'Table calculation present',
 };
 
+export type PreAggregateMaterializationSummary = {
+    preAggregateDefinitionUuid: string;
+    preAggregateName: string;
+    sourceExploreName: string;
+    dimensions: string[];
+    metrics: string[];
+    timeDimension: string | null;
+    granularity: TimeFrames | null;
+    refreshCron: string | null;
+    definitionError: string | null;
+    materialization: {
+        materializationUuid: string;
+        status: PreAggregateMaterializationStatus;
+        materializedAt: Date | null;
+        rowCount: number | null;
+        columns: ResultColumns | null;
+        errorMessage: string | null;
+        trigger: PreAggregateMaterializationTrigger;
+    } | null;
+};
+
+export type ApiPreAggregateMaterializationsResults = {
+    materializations: PreAggregateMaterializationSummary[];
+};
+
+export type ApiGetPreAggregateMaterializationsResponse = {
+    status: 'ok';
+    results: KnexPaginatedData<ApiPreAggregateMaterializationsResults>;
+};
+
 export type PreAggregateSchedulerDetails = {
     projectUuid: string;
     organizationUuid: string;
