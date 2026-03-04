@@ -1,3 +1,16 @@
+# [0.2566.0](https://github.com/lightdash/lightdash/compare/0.2565.3...0.2566.0) (2026-03-04)
+
+
+### Bug Fixes
+
+* install arrow from community after duckdb-async upgrade ([#20846](https://github.com/lightdash/lightdash/issues/20846)) ([dc9d8e0](https://github.com/lightdash/lightdash/commit/dc9d8e06f0caf939982f3340c93306d60c2b2a2b)), closes [#150](https://github.com/lightdash/lightdash/issues/150) [1#L6](https://github.com/1/issues/L6)
+
+
+### Features
+
+* add individual refresh pre-agg materialization action ([#20837](https://github.com/lightdash/lightdash/issues/20837)) ([8f62ee8](https://github.com/lightdash/lightdash/commit/8f62ee803da5b13e0ffcd43554c67dd0f8a933bd))
+* add refresh all pre-agg materializations action ([#20836](https://github.com/lightdash/lightdash/issues/20836)) ([502e958](https://github.com/lightdash/lightdash/commit/502e9585e533ed0e98a716960862e5b5131490a3))
+
 ## [0.2565.3](https://github.com/lightdash/lightdash/compare/0.2565.2...0.2565.3) (2026-03-04)
 
 
