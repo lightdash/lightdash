@@ -552,6 +552,7 @@ const useBigNumberConfig = (
         bigNumberTextColor,
         comparisonField,
         setComparisonField,
+        granularityFields: Object.keys(granularityMap),
     };
 };
 
