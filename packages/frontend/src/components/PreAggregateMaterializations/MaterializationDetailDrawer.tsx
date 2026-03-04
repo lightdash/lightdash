@@ -1,5 +1,6 @@
 import { type PreAggregateMaterializationSummary } from '@lightdash/common';
 import {
+    ActionIcon,
     Badge,
     Box,
     Collapse,
@@ -7,10 +8,15 @@ import {
     Group,
     Stack,
     Text,
+    Tooltip,
     UnstyledButton,
 } from '@mantine-8/core';
 import { useDisclosure } from '@mantine-8/hooks';
-import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
+import {
+    IconChevronDown,
+    IconChevronRight,
+    IconRefresh,
+} from '@tabler/icons-react';
 import cronstrue from 'cronstrue';
 import { type FC } from 'react';
 import { LD_FIELD_COLORS } from '../../mantineTheme';
@@ -89,12 +95,16 @@ type Props = {
     summary: PreAggregateMaterializationSummary | null;
     opened: boolean;
     onClose: () => void;
+    onRefresh: (preAggExploreName: string) => void;
+    isRefreshing: boolean;
 };
 
 const MaterializationDetailDrawer: FC<Props> = ({
     summary,
     opened,
     onClose,
+    onRefresh,
+    isRefreshing,
 }) => {
     if (!summary) return null;
 
@@ -213,9 +223,27 @@ const MaterializationDetailDrawer: FC<Props> = ({
                             }}
                             pt="md"
                         >
-                            <Text fz="sm" fw={600} mb="sm">
-                                Last materialization
-                            </Text>
+                            <Group justify="space-between" mb="sm">
+                                <Text fz="sm" fw={600}>
+                                    Last materialization
+                                </Text>
+                                <Tooltip label="Refresh this pre-aggregate">
+                                    <ActionIcon
+                                        variant="subtle"
+                                        color="gray"
+                                        size="sm"
+                                        loading={isRefreshing}
+                                        onClick={() =>
+                                            onRefresh(summary.preAggExploreName)
+                                        }
+                                    >
+                                        <MantineIcon
+                                            icon={IconRefresh}
+                                            size="sm"
+                                        />
+                                    </ActionIcon>
+                                </Tooltip>
+                            </Group>
                             <Stack gap="sm">
                                 <Group gap="xl">
                                     <Box>
