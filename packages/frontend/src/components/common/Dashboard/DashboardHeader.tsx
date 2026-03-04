@@ -20,6 +20,7 @@ import {
 } from '@mantine-8/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
+    IconAlertTriangle,
     IconBolt,
     IconCopy,
     IconDatabase,
@@ -61,6 +62,7 @@ import useApp from '../../../providers/App/useApp';
 import { type TilePreAggregateStatus } from '../../../providers/Dashboard/types';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
+import useDashboardPerformanceWarning from '../../../hooks/dashboard/useDashboardPerformanceWarning';
 import AddTileButton from '../../DashboardTiles/AddTileButton';
 import MantineIcon from '../MantineIcon';
 import DashboardUpdateModal from '../modal/DashboardUpdateModal';
@@ -91,6 +93,7 @@ type DashboardHeaderProps = {
     allTilesLoaded?: boolean;
     activeTabUuid?: string;
     dashboardTabs?: Dashboard['tabs'];
+    dashboardTiles?: Dashboard['tiles'];
     isMovingDashboardToSpace: boolean;
     onSwitchTab?: (tab: Dashboard['tabs'][number] | undefined) => void;
     onAddTiles: (tiles: Dashboard['tiles'][number][]) => void;
@@ -121,6 +124,7 @@ const DashboardHeader = ({
     allTilesLoaded,
     activeTabUuid,
     dashboardTabs,
+    dashboardTiles,
     onAddTiles,
     onCancel,
     onSaveDashboard,
@@ -133,6 +137,10 @@ const DashboardHeader = ({
     onEditClicked,
     className,
 }: DashboardHeaderProps) => {
+    const performanceWarning = useDashboardPerformanceWarning(
+        dashboardTiles,
+        dashboardTabs,
+    );
     const isDashboardSummariesEnabled = useClientFeatureFlag(
         'ai-dashboard-summary' as FeatureFlags,
     );
@@ -344,6 +352,7 @@ const DashboardHeader = ({
                     </Popover.Dropdown>
                 </Popover>
 
+
                 {isEditMode && userCanManageDashboard && (
                     <ActionIcon
                         variant="subtle"
@@ -397,6 +406,45 @@ const DashboardHeader = ({
 
             {userCanManageDashboard && isEditMode ? (
                 <Group gap="xs">
+                    {performanceWarning.hasWarning && (
+                        <Tooltip
+                            label={
+                                <Box>
+                                    <Text size="sm" fw={500} mb={6}>
+                                        Speed up this dashboard
+                                    </Text>
+                                    <Text size="xs">
+                                        With{' '}
+                                        {performanceWarning.totalChartCount}{' '}
+                                        charts, load times can be slower
+                                        depending on the user's machine.{' '}
+                                        {performanceWarning.totalTabs <= 1
+                                            ? `We recommend splitting this into multiple dashboard tabs, limited to ${performanceWarning.tabsExceedingLimit[0]?.limit ?? 10} charts per tab to keep things snappy for your team.`
+                                            : `We recommend splitting this into multiple dashboards to keep things snappy for your team.`}
+                                    </Text>
+                                </Box>
+                            }
+                            withinPortal
+                            position="bottom"
+                            multiline
+                            maw={320}
+                            openDelay={200}
+                            transitionProps={{
+                                transition: 'fade',
+                                duration: 150,
+                            }}
+                        >
+                            <ActionIcon
+                                variant="subtle"
+                                size="md"
+                                radius="md"
+                                color="orange.6"
+                            >
+                                <MantineIcon icon={IconAlertTriangle} />
+                            </ActionIcon>
+                        </Tooltip>
+                    )}
+
                     <AddTileButton
                         onAddTiles={onAddTiles}
                         disabled={isSaving}
