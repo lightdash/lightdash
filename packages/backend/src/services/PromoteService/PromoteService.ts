@@ -34,20 +34,23 @@ import { SavedChartModel } from '../../models/SavedChartModel';
 import { SavedSqlModel } from '../../models/SavedSqlModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { BaseService } from '../BaseService';
-import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
+import type {
+    SpaceAccessContextForCasl,
+    SpacePermissionService,
+} from '../SpaceService/SpacePermissionService';
 
 export type PromotedChart = {
     projectUuid: string;
     chart: SavedChartDAO;
     space: PromotedSpace; // even if chart belongs to dashboard, this is not undefined
     spaces: PromotedSpace[];
-    access: SpaceAccess[];
+    spaceAccessContext: SpaceAccessContextForCasl | undefined;
 };
 export type UpstreamChart = {
     projectUuid: string;
     chart: (ChartSummary & { updatedAt: Date }) | undefined;
     space: PromotedSpace | undefined;
-    access: SpaceAccess[];
+    spaceAccessContext: SpaceAccessContextForCasl | undefined;
     dashboardUuid?: string; // dashboard uuid if chart belongs to dashboard
 };
 export type PromotedDashboard = {
@@ -55,7 +58,7 @@ export type PromotedDashboard = {
     dashboard: DashboardDAO;
     space: PromotedSpace;
     spaces: PromotedSpace[];
-    access: SpaceAccess[];
+    spaceAccessContext: SpaceAccessContextForCasl | undefined;
 };
 
 export type UpstreamDashboard = {
@@ -64,7 +67,7 @@ export type UpstreamDashboard = {
         | Pick<DashboardDAO, 'uuid' | 'name' | 'spaceUuid' | 'description'>
         | undefined;
     space: PromotedSpace | undefined;
-    access: SpaceAccess[];
+    spaceAccessContext: SpaceAccessContextForCasl | undefined;
 };
 
 type PromotedSqlChart = {
@@ -72,14 +75,14 @@ type PromotedSqlChart = {
     chart: SavedSqlChart;
     space: PromotedSpace;
     spaces: PromotedSpace[];
-    access: SpaceAccess[];
+    spaceAccessContext: SpaceAccessContextForCasl | undefined;
 };
 
 type UpstreamSqlChart = {
     projectUuid: string;
     chart: SavedSqlChart | undefined;
     space: PromotedSpace | undefined;
-    access: SpaceAccess[];
+    spaceAccessContext: SpaceAccessContextForCasl | undefined;
 };
 
 type PromotedSqlChartChange = {
@@ -254,13 +257,13 @@ export class PromoteService extends BaseService {
                 projectUuid: upstreamProjectUuid,
                 space: promotedSpace,
                 spaces: promotedSpaceAncestors,
-                access: promotedCtx.access,
+                spaceAccessContext: promotedCtx,
             },
             upstreamChart: {
                 chart: upstreamChart,
                 projectUuid: upstreamProjectUuid,
                 space: upstreamSpace,
-                access: upstreamCtx?.access ?? [],
+                spaceAccessContext: upstreamCtx,
             },
         };
     }
@@ -340,13 +343,13 @@ export class PromoteService extends BaseService {
                 projectUuid: savedSql.project.projectUuid,
                 space: promotedSpace,
                 spaces: promotedSpaceAncestors,
-                access: promotedCtx.access,
+                spaceAccessContext: promotedCtx,
             },
             upstreamSqlChart: {
                 chart: upstreamSqlChart,
                 projectUuid: upstreamProjectUuid,
                 space: upstreamSpace,
-                access: upstreamCtx?.access ?? [],
+                spaceAccessContext: upstreamCtx,
             },
         };
     }
@@ -355,7 +358,7 @@ export class PromoteService extends BaseService {
         user: SessionUser,
         upstreamContent: Pick<
             UpstreamChart | UpstreamDashboard | UpstreamSqlChart,
-            'space' | 'projectUuid' | 'access'
+            'space' | 'projectUuid' | 'spaceAccessContext'
         >,
     ) {
         const { organizationUuid } = user;
@@ -367,8 +370,11 @@ export class PromoteService extends BaseService {
                     subject('Space', {
                         organizationUuid,
                         projectUuid: upstreamContent.projectUuid,
-                        isPrivate: upstreamContent.space.isPrivate,
-                        access: upstreamContent.access,
+                        inheritsFromOrgOrProject:
+                            upstreamContent.spaceAccessContext
+                                ?.inheritsFromOrgOrProject,
+                        access:
+                            upstreamContent.spaceAccessContext?.access ?? [],
                     }),
                 )
             ) {
@@ -408,8 +414,10 @@ export class PromoteService extends BaseService {
                     subject('SavedChart', {
                         organizationUuid,
                         projectUuid: promotedChart.projectUuid,
-                        isPrivate: promotedChart.space.isPrivate,
-                        access: promotedChart.access,
+                        inheritsFromOrgOrProject:
+                            promotedChart.spaceAccessContext
+                                ?.inheritsFromOrgOrProject,
+                        access: promotedChart.spaceAccessContext?.access ?? [],
                     }),
                 )
             )
@@ -445,8 +453,11 @@ export class PromoteService extends BaseService {
                         subject('SavedChart', {
                             organizationUuid,
                             projectUuid: upstreamChart.projectUuid,
-                            isPrivate: upstreamChart.space.isPrivate,
-                            access: upstreamChart.access,
+                            inheritsFromOrgOrProject:
+                                upstreamChart.spaceAccessContext
+                                    ?.inheritsFromOrgOrProject,
+                            access:
+                                upstreamChart.spaceAccessContext?.access ?? [],
                         }),
                     )
                 ) {
@@ -479,7 +490,7 @@ export class PromoteService extends BaseService {
                     subject('SavedChart', {
                         organizationUuid,
                         projectUuid: upstreamChart.projectUuid,
-                        access: upstreamChart.access,
+                        access: upstreamChart.spaceAccessContext?.access ?? [],
                     }),
                 )
             ) {
@@ -508,8 +519,10 @@ export class PromoteService extends BaseService {
                 subject('SavedChart', {
                     organizationUuid,
                     projectUuid: promotedSqlChart.projectUuid,
-                    isPrivate: promotedSqlChart.space.isPrivate,
-                    access: promotedSqlChart.access,
+                    inheritsFromOrgOrProject:
+                        promotedSqlChart.spaceAccessContext
+                            ?.inheritsFromOrgOrProject,
+                    access: promotedSqlChart.spaceAccessContext?.access ?? [],
                 }),
             )
         ) {
@@ -528,8 +541,12 @@ export class PromoteService extends BaseService {
                         subject('SavedChart', {
                             organizationUuid,
                             projectUuid: upstreamSqlChart.projectUuid,
-                            isPrivate: upstreamSqlChart.space.isPrivate,
-                            access: upstreamSqlChart.access,
+                            inheritsFromOrgOrProject:
+                                upstreamSqlChart.spaceAccessContext
+                                    ?.inheritsFromOrgOrProject,
+                            access:
+                                upstreamSqlChart.spaceAccessContext?.access ??
+                                [],
                         }),
                     )
                 ) {
@@ -561,7 +578,8 @@ export class PromoteService extends BaseService {
                     subject('SavedChart', {
                         organizationUuid,
                         projectUuid: upstreamSqlChart.projectUuid,
-                        access: upstreamSqlChart.access,
+                        access:
+                            upstreamSqlChart.spaceAccessContext?.access ?? [],
                     }),
                 )
             ) {
@@ -589,8 +607,10 @@ export class PromoteService extends BaseService {
                 subject('Dashboard', {
                     organizationUuid,
                     projectUuid: promotedDashboard.projectUuid,
-                    isPrivate: promotedDashboard.space.isPrivate,
-                    access: promotedDashboard.access,
+                    inheritsFromOrgOrProject:
+                        promotedDashboard.spaceAccessContext
+                            ?.inheritsFromOrgOrProject,
+                    access: promotedDashboard.spaceAccessContext?.access ?? [],
                 }),
             )
         )
@@ -609,8 +629,12 @@ export class PromoteService extends BaseService {
                         subject('Dashboard', {
                             organizationUuid,
                             projectUuid: upstreamDashboard.projectUuid,
-                            isPrivate: upstreamDashboard.space.isPrivate,
-                            access: upstreamDashboard.access,
+                            inheritsFromOrgOrProject:
+                                upstreamDashboard.spaceAccessContext
+                                    ?.inheritsFromOrgOrProject,
+                            access:
+                                upstreamDashboard.spaceAccessContext?.access ??
+                                [],
                         }),
                     )
                 ) {
@@ -639,7 +663,8 @@ export class PromoteService extends BaseService {
                     subject('Dashboard', {
                         organizationUuid,
                         projectUuid: upstreamDashboard.projectUuid,
-                        access: upstreamDashboard.access,
+                        access:
+                            upstreamDashboard.spaceAccessContext?.access ?? [],
                     }),
                 )
             ) {
@@ -1358,7 +1383,18 @@ export class PromoteService extends BaseService {
             .map((change) => change.data.path);
         const deepestPaths = getDeepestPaths(paths);
 
-        const newSpaces = new Map<string, Space>();
+        const newSpaces = new Map<
+            string,
+            Omit<
+                Space,
+                | 'queries'
+                | 'dashboards'
+                | 'access'
+                | 'groupsAccess'
+                | 'childSpaces'
+                | 'inheritsFromOrgOrProject'
+            >
+        >();
 
         for await (const deepestPath of deepestPaths) {
             const filteredSortedSpaceChanges = spaceChanges
@@ -2043,7 +2079,7 @@ export class PromoteService extends BaseService {
             projectUuid: dashboard.projectUuid,
             space: promotedSpace,
             spaces: promotedSpaceAncestors,
-            access: promotedCtx.access,
+            spaceAccessContext: promotedCtx,
         };
         const upstreamSpace =
             upstreamSpaces.length === 1 ? upstreamSpaces[0] : undefined;
@@ -2062,7 +2098,7 @@ export class PromoteService extends BaseService {
                     : undefined,
             projectUuid: upstreamProjectUuid,
             space: upstreamSpace,
-            access: upstreamCtx?.access ?? [],
+            spaceAccessContext: upstreamCtx,
         };
 
         return { promotedDashboard, upstreamDashboard };

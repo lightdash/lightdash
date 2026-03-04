@@ -64,6 +64,7 @@ export const space: SpaceTable['base'] = {
 
 export const publicSpace: Space = {
     isPrivate: false,
+    inheritsFromOrgOrProject: true,
     inheritParentPermissions: true,
     organizationUuid: 'organizationUuid',
     uuid: 'spaceUuid',
@@ -84,6 +85,7 @@ export const privateSpace: Space = {
     ...publicSpace,
     uuid: 'private-space-uuid',
     isPrivate: true,
+    inheritParentPermissions: false,
 };
 
 export const dashboard: Dashboard = {
@@ -125,6 +127,7 @@ export const dashboard: Dashboard = {
     views: 1,
     firstViewedAt: new Date(1),
     isPrivate: false,
+    inheritsFromOrgOrProject: true,
     access: [],
     tabs: [],
 };
@@ -161,6 +164,7 @@ export const chart: SavedChart = {
     dashboardName: dashboard.name,
     colorPalette: [],
     isPrivate: false,
+    inheritsFromOrgOrProject: true,
     access: [],
 };
 

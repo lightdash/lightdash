@@ -314,7 +314,7 @@ export class SpacePermissionModel {
         Record<
             string,
             {
-                isPrivate: boolean;
+                inheritParentPermissions: boolean;
                 projectUuid: string;
                 organizationUuid: string;
             }
@@ -331,7 +331,7 @@ export class SpacePermissionModel {
                 const rows = await this.database(SpaceTableName)
                     .select({
                         spaceUuid: `${SpaceTableName}.space_uuid`,
-                        isPrivate: `${SpaceTableName}.is_private`,
+                        inheritParentPermissions: `${SpaceTableName}.inherit_parent_permissions`,
                         projectUuid: `${ProjectTableName}.project_uuid`,
                         organizationUuid: `${OrganizationTableName}.organization_uuid`,
                     })
@@ -351,14 +351,14 @@ export class SpacePermissionModel {
                     Record<
                         string,
                         {
-                            isPrivate: boolean;
+                            inheritParentPermissions: boolean;
                             projectUuid: string;
                             organizationUuid: string;
                         }
                     >
                 >((acc, row) => {
                     acc[row.spaceUuid] = {
-                        isPrivate: row.isPrivate,
+                        inheritParentPermissions: row.inheritParentPermissions,
                         projectUuid: row.projectUuid,
                         organizationUuid: row.organizationUuid,
                     };

@@ -465,7 +465,7 @@ export class UnfurlService extends BaseService {
     ): Promise<string> {
         const dashboard =
             await this.dashboardModel.getByIdOrSlug(dashboardUuid);
-        const { isPrivate, access } =
+        const { inheritsFromOrgOrProject, access } =
             await this.spacePermissionService.getSpaceAccessContext(
                 user.userUuid,
                 dashboard.spaceUuid,
@@ -521,7 +521,7 @@ export class UnfurlService extends BaseService {
                 subject('Dashboard', {
                     organizationUuid,
                     projectUuid,
-                    isPrivate,
+                    inheritsFromOrgOrProject,
                     access,
                 }),
             )
@@ -558,7 +558,7 @@ export class UnfurlService extends BaseService {
         user: SessionUser,
     ): Promise<string> {
         const chart = await this.savedChartModel.get(chartUuidOrSlug);
-        const { isPrivate, access } =
+        const { inheritsFromOrgOrProject, access } =
             await this.spacePermissionService.getSpaceAccessContext(
                 user.userUuid,
                 chart.spaceUuid,
@@ -570,7 +570,7 @@ export class UnfurlService extends BaseService {
                 subject('SavedChart', {
                     organizationUuid: chart.organizationUuid,
                     projectUuid: chart.projectUuid,
-                    isPrivate,
+                    inheritsFromOrgOrProject,
                     access,
                 }),
             )

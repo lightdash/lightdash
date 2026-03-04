@@ -53,7 +53,7 @@ describe('SpaceService', () => {
                 {
                     name: 'can view private space in their org',
                     user: { organizationRole: OrganizationMemberRole.ADMIN },
-                    space: { isPrivate: true },
+                    space: { isPrivate: true, inheritsFromOrgOrProject: false },
                     access: {},
                     expectedResult: true,
                 },
@@ -63,6 +63,7 @@ describe('SpaceService', () => {
                     space: {
                         organizationUuid: 'different-org',
                         isPrivate: true,
+                        inheritsFromOrgOrProject: false,
                     },
                     access: {},
                     expectedResult: false,
@@ -95,7 +96,7 @@ describe('SpaceService', () => {
                 {
                     name: 'can view private space in their project',
                     user: { projectRole: ProjectMemberRole.ADMIN },
-                    space: { isPrivate: true },
+                    space: { isPrivate: true, inheritsFromOrgOrProject: false },
                     access: {},
                     expectedResult: true,
                 },
@@ -105,6 +106,7 @@ describe('SpaceService', () => {
                     space: {
                         projectUuid: 'different-project',
                         isPrivate: true,
+                        inheritsFromOrgOrProject: false,
                     },
                     access: {},
                     expectedResult: false,
@@ -137,7 +139,7 @@ describe('SpaceService', () => {
                 {
                     name: 'can view private space if user granted access',
                     user: { projectRole: ProjectMemberRole.VIEWER },
-                    space: { isPrivate: true },
+                    space: { isPrivate: true, inheritsFromOrgOrProject: false },
                     access: { spaceRole: SpaceMemberRole.VIEWER },
                     action: 'view',
                     expectedResult: true,
@@ -146,7 +148,7 @@ describe('SpaceService', () => {
                 {
                     name: 'can view private space if user group granted access',
                     user: { projectRole: ProjectMemberRole.VIEWER },
-                    space: { isPrivate: true },
+                    space: { isPrivate: true, inheritsFromOrgOrProject: false },
                     access: { groupSpaceRole: SpaceMemberRole.VIEWER },
                     action: 'view',
                     expectedResult: true,
@@ -155,7 +157,7 @@ describe('SpaceService', () => {
                 {
                     name: 'can view public space in their project',
                     user: { projectRole: ProjectMemberRole.VIEWER },
-                    space: { isPrivate: false },
+                    space: { isPrivate: false, inheritsFromOrgOrProject: true },
                     access: {},
                     action: 'view',
                     expectedResult: true,
@@ -164,7 +166,7 @@ describe('SpaceService', () => {
                 {
                     name: 'cannot view private space without access',
                     user: { projectRole: ProjectMemberRole.VIEWER },
-                    space: { isPrivate: true },
+                    space: { isPrivate: true, inheritsFromOrgOrProject: false },
                     access: {},
                     action: 'view',
                     expectedResult: false,
@@ -173,7 +175,7 @@ describe('SpaceService', () => {
                 {
                     name: 'cannot update public spaces',
                     user: { projectRole: ProjectMemberRole.VIEWER },
-                    space: { isPrivate: false },
+                    space: { isPrivate: false, inheritsFromOrgOrProject: true },
                     access: {},
                     action: 'manage',
                     expectedResult: false,
@@ -182,7 +184,7 @@ describe('SpaceService', () => {
                 {
                     name: 'cannot update private spaces with view access',
                     user: { projectRole: ProjectMemberRole.VIEWER },
-                    space: { isPrivate: true },
+                    space: { isPrivate: true, inheritsFromOrgOrProject: false },
                     access: { spaceRole: SpaceMemberRole.VIEWER },
                     action: 'manage',
                     expectedResult: false,
@@ -191,7 +193,7 @@ describe('SpaceService', () => {
                 {
                     name: 'cannot update private spaces with group view access',
                     user: { projectRole: ProjectMemberRole.VIEWER },
-                    space: { isPrivate: true },
+                    space: { isPrivate: true, inheritsFromOrgOrProject: false },
                     access: { groupSpaceRole: SpaceMemberRole.VIEWER },
                     action: 'manage',
                     expectedResult: false,
@@ -200,7 +202,7 @@ describe('SpaceService', () => {
                 {
                     name: 'cannot update private spaces with update access',
                     user: { projectRole: ProjectMemberRole.VIEWER },
-                    space: { isPrivate: true },
+                    space: { isPrivate: true, inheritsFromOrgOrProject: false },
                     access: { spaceRole: SpaceMemberRole.EDITOR },
                     action: 'manage',
                     expectedResult: false,
@@ -209,7 +211,7 @@ describe('SpaceService', () => {
                 {
                     name: 'cannot update private spaces with group update access',
                     user: { projectRole: ProjectMemberRole.VIEWER },
-                    space: { isPrivate: true },
+                    space: { isPrivate: true, inheritsFromOrgOrProject: false },
                     access: { groupSpaceRole: SpaceMemberRole.EDITOR },
                     action: 'manage',
                     expectedResult: false,
@@ -218,7 +220,7 @@ describe('SpaceService', () => {
                 {
                     name: 'cannot update dashboard in private space with update access',
                     user: { projectRole: ProjectMemberRole.VIEWER },
-                    space: { isPrivate: true },
+                    space: { isPrivate: true, inheritsFromOrgOrProject: false },
                     access: { spaceRole: SpaceMemberRole.EDITOR },
                     action: 'manage',
                     expectedResult: false,
@@ -227,7 +229,7 @@ describe('SpaceService', () => {
                 {
                     name: 'cannot update dashboard in private space with group update access',
                     user: { projectRole: ProjectMemberRole.VIEWER },
-                    space: { isPrivate: true },
+                    space: { isPrivate: true, inheritsFromOrgOrProject: false },
                     access: { groupSpaceRole: SpaceMemberRole.EDITOR },
                     action: 'manage',
                     expectedResult: false,
@@ -271,7 +273,7 @@ describe('SpaceService', () => {
                 {
                     name: 'can view private space if user granted access',
                     user: { projectRole: ProjectMemberRole.INTERACTIVE_VIEWER },
-                    space: { isPrivate: true },
+                    space: { isPrivate: true, inheritsFromOrgOrProject: false },
                     access: { spaceRole: SpaceMemberRole.VIEWER },
                     action: 'view',
                     expectedResult: true,
@@ -280,7 +282,7 @@ describe('SpaceService', () => {
                 {
                     name: 'can view private space if user group granted access',
                     user: { projectRole: ProjectMemberRole.INTERACTIVE_VIEWER },
-                    space: { isPrivate: true },
+                    space: { isPrivate: true, inheritsFromOrgOrProject: false },
                     access: { groupSpaceRole: SpaceMemberRole.VIEWER },
                     action: 'view',
                     expectedResult: true,
@@ -289,7 +291,7 @@ describe('SpaceService', () => {
                 {
                     name: 'can view public space in their project',
                     user: { projectRole: ProjectMemberRole.INTERACTIVE_VIEWER },
-                    space: { isPrivate: false },
+                    space: { isPrivate: false, inheritsFromOrgOrProject: true },
                     access: {},
                     action: 'view',
                     expectedResult: true,
@@ -298,7 +300,7 @@ describe('SpaceService', () => {
                 {
                     name: 'cannot view private space without access',
                     user: { projectRole: ProjectMemberRole.INTERACTIVE_VIEWER },
-                    space: { isPrivate: true },
+                    space: { isPrivate: true, inheritsFromOrgOrProject: false },
                     access: {},
                     action: 'view',
                     expectedResult: false,
@@ -307,7 +309,7 @@ describe('SpaceService', () => {
                 {
                     name: 'cannot update public spaces',
                     user: { projectRole: ProjectMemberRole.INTERACTIVE_VIEWER },
-                    space: { isPrivate: false },
+                    space: { isPrivate: false, inheritsFromOrgOrProject: true },
                     access: {},
                     action: 'manage',
                     expectedResult: false,
@@ -316,7 +318,7 @@ describe('SpaceService', () => {
                 {
                     name: 'cannot update private spaces with view access',
                     user: { projectRole: ProjectMemberRole.INTERACTIVE_VIEWER },
-                    space: { isPrivate: true },
+                    space: { isPrivate: true, inheritsFromOrgOrProject: false },
                     access: { spaceRole: SpaceMemberRole.VIEWER },
                     action: 'manage',
                     expectedResult: false,
@@ -325,7 +327,7 @@ describe('SpaceService', () => {
                 {
                     name: 'cannot update private spaces with group view access',
                     user: { projectRole: ProjectMemberRole.INTERACTIVE_VIEWER },
-                    space: { isPrivate: true },
+                    space: { isPrivate: true, inheritsFromOrgOrProject: false },
                     access: { groupSpaceRole: SpaceMemberRole.VIEWER },
                     action: 'manage',
                     expectedResult: false,
@@ -334,7 +336,7 @@ describe('SpaceService', () => {
                 {
                     name: 'cannot update private spaces with update access',
                     user: { projectRole: ProjectMemberRole.INTERACTIVE_VIEWER },
-                    space: { isPrivate: true },
+                    space: { isPrivate: true, inheritsFromOrgOrProject: false },
                     access: { spaceRole: SpaceMemberRole.EDITOR },
                     action: 'manage',
                     expectedResult: false,
@@ -343,7 +345,7 @@ describe('SpaceService', () => {
                 {
                     name: 'cannot update private spaces with group update access',
                     user: { projectRole: ProjectMemberRole.INTERACTIVE_VIEWER },
-                    space: { isPrivate: true },
+                    space: { isPrivate: true, inheritsFromOrgOrProject: false },
                     access: { groupSpaceRole: SpaceMemberRole.EDITOR },
                     action: 'manage',
                     expectedResult: false,
@@ -352,7 +354,7 @@ describe('SpaceService', () => {
                 {
                     name: 'can update dashboard in private space with update access',
                     user: { projectRole: ProjectMemberRole.INTERACTIVE_VIEWER },
-                    space: { isPrivate: true },
+                    space: { isPrivate: true, inheritsFromOrgOrProject: false },
                     access: { spaceRole: SpaceMemberRole.EDITOR },
                     action: 'manage',
                     expectedResult: true,
@@ -361,7 +363,7 @@ describe('SpaceService', () => {
                 {
                     name: 'can update dashboard in private space with group update access',
                     user: { projectRole: ProjectMemberRole.INTERACTIVE_VIEWER },
-                    space: { isPrivate: true },
+                    space: { isPrivate: true, inheritsFromOrgOrProject: false },
                     access: { groupSpaceRole: SpaceMemberRole.EDITOR },
                     action: 'manage',
                     expectedResult: true,
@@ -370,7 +372,7 @@ describe('SpaceService', () => {
                 {
                     name: 'can update dashboard when user has editor role but group has viewer role (user has priority)',
                     user: { projectRole: ProjectMemberRole.INTERACTIVE_VIEWER },
-                    space: { isPrivate: true },
+                    space: { isPrivate: true, inheritsFromOrgOrProject: false },
                     access: {
                         spaceRole: SpaceMemberRole.EDITOR,
                         groupSpaceRole: SpaceMemberRole.VIEWER,
@@ -384,7 +386,7 @@ describe('SpaceService', () => {
                 {
                     name: 'cannot update dashboard when user has viewer role but group has editor role (user priority)',
                     user: { projectRole: ProjectMemberRole.INTERACTIVE_VIEWER },
-                    space: { isPrivate: true },
+                    space: { isPrivate: true, inheritsFromOrgOrProject: false },
                     access: {
                         spaceRole: SpaceMemberRole.VIEWER,
                         groupSpaceRole: SpaceMemberRole.EDITOR,
@@ -402,6 +404,7 @@ describe('SpaceService', () => {
                     },
                     space: {
                         isPrivate: true,
+                        inheritsFromOrgOrProject: false,
                         projectUuid: 'different-project-uuid',
                     },
                     access: {},
@@ -458,7 +461,7 @@ describe('SpaceService', () => {
                 {
                     name: 'can view public space in their project',
                     user: { projectRole: ProjectMemberRole.EDITOR },
-                    space: { isPrivate: false },
+                    space: { isPrivate: false, inheritsFromOrgOrProject: true },
                     access: {},
                     action: 'view',
                     expectedResult: true,
@@ -467,7 +470,7 @@ describe('SpaceService', () => {
                 {
                     name: 'cannot view private space without explicit access',
                     user: { projectRole: ProjectMemberRole.EDITOR },
-                    space: { isPrivate: true },
+                    space: { isPrivate: true, inheritsFromOrgOrProject: false },
                     access: {},
                     action: 'view',
                     expectedResult: false,
@@ -477,7 +480,7 @@ describe('SpaceService', () => {
                 {
                     name: 'can update public space by default',
                     user: { projectRole: ProjectMemberRole.EDITOR },
-                    space: { isPrivate: false },
+                    space: { isPrivate: false, inheritsFromOrgOrProject: true },
                     access: {},
                     action: 'manage',
                     expectedResult: true,
@@ -486,7 +489,7 @@ describe('SpaceService', () => {
                 {
                     name: 'cannot update private space without access',
                     user: { projectRole: ProjectMemberRole.EDITOR },
-                    space: { isPrivate: true },
+                    space: { isPrivate: true, inheritsFromOrgOrProject: false },
                     access: {},
                     action: 'update',
                     expectedResult: false,
@@ -496,7 +499,7 @@ describe('SpaceService', () => {
                 {
                     name: 'can only view space when explicitly given viewer role (downgrade)',
                     user: { projectRole: ProjectMemberRole.EDITOR },
-                    space: { isPrivate: true },
+                    space: { isPrivate: true, inheritsFromOrgOrProject: false },
                     access: { spaceRole: SpaceMemberRole.VIEWER },
                     action: 'update',
                     expectedResult: false,
@@ -505,7 +508,7 @@ describe('SpaceService', () => {
                 {
                     name: 'can still view space when downgraded to viewer',
                     user: { projectRole: ProjectMemberRole.EDITOR },
-                    space: { isPrivate: true },
+                    space: { isPrivate: true, inheritsFromOrgOrProject: false },
                     access: { spaceRole: SpaceMemberRole.VIEWER },
                     action: 'view',
                     expectedResult: true,
@@ -515,7 +518,7 @@ describe('SpaceService', () => {
                 {
                     name: 'can only view private space when group has viewer role (downgrade)',
                     user: { projectRole: ProjectMemberRole.EDITOR },
-                    space: { isPrivate: true },
+                    space: { isPrivate: true, inheritsFromOrgOrProject: false },
                     access: { groupSpaceRole: SpaceMemberRole.VIEWER },
                     action: 'update',
                     expectedResult: false,
@@ -524,7 +527,7 @@ describe('SpaceService', () => {
                 {
                     name: 'can still view private space when group downgrades to viewer',
                     user: { projectRole: ProjectMemberRole.EDITOR },
-                    space: { isPrivate: true },
+                    space: { isPrivate: true, inheritsFromOrgOrProject: false },
                     access: { groupSpaceRole: SpaceMemberRole.VIEWER },
                     action: 'view',
                     expectedResult: true,
@@ -533,7 +536,7 @@ describe('SpaceService', () => {
                 {
                     name: 'can still update public space when group has viewer role (no downgrade)',
                     user: { projectRole: ProjectMemberRole.EDITOR },
-                    space: { isPrivate: false },
+                    space: { isPrivate: false, inheritsFromOrgOrProject: true },
                     access: { groupSpaceRole: SpaceMemberRole.VIEWER },
                     action: 'update',
                     expectedResult: true,
@@ -543,7 +546,7 @@ describe('SpaceService', () => {
                 {
                     name: 'group viewer role overrides direct editor role (downgrade)',
                     user: { projectRole: ProjectMemberRole.EDITOR },
-                    space: { isPrivate: true },
+                    space: { isPrivate: true, inheritsFromOrgOrProject: false },
                     access: {
                         spaceRole: SpaceMemberRole.EDITOR,
                         groupSpaceRole: SpaceMemberRole.VIEWER,
@@ -556,7 +559,7 @@ describe('SpaceService', () => {
                 {
                     name: 'can update dashboard in public space by default',
                     user: { projectRole: ProjectMemberRole.EDITOR },
-                    space: { isPrivate: false },
+                    space: { isPrivate: false, inheritsFromOrgOrProject: true },
                     access: {},
                     action: 'update',
                     expectedResult: true,
@@ -565,7 +568,7 @@ describe('SpaceService', () => {
                 {
                     name: 'cannot update dashboard when space role is viewer',
                     user: { projectRole: ProjectMemberRole.EDITOR },
-                    space: { isPrivate: true },
+                    space: { isPrivate: true, inheritsFromOrgOrProject: false },
                     access: { spaceRole: SpaceMemberRole.VIEWER },
                     action: 'update',
                     expectedResult: false,
@@ -574,7 +577,7 @@ describe('SpaceService', () => {
                 {
                     name: 'cannot update dashboard when group space role is viewer',
                     user: { projectRole: ProjectMemberRole.EDITOR },
-                    space: { isPrivate: true },
+                    space: { isPrivate: true, inheritsFromOrgOrProject: false },
                     access: { groupSpaceRole: SpaceMemberRole.VIEWER },
                     action: 'update',
                     expectedResult: false,
@@ -627,7 +630,7 @@ describe('SpaceService', () => {
                 {
                     name: 'can promote dashboard in public space',
                     user: { projectRole: ProjectMemberRole.DEVELOPER },
-                    space: { isPrivate: false },
+                    space: { isPrivate: false, inheritsFromOrgOrProject: true },
                     access: {},
                     action: 'promote',
                     expectedResult: true,
@@ -681,7 +684,7 @@ describe('SpaceService', () => {
                 {
                     name: 'org admin can manage space even with viewer space role',
                     user: { organizationRole: OrganizationMemberRole.ADMIN },
-                    space: { isPrivate: true },
+                    space: { isPrivate: true, inheritsFromOrgOrProject: false },
                     access: { spaceRole: SpaceMemberRole.VIEWER },
                     action: 'manage',
                     expectedResult: true,
@@ -690,7 +693,7 @@ describe('SpaceService', () => {
                 {
                     name: 'org admin can manage space even with viewer group role',
                     user: { organizationRole: OrganizationMemberRole.ADMIN },
-                    space: { isPrivate: true },
+                    space: { isPrivate: true, inheritsFromOrgOrProject: false },
                     access: { groupSpaceRole: SpaceMemberRole.VIEWER },
                     action: 'manage',
                     expectedResult: true,
@@ -699,7 +702,7 @@ describe('SpaceService', () => {
                 {
                     name: 'project admin can manage space even with viewer space role',
                     user: { projectRole: ProjectMemberRole.ADMIN },
-                    space: { isPrivate: true },
+                    space: { isPrivate: true, inheritsFromOrgOrProject: false },
                     access: { spaceRole: SpaceMemberRole.VIEWER },
                     action: 'manage',
                     expectedResult: true,
@@ -708,7 +711,7 @@ describe('SpaceService', () => {
                 {
                     name: 'project admin can manage space even with viewer group role',
                     user: { projectRole: ProjectMemberRole.ADMIN },
-                    space: { isPrivate: true },
+                    space: { isPrivate: true, inheritsFromOrgOrProject: false },
                     access: { groupSpaceRole: SpaceMemberRole.VIEWER },
                     action: 'manage',
                     expectedResult: true,
@@ -717,7 +720,7 @@ describe('SpaceService', () => {
                 {
                     name: 'project admin can manage space even with multiple group roles',
                     user: { projectRole: ProjectMemberRole.ADMIN },
-                    space: { isPrivate: true },
+                    space: { isPrivate: true, inheritsFromOrgOrProject: false },
                     access: {
                         groupSpaceRoles: [
                             SpaceMemberRole.VIEWER,
@@ -731,7 +734,7 @@ describe('SpaceService', () => {
                 {
                     name: 'user with multiple group roles gets highest role (editor over viewer)',
                     user: { projectRole: ProjectMemberRole.INTERACTIVE_VIEWER },
-                    space: { isPrivate: true },
+                    space: { isPrivate: true, inheritsFromOrgOrProject: false },
                     access: {
                         groupSpaceRoles: [
                             SpaceMemberRole.VIEWER,
@@ -745,7 +748,7 @@ describe('SpaceService', () => {
                 {
                     name: 'user with multiple group roles gets highest role (admin over editor)',
                     user: { projectRole: ProjectMemberRole.INTERACTIVE_VIEWER },
-                    space: { isPrivate: true },
+                    space: { isPrivate: true, inheritsFromOrgOrProject: false },
                     access: {
                         groupSpaceRoles: [
                             SpaceMemberRole.EDITOR,
@@ -762,7 +765,7 @@ describe('SpaceService', () => {
                         projectRole: ProjectMemberRole.INTERACTIVE_VIEWER,
                         projectGroupRoles: [ProjectMemberRole.ADMIN],
                     },
-                    space: { isPrivate: true },
+                    space: { isPrivate: true, inheritsFromOrgOrProject: false },
                     access: { spaceRole: SpaceMemberRole.VIEWER },
                     action: 'update',
                     expectedResult: true,
@@ -774,7 +777,7 @@ describe('SpaceService', () => {
                         projectRole: ProjectMemberRole.INTERACTIVE_VIEWER,
                         projectGroupRoles: [ProjectMemberRole.VIEWER],
                     },
-                    space: { isPrivate: true },
+                    space: { isPrivate: true, inheritsFromOrgOrProject: false },
                     access: { spaceRole: SpaceMemberRole.EDITOR },
                     action: 'update',
                     expectedResult: true,
@@ -835,7 +838,7 @@ describe('SpaceService', () => {
     //             projectRole: ProjectMemberRole.VIEWER,
     //             projectGroupRoles: [ProjectMemberRole.VIEWER, ProjectMemberRole.ADMIN]
     //         },
-    //         space: { isPrivate: true },
+    //         space: { isPrivate: true, inheritsFromOrgOrProject: false },
     //         access: {},
     //         action: 'manage',
     //         expectedResult: true,
@@ -847,7 +850,7 @@ describe('SpaceService', () => {
     //             projectRole: ProjectMemberRole.VIEWER,
     //             projectGroupRoles: [ProjectMemberRole.ADMIN]
     //         },
-    //         space: { isPrivate: true },
+    //         space: { isPrivate: true, inheritsFromOrgOrProject: false },
     //         access: {},
     //         action: 'manage',
     //         expectedResult: true,
@@ -859,7 +862,7 @@ describe('SpaceService', () => {
     //             projectRole: ProjectMemberRole.INTERACTIVE_VIEWER,
     //             projectGroupRoles: [ProjectMemberRole.VIEWER]
     //         },
-    //         space: { isPrivate: true },
+    //         space: { isPrivate: true, inheritsFromOrgOrProject: false },
     //         access: { spaceRole: SpaceMemberRole.EDITOR },
     //         action: 'update',
     //         expectedResult: true,
@@ -926,7 +929,7 @@ describe('SpaceService.updateSpace - permission copy on inherit toggle', () => {
         mockSpacePermissionService.getSpaceAccessContext.mockResolvedValue({
             organizationUuid: 'org-uuid',
             projectUuid: 'project-uuid',
-            isPrivate: false,
+            inheritsFromOrgOrProject: true,
             access: [
                 {
                     userUuid: mockUser.userUuid,
@@ -955,7 +958,7 @@ describe('SpaceService.updateSpace - permission copy on inherit toggle', () => {
         mockSpacePermissionService.getAllSpaceAccessContext.mockResolvedValue({
             organizationUuid: 'org-uuid',
             projectUuid: 'project-uuid',
-            isPrivate: false,
+            inheritsFromOrgOrProject: true,
             access: [],
         });
         mockSpacePermissionService.getGroupAccess.mockResolvedValue([]);
@@ -1113,7 +1116,7 @@ describe('SpaceService.updateSpace - permission copy on inherit toggle', () => {
         mockSpacePermissionService.getSpaceAccessContext.mockResolvedValue({
             organizationUuid: 'org-uuid',
             projectUuid: 'project-uuid',
-            isPrivate: false,
+            inheritsFromOrgOrProject: true,
             access: [
                 {
                     userUuid: mockUser.userUuid,
@@ -1163,7 +1166,7 @@ describe('SpaceService.updateSpace - permission copy on inherit toggle', () => {
         mockSpacePermissionService.getSpaceAccessContext.mockResolvedValue({
             organizationUuid: 'org-uuid',
             projectUuid: 'project-uuid',
-            isPrivate: false,
+            inheritsFromOrgOrProject: true,
             access: [
                 {
                     userUuid: mockUser.userUuid,
@@ -1223,7 +1226,7 @@ describe('SpaceService.updateSpace - permission copy on inherit toggle', () => {
         mockSpacePermissionService.getSpaceAccessContext.mockResolvedValue({
             organizationUuid: 'org-uuid',
             projectUuid: 'project-uuid',
-            isPrivate: false,
+            inheritsFromOrgOrProject: true,
             access: [
                 {
                     userUuid: mockUser.userUuid,

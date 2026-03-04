@@ -1298,7 +1298,15 @@ export class CoderService extends BaseService {
         const isPrivate =
             closestAncestorSpace?.isPrivate ?? publicSpaceCreate !== true;
         const inheritParentPermissions = !isPrivate;
-        const newSpaces: Space[] = [];
+        const newSpaces: Omit<
+            Space,
+            | 'queries'
+            | 'dashboards'
+            | 'access'
+            | 'groupsAccess'
+            | 'childSpaces'
+            | 'inheritsFromOrgOrProject'
+        >[] = [];
 
         for await (const currentPath of remainingPath) {
             if (!parentPath) {
