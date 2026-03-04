@@ -17,6 +17,7 @@ import {
     Title,
     Tooltip,
 } from '@mantine-8/core';
+import { useDisclosure } from '@mantine-8/hooks';
 import {
     IconArrowDown,
     IconArrowsSort,
@@ -44,7 +45,9 @@ import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { usePreAggregateMaterializations } from '../../hooks/usePreAggregateMaterializations';
 import { useProject } from '../../hooks/useProject';
 import MantineIcon from '../common/MantineIcon';
+import MaterializationDetailDrawer from './MaterializationDetailDrawer';
 import classes from './PreAggregateMaterializations.module.css';
+import { StatusBadge } from './StatusBadge';
 
 type Props = {
     projectUuid: string;
@@ -63,69 +66,6 @@ const formatRelativeTime = (date: Date | string | null): string => {
     if (diffMins < 60) return `${diffMins}m ago`;
     if (diffHours < 24) return `${diffHours}h ago`;
     return `${diffDays}d ago`;
-};
-
-const StatusBadge: FC<{
-    summary: PreAggregateMaterializationSummary;
-}> = ({ summary }) => {
-    if (summary.definitionError) {
-        return (
-            <Tooltip label={summary.definitionError} multiline maw={300}>
-                <Badge color="red" variant="light" size="sm">
-                    Definition error
-                </Badge>
-            </Tooltip>
-        );
-    }
-
-    if (!summary.materialization) {
-        return (
-            <Badge color="gray" variant="light" size="sm">
-                Never materialized
-            </Badge>
-        );
-    }
-
-    const { status, errorMessage } = summary.materialization;
-
-    switch (status) {
-        case 'active':
-            return (
-                <Badge color="green" variant="light" size="sm">
-                    Active
-                </Badge>
-            );
-        case 'in_progress':
-            return (
-                <Badge color="blue" variant="light" size="sm">
-                    In progress
-                </Badge>
-            );
-        case 'failed':
-            return (
-                <Tooltip
-                    label={errorMessage ?? 'Unknown error'}
-                    multiline
-                    maw={300}
-                >
-                    <Badge color="red" variant="light" size="sm">
-                        Failed
-                    </Badge>
-                </Tooltip>
-            );
-        case 'superseded':
-            return (
-                <Badge color="gray" variant="light" size="sm">
-                    Superseded
-                </Badge>
-            );
-        default:
-            return (
-                <Badge color="gray" variant="light" size="sm">
-                    {status}
-                </Badge>
-            );
-    }
 };
 
 type StatusType = PreAggregateMaterializationStatus;
@@ -248,6 +188,18 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedStatus, setSelectedStatus] = useState<StatusType | null>(
         null,
+    );
+    const [isDrawerOpen, { open: openDrawer, close: closeDrawer }] =
+        useDisclosure(false);
+    const [selectedSummary, setSelectedSummary] =
+        useState<PreAggregateMaterializationSummary | null>(null);
+
+    const handleRowClick = useCallback(
+        (summary: PreAggregateMaterializationSummary) => {
+            setSelectedSummary(summary);
+            openDrawer();
+        },
+        [openDrawer],
     );
 
     const hasActiveFilters = selectedStatus !== null || searchQuery !== '';
@@ -557,6 +509,10 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
         mantineTableContainerProps: {
             style: { maxHeight: 'calc(100dvh - 450px)' },
         },
+        mantineTableBodyRowProps: ({ row }) => ({
+            onClick: () => handleRowClick(row.original),
+            className: classes.clickableRow,
+        }),
         mantineTableProps: {
             highlightOnHover: true,
             withColumnBorders: false,
@@ -638,6 +594,12 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
 
                 <MantineReactTable table={table} />
             </Stack>
+
+            <MaterializationDetailDrawer
+                summary={selectedSummary}
+                opened={isDrawerOpen}
+                onClose={closeDrawer}
+            />
         </>
     );
 };
