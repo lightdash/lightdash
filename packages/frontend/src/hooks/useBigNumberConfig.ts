@@ -13,6 +13,7 @@ import {
     hasFormatOptions,
     hasValidFormatExpression,
     isConditionalFormattingConfigWithSingleColor,
+    isDimension,
     isField,
     isMetric,
     isNumericItem,
@@ -24,8 +25,8 @@ import {
     type BigNumber,
     type CompactOrAlias,
     type ConditionalFormattingConfig,
-    type DateGranularity,
     type DateZoom,
+    type GranularityMap,
     type ItemsMap,
     type ParametersValuesMap,
     type TableCalculationMetadata,
@@ -424,43 +425,36 @@ const useBigNumberConfig = (
         }
     }, [comparisonValue, comparisonDiff, comparisonField]);
 
-    const resolvedGranularity = useMemo((): DateGranularity | undefined => {
-        if (dateZoom?.granularity) return dateZoom.granularity;
-        // Fallback: check selected/comparison fields first, then scan all fields
-        const priorityFields = [item, comparisonItem];
-        for (const field of priorityFields) {
+    const granularityMap = useMemo((): GranularityMap => {
+        if (!itemsMap) return {};
+        const map: GranularityMap = {};
+        for (const field of Object.values(itemsMap)) {
             if (
+                isDimension(field) &&
                 isTimeBasedDimension(field) &&
                 field.timeInterval &&
-                timeFrameToDateGranularityMap[field.timeInterval]
+                field.timeIntervalBaseDimensionName
             ) {
-                return timeFrameToDateGranularityMap[field.timeInterval];
-            }
-        }
-        // In big numbers, the selected field is usually a metric — scan itemsMap
-        // for date dimensions used in the query (e.g. for row ordering)
-        if (itemsMap) {
-            for (const field of Object.values(itemsMap)) {
-                if (
-                    isTimeBasedDimension(field) &&
-                    field.timeInterval &&
-                    timeFrameToDateGranularityMap[field.timeInterval]
-                ) {
-                    return timeFrameToDateGranularityMap[field.timeInterval];
+                const granularity =
+                    dateZoom?.granularity ??
+                    timeFrameToDateGranularityMap[field.timeInterval];
+                if (granularity) {
+                    const baseId = `${field.table}_${field.timeIntervalBaseDimensionName}`;
+                    map[baseId] = granularity;
                 }
             }
         }
-        return undefined;
-    }, [dateZoom?.granularity, item, comparisonItem, itemsMap]);
+        return map;
+    }, [dateZoom?.granularity, itemsMap]);
 
     const resolvedBigNumberLabel = useMemo(
-        () => resolveGranularityInLabel(bigNumberLabel, resolvedGranularity),
-        [bigNumberLabel, resolvedGranularity],
+        () => resolveGranularityInLabel(bigNumberLabel, granularityMap),
+        [bigNumberLabel, granularityMap],
     );
 
     const resolvedComparisonLabel = useMemo(
-        () => resolveGranularityInLabel(comparisonLabel, resolvedGranularity),
-        [comparisonLabel, resolvedGranularity],
+        () => resolveGranularityInLabel(comparisonLabel, granularityMap),
+        [comparisonLabel, granularityMap],
     );
 
     const bigNumberTextColor = useMemo(() => {
