@@ -372,9 +372,16 @@ export type EChartsSeries = {
     showSymbol?: boolean;
     symbolSize?: number;
     markLine?: Record<string, unknown>;
+    colorBy?: 'series' | 'data';
     itemStyle?: {
         borderRadius?: number | number[];
-        color?: string;
+        color?:
+            | string
+            | ((params: {
+                  dataIndex: number;
+                  name: string;
+                  data: Record<string, unknown>;
+              }) => string);
         opacity?: number;
     };
     lineStyle?: {

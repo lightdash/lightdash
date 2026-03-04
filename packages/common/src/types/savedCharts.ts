@@ -658,6 +658,10 @@ export type CompleteCartesianChartLayout = {
     stack?: boolean | string | undefined;
     /** Connect null data points with a line */
     connectNulls?: boolean | undefined;
+    /** Color each bar by its category value instead of using a single series color */
+    colorByCategory?: boolean | undefined;
+    /** Per-category color overrides (maps category value to hex color) */
+    categoryColorOverrides?: Record<string, string> | undefined;
 };
 
 export type CartesianChartLayout = Partial<CompleteCartesianChartLayout>;

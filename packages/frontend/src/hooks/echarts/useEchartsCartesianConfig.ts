@@ -2277,6 +2277,7 @@ const useEchartsCartesianConfig = (
         minimal,
         parameters,
         isTouchDevice,
+        colorPalette,
     } = useVisualizationContext();
 
     const theme = useMantineTheme();
@@ -2407,6 +2408,14 @@ const useEchartsCartesianConfig = (
         if (!itemsMap) return;
 
         const isHorizontal = Boolean(validCartesianConfig?.layout.flipAxes);
+        const isColorByCategory = Boolean(
+            validCartesianConfig?.layout?.colorByCategory,
+        );
+        const categoryColorOverrides =
+            validCartesianConfig?.layout?.categoryColorOverrides;
+        const categoryFieldId = isHorizontal
+            ? validCartesianConfig?.layout?.yField?.[0]
+            : validCartesianConfig?.layout?.xField;
 
         // Calculate dynamic border radius based on chart characteristics
         const barSeries = series.filter(
@@ -2457,7 +2466,7 @@ const useEchartsCartesianConfig = (
 
                 // Apply bar styling for bar charts
                 if (serie.type === CartesianSeriesType.BAR) {
-                    return {
+                    const barConfig = {
                         ...baseConfig,
                         ...getBarStyle(),
                         // Non-stacked bars get border radius on all bars
@@ -2472,6 +2481,41 @@ const useEchartsCartesianConfig = (
                             },
                         }),
                     };
+
+                    // Color by category: each bar gets a unique color
+                    if (isColorByCategory) {
+                        return {
+                            ...barConfig,
+                            colorBy: 'data' as const,
+                            itemStyle: {
+                                ...barConfig.itemStyle,
+                                color: (params: {
+                                    dataIndex: number;
+                                    name: string;
+                                    data: Record<string, unknown>;
+                                }) => {
+                                    const categoryValue = categoryFieldId
+                                        ? String(
+                                              params.data[categoryFieldId] ??
+                                                  '',
+                                          )
+                                        : '';
+                                    if (
+                                        categoryColorOverrides?.[categoryValue]
+                                    ) {
+                                        return categoryColorOverrides[
+                                            categoryValue
+                                        ];
+                                    }
+                                    return colorPalette[
+                                        params.dataIndex % colorPalette.length
+                                    ];
+                                },
+                            },
+                        };
+                    }
+
+                    return barConfig;
                 }
 
                 return baseConfig;
@@ -2519,10 +2563,15 @@ const useEchartsCartesianConfig = (
         validCartesianConfig?.layout.flipAxes,
         validCartesianConfig?.layout?.stack,
         validCartesianConfig?.layout.connectNulls,
+        validCartesianConfig?.layout?.colorByCategory,
+        validCartesianConfig?.layout?.categoryColorOverrides,
+        validCartesianConfig?.layout?.xField,
+        validCartesianConfig?.layout?.yField,
         series,
         rows,
         validCartesianConfigLegend,
         getSeriesColor,
+        colorPalette,
         theme.colors.background,
     ]);
     const sortedResults = useMemo(() => {
