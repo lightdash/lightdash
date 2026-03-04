@@ -9,7 +9,6 @@ import {
     Select,
     Stack,
     Switch,
-    TextInput,
 } from '@mantine-8/core';
 import { useEffect, useRef, useState } from 'react';
 import FieldSelect from '../../common/FieldSelect';
@@ -18,7 +17,7 @@ import { useVisualizationContext } from '../../LightdashVisualization/useVisuali
 import { Config } from '../common/Config';
 import classes from './BigNumberComparison.module.css';
 import { StyleOptions } from './common';
-import { GranularityLabelEditor } from './GranularityLabelEditor';
+import { LabelEditor } from './LabelEditor';
 
 type CompareTarget = 'previous_row' | 'another_field';
 
@@ -193,27 +192,13 @@ export const Comparison: React.FC = () => {
                                     />
                                 )}
 
-                            {granularityFields &&
-                            granularityFields.length > 0 ? (
-                                <GranularityLabelEditor
-                                    label="Comparison label"
-                                    value={comparisonLabel ?? ''}
-                                    placeholder="Add an optional label"
-                                    onChange={setComparisonLabel}
-                                    fields={granularityFields}
-                                />
-                            ) : (
-                                <TextInput
-                                    label="Comparison label"
-                                    value={comparisonLabel ?? ''}
-                                    placeholder={'Add an optional label'}
-                                    onChange={(e) =>
-                                        setComparisonLabel(
-                                            e.currentTarget.value,
-                                        )
-                                    }
-                                />
-                            )}
+                            <LabelEditor
+                                label="Comparison label"
+                                value={comparisonLabel ?? ''}
+                                placeholder="Add an optional label"
+                                onChange={setComparisonLabel}
+                                fields={granularityFields ?? []}
+                            />
                         </>
                     ) : null}
                 </Config.Section>

@@ -1,5 +1,5 @@
 import { getItemId, type CompactOrAlias } from '@lightdash/common';
-import { ActionIcon, Group, Select, TextInput, Tooltip } from '@mantine-8/core';
+import { ActionIcon, Group, Select, Tooltip } from '@mantine-8/core';
 import {
     IconEye,
     IconEyeOff,
@@ -13,7 +13,7 @@ import { isBigNumberVisualizationConfig } from '../../LightdashVisualization/typ
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../common/Config';
 import { StyleOptions } from './common';
-import { GranularityLabelEditor } from './GranularityLabelEditor';
+import { LabelEditor } from './LabelEditor';
 
 export const Layout: FC = () => {
     const { visualizationConfig, itemsMap } = useVisualizationContext();
@@ -39,9 +39,6 @@ export const Layout: FC = () => {
     } = visualizationConfig.chartConfig;
 
     const selectedField = getField(selectedFieldId);
-
-    const hasGranularityFields =
-        granularityFields && granularityFields.length > 0;
 
     return (
         <Config>
@@ -78,34 +75,19 @@ export const Layout: FC = () => {
                     />
                 )}
 
-                <Group gap="xs" align="flex-end" wrap="nowrap">
+                <Group gap="xs" align="flex-start" wrap="nowrap">
                     <div style={{ flex: 1 }}>
-                        {hasGranularityFields && showBigNumberLabel ? (
-                            <GranularityLabelEditor
-                                label="Label"
-                                value={bigNumberLabel ?? ''}
-                                placeholder={defaultLabel}
-                                onChange={setBigNumberLabel}
-                                fields={granularityFields}
-                                readOnly={!showBigNumberLabel}
-                            />
-                        ) : (
-                            <TextInput
-                                variant={
-                                    showBigNumberLabel ? 'default' : 'filled'
-                                }
-                                label="Label"
-                                value={bigNumberLabel}
-                                placeholder={defaultLabel}
-                                onChange={(e) =>
-                                    setBigNumberLabel(e.currentTarget.value)
-                                }
-                                readOnly={!showBigNumberLabel}
-                            />
-                        )}
+                        <LabelEditor
+                            label="Label"
+                            value={bigNumberLabel ?? ''}
+                            placeholder={defaultLabel}
+                            onChange={setBigNumberLabel}
+                            fields={granularityFields ?? []}
+                            readOnly={!showBigNumberLabel}
+                        />
                     </div>
 
-                    <Group gap={4} wrap="nowrap" mb={4}>
+                    <Group gap={4} wrap="nowrap" mt={25}>
                         <Tooltip
                             withinPortal
                             label={

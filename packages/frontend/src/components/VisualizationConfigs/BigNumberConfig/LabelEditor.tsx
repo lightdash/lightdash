@@ -18,7 +18,7 @@ import { useCallback, useEffect, useRef, useState, type FC } from 'react';
 import { useDeepCompareEffect } from 'react-use';
 import { getLightdashMonacoTheme } from '../../../features/sqlRunner/utils/monaco';
 import '../../../styles/monaco.css';
-import styles from './GranularityLabelEditor.module.css';
+import styles from './LabelEditor.module.css';
 
 const MONACO_DEFAULT_OPTIONS: EditorProps['options'] = {
     cursorBlinking: 'smooth',
@@ -87,9 +87,7 @@ const registerGranularityCompletionProvider = (
         });
 };
 
-const EDITOR_HEIGHT = 35;
-
-type GranularityLabelEditorProps = {
+type LabelEditorProps = {
     label: string;
     value: string;
     placeholder?: string;
@@ -98,7 +96,7 @@ type GranularityLabelEditorProps = {
     readOnly?: boolean;
 };
 
-export const GranularityLabelEditor: FC<GranularityLabelEditorProps> = ({
+export const LabelEditor: FC<LabelEditorProps> = ({
     label,
     value,
     placeholder,
@@ -177,7 +175,7 @@ export const GranularityLabelEditor: FC<GranularityLabelEditorProps> = ({
     return (
         <Input.Wrapper label={label}>
             <Paper
-                className={styles.editorWrapper}
+                className={`${styles.editorWrapper} ${readOnly ? styles.editorWrapperReadOnly : ''}`}
                 radius="sm"
                 withBorder
                 pos="relative"
@@ -201,7 +199,7 @@ export const GranularityLabelEditor: FC<GranularityLabelEditorProps> = ({
                     options={monacoOptions}
                     onChange={(v) => setLocalValue(v ?? '')}
                     language="plaintext"
-                    height={`${EDITOR_HEIGHT}px`}
+                    height="100%"
                     width="100%"
                     theme={
                         colorScheme === 'dark'
@@ -209,7 +207,7 @@ export const GranularityLabelEditor: FC<GranularityLabelEditorProps> = ({
                             : 'lightdash-light'
                     }
                     wrapperProps={{
-                        id: 'granularity-label-editor',
+                        id: 'label-editor',
                     }}
                 />
             </Paper>

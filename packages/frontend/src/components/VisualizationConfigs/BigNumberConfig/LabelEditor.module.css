@@ -1,6 +1,8 @@
 .editorWrapper {
     overflow: hidden;
-    padding-top: 4px;
+    background: transparent;
+    min-height: 35px;
+    resize: vertical;
 
     @mixin light {
         border-color: var(--mantine-color-ldGray-2);
@@ -10,13 +12,25 @@
     }
 }
 
+.editorWrapperReadOnly {
+    border-color: transparent;
+    opacity: 0.6;
+    resize: none;
+
+    @mixin light {
+        background-color: var(--mantine-color-ldGray-1);
+    }
+    @mixin dark {
+        background-color: var(--mantine-color-ldDark-5);
+    }
+}
+
 .editorWrapper :global(.monaco-editor) {
     overflow: hidden;
     padding: 0 8px;
 }
 
-.editorWrapper
-    :global(#granularity-label-editor .view-lines.monaco-mouse-cursor-text) {
+.editorWrapper :global(#label-editor .view-lines.monaco-mouse-cursor-text) {
     border: none !important;
 }
 
