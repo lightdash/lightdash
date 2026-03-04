@@ -39,9 +39,9 @@ import { LightdashUserAvatar } from '../../Avatar';
 import MantineIcon from '../MantineIcon';
 import { DEFAULT_PAGE_SIZE } from '../Table/constants';
 import styles from './ShareSpaceAddUser.module.css';
+import { getAccessColor } from './ShareSpaceModalUtils';
 import { UserAccessOptions } from './ShareSpaceSelect';
 import { getUserNameOrEmail } from './Utils';
-import { getAccessColor } from './v2/ShareSpaceModalUtils';
 
 interface ShareSpaceAddUserProps {
     space: Space;

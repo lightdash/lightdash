@@ -2,11 +2,11 @@ import { type Space } from '@lightdash/common';
 import { Stack, TextInput } from '@mantine-8/core';
 import { type UseFormReturnType } from '@mantine/form';
 import { type FC } from 'react';
-import { useSpace } from '../../../../hooks/useSpaces';
-import InheritanceToggleCards from '../../ShareSpaceModal/v2/InheritanceToggleCards';
-import { type InheritanceType } from '../../ShareSpaceModal/v2/ShareSpaceModalUtils';
+import { useSpace } from '../../../hooks/useSpaces';
+import InheritanceToggleCards from '../ShareSpaceModal/InheritanceToggleCards';
+import { type InheritanceType } from '../ShareSpaceModal/ShareSpaceModalUtils';
 
-type CreateSpaceModalContentV2Props = {
+type CreateSpaceModalContentProps = {
     form: UseFormReturnType<Space>;
     projectUuid: string;
     parentSpaceUuid: Space['parentSpaceUuid'];
@@ -14,7 +14,7 @@ type CreateSpaceModalContentV2Props = {
     onInheritanceChange: (value: InheritanceType) => void;
 };
 
-const CreateSpaceModalContentV2: FC<CreateSpaceModalContentV2Props> = ({
+const CreateSpaceModalContent: FC<CreateSpaceModalContentProps> = ({
     form,
     projectUuid,
     parentSpaceUuid,
@@ -51,4 +51,4 @@ const CreateSpaceModalContentV2: FC<CreateSpaceModalContentV2Props> = ({
     );
 };
 
-export default CreateSpaceModalContentV2;
+export default CreateSpaceModalContent;

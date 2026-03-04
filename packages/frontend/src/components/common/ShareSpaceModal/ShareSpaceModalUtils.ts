@@ -4,7 +4,7 @@ import {
     type SpaceShare,
 } from '@lightdash/common';
 import { useMemo } from 'react';
-import { UserAccessAction, type AccessOption } from '../ShareSpaceSelect';
+import { UserAccessAction, type AccessOption } from './ShareSpaceSelect';
 
 export const enum InheritanceType {
     INHERIT = 'inherit',

@@ -1,6 +1,6 @@
 import { type Space } from '@lightdash/common';
 import { type FC } from 'react';
-import ShareSpaceModalV2 from './v2/ShareSpaceModal';
+import ShareSpaceModalContent from './ShareSpaceModalContent';
 
 export interface ShareSpaceProps {
     space: Space;
@@ -10,7 +10,7 @@ export interface ShareSpaceProps {
 }
 
 const ShareSpaceModal: FC<ShareSpaceProps> = (props) => {
-    return <ShareSpaceModalV2 {...props} />;
+    return <ShareSpaceModalContent {...props} />;
 };
 
 export default ShareSpaceModal;

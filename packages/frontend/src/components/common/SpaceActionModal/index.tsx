@@ -23,11 +23,11 @@ import {
     useUpdateMutation,
 } from '../../../hooks/useSpaces';
 import MantineModal from '../MantineModal';
-import { InheritanceType } from '../ShareSpaceModal/v2/ShareSpaceModalUtils';
+import { InheritanceType } from '../ShareSpaceModal/ShareSpaceModalUtils';
+import CreateSpaceModalContent from './CreateSpaceModalContent';
 import { DeleteSpaceModal } from './DeleteSpaceModal';
 import { ActionType } from './types';
 import UpdateSpaceModalContent from './UpdateSpaceModalContent';
-import CreateSpaceModalContentV2 from './v2/CreateSpaceModalContentV2';
 
 interface ActionModalProps {
     actionType: ActionType;
@@ -163,7 +163,7 @@ const SpaceModal: FC<ActionModalProps> = ({
                     id="form-space-action-modal"
                 >
                     {actionType === ActionType.CREATE ? (
-                        <CreateSpaceModalContentV2
+                        <CreateSpaceModalContent
                             form={form}
                             projectUuid={projectUuid}
                             parentSpaceUuid={parentSpaceUuid}

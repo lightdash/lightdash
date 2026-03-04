@@ -1,5 +1,9 @@
-import { InheritanceType } from '../ShareSpaceModal/v2/ShareSpaceModalUtils';
-import SpaceCreationFormV2 from './SpaceCreationFormV2';
+import { Box, Button, Stack, TextInput } from '@mantine-8/core';
+import { IconArrowLeft } from '@tabler/icons-react';
+import { useEffect, type FC } from 'react';
+import MantineIcon from '../MantineIcon';
+import InheritanceToggleCards from '../ShareSpaceModal/InheritanceToggleCards';
+import { InheritanceType } from '../ShareSpaceModal/ShareSpaceModalUtils';
 
 type SpaceCreationFormProps = {
     spaceName: string;
@@ -11,25 +15,59 @@ type SpaceCreationFormProps = {
     onInheritanceChange?: (value: InheritanceType) => void;
 };
 
-const SpaceCreationForm = ({
+const SpaceCreationForm: FC<SpaceCreationFormProps> = ({
     spaceName,
     onSpaceNameChange,
     onCancel,
     isLoading,
     parentSpaceName,
-    inheritanceValue,
-    onInheritanceChange,
-}: SpaceCreationFormProps) => {
+    inheritanceValue = InheritanceType.OWN_ONLY,
+    onInheritanceChange = () => {},
+}) => {
+    const isNestedSpace = !!parentSpaceName;
+
+    useEffect(() => {
+        onInheritanceChange(
+            isNestedSpace ? InheritanceType.INHERIT : InheritanceType.OWN_ONLY,
+        );
+    }, [isNestedSpace, onInheritanceChange]);
+
     return (
-        <SpaceCreationFormV2
-            spaceName={spaceName}
-            onSpaceNameChange={onSpaceNameChange}
-            onCancel={onCancel}
-            isLoading={isLoading}
-            parentSpaceName={parentSpaceName}
-            inheritanceValue={inheritanceValue ?? InheritanceType.OWN_ONLY}
-            onInheritanceChange={onInheritanceChange ?? (() => {})}
-        />
+        <Stack gap="xs">
+            <Box>
+                <Button
+                    variant="subtle"
+                    leftSection={<MantineIcon icon={IconArrowLeft} />}
+                    onClick={onCancel}
+                    disabled={isLoading}
+                    size="xs"
+                >
+                    Back to Space selection
+                </Button>
+            </Box>
+
+            <TextInput
+                label="Name"
+                placeholder="Space name"
+                required
+                disabled={isLoading}
+                value={spaceName}
+                onChange={(e) => onSpaceNameChange(e.target.value)}
+                description={
+                    isNestedSpace
+                        ? `New space in "${parentSpaceName}". This space will have the same access. You can change this later.`
+                        : undefined
+                }
+            />
+
+            {!isNestedSpace && (
+                <InheritanceToggleCards
+                    value={inheritanceValue}
+                    onChange={onInheritanceChange}
+                    disabled={isLoading}
+                />
+            )}
+        </Stack>
     );
 };
 

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { InheritanceType } from '../components/common/ShareSpaceModal/v2/ShareSpaceModalUtils';
+import { InheritanceType } from '../components/common/ShareSpaceModal/ShareSpaceModalUtils';
 import { useCreateMutation } from './useSpaces';
 
 type UseSpaceManagementProps = {
