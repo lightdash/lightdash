@@ -198,6 +198,10 @@ export const preAggregateExplore: Explore = {
     name: '__preagg__valid_explore__rollup',
     label: 'Pre-agg Explore',
     type: ExploreType.PRE_AGGREGATE,
+    preAggregateSource: {
+        sourceExploreName: 'valid_explore',
+        preAggregateName: 'rollup',
+    },
     tags: [],
 };
 

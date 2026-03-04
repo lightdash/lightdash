@@ -191,6 +191,10 @@ describe('buildPreAggregateExplore', () => {
         expect(result.name).toBe('__preagg__orders__orders_rollup');
         expect(result.type).toBe(ExploreType.PRE_AGGREGATE);
         expect(result.baseTable).toBe('orders');
+        expect(result.preAggregateSource).toEqual({
+            sourceExploreName: 'orders',
+            preAggregateName: 'orders_rollup',
+        });
         expect(result.joinedTables).toEqual([]);
         expect(result.preAggregates).toEqual([]);
         expect(result.tables.orders.sqlTable).toBe(

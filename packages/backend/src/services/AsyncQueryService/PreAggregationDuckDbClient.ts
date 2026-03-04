@@ -1,4 +1,5 @@
 import {
+    assertUnreachable,
     getErrorMessage,
     getPreAggregateExploreName,
     isExploreError,
@@ -55,8 +56,16 @@ export type ResolvePreAggregationDuckDbArgs = {
 };
 
 export type PreAggregationDuckDbResolution =
-    | { resolved: false; reason: string }
+    | { resolved: false; reason: PreAggregationDuckDbResolveReason }
     | { resolved: true; query: string; warehouseClient: WarehouseClient };
+
+export enum PreAggregationDuckDbResolveReason {
+    PRE_AGGREGATES_DISABLED = 'pre_aggregates_disabled',
+    MISSING_PRE_AGGREGATE_S3_CONFIG = 'missing_pre_aggregate_s3_config',
+    MISSING_DUCKDB_RUNTIME_CONFIG = 'missing_duckdb_runtime_config',
+    NO_ACTIVE_MATERIALIZATION = 'no_active_materialization',
+    RESOLVE_ERROR = 'resolve_error',
+}
 
 export class PreAggregationDuckDbClient {
     private readonly lightdashConfig: LightdashConfig;
@@ -81,6 +90,37 @@ export class PreAggregationDuckDbClient {
             ((warehouseArgs) => new DuckdbWarehouseClient(warehouseArgs));
     }
 
+    static getPreAggregationResolutionErrorMessage({
+        route,
+        reason,
+    }: {
+        route: PreAggregationRoute;
+        reason: PreAggregationDuckDbResolveReason;
+    }): string {
+        const preAggregateExploreName = getPreAggregateExploreName(
+            route.sourceExploreName,
+            route.preAggregateName,
+        );
+
+        switch (reason) {
+            case PreAggregationDuckDbResolveReason.NO_ACTIVE_MATERIALIZATION:
+                return `No active materialization found for pre-aggregate explore "${preAggregateExploreName}"`;
+            case PreAggregationDuckDbResolveReason.MISSING_PRE_AGGREGATE_S3_CONFIG:
+                return 'Pre-aggregate DuckDB routing is unavailable: missing S3 configuration';
+            case PreAggregationDuckDbResolveReason.MISSING_DUCKDB_RUNTIME_CONFIG:
+                return 'Pre-aggregate DuckDB routing is unavailable: missing DuckDB runtime configuration';
+            case PreAggregationDuckDbResolveReason.PRE_AGGREGATES_DISABLED:
+                return 'Pre-aggregate DuckDB routing is unavailable: pre-aggregates are disabled';
+            case PreAggregationDuckDbResolveReason.RESOLVE_ERROR:
+                return `Failed to resolve pre-aggregate explore "${preAggregateExploreName}" in DuckDB`;
+            default:
+                return assertUnreachable(
+                    reason,
+                    'Unknown pre-aggregate resolution reason',
+                );
+        }
+    }
+
     async resolve(
         args: ResolvePreAggregationDuckDbArgs,
     ): Promise<PreAggregationDuckDbResolution> {
@@ -100,7 +140,10 @@ export class PreAggregationDuckDbClient {
             Logger.warn(
                 `DuckDB pre-agg resolve failed: ${getErrorMessage(error)}. Returning unresolved`,
             );
-            return { resolved: false, reason: 'resolve_error' };
+            return {
+                resolved: false,
+                reason: PreAggregationDuckDbResolveReason.RESOLVE_ERROR,
+            };
         }
     }
 
@@ -108,14 +151,17 @@ export class PreAggregationDuckDbClient {
         args: ResolvePreAggregationDuckDbArgs,
     ): Promise<PreAggregationDuckDbResolution> {
         if (!this.lightdashConfig.preAggregates.enabled) {
-            return { resolved: false, reason: 'pre_aggregates_disabled' };
+            return {
+                resolved: false,
+                reason: PreAggregationDuckDbResolveReason.PRE_AGGREGATES_DISABLED,
+            };
         }
 
         const preAggregateS3Config = this.lightdashConfig.preAggregates.s3;
         if (!preAggregateS3Config) {
             return {
                 resolved: false,
-                reason: 'missing_pre_aggregate_s3_config',
+                reason: PreAggregationDuckDbResolveReason.MISSING_PRE_AGGREGATE_S3_CONFIG,
             };
         }
 
@@ -124,7 +170,7 @@ export class PreAggregationDuckDbClient {
         if (!duckdbRuntimeConfig) {
             return {
                 resolved: false,
-                reason: 'missing_duckdb_runtime_config',
+                reason: PreAggregationDuckDbResolveReason.MISSING_DUCKDB_RUNTIME_CONFIG,
             };
         }
 
@@ -142,7 +188,7 @@ export class PreAggregationDuckDbClient {
         if (!activeMaterialization) {
             return {
                 resolved: false,
-                reason: 'no_active_materialization',
+                reason: PreAggregationDuckDbResolveReason.NO_ACTIVE_MATERIALIZATION,
             };
         }
 
