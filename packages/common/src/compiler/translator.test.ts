@@ -1460,6 +1460,72 @@ describe('pre-aggregate virtual explore generation', () => {
         );
     });
 
+    it('does not generate pre-aggregate explores for additional explores', async () => {
+        process.env.PRE_AGGREGATES_ENABLED = 'true';
+
+        const explores = await convertExplores(
+            [
+                {
+                    ...MODEL_WITH_METRIC,
+                    meta: {
+                        pre_aggregates: [
+                            {
+                                name: 'rollup',
+                                dimensions: ['user_id'],
+                                metrics: [
+                                    'myTable_total_num_participating_athletes',
+                                ],
+                            },
+                        ],
+                        explores: {
+                            myTable_with_custom_dims: {
+                                label: 'MyTable with Custom Dims',
+                                additional_dimensions: {
+                                    athlete_band: {
+                                        type: DimensionType.STRING,
+                                        sql: "CASE WHEN ${myTable.num_participating_athletes} > 10 THEN 'high' ELSE 'low' END",
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+            ],
+            false,
+            SupportedDbtAdapter.POSTGRES,
+            [],
+            warehouseClientMock,
+            {
+                spotlight: DEFAULT_SPOTLIGHT_CONFIG,
+            },
+        );
+
+        expect(explores).toHaveLength(3);
+        expect(
+            explores.filter(
+                (explore) =>
+                    !('errors' in explore) &&
+                    explore.type === ExploreType.PRE_AGGREGATE,
+            ),
+        ).toHaveLength(1);
+        expect(explores).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({ name: 'myTable' }),
+                expect.objectContaining({ name: 'myTable_with_custom_dims' }),
+                expect.objectContaining({
+                    name: '__preagg__myTable__rollup',
+                }),
+            ]),
+        );
+        expect(explores).not.toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    name: '__preagg__myTable_with_custom_dims__rollup',
+                }),
+            ]),
+        );
+    });
+
     it('keeps the base explore when pre-aggregate generation fails', async () => {
         process.env.PRE_AGGREGATES_ENABLED = 'true';
 

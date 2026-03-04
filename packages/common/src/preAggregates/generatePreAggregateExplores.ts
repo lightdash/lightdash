@@ -10,6 +10,9 @@ import { buildPreAggregateExplore } from './buildPreAggregateExplore';
 const isPreAggregateVirtualExploreGenerationEnabled = (): boolean =>
     process.env.PRE_AGGREGATES_ENABLED === 'true';
 
+const shouldGeneratePreAggregatesForExplore = (explore: Explore): boolean =>
+    explore.name === explore.baseTable;
+
 export const generatePreAggregateExplores = ({
     compiledExplores,
     parsedPreAggregates,
@@ -26,6 +29,9 @@ export const generatePreAggregateExplores = ({
 
     return compiledExplores.flatMap<Explore | ExploreError>((compiled) => {
         if (isExploreError(compiled)) {
+            return [compiled];
+        }
+        if (!shouldGeneratePreAggregatesForExplore(compiled)) {
             return [compiled];
         }
 
