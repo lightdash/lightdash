@@ -18,7 +18,7 @@ import {
     DashboardVersionsTableName,
     DashboardViewsTableName,
 } from '../../database/entities/dashboards';
-import { ContentVerificationTableName } from '../../database/entities/contentVerification';
+
 import { SavedChartsTableName } from '../../database/entities/savedCharts';
 import { SpaceTableName } from '../../database/entities/spaces';
 import { projectUuid } from '../ProjectModel/ProjectModel.mock';
@@ -84,9 +84,6 @@ describe('DashboardModel', () => {
                 },
             ]);
         tracker.on
-            .select(({ sql }: RawQuery) => sql.includes(ContentVerificationTableName))
-            .response([]);
-        tracker.on
             .select(
                 queryMatcher(DashboardViewsTableName, [
                     dashboardWithVersionEntry.dashboard_version_id,
@@ -116,7 +113,7 @@ describe('DashboardModel', () => {
         const dashboard = await model.getByIdOrSlug(expectedDashboard.uuid);
 
         expect(dashboard).toEqual(expectedDashboard);
-        expect(tracker.history.select).toHaveLength(5);
+        expect(tracker.history.select).toHaveLength(4);
     });
 
     test('should order dashboard tiles by y_offset then x_offset when fetching dashboard', async () => {
@@ -151,9 +148,6 @@ describe('DashboardModel', () => {
                     space_name: 'space name',
                 },
             ]);
-        tracker.on
-            .select(({ sql }: RawQuery) => sql.includes(ContentVerificationTableName))
-            .response([]);
         tracker.on
             .select(
                 queryMatcher(DashboardViewsTableName, [
@@ -374,9 +368,6 @@ describe('DashboardModel', () => {
             .select(queryMatcher(DashboardsTableName, [dashboardUuid, 1]))
             .response([dashboardWithVersionEntry]);
         tracker.on
-            .select(({ sql }: RawQuery) => sql.includes(ContentVerificationTableName))
-            .response([]);
-        tracker.on
             .select(
                 queryMatcher(DashboardViewsTableName, [
                     dashboardWithVersionEntry.dashboard_version_id,
@@ -411,9 +402,6 @@ describe('DashboardModel', () => {
         tracker.on
             .select(queryMatcher(DashboardsTableName, [dashboardUuid, 1]))
             .response([dashboardWithVersionEntry]);
-        tracker.on
-            .select(({ sql }: RawQuery) => sql.includes(ContentVerificationTableName))
-            .response([]);
         tracker.on
             .select(
                 queryMatcher(DashboardViewsTableName, [
