@@ -426,9 +426,9 @@ const useBigNumberConfig = (
 
     const resolvedGranularity = useMemo((): DateGranularity | undefined => {
         if (dateZoom?.granularity) return dateZoom.granularity;
-        // Fallback: derive from the selected field or comparison field's time interval
-        const fieldsToCheck = [item, comparisonItem];
-        for (const field of fieldsToCheck) {
+        // Fallback: check selected/comparison fields first, then scan all fields
+        const priorityFields = [item, comparisonItem];
+        for (const field of priorityFields) {
             if (
                 isTimeBasedDimension(field) &&
                 field.timeInterval &&
@@ -437,8 +437,21 @@ const useBigNumberConfig = (
                 return timeFrameToDateGranularityMap[field.timeInterval];
             }
         }
+        // In big numbers, the selected field is usually a metric — scan itemsMap
+        // for date dimensions used in the query (e.g. for row ordering)
+        if (itemsMap) {
+            for (const field of Object.values(itemsMap)) {
+                if (
+                    isTimeBasedDimension(field) &&
+                    field.timeInterval &&
+                    timeFrameToDateGranularityMap[field.timeInterval]
+                ) {
+                    return timeFrameToDateGranularityMap[field.timeInterval];
+                }
+            }
+        }
         return undefined;
-    }, [dateZoom?.granularity, item, comparisonItem]);
+    }, [dateZoom?.granularity, item, comparisonItem, itemsMap]);
 
     const resolvedBigNumberLabel = useMemo(
         () => resolveGranularityInLabel(bigNumberLabel, resolvedGranularity),
