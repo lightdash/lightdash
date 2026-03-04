@@ -54,6 +54,9 @@ export const useVerifyChartMutation = () => {
                 await queryClient.invalidateQueries(['spaces']);
                 await queryClient.invalidateQueries(['content']);
                 await queryClient.invalidateQueries(['saved_query']);
+                await queryClient.invalidateQueries([
+                    'verified-content-homepage',
+                ]);
                 showToastSuccess({
                     title: 'Chart verified',
                 });
@@ -80,6 +83,9 @@ export const useUnverifyChartMutation = () => {
                 await queryClient.invalidateQueries(['spaces']);
                 await queryClient.invalidateQueries(['content']);
                 await queryClient.invalidateQueries(['saved_query']);
+                await queryClient.invalidateQueries([
+                    'verified-content-homepage',
+                ]);
                 showToastSuccess({
                     title: 'Chart verification removed',
                 });
@@ -109,6 +115,9 @@ export const useVerifyDashboardMutation = () => {
                 await queryClient.invalidateQueries([
                     'saved_dashboard_query',
                 ]);
+                await queryClient.invalidateQueries([
+                    'verified-content-homepage',
+                ]);
                 showToastSuccess({
                     title: 'Dashboard verified',
                 });
@@ -137,6 +146,9 @@ export const useUnverifyDashboardMutation = () => {
                 await queryClient.invalidateQueries(['dashboards']);
                 await queryClient.invalidateQueries([
                     'saved_dashboard_query',
+                ]);
+                await queryClient.invalidateQueries([
+                    'verified-content-homepage',
                 ]);
                 showToastSuccess({
                     title: 'Dashboard verification removed',
