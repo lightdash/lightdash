@@ -168,6 +168,31 @@ describe('sanitizeHtml', () => {
             );
         });
 
+        test('responsive CSS properties are preserved', () => {
+            const responsiveTags = [
+                '<img src="logo.png" style="max-width:100%;height:auto;max-height:40px" />',
+                '<img src="logo.png" style="min-width:50px;min-height:20px" />',
+                '<img src="logo.png" style="object-fit:contain" />',
+                '<img src="logo.png" style="width:auto;max-width:none" />',
+                '<div style="max-width:100%;max-height:none">Content</div>',
+            ];
+
+            responsiveTags.forEach((tag) => {
+                expect(
+                    sanitizeHtml(tag, HTML_SANITIZE_MARKDOWN_TILE_RULES),
+                ).toEqual(tag);
+            });
+        });
+
+        test('invalid object-fit values are stripped', () => {
+            expect(
+                sanitizeHtml(
+                    '<img src="logo.png" style="object-fit:url(evil)" />',
+                    HTML_SANITIZE_MARKDOWN_TILE_RULES,
+                ),
+            ).toEqual('<img src="logo.png" />');
+        });
+
         test('style attributes in disallowed tags', () => {
             const disallowedTags = [
                 [
