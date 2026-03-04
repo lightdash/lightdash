@@ -571,6 +571,13 @@ const scopes: Scope[] = [
         getConditions: addDefaultUuidCondition,
     },
     {
+        name: 'manage:PreAggregation',
+        description: 'View and query pre-aggregates in explore',
+        isEnterprise: true,
+        group: ScopeGroup.DATA,
+        getConditions: addDefaultUuidCondition,
+    },
+    {
         name: 'manage:ExportCsv',
         description: 'Export data to CSV',
         isEnterprise: false,

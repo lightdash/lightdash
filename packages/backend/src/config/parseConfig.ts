@@ -1104,7 +1104,6 @@ export type LightdashConfig = {
     };
     preAggregates: {
         enabled: boolean;
-        debug: boolean;
         s3?: Omit<S3Config, 'expirationTime'>;
     };
 };
@@ -1994,9 +1993,6 @@ export const parseConfig = (): LightdashConfig => {
         },
         preAggregates: {
             enabled: preAggregatesEnabled,
-            debug:
-                licenseKey !== null &&
-                process.env.DEBUG_PRE_AGGREGATES === 'true',
             s3: preAggregatesS3,
         },
     };

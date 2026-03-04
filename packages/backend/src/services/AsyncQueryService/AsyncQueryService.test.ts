@@ -745,7 +745,6 @@ describe('AsyncQueryService', () => {
                 ...lightdashConfigMock,
                 preAggregates: {
                     enabled: false,
-                    debug: false,
                 },
             });
             (service as AnyType).preAggregationDuckDbClient = {

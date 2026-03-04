@@ -205,6 +205,9 @@ export const projectMemberAbilities: Record<
     },
     developer(member, { can }) {
         projectMemberAbilities.editor(member, { can });
+        can('manage', 'PreAggregation', {
+            projectUuid: member.projectUuid,
+        });
         can('manage', 'VirtualView', {
             projectUuid: member.projectUuid,
         });
