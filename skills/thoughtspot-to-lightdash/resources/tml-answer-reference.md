@@ -174,7 +174,10 @@ metricQuery:
     - model_name_state
   metrics:
     - model_name_total_quantity_purchased
-  filters: {}
+  filters:
+    dimensions: []
+    metrics: []
+    tableCalculations: []
   sorts:
     - fieldId: model_name_total_quantity_purchased
       descending: true

@@ -223,6 +223,14 @@ models:
         - join: dim_stores
           sql_on: "${fact_sales.store_id} = ${dim_stores.id}"
           type: left
+      # Revenue per Unit - from ThoughtSpot formula
+      # Original: [sales_1::revenue] / [sales_1::units_sold]
+      # Model-level metric (not column-level) because it combines multiple columns
+      metrics:
+        revenue_per_unit:
+          type: number
+          label: "Revenue per Unit"
+          sql: "SUM(${TABLE}.revenue) / NULLIF(SUM(${TABLE}.units_sold), 0)"
     columns:
       - name: revenue
         meta:
@@ -246,15 +254,6 @@ models:
             total_units_sold:
               type: sum
               label: "Total Units Sold"
-    # Revenue per Unit - from ThoughtSpot formula
-    # Original: [sales_1::revenue] / [sales_1::units_sold]
-    # This is a model-level metric (not column-level) because it combines multiple columns
-    meta:
-      metrics:
-        revenue_per_unit:
-          type: number
-          label: "Revenue per Unit"
-          sql: "SUM(${TABLE}.revenue) / NULLIF(SUM(${TABLE}.units_sold), 0)"
 
   - name: dim_products
     columns:
@@ -307,7 +306,10 @@ metricQuery:
     - dim_stores_state
   metrics:
     - fact_sales_total_revenue
-  filters: {}
+  filters:
+    dimensions: []
+    metrics: []
+    tableCalculations: []
   sorts:
     - fieldId: fact_sales_total_revenue
       descending: true
@@ -355,7 +357,10 @@ metricQuery:
     - dim_products_category
   metrics:
     - fact_sales_total_revenue
-  filters: {}
+  filters:
+    dimensions: []
+    metrics: []
+    tableCalculations: []
   sorts:
     - fieldId: fact_sales_total_revenue
       descending: true

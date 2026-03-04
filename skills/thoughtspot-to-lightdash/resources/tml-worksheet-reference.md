@@ -156,8 +156,10 @@ Calculated fields using ThoughtSpot formula syntax:
 ### `joins` vs `joins_with`
 
 Two formats exist:
-- **`joins`** (older): Simple source/destination/type
+- **`joins`** (older): Simple source/destination/type — does NOT include the join condition
 - **`joins_with`** (newer): Includes full Identity objects with `on` clause and cardinality
+
+**Prefer `joins_with` when available** — it provides the `on` clause which maps directly to Lightdash's `sql_on`. When only `joins` is present, you'll need to infer or ask for the join condition since ThoughtSpot's older format doesn't include it.
 
 ### `table_paths`
 
