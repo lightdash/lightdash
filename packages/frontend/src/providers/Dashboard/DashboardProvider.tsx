@@ -883,7 +883,7 @@ const DashboardProvider: React.FC<
         if (isEditMode) return;
         if (
             dashboard?.config?.defaultDateZoomGranularity &&
-            !isDateZoomDisabled
+            !dashboard?.config?.isDateZoomDisabled
         ) {
             const searchParams = new URLSearchParams(searchRef.current);
             const dateZoomParam = searchParams.get('dateZoom');
@@ -896,7 +896,7 @@ const DashboardProvider: React.FC<
         }
     }, [
         dashboard?.config?.defaultDateZoomGranularity,
-        isDateZoomDisabled,
+        dashboard?.config?.isDateZoomDisabled,
         isEditMode,
         setDateZoomGranularity,
     ]);
