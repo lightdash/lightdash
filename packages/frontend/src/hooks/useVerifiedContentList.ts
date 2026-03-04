@@ -1,4 +1,8 @@
-import { type ApiVerifiedContentListResponse } from '@lightdash/common';
+import {
+    type ApiVerifiedContentListResponse,
+    type DashboardBasicDetails,
+    type SpaceQuery,
+} from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { lightdashApi } from '../api';
 
@@ -15,3 +19,19 @@ export const useVerifiedContentList = (projectUuid: string) => {
         queryFn: () => getVerifiedContent(projectUuid),
     });
 };
+
+const getVerifiedContentForHomepage = async (projectUuid: string) =>
+    lightdashApi<(DashboardBasicDetails | SpaceQuery)[]>({
+        url: `/projects/${projectUuid}/verified-content-homepage`,
+        method: 'GET',
+        body: undefined,
+    });
+
+export const useVerifiedContentForHomepage = (
+    projectUuid: string | undefined,
+) =>
+    useQuery({
+        queryKey: ['verified-content-homepage', projectUuid],
+        queryFn: () => getVerifiedContentForHomepage(projectUuid!),
+        enabled: !!projectUuid,
+    });

@@ -15,6 +15,7 @@ export enum ResourceItemCategory {
     RECENTLY_UPDATED = 'recentlyUpdated',
     PINNED = 'pinned',
     FAVORITES = 'favorites',
+    VERIFIED = 'verified',
 }
 
 export type ResourceViewChartItem = {
