@@ -289,7 +289,7 @@ export type ProjectServiceArguments = {
     projectCompileLogModel: ProjectCompileLogModel;
     adminNotificationService: AdminNotificationService;
     spacePermissionService: SpacePermissionService;
-    contentVerificationModel: ContentVerificationModel;
+    contentVerificationModel?: ContentVerificationModel;
 };
 
 export class ProjectService extends BaseService {
@@ -359,7 +359,7 @@ export class ProjectService extends BaseService {
 
     spacePermissionService: SpacePermissionService;
 
-    contentVerificationModel: ContentVerificationModel;
+    contentVerificationModel: ContentVerificationModel | undefined;
 
     constructor({
         lightdashConfig,
@@ -6221,6 +6221,10 @@ export class ProjectService extends BaseService {
         user: SessionUser,
         projectUuid: string,
     ): Promise<(DashboardBasicDetails | SpaceQuery)[]> {
+        if (!this.contentVerificationModel) {
+            return [];
+        }
+
         const projectSummary = await this.projectModel.getSummary(projectUuid);
         if (
             user.ability.cannot(
