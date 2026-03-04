@@ -1,4 +1,4 @@
-import { ActionIcon, CopyButton, Flex, Tooltip } from '@mantine-8/core';
+import { ActionIcon, CopyButton, Group, Tooltip } from '@mantine-8/core';
 import {
     IconCheck,
     IconClipboard,
@@ -14,13 +14,7 @@ export const SqlEditorActions: FC<{
     onToggleSoftWrap: () => void;
 }> = ({ isSoftWrapEnabled, onToggleSoftWrap, clipboardContent }) => {
     return (
-        <Flex
-            pos="absolute"
-            bottom={0}
-            right={0}
-            // Avoids potential collision with ScrollArea scrollbar:
-            mr={5}
-        >
+        <Group pos="absolute" bottom={5} right={12} gap="xxs">
             <Tooltip
                 label={
                     isSoftWrapEnabled
@@ -30,7 +24,11 @@ export const SqlEditorActions: FC<{
                 withArrow
                 position="left"
             >
-                <ActionIcon onClick={onToggleSoftWrap} color="gray">
+                <ActionIcon
+                    onClick={onToggleSoftWrap}
+                    color="ldLight"
+                    variant="outline"
+                >
                     {isSoftWrapEnabled ? (
                         <MantineIcon icon={IconTextWrapDisabled} />
                     ) : (
@@ -47,8 +45,9 @@ export const SqlEditorActions: FC<{
                         color={copied ? 'green' : 'dark'}
                     >
                         <ActionIcon
-                            color={copied ? 'teal' : 'gray'}
+                            color={copied ? 'teal' : 'ldLight'}
                             onClick={copy}
+                            variant="outline"
                         >
                             {copied ? (
                                 <IconCheck size="1rem" />
@@ -59,6 +58,6 @@ export const SqlEditorActions: FC<{
                     </Tooltip>
                 )}
             </CopyButton>
-        </Flex>
+        </Group>
     );
 };
