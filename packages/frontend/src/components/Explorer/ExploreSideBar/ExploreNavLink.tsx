@@ -1,4 +1,5 @@
 import {
+    friendlyName,
     InlineErrorType,
     isSummaryExploreError,
     type SummaryExplore,
@@ -22,6 +23,9 @@ import React from 'react';
 import MantineIcon from '../../common/MantineIcon';
 import { TableItemDetailPreview } from '../ExploreTree/TableTree/ItemDetailPreview';
 import WarningsHoverCardContent from '../WarningsHoverCardContent';
+
+const getPreAggregateSource = (explore: SummaryExplore) =>
+    'preAggregateSource' in explore ? explore.preAggregateSource : undefined;
 
 type ExploreNavLinkProps = {
     explore: SummaryExplore;
@@ -48,6 +52,15 @@ const ExploreNavLink: React.FC<ExploreNavLinkProps> = ({
         explore.errors.every(
             (error) => error.type === InlineErrorType.NO_DIMENSIONS_FOUND,
         );
+    const preAggregateSource = getPreAggregateSource(explore);
+    const displayLabel =
+        explore.type === 'pre_aggregate' && preAggregateSource
+            ? friendlyName(preAggregateSource.preAggregateName)
+            : explore.label;
+    const displayDescription =
+        explore.type === 'pre_aggregate' && preAggregateSource
+            ? `Pre-aggregate for ${preAggregateSource.sourceExploreName}`
+            : explore.description;
 
     // Determine rightSection
     let rightSection;
@@ -100,12 +113,12 @@ const ExploreNavLink: React.FC<ExploreNavLinkProps> = ({
                         highlight={query ?? ''}
                         truncate
                     >
-                        {explore.label}
+                        {displayLabel}
                     </Highlight>
                 ) : (
                     <TableItemDetailPreview
-                        label={explore.label}
-                        description={explore.description}
+                        label={displayLabel}
+                        description={displayDescription}
                         showPreview={needsHoverCard ? false : isHover}
                         closePreview={() => toggleHover(false)}
                         offset={0}
@@ -118,7 +131,7 @@ const ExploreNavLink: React.FC<ExploreNavLinkProps> = ({
                             fw={500}
                             c="ldDark.8"
                         >
-                            {explore.label}
+                            {displayLabel}
                         </Highlight>
                     </TableItemDetailPreview>
                 )

@@ -142,6 +142,7 @@ type RawSummaryRow = {
     tags: Explore['tags'];
     groupLabel: Explore['groupLabel'] | null;
     type: Explore['type'] | null;
+    preAggregateSource: Explore['preAggregateSource'] | null;
     errors: ExploreError['errors'] | null; // Fatal errors from ExploreError
     warnings: Explore['warnings'] | null; // Non-fatal warnings from partial compilation
     baseTable: Explore['baseTable'];
@@ -1182,6 +1183,7 @@ export class ProjectModel {
                     explore->'tags' as tags,
                     explore->'groupLabel' as "groupLabel",
                     explore->'type' as type,
+                    explore->'preAggregateSource' as "preAggregateSource",
                     explore->'errors' as errors,
                     explore->'warnings' as warnings,
                     explore->'baseTable' as "baseTable",
@@ -1205,6 +1207,7 @@ export class ProjectModel {
             description: row.baseTableDescription ?? undefined,
             aiHint: row.aiHint ?? undefined,
             type: row.type ?? undefined,
+            preAggregateSource: row.preAggregateSource ?? undefined,
             baseTableRequiredAttributes:
                 row.baseTableRequiredAttributes ?? undefined,
             baseTableAnyAttributes: row.baseTableAnyAttributes ?? undefined,
