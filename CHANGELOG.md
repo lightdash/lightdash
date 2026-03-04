@@ -1,3 +1,12 @@
+# [0.2568.0](https://github.com/lightdash/lightdash/compare/0.2567.0...0.2568.0) (2026-03-04)
+
+
+### Features
+
+* add dateZoomGranularities and defaultDateZoomGranularity to DashboardConfig ([#20800](https://github.com/lightdash/lightdash/issues/20800)) ([c683f20](https://github.com/lightdash/lightdash/commit/c683f204799a3e03fc19398042e6f29be50c8132))
+* migrate threshold alerts off old query pipeline ([#20834](https://github.com/lightdash/lightdash/issues/20834)) ([faafbd4](https://github.com/lightdash/lightdash/commit/faafbd42d86ee71f93bd0c4a6fff1df4c94972c7))
+* use async query service for Google Sheets scheduler with pivot support ([#20851](https://github.com/lightdash/lightdash/issues/20851)) ([fe42b18](https://github.com/lightdash/lightdash/commit/fe42b18483f47ca917ab65bef9f9b25008578a60))
+
 # [0.2567.0](https://github.com/lightdash/lightdash/compare/0.2566.0...0.2567.0) (2026-03-04)
 
 
