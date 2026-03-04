@@ -642,7 +642,10 @@ export const getFiltersFromGroup = (
                     ...accumulator.dimensions,
                     [getFilterGroupItemsPropertyName(flatFilterGroup)]: [
                         ...getItemsFromFilterGroup(accumulator.dimensions),
-                        filters.dimensions,
+                        // Preserve the original group ID so React can maintain
+                        // stable keys and avoid unmounting/remounting nested
+                        // FilterGroupForm components on every filter edit
+                        { ...filters.dimensions, id: item.id },
                     ],
                 } as FilterGroup;
             }
@@ -653,7 +656,7 @@ export const getFiltersFromGroup = (
                     ...accumulator.metrics,
                     [getFilterGroupItemsPropertyName(flatFilterGroup)]: [
                         ...getItemsFromFilterGroup(accumulator.metrics),
-                        filters.metrics,
+                        { ...filters.metrics, id: item.id },
                     ],
                 } as FilterGroup;
             }
@@ -666,7 +669,7 @@ export const getFiltersFromGroup = (
                         ...getItemsFromFilterGroup(
                             accumulator.tableCalculations,
                         ),
-                        filters.tableCalculations,
+                        { ...filters.tableCalculations, id: item.id },
                     ],
                 } as FilterGroup;
             }

@@ -25,7 +25,7 @@ import {
     useMantineColorScheme,
 } from '@mantine-8/core';
 import { IconAlertCircle, IconPlus, IconX } from '@tabler/icons-react';
-import { memo, useCallback, useMemo, type FC } from 'react';
+import { memo, useCallback, useMemo, useRef, type FC } from 'react';
 import { useToggle } from 'react-use';
 import { v4 as uuidv4 } from 'uuid';
 import {
@@ -228,11 +228,15 @@ const FiltersForm: FC<Props> = memo(({ filters, setFilters, isEditMode }) => {
         return groups;
     }, [filters.dimensions, filters.metrics, filters.tableCalculations]);
 
+    // Use a stable ID for the root filter group to avoid unnecessary re-renders
+    // when filter values change (uuidv4() would generate a new ID on every memo recalculation)
+    const rootFilterGroupId = useRef(uuidv4());
+
     const rootFilterGroup: FilterGroup = useMemo(() => {
         // If there are no ORs, we can just return the AND group items as a new root group
         if (orRootFilterGroups.length === 0) {
             return {
-                id: uuidv4(),
+                id: rootFilterGroupId.current,
                 and: andRootFilterGroupItems,
             };
         }
@@ -243,14 +247,14 @@ const FiltersForm: FC<Props> = memo(({ filters, setFilters, isEditMode }) => {
             return orRootFilterGroups.length === 1
                 ? orRootFilterGroups[0]
                 : {
-                      id: uuidv4(),
+                      id: rootFilterGroupId.current,
                       and: orRootFilterGroups,
                   };
         }
 
         // If there are both ANDs and ORs, we need to create a new root group that contains both
         return {
-            id: uuidv4(),
+            id: rootFilterGroupId.current,
             and: [...andRootFilterGroupItems, ...orRootFilterGroups],
         };
     }, [andRootFilterGroupItems, orRootFilterGroups]);
