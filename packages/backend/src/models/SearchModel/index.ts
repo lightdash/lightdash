@@ -1,7 +1,6 @@
 import {
     AllChartsSearchResult,
     ChartKind,
-    type ContentVerificationInfo,
     ContentType,
     DashboardSearchResult,
     DashboardTabResult,
@@ -25,7 +24,6 @@ import {
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { type LightdashConfig } from '../../config/parseConfig';
-import { ContentVerificationTableName } from '../../database/entities/contentVerification';
 import {
     DashboardsTableName,
     DashboardTabsTableName,
@@ -40,6 +38,7 @@ import { SavedSqlTableName } from '../../database/entities/savedSql';
 import { SpaceTableName } from '../../database/entities/spaces';
 import { UserTableName } from '../../database/entities/users';
 import KnexPaginate from '../../database/pagination';
+import { ContentVerificationModel } from '../ContentVerificationModel';
 import {
     filterByCreatedAt,
     filterByCreatedByUuid,
@@ -55,6 +54,7 @@ import {
 type SearchModelArguments = {
     database: Knex;
     lightdashConfig: LightdashConfig;
+    contentVerificationModel: ContentVerificationModel;
 };
 
 const SEARCH_LIMIT_PER_ITEM_TYPE = 10;
@@ -64,52 +64,12 @@ export class SearchModel {
 
     private lightdashConfig: LightdashConfig;
 
+    private contentVerificationModel: ContentVerificationModel;
+
     constructor(args: SearchModelArguments) {
         this.database = args.database;
         this.lightdashConfig = args.lightdashConfig;
-    }
-
-    private async getVerificationForUuids(
-        contentType: ContentType,
-        contentUuids: string[],
-    ): Promise<Map<string, ContentVerificationInfo>> {
-        if (contentUuids.length === 0) return new Map();
-
-        const rows = await this.database(ContentVerificationTableName)
-            .leftJoin(
-                UserTableName,
-                `${ContentVerificationTableName}.verified_by_user_uuid`,
-                `${UserTableName}.user_uuid`,
-            )
-            .where(
-                `${ContentVerificationTableName}.content_type`,
-                contentType,
-            )
-            .whereIn(
-                `${ContentVerificationTableName}.content_uuid`,
-                contentUuids,
-            )
-            .select(
-                `${ContentVerificationTableName}.content_uuid`,
-                `${ContentVerificationTableName}.verified_at`,
-                `${ContentVerificationTableName}.verified_by_user_uuid`,
-                `${UserTableName}.first_name`,
-                `${UserTableName}.last_name`,
-            );
-
-        return new Map(
-            rows.map((row) => [
-                row.content_uuid,
-                {
-                    verifiedBy: {
-                        userUuid: row.verified_by_user_uuid,
-                        firstName: row.first_name ?? '',
-                        lastName: row.last_name ?? '',
-                    },
-                    verifiedAt: row.verified_at,
-                },
-            ]),
-        );
+        this.contentVerificationModel = args.contentVerificationModel;
     }
 
     private async searchSpaces(
@@ -377,7 +337,7 @@ export class SearchModel {
 
         const dashboardUuids = dashboards.map((dashboard) => dashboard.uuid);
 
-        const verificationMap = await this.getVerificationForUuids(
+        const verificationMap = await this.contentVerificationModel.getByContentUuids(
             ContentType.DASHBOARD,
             dashboardUuids,
         );
@@ -965,7 +925,7 @@ export class SearchModel {
         const chartUuids = savedCharts.map((chart) => chart.uuid);
 
         const savedChartVerificationMap =
-            await this.getVerificationForUuids(
+            await this.contentVerificationModel.getByContentUuids(
                 ContentType.CHART,
                 chartUuids,
             );
@@ -1264,7 +1224,7 @@ export class SearchModel {
             .limit(20);
 
         const chartUuids = results.map((r) => r.uuid);
-        const chartVerificationMap = await this.getVerificationForUuids(
+        const chartVerificationMap = await this.contentVerificationModel.getByContentUuids(
             ContentType.CHART,
             chartUuids,
         );

@@ -38,5 +38,3 @@ export type ApiVerifiedContentListResponse = {
     status: 'ok';
     results: VerifiedContentListItem[];
 };
-
-export { ContentType as ContentVerificationType };

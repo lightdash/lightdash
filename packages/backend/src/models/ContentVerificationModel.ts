@@ -95,8 +95,8 @@ export class ContentVerificationModel {
             result.set(row.content_uuid, {
                 verifiedBy: {
                     userUuid: row.user_uuid,
-                    firstName: row.first_name,
-                    lastName: row.last_name,
+                    firstName: row.first_name ?? '',
+                    lastName: row.last_name ?? '',
                 },
                 verifiedAt: row.verified_at,
             });

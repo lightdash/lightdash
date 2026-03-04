@@ -496,6 +496,8 @@ export class ModelRepository
                 new SearchModel({
                     database: this.database,
                     lightdashConfig: this.lightdashConfig,
+                    contentVerificationModel:
+                        this.getContentVerificationModel(),
                 }),
         );
     }
