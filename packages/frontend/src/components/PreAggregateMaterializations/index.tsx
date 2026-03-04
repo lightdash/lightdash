@@ -17,7 +17,7 @@ import {
     Title,
     Tooltip,
 } from '@mantine-8/core';
-import { useDisclosure } from '@mantine-8/hooks';
+import { useDisclosure, useLocalStorage } from '@mantine-8/hooks';
 import {
     IconArrowDown,
     IconArrowsSort,
@@ -43,8 +43,10 @@ import {
 } from 'mantine-react-table';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { usePreAggregateMaterializations } from '../../hooks/usePreAggregateMaterializations';
+import { useRefreshAllPreAggregates } from '../../hooks/usePreAggregateRefresh';
 import { useProject } from '../../hooks/useProject';
 import MantineIcon from '../common/MantineIcon';
+import MantineModal from '../common/MantineModal';
 import MaterializationDetailDrawer from './MaterializationDetailDrawer';
 import classes from './PreAggregateMaterializations.module.css';
 import { StatusBadge } from './StatusBadge';
@@ -157,6 +159,31 @@ const StatusFilter: FC<{
 const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
     const { isLoading: isLoadingProject } = useProject(projectUuid);
     const queryClient = useQueryClient();
+    const { mutate: refreshAll, isLoading: isRefreshingAll } =
+        useRefreshAllPreAggregates(projectUuid);
+    const [
+        isRefreshModalOpen,
+        { open: openRefreshModal, close: closeRefreshModal },
+    ] = useDisclosure(false);
+    const [hasConfirmedRefreshAll, setHasConfirmedRefreshAll] =
+        useLocalStorage<boolean>({
+            key: 'preAggregateRefreshAllConfirmed',
+            defaultValue: false,
+        });
+
+    const handleRefreshAllClick = useCallback(() => {
+        if (hasConfirmedRefreshAll) {
+            refreshAll();
+        } else {
+            openRefreshModal();
+        }
+    }, [hasConfirmedRefreshAll, refreshAll, openRefreshModal]);
+
+    const handleRefreshAllConfirm = useCallback(() => {
+        setHasConfirmedRefreshAll(true);
+        closeRefreshModal();
+        refreshAll();
+    }, [setHasConfirmedRefreshAll, refreshAll, closeRefreshModal]);
     const {
         data,
         isLoading,
@@ -578,18 +605,33 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                         </Text>
                     </Stack>
 
-                    <Button
-                        component="a"
-                        href="https://docs.lightdash.com/references/pre-aggregates"
-                        target="_blank"
-                        variant="default"
-                        size="xs"
-                        rightSection={
-                            <MantineIcon icon={IconExternalLink} size="sm" />
-                        }
-                    >
-                        Documentation
-                    </Button>
+                    <Group gap="xs">
+                        <Button
+                            component="a"
+                            href="https://docs.lightdash.com/references/pre-aggregates"
+                            target="_blank"
+                            variant="default"
+                            size="xs"
+                            rightSection={
+                                <MantineIcon
+                                    icon={IconExternalLink}
+                                    size="sm"
+                                />
+                            }
+                        >
+                            Documentation
+                        </Button>
+                        <Button
+                            size="xs"
+                            leftSection={
+                                <MantineIcon icon={IconRefresh} size="sm" />
+                            }
+                            loading={isRefreshingAll}
+                            onClick={handleRefreshAllClick}
+                        >
+                            Refresh all
+                        </Button>
+                    </Group>
                 </Group>
 
                 <MantineReactTable table={table} />
@@ -600,6 +642,25 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                 opened={isDrawerOpen}
                 onClose={closeDrawer}
             />
+
+            <MantineModal
+                opened={isRefreshModalOpen}
+                onClose={closeRefreshModal}
+                title="Refresh all pre-aggregates"
+                icon={IconRefresh}
+                size="lg"
+                onConfirm={handleRefreshAllConfirm}
+                confirmLabel="Refresh all"
+                confirmLoading={isRefreshingAll}
+                description="This will refresh all pre-aggregate definitions in this project by re-running their warehouse queries to rebuild the cached data."
+            >
+                <Text fz="xs" c="ldGray.6">
+                    Depending on the number of pre-aggregates and the size of
+                    your data, this may take several minutes and will use
+                    warehouse resources. You can track the progress in the table
+                    below.
+                </Text>
+            </MantineModal>
         </>
     );
 };
