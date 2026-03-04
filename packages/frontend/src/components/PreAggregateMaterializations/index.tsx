@@ -50,6 +50,7 @@ import {
     useRefreshPreAggregateByName,
 } from '../../hooks/usePreAggregateRefresh';
 import { useProject } from '../../hooks/useProject';
+import { useTimeAgo } from '../../hooks/useTimeAgo';
 import MantineIcon from '../common/MantineIcon';
 import MantineModal from '../common/MantineModal';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
@@ -61,19 +62,13 @@ type Props = {
     projectUuid: string;
 };
 
-const formatRelativeTime = (date: Date | string | null): string => {
-    if (!date) return 'Never';
-    const now = new Date();
-    const then = new Date(date);
-    const diffMs = now.getTime() - then.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMins / 60);
-    const diffDays = Math.floor(diffHours / 24);
-
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    return `${diffDays}d ago`;
+const TimeAgoText: FC<{ date: Date | string }> = ({ date }) => {
+    const timeAgo = useTimeAgo(date);
+    return (
+        <Text size="xs" c="ldGray.6">
+            {timeAgo}
+        </Text>
+    );
 };
 
 type StatusType = PreAggregateMaterializationStatus;
@@ -388,7 +383,8 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                     if (
                         !materialization ||
                         materialization.status === 'failed' ||
-                        materialization.status === 'in_progress'
+                        materialization.status === 'in_progress' ||
+                        !materializedAt
                     ) {
                         return (
                             <Text size="xs" c="ldGray.6">
@@ -399,15 +395,9 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
 
                     return (
                         <Tooltip
-                            label={
-                                materializedAt
-                                    ? new Date(materializedAt).toLocaleString()
-                                    : 'Never materialized'
-                            }
+                            label={new Date(materializedAt).toLocaleString()}
                         >
-                            <Text size="xs" c="ldGray.6">
-                                {formatRelativeTime(materializedAt ?? null)}
-                            </Text>
+                            <TimeAgoText date={materializedAt} />
                         </Tooltip>
                     );
                 },
