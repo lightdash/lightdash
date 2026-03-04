@@ -43,6 +43,7 @@ import {
     EXPLORE_WITH_DATE_DIMENSION_ZOOMED,
     EXPLORE_WITH_REQUIRED_FILTERS,
     EXPLORE_WITH_SQL_FILTER,
+    EXPLORE_WITH_AVERAGE_DISTINCT,
     EXPLORE_WITH_SUM_DISTINCT,
     EXPLORE_WITHOUT_JOIN_RELATIONSHIPS,
     EXPLORE_WITHOUT_PRIMARY_KEYS,
@@ -54,6 +55,8 @@ import {
     METRIC_QUERY_JOIN_CHAIN_SQL,
     METRIC_QUERY_SQL,
     METRIC_QUERY_SQL_BIGQUERY,
+    METRIC_QUERY_AVERAGE_DISTINCT_NO_DIMS,
+    METRIC_QUERY_AVERAGE_DISTINCT_WITH_DIMS,
     METRIC_QUERY_SUM_DISTINCT_NO_DIMS,
     METRIC_QUERY_SUM_DISTINCT_WITH_DIMS,
     METRIC_QUERY_TWO_TABLES,
@@ -2365,8 +2368,8 @@ LIMIT 10`;
             );
             // Should still have the ROW_NUMBER window function
             expect(result.query).toContain('ROW_NUMBER() OVER');
-            // Should have the sd CTE
-            expect(result.query).toContain('sd_orders_total_revenue');
+            // Should have the dd CTE
+            expect(result.query).toContain('dd_orders_total_revenue');
         });
 
         test('sum_distinct should work with no dimensions selected', () => {
@@ -2383,7 +2386,48 @@ LIMIT 10`;
                 'PARTITION BY "orders".line_item_id ORDER BY',
             );
             // Should use CROSS JOIN (no dimensions to join on)
-            expect(result.query).not.toContain('INNER JOIN sd_');
+            expect(result.query).not.toContain('INNER JOIN dd_');
+        });
+
+        test('average_distinct should generate CTE with FLOAT division', () => {
+            const result = buildQuery({
+                explore: EXPLORE_WITH_AVERAGE_DISTINCT,
+                compiledMetricQuery: METRIC_QUERY_AVERAGE_DISTINCT_NO_DIMS,
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+
+            expect(result.query).toContain('ROW_NUMBER() OVER');
+            expect(result.query).toContain('dd_orders_avg_shipping_cost');
+            expect(result.query).toContain(
+                'PARTITION BY "orders".line_item_id ORDER BY',
+            );
+            // Should use FLOAT division, not integer division
+            expect(result.query).toContain(
+                'CAST(SUM(CASE WHEN __dd_rn = 1 THEN __dd_val ELSE NULL END) AS FLOAT)',
+            );
+            expect(result.query).toContain(
+                'CAST(NULLIF(COUNT(CASE WHEN __dd_rn = 1 THEN 1 END), 0) AS FLOAT)',
+            );
+            // Should NOT use COALESCE (that's sum_distinct)
+            expect(result.query).not.toContain('COALESCE');
+        });
+
+        test('average_distinct should include selected dimensions in PARTITION BY', () => {
+            const result = buildQuery({
+                explore: EXPLORE_WITH_AVERAGE_DISTINCT,
+                compiledMetricQuery: METRIC_QUERY_AVERAGE_DISTINCT_WITH_DIMS,
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+
+            expect(result.query).toContain(
+                'PARTITION BY "orders".line_item_id, "orders".payment_method',
+            );
+            expect(result.query).toContain('GROUP BY');
+            expect(result.query).toContain('dd_orders_avg_shipping_cost');
         });
     });
 
