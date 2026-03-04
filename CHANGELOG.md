@@ -1,3 +1,10 @@
+## [0.2563.1](https://github.com/lightdash/lightdash/compare/0.2563.0...0.2563.1) (2026-03-04)
+
+
+### Bug Fixes
+
+* preserve filter group IDs to prevent UI jump when editing filters ([#20740](https://github.com/lightdash/lightdash/issues/20740)) ([9baef20](https://github.com/lightdash/lightdash/commit/9baef20f20350046dd490beb176c9d20ddb002a4))
+
 # [0.2563.0](https://github.com/lightdash/lightdash/compare/0.2562.0...0.2563.0) (2026-03-04)
 
 
