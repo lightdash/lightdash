@@ -37,54 +37,48 @@ const MONACO_DEFAULT_OPTIONS: EditorProps['options'] = {
     fixedOverflowWidgets: true,
 };
 
-let completionProviderDisposable: IDisposable | null = null;
-
-const registerGranularityCompletionProvider = (
+const registerCompletionProvider = (
     monaco: Monaco,
     language: string,
     fields: string[],
-) => {
-    if (completionProviderDisposable) {
-        completionProviderDisposable.dispose();
-    }
-    completionProviderDisposable =
-        monaco.languages.registerCompletionItemProvider(language, {
-            provideCompletionItems: (model, position) => {
-                const wordUntilPosition = model.getWordUntilPosition(position);
-                const range = {
-                    startLineNumber: position.lineNumber,
-                    endLineNumber: position.lineNumber,
-                    startColumn: wordUntilPosition.startColumn,
-                    endColumn: wordUntilPosition.endColumn,
-                };
+): IDisposable => {
+    return monaco.languages.registerCompletionItemProvider(language, {
+        provideCompletionItems: (model, position) => {
+            const wordUntilPosition = model.getWordUntilPosition(position);
+            const range = {
+                startLineNumber: position.lineNumber,
+                endLineNumber: position.lineNumber,
+                startColumn: wordUntilPosition.startColumn,
+                endColumn: wordUntilPosition.endColumn,
+            };
 
-                const suggestions: languages.CompletionItem[] = fields.map(
-                    (field) => {
-                        const textBeforeCursor = model.getValueInRange({
-                            startLineNumber: position.lineNumber,
-                            endLineNumber: position.lineNumber,
-                            startColumn: position.column - 1,
-                            endColumn: position.column,
-                        });
-                        const insertText =
-                            textBeforeCursor === '$'
-                                ? `{${field}.granularity} `
-                                : `\${${field}.granularity}`;
+            const suggestions: languages.CompletionItem[] = fields.map(
+                (field) => {
+                    const textBeforeCursor = model.getValueInRange({
+                        startLineNumber: position.lineNumber,
+                        endLineNumber: position.lineNumber,
+                        startColumn: position.column - 1,
+                        endColumn: position.column,
+                    });
+                    const insertText =
+                        textBeforeCursor === '$'
+                            ? `{${field}.granularity} `
+                            : `\${${field}.granularity}`;
 
-                        return {
-                            label: `${field}.granularity`,
-                            kind: monaco.languages.CompletionItemKind.Variable,
-                            insertText,
-                            range,
-                            detail: 'Date granularity (day, week, month...)',
-                        };
-                    },
-                );
+                    return {
+                        label: `${field}.granularity`,
+                        kind: monaco.languages.CompletionItemKind.Variable,
+                        insertText,
+                        range,
+                        detail: 'Date granularity (day, week, month...)',
+                    };
+                },
+            );
 
-                return { suggestions };
-            },
-            triggerCharacters: ['$'],
-        });
+            return { suggestions };
+        },
+        triggerCharacters: ['$'],
+    });
 };
 
 type LabelEditorProps = {
@@ -117,7 +111,8 @@ export const LabelEditor: FC<LabelEditorProps> = ({
     const [localValue, setLocalValue] = useState(value);
     const [debouncedValue] = useDebouncedValue(localValue, 500);
     const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
-    const disposableRef = useRef<IDisposable | null>(null);
+    const contentDisposableRef = useRef<IDisposable | null>(null);
+    const completionDisposableRef = useRef<IDisposable | null>(null);
     const [editorHeight, setEditorHeight] = useState(calculateEditorHeight(1));
 
     // Sync external value changes (e.g., reset)
@@ -132,10 +127,11 @@ export const LabelEditor: FC<LabelEditorProps> = ({
         }
     }, [debouncedValue, onChange, value]);
 
-    // Cleanup content change listener
+    // Cleanup on unmount
     useEffect(() => {
         return () => {
-            disposableRef.current?.dispose();
+            contentDisposableRef.current?.dispose();
+            completionDisposableRef.current?.dispose();
         };
     }, []);
 
@@ -163,7 +159,12 @@ export const LabelEditor: FC<LabelEditorProps> = ({
 
     const beforeMount: BeforeMount = useCallback(
         (monaco) => {
-            registerGranularityCompletionProvider(monaco, 'plaintext', fields);
+            completionDisposableRef.current?.dispose();
+            completionDisposableRef.current = registerCompletionProvider(
+                monaco,
+                'plaintext',
+                fields,
+            );
 
             const lightTheme = getLightdashMonacoTheme('light');
             const darkTheme = getLightdashMonacoTheme('dark');
@@ -189,7 +190,7 @@ export const LabelEditor: FC<LabelEditorProps> = ({
         const model = monacoEditor.getModel();
         if (model) {
             setEditorHeight(calculateEditorHeight(model.getLineCount()));
-            disposableRef.current = model.onDidChangeContent(() => {
+            contentDisposableRef.current = model.onDidChangeContent(() => {
                 setEditorHeight(calculateEditorHeight(model.getLineCount()));
             });
         }
@@ -210,7 +211,7 @@ export const LabelEditor: FC<LabelEditorProps> = ({
                         ml="sm"
                         pos="absolute"
                         c="ldGray.5"
-                        fz="sm"
+                        fz="xs"
                         className={styles.placeholderText}
                         style={{ zIndex: getDefaultZIndex('overlay') }}
                     >
