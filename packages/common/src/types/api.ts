@@ -419,6 +419,7 @@ export type HealthState = {
         defaultLimit: number;
         csvCellsLimit: number;
         maxPageSize: number;
+        retryEnabled: boolean;
     };
     dashboard: {
         maxTilesPerTab: number;

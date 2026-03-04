@@ -882,6 +882,7 @@ export type LightdashConfig = {
         useSqlPivotResults: boolean | undefined;
         showExecutionTime: boolean | undefined;
         enableTableColumnCustomization: boolean | undefined;
+        retryEnabled: boolean;
     };
     pivotTable: {
         maxColumnLimit: number;
@@ -1682,6 +1683,9 @@ export const parseConfig = (): LightdashConfig => {
                 .ENABLE_TABLE_COLUMN_CUSTOMIZATION
                 ? process.env.ENABLE_TABLE_COLUMN_CUSTOMIZATION === 'true'
                 : undefined,
+            retryEnabled: process.env.LIGHTDASH_QUERY_RETRY_ENABLED
+                ? process.env.LIGHTDASH_QUERY_RETRY_ENABLED === 'true'
+                : false,
         },
         chart: {
             versionHistory: {

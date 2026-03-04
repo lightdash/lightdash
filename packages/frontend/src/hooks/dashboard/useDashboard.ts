@@ -27,6 +27,7 @@ import useApp from '../../providers/App/useApp';
 import useToaster from '../toaster/useToaster';
 import { invalidateContent } from '../useContent';
 import useQueryError from '../useQueryError';
+import { useQueryRetryConfig } from '../useQueryRetry';
 import useDashboardStorage from './useDashboardStorage';
 
 const getDashboard = async (id: string) =>
@@ -113,8 +114,10 @@ export const useDashboardsAvailableFilters = (
     savedChartUuidsAndTileUuids: SavedChartsInfoForDashboardAvailableFilters,
     projectUuid?: string,
     embedToken?: string,
-) =>
-    useQuery<DashboardAvailableFilters, ApiError>(
+) => {
+    const retryConfig = useQueryRetryConfig();
+
+    return useQuery<DashboardAvailableFilters, ApiError>(
         ['dashboards', 'availableFilters', ...savedChartUuidsAndTileUuids],
         () =>
             embedToken && projectUuid
@@ -125,19 +128,22 @@ export const useDashboardsAvailableFilters = (
                 : postDashboardsAvailableFilters(savedChartUuidsAndTileUuids),
         {
             enabled: savedChartUuidsAndTileUuids.length > 0,
+            ...retryConfig,
         },
     );
+};
 
 export const useDashboardQuery = (
     id?: string,
     useQueryOptions?: UseQueryOptions<Dashboard, ApiError>,
 ) => {
     const setErrorResponse = useQueryError();
+    const retryConfig = useQueryRetryConfig();
     return useQuery<Dashboard, ApiError>({
         queryKey: ['saved_dashboard_query', id],
         queryFn: () => getDashboard(id || ''),
         enabled: !!id,
-        retry: false,
+        ...retryConfig,
         onError: (result) => setErrorResponse(result),
         ...useQueryOptions,
     });

@@ -46,6 +46,7 @@ export default function mockHealthResponse(
             maxLimit: 1000000,
             defaultLimit: 500,
             csvCellsLimit: 100,
+            retryEnabled: true,
         },
         dashboard: {
             maxTilesPerTab: 50,

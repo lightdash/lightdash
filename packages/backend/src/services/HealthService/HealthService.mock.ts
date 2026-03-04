@@ -81,6 +81,7 @@ export const BaseResponse: HealthState = {
         maxLimit: 5000,
         maxPageSize: 2500,
         defaultLimit: 500,
+        retryEnabled: true,
     },
     dashboard: {
         maxTilesPerTab: 50,
