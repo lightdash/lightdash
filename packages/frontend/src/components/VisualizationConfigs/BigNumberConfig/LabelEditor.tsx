@@ -25,7 +25,7 @@ const MONACO_DEFAULT_OPTIONS: EditorProps['options'] = {
     folding: false,
     minimap: { enabled: false },
     scrollBeyondLastLine: false,
-    wordWrap: 'off',
+    wordWrap: 'on',
     quickSuggestions: true,
     contextmenu: false,
     automaticLayout: true,
@@ -104,10 +104,21 @@ export const LabelEditor: FC<LabelEditorProps> = ({
     fields,
     readOnly = false,
 }) => {
+    const MONACO_LINE_HEIGHT = 19;
+    const MONACO_PADDING = 16;
+    const MAX_LINES = 10;
+
+    const calculateEditorHeight = (lineCount: number): number => {
+        const lines = Math.min(lineCount || 1, MAX_LINES);
+        return lines * MONACO_LINE_HEIGHT + MONACO_PADDING;
+    };
+
     const { colorScheme } = useMantineColorScheme();
     const [localValue, setLocalValue] = useState(value);
     const [debouncedValue] = useDebouncedValue(localValue, 500);
     const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
+    const disposableRef = useRef<IDisposable | null>(null);
+    const [editorHeight, setEditorHeight] = useState(calculateEditorHeight(1));
 
     // Sync external value changes (e.g., reset)
     useEffect(() => {
@@ -120,6 +131,13 @@ export const LabelEditor: FC<LabelEditorProps> = ({
             onChange(debouncedValue);
         }
     }, [debouncedValue, onChange, value]);
+
+    // Cleanup content change listener
+    useEffect(() => {
+        return () => {
+            disposableRef.current?.dispose();
+        };
+    }, []);
 
     const [monacoOptions, setMonacoOptions] = useState<
         EditorProps['options'] | undefined
@@ -166,8 +184,15 @@ export const LabelEditor: FC<LabelEditorProps> = ({
         [fields],
     );
 
-    const onMount: OnMount = useCallback((editor) => {
-        editorRef.current = editor;
+    const onMount: OnMount = useCallback((monacoEditor) => {
+        editorRef.current = monacoEditor;
+        const model = monacoEditor.getModel();
+        if (model) {
+            setEditorHeight(calculateEditorHeight(model.getLineCount()));
+            disposableRef.current = model.onDidChangeContent(() => {
+                setEditorHeight(calculateEditorHeight(model.getLineCount()));
+            });
+        }
     }, []);
 
     if (!monacoOptions) return null;
@@ -199,7 +224,7 @@ export const LabelEditor: FC<LabelEditorProps> = ({
                     options={monacoOptions}
                     onChange={(v) => setLocalValue(v ?? '')}
                     language="plaintext"
-                    height="100%"
+                    height={`${editorHeight}px`}
                     width="100%"
                     theme={
                         colorScheme === 'dark'

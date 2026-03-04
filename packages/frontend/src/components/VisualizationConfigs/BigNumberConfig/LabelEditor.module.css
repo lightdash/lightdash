@@ -1,8 +1,6 @@
 .editorWrapper {
     overflow: hidden;
-    background: transparent;
-    min-height: 35px;
-    resize: vertical;
+    padding-top: 8px;
 
     @mixin light {
         border-color: var(--mantine-color-ldGray-2);
@@ -15,7 +13,6 @@
 .editorWrapperReadOnly {
     border-color: transparent;
     opacity: 0.6;
-    resize: none;
 
     @mixin light {
         background-color: var(--mantine-color-ldGray-1);
@@ -35,8 +32,7 @@
 }
 
 .editorWrapper :global(.monaco-scrollable-element > .scrollbar) {
-    width: 0 !important;
-    height: 0 !important;
+    width: 6px !important;
 }
 
 .placeholderText {
