@@ -1,3 +1,10 @@
+# [0.2560.0](https://github.com/lightdash/lightdash/compare/0.2559.0...0.2560.0) (2026-03-04)
+
+
+### Features
+
+* add configurable scheduler poll interval ([#20814](https://github.com/lightdash/lightdash/issues/20814)) ([d4d8e91](https://github.com/lightdash/lightdash/commit/d4d8e91905a7e61f8984734c552c86eb8b77d68e))
+
 # [0.2559.0](https://github.com/lightdash/lightdash/compare/0.2558.1...0.2559.0) (2026-03-04)
 
 
