@@ -9,6 +9,7 @@ import {
 } from './savedCharts';
 import type { SchedulerAndTargets } from './scheduler';
 import { type SpaceAccess } from './space';
+import { type DateGranularity } from './timeFrames';
 import { type UpdatedByUser } from './user';
 import { type ValidationSummary } from './validation';
 
@@ -173,6 +174,8 @@ export type DashboardDAO = Omit<
 export type DashboardConfig = {
     isDateZoomDisabled: boolean;
     pinnedParameters?: string[];
+    dateZoomGranularities?: DateGranularity[];
+    defaultDateZoomGranularity?: DateGranularity;
 };
 
 export type Dashboard = {
