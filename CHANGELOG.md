@@ -1,3 +1,10 @@
+# [0.2563.0](https://github.com/lightdash/lightdash/compare/0.2562.0...0.2563.0) (2026-03-04)
+
+
+### Features
+
+* add total() and row_total() table calculation functions ([#20799](https://github.com/lightdash/lightdash/issues/20799)) ([64bd1e3](https://github.com/lightdash/lightdash/commit/64bd1e33637016fc21179ba2ecd57492266de7dc))
+
 # [0.2562.0](https://github.com/lightdash/lightdash/compare/0.2561.0...0.2562.0) (2026-03-04)
 
 
