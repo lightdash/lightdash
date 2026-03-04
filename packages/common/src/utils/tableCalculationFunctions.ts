@@ -382,6 +382,9 @@ export function parseTableCalculationFunctions(
     }
 
     // Parse row_total function calls (before total to avoid partial match)
+    // NOTE: This uses balanced-paren matching (not quote-based field extraction) because it
+    // identifies function types in expressions, not field IDs. For the quote-based field ID
+    // extraction used in CTE generation, see extractTotalReferences() and buildTotalFieldRegex().
     const rowTotalStartRegex = /\brow_total\s*\(/gi;
     let rowTotalMatch = rowTotalStartRegex.exec(sql);
     while (rowTotalMatch !== null) {
@@ -687,9 +690,41 @@ export function hasAggregateFunctions(
 }
 
 /**
+ * Builds regexes for matching total("field") and row_total("field") in compiled SQL.
+ * Used by both extractTotalReferences (detection) and MetricQueryBuilder.replaceTotalReferences (rewriting)
+ * to ensure consistent matching logic.
+ *
+ * @param quoteChar - Warehouse-specific quote char (e.g. `"` for Postgres, `` ` `` for BigQuery).
+ *                    When omitted, matches any of `"`, `'`, or `` ` `` (used for detection where
+ *                    the warehouse dialect isn't relevant).
+ */
+export function buildTotalFieldRegex(quoteChar?: string): {
+    totalRegex: RegExp;
+    rowTotalRegex: RegExp;
+} {
+    const q = quoteChar
+        ? quoteChar.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+        : `"'\``;
+    const fieldGroup = `[^${q}]+`;
+    return {
+        totalRegex: new RegExp(
+            `\\btotal\\s*\\(\\s*[${q}](${fieldGroup})[${q}]\\s*\\)`,
+            'gi',
+        ),
+        rowTotalRegex: new RegExp(
+            `\\brow_total\\s*\\(\\s*[${q}](${fieldGroup})[${q}]\\s*\\)`,
+            'gi',
+        ),
+    };
+}
+
+/**
  * Extracts field IDs referenced by total() and row_total() calls in compiled table calculations.
  * Scans compiledSql for patterns like total("field_id") and row_total("field_id").
- * Works with any quote character (", `, etc.).
+ *
+ * NOTE: This extracts field IDs from compiled SQL (for CTE generation), which is a different
+ * concern from parseTableCalculationFunctions() which identifies function *types* in expressions
+ * (for compilation). They are intentionally separate parsers.
  */
 export function extractTotalReferences(
     compiledTableCalcs: {
@@ -702,9 +737,7 @@ export function extractTotalReferences(
     const totalFields = new Set<string>();
     const rowTotalFields = new Set<string>();
 
-    // Match total("field_id") or total(`field_id`) — any single quote char
-    const totalRegex = /\btotal\s*\(\s*["'`]([^"'`]+)["'`]\s*\)/gi;
-    const rowTotalRegex = /\brow_total\s*\(\s*["'`]([^"'`]+)["'`]\s*\)/gi;
+    const { totalRegex, rowTotalRegex } = buildTotalFieldRegex();
 
     for (const tc of compiledTableCalcs) {
         let m;

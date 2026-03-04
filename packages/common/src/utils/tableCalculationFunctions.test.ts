@@ -1,6 +1,7 @@
 import type { WarehouseSqlBuilder } from '../types/warehouse';
 import {
     AGGREGATE_FUNCTIONS,
+    buildTotalFieldRegex,
     extractTotalReferences,
     parseTableCalculationFunctions,
     PIVOT_FUNCTIONS,
@@ -1309,6 +1310,38 @@ describe('tableCalculationFunctions', () => {
             );
             expect(totalCalls).toHaveLength(1);
             expect(offsetCalls).toHaveLength(1);
+        });
+    });
+
+    describe('buildTotalFieldRegex', () => {
+        it('should match any quote char when no quoteChar specified', () => {
+            const { totalRegex, rowTotalRegex } = buildTotalFieldRegex();
+            expect('total("revenue")'.match(totalRegex)).toBeTruthy();
+            expect('total(`revenue`)'.match(totalRegex)).toBeTruthy();
+            expect("total('revenue')".match(totalRegex)).toBeTruthy();
+            expect('row_total("cost")'.match(rowTotalRegex)).toBeTruthy();
+            expect('row_total(`cost`)'.match(rowTotalRegex)).toBeTruthy();
+        });
+
+        it('should match only the specified quote char', () => {
+            const { totalRegex } = buildTotalFieldRegex('"');
+            expect('total("revenue")'.match(totalRegex)).toBeTruthy();
+            expect('total(`revenue`)'.match(totalRegex)).toBeNull();
+            expect("total('revenue')".match(totalRegex)).toBeNull();
+        });
+
+        it('should capture the field ID', () => {
+            const { totalRegex } = buildTotalFieldRegex('"');
+            totalRegex.lastIndex = 0;
+            const match = totalRegex.exec('total("my_field_id")');
+            expect(match?.[1]).toBe('my_field_id');
+        });
+
+        it('should handle backtick as quote char', () => {
+            const { totalRegex, rowTotalRegex } = buildTotalFieldRegex('`');
+            expect('total(`revenue`)'.match(totalRegex)).toBeTruthy();
+            expect('total("revenue")'.match(totalRegex)).toBeNull();
+            expect('row_total(`cost`)'.match(rowTotalRegex)).toBeTruthy();
         });
     });
 

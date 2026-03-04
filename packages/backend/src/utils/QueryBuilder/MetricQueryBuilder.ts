@@ -8,6 +8,7 @@ import {
     createFilterRuleFromModelRequiredFilterRule,
     Explore,
     ExploreCompiler,
+    buildTotalFieldRegex,
     extractTotalReferences,
     FieldReferenceError,
     FieldType,
@@ -2598,7 +2599,7 @@ export class MetricQueryBuilder {
 
     private replaceTotalReferences(compiledSql: string): string {
         const q = this.args.warehouseSqlBuilder.getFieldQuoteChar();
-        const escapedQ = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const { totalRegex, rowTotalRegex } = buildTotalFieldRegex(q);
 
         let result = compiledSql;
         // Replace row_total first to avoid partial match
@@ -2607,19 +2608,10 @@ export class MetricQueryBuilder {
             !!this.args.pivotConfiguration ||
             (this.args.pivotDimensions && this.args.pivotDimensions.length > 0);
         result = result.replace(
-            new RegExp(
-                `\\brow_total\\s*\\(\\s*${escapedQ}([^${escapedQ}]+)${escapedQ}\\s*\\)`,
-                'g',
-            ),
+            rowTotalRegex,
             hasPivot ? `${q}$1__row_total${q}` : `${q}$1${q}`,
         );
-        result = result.replace(
-            new RegExp(
-                `\\btotal\\s*\\(\\s*${escapedQ}([^${escapedQ}]+)${escapedQ}\\s*\\)`,
-                'g',
-            ),
-            `${q}$1__total${q}`,
-        );
+        result = result.replace(totalRegex, `${q}$1__total${q}`);
         return result;
     }
 
