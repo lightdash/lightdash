@@ -34,7 +34,7 @@ const BasePanel = () => {
     const [search, setSearch] = useState<string>('');
     const [debouncedSearch] = useDebouncedValue(search, 300);
     const [, startTransition] = useTransition();
-    const exploresResult = useExplores(projectUuid, true);
+    const exploresResult = useExplores(projectUuid, true, true);
     const { data: org } = useOrganization();
 
     const filteredExplores = useMemo(() => {

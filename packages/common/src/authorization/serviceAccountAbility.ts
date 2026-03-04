@@ -234,6 +234,9 @@ const applyServiceAccountStaticAbilities: Record<
             organizationUuid,
             builder: { can },
         });
+        can('manage', 'PreAggregation', {
+            organizationUuid,
+        });
         can('manage', 'VirtualView', {
             organizationUuid,
         });

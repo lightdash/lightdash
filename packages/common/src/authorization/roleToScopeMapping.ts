@@ -68,6 +68,7 @@ const BASE_ROLE_SCOPES = {
 
     [ProjectMemberRole.DEVELOPER]: [
         // Developer-specific permissions
+        'manage:PreAggregation',
         'manage:VirtualView',
         'manage:CustomSql',
         'manage:SqlRunner',
@@ -167,6 +168,7 @@ export const getNonEnterpriseScopesForRole = (
         'manage:AiAgentThread',
         'manage:ContentAsCode',
         'manage:PersonalAccessToken',
+        'manage:PreAggregation',
     ]);
 
     return PROJECT_ROLE_TO_SCOPES_MAP[role].filter(

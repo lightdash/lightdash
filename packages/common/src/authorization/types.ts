@@ -47,6 +47,7 @@ export type CaslSubjectNames =
     | 'OrganizationMemberProfile'
     | 'OrganizationWarehouseCredentials'
     | 'PersonalAccessToken'
+    | 'PreAggregation'
     | 'PinnedItems'
     | 'Project'
     | 'SavedChart'

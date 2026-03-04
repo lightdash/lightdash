@@ -490,11 +490,7 @@ export class ModelRepository
     public getSearchModel(): SearchModel {
         return this.getModel(
             'searchModel',
-            () =>
-                new SearchModel({
-                    database: this.database,
-                    lightdashConfig: this.lightdashConfig,
-                }),
+            () => new SearchModel({ database: this.database }),
         );
     }
 
