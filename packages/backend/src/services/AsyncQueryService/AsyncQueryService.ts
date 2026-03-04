@@ -3784,6 +3784,49 @@ export class AsyncQueryService extends ProjectService {
         };
     }
 
+    /**
+     * Execute saved chart query and wait for all results.
+     * Returns raw rows from warehouse.
+     */
+    async executeSavedChartQueryAndGetResults(
+        args: ExecuteAsyncSavedChartQueryArgs,
+    ): Promise<{
+        rows: Record<string, unknown>[];
+        cacheMetadata: CacheMetadata;
+        fields: ItemsMap;
+    }> {
+        const { account, projectUuid } = args;
+
+        const { queryUuid, cacheMetadata, fields } =
+            await this.executeAsyncSavedChartQuery(args);
+
+        await this.pollForQueryCompletion({ account, projectUuid, queryUuid });
+
+        const queryHistory = await this.queryHistoryModel.get(
+            queryUuid,
+            projectUuid,
+            account,
+        );
+
+        const resultsStream = await this.getResultsStorageClientForContext(
+            queryHistory.context,
+        ).getDownloadStream(queryHistory.resultsFileName!);
+
+        const rows: Record<string, unknown>[] = [];
+        await streamJsonlData<void>({
+            readStream: resultsStream,
+            onRow: (rawRow) => {
+                rows.push(rawRow);
+            },
+        });
+
+        return {
+            rows,
+            cacheMetadata,
+            fields,
+        };
+    }
+
     async getPreAggregateStats(
         account: Account,
         projectUuid: string,

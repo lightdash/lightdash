@@ -3244,10 +3244,13 @@ export default class SchedulerTask {
                 if (savedChartUuid) {
                     // We are fetching here the results before getting image or CSV
                     const { rows } =
-                        await this.projectService.getResultsForChart(
-                            account,
-                            savedChartUuid,
-                            QueryExecutionContext.SCHEDULED_CHART,
+                        await this.asyncQueryService.executeSavedChartQueryAndGetResults(
+                            {
+                                account,
+                                projectUuid: schedulerPayload.projectUuid,
+                                chartUuid: savedChartUuid,
+                                context: QueryExecutionContext.SCHEDULED_CHART,
+                            },
                         );
 
                     if (

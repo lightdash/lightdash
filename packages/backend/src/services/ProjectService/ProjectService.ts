@@ -3552,6 +3552,11 @@ export class ProjectService extends BaseService {
         );
     }
 
+    /**
+     * @deprecated Use {@link AsyncQueryService.executeSavedChartQueryAndGetResults} instead.
+     * Remaining callers are in the GSheets scheduled delivery code (GLITCH-182).
+     * Remove in GLITCH-186 once all callers are migrated.
+     */
     async getResultsForChart(
         account: Account,
         chartUuid: string,
@@ -7418,10 +7423,10 @@ export class ProjectService extends BaseService {
     }
 
     async replaceProjectDefaults({
-                                     user,
-                                     projectUuid,
-                                     defaults,
-                                 }: {
+        user,
+        projectUuid,
+        defaults,
+    }: {
         user: SessionUser;
         projectUuid: string;
         defaults: ProjectDefaults;
