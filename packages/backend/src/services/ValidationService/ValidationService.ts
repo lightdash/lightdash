@@ -1300,7 +1300,7 @@ export class ValidationService extends BaseService {
         const chart = await this.savedChartModel.get(chartUuid);
 
         // Check user permissions
-        const { isPrivate, access } =
+        const { inheritsFromOrgOrProject, access } =
             await this.spacePermissionService.getSpaceAccessContext(
                 user.userUuid,
                 chart.spaceUuid,
@@ -1312,7 +1312,7 @@ export class ValidationService extends BaseService {
                 subject('SavedChart', {
                     organizationUuid: chart.organizationUuid,
                     projectUuid: chart.projectUuid,
-                    isPrivate,
+                    inheritsFromOrgOrProject,
                     access,
                 }),
             )
@@ -1381,7 +1381,7 @@ export class ValidationService extends BaseService {
             await this.dashboardModel.getByIdOrSlug(dashboardUuid);
 
         // Check user permissions
-        const { isPrivate, access } =
+        const { inheritsFromOrgOrProject, access } =
             await this.spacePermissionService.getSpaceAccessContext(
                 user.userUuid,
                 dashboard.spaceUuid,
@@ -1393,7 +1393,7 @@ export class ValidationService extends BaseService {
                 subject('Dashboard', {
                     organizationUuid: dashboard.organizationUuid,
                     projectUuid: dashboard.projectUuid,
-                    isPrivate,
+                    inheritsFromOrgOrProject,
                     access,
                 }),
             )

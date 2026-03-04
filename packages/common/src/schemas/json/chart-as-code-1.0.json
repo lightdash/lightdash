@@ -457,6 +457,10 @@
                 "visible": {
                     "description": "Whether the column is visible",
                     "type": "boolean"
+                },
+                "width": {
+                    "format": "double",
+                    "type": "number"
                 }
             },
             "type": "object"

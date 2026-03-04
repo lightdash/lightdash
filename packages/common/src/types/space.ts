@@ -62,6 +62,7 @@ export type Space = {
     uuid: string;
     name: string;
     isPrivate: boolean;
+    inheritsFromOrgOrProject: boolean;
     queries: SpaceQuery[];
     projectUuid: string;
     dashboards: SpaceDashboard[];

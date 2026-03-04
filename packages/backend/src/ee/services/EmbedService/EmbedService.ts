@@ -539,6 +539,7 @@ export class EmbedService extends BaseService {
         return {
             ...dashboard,
             isPrivate: false,
+            inheritsFromOrgOrProject: true,
             access: [],
             dashboardFiltersInteractivity: account.access.filtering,
             parameterInteractivity: account.access.parameters,
@@ -1170,6 +1171,7 @@ export class EmbedService extends BaseService {
             chart: {
                 ...chart,
                 isPrivate: false,
+                inheritsFromOrgOrProject: true,
                 access: [],
             },
             explore,

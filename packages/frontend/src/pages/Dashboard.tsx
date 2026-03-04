@@ -1,5 +1,6 @@
 import {
     ContentType,
+    DateGranularity,
     type DashboardTile,
     type Dashboard as IDashboard,
 } from '@lightdash/common';
@@ -120,6 +121,30 @@ const Dashboard: FC = () => {
     );
     const setPinnedParameters = useDashboardContext(
         (c) => c.setPinnedParameters,
+    );
+    const dateZoomGranularities = useDashboardContext(
+        (c) => c.dateZoomGranularities,
+    );
+    const haveDateZoomGranularitiesChanged = useDashboardContext(
+        (c) => c.haveDateZoomGranularitiesChanged,
+    );
+    const setDateZoomGranularities = useDashboardContext(
+        (c) => c.setDateZoomGranularities,
+    );
+    const setHaveDateZoomGranularitiesChanged = useDashboardContext(
+        (c) => c.setHaveDateZoomGranularitiesChanged,
+    );
+    const defaultDateZoomGranularity = useDashboardContext(
+        (c) => c.defaultDateZoomGranularity,
+    );
+    const hasDefaultDateZoomGranularityChanged = useDashboardContext(
+        (c) => c.hasDefaultDateZoomGranularityChanged,
+    );
+    const setDefaultDateZoomGranularity = useDashboardContext(
+        (c) => c.setDefaultDateZoomGranularity,
+    );
+    const setHasDefaultDateZoomGranularityChanged = useDashboardContext(
+        (c) => c.setHasDefaultDateZoomGranularityChanged,
     );
 
     const parameterDefinitions = useDashboardContext(
@@ -271,6 +296,8 @@ const Dashboard: FC = () => {
             setHaveTilesChanged(false);
             setHaveFiltersChanged(false);
             setHavePinnedParametersChanged(false);
+            setHaveDateZoomGranularitiesChanged(false);
+            setHasDefaultDateZoomGranularityChanged(false);
             setDashboardTemporaryFilters({
                 dimensions: [],
                 metrics: [],
@@ -299,6 +326,8 @@ const Dashboard: FC = () => {
         setHaveFiltersChanged,
         setHaveTilesChanged,
         setHavePinnedParametersChanged,
+        setHaveDateZoomGranularitiesChanged,
+        setHasDefaultDateZoomGranularityChanged,
         dashboardTabs,
         activeTab,
     ]);
@@ -448,6 +477,15 @@ const Dashboard: FC = () => {
         setSavedParameters(dashboard.parameters ?? {});
         setPinnedParameters(dashboard.config?.pinnedParameters ?? []);
         setHavePinnedParametersChanged(false);
+        setDateZoomGranularities(
+            dashboard.config?.dateZoomGranularities ??
+                Object.values(DateGranularity),
+        );
+        setHaveDateZoomGranularitiesChanged(false);
+        setDefaultDateZoomGranularity(
+            dashboard.config?.defaultDateZoomGranularity,
+        );
+        setHasDefaultDateZoomGranularityChanged(false);
 
         if (dashboardTabs.length > 0) {
             void navigate(
@@ -476,6 +514,10 @@ const Dashboard: FC = () => {
         setSavedParameters,
         setPinnedParameters,
         setHavePinnedParametersChanged,
+        setDateZoomGranularities,
+        setHaveDateZoomGranularitiesChanged,
+        setDefaultDateZoomGranularity,
+        setHasDefaultDateZoomGranularityChanged,
     ]);
 
     const handleMoveDashboardToSpace = useCallback(
@@ -613,6 +655,8 @@ const Dashboard: FC = () => {
             config: {
                 isDateZoomDisabled,
                 pinnedParameters,
+                dateZoomGranularities,
+                defaultDateZoomGranularity,
             },
             parameters: dashboardParameters,
         });
@@ -629,6 +673,7 @@ const Dashboard: FC = () => {
         isFullscreen,
         activeTabUuid: activeTab?.uuid,
         dashboardTabs,
+        dashboardTiles,
         isFullScreenFeatureEnabled,
         onToggleFullscreen: handleToggleFullscreen,
         hasDashboardChanged:
@@ -638,7 +683,9 @@ const Dashboard: FC = () => {
             haveTabsChanged ||
             hasDateZoomDisabledChanged ||
             parametersHaveChanged ||
-            havePinnedParametersChanged,
+            havePinnedParametersChanged ||
+            haveDateZoomGranularitiesChanged ||
+            hasDefaultDateZoomGranularityChanged,
         onAddTiles: handleAddTiles,
         onSaveDashboard: handleSaveDashboard,
         onCancel: handleCancel,

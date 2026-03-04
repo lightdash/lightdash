@@ -55,6 +55,7 @@ export type DbPreAggregateMaterialization = {
     status: PreAggregateMaterializationStatus;
     trigger: PreAggregateMaterializationTrigger;
     query_uuid: string | null;
+    materialization_uri: string | null;
     materialized_at: Date | null;
     row_count: number | null;
     columns: ResultColumns | null;
@@ -73,6 +74,7 @@ export type DbPreAggregateMaterializationUpdate = Partial<
         DbPreAggregateMaterialization,
         | 'status'
         | 'query_uuid'
+        | 'materialization_uri'
         | 'materialized_at'
         | 'row_count'
         | 'columns'

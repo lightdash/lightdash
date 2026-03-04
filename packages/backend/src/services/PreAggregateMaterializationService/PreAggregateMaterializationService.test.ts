@@ -1,4 +1,9 @@
-import { QueryHistoryStatus, type Account } from '@lightdash/common';
+import {
+    QueryExecutionContext,
+    QueryHistoryStatus,
+    type Account,
+} from '@lightdash/common';
+import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { type PreAggregateModel } from '../../models/PreAggregateModel';
 import { type QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import { type AsyncQueryService } from '../AsyncQueryService/AsyncQueryService';
@@ -23,6 +28,7 @@ describe('PreAggregateMaterializationService', () => {
     };
 
     const service = new PreAggregateMaterializationService({
+        lightdashConfig: lightdashConfigMock,
         preAggregateModel: preAggregateModel as unknown as PreAggregateModel,
         queryHistoryModel: queryHistoryModel as unknown as QueryHistoryModel,
         asyncQueryService: asyncQueryService as unknown as AsyncQueryService,
@@ -90,6 +96,7 @@ describe('PreAggregateMaterializationService', () => {
         });
         queryHistoryModel.pollForQueryCompletion.mockResolvedValue({
             status: QueryHistoryStatus.READY,
+            resultsFileName: 'query-1-results',
             resultsUpdatedAt: queryUpdatedAt,
             totalRowCount: 123,
             columns: null,
@@ -113,6 +120,7 @@ describe('PreAggregateMaterializationService', () => {
         expect(asyncQueryService.executeAsyncMetricQuery).toHaveBeenCalledWith(
             expect.objectContaining({
                 projectUuid: 'project-1',
+                context: QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION,
                 metricQuery: {
                     exploreName: 'orders',
                     dimensions: [],
@@ -128,9 +136,58 @@ describe('PreAggregateMaterializationService', () => {
         expect(preAggregateModel.promoteToActive).toHaveBeenCalledWith({
             materializationUuid: 'mat-1',
             queryUuid: 'query-1',
+            materializationUri: 's3://mock_preagg_bucket/query-1-results.jsonl',
             materializedAt: queryUpdatedAt,
             rowCount: 123,
             columns: null,
         });
+    });
+
+    test('marks run as failed when ready query has no persisted results file', async () => {
+        preAggregateModel.getPreAggregateDefinitionByUuid.mockResolvedValue({
+            preAggregateDefinitionUuid: 'def-1',
+            materializationMetricQuery: {
+                metricQuery: {
+                    exploreName: 'orders',
+                    dimensions: [],
+                    metrics: [],
+                    filters: {},
+                    sorts: [],
+                    limit: 100,
+                    tableCalculations: [],
+                },
+                metricComponents: {},
+            },
+            materializationQueryError: null,
+        });
+        asyncQueryService.executeAsyncMetricQuery.mockResolvedValue({
+            queryUuid: 'query-1',
+        });
+        queryHistoryModel.pollForQueryCompletion.mockResolvedValue({
+            status: QueryHistoryStatus.READY,
+            resultsFileName: null,
+            resultsUpdatedAt: new Date('2024-02-01T10:00:00.000Z'),
+            totalRowCount: 123,
+            columns: null,
+        });
+
+        const result = await service.materializePreAggregate({
+            account: {} as Account,
+            projectUuid: 'project-1',
+            preAggregateDefinitionUuid: 'def-1',
+            trigger: 'manual',
+        });
+
+        expect(result).toEqual({
+            materializationUuid: 'mat-1',
+            status: 'failed',
+            queryUuid: 'query-1',
+        });
+        expect(preAggregateModel.markFailed).toHaveBeenCalledWith({
+            materializationUuid: 'mat-1',
+            errorMessage:
+                'Materialization query completed without a persisted results file',
+        });
+        expect(preAggregateModel.promoteToActive).not.toHaveBeenCalled();
     });
 });

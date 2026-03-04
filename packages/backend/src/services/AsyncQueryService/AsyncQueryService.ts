@@ -181,6 +181,7 @@ type AsyncQueryServiceArguments = ProjectServiceArguments & {
     cacheService?: ICacheService;
     savedSqlModel: SavedSqlModel;
     resultsStorageClient: S3ResultsFileStorageClient;
+    preAggregateResultsStorageClient: S3ResultsFileStorageClient;
     pivotTableService: PivotTableService;
     prometheusMetrics?: PrometheusMetrics;
     schedulerClient: SchedulerClient;
@@ -200,6 +201,8 @@ export class AsyncQueryService extends ProjectService {
     savedSqlModel: SavedSqlModel;
 
     resultsStorageClient: S3ResultsFileStorageClient;
+
+    preAggregateResultsStorageClient: S3ResultsFileStorageClient;
 
     exportsStorageClient: FileStorageClient;
 
@@ -224,6 +227,8 @@ export class AsyncQueryService extends ProjectService {
         this.cacheService = args.cacheService;
         this.savedSqlModel = args.savedSqlModel;
         this.resultsStorageClient = args.resultsStorageClient;
+        this.preAggregateResultsStorageClient =
+            args.preAggregateResultsStorageClient;
         this.exportsStorageClient = this.fileStorageClient;
         this.pivotTableService = args.pivotTableService;
         this.prometheusMetrics = args.prometheusMetrics;
@@ -292,7 +297,7 @@ export class AsyncQueryService extends ProjectService {
                 subject('SavedChart', {
                     organizationUuid: savedChart.organization.organizationUuid,
                     projectUuid: savedChart.project.projectUuid,
-                    isPrivate: ctx.isPrivate,
+                    inheritsFromOrgOrProject: ctx.inheritsFromOrgOrProject,
                     access: ctx.access,
                 }),
             )
@@ -342,6 +347,14 @@ export class AsyncQueryService extends ProjectService {
         return { target: 'warehouse', preAggregateMetadata };
     }
 
+    private getResultsStorageClientForContext(
+        context?: QueryExecutionContext | null,
+    ): S3ResultsFileStorageClient {
+        return context === QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION
+            ? this.preAggregateResultsStorageClient
+            : this.resultsStorageClient;
+    }
+
     public getCacheExpiresAt(baseDate: Date) {
         return new Date(
             baseDate.getTime() +
@@ -377,11 +390,15 @@ export class AsyncQueryService extends ProjectService {
     async getResultsPageFromS3(
         queryUuid: string,
         fileName: string | null,
+        queryContext: QueryExecutionContext | null | undefined,
         page: number,
         pageSize: number,
         formatter: (row: ResultRow) => ResultRow,
     ) {
-        if (!this.resultsStorageClient.isEnabled) {
+        const resultsStorageClient =
+            this.getResultsStorageClientForContext(queryContext);
+
+        if (!resultsStorageClient.isEnabled) {
             throw new S3Error('S3 is not enabled');
         }
 
@@ -392,7 +409,7 @@ export class AsyncQueryService extends ProjectService {
         }
 
         const cacheStream =
-            await this.resultsStorageClient.getDownloadStream(fileName);
+            await resultsStorageClient.getDownloadStream(fileName);
 
         const rows: ResultRow[] = [];
         const rl = createInterface({
@@ -643,11 +660,12 @@ export class AsyncQueryService extends ProjectService {
             durationMs,
         } = await measureTime(
             () =>
-                this.resultsStorageClient.isEnabled ||
-                this.cacheService?.isEnabled
+                this.getResultsStorageClientForContext(queryHistory.context)
+                    .isEnabled || this.cacheService?.isEnabled
                     ? this.getResultsPageFromS3(
                           queryUuid,
                           resultsFileName,
+                          queryHistory.context,
                           page,
                           defaultedPageSize,
                           formatter,
@@ -791,7 +809,9 @@ export class AsyncQueryService extends ProjectService {
                 throw new Error('Results file name not found for query');
             }
 
-            return this.resultsStorageClient.getDownloadStream(resultsFileName);
+            return this.getResultsStorageClientForContext(
+                queryHistory.context,
+            ).getDownloadStream(resultsFileName);
         }
 
         throw new Error('Invalid query status');
@@ -916,6 +936,9 @@ export class AsyncQueryService extends ProjectService {
         }
 
         const { status, resultsFileName, fields, columns } = queryHistory;
+        const resultsStorageClient = this.getResultsStorageClientForContext(
+            queryHistory.context,
+        );
 
         // First check the query status
         switch (status) {
@@ -947,9 +970,7 @@ export class AsyncQueryService extends ProjectService {
         if (columnOrder.length === 0) {
             try {
                 const firstLine =
-                    await this.resultsStorageClient.getFirstLine(
-                        resultsFileName,
-                    );
+                    await resultsStorageClient.getFirstLine(resultsFileName);
                 if (firstLine) {
                     const firstRow = JSON.parse(firstLine);
                     validColumnOrder = Object.keys(firstRow);
@@ -1016,7 +1037,7 @@ export class AsyncQueryService extends ProjectService {
                         fields,
                         metricQuery: queryHistory.metricQuery,
                         projectUuid,
-                        storageClient: this.resultsStorageClient,
+                        storageClient: resultsStorageClient,
                         pivotDetails:
                             AsyncQueryService.getPivotDetailsFromQueryHistory(
                                 queryHistory,
@@ -1039,6 +1060,7 @@ export class AsyncQueryService extends ProjectService {
                 }
                 return this.downloadAsyncQueryResultsAsFormattedFile(
                     resultsFileName,
+                    queryHistory.context,
                     resultFields,
                     {
                         generateFileId: CsvService.generateFileId,
@@ -1071,7 +1093,7 @@ export class AsyncQueryService extends ProjectService {
                               resultsFileName,
                               fields,
                               metricQuery: queryHistory.metricQuery,
-                              resultsStorageClient: this.resultsStorageClient,
+                              resultsStorageClient,
                               exportsStorageClient: this.exportsStorageClient,
                               lightdashConfig: this.lightdashConfig,
                               pivotDetails:
@@ -1093,8 +1115,7 @@ export class AsyncQueryService extends ProjectService {
                               resultsFileName,
                               resultFields,
                               {
-                                  resultsStorageClient:
-                                      this.resultsStorageClient,
+                                  resultsStorageClient,
                                   exportsStorageClient:
                                       this.exportsStorageClient,
                               },
@@ -1127,7 +1148,10 @@ export class AsyncQueryService extends ProjectService {
             }
             case undefined:
             case DownloadFileType.JSONL:
-                return this.downloadAsyncQueryResultsAsJson(resultsFileName);
+                return this.downloadAsyncQueryResultsAsJson(
+                    resultsFileName,
+                    queryHistory.context,
+                );
             case DownloadFileType.S3_JSONL:
                 throw new Error('S3_JSONL download not supported yet');
             case DownloadFileType.IMAGE:
@@ -1144,6 +1168,7 @@ export class AsyncQueryService extends ProjectService {
 
     private async downloadAsyncQueryResultsAsFormattedFile(
         resultsFileName: string,
+        queryContext: QueryExecutionContext | null | undefined,
         fields: ItemsMap,
         service: {
             generateFileId: (fileName: string) => string;
@@ -1221,7 +1246,8 @@ export class AsyncQueryService extends ProjectService {
                 };
             },
             {
-                resultsStorageClient: this.resultsStorageClient,
+                resultsStorageClient:
+                    this.getResultsStorageClientForContext(queryContext),
                 exportsStorageClient: this.fileStorageClient,
             },
             {
@@ -1251,10 +1277,13 @@ export class AsyncQueryService extends ProjectService {
 
     private async downloadAsyncQueryResultsAsJson(
         resultsFileName: string,
+        queryContext?: QueryExecutionContext | null,
     ): Promise<ApiDownloadAsyncQueryResults> {
         return {
             fileUrl:
-                await this.resultsStorageClient.getFileUrl(resultsFileName),
+                await this.getResultsStorageClientForContext(
+                    queryContext,
+                ).getFileUrl(resultsFileName),
         };
     }
 
@@ -1556,11 +1585,14 @@ export class AsyncQueryService extends ProjectService {
 
             const fileName =
                 QueryHistoryModel.createUniqueResultsFileName(cacheKey);
+            const resultsStorageClient = this.getResultsStorageClientForContext(
+                queryTags.query_context,
+            );
 
             // Create upload stream for storing results
             // If S3 is not configured, we don't write to S3
-            stream = this.resultsStorageClient.isEnabled
-                ? this.resultsStorageClient.createUploadStream(
+            stream = resultsStorageClient.isEnabled
+                ? resultsStorageClient.createUploadStream(
                       S3ResultsFileStorageClient.sanitizeFileExtension(
                           fileName,
                       ),
@@ -1809,6 +1841,7 @@ export class AsyncQueryService extends ProjectService {
             parameters,
             availableParameterDefinitions,
             pivotConfiguration,
+            pivotDimensions: metricQuery.pivotDimensions,
         });
 
         const fieldsWithOverrides: ItemsMap = Object.fromEntries(
@@ -2386,7 +2419,7 @@ export class AsyncQueryService extends ProjectService {
         }
 
         let access;
-        let spaceIsPrivate;
+        let inheritsFromOrgOrProject;
         if (isJwtUser(account)) {
             if (!ProjectService.isChartEmbed(account)) {
                 throw new ForbiddenError();
@@ -2402,16 +2435,18 @@ export class AsyncQueryService extends ProjectService {
             // TODO: Get all chartUuids for a given dashboard in the middleware.
             //       https://linear.app/lightdash/issue/CENG-110/front-load-available-charts-for-dashboard-requests
             access = [{ chartUuid: savedChart.uuid }];
-            const space =
-                await this.spaceModel.getSpaceSummary(savedChartSpaceUuid);
-            spaceIsPrivate = space.isPrivate;
+            const spaceCtx =
+                await this.spacePermissionService.getAllSpaceAccessContext(
+                    savedChartSpaceUuid,
+                );
+            inheritsFromOrgOrProject = spaceCtx.inheritsFromOrgOrProject;
         } else {
             const ctx = await this.spacePermissionService.getSpaceAccessContext(
                 account.user.id,
                 savedChartSpaceUuid,
             );
             access = ctx.access;
-            spaceIsPrivate = ctx.isPrivate;
+            inheritsFromOrgOrProject = ctx.inheritsFromOrgOrProject;
         }
 
         if (
@@ -2420,7 +2455,7 @@ export class AsyncQueryService extends ProjectService {
                 subject('SavedChart', {
                     organizationUuid: savedChartOrganizationUuid,
                     projectUuid,
-                    isPrivate: spaceIsPrivate,
+                    inheritsFromOrgOrProject,
                     access,
                 }),
             ) ||
@@ -2609,7 +2644,7 @@ export class AsyncQueryService extends ProjectService {
                     subject('SavedChart', {
                         organizationUuid: space.organizationUuid,
                         projectUuid,
-                        isPrivate: ctx.isPrivate,
+                        inheritsFromOrgOrProject: ctx.inheritsFromOrgOrProject,
                         access: ctx.access,
                     }),
                 )
@@ -3728,9 +3763,101 @@ export class AsyncQueryService extends ProjectService {
             account,
         );
 
-        const resultsStream = await this.resultsStorageClient.getDownloadStream(
-            queryHistory.resultsFileName!,
+        const resultsStream = await this.getResultsStorageClientForContext(
+            queryHistory.context,
+        ).getDownloadStream(queryHistory.resultsFileName!);
+
+        const rows: Record<string, unknown>[] = [];
+        await streamJsonlData<void>({
+            readStream: resultsStream,
+            onRow: (rawRow) => {
+                rows.push(rawRow);
+            },
+        });
+
+        return {
+            rows,
+            cacheMetadata,
+            fields,
+            pivotDetails:
+                AsyncQueryService.getPivotDetailsFromQueryHistory(queryHistory),
+        };
+    }
+
+    /**
+     * Execute saved chart query and wait for all results.
+     * Returns raw rows from warehouse with pivot details.
+     */
+    async executeSavedChartQueryAndGetResults(
+        args: ExecuteAsyncSavedChartQueryArgs,
+    ): Promise<{
+        rows: Record<string, unknown>[];
+        cacheMetadata: CacheMetadata;
+        fields: ItemsMap;
+        pivotDetails: ReadyQueryResultsPage['pivotDetails'];
+    }> {
+        const { account, projectUuid } = args;
+
+        const { queryUuid, cacheMetadata, fields } =
+            await this.executeAsyncSavedChartQuery(args);
+
+        await this.pollForQueryCompletion({ account, projectUuid, queryUuid });
+
+        const queryHistory = await this.queryHistoryModel.get(
+            queryUuid,
+            projectUuid,
+            account,
         );
+
+        const resultsStream = await this.getResultsStorageClientForContext(
+            queryHistory.context,
+        ).getDownloadStream(queryHistory.resultsFileName!);
+
+        const rows: Record<string, unknown>[] = [];
+        await streamJsonlData<void>({
+            readStream: resultsStream,
+            onRow: (rawRow) => {
+                rows.push(rawRow);
+            },
+        });
+
+        return {
+            rows,
+            cacheMetadata,
+            fields,
+            pivotDetails:
+                AsyncQueryService.getPivotDetailsFromQueryHistory(queryHistory),
+        };
+    }
+
+    /**
+     * Execute dashboard chart query and wait for all results.
+     * Returns raw rows from warehouse with pivot details.
+     */
+    async executeDashboardChartQueryAndGetResults(
+        args: ExecuteAsyncDashboardChartQueryArgs,
+    ): Promise<{
+        rows: Record<string, unknown>[];
+        cacheMetadata: CacheMetadata;
+        fields: ItemsMap;
+        pivotDetails: ReadyQueryResultsPage['pivotDetails'];
+    }> {
+        const { account, projectUuid } = args;
+
+        const { queryUuid, cacheMetadata, fields } =
+            await this.executeAsyncDashboardChartQuery(args);
+
+        await this.pollForQueryCompletion({ account, projectUuid, queryUuid });
+
+        const queryHistory = await this.queryHistoryModel.get(
+            queryUuid,
+            projectUuid,
+            account,
+        );
+
+        const resultsStream = await this.getResultsStorageClientForContext(
+            queryHistory.context,
+        ).getDownloadStream(queryHistory.resultsFileName!);
 
         const rows: Record<string, unknown>[] = [];
         await streamJsonlData<void>({

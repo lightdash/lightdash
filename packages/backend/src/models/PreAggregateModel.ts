@@ -1,9 +1,14 @@
 import {
     NotFoundError,
     type ActiveMaterializationDetails,
+    type ApiPreAggregateMaterializationsResults,
+    type KnexPaginateArgs,
+    type KnexPaginatedData,
     type PreAggregateDefinition,
     type PreAggregateDefinitionWithExploreName,
     type PreAggregateMaterialization,
+    type PreAggregateMaterializationStatus,
+    type PreAggregateMaterializationSummary,
     type PreAggregateMaterializationTrigger,
     type PreAggregateSchedulerDetails,
     type ResultColumns,
@@ -17,10 +22,7 @@ import {
     type DbPreAggregateMaterialization,
 } from '../database/entities/preAggregates';
 import { CachedExploreTableName } from '../database/entities/projects';
-import {
-    QueryHistoryTableName,
-    type DbQueryHistory,
-} from '../database/entities/queryHistory';
+import KnexPaginate from '../database/pagination';
 
 type DbPreAggregateDefinitionWithExploreName = DbPreAggregateDefinition & {
     pre_agg_explore_name: string;
@@ -50,6 +52,7 @@ const toPreAggregateMaterialization = (
     status: row.status,
     trigger: row.trigger,
     queryUuid: row.query_uuid,
+    materializationUri: row.materialization_uri,
     materializedAt: row.materialized_at,
     rowCount: row.row_count,
     columns: row.columns,
@@ -217,6 +220,7 @@ export class PreAggregateModel {
                 status: 'in_progress',
                 trigger: args.trigger,
                 query_uuid: null,
+                materialization_uri: null,
                 materialized_at: null,
                 row_count: null,
                 columns: null,
@@ -261,6 +265,7 @@ export class PreAggregateModel {
     async promoteToActive(args: {
         materializationUuid: string;
         queryUuid: string;
+        materializationUri: string;
         materializedAt: Date;
         rowCount: number | null;
         columns: ResultColumns | null;
@@ -299,6 +304,7 @@ export class PreAggregateModel {
 
                 const commonUpdate = {
                     query_uuid: args.queryUuid,
+                    materialization_uri: args.materializationUri,
                     materialized_at: args.materializedAt,
                     row_count: args.rowCount,
                     columns: args.columns,
@@ -358,6 +364,7 @@ export class PreAggregateModel {
             await this.database(PreAggregateMaterializationsTableName)
                 .update({
                     query_uuid: args.queryUuid,
+                    materialization_uri: args.materializationUri,
                     materialized_at: args.materializedAt,
                     row_count: args.rowCount,
                     columns: args.columns,
@@ -389,11 +396,6 @@ export class PreAggregateModel {
                 `${PreAggregateDefinitionsTableName}.pre_agg_cached_explore_uuid`,
                 `${CachedExploreTableName}.cached_explore_uuid`,
             )
-            .innerJoin(
-                QueryHistoryTableName,
-                `${PreAggregateMaterializationsTableName}.query_uuid`,
-                `${QueryHistoryTableName}.query_uuid`,
-            )
             .where(
                 `${PreAggregateMaterializationsTableName}.project_uuid`,
                 projectUuid,
@@ -405,20 +407,20 @@ export class PreAggregateModel {
             )
             .whereNotNull(`${PreAggregateMaterializationsTableName}.query_uuid`)
             .select<
-                (Pick<
+                Pick<
                     DbPreAggregateMaterialization,
                     | 'pre_aggregate_materialization_uuid'
                     | 'query_uuid'
+                    | 'materialization_uri'
                     | 'columns'
                     | 'materialized_at'
-                > &
-                    Pick<DbQueryHistory, 'results_file_name'>)[]
+                >[]
             >([
                 `${PreAggregateMaterializationsTableName}.pre_aggregate_materialization_uuid`,
                 `${PreAggregateMaterializationsTableName}.query_uuid`,
+                `${PreAggregateMaterializationsTableName}.materialization_uri`,
                 `${PreAggregateMaterializationsTableName}.columns`,
                 `${PreAggregateMaterializationsTableName}.materialized_at`,
-                `${QueryHistoryTableName}.results_file_name`,
             ])
             .orderBy(
                 `${PreAggregateMaterializationsTableName}.materialized_at`,
@@ -429,7 +431,7 @@ export class PreAggregateModel {
         if (
             !row ||
             !row.query_uuid ||
-            !row.results_file_name ||
+            !row.materialization_uri ||
             !row.materialized_at
         ) {
             return undefined;
@@ -438,10 +440,116 @@ export class PreAggregateModel {
         return {
             materializationUuid: row.pre_aggregate_materialization_uuid,
             queryUuid: row.query_uuid,
-            resultsFileName: row.results_file_name,
+            materializationUri: row.materialization_uri,
             format: 'jsonl',
             columns: row.columns,
             materializedAt: row.materialized_at,
+        };
+    }
+
+    async getDefinitionsWithLatestMaterialization(
+        projectUuid: string,
+        paginateArgs?: KnexPaginateArgs,
+    ): Promise<KnexPaginatedData<ApiPreAggregateMaterializationsResults>> {
+        type DbDefinitionWithLatestMaterialization = Pick<
+            DbPreAggregateDefinition,
+            | 'pre_aggregate_definition_uuid'
+            | 'pre_aggregate_definition'
+            | 'refresh_cron'
+            | 'materialization_query_error'
+        > & {
+            source_explore_name: string;
+            pre_agg_explore_name: string;
+            // Latest materialization fields (nullable from LEFT JOIN)
+            mat_uuid: string | null;
+            mat_status: PreAggregateMaterializationStatus | null;
+            mat_materialized_at: Date | null;
+            mat_row_count: number | null;
+            mat_columns: ResultColumns | null;
+            mat_error_message: string | null;
+            mat_trigger: PreAggregateMaterializationTrigger | null;
+        };
+
+        const query = this.database
+            .with('latest_mat', (qb) => {
+                void qb
+                    .select(
+                        `${PreAggregateMaterializationsTableName}.*`,
+                        this.database.raw(
+                            `ROW_NUMBER() OVER (PARTITION BY pre_aggregate_definition_uuid ORDER BY created_at DESC) as rn`,
+                        ),
+                    )
+                    .from(PreAggregateMaterializationsTableName);
+            })
+            .from(PreAggregateDefinitionsTableName)
+            .leftJoin('latest_mat', function joinLatestMat() {
+                this.on(
+                    'latest_mat.pre_aggregate_definition_uuid',
+                    `${PreAggregateDefinitionsTableName}.pre_aggregate_definition_uuid`,
+                ).andOnVal('latest_mat.rn', 1);
+            })
+            .innerJoin(
+                `${CachedExploreTableName} as source_ce`,
+                `source_ce.cached_explore_uuid`,
+                `${PreAggregateDefinitionsTableName}.source_cached_explore_uuid`,
+            )
+            .innerJoin(
+                `${CachedExploreTableName} as preagg_ce`,
+                `preagg_ce.cached_explore_uuid`,
+                `${PreAggregateDefinitionsTableName}.pre_agg_cached_explore_uuid`,
+            )
+            .where(
+                `${PreAggregateDefinitionsTableName}.project_uuid`,
+                projectUuid,
+            )
+            .select<DbDefinitionWithLatestMaterialization[]>([
+                `${PreAggregateDefinitionsTableName}.pre_aggregate_definition_uuid`,
+                `${PreAggregateDefinitionsTableName}.pre_aggregate_definition`,
+                `source_ce.name as source_explore_name`,
+                `preagg_ce.name as pre_agg_explore_name`,
+                `${PreAggregateDefinitionsTableName}.refresh_cron`,
+                `${PreAggregateDefinitionsTableName}.materialization_query_error`,
+                `latest_mat.pre_aggregate_materialization_uuid as mat_uuid`,
+                `latest_mat.status as mat_status`,
+                `latest_mat.materialized_at as mat_materialized_at`,
+                `latest_mat.row_count as mat_row_count`,
+                `latest_mat.columns as mat_columns`,
+                `latest_mat.error_message as mat_error_message`,
+                `latest_mat.trigger as mat_trigger`,
+            ])
+            .orderBy(`${PreAggregateDefinitionsTableName}.created_at`, 'desc');
+
+        const result = await KnexPaginate.paginate(query, paginateArgs);
+
+        const materializations: PreAggregateMaterializationSummary[] =
+            result.data.map((row) => ({
+                preAggregateDefinitionUuid: row.pre_aggregate_definition_uuid,
+                preAggregateName: row.pre_aggregate_definition.name,
+                preAggExploreName: row.pre_agg_explore_name,
+                sourceExploreName: row.source_explore_name,
+                dimensions: row.pre_aggregate_definition.dimensions ?? [],
+                metrics: row.pre_aggregate_definition.metrics ?? [],
+                timeDimension:
+                    row.pre_aggregate_definition.timeDimension ?? null,
+                granularity: row.pre_aggregate_definition.granularity ?? null,
+                refreshCron: row.refresh_cron,
+                definitionError: row.materialization_query_error,
+                materialization: row.mat_uuid
+                    ? {
+                          materializationUuid: row.mat_uuid,
+                          status: row.mat_status!,
+                          materializedAt: row.mat_materialized_at,
+                          rowCount: row.mat_row_count,
+                          columns: row.mat_columns,
+                          errorMessage: row.mat_error_message,
+                          trigger: row.mat_trigger!,
+                      }
+                    : null,
+            }));
+
+        return {
+            data: { materializations },
+            pagination: result.pagination,
         };
     }
 }

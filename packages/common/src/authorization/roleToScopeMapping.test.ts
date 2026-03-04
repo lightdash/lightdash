@@ -184,7 +184,7 @@ describe('roleToScopeMapping', () => {
                     resource: {
                         organizationUuid: 'org-uuid-test',
                         projectUuid: PROJECT_EDITOR.projectUuid,
-                        isPrivate: false,
+                        inheritsFromOrgOrProject: true,
                     },
                 },
                 {
@@ -193,7 +193,7 @@ describe('roleToScopeMapping', () => {
                     resource: {
                         organizationUuid: 'org-uuid-test',
                         projectUuid: PROJECT_EDITOR.projectUuid,
-                        isPrivate: false,
+                        inheritsFromOrgOrProject: true,
                     },
                 },
                 {
@@ -202,7 +202,7 @@ describe('roleToScopeMapping', () => {
                     resource: {
                         organizationUuid: 'org-uuid-test',
                         projectUuid: PROJECT_EDITOR.projectUuid,
-                        isPrivate: false,
+                        inheritsFromOrgOrProject: true,
                     },
                 },
 
@@ -223,7 +223,7 @@ describe('roleToScopeMapping', () => {
                     resource: {
                         organizationUuid: 'org-uuid-test',
                         projectUuid: PROJECT_EDITOR.projectUuid,
-                        isPrivate: false,
+                        inheritsFromOrgOrProject: true,
                     },
                 },
                 {
@@ -374,7 +374,7 @@ describe('roleToScopeMapping', () => {
                 resource: {
                     organizationUuid: 'org-uuid-test',
                     projectUuid: 'test-project-uuid',
-                    isPrivate: false,
+                    inheritsFromOrgOrProject: true,
                 },
             },
             {
@@ -391,7 +391,7 @@ describe('roleToScopeMapping', () => {
                 resource: {
                     organizationUuid: 'org-uuid-test',
                     projectUuid: 'test-project-uuid',
-                    isPrivate: false,
+                    inheritsFromOrgOrProject: true,
                 },
             },
             {
@@ -493,7 +493,7 @@ describe('roleToScopeMapping', () => {
                 resource: {
                     organizationUuid: 'org-uuid-test',
                     projectUuid: 'project-uuid-test',
-                    isPrivate: false,
+                    inheritsFromOrgOrProject: true,
                 },
             },
             {
@@ -510,7 +510,7 @@ describe('roleToScopeMapping', () => {
                 resource: {
                     organizationUuid: 'org-uuid-test',
                     projectUuid: 'project-uuid-test',
-                    isPrivate: false,
+                    inheritsFromOrgOrProject: true,
                 },
             },
             {

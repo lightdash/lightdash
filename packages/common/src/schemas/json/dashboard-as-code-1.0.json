@@ -90,7 +90,10 @@
                         "maximum": 36
                     },
                     "tabUuid": {
-                        "type": ["string", "null"],
+                        "oneOf": [
+                            { "type": "string", "format": "uuid" },
+                            { "type": "null" }
+                        ],
                         "description": "UUID of the tab this tile belongs to, or null for default tab"
                     },
                     "properties": {
@@ -238,6 +241,7 @@
                 "properties": {
                     "uuid": {
                         "type": "string",
+                        "format": "uuid",
                         "description": "Unique identifier for the tab"
                     },
                     "name": {

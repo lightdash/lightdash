@@ -2678,10 +2678,19 @@ export default class SchedulerTask {
                         schedulerUuid,
                     );
 
-                const { rows } = await this.projectService.getResultsForChart(
-                    account,
-                    savedChartUuid,
-                    QueryExecutionContext.SCHEDULED_GSHEETS_DASHBOARD,
+                const {
+                    rows,
+                    fields: itemMap,
+                    pivotDetails,
+                } = await this.asyncQueryService.executeSavedChartQueryAndGetResults(
+                    {
+                        account,
+                        projectUuid: chart.projectUuid,
+                        chartUuid: savedChartUuid,
+                        context:
+                            QueryExecutionContext.SCHEDULED_GSHEETS_DASHBOARD,
+                        pivotResults: true,
+                    },
                 );
 
                 if (thresholds !== undefined && thresholds.length > 0) {
@@ -2689,17 +2698,6 @@ export default class SchedulerTask {
                         'Thresholds not implemented for google sheets',
                     );
                 }
-
-                const explore = await this.projectService.getExplore(
-                    account,
-                    chart.projectUuid,
-                    chart.tableName,
-                );
-                const itemMap = getItemMap(
-                    explore,
-                    chart.metricQuery.additionalMetrics,
-                    chart.metricQuery.tableCalculations,
-                );
                 const showTableNames = isTableChartConfig(
                     chart.chartConfig.config,
                 )
@@ -2742,7 +2740,7 @@ export default class SchedulerTask {
                         onlyRaw: true,
                         maxColumnLimit:
                             this.lightdashConfig.pivotTable.maxColumnLimit,
-                        pivotDetails: null, // TODO: this is using old way of running queries + pivoting, therefore pivotDetails is not available
+                        pivotDetails,
                     });
                     await this.googleDriveClient.appendCsvToSheet(
                         refreshToken,
@@ -2775,39 +2773,22 @@ export default class SchedulerTask {
                         schedulerUuid,
                     );
 
-                const chartUuids = dashboard.tiles.reduce<string[]>(
-                    (acc, tile) => {
-                        if (
-                            isDashboardChartTileType(tile) &&
-                            tile.properties.savedChartUuid
-                        ) {
-                            return [...acc, tile.properties.savedChartUuid];
-                        }
-                        return acc;
-                    },
-                    [],
-                );
+                const chartTiles = dashboard.tiles
+                    .filter(isDashboardChartTileType)
+                    .filter((tile) => tile.properties.savedChartUuid);
 
                 const refreshToken = await this.userService.getRefreshToken(
                     scheduler.createdBy,
                 );
 
-                const chartNames = chartUuids.reduce<Record<string, string>>(
-                    (acc, chartUuid) => {
-                        const tile = dashboard.tiles.find(
-                            (t) =>
-                                isDashboardChartTileType(t) &&
-                                t.properties.savedChartUuid === chartUuid,
-                        );
-                        const chartName =
-                            tile && isDashboardChartTileType(tile)
-                                ? tile.properties.chartName
-                                : undefined;
+                const chartNames = chartTiles.reduce<Record<string, string>>(
+                    (acc, tile) => {
+                        const chartUuid = tile.properties.savedChartUuid!;
                         return {
                             ...acc,
                             [chartUuid]:
-                                tile?.properties.title ||
-                                chartName ||
+                                tile.properties.title ||
+                                tile.properties.chartName ||
                                 chartUuid,
                         };
                     },
@@ -2825,37 +2806,53 @@ export default class SchedulerTask {
                 );
 
                 Logger.debug(
-                    `Uploading dashboard with ${chartUuids.length} charts to Google Sheets`,
+                    `Uploading dashboard with ${chartTiles.length} charts to Google Sheets`,
                 );
+
+                // Extract dashboard filters and apply scheduler filter overrides
+                const dashboardFilters = dashboard.filters;
+                const schedulerFilters = isDashboardScheduler(scheduler)
+                    ? scheduler.filters
+                    : undefined;
+
+                if (schedulerFilters) {
+                    dashboardFilters.dimensions = applyDimensionOverrides(
+                        dashboard.filters,
+                        schedulerFilters,
+                    );
+                }
 
                 // Get the dashboard parameters to override the saved chart parameters
                 const dashboardParameters =
                     getDashboardParametersValuesMap(dashboard);
 
                 // We want to process all charts in sequence, so we don't load all chart results in memory
-                chartUuids
-                    .reduce(async (promise, chartUuid) => {
+                await chartTiles
+                    .reduce(async (promise, tile) => {
                         await promise;
+                        const chartUuid = tile.properties.savedChartUuid!;
                         const chart =
                             await this.schedulerService.savedChartModel.get(
                                 chartUuid,
                             );
-                        const { rows } =
-                            await this.projectService.getResultsForChart(
-                                account!,
+                        const {
+                            rows,
+                            fields: itemMap,
+                            pivotDetails,
+                        } = await this.asyncQueryService.executeDashboardChartQueryAndGetResults(
+                            {
+                                account: account!,
+                                projectUuid: dashboard.projectUuid,
+                                tileUuid: tile.uuid,
                                 chartUuid,
-                                QueryExecutionContext.SCHEDULED_GSHEETS_DASHBOARD,
-                                dashboardParameters,
-                            );
-                        const explore = await this.projectService.getExplore(
-                            account!,
-                            chart.projectUuid,
-                            chart.tableName,
-                        );
-                        const itemMap = getItemMap(
-                            explore,
-                            chart.metricQuery.additionalMetrics,
-                            chart.metricQuery.tableCalculations,
+                                dashboardUuid,
+                                dashboardFilters,
+                                dashboardSorts: [],
+                                context:
+                                    QueryExecutionContext.SCHEDULED_GSHEETS_DASHBOARD,
+                                pivotResults: true,
+                                parameters: dashboardParameters,
+                            },
                         );
                         const showTableNames = isTableChartConfig(
                             chart.chartConfig.config,
@@ -2891,7 +2888,7 @@ export default class SchedulerTask {
                                 maxColumnLimit:
                                     this.lightdashConfig.pivotTable
                                         .maxColumnLimit,
-                                pivotDetails: null, // TODO: this is using old way of running queries + pivoting, therefore pivotDetails is not available
+                                pivotDetails,
                             });
 
                             await this.googleDriveClient.appendCsvToSheet(
@@ -3244,10 +3241,13 @@ export default class SchedulerTask {
                 if (savedChartUuid) {
                     // We are fetching here the results before getting image or CSV
                     const { rows } =
-                        await this.projectService.getResultsForChart(
-                            account,
-                            savedChartUuid,
-                            QueryExecutionContext.SCHEDULED_CHART,
+                        await this.asyncQueryService.executeSavedChartQueryAndGetResults(
+                            {
+                                account,
+                                projectUuid: schedulerPayload.projectUuid,
+                                chartUuid: savedChartUuid,
+                                context: QueryExecutionContext.SCHEDULED_CHART,
+                            },
                         );
 
                     if (

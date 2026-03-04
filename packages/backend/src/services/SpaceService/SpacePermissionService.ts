@@ -21,7 +21,7 @@ import { BaseService } from '../BaseService';
 export type SpaceAccessContextForCasl = {
     organizationUuid: string;
     projectUuid: string;
-    isPrivate: boolean;
+    inheritsFromOrgOrProject: boolean;
     access: SpaceAccess[];
 };
 
@@ -83,7 +83,7 @@ export class SpacePermissionService extends BaseService {
     }
 
     /**
-     * Returns the CASL context for a space (organizationUuid, projectUuid, isPrivate, access)
+     * Returns the CASL context for a space (organizationUuid, projectUuid, inheritsFromOrgOrProject, access)
      * without performing any permission checks. Callers use this to build their own
      * `subject(...)` checks when the resource type is not Space.
      */
@@ -215,12 +215,12 @@ export class SpacePermissionService extends BaseService {
                 );
             }
 
-            const { isPrivate, projectUuid, organizationUuid } =
+            const { inheritParentPermissions, projectUuid, organizationUuid } =
                 spaceInfo[rootSpaceUuid];
 
             const access = resolveSpaceAccess({
                 spaceUuid: rootSpaceUuid,
-                inheritsFromOrgOrProject: !isPrivate,
+                inheritsFromOrgOrProject: inheritParentPermissions,
                 directAccess: directAccessMap[rootSpaceUuid] ?? [],
                 projectAccess: projectAccessMap[rootSpaceUuid] ?? [],
                 organizationAccess: orgAccessMap[rootSpaceUuid] ?? [],
@@ -229,7 +229,7 @@ export class SpacePermissionService extends BaseService {
             rootSpaceAccessContext[rootSpaceUuid] = {
                 organizationUuid,
                 projectUuid,
-                isPrivate,
+                inheritsFromOrgOrProject: inheritParentPermissions,
                 access,
             };
         }
@@ -350,7 +350,7 @@ export class SpacePermissionService extends BaseService {
             result[spaceUuid] = {
                 organizationUuid: space.organizationUuid,
                 projectUuid: space.projectUuid,
-                isPrivate: !inheritsFromOrgOrProject,
+                inheritsFromOrgOrProject,
                 access,
             };
         }

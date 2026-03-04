@@ -550,6 +550,7 @@ export class ServiceRepository
             'preAggregateMaterializationService',
             () =>
                 new PreAggregateMaterializationService({
+                    lightdashConfig: this.context.lightdashConfig,
                     preAggregateModel: this.models.getPreAggregateModel(),
                     queryHistoryModel: this.models.getQueryHistoryModel(),
                     asyncQueryService: this.getAsyncQueryService(),
@@ -691,6 +692,8 @@ export class ServiceRepository
                     savedSqlModel: this.models.getSavedSqlModel(),
                     resultsStorageClient:
                         this.clients.getResultsFileStorageClient(),
+                    preAggregateResultsStorageClient:
+                        this.clients.getPreAggregateResultsFileStorageClient(),
                     featureFlagModel: this.models.getFeatureFlagModel(),
                     projectParametersModel:
                         this.models.getProjectParametersModel(),

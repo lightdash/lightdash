@@ -194,6 +194,30 @@ const getMockedAsyncQueryService = (
                 });
                 return readable;
             }),
+            getFirstLine: jest.fn(async () => '{}'),
+            getFileUrl: jest.fn(
+                async () => 'https://example.com/results.jsonl',
+            ),
+            createUploadStream: jest.fn(() => ({
+                write: jest.fn(),
+                close: jest.fn(),
+            })),
+        } as unknown as S3ResultsFileStorageClient,
+        preAggregateResultsStorageClient: {
+            isEnabled: true,
+            getDownloadStream: jest.fn(() => {
+                const readable = new Readable({
+                    read() {
+                        this.push('{}');
+                        this.push(null);
+                    },
+                });
+                return readable;
+            }),
+            getFirstLine: jest.fn(async () => '{}'),
+            getFileUrl: jest.fn(
+                async () => 'https://example.com/preagg-results.jsonl',
+            ),
             createUploadStream: jest.fn(() => ({
                 write: jest.fn(),
                 close: jest.fn(),

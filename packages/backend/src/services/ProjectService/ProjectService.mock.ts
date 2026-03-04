@@ -360,6 +360,7 @@ export const spacesWithSavedCharts: Space[] = [
         path: 'space',
         inheritParentPermissions: true,
         isPrivate: false,
+        inheritsFromOrgOrProject: true,
         uuid: 'uuid',
         pinnedListUuid: null,
         pinnedListOrder: null,
@@ -406,6 +407,7 @@ export const spacesWithNoSavedCharts: Space[] = [
         projectUuid,
         inheritParentPermissions: true,
         isPrivate: false,
+        inheritsFromOrgOrProject: true,
         dashboards: [],
         access: [],
         groupsAccess: [],
@@ -473,6 +475,7 @@ export const lightdashConfigWithNoSMTP: Pick<
         timezone: undefined,
         useSqlPivotResults: false,
         showExecutionTime: false,
+        enableTableColumnCustomization: undefined,
     },
 };
 

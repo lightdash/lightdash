@@ -221,7 +221,7 @@ export class SchedulerService extends BaseService {
             const { organizationUuid, spaceUuid, projectUuid } =
                 await this.savedChartModel.getSummary(scheduler.savedChartUuid);
 
-            const { isPrivate, access } =
+            const { inheritsFromOrgOrProject, access } =
                 await this.spacePermissionService.getSpaceAccessContext(
                     user.userUuid,
                     spaceUuid,
@@ -232,7 +232,7 @@ export class SchedulerService extends BaseService {
                     subject('SavedChart', {
                         organizationUuid,
                         projectUuid,
-                        isPrivate,
+                        inheritsFromOrgOrProject,
                         access,
                     }),
                 )
@@ -243,7 +243,7 @@ export class SchedulerService extends BaseService {
                 await this.dashboardModel.getByIdOrSlug(
                     scheduler.dashboardUuid,
                 );
-            const { isPrivate, access } =
+            const { inheritsFromOrgOrProject, access } =
                 await this.spacePermissionService.getSpaceAccessContext(
                     user.userUuid,
                     spaceUuid,
@@ -255,7 +255,7 @@ export class SchedulerService extends BaseService {
                     subject('Dashboard', {
                         organizationUuid,
                         projectUuid,
-                        isPrivate,
+                        inheritsFromOrgOrProject,
                         access,
                     }),
                 )

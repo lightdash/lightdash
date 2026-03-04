@@ -39,6 +39,7 @@ export type TableColumn = ColumnDef<ResultRow, ResultRow[0]> & {
         width?: number;
         draggable?: boolean;
         item?: Field | TableCalculation | CustomDimension;
+        labelOverride?: string;
         pivotReference?: PivotReference;
         bgColor?: string;
         sort?: Sort;
@@ -76,6 +77,7 @@ export type ProviderProps = {
     };
     columnOrder?: string[];
     onColumnOrderChange?: (value: string[]) => void;
+    onColumnWidthChange?: (fieldId: string, width: number) => void;
 };
 
 export type TableContext = ProviderProps & {

@@ -2903,6 +2903,7 @@ export class ProjectService extends BaseService {
         parameters,
         availableParameterDefinitions,
         pivotConfiguration,
+        pivotDimensions,
         continueOnError,
     }: {
         metricQuery: MetricQuery;
@@ -2915,6 +2916,7 @@ export class ProjectService extends BaseService {
         parameters?: ParametersValuesMap;
         availableParameterDefinitions: ParameterDefinitions;
         pivotConfiguration?: PivotConfiguration;
+        pivotDimensions?: string[];
         continueOnError?: boolean;
     }): Promise<CompiledQuery> {
         const availableParameters = Object.keys(availableParameterDefinitions);
@@ -2944,6 +2946,7 @@ export class ProjectService extends BaseService {
             parameters,
             parameterDefinitions: availableParameterDefinitions,
             pivotConfiguration,
+            pivotDimensions,
             continueOnError,
             originalExplore: dateZoom ? explore : undefined,
         });
@@ -2976,13 +2979,19 @@ export class ProjectService extends BaseService {
             body: MetricQuery & {
                 parameters?: ParametersValuesMap;
                 pivotConfiguration?: PivotConfiguration;
+                pivotDimensions?: string[];
             };
             projectUuid: string;
         } & ({ exploreName: string } | { explore: Explore }),
     ) {
         const {
             account,
-            body: { parameters, pivotConfiguration, ...metricQuery },
+            body: {
+                parameters,
+                pivotConfiguration,
+                pivotDimensions,
+                ...metricQuery
+            },
             projectUuid,
         } = args;
 
@@ -3040,6 +3049,8 @@ export class ProjectService extends BaseService {
             timezone: this.lightdashConfig.query.timezone || 'UTC',
             parameters,
             availableParameterDefinitions,
+            pivotConfiguration,
+            pivotDimensions,
             continueOnError: true, // Return SQL even with compilation errors for debugging
         });
 
@@ -3354,7 +3365,8 @@ export class ProjectService extends BaseService {
         return {
             chart: {
                 ...savedChart,
-                isPrivate: spaceCtx.isPrivate,
+                isPrivate: !spaceCtx.inheritsFromOrgOrProject,
+                inheritsFromOrgOrProject: spaceCtx.inheritsFromOrgOrProject,
                 access: spaceCtx.access,
             },
             explore,
@@ -3546,6 +3558,11 @@ export class ProjectService extends BaseService {
         );
     }
 
+    /**
+     * @deprecated Use {@link AsyncQueryService.executeSavedChartQueryAndGetResults} instead.
+     * Remaining callers are in the GSheets scheduled delivery code (GLITCH-182).
+     * Remove in GLITCH-186 once all callers are migrated.
+     */
     async getResultsForChart(
         account: Account,
         chartUuid: string,
@@ -3863,6 +3880,7 @@ export class ProjectService extends BaseService {
                         dateZoom,
                         parameters,
                         availableParameterDefinitions,
+                        pivotDimensions: metricQueryWithLimit.pivotDimensions,
                     });
 
                     const { query } = fullQuery;
@@ -7478,10 +7496,10 @@ export class ProjectService extends BaseService {
     }
 
     async replaceProjectDefaults({
-                                     user,
-                                     projectUuid,
-                                     defaults,
-                                 }: {
+        user,
+        projectUuid,
+        defaults,
+    }: {
         user: SessionUser;
         projectUuid: string;
         defaults: ProjectDefaults;

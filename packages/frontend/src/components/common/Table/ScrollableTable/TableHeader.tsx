@@ -4,12 +4,14 @@ import { Tooltip, useMantineTheme } from '@mantine/core';
 import { flexRender } from '@tanstack/react-table';
 import isEqual from 'lodash/isEqual';
 import React, { useEffect, type FC } from 'react';
+import { ROW_NUMBER_COLUMN_ID } from '../constants';
 import {
     Th,
     ThActionsContainer,
     ThContainer,
     ThLabelContainer,
 } from '../Table.styles';
+import { useColumnResize } from '../useColumnResize';
 import { useTableContext } from '../useTableContext';
 import { HeaderDndContext, HeaderDroppable } from './HeaderDnD';
 
@@ -23,9 +25,13 @@ const TableHeader: FC<TableHeaderProps> = ({
     showSubtotals = true,
 }) => {
     const theme = useMantineTheme();
-    const { table, headerContextMenu, columns } = useTableContext();
+    const { table, headerContextMenu, columns, onColumnWidthChange } =
+        useTableContext();
     const HeaderContextMenu = headerContextMenu;
     const currentColOrder = React.useRef<Array<string>>([]);
+    const { handleResizeStart, resizeHandleClassName } = useColumnResize({
+        onColumnWidthChange,
+    });
 
     useEffect(() => {
         if (showSubtotals) {
@@ -73,10 +79,30 @@ const TableHeader: FC<TableHeaderProps> = ({
                     <HeaderDroppable headerGroup={headerGroup}>
                         {headerGroup.headers.map((header) => {
                             const meta = header.column.columnDef.meta;
-                            const tooltipLabel =
-                                meta?.item && isField(meta?.item)
+                            const titleLabel =
+                                meta?.labelOverride?.trim() ||
+                                (isField(meta?.item) && meta.item.label
+                                    ? meta.item.label
+                                    : undefined);
+                            const tooltipDescription =
+                                meta?.item && isField(meta.item)
                                     ? meta.item.description
                                     : undefined;
+                            const tooltipLabel =
+                                titleLabel && tooltipDescription ? (
+                                    <>
+                                        {titleLabel}
+                                        <br />
+                                        {tooltipDescription}
+                                    </>
+                                ) : (
+                                    (titleLabel ?? tooltipDescription)
+                                );
+                            const canResize =
+                                onColumnWidthChange &&
+                                !minimal &&
+                                header.id !== ROW_NUMBER_COLUMN_ID &&
+                                !meta?.isReadOnly;
 
                             return (
                                 <Th
@@ -158,6 +184,16 @@ const TableHeader: FC<TableHeaderProps> = ({
                                             </ThContainer>
                                         )}
                                     </Draggable>
+                                    {canResize && (
+                                        <div
+                                            className={resizeHandleClassName}
+                                            role="separator"
+                                            aria-orientation="vertical"
+                                            onMouseDown={(e) =>
+                                                handleResizeStart(e, header.id)
+                                            }
+                                        />
+                                    )}
                                 </Th>
                             );
                         })}

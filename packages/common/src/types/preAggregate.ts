@@ -24,7 +24,7 @@ export type PreAggregateMaterializationStatus =
 export type ActiveMaterializationDetails = {
     materializationUuid: string;
     queryUuid: string;
-    resultsFileName: string;
+    materializationUri: string;
     format: 'jsonl';
     columns: ResultColumns | null;
     materializedAt: Date;
@@ -120,6 +120,7 @@ export type PreAggregateMaterialization = {
     status: PreAggregateMaterializationStatus;
     trigger: PreAggregateMaterializationTrigger;
     queryUuid: string | null;
+    materializationUri: string | null;
     materializedAt: Date | null;
     rowCount: number | null;
     columns: ResultColumns | null;
@@ -148,6 +149,37 @@ export const preAggregateMissReasonLabels: Record<
     [PreAggregateMissReason.CUSTOM_METRIC_PRESENT]: 'Custom metric present',
     [PreAggregateMissReason.TABLE_CALCULATION_PRESENT]:
         'Table calculation present',
+};
+
+export type PreAggregateMaterializationSummary = {
+    preAggregateDefinitionUuid: string;
+    preAggregateName: string;
+    preAggExploreName: string;
+    sourceExploreName: string;
+    dimensions: string[];
+    metrics: string[];
+    timeDimension: string | null;
+    granularity: TimeFrames | null;
+    refreshCron: string | null;
+    definitionError: string | null;
+    materialization: {
+        materializationUuid: string;
+        status: PreAggregateMaterializationStatus;
+        materializedAt: Date | null;
+        rowCount: number | null;
+        columns: ResultColumns | null;
+        errorMessage: string | null;
+        trigger: PreAggregateMaterializationTrigger;
+    } | null;
+};
+
+export type ApiPreAggregateMaterializationsResults = {
+    materializations: PreAggregateMaterializationSummary[];
+};
+
+export type ApiGetPreAggregateMaterializationsResponse = {
+    status: 'ok';
+    results: KnexPaginatedData<ApiPreAggregateMaterializationsResults>;
 };
 
 export type PreAggregateSchedulerDetails = {

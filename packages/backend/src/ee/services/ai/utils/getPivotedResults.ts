@@ -17,7 +17,7 @@ export const getPivotedResults = async (
     const fields = Object.keys(fieldsMap);
     const arrowTable = tableFromJSON(rows);
     const db = await Database.create(':memory:');
-    await db.exec('INSTALL arrow; LOAD arrow;');
+    await db.exec('INSTALL arrow FROM community; LOAD arrow;');
     await db.register_buffer('results_data', [tableToIPC(arrowTable)], true);
     const usingFields = metrics.map((metric) => `FIRST(${metric})`);
 

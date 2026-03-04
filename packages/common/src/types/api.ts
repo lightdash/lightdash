@@ -137,6 +137,7 @@ import {
 import { type ApiTogglePinnedItem, type PinnedItems } from './pinning';
 import { type PivotConfiguration } from './pivot';
 import type {
+    ApiGetPreAggregateMaterializationsResponse,
     ApiGetPreAggregateStatsResponse,
     PreAggregateMatchMiss,
 } from './preAggregate';
@@ -950,7 +951,8 @@ type ApiResults =
     | ApiSpaceDeleteImpactResponse['results']
     | ApiGetPreAggregateStatsResponse['results']
     | ApiContentVerificationResponse['results']
-    | ApiContentVerificationDeleteResponse['results'];
+    | ApiContentVerificationDeleteResponse['results']
+    | ApiGetPreAggregateMaterializationsResponse['results'];
 // Note: EE API types removed from ApiResults to avoid circular imports
 // They can still be used with ApiResponse<T> by importing from '@lightdash/common'
 

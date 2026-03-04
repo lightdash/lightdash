@@ -72,13 +72,13 @@ const spacePermissionService = {
     getSpaceAccessContext: jest.fn(async () => ({
         organizationUuid: 'org-uuid',
         projectUuid: 'project-uuid',
-        isPrivate: false,
+        inheritsFromOrgOrProject: true,
         access: [],
     })),
     getAllSpaceAccessContext: jest.fn(async () => ({
         organizationUuid: 'org-uuid',
         projectUuid: 'project-uuid',
-        isPrivate: false,
+        inheritsFromOrgOrProject: true,
         access: upstreamFullSpace.access,
     })),
     getGroupAccess: jest.fn(async () => upstreamFullSpace.groupsAccess),

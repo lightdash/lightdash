@@ -4,8 +4,12 @@ import {
     QueryHistoryStatus,
     type Account,
     type ActiveMaterializationDetails,
+    type ApiPreAggregateMaterializationsResults,
+    type KnexPaginateArgs,
+    type KnexPaginatedData,
     type PreAggregateMaterializationTrigger,
 } from '@lightdash/common';
+import { type LightdashConfig } from '../../config/parseConfig';
 import { PreAggregateModel } from '../../models/PreAggregateModel';
 import { type QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import type PrometheusMetrics from '../../prometheus/PrometheusMetrics';
@@ -15,6 +19,8 @@ const QUERY_POLL_INTERVAL_MS = 1000;
 const QUERY_POLL_TIMEOUT_MS = 30 * 60 * 1000;
 
 export class PreAggregateMaterializationService {
+    private readonly lightdashConfig: LightdashConfig;
+
     private readonly preAggregateModel: PreAggregateModel;
 
     private readonly queryHistoryModel: QueryHistoryModel;
@@ -24,15 +30,29 @@ export class PreAggregateMaterializationService {
     private readonly prometheusMetrics: PrometheusMetrics | undefined;
 
     constructor(args: {
+        lightdashConfig: LightdashConfig;
         preAggregateModel: PreAggregateModel;
         queryHistoryModel: QueryHistoryModel;
         asyncQueryService: AsyncQueryService;
         prometheusMetrics?: PrometheusMetrics;
     }) {
+        this.lightdashConfig = args.lightdashConfig;
         this.preAggregateModel = args.preAggregateModel;
         this.queryHistoryModel = args.queryHistoryModel;
         this.asyncQueryService = args.asyncQueryService;
         this.prometheusMetrics = args.prometheusMetrics;
+    }
+
+    private getMaterializationUri(resultsFileName: string): string {
+        const bucket = this.lightdashConfig.preAggregates.s3?.bucket;
+
+        if (!bucket) {
+            throw new Error(
+                'Missing pre-aggregate S3 bucket configuration for materializations',
+            );
+        }
+
+        return `s3://${bucket}/${resultsFileName}.jsonl`;
     }
 
     async materializePreAggregate(args: {
@@ -138,9 +158,26 @@ export class PreAggregateMaterializationService {
                 };
             }
 
+            if (!queryHistory.resultsFileName) {
+                await this.preAggregateModel.markFailed({
+                    materializationUuid,
+                    errorMessage:
+                        'Materialization query completed without a persisted results file',
+                });
+
+                return {
+                    materializationUuid,
+                    status: 'failed',
+                    queryUuid,
+                };
+            }
+
             const { status } = await this.preAggregateModel.promoteToActive({
                 materializationUuid,
                 queryUuid,
+                materializationUri: this.getMaterializationUri(
+                    queryHistory.resultsFileName,
+                ),
                 materializedAt: queryHistory.resultsUpdatedAt || new Date(),
                 rowCount: queryHistory.totalRowCount,
                 columns: queryHistory.columns,
@@ -191,13 +228,23 @@ export class PreAggregateMaterializationService {
         }
     }
 
+    async getMaterializations(
+        projectUuid: string,
+        paginateArgs?: KnexPaginateArgs,
+    ): Promise<KnexPaginatedData<ApiPreAggregateMaterializationsResults>> {
+        return this.preAggregateModel.getDefinitionsWithLatestMaterialization(
+            projectUuid,
+            paginateArgs,
+        );
+    }
+
     async getActiveMaterialization(
         projectUuid: string,
         preAggExploreName: string,
     ): Promise<
         | {
               queryUuid: string;
-              resultsFileName: string;
+              materializationUri: string;
               format: 'jsonl';
               columns: ActiveMaterializationDetails['columns'];
               materializedAt: Date;
@@ -216,7 +263,7 @@ export class PreAggregateMaterializationService {
 
         return {
             queryUuid: activeMaterialization.queryUuid,
-            resultsFileName: activeMaterialization.resultsFileName,
+            materializationUri: activeMaterialization.materializationUri,
             format: activeMaterialization.format,
             columns: activeMaterialization.columns,
             materializedAt: activeMaterialization.materializedAt,

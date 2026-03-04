@@ -13,6 +13,7 @@ import {
     SpaceMemberRole,
     SqlChart,
 } from '@lightdash/common';
+import type { SpaceAccessContextForCasl } from '../SpaceService/SpacePermissionService';
 import {
     PromotedChart,
     PromotedDashboard,
@@ -90,6 +91,7 @@ export const upstreamSpace: UpstreamChart['space'] = {
 
 export const upstreamFullSpace: Space = {
     ...upstreamSpace,
+    inheritsFromOrgOrProject: true,
     childSpaces: [],
     path: 'jaffle_shop',
     queries: [],
@@ -163,14 +165,14 @@ export const promotedChart: PromotedChart = {
     projectUuid: promotedProjectUuid,
     space: promotedSpace,
     spaces: [],
-    access: [],
+    spaceAccessContext: undefined,
 };
 
 export const missingUpstreamChart: UpstreamChart = {
     chart: undefined,
     projectUuid: upstreamProjectUuid,
     space: undefined,
-    access: [],
+    spaceAccessContext: undefined,
 };
 export const existingUpstreamChart: UpstreamChart = {
     chart: {
@@ -191,7 +193,7 @@ export const existingUpstreamChart: UpstreamChart = {
     },
     projectUuid: upstreamProjectUuid,
     space: upstreamSpace,
-    access: [],
+    spaceAccessContext: undefined,
 };
 
 const dashboardChartTile: DashboardChartTile = {
@@ -236,7 +238,7 @@ export const promotedDashboard: PromotedDashboard = {
     projectUuid: promotedProjectUuid,
     space: promotedSpace,
     spaces: [],
-    access: [],
+    spaceAccessContext: undefined,
 };
 export const existingUpstreamDashboard: UpstreamDashboard = {
     dashboard: {
@@ -247,13 +249,13 @@ export const existingUpstreamDashboard: UpstreamDashboard = {
     },
     projectUuid: upstreamProjectUuid,
     space: upstreamSpace,
-    access: [],
+    spaceAccessContext: undefined,
 };
 export const missingUpstreamDashboard: UpstreamDashboard = {
     dashboard: undefined,
     projectUuid: upstreamProjectUuid,
     space: undefined,
-    access: [],
+    spaceAccessContext: undefined,
 };
 
 export const promotedChartWithinDashboard: PromotedChart = {
