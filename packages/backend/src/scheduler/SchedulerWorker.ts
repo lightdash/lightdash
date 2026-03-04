@@ -70,7 +70,7 @@ export class SchedulerWorker extends SchedulerTask {
             logger: workerLogger,
             concurrency: this.lightdashConfig.scheduler.concurrency,
             noHandleSignals: true,
-            pollInterval: 1000,
+            pollInterval: this.lightdashConfig.scheduler.pollInterval,
             maxPoolSize,
             parsedCronItems: parseCronItems([
                 {

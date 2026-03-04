@@ -155,6 +155,7 @@ export const lightdashConfigMock: LightdashConfig = {
     scheduler: {
         concurrency: 0,
         enabled: false,
+        pollInterval: 1000,
         jobTimeout: 0,
         tasks: ALL_TASK_NAMES,
         queryHistory: {
