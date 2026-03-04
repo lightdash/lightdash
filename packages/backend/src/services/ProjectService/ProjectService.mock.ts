@@ -595,6 +595,7 @@ export const exploreToSummaryWithAttributes = (
         schemaName: baseTable.schema,
         description: baseTable.description,
         type: explore.type,
+        preAggregateSource: explore.preAggregateSource,
         baseTableRequiredAttributes: baseTable.requiredAttributes,
         ...(explore.warnings ? { warnings: explore.warnings } : {}),
     };
