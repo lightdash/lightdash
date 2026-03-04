@@ -1,3 +1,13 @@
+## [0.2565.3](https://github.com/lightdash/lightdash/compare/0.2565.2...0.2565.3) (2026-03-04)
+
+
+### Bug Fixes
+
+* enforce UUID format validation in dashboard-as-code schema ([#20841](https://github.com/lightdash/lightdash/issues/20841)) ([3d53e9b](https://github.com/lightdash/lightdash/commit/3d53e9bd61bf0456625a586e2a5037c0c1a97d33))
+* include selected dimensions in sum_distinct PARTITION BY ([#20797](https://github.com/lightdash/lightdash/issues/20797)) ([b1ce094](https://github.com/lightdash/lightdash/commit/b1ce0949a11f93d5cb897728d13684ec8dffc93a))
+* keep reference lines within axis range ([#20824](https://github.com/lightdash/lightdash/issues/20824)) ([d4196f1](https://github.com/lightdash/lightdash/commit/d4196f1ede0f81a32a89a669bffb2f9983f2f2c5))
+* skip pre-aggregate generation for additional explores ([#20839](https://github.com/lightdash/lightdash/issues/20839)) ([8160a8c](https://github.com/lightdash/lightdash/commit/8160a8cde2ba1b52c29d7cc28db293a6d5bec4ee))
+
 ## [0.2565.2](https://github.com/lightdash/lightdash/compare/0.2565.1...0.2565.2) (2026-03-04)
 
 
