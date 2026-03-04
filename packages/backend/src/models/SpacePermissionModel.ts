@@ -27,27 +27,6 @@ import {
 import { UserTableName } from '../database/entities/users';
 import { wrapSentryTransaction } from '../utils';
 
-/**
- * ! This needs to be removed once nested spaces permissions are fully implemented
- * Nested spaces MVP - get is_private from root space
- * Returns a raw SQL expression to determine if a space is private.
- * For nested spaces, it checks the root space's privacy setting.
- * @returns SQL string for determining privacy setting
- */
-export const getRootSpaceIsPrivateQuery = (): string => `
-                CASE
-                    WHEN ${SpaceTableName}.parent_space_uuid IS NOT NULL AND ${SpaceTableName}.is_default_user_space = false THEN
-                        (SELECT ps.is_private
-                         FROM ${SpaceTableName} ps
-                         WHERE ps.path @> ${SpaceTableName}.path
-                         AND nlevel(ps.path) = 1
-                         AND ps.project_id = ${SpaceTableName}.project_id
-                         LIMIT 1)
-                    ELSE
-                        ${SpaceTableName}.is_private
-                END
-            `;
-
 export class SpacePermissionModel {
     constructor(private readonly database: Knex) {}
 

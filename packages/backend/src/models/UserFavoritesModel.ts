@@ -15,7 +15,6 @@ import {
     type CreateDbUserFavorite,
 } from '../database/entities/userFavorites';
 import { type ResourceViewSpaceItemBase } from './ResourceViewItemModel';
-import { getRootSpaceIsPrivateQuery } from './SpacePermissionModel';
 
 type UserFavoritesModelArguments = {
     database: Knex;
@@ -307,7 +306,7 @@ export class UserFavoritesModel {
                 project_uuid: `${ProjectTableName}.project_uuid`,
                 space_uuid: `${SpaceTableName}.space_uuid`,
                 name: `${SpaceTableName}.name`,
-                is_private: this.database.raw(getRootSpaceIsPrivateQuery()),
+                is_private: `${SpaceTableName}.is_private`,
                 inherit_parent_permissions: `${SpaceTableName}.inherit_parent_permissions`,
                 parent_space_uuid: `${SpaceTableName}.parent_space_uuid`,
                 path: `${SpaceTableName}.path`,

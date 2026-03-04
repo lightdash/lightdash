@@ -321,9 +321,6 @@ export const lightdashConfigMock: LightdashConfig = {
     savedMetricsTree: {
         enabled: undefined,
     },
-    nestedSpacesPermissions: {
-        enabled: false,
-    },
     defaultUserSpaces: {
         enabled: false,
     },

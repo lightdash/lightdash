@@ -1092,9 +1092,6 @@ export type LightdashConfig = {
     savedMetricsTree: {
         enabled: boolean | undefined;
     };
-    nestedSpacesPermissions: {
-        enabled: boolean;
-    };
     defaultUserSpaces: {
         enabled: boolean;
     };
@@ -1976,10 +1973,6 @@ export const parseConfig = (): LightdashConfig => {
                 process.env.SAVED_METRICS_TREE_ENABLED === 'true'
                     ? true
                     : undefined,
-        },
-        // TODO: Nested spaces permissions on by default -> remove this flag and the old code paths
-        nestedSpacesPermissions: {
-            enabled: process.env.NESTED_SPACES_PERMISSIONS_ENABLED !== 'false',
         },
         defaultUserSpaces: {
             enabled:

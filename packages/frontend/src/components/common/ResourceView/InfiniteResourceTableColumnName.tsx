@@ -1,5 +1,4 @@
 import {
-    FeatureFlags,
     isResourceViewItemChart,
     isResourceViewItemDashboard,
     isResourceViewSpaceItem,
@@ -13,10 +12,8 @@ import {
     IconLayoutDashboard,
 } from '@tabler/icons-react';
 import { Link } from 'react-router';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { ResourceIcon, ResourceIndicator } from '../ResourceIcon';
 import { ResourceInfoPopup } from '../ResourceInfoPopup/ResourceInfoPopup';
-import ResourceAccessInfo from './ResourceAccessInfo';
 import AttributeCount from './ResourceAttributeCount';
 import {
     getResourceTypeName,
@@ -102,11 +99,6 @@ const InfiniteResourceTableColumnName = ({
     projectUuid,
     canUserManageValidation,
 }: InfiniteResourceTableColumnNameProps) => {
-    const { data: nestedSpacesPermissionsFlag } = useServerFeatureFlag(
-        FeatureFlags.NestedSpacesPermissions,
-    );
-    const isV2 = !!nestedSpacesPermissionsFlag?.enabled;
-
     const isSpace = isResourceViewSpaceItem(item);
     const isChartOrDashboard =
         isResourceViewItemChart(item) || isResourceViewItemDashboard(item);
@@ -185,18 +177,6 @@ const InfiniteResourceTableColumnName = ({
                     )}
                     {isSpace && item.data.parentSpaceUuid && (
                         <Group gap="xs" wrap="nowrap">
-                            {!isV2 && (
-                                <>
-                                    <ResourceAccessInfo
-                                        item={item}
-                                        type="secondary"
-                                        withTooltip
-                                    />
-                                    <Text fz={12} c="ldGray.6">
-                                        &bull;
-                                    </Text>
-                                </>
-                            )}
                             <Group>
                                 <AttributeCount
                                     Icon={IconLayoutDashboard}
