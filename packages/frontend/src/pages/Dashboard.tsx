@@ -629,6 +629,7 @@ const Dashboard: FC = () => {
         isFullscreen,
         activeTabUuid: activeTab?.uuid,
         dashboardTabs,
+        dashboardTiles,
         isFullScreenFeatureEnabled,
         onToggleFullscreen: handleToggleFullscreen,
         hasDashboardChanged:
