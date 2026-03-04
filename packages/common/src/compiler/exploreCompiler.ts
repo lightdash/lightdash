@@ -996,10 +996,13 @@ export class ExploreCompiler {
                 ' AND ',
             )}) THEN (${renderedSql}) ELSE NULL END`;
         }
-        if (metric.type === MetricType.SUM_DISTINCT) {
+        if (
+            metric.type === MetricType.SUM_DISTINCT ||
+            metric.type === MetricType.AVERAGE_DISTINCT
+        ) {
             if (!metric.distinctKeys || metric.distinctKeys.length === 0) {
                 throw new CompileError(
-                    `Metric "${metric.name}" of type "sum_distinct" requires a "distinct_keys" property`,
+                    `Metric "${metric.name}" of type "${metric.type}" requires a "distinct_keys" property`,
                     {},
                 );
             }
@@ -1017,8 +1020,10 @@ export class ExploreCompiler {
                 return compiled.sql;
             });
             // CTE-based dedup is handled by MetricQueryBuilder; store metadata here
+            const fallbackAgg =
+                metric.type === MetricType.AVERAGE_DISTINCT ? 'AVG' : 'SUM';
             return {
-                sql: `SUM(${renderedSql})`, // fallback compiledSql
+                sql: `${fallbackAgg}(${renderedSql})`, // fallback compiledSql
                 tablesReferences,
                 valueSql: renderedSql,
                 compiledDistinctKeys: compiledKeys,

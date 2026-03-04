@@ -79,6 +79,15 @@ models:
                   cost is summed once, regardless of line items or payment methods.
                 format: usd
                 round: 2
+              avg_shipping_cost_deduped:
+                type: average_distinct
+                sql: ${shipping_cost}
+                distinct_keys: [order_id]
+                description: >
+                  Average shipping cost per order, correctly deduped by order_id.
+                  Each order's shipping cost is counted once regardless of line items or payments.
+                format: usd
+                round: 2
               total_shipping_cost_inflated:
                 type: sum
                 sql: ${shipping_cost}

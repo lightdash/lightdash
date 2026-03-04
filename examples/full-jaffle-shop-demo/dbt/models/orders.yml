@@ -217,6 +217,10 @@ models:
                   interval: DAY
                 spotlight:
                   categories: ["revenue_growth"]
+              average_order_amount:
+                type: average
+                format: usd
+                round: 2
               amount_percent_of_previous:
                 type: percent_of_previous
                 sql: ${total_order_amount}

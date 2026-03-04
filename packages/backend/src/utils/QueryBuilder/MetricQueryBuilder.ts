@@ -880,8 +880,11 @@ export class MetricQueryBuilder {
             try {
                 const alias = field;
                 const metric = this.getMetricFromId(field);
-                // Sum distinct metrics are handled separately via CTE
-                if (metric.type === MetricType.SUM_DISTINCT) {
+                // Distinct metrics are handled separately via CTE
+                if (
+                    metric.type === MetricType.SUM_DISTINCT ||
+                    metric.type === MetricType.AVERAGE_DISTINCT
+                ) {
                     // Still track table references for JOIN generation
                     (metric.tablesReferences || [metric.table]).forEach(
                         (table) => tables.add(table),
@@ -1917,8 +1920,10 @@ export class MetricQueryBuilder {
                     !metricsWithCteReferences.find(
                         (m) => getItemId(metric) === getItemId(m),
                     );
-                // Sum distinct metrics are handled via their own CTE
-                const notSumDistinct = metric.type !== MetricType.SUM_DISTINCT;
+                // Distinct metrics are handled via their own CTE
+                const notSumDistinct =
+                    metric.type !== MetricType.SUM_DISTINCT &&
+                    metric.type !== MetricType.AVERAGE_DISTINCT;
                 return (
                     notInMetricCtes &&
                     notMetricWithCteReferences &&
@@ -2195,10 +2200,10 @@ export class MetricQueryBuilder {
     }
 
     /**
-     * Builds CTE(s) for sum_distinct metrics using ROW_NUMBER deduplication.
+     * Builds CTE(s) for distinct metrics (sum_distinct, average_distinct) using ROW_NUMBER deduplication.
      * Follows the same pattern as PoP CTEs: separate CTE per metric, joined on dimensions.
      */
-    private buildSumDistinctCtes({
+    private buildDistinctMetricCtes({
         dimensionSelects,
         dimensionGroupBy,
         dimensionFilters,
@@ -2225,7 +2230,10 @@ export class MetricQueryBuilder {
         const sdMetricIds = this.getSelectedAndReferencedMetricIds().filter(
             (id) => {
                 const metric = this.getMetricFromId(id);
-                return metric.type === MetricType.SUM_DISTINCT;
+                return (
+                    metric.type === MetricType.SUM_DISTINCT ||
+                    metric.type === MetricType.AVERAGE_DISTINCT
+                );
             },
         );
 
@@ -2285,9 +2293,17 @@ export class MetricQueryBuilder {
                 ]);
 
                 // Outer CTE: aggregate with CASE WHEN on ROW_NUMBER
+                let outerAgg: string;
+                if (metric.type === MetricType.AVERAGE_DISTINCT) {
+                    const floatType =
+                        warehouseSqlBuilder.getFloatingType();
+                    outerAgg = `CAST(SUM(CASE WHEN __sd_rn = 1 THEN __sd_val ELSE NULL END) AS ${floatType}) / CAST(NULLIF(COUNT(CASE WHEN __sd_rn = 1 THEN 1 END), 0) AS ${floatType})`;
+                } else {
+                    outerAgg = `COALESCE(SUM(CASE WHEN __sd_rn = 1 THEN __sd_val ELSE NULL END), 0)`;
+                }
                 const outerSelects = [
                     ...dimensionAlias,
-                    `  COALESCE(SUM(CASE WHEN __sd_rn = 1 THEN __sd_val ELSE NULL END), 0) AS ${fieldQuoteChar}${metricId}${fieldQuoteChar}`,
+                    `  ${outerAgg} AS ${fieldQuoteChar}${metricId}${fieldQuoteChar}`,
                 ];
 
                 const cteSql = `${sdCteName} AS (\nSELECT\n${outerSelects.join(',\n')}\nFROM (\n${innerSubquery}\n) __sd_sub\n${sdGroupBy ?? ''}\n)`;
@@ -3019,7 +3035,7 @@ export class MetricQueryBuilder {
                 ctes: sdCtes,
                 sdJoins,
                 sdMetricSelects,
-            } = this.buildSumDistinctCtes({
+            } = this.buildDistinctMetricCtes({
                 dimensionSelects: dimensionsSQL.selects,
                 dimensionGroupBy: dimensionsSQL.groupBySQL,
                 dimensionFilters: dimensionsSQL.filtersSQL,
