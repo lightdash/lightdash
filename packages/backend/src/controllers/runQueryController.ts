@@ -167,6 +167,7 @@ export class RunViewChartQueryController extends BaseController {
             additionalMetrics: body.additionalMetrics,
             customDimensions: body.customDimensions,
             timezone: body.timezone,
+            pivotDimensions: body.pivotDimensions,
             metricOverrides: body.metricOverrides,
             dimensionOverrides: body.dimensionOverrides,
         };

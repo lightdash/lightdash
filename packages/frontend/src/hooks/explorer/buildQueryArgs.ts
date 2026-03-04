@@ -63,10 +63,16 @@ export function buildQueryArgs(options: {
             items,
         );
     }
+
+    const pivotDimensions = options.savedChart.pivotConfig?.columns;
+
     return {
         projectUuid,
         tableId: tableName,
-        query: computedMetricQuery,
+        query: {
+            ...computedMetricQuery,
+            pivotDimensions,
+        },
         ...(isEditMode ? {} : viewModeQueryArgs),
         dateZoomGranularity,
         invalidateCache: minimal,

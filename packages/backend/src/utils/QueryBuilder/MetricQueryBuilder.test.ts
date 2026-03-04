@@ -15,6 +15,7 @@ import {
     TimeFrames,
     VizAggregationOptions,
     VizIndexType,
+    type CompiledMetric,
 } from '@lightdash/common';
 import {
     BuildQueryProps,
@@ -3509,6 +3510,755 @@ describe('Query Structure Tests', () => {
 
         // Verify that the raw pivot_offset function is not in the query
         expect(result.query).not.toContain('pivot_offset');
+    });
+
+    test('Should build column_totals CTE when total() is used', () => {
+        const metricQueryWithTotal = {
+            ...METRIC_QUERY,
+            tableCalculations: [
+                {
+                    name: 'pct_of_total',
+                    displayName: 'Pct of Total',
+                    sql: '${table1.metric1} / total(${table1.metric1})',
+                },
+            ],
+            compiledTableCalculations: [
+                {
+                    name: 'pct_of_total',
+                    displayName: 'Pct of Total',
+                    sql: '${table1.metric1} / total(${table1.metric1})',
+                    compiledSql: '"table1_metric1" / total("table1_metric1")',
+                    dependsOn: [],
+                },
+            ],
+        };
+
+        const result = buildQuery({
+            explore: EXPLORE,
+            compiledMetricQuery: metricQueryWithTotal,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        // Should have the column_totals CTE
+        expect(result.query).toContain('column_totals AS (');
+        // Should use the metric's compiledSql for aggregation
+        expect(result.query).toContain(
+            'MAX("table1".number_column) AS "table1_metric1__total"',
+        );
+        // Should have with_totals CTE joining column_totals
+        expect(result.query).toContain('with_totals AS (');
+        expect(result.query).toContain('CROSS JOIN column_totals');
+        // Should replace total() with column alias in table calc
+        expect(result.query).toContain('"table1_metric1__total"');
+        // Should NOT contain the raw total() call
+        expect(result.query).not.toContain('total("table1_metric1")');
+    });
+
+    test('Should build row_totals CTE when row_total() is used with pivot', () => {
+        const metricQueryWithRowTotal = {
+            ...METRIC_QUERY,
+            tableCalculations: [
+                {
+                    name: 'pct_of_row',
+                    displayName: 'Pct of Row',
+                    sql: '${table1.metric1} / row_total(${table1.metric1})',
+                },
+            ],
+            compiledTableCalculations: [
+                {
+                    name: 'pct_of_row',
+                    displayName: 'Pct of Row',
+                    sql: '${table1.metric1} / row_total(${table1.metric1})',
+                    compiledSql:
+                        '"table1_metric1" / row_total("table1_metric1")',
+                    dependsOn: [],
+                },
+            ],
+        };
+
+        const result = buildQuery({
+            explore: EXPLORE,
+            compiledMetricQuery: metricQueryWithRowTotal,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            pivotConfiguration: {
+                indexColumn: [
+                    {
+                        reference: 'table1_dim1',
+                        type: VizIndexType.CATEGORY,
+                    },
+                ],
+                valuesColumns: [],
+                groupByColumns: undefined,
+                sortBy: undefined,
+            },
+        });
+
+        // Should have the row_totals CTE
+        expect(result.query).toContain('row_totals AS (');
+        // Should SUM the already-computed metric values (row totals are always SUM)
+        expect(result.query).toContain(
+            'SUM("table1_metric1") AS "table1_metric1__row_total"',
+        );
+        // Should read from the grouped results CTE, not from raw tables
+        expect(result.query).not.toMatch(
+            /row_totals AS \([^)]*FROM "postgres"\."schema"\."table1"/s,
+        );
+        // Should GROUP BY the non-pivot dimension
+        expect(result.query).toContain('GROUP BY 1');
+        // Should have with_totals CTE with LEFT JOIN on dimension
+        expect(result.query).toContain('with_totals AS (');
+        expect(result.query).toContain('LEFT JOIN row_totals ON');
+        // Should replace row_total() with column alias
+        expect(result.query).toContain('"table1_metric1__row_total"');
+        expect(result.query).not.toContain('row_total("table1_metric1")');
+    });
+
+    test('Should build both column_totals and row_totals when both are used', () => {
+        const metricQueryWithBothTotals = {
+            ...METRIC_QUERY,
+            tableCalculations: [
+                {
+                    name: 'pct_total',
+                    displayName: 'Pct Total',
+                    sql: '${table1.metric1} / total(${table1.metric1})',
+                },
+                {
+                    name: 'pct_row',
+                    displayName: 'Pct Row',
+                    sql: '${table1.metric1} / row_total(${table1.metric1})',
+                },
+            ],
+            compiledTableCalculations: [
+                {
+                    name: 'pct_total',
+                    displayName: 'Pct Total',
+                    sql: '${table1.metric1} / total(${table1.metric1})',
+                    compiledSql: '"table1_metric1" / total("table1_metric1")',
+                    dependsOn: [],
+                },
+                {
+                    name: 'pct_row',
+                    displayName: 'Pct Row',
+                    sql: '${table1.metric1} / row_total(${table1.metric1})',
+                    compiledSql:
+                        '"table1_metric1" / row_total("table1_metric1")',
+                    dependsOn: [],
+                },
+            ],
+        };
+
+        const result = buildQuery({
+            explore: EXPLORE,
+            compiledMetricQuery: metricQueryWithBothTotals,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            pivotConfiguration: {
+                indexColumn: [
+                    {
+                        reference: 'table1_dim1',
+                        type: VizIndexType.CATEGORY,
+                    },
+                ],
+                valuesColumns: [],
+                groupByColumns: undefined,
+                sortBy: undefined,
+            },
+        });
+
+        // Should have both totals CTEs
+        expect(result.query).toContain('column_totals AS (');
+        expect(result.query).toContain('row_totals AS (');
+        expect(result.query).toContain('with_totals AS (');
+
+        // Should have CROSS JOIN for column_totals and LEFT JOIN for row_totals
+        expect(result.query).toContain('CROSS JOIN column_totals');
+        expect(result.query).toContain('LEFT JOIN row_totals ON');
+
+        // Both replacements should be present
+        expect(result.query).toContain('"table1_metric1__total"');
+        expect(result.query).toContain('"table1_metric1__row_total"');
+    });
+
+    test('Should handle total() in dependent table calculations', () => {
+        const metricQueryWithTotalDependentCalc = {
+            ...METRIC_QUERY,
+            tableCalculations: [
+                {
+                    name: 'pct_total',
+                    displayName: 'Pct Total',
+                    sql: '${table1.metric1} / total(${table1.metric1})',
+                },
+                {
+                    name: 'double_pct',
+                    displayName: 'Double Pct',
+                    sql: '${pct_total} * 2',
+                },
+            ],
+            compiledTableCalculations: [
+                {
+                    name: 'pct_total',
+                    displayName: 'Pct Total',
+                    sql: '${table1.metric1} / total(${table1.metric1})',
+                    compiledSql: '"table1_metric1" / total("table1_metric1")',
+                    dependsOn: [],
+                },
+                {
+                    name: 'double_pct',
+                    displayName: 'Double Pct',
+                    sql: '${pct_total} * 2',
+                    compiledSql: '"pct_total" * 2',
+                    dependsOn: ['pct_total'],
+                },
+            ],
+        };
+
+        const result = buildQuery({
+            explore: EXPLORE,
+            compiledMetricQuery: metricQueryWithTotalDependentCalc,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        // Should have column_totals and with_totals CTEs
+        expect(result.query).toContain('column_totals AS (');
+        expect(result.query).toContain('with_totals AS (');
+
+        // Should have dependent table calc CTE
+        expect(result.query).toContain('tc_pct_total AS (');
+        expect(result.query).toContain('tc_double_pct AS (');
+
+        // total() should be replaced in the dependent CTE
+        expect(result.query).toContain('"table1_metric1__total"');
+        expect(result.query).not.toContain('total("table1_metric1")');
+    });
+
+    test('Should fall back row_total() to field reference when no pivot configuration', () => {
+        const metricQueryWithRowTotalNoPivot = {
+            ...METRIC_QUERY,
+            tableCalculations: [
+                {
+                    name: 'pct_of_row',
+                    displayName: 'Pct of Row',
+                    sql: '${table1.metric1} / row_total(${table1.metric1})',
+                },
+            ],
+            compiledTableCalculations: [
+                {
+                    name: 'pct_of_row',
+                    displayName: 'Pct of Row',
+                    sql: '${table1.metric1} / row_total(${table1.metric1})',
+                    compiledSql:
+                        '"table1_metric1" / row_total("table1_metric1")',
+                    dependsOn: [],
+                },
+            ],
+        };
+
+        // No pivotConfiguration passed
+        const result = buildQuery({
+            explore: EXPLORE,
+            compiledMetricQuery: metricQueryWithRowTotalNoPivot,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        // Should NOT build row_totals CTE
+        expect(result.query).not.toContain('row_totals AS (');
+        // row_total("field") should be replaced with just "field" (identity fallback)
+        expect(result.query).not.toContain('row_total("table1_metric1")');
+        expect(result.query).not.toContain('"table1_metric1__row_total"');
+        // The field reference itself should still be present
+        expect(result.query).toContain('"table1_metric1"');
+    });
+
+    test('Should not build totals CTEs when total() is not used', () => {
+        const metricQueryWithoutTotal = {
+            ...METRIC_QUERY,
+            tableCalculations: [
+                {
+                    name: 'simple_calc',
+                    displayName: 'Simple Calc',
+                    sql: '${table1.metric1} + 100',
+                },
+            ],
+            compiledTableCalculations: [
+                {
+                    name: 'simple_calc',
+                    displayName: 'Simple Calc',
+                    sql: '${table1.metric1} + 100',
+                    compiledSql: '"table1_metric1" + 100',
+                    dependsOn: [],
+                },
+            ],
+        };
+
+        const result = buildQuery({
+            explore: EXPLORE,
+            compiledMetricQuery: metricQueryWithoutTotal,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        // Should NOT have any totals CTEs
+        expect(result.query).not.toContain('column_totals AS (');
+        expect(result.query).not.toContain('row_totals AS (');
+        expect(result.query).not.toContain('with_totals AS (');
+    });
+
+    /**
+     * Imagine "Avg Order Value" grouped by month: Jan=$50, Feb=$80, Mar=$60.
+     * A naive SUM of those averages gives $190 — meaningless.
+     * total() must go back to the raw orders table and run AVG(order_value)
+     * across ALL rows (e.g. $62), not SUM the already-grouped averages.
+     *
+     * This test proves the column_totals CTE contains AVG(...), not SUM(...).
+     */
+    test('Should use AVG aggregation in column_totals for average metrics (not SUM)', () => {
+        const exploreWithAvgMetric: Explore = {
+            ...EXPLORE,
+            tables: {
+                ...EXPLORE.tables,
+                table1: {
+                    ...EXPLORE.tables.table1,
+                    metrics: {
+                        ...EXPLORE.tables.table1.metrics,
+                        avg_metric: {
+                            type: MetricType.AVERAGE,
+                            fieldType: FieldType.METRIC,
+                            table: 'table1',
+                            tableLabel: 'table1',
+                            name: 'avg_metric',
+                            label: 'avg_metric',
+                            sql: '${TABLE}.number_column',
+                            compiledSql: 'AVG("table1".number_column)',
+                            tablesReferences: ['table1'],
+                            hidden: false,
+                        } as CompiledMetric,
+                    },
+                },
+            },
+        };
+
+        const metricQueryWithAvgTotal = {
+            ...METRIC_QUERY,
+            metrics: ['table1_avg_metric'],
+            tableCalculations: [
+                {
+                    name: 'pct_of_total',
+                    displayName: 'Pct of Total',
+                    sql: '${table1.avg_metric} / total(${table1.avg_metric})',
+                },
+            ],
+            compiledTableCalculations: [
+                {
+                    name: 'pct_of_total',
+                    displayName: 'Pct of Total',
+                    sql: '${table1.avg_metric} / total(${table1.avg_metric})',
+                    compiledSql:
+                        '"table1_avg_metric" / total("table1_avg_metric")',
+                    dependsOn: [],
+                },
+            ],
+        };
+
+        const result = buildQuery({
+            explore: exploreWithAvgMetric,
+            compiledMetricQuery: metricQueryWithAvgTotal,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        // Must use AVG, not SUM — re-aggregates from raw data
+        expect(result.query).toContain(
+            'AVG("table1".number_column) AS "table1_avg_metric__total"',
+        );
+        expect(result.query).not.toMatch(
+            /SUM\("table1"\.number_column\).*AS "table1_avg_metric__total"/,
+        );
+    });
+
+    /**
+     * Unique customers per region: North=80, South=70, East=60.
+     * Some customers shop in multiple regions. Summing gives 210,
+     * but the true distinct count might be 150.
+     *
+     * total() must re-run COUNT(DISTINCT user_id) across all raw data
+     * so shared customers are only counted once.
+     */
+    test('Should use COUNT(DISTINCT) aggregation in column_totals for count_distinct metrics', () => {
+        const exploreWithCountDistinctMetric: Explore = {
+            ...EXPLORE,
+            tables: {
+                ...EXPLORE.tables,
+                table1: {
+                    ...EXPLORE.tables.table1,
+                    metrics: {
+                        ...EXPLORE.tables.table1.metrics,
+                        unique_users: {
+                            type: MetricType.COUNT_DISTINCT,
+                            fieldType: FieldType.METRIC,
+                            table: 'table1',
+                            tableLabel: 'table1',
+                            name: 'unique_users',
+                            label: 'unique_users',
+                            sql: '${TABLE}.user_id',
+                            compiledSql: 'COUNT(DISTINCT "table1".user_id)',
+                            tablesReferences: ['table1'],
+                            hidden: false,
+                        } as CompiledMetric,
+                    },
+                },
+            },
+        };
+
+        const metricQueryWithCountDistinctTotal = {
+            ...METRIC_QUERY,
+            metrics: ['table1_unique_users'],
+            tableCalculations: [
+                {
+                    name: 'pct_of_total',
+                    displayName: 'Pct of Total',
+                    sql: '${table1.unique_users} / total(${table1.unique_users})',
+                },
+            ],
+            compiledTableCalculations: [
+                {
+                    name: 'pct_of_total',
+                    displayName: 'Pct of Total',
+                    sql: '${table1.unique_users} / total(${table1.unique_users})',
+                    compiledSql:
+                        '"table1_unique_users" / total("table1_unique_users")',
+                    dependsOn: [],
+                },
+            ],
+        };
+
+        const result = buildQuery({
+            explore: exploreWithCountDistinctMetric,
+            compiledMetricQuery: metricQueryWithCountDistinctTotal,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        expect(result.query).toContain(
+            'COUNT(DISTINCT "table1".user_id) AS "table1_unique_users__total"',
+        );
+    });
+
+    /**
+     * Custom SQL metric "Revenue Per Order" = SUM(revenue) / COUNT(order_id).
+     * This is a ratio of two aggregations, not a simple AVG.
+     *
+     * total() must use the full compiled expression — running both
+     * SUM and COUNT against raw data — not just SUM the pre-computed ratios.
+     */
+    test('Should use full compiled expression in column_totals for custom SQL (number) metrics', () => {
+        const exploreWithCustomMetric: Explore = {
+            ...EXPLORE,
+            tables: {
+                ...EXPLORE.tables,
+                table1: {
+                    ...EXPLORE.tables.table1,
+                    metrics: {
+                        ...EXPLORE.tables.table1.metrics,
+                        revenue_per_order: {
+                            type: MetricType.NUMBER,
+                            fieldType: FieldType.METRIC,
+                            table: 'table1',
+                            tableLabel: 'table1',
+                            name: 'revenue_per_order',
+                            label: 'revenue_per_order',
+                            sql: '${total_revenue} / ${order_count}',
+                            compiledSql:
+                                'SUM("table1".revenue) / COUNT("table1".order_id)',
+                            tablesReferences: ['table1'],
+                            hidden: false,
+                        } as CompiledMetric,
+                    },
+                },
+            },
+        };
+
+        const metricQueryWithCustomTotal = {
+            ...METRIC_QUERY,
+            metrics: ['table1_revenue_per_order'],
+            tableCalculations: [
+                {
+                    name: 'pct_of_total',
+                    displayName: 'Pct of Total',
+                    sql: '${table1.revenue_per_order} / total(${table1.revenue_per_order})',
+                },
+            ],
+            compiledTableCalculations: [
+                {
+                    name: 'pct_of_total',
+                    displayName: 'Pct of Total',
+                    sql: '${table1.revenue_per_order} / total(${table1.revenue_per_order})',
+                    compiledSql:
+                        '"table1_revenue_per_order" / total("table1_revenue_per_order")',
+                    dependsOn: [],
+                },
+            ],
+        };
+
+        const result = buildQuery({
+            explore: exploreWithCustomMetric,
+            compiledMetricQuery: metricQueryWithCustomTotal,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        // Custom SQL metric should use its full compiledSql with embedded aggregations
+        expect(result.query).toContain(
+            'SUM("table1".revenue) / COUNT("table1".order_id) AS "table1_revenue_per_order__total"',
+        );
+    });
+
+    /**
+     * Two metrics in one query: Total Revenue (SUM) and Avg Order Value (AVG).
+     * Both use total() in table calculations.
+     *
+     * The single column_totals CTE must contain BOTH SUM(revenue) AND
+     * AVG(order_value) — each metric gets its own correct aggregation,
+     * they don't all default to SUM.
+     */
+    test('Should use correct aggregation per metric when multiple metric types use total()', () => {
+        const exploreWithMultipleMetrics: Explore = {
+            ...EXPLORE,
+            tables: {
+                ...EXPLORE.tables,
+                table1: {
+                    ...EXPLORE.tables.table1,
+                    metrics: {
+                        ...EXPLORE.tables.table1.metrics,
+                        total_revenue: {
+                            type: MetricType.SUM,
+                            fieldType: FieldType.METRIC,
+                            table: 'table1',
+                            tableLabel: 'table1',
+                            name: 'total_revenue',
+                            label: 'total_revenue',
+                            sql: '${TABLE}.revenue',
+                            compiledSql: 'SUM("table1".revenue)',
+                            tablesReferences: ['table1'],
+                            hidden: false,
+                        } as CompiledMetric,
+                        avg_order_value: {
+                            type: MetricType.AVERAGE,
+                            fieldType: FieldType.METRIC,
+                            table: 'table1',
+                            tableLabel: 'table1',
+                            name: 'avg_order_value',
+                            label: 'avg_order_value',
+                            sql: '${TABLE}.order_value',
+                            compiledSql: 'AVG("table1".order_value)',
+                            tablesReferences: ['table1'],
+                            hidden: false,
+                        } as CompiledMetric,
+                    },
+                },
+            },
+        };
+
+        const metricQueryWithMultipleTotals = {
+            ...METRIC_QUERY,
+            metrics: ['table1_total_revenue', 'table1_avg_order_value'],
+            tableCalculations: [
+                {
+                    name: 'revenue_pct',
+                    displayName: 'Revenue %',
+                    sql: '${table1.total_revenue} / total(${table1.total_revenue})',
+                },
+                {
+                    name: 'avg_pct',
+                    displayName: 'Avg %',
+                    sql: '${table1.avg_order_value} / total(${table1.avg_order_value})',
+                },
+            ],
+            compiledTableCalculations: [
+                {
+                    name: 'revenue_pct',
+                    displayName: 'Revenue %',
+                    sql: '${table1.total_revenue} / total(${table1.total_revenue})',
+                    compiledSql:
+                        '"table1_total_revenue" / total("table1_total_revenue")',
+                    dependsOn: [],
+                },
+                {
+                    name: 'avg_pct',
+                    displayName: 'Avg %',
+                    sql: '${table1.avg_order_value} / total(${table1.avg_order_value})',
+                    compiledSql:
+                        '"table1_avg_order_value" / total("table1_avg_order_value")',
+                    dependsOn: [],
+                },
+            ],
+        };
+
+        const result = buildQuery({
+            explore: exploreWithMultipleMetrics,
+            compiledMetricQuery: metricQueryWithMultipleTotals,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        // SUM metric should use SUM in column_totals
+        expect(result.query).toContain(
+            'SUM("table1".revenue) AS "table1_total_revenue__total"',
+        );
+        // AVG metric should use AVG in column_totals (not SUM)
+        expect(result.query).toContain(
+            'AVG("table1".order_value) AS "table1_avg_order_value__total"',
+        );
+    });
+
+    /**
+     * "Avg Order Value" pivoted by region: North=$50, South=$45, East=$60.
+     * row_total() gives $50+$45+$60 = $155 — a SUM of the averages.
+     *
+     * This is mathematically questionable (summing averages), but it's the
+     * spec: row_total is always SUM regardless of metric type. This test
+     * documents that intentional design choice so it isn't accidentally
+     * "fixed" to use AVG later without a deliberate decision.
+     *
+     * Looker differs here — it lets users choose the aggregation function
+     * for row totals (mean, max, min, etc. via pivot_row()).
+     */
+    test('Should always SUM in row_totals regardless of metric type (by design)', () => {
+        const exploreWithAvgMetric: Explore = {
+            ...EXPLORE,
+            tables: {
+                ...EXPLORE.tables,
+                table1: {
+                    ...EXPLORE.tables.table1,
+                    metrics: {
+                        ...EXPLORE.tables.table1.metrics,
+                        avg_metric: {
+                            type: MetricType.AVERAGE,
+                            fieldType: FieldType.METRIC,
+                            table: 'table1',
+                            tableLabel: 'table1',
+                            name: 'avg_metric',
+                            label: 'avg_metric',
+                            sql: '${TABLE}.number_column',
+                            compiledSql: 'AVG("table1".number_column)',
+                            tablesReferences: ['table1'],
+                            hidden: false,
+                        } as CompiledMetric,
+                    },
+                },
+            },
+        };
+
+        const metricQueryWithAvgRowTotal = {
+            ...METRIC_QUERY,
+            metrics: ['table1_avg_metric'],
+            tableCalculations: [
+                {
+                    name: 'row_sum',
+                    displayName: 'Row Sum',
+                    sql: 'row_total(${table1.avg_metric})',
+                },
+            ],
+            compiledTableCalculations: [
+                {
+                    name: 'row_sum',
+                    displayName: 'Row Sum',
+                    sql: 'row_total(${table1.avg_metric})',
+                    compiledSql: 'row_total("table1_avg_metric")',
+                    dependsOn: [],
+                },
+            ],
+        };
+
+        const result = buildQuery({
+            explore: exploreWithAvgMetric,
+            compiledMetricQuery: metricQueryWithAvgRowTotal,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            pivotConfiguration: {
+                indexColumn: [
+                    {
+                        reference: 'table1_dim1',
+                        type: VizIndexType.CATEGORY,
+                    },
+                ],
+                valuesColumns: [],
+                groupByColumns: undefined,
+                sortBy: undefined,
+            },
+        });
+
+        // row_total always uses SUM of grouped values, even for AVG metrics
+        expect(result.query).toContain(
+            'SUM("table1_avg_metric") AS "table1_avg_metric__row_total"',
+        );
+        // Should NOT use AVG for row totals
+        expect(result.query).not.toMatch(
+            /AVG\("table1_avg_metric"\).*AS "table1_avg_metric__row_total"/,
+        );
+    });
+
+    test('Should build row_totals CTE using pivotDimensions (lightweight alternative to pivotConfiguration)', () => {
+        const metricQueryWithRowTotal = {
+            ...METRIC_QUERY,
+            tableCalculations: [
+                {
+                    name: 'pct_of_row',
+                    displayName: 'Pct of Row',
+                    sql: '${table1.metric1} / row_total(${table1.metric1})',
+                },
+            ],
+            compiledTableCalculations: [
+                {
+                    name: 'pct_of_row',
+                    displayName: 'Pct of Row',
+                    sql: '${table1.metric1} / row_total(${table1.metric1})',
+                    compiledSql:
+                        '"table1_metric1" / row_total("table1_metric1")',
+                    dependsOn: [],
+                },
+            ],
+        };
+
+        const result = buildQuery({
+            explore: EXPLORE,
+            compiledMetricQuery: metricQueryWithRowTotal,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            // Use pivotDimensions instead of pivotConfiguration
+            pivotDimensions: ['table1_dim2'],
+        });
+
+        // Should have the row_totals CTE
+        expect(result.query).toContain('row_totals AS (');
+        // Should SUM from grouped results
+        expect(result.query).toContain(
+            'SUM("table1_metric1") AS "table1_metric1__row_total"',
+        );
+        // Non-pivot dim (table1_dim1) should be in GROUP BY
+        expect(result.query).toContain('"table1_dim1"');
+        expect(result.query).toContain('GROUP BY 1');
+        // Should have with_totals CTE
+        expect(result.query).toContain('with_totals AS (');
+        expect(result.query).toContain('LEFT JOIN row_totals ON');
+        // Should replace row_total() with column alias
+        expect(result.query).toContain('"table1_metric1__row_total"');
+        expect(result.query).not.toContain('row_total("table1_metric1")');
     });
 });
 

@@ -8,6 +8,8 @@ import {
     createFilterRuleFromModelRequiredFilterRule,
     Explore,
     ExploreCompiler,
+    buildTotalFieldRegex,
+    extractTotalReferences,
     FieldReferenceError,
     FieldType,
     FilterGroup,
@@ -97,6 +99,13 @@ export type BuildQueryProps = {
     parameterDefinitions: ParameterDefinitions;
     intrinsicUserAttributes: IntrinsicUserAttributes;
     pivotConfiguration?: PivotConfiguration;
+    /**
+     * List of dimension field IDs used as pivot columns (e.g., from chart's pivotConfig.columns).
+     * Used by row_total() to determine non-pivot dimensions for GROUP BY.
+     * This is a lightweight alternative to pivotConfiguration — when pivotConfiguration is
+     * not available (e.g., feature flag off), pivotDimensions still lets row_total() work correctly.
+     */
+    pivotDimensions?: string[];
     timezone: string;
     /**
      * When true, compilation errors (e.g., invalid filter values) are collected
@@ -946,9 +955,12 @@ export class MetricQueryBuilder {
         return simpleTableCalcs.map((tableCalculation) => {
             const alias = tableCalculation.name;
 
-            const functions = parseTableCalculationFunctions(
+            // Replace total()/row_total() refs with column aliases before function parsing
+            const preprocessedSql = this.replaceTotalReferences(
                 tableCalculation.compiledSql,
             );
+
+            const functions = parseTableCalculationFunctions(preprocessedSql);
 
             let tablCalcSql: string | null;
             if (hasPivotFunctions(functions)) {
@@ -958,12 +970,12 @@ export class MetricQueryBuilder {
                     warehouseSqlBuilder,
                 );
                 tablCalcSql = compiler.compileFunctions(
-                    tableCalculation.compiledSql,
+                    preprocessedSql,
                     functions,
                     orderByClause,
                 );
             } else {
-                tablCalcSql = tableCalculation.compiledSql;
+                tablCalcSql = preprocessedSql;
             }
 
             return `  ${tablCalcSql} AS ${fieldQuoteChar}${alias}${fieldQuoteChar}`;
@@ -2475,8 +2487,11 @@ export class MetricQueryBuilder {
         for (const tc of sortedTableCalcs) {
             const cteName = `tc_${tc.name}`;
 
-            let compiledSql: string | null;
-            const functions = parseTableCalculationFunctions(tc.compiledSql);
+            // Replace total()/row_total() refs with column aliases before function parsing
+            let compiledSql: string | null = this.replaceTotalReferences(
+                tc.compiledSql,
+            );
+            const functions = parseTableCalculationFunctions(compiledSql);
             if (hasPivotFunctions(functions)) {
                 compiledSql = null;
             } else if (hasRowFunctions(functions)) {
@@ -2484,12 +2499,10 @@ export class MetricQueryBuilder {
                     warehouseSqlBuilder,
                 );
                 compiledSql = compiler.compileFunctions(
-                    tc.compiledSql,
+                    compiledSql,
                     functions,
                     orderByClause,
                 );
-            } else {
-                compiledSql = tc.compiledSql;
             }
 
             const parts = [
@@ -2561,6 +2574,153 @@ export class MetricQueryBuilder {
         const cte = MetricQueryBuilder.wrapAsCte(cteName, parts);
 
         return { ctes: [cte], finalCteName: cteName };
+    }
+
+    private getNonPivotDimensionIds(): string[] {
+        // First try: use PivotConfiguration.indexColumn (available when SQL pivot is enabled)
+        const pivot = this.args.pivotConfiguration;
+        if (pivot?.indexColumn) {
+            const indexColumns = Array.isArray(pivot.indexColumn)
+                ? pivot.indexColumn
+                : [pivot.indexColumn];
+            return indexColumns.map((col) => col.reference);
+        }
+        // Fallback: derive from pivotDimensions (lightweight — just the list of pivoted dimension IDs)
+        const { pivotDimensions } = this.args;
+        if (pivotDimensions && pivotDimensions.length > 0) {
+            const allDimensions =
+                this.args.compiledMetricQuery.dimensions || [];
+            return allDimensions.filter(
+                (dim) => !pivotDimensions.includes(dim),
+            );
+        }
+        return [];
+    }
+
+    private replaceTotalReferences(compiledSql: string): string {
+        const q = this.args.warehouseSqlBuilder.getFieldQuoteChar();
+        const { totalRegex, rowTotalRegex } = buildTotalFieldRegex(q);
+
+        let result = compiledSql;
+        // Replace row_total first to avoid partial match
+        // When no pivot info, row_total(field) = field (only one column, so row total is the value itself)
+        const hasPivot =
+            !!this.args.pivotConfiguration ||
+            (this.args.pivotDimensions && this.args.pivotDimensions.length > 0);
+        result = result.replace(
+            rowTotalRegex,
+            hasPivot ? `${q}$1__row_total${q}` : `${q}$1${q}`,
+        );
+        result = result.replace(totalRegex, `${q}$1__total${q}`);
+        return result;
+    }
+
+    private buildTotalsCtes(opts: {
+        totalFields: string[];
+        rowTotalFields: string[];
+        currentCteName: string;
+        sqlFrom: string;
+        joinsSql: string | undefined;
+        dimensionJoins: string[];
+        dimensionFilters: string | undefined;
+        dimensionSelects: Record<string, string>;
+    }): { ctes: string[]; finalCteName: string } {
+        const fieldQuoteChar =
+            this.args.warehouseSqlBuilder.getFieldQuoteChar();
+        const ctes: string[] = [];
+
+        // column_totals CTE: grand total with no GROUP BY
+        if (opts.totalFields.length > 0) {
+            const totalSelects = opts.totalFields.map((fieldId) => {
+                const metric = this.getMetricFromId(fieldId);
+                return `  ${metric.compiledSql} AS ${fieldQuoteChar}${fieldId}__total${fieldQuoteChar}`;
+            });
+            ctes.push(
+                MetricQueryBuilder.wrapAsCte('column_totals', [
+                    `SELECT\n${totalSelects.join(',\n')}`,
+                    opts.sqlFrom,
+                    opts.joinsSql,
+                    ...opts.dimensionJoins,
+                    opts.dimensionFilters,
+                ]),
+            );
+        }
+
+        // row_totals CTE: SUM of metric values grouped by non-pivot dimensions
+        // Per spec, row totals are always a SUM of the numeric values in each row,
+        // so we read from the already-grouped results (currentCteName) rather than
+        // re-aggregating from raw data like column_totals does.
+        const hasPivotInfo =
+            !!this.args.pivotConfiguration ||
+            (this.args.pivotDimensions && this.args.pivotDimensions.length > 0);
+        if (opts.rowTotalFields.length > 0 && hasPivotInfo) {
+            const nonPivotDimIds = this.getNonPivotDimensionIds();
+            const dimSelects = nonPivotDimIds
+                .filter((dimId) => dimId in opts.dimensionSelects)
+                .map((dimId) => `  ${fieldQuoteChar}${dimId}${fieldQuoteChar}`);
+            const rowTotalSelects = opts.rowTotalFields.map(
+                (fieldId) =>
+                    `  SUM(${fieldQuoteChar}${fieldId}${fieldQuoteChar}) AS ${fieldQuoteChar}${fieldId}__row_total${fieldQuoteChar}`,
+            );
+            const groupByIndices =
+                dimSelects.length > 0
+                    ? `GROUP BY ${dimSelects.map((_, i) => i + 1).join(', ')}`
+                    : undefined;
+            ctes.push(
+                MetricQueryBuilder.wrapAsCte('row_totals', [
+                    `SELECT\n${[...dimSelects, ...rowTotalSelects].join(',\n')}`,
+                    `FROM ${opts.currentCteName}`,
+                    groupByIndices,
+                ]),
+            );
+        }
+
+        // with_totals CTE: joins column_totals and row_totals into the pipeline
+        const totalSelectColumns: string[] = [];
+        const joinClauses: string[] = [];
+
+        if (opts.totalFields.length > 0) {
+            totalSelectColumns.push(
+                ...opts.totalFields.map(
+                    (fieldId) =>
+                        `  column_totals.${fieldQuoteChar}${fieldId}__total${fieldQuoteChar}`,
+                ),
+            );
+            joinClauses.push('CROSS JOIN column_totals');
+        }
+
+        if (opts.rowTotalFields.length > 0 && hasPivotInfo) {
+            const nonPivotDimIds = this.getNonPivotDimensionIds().filter(
+                (dimId) => dimId in opts.dimensionSelects,
+            );
+            totalSelectColumns.push(
+                ...opts.rowTotalFields.map(
+                    (fieldId) =>
+                        `  row_totals.${fieldQuoteChar}${fieldId}__row_total${fieldQuoteChar}`,
+                ),
+            );
+            if (nonPivotDimIds.length > 0) {
+                const joinCondition = nonPivotDimIds
+                    .map(
+                        (dimId) =>
+                            `(${opts.currentCteName}.${fieldQuoteChar}${dimId}${fieldQuoteChar} = row_totals.${fieldQuoteChar}${dimId}${fieldQuoteChar} OR (${opts.currentCteName}.${fieldQuoteChar}${dimId}${fieldQuoteChar} IS NULL AND row_totals.${fieldQuoteChar}${dimId}${fieldQuoteChar} IS NULL))`,
+                    )
+                    .join(' AND ');
+                joinClauses.push(`LEFT JOIN row_totals ON ${joinCondition}`);
+            } else {
+                joinClauses.push('CROSS JOIN row_totals');
+            }
+        }
+
+        ctes.push(
+            MetricQueryBuilder.wrapAsCte('with_totals', [
+                `SELECT\n${[`  ${opts.currentCteName}.*`, ...totalSelectColumns].join(',\n')}`,
+                `FROM ${opts.currentCteName}`,
+                ...joinClauses,
+            ]),
+        );
+
+        return { ctes, finalCteName: 'with_totals' };
     }
 
     // Create table calculation CTEs (excluding metric filters)
@@ -2898,6 +3058,15 @@ export class MetricQueryBuilder {
         const needsMetricFiltersCte =
             interdependentTableCalcs.length > 0 && !!metricsSQL.filtersSQL;
 
+        const { totalFields, rowTotalFields } = extractTotalReferences(
+            this.args.compiledMetricQuery.compiledTableCalculations,
+        );
+        const hasPivot =
+            !!this.args.pivotConfiguration ||
+            (this.args.pivotDimensions && this.args.pivotDimensions.length > 0);
+        const needsTotalsCtes =
+            totalFields.length > 0 || (rowTotalFields.length > 0 && hasPivot);
+
         if (needsPostAgg) {
             const ctesToAdd: string[] = [];
 
@@ -2927,6 +3096,23 @@ export class MetricQueryBuilder {
                     );
                 ctesToAdd.push(metricFilters);
                 currentCteName = metricFiltersCteName;
+            }
+
+            // Create totals CTEs (column_totals, row_totals, with_totals)
+            if (needsTotalsCtes) {
+                const { ctes: totalsCtes, finalCteName: totalsFinalCteName } =
+                    this.buildTotalsCtes({
+                        totalFields,
+                        rowTotalFields,
+                        currentCteName,
+                        sqlFrom,
+                        joinsSql: joins.joinSQL,
+                        dimensionJoins: dimensionsSQL.joins,
+                        dimensionFilters: dimensionsSQL.filtersSQL,
+                        dimensionSelects: dimensionsSQL.selects,
+                    });
+                ctesToAdd.push(...totalsCtes);
+                currentCteName = totalsFinalCteName;
             }
 
             // Create table calculation CTEs

@@ -119,3 +119,9 @@ seeds:
         resolution_time_hours: "{{ 'double' if target.type in ['athena', 'trino'] else 'numeric' }}"
         sla_resolution_target_hours: "{{ 'double' if target.type in ['athena', 'trino'] else 'numeric' }}"
         discount_percent: "{{ 'double' if target.type in ['athena', 'trino'] else 'numeric' }}"
+  - name: raw_regional_sales
+    config:
+      column_types:
+        units_sold: integer
+        revenue: "{{ 'double' if target.type in ['athena', 'trino'] else 'numeric' }}"
+        customer_id: integer
