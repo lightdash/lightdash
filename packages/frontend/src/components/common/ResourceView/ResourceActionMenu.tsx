@@ -59,6 +59,7 @@ interface ResourceViewActionMenuProps extends ResourceViewActionMenuCommonProps 
     disabled?: boolean;
     item: ResourceViewItem;
     allowDelete?: boolean;
+    hideVerification?: boolean;
     isOpen?: boolean;
     onOpen?: () => void;
     onClose?: () => void;
@@ -68,6 +69,7 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
     disabled = false,
     item,
     allowDelete = true,
+    hideVerification = false,
     isOpen,
     onOpen,
     onClose,
@@ -403,7 +405,8 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                             ) : null}
 
                             {userCanManageVerification &&
-                                isChartOrDashboard && (
+                                isChartOrDashboard &&
+                                !hideVerification && (
                                     <Menu.Item
                                         component="button"
                                         role="menuitem"
