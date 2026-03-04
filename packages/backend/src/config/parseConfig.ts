@@ -614,8 +614,8 @@ export const parsePreAggregateResultsS3Config = ():
         forcePathStyle,
         bucket,
         region,
-        accessKey: accessKey ?? baseAccessKey,
-        secretKey: secretKey ?? baseSecretKey,
+        accessKey: accessKey || baseAccessKey,
+        secretKey: secretKey || baseSecretKey,
         useCredentialsFrom,
     };
 };
