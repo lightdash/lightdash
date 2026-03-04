@@ -79,7 +79,7 @@ import {
     SavedChartVersionFieldsTableName,
     SavedChartVersionsTableName,
 } from '../database/entities/savedCharts';
-import { ContentVerificationTableName } from '../database/entities/contentVerification';
+import { ContentVerificationModel } from './ContentVerificationModel';
 import { SpaceTableName } from '../database/entities/spaces';
 import { UserTableName } from '../database/entities/users';
 import KnexPaginate from '../database/pagination';
@@ -444,6 +444,7 @@ export const createSavedChart = async (
 type SavedChartModelArguments = {
     database: Knex;
     lightdashConfig: LightdashConfig;
+    contentVerificationModel?: ContentVerificationModel;
 };
 
 type VersionSummaryRow = {
@@ -460,9 +461,12 @@ export class SavedChartModel {
 
     private lightdashConfig: LightdashConfig;
 
+    private contentVerificationModel: ContentVerificationModel | undefined;
+
     constructor(args: SavedChartModelArguments) {
         this.database = args.database;
         this.lightdashConfig = args.lightdashConfig;
+        this.contentVerificationModel = args.contentVerificationModel;
     }
 
     static convertVersionSummary(row: VersionSummaryRow): ChartVersionSummary {
@@ -1138,41 +1142,11 @@ export class SavedChartModel {
                     return ECHARTS_DEFAULT_COLORS;
                 };
 
-                // Fetch verification status
-                const verificationRow = await this.database(
-                    ContentVerificationTableName,
-                )
-                    .leftJoin(
-                        UserTableName,
-                        `${ContentVerificationTableName}.verified_by_user_uuid`,
-                        `${UserTableName}.user_uuid`,
-                    )
-                    .where(
-                        `${ContentVerificationTableName}.content_type`,
+                const verification =
+                    (await this.contentVerificationModel?.getByContent(
                         ContentType.CHART,
-                    )
-                    .where(
-                        `${ContentVerificationTableName}.content_uuid`,
                         savedQuery.saved_query_uuid,
-                    )
-                    .select(
-                        `${ContentVerificationTableName}.verified_at`,
-                        `${UserTableName}.user_uuid`,
-                        `${UserTableName}.first_name`,
-                        `${UserTableName}.last_name`,
-                    )
-                    .first();
-
-                const verification = verificationRow
-                    ? {
-                          verifiedBy: {
-                              userUuid: verificationRow.user_uuid,
-                              firstName: verificationRow.first_name,
-                              lastName: verificationRow.last_name,
-                          },
-                          verifiedAt: verificationRow.verified_at,
-                      }
-                    : null;
+                    )) ?? null;
 
                 return {
                     uuid: savedQuery.saved_query_uuid,

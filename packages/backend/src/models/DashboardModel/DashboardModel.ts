@@ -70,7 +70,7 @@ import {
     SavedChartsTableName,
     SavedChartTable,
 } from '../../database/entities/savedCharts';
-import { ContentVerificationTableName } from '../../database/entities/contentVerification';
+import { ContentVerificationModel } from '../ContentVerificationModel';
 import { SavedSqlTableName } from '../../database/entities/savedSql';
 import { SpaceTableName } from '../../database/entities/spaces';
 import { UserTable, UserTableName } from '../../database/entities/users';
@@ -128,6 +128,7 @@ type DashboardModelArguments = {
     lightdashConfig?: {
         dashboard: { versionHistory: { daysLimit: number } };
     };
+    contentVerificationModel?: ContentVerificationModel;
 };
 
 export class DashboardModel {
@@ -135,9 +136,14 @@ export class DashboardModel {
 
     private readonly lightdashConfig?: DashboardModelArguments['lightdashConfig'];
 
+    private readonly contentVerificationModel:
+        | ContentVerificationModel
+        | undefined;
+
     constructor(args: DashboardModelArguments) {
         this.database = args.database;
         this.lightdashConfig = args.lightdashConfig;
+        this.contentVerificationModel = args.contentVerificationModel;
     }
 
     private static async createVersion(
@@ -827,41 +833,11 @@ export class DashboardModel {
             throw new NotFoundError('Dashboard not found');
         }
 
-        // Fetch verification status
-        const verificationRow = await this.database(
-            ContentVerificationTableName,
-        )
-            .leftJoin(
-                UserTableName,
-                `${ContentVerificationTableName}.verified_by_user_uuid`,
-                `${UserTableName}.user_uuid`,
-            )
-            .where(
-                `${ContentVerificationTableName}.content_type`,
+        const verification =
+            (await this.contentVerificationModel?.getByContent(
                 ContentType.DASHBOARD,
-            )
-            .where(
-                `${ContentVerificationTableName}.content_uuid`,
                 dashboard.dashboard_uuid,
-            )
-            .select(
-                `${ContentVerificationTableName}.verified_at`,
-                `${UserTableName}.user_uuid`,
-                `${UserTableName}.first_name`,
-                `${UserTableName}.last_name`,
-            )
-            .first();
-
-        const verification = verificationRow
-            ? {
-                  verifiedBy: {
-                      userUuid: verificationRow.user_uuid,
-                      firstName: verificationRow.first_name,
-                      lastName: verificationRow.last_name,
-                  },
-                  verifiedAt: verificationRow.verified_at,
-              }
-            : null;
+            )) ?? null;
 
         const [view] = await this.database(DashboardViewsTableName)
             .select('*')
@@ -1772,41 +1748,11 @@ export class DashboardModel {
             throw new NotFoundError('Dashboard version not found');
         }
 
-        // Fetch verification status
-        const versionVerificationRow = await this.database(
-            ContentVerificationTableName,
-        )
-            .leftJoin(
-                UserTableName,
-                `${ContentVerificationTableName}.verified_by_user_uuid`,
-                `${UserTableName}.user_uuid`,
-            )
-            .where(
-                `${ContentVerificationTableName}.content_type`,
+        const versionVerification =
+            (await this.contentVerificationModel?.getByContent(
                 ContentType.DASHBOARD,
-            )
-            .where(
-                `${ContentVerificationTableName}.content_uuid`,
                 dashboard.dashboard_uuid,
-            )
-            .select(
-                `${ContentVerificationTableName}.verified_at`,
-                `${UserTableName}.user_uuid`,
-                `${UserTableName}.first_name`,
-                `${UserTableName}.last_name`,
-            )
-            .first();
-
-        const versionVerification = versionVerificationRow
-            ? {
-                  verifiedBy: {
-                      userUuid: versionVerificationRow.user_uuid,
-                      firstName: versionVerificationRow.first_name,
-                      lastName: versionVerificationRow.last_name,
-                  },
-                  verifiedAt: versionVerificationRow.verified_at,
-              }
-            : null;
+            )) ?? null;
 
         const [view] = await this.database(DashboardViewsTableName)
             .select('*')

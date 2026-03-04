@@ -246,6 +246,8 @@ export class ModelRepository
                 new DashboardModel({
                     database: this.database,
                     lightdashConfig: this.lightdashConfig,
+                    contentVerificationModel:
+                        this.getContentVerificationModel(),
                 }),
         );
     }
@@ -478,6 +480,8 @@ export class ModelRepository
                 new SavedChartModel({
                     database: this.database,
                     lightdashConfig: this.lightdashConfig,
+                    contentVerificationModel:
+                        this.getContentVerificationModel(),
                 }),
         );
     }
