@@ -43,7 +43,10 @@ import {
 } from 'mantine-react-table';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { usePreAggregateMaterializations } from '../../hooks/usePreAggregateMaterializations';
-import { useRefreshAllPreAggregates } from '../../hooks/usePreAggregateRefresh';
+import {
+    useRefreshAllPreAggregates,
+    useRefreshPreAggregateByName,
+} from '../../hooks/usePreAggregateRefresh';
 import { useProject } from '../../hooks/useProject';
 import MantineIcon from '../common/MantineIcon';
 import MantineModal from '../common/MantineModal';
@@ -161,6 +164,11 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
     const queryClient = useQueryClient();
     const { mutate: refreshAll, isLoading: isRefreshingAll } =
         useRefreshAllPreAggregates(projectUuid);
+    const {
+        mutate: refreshByName,
+        isLoading: isRefreshingOne,
+        variables: refreshingExploreName,
+    } = useRefreshPreAggregateByName(projectUuid);
     const [
         isRefreshModalOpen,
         { open: openRefreshModal, close: closeRefreshModal },
@@ -440,8 +448,38 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                     );
                 },
             },
+            {
+                id: 'actions',
+                header: '',
+                enableSorting: false,
+                size: 50,
+                Cell: ({ row }) => {
+                    const isThisRowRefreshing =
+                        isRefreshingOne &&
+                        refreshingExploreName ===
+                            row.original.preAggExploreName;
+                    return (
+                        <Tooltip label="Refresh this pre-aggregate">
+                            <ActionIcon
+                                variant="subtle"
+                                color="gray"
+                                size="sm"
+                                loading={isThisRowRefreshing}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    refreshByName(
+                                        row.original.preAggExploreName,
+                                    );
+                                }}
+                            >
+                                <MantineIcon icon={IconRefresh} size="sm" />
+                            </ActionIcon>
+                        </Tooltip>
+                    );
+                },
+            },
         ],
-        [],
+        [isRefreshingOne, refreshingExploreName, refreshByName],
     );
 
     const table = useMantineReactTable({
@@ -641,6 +679,11 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                 summary={selectedSummary}
                 opened={isDrawerOpen}
                 onClose={closeDrawer}
+                onRefresh={refreshByName}
+                isRefreshing={
+                    isRefreshingOne &&
+                    refreshingExploreName === selectedSummary?.preAggExploreName
+                }
             />
 
             <MantineModal

@@ -154,6 +154,7 @@ export const preAggregateMissReasonLabels: Record<
 export type PreAggregateMaterializationSummary = {
     preAggregateDefinitionUuid: string;
     preAggregateName: string;
+    preAggExploreName: string;
     sourceExploreName: string;
     dimensions: string[];
     metrics: string[];

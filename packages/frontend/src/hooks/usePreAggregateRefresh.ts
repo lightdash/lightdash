@@ -10,6 +10,16 @@ const refreshAllPreAggregates = async (projectUuid: string) =>
         body: undefined,
     });
 
+const refreshPreAggregateByName = async (
+    projectUuid: string,
+    preAggExploreName: string,
+) =>
+    lightdashApi<{ jobIds: string[] }>({
+        url: `/projects/${projectUuid}/pre-aggregates/${encodeURIComponent(preAggExploreName)}/refresh`,
+        method: 'POST',
+        body: undefined,
+    });
+
 export const useRefreshAllPreAggregates = (projectUuid: string) => {
     const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
@@ -32,6 +42,36 @@ export const useRefreshAllPreAggregates = (projectUuid: string) => {
             onError: ({ error }) => {
                 showToastApiError({
                     title: 'Failed to refresh pre-aggregates',
+                    apiError: error,
+                });
+            },
+        },
+    );
+};
+
+export const useRefreshPreAggregateByName = (projectUuid: string) => {
+    const { showToastApiError, showToastInfo } = useToaster();
+    const queryClient = useQueryClient();
+
+    return useMutation<{ jobIds: string[] }, ApiError, string>(
+        (preAggExploreName) =>
+            refreshPreAggregateByName(projectUuid, preAggExploreName),
+        {
+            mutationKey: ['refreshPreAggregate', projectUuid],
+            onSuccess: async () => {
+                showToastInfo({
+                    title: 'Pre-aggregate refresh started',
+                    subtitle:
+                        'The pre-aggregate is being refreshed in the background.',
+                });
+                await queryClient.invalidateQueries([
+                    'preAggregateMaterializations',
+                    projectUuid,
+                ]);
+            },
+            onError: ({ error }) => {
+                showToastApiError({
+                    title: 'Failed to refresh pre-aggregate',
                     apiError: error,
                 });
             },

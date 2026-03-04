@@ -459,6 +459,7 @@ export class PreAggregateModel {
             | 'materialization_query_error'
         > & {
             source_explore_name: string;
+            pre_agg_explore_name: string;
             // Latest materialization fields (nullable from LEFT JOIN)
             mat_uuid: string | null;
             mat_status: PreAggregateMaterializationStatus | null;
@@ -492,6 +493,11 @@ export class PreAggregateModel {
                 `source_ce.cached_explore_uuid`,
                 `${PreAggregateDefinitionsTableName}.source_cached_explore_uuid`,
             )
+            .innerJoin(
+                `${CachedExploreTableName} as preagg_ce`,
+                `preagg_ce.cached_explore_uuid`,
+                `${PreAggregateDefinitionsTableName}.pre_agg_cached_explore_uuid`,
+            )
             .where(
                 `${PreAggregateDefinitionsTableName}.project_uuid`,
                 projectUuid,
@@ -500,6 +506,7 @@ export class PreAggregateModel {
                 `${PreAggregateDefinitionsTableName}.pre_aggregate_definition_uuid`,
                 `${PreAggregateDefinitionsTableName}.pre_aggregate_definition`,
                 `source_ce.name as source_explore_name`,
+                `preagg_ce.name as pre_agg_explore_name`,
                 `${PreAggregateDefinitionsTableName}.refresh_cron`,
                 `${PreAggregateDefinitionsTableName}.materialization_query_error`,
                 `latest_mat.pre_aggregate_materialization_uuid as mat_uuid`,
@@ -518,6 +525,7 @@ export class PreAggregateModel {
             result.data.map((row) => ({
                 preAggregateDefinitionUuid: row.pre_aggregate_definition_uuid,
                 preAggregateName: row.pre_aggregate_definition.name,
+                preAggExploreName: row.pre_agg_explore_name,
                 sourceExploreName: row.source_explore_name,
                 dimensions: row.pre_aggregate_definition.dimensions ?? [],
                 metrics: row.pre_aggregate_definition.metrics ?? [],
