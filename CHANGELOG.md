@@ -1,3 +1,10 @@
+# [0.2569.0](https://github.com/lightdash/lightdash/compare/0.2568.0...0.2569.0) (2026-03-04)
+
+
+### Features
+
+* add FE_HOST environment variable support ([#20847](https://github.com/lightdash/lightdash/issues/20847)) ([ac5c2a4](https://github.com/lightdash/lightdash/commit/ac5c2a41b52c92d0fd97fdc38d75bb3b2580b718))
+
 # [0.2568.0](https://github.com/lightdash/lightdash/compare/0.2567.0...0.2568.0) (2026-03-04)
 
 
