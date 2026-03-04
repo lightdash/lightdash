@@ -1,3 +1,10 @@
+# [0.2562.0](https://github.com/lightdash/lightdash/compare/0.2561.0...0.2562.0) (2026-03-04)
+
+
+### Features
+
+* Add materializations endpoint + refactor pre aggregate controller  ([#20803](https://github.com/lightdash/lightdash/issues/20803)) ([c1f4218](https://github.com/lightdash/lightdash/commit/c1f4218d60fffb641c40d89ad03dd09a4fbbcd2b))
+
 # [0.2561.0](https://github.com/lightdash/lightdash/compare/0.2560.0...0.2561.0) (2026-03-04)
 
 
