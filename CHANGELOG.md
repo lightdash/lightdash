@@ -1,3 +1,10 @@
+# [0.2565.0](https://github.com/lightdash/lightdash/compare/0.2564.0...0.2565.0) (2026-03-04)
+
+
+### Features
+
+* add performance warning for dashboards exceeding tile/tab limits ([#20821](https://github.com/lightdash/lightdash/issues/20821)) ([17b98e4](https://github.com/lightdash/lightdash/commit/17b98e4c562d27128cd8eb989501f404cae3a706))
+
 # [0.2564.0](https://github.com/lightdash/lightdash/compare/0.2563.1...0.2564.0) (2026-03-04)
 
 
