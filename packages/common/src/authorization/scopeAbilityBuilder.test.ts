@@ -825,11 +825,11 @@ describe('scopeAbilityBuilder', () => {
             );
             const ability = builder.build();
 
-            // We have 3 valid rules, 2 for dashboard and 1 for project, dropping the invalid scope
-            expect(ability.rules.length).toBe(3);
+            // We have 4 valid rules, 3 for dashboard (isPrivate, inheritsFromOrgOrProject, access) and 1 for project, dropping the invalid scope
+            expect(ability.rules.length).toBe(4);
             expect(
                 ability.rules.filter((r) => r.subject === 'Dashboard'),
-            ).toHaveLength(2);
+            ).toHaveLength(3);
             expect(
                 ability.rules.find((r) => r.subject === 'Project'),
             ).toBeDefined();
