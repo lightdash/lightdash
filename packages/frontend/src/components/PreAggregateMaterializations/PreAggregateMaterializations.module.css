@@ -28,3 +28,7 @@
         background: var(--mantine-color-indigo-9);
     }
 }
+
+.clickableRow {
+    cursor: pointer;
+}
