@@ -1,0 +1,75 @@
+models:
+  - name: stock_inventory
+    config:
+      meta:
+        primary_key: [month, warehouse, product_category]
+    columns:
+      - name: month
+        description: "First day of the month for this inventory snapshot"
+        config:
+          meta:
+            dimension:
+              type: date
+              primary_key: true
+      - name: country
+        description: ""
+        config:
+          meta:
+            dimension:
+              type: string
+      - name: region
+        description: ""
+        config:
+          meta:
+            dimension:
+              type: string
+      - name: warehouse
+        description: ""
+        config:
+          meta:
+            dimension:
+              type: string
+      - name: product_category
+        description: ""
+        config:
+          meta:
+            dimension:
+              type: string
+              primary_key: true
+      - name: units_in_stock
+        description: "Snapshot of inventory at the start of the month. This is a semi-additive metric: you can sum across warehouses and categories, but NOT across time (summing across months double-counts)."
+        config:
+          meta:
+            dimension:
+              type: number
+            metrics:
+              total_units_in_stock_incorrect:
+                type: sum
+                description: "Sum of units_in_stock across all rows — incorrect when aggregating across months because stock is a point-in-time snapshot (semi-additive)."
+      - name: units_sold
+        description: "Units sold. This is a fully additive flow metric — safe to sum across any dimension including time."
+        config:
+          meta:
+            dimension:
+              type: number
+            metrics:
+              total_units_sold:
+                type: sum
+      - name: units_received
+        description: "Units received into the warehouse during the month. Fully additive metric."
+        config:
+          meta:
+            dimension:
+              type: number
+            metrics:
+              total_units_received:
+                type: sum
+      - name: damaged_units
+        description: "Units damaged during the month. Fully additive metric."
+        config:
+          meta:
+            dimension:
+              type: number
+            metrics:
+              total_damaged_units:
+                type: sum

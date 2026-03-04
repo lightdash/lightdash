@@ -25,6 +25,9 @@ models:
     fanouts_examples:
       +meta:
         group_label: fanouts
+    semi_additive_examples:
+      +meta:
+        group_label: semi-additive
     campaigns:
       +meta:
         group_label: campaigns
@@ -77,3 +80,12 @@ seeds:
         event_id: integer
         user_id: integer
         event_timestamp: timestamp
+    raw_account_balances:
+      +column_types:
+        date: date
+        account_id: integer
+        daily_account_balance: numeric
+    raw_account_owners:
+      +column_types:
+        account_id: integer
+        owner_id: integer

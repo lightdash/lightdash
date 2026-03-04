@@ -1,0 +1,33 @@
+models:
+  - name: semi_additive_mrr_comparison
+    columns:
+      - name: dimensions
+        description: ""
+        config:
+          meta:
+            dimension:
+              type: string
+      - name: dimension_values
+        description: ""
+        config:
+          meta:
+            dimension:
+              type: string
+      - name: semi_additive_metric
+        description: ""
+        config:
+          meta:
+            dimension:
+              type: string
+      - name: mrr_correct
+        description: ""
+        config:
+          meta:
+            dimension:
+              type: number
+      - name: mrr_incorrect
+        description: ""
+        config:
+          meta:
+            dimension:
+              type: number

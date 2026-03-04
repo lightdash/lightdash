@@ -1,0 +1,145 @@
+month,country,region,warehouse,product_category,units_in_stock,units_sold,units_received,damaged_units
+2025-01-01,United States,North America,Chicago DC,Electronics,4200,1350,1800,45
+2025-01-01,United States,North America,Chicago DC,Apparel,8500,3200,4000,120
+2025-01-01,United States,North America,Chicago DC,Home & Garden,3100,980,1200,30
+2025-01-01,United States,North America,Dallas DC,Electronics,3800,1100,1500,38
+2025-01-01,United States,North America,Dallas DC,Apparel,7200,2800,3500,95
+2025-01-01,United States,North America,Dallas DC,Home & Garden,2900,750,1000,22
+2025-01-01,Canada,North America,Toronto DC,Electronics,2100,680,900,20
+2025-01-01,Canada,North America,Toronto DC,Apparel,4300,1500,2000,55
+2025-01-01,Canada,North America,Toronto DC,Home & Garden,1800,420,600,12
+2025-01-01,Germany,Europe,Frankfurt DC,Electronics,3600,1200,1600,35
+2025-01-01,Germany,Europe,Frankfurt DC,Apparel,6800,2500,3200,80
+2025-01-01,Germany,Europe,Frankfurt DC,Home & Garden,2700,850,1100,25
+2025-01-01,United Kingdom,Europe,London DC,Electronics,3200,1050,1400,30
+2025-01-01,United Kingdom,Europe,London DC,Apparel,6100,2200,2800,70
+2025-01-01,United Kingdom,Europe,London DC,Home & Garden,2400,720,950,18
+2025-01-01,Japan,Asia Pacific,Tokyo DC,Electronics,5100,1800,2200,50
+2025-01-01,Japan,Asia Pacific,Tokyo DC,Apparel,4800,1700,2100,60
+2025-01-01,Japan,Asia Pacific,Tokyo DC,Home & Garden,2000,600,800,15
+2025-01-01,Australia,Asia Pacific,Sydney DC,Electronics,2800,900,1200,28
+2025-01-01,Australia,Asia Pacific,Sydney DC,Apparel,3900,1300,1700,42
+2025-01-01,Australia,Asia Pacific,Sydney DC,Home & Garden,1600,480,650,10
+2025-01-01,Brazil,Latin America,Sao Paulo DC,Electronics,2500,800,1100,32
+2025-01-01,Brazil,Latin America,Sao Paulo DC,Apparel,5200,1900,2400,75
+2025-01-01,Brazil,Latin America,Sao Paulo DC,Home & Garden,1900,550,750,18
+2025-02-01,United States,North America,Chicago DC,Electronics,4605,1500,2000,50
+2025-02-01,United States,North America,Chicago DC,Apparel,9180,3500,4200,130
+2025-02-01,United States,North America,Chicago DC,Home & Garden,3290,1050,1300,35
+2025-02-01,United States,North America,Dallas DC,Electronics,4162,1250,1700,42
+2025-02-01,United States,North America,Dallas DC,Apparel,7805,3000,3800,100
+2025-02-01,United States,North America,Dallas DC,Home & Garden,3128,820,1100,28
+2025-02-01,Canada,North America,Toronto DC,Electronics,2300,750,1000,22
+2025-02-01,Canada,North America,Toronto DC,Apparel,4745,1650,2200,60
+2025-02-01,Canada,North America,Toronto DC,Home & Garden,1968,470,680,14
+2025-02-01,Germany,Europe,Frankfurt DC,Electronics,3965,1350,1800,40
+2025-02-01,Germany,Europe,Frankfurt DC,Apparel,7420,2750,3500,88
+2025-02-01,Germany,Europe,Frankfurt DC,Home & Garden,2925,920,1200,28
+2025-02-01,United Kingdom,Europe,London DC,Electronics,3520,1150,1550,33
+2025-02-01,United Kingdom,Europe,London DC,Apparel,6630,2400,3100,76
+2025-02-01,United Kingdom,Europe,London DC,Home & Garden,2612,780,1050,20
+2025-02-01,Japan,Asia Pacific,Tokyo DC,Electronics,5450,2000,2400,55
+2025-02-01,Japan,Asia Pacific,Tokyo DC,Apparel,5140,1850,2300,65
+2025-02-01,Japan,Asia Pacific,Tokyo DC,Home & Garden,2185,660,880,18
+2025-02-01,Australia,Asia Pacific,Sydney DC,Electronics,3072,1000,1350,30
+2025-02-01,Australia,Asia Pacific,Sydney DC,Apparel,4258,1450,1900,48
+2025-02-01,Australia,Asia Pacific,Sydney DC,Home & Garden,1760,530,720,12
+2025-02-01,Brazil,Latin America,Sao Paulo DC,Electronics,2768,900,1250,36
+2025-02-01,Brazil,Latin America,Sao Paulo DC,Apparel,5625,2100,2650,82
+2025-02-01,Brazil,Latin America,Sao Paulo DC,Home & Garden,2082,600,830,20
+2025-03-01,United States,North America,Chicago DC,Electronics,5055,1700,2200,55
+2025-03-01,United States,North America,Chicago DC,Apparel,9750,3800,4500,140
+2025-03-01,United States,North America,Chicago DC,Home & Garden,3505,1120,1400,38
+2025-03-01,United States,North America,Dallas DC,Electronics,4570,1400,1900,48
+2025-03-01,United States,North America,Dallas DC,Apparel,8505,3300,4100,110
+2025-03-01,United States,North America,Dallas DC,Home & Garden,3380,900,1200,30
+2025-03-01,Canada,North America,Toronto DC,Electronics,2528,830,1100,25
+2025-03-01,Canada,North America,Toronto DC,Apparel,5235,1800,2400,65
+2025-03-01,Canada,North America,Toronto DC,Home & Garden,2164,520,750,16
+2025-03-01,Germany,Europe,Frankfurt DC,Electronics,4375,1500,2000,44
+2025-03-01,Germany,Europe,Frankfurt DC,Apparel,8082,3000,3800,95
+2025-03-01,Germany,Europe,Frankfurt DC,Home & Garden,3177,1000,1300,30
+2025-03-01,United Kingdom,Europe,London DC,Electronics,3887,1280,1700,37
+2025-03-01,United Kingdom,Europe,London DC,Apparel,7254,2650,3400,82
+2025-03-01,United Kingdom,Europe,London DC,Home & Garden,2862,850,1150,22
+2025-03-01,Japan,Asia Pacific,Tokyo DC,Electronics,5795,2200,2600,60
+2025-03-01,Japan,Asia Pacific,Tokyo DC,Apparel,5525,2000,2500,70
+2025-03-01,Japan,Asia Pacific,Tokyo DC,Home & Garden,2387,720,960,20
+2025-03-01,Australia,Asia Pacific,Sydney DC,Electronics,3392,1120,1500,34
+2025-03-01,Australia,Asia Pacific,Sydney DC,Apparel,4660,1600,2100,52
+2025-03-01,Australia,Asia Pacific,Sydney DC,Home & Garden,1938,580,790,14
+2025-03-01,Brazil,Latin America,Sao Paulo DC,Electronics,3082,1020,1400,40
+2025-03-01,Brazil,Latin America,Sao Paulo DC,Apparel,6093,2300,2900,88
+2025-03-01,Brazil,Latin America,Sao Paulo DC,Home & Garden,2292,660,920,22
+2025-04-01,United States,North America,Chicago DC,Electronics,5500,1850,2400,60
+2025-04-01,United States,North America,Chicago DC,Apparel,10310,4100,4800,150
+2025-04-01,United States,North America,Chicago DC,Home & Garden,3747,1200,1500,40
+2025-04-01,United States,North America,Dallas DC,Electronics,5022,1550,2100,52
+2025-04-01,United States,North America,Dallas DC,Apparel,9195,3600,4400,118
+2025-04-01,United States,North America,Dallas DC,Home & Garden,3650,970,1300,32
+2025-04-01,Canada,North America,Toronto DC,Electronics,2773,910,1200,28
+2025-04-01,Canada,North America,Toronto DC,Apparel,5770,2000,2600,70
+2025-04-01,Canada,North America,Toronto DC,Home & Garden,2378,570,820,18
+2025-04-01,Germany,Europe,Frankfurt DC,Electronics,4831,1650,2200,48
+2025-04-01,Germany,Europe,Frankfurt DC,Apparel,8787,3300,4100,102
+2025-04-01,Germany,Europe,Frankfurt DC,Home & Garden,3447,1080,1400,33
+2025-04-01,United Kingdom,Europe,London DC,Electronics,4270,1420,1850,40
+2025-04-01,United Kingdom,Europe,London DC,Apparel,7922,2900,3700,88
+2025-04-01,United Kingdom,Europe,London DC,Home & Garden,3140,930,1250,24
+2025-04-01,Japan,Asia Pacific,Tokyo DC,Electronics,6135,2400,2800,65
+2025-04-01,Japan,Asia Pacific,Tokyo DC,Apparel,5955,2200,2700,75
+2025-04-01,Japan,Asia Pacific,Tokyo DC,Home & Garden,2607,790,1050,22
+2025-04-01,Australia,Asia Pacific,Sydney DC,Electronics,3738,1250,1650,38
+2025-04-01,Australia,Asia Pacific,Sydney DC,Apparel,5108,1780,2300,56
+2025-04-01,Australia,Asia Pacific,Sydney DC,Home & Garden,2134,640,870,16
+2025-04-01,Brazil,Latin America,Sao Paulo DC,Electronics,3422,1150,1550,44
+2025-04-01,Brazil,Latin America,Sao Paulo DC,Apparel,6605,2500,3200,95
+2025-04-01,Brazil,Latin America,Sao Paulo DC,Home & Garden,2530,730,1000,25
+2025-05-01,United States,North America,Chicago DC,Electronics,5990,2050,2600,65
+2025-05-01,United States,North America,Chicago DC,Apparel,10860,4400,5100,155
+2025-05-01,United States,North America,Chicago DC,Home & Garden,4007,1300,1600,42
+2025-05-01,United States,North America,Dallas DC,Electronics,5520,1700,2300,55
+2025-05-01,United States,North America,Dallas DC,Apparel,9877,3900,4700,125
+2025-05-01,United States,North America,Dallas DC,Home & Garden,3948,1050,1400,35
+2025-05-01,Canada,North America,Toronto DC,Electronics,3035,1000,1300,30
+2025-05-01,Canada,North America,Toronto DC,Apparel,6300,2200,2800,75
+2025-05-01,Canada,North America,Toronto DC,Home & Garden,2610,620,890,20
+2025-05-01,Germany,Europe,Frankfurt DC,Electronics,5333,1820,2400,52
+2025-05-01,Germany,Europe,Frankfurt DC,Apparel,9485,3600,4400,110
+2025-05-01,Germany,Europe,Frankfurt DC,Home & Garden,3734,1170,1500,36
+2025-05-01,United Kingdom,Europe,London DC,Electronics,4660,1560,2000,43
+2025-05-01,United Kingdom,Europe,London DC,Apparel,8634,3200,4000,94
+2025-05-01,United Kingdom,Europe,London DC,Home & Garden,3436,1020,1350,26
+2025-05-01,Japan,Asia Pacific,Tokyo DC,Electronics,6470,2600,3000,68
+2025-05-01,Japan,Asia Pacific,Tokyo DC,Apparel,6380,2400,2900,80
+2025-05-01,Japan,Asia Pacific,Tokyo DC,Home & Garden,2845,860,1140,24
+2025-05-01,Australia,Asia Pacific,Sydney DC,Electronics,4100,1380,1800,40
+2025-05-01,Australia,Asia Pacific,Sydney DC,Apparel,5572,1960,2500,60
+2025-05-01,Australia,Asia Pacific,Sydney DC,Home & Garden,2348,710,960,18
+2025-05-01,Brazil,Latin America,Sao Paulo DC,Electronics,3778,1280,1700,48
+2025-05-01,Brazil,Latin America,Sao Paulo DC,Apparel,7210,2750,3500,102
+2025-05-01,Brazil,Latin America,Sao Paulo DC,Home & Garden,2775,800,1100,28
+2025-06-01,United States,North America,Chicago DC,Electronics,6475,2250,2800,70
+2025-06-01,United States,North America,Chicago DC,Apparel,11405,4700,5400,160
+2025-06-01,United States,North America,Chicago DC,Home & Garden,4265,1400,1700,45
+2025-06-01,United States,North America,Dallas DC,Electronics,6065,1900,2500,58
+2025-06-01,United States,North America,Dallas DC,Apparel,10552,4200,5000,132
+2025-06-01,United States,North America,Dallas DC,Home & Garden,4263,1140,1500,38
+2025-06-01,Canada,North America,Toronto DC,Electronics,3305,1100,1400,33
+2025-06-01,Canada,North America,Toronto DC,Apparel,6825,2450,3100,80
+2025-06-01,Canada,North America,Toronto DC,Home & Garden,2860,680,970,22
+2025-06-01,Germany,Europe,Frankfurt DC,Electronics,5861,2000,2600,56
+2025-06-01,Germany,Europe,Frankfurt DC,Apparel,10175,3900,4700,118
+2025-06-01,Germany,Europe,Frankfurt DC,Home & Garden,4028,1260,1600,38
+2025-06-01,United Kingdom,Europe,London DC,Electronics,5057,1700,2200,46
+2025-06-01,United Kingdom,Europe,London DC,Apparel,9340,3500,4300,100
+2025-06-01,United Kingdom,Europe,London DC,Home & Garden,3740,1110,1450,28
+2025-06-01,Japan,Asia Pacific,Tokyo DC,Electronics,6802,2800,3200,72
+2025-06-01,Japan,Asia Pacific,Tokyo DC,Apparel,6800,2600,3100,85
+2025-06-01,Japan,Asia Pacific,Tokyo DC,Home & Garden,3101,940,1240,26
+2025-06-01,Australia,Asia Pacific,Sydney DC,Electronics,4480,1520,2000,44
+2025-06-01,Australia,Asia Pacific,Sydney DC,Apparel,6052,2150,2700,64
+2025-06-01,Australia,Asia Pacific,Sydney DC,Home & Garden,2580,780,1060,20
+2025-06-01,Brazil,Latin America,Sao Paulo DC,Electronics,4150,1420,1850,52
+2025-06-01,Brazil,Latin America,Sao Paulo DC,Apparel,7858,3050,3800,108
+2025-06-01,Brazil,Latin America,Sao Paulo DC,Home & Garden,3047,880,1200,30
