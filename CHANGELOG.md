@@ -1,3 +1,10 @@
+# [0.2561.0](https://github.com/lightdash/lightdash/compare/0.2560.0...0.2561.0) (2026-03-04)
+
+
+### Features
+
+* table column customization behind feature flag ([#20598](https://github.com/lightdash/lightdash/issues/20598)) ([1ef05ac](https://github.com/lightdash/lightdash/commit/1ef05ac60b1235b74894796944e4c7ed677ebc9c))
+
 # [0.2560.0](https://github.com/lightdash/lightdash/compare/0.2559.0...0.2560.0) (2026-03-04)
 
 
