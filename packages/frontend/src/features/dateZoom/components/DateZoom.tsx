@@ -247,27 +247,37 @@ export const DateZoom: FC<Props> = ({ isEditMode }) => {
                     </>
                 ) : (
                     <>
-                        <Menu.Item
-                            fz="xs"
-                            onClick={() => {
-                                track({
-                                    name: EventName.DATE_ZOOM_CLICKED,
-                                    properties: {
-                                        granularity: 'default',
-                                    },
-                                });
-
-                                setDateZoomGranularity(undefined);
-                            }}
-                            disabled={dateZoomGranularity === undefined}
-                            rightSection={
-                                dateZoomGranularity === undefined ? (
-                                    <MantineIcon icon={IconCheck} size={14} />
-                                ) : null
-                            }
+                        <Tooltip
+                            label="Charts will display dates using their original granularity settings."
+                            position="left"
+                            multiline
+                            maw={200}
                         >
-                            None
-                        </Menu.Item>
+                            <Menu.Item
+                                fz="xs"
+                                onClick={() => {
+                                    track({
+                                        name: EventName.DATE_ZOOM_CLICKED,
+                                        properties: {
+                                            granularity: 'default',
+                                        },
+                                    });
+
+                                    setDateZoomGranularity(undefined);
+                                }}
+                                disabled={dateZoomGranularity === undefined}
+                                rightSection={
+                                    dateZoomGranularity === undefined ? (
+                                        <MantineIcon
+                                            icon={IconCheck}
+                                            size={14}
+                                        />
+                                    ) : null
+                                }
+                            >
+                                None
+                            </Menu.Item>
+                        </Tooltip>
 
                         {dateZoomGranularities.map((granularity) => (
                             <Menu.Item
