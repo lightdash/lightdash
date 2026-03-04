@@ -1,3 +1,10 @@
+## [0.2565.2](https://github.com/lightdash/lightdash/compare/0.2565.1...0.2565.2) (2026-03-04)
+
+
+### Bug Fixes
+
+* set default 300 second timeout for Snowflake sessions ([#20826](https://github.com/lightdash/lightdash/issues/20826)) ([908627d](https://github.com/lightdash/lightdash/commit/908627d0d9cd05463cc665048256f625c9c743aa))
+
 ## [0.2565.1](https://github.com/lightdash/lightdash/compare/0.2565.0...0.2565.1) (2026-03-04)
 
 
