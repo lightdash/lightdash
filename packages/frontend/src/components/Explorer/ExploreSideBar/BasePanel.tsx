@@ -22,6 +22,11 @@ import LoadingSkeleton from '../ExploreTree/LoadingSkeleton';
 import { ItemDetailProvider } from '../ExploreTree/TableTree/ItemDetailProvider';
 import VirtualizedExploreList from './VirtualizedExploreList';
 
+const getPreAggregateName = (explore: SummaryExplore) =>
+    'preAggregateSource' in explore
+        ? explore.preAggregateSource?.preAggregateName
+        : undefined;
+
 const BasePanel = () => {
     const navigate = useNavigate();
     const location = useLocation();
@@ -40,7 +45,11 @@ const BasePanel = () => {
             let explores = Object.values(exploresResult.data);
             if (validSearch !== '') {
                 explores = new Fuse(Object.values(exploresResult.data), {
-                    keys: ['label'],
+                    keys: [
+                        'label',
+                        'preAggregateSource.preAggregateName',
+                        'preAggregateSource.sourceExploreName',
+                    ],
                     ignoreLocation: true,
                     threshold: 0.3,
                 })
@@ -57,10 +66,12 @@ const BasePanel = () => {
         exploreGroupMap,
         defaultUngroupedExplores,
         customUngroupedExplores,
+        sortedPreAggregateExplores,
     ] = useMemo<
         [
             string[],
             Record<string, SummaryExplore[]>,
+            SummaryExplore[],
             SummaryExplore[],
             SummaryExplore[],
         ]
@@ -70,10 +81,13 @@ const BasePanel = () => {
             const groupMap: Record<string, SummaryExplore[]> = {};
             const defaultExplores: SummaryExplore[] = [];
             const customExplores: SummaryExplore[] = [];
+            const preAggregateExplores: SummaryExplore[] = [];
 
             // Single-pass categorization without object spreads
             for (const explore of filteredExplores) {
-                if (explore.groupLabel) {
+                if (explore.type === ExploreType.PRE_AGGREGATE) {
+                    preAggregateExplores.push(explore);
+                } else if (explore.groupLabel) {
                     if (groupMap[explore.groupLabel]) {
                         groupMap[explore.groupLabel].push(explore);
                     } else {
@@ -101,9 +115,21 @@ const BasePanel = () => {
             // Sort ungrouped explores
             defaultExplores.sort((a, b) => a.label.localeCompare(b.label));
             customExplores.sort((a, b) => a.label.localeCompare(b.label));
-            return [sortedLabels, groupMap, defaultExplores, customExplores];
+            preAggregateExplores.sort((a, b) =>
+                (getPreAggregateName(a) ?? '').localeCompare(
+                    getPreAggregateName(b) ?? '',
+                ),
+            );
+
+            return [
+                sortedLabels,
+                groupMap,
+                defaultExplores,
+                customExplores,
+                preAggregateExplores,
+            ];
         }
-        return [[], {}, [], []];
+        return [[], {}, [], [], []];
     }, [filteredExplores]);
 
     const handleExploreClick = useCallback(
@@ -168,6 +194,7 @@ const BasePanel = () => {
                             exploreGroupMap={exploreGroupMap}
                             defaultUngroupedExplores={defaultUngroupedExplores}
                             customUngroupedExplores={customUngroupedExplores}
+                            preAggregateExplores={sortedPreAggregateExplores}
                             searchQuery={debouncedSearch}
                             onExploreClick={handleExploreClick}
                         />

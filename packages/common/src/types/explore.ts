@@ -134,6 +134,7 @@ type SummaryExploreFields =
     | 'tags'
     | 'groupLabel'
     | 'type'
+    | 'preAggregateSource'
     | 'aiHint'
     | 'warnings';
 type SummaryExploreErrorFields =
