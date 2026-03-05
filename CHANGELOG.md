@@ -1,3 +1,10 @@
+# [0.2572.0](https://github.com/lightdash/lightdash/compare/0.2571.0...0.2572.0) (2026-03-05)
+
+
+### Features
+
+* add resolveGranularityInLabel utility for big number labels ([#20829](https://github.com/lightdash/lightdash/issues/20829)) ([eb4629d](https://github.com/lightdash/lightdash/commit/eb4629d28bdc5ba4d818f1f74f22bb9184cccc63))
+
 # [0.2571.0](https://github.com/lightdash/lightdash/compare/0.2570.0...0.2571.0) (2026-03-05)
 
 
