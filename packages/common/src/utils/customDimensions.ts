@@ -1,4 +1,4 @@
-import { type BinRange } from '../types/field';
+import { type BinGroup, type BinRange } from '../types/field';
 import { type WarehouseSqlBuilder } from '../types/warehouse';
 
 export const getFixedWidthBinSelectSql = ({
@@ -65,5 +65,41 @@ export const getCustomRangeSelectSql = ({
 
     return `CASE
             ${rangeWhens.join('\n')}
+            END`;
+};
+
+export const getCustomGroupSelectSql = ({
+    binGroups,
+    baseDimensionSql,
+    warehouseSqlBuilder,
+}: {
+    binGroups: BinGroup[];
+    baseDimensionSql: string;
+    warehouseSqlBuilder: WarehouseSqlBuilder;
+}) => {
+    const quoteChar = warehouseSqlBuilder.getStringQuoteChar();
+    const escapeChar = warehouseSqlBuilder.getEscapeStringQuoteChar();
+
+    const escapeValue = (value: string) =>
+        value.replace(
+            new RegExp(`[${escapeChar}${quoteChar}]`, 'g'),
+            (char) => `${escapeChar}${char}`,
+        );
+
+    const groupWhens = binGroups.map((group) => {
+        const inValues = group.values
+            .map((v) => `${quoteChar}${escapeValue(v)}${quoteChar}`)
+            .join(', ');
+        return `WHEN ${baseDimensionSql} IN (${inValues}) THEN ${quoteChar}${escapeValue(group.name)}${quoteChar}`;
+    });
+
+    const whens = [
+        `WHEN ${baseDimensionSql} IS NULL THEN NULL`,
+        ...groupWhens,
+        `ELSE ${quoteChar}Other${quoteChar}`,
+    ];
+
+    return `CASE
+            ${whens.join('\n')}
             END`;
 };

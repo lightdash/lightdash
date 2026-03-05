@@ -16,6 +16,7 @@ import {
     type WarehouseSqlBuilder,
 } from '../types/warehouse';
 import {
+    getCustomGroupSelectSql,
     getCustomRangeSelectSql,
     getFixedWidthBinSelectSql,
 } from './customDimensions';
@@ -62,6 +63,16 @@ export const convertCustomBinDimensionToDbt = ({
             throw new NotImplementedError(
                 'Bin with fixed number of bins can not be converted to dbt as it requires a CTE',
             );
+        case BinType.CUSTOM_GROUP:
+            return {
+                label: friendlyName(customDimension.name),
+                type: DimensionType.STRING,
+                sql: getCustomGroupSelectSql({
+                    binGroups: customDimension.customGroups || [],
+                    baseDimensionSql,
+                    warehouseSqlBuilder,
+                }),
+            };
         default:
             const never: never = customDimension.binType;
             throw new Error(`Unknown bin type ${never}`);

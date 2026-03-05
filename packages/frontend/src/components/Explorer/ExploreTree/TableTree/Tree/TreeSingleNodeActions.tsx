@@ -387,7 +387,9 @@ const TreeSingleNodeActions: FC<Props> = ({
                     </>
                 ) : null}
 
-                {isDimension(item) && item.type === DimensionType.NUMBER ? (
+                {isDimension(item) &&
+                (item.type === DimensionType.NUMBER ||
+                    item.type === DimensionType.STRING) ? (
                     <>
                         <Menu.Divider />
                         <Menu.Item

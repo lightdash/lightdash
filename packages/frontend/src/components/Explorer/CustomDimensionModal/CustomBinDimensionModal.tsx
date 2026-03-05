@@ -1,10 +1,13 @@
 import {
     BinType,
     CustomDimensionType,
+    DimensionType,
     getItemId,
+    isCustomBinDimension,
     isCustomDimension,
     isDimension,
     snakeCaseName,
+    type BinGroup,
     type BinRange,
     type CustomBinDimension,
     type Dimension,
@@ -45,6 +48,9 @@ const DEFAULT_CUSTOM_RANGE: BinRange[] = [
     { to: 0, from: undefined },
     { from: 1, to: undefined },
 ];
+const DEFAULT_CUSTOM_GROUPS: BinGroup[] = [{ name: 'Group 1', values: [] }];
+
+const isStringBinType = (binType: BinType) => binType === BinType.CUSTOM_GROUP;
 
 export const CustomBinDimensionModal: FC<{
     isEditing: boolean;
@@ -53,6 +59,16 @@ export const CustomBinDimensionModal: FC<{
     const { showToastSuccess } = useToaster();
     const dispatch = useExplorerDispatch();
     const customDimensions = useExplorerSelector(selectCustomDimensions);
+
+    const isStringDimension = useMemo(() => {
+        if (isDimension(item)) {
+            return item.type === DimensionType.STRING;
+        }
+        if (isCustomBinDimension(item)) {
+            return isStringBinType(item.binType);
+        }
+        return false;
+    }, [item]);
 
     const toggleModal = () =>
         dispatch(explorerActions.toggleCustomDimensionModal());
@@ -101,6 +117,12 @@ export const CustomBinDimensionModal: FC<{
                     })
                     .transform((o) => ({ from: o.from, to: o.to })),
             ),
+            customGroups: z.array(
+                z.object({
+                    name: z.string().min(1),
+                    values: z.array(z.string()),
+                }),
+            ),
         }),
     });
 
@@ -109,7 +131,9 @@ export const CustomBinDimensionModal: FC<{
     const form = useForm<FormValues>({
         initialValues: {
             customDimensionLabel: '',
-            binType: BinType.FIXED_NUMBER,
+            binType: isStringDimension
+                ? BinType.CUSTOM_GROUP
+                : BinType.FIXED_NUMBER,
             binConfig: {
                 fixedNumber: {
                     binNumber: MIN_OF_FIXED_NUMBER_BINS,
@@ -118,6 +142,7 @@ export const CustomBinDimensionModal: FC<{
                     binWidth: MIN_OF_FIXED_NUMBER_BINS,
                 },
                 customRange: DEFAULT_CUSTOM_RANGE,
+                customGroups: DEFAULT_CUSTOM_GROUPS,
             },
         },
         validate: zodResolver(formSchema),
@@ -144,6 +169,13 @@ export const CustomBinDimensionModal: FC<{
                 item.customRange
                     ? cloneDeep(item.customRange)
                     : DEFAULT_CUSTOM_RANGE,
+            );
+
+            setFieldValue(
+                'binConfig.customGroups',
+                item.customGroups
+                    ? cloneDeep(item.customGroups)
+                    : DEFAULT_CUSTOM_GROUPS,
             );
         }
     }, [setFieldValue, item, isEditing]);
@@ -174,6 +206,7 @@ export const CustomBinDimensionModal: FC<{
                     binWidth: values.binConfig.fixedWidth.binWidth,
                     table: item.table,
                     customRange: values.binConfig.customRange,
+                    customGroups: values.binConfig.customGroups,
                 };
                 const updatedDimensions = (customDimensions ?? []).map((dim) =>
                     dim.id === item.id ? updatedDimension : dim,
@@ -197,6 +230,7 @@ export const CustomBinDimensionModal: FC<{
                         binWidth: values.binConfig.fixedWidth.binWidth,
                         table: item.table,
                         customRange: values.binConfig.customRange,
+                        customGroups: values.binConfig.customGroups,
                     }),
                 );
 
@@ -251,27 +285,34 @@ export const CustomBinDimensionModal: FC<{
                         {...form.getInputProps('customDimensionLabel')}
                     />
 
-                    <Radio.Group
-                        label="Bin type"
-                        withAsterisk
-                        required
-                        {...form.getInputProps('binType')}
-                    >
-                        <Group mt="md">
-                            <Radio
-                                value={BinType.FIXED_NUMBER}
-                                label="Fixed number of bins"
-                            />
-                            <Radio
-                                value={BinType.FIXED_WIDTH}
-                                label="Fixed Width"
-                            />
-                            <Radio
-                                value={BinType.CUSTOM_RANGE}
-                                label="Custom range"
-                            />
-                        </Group>
-                    </Radio.Group>
+                    {isStringDimension ? (
+                        <Text size="sm" c="ldDark.6">
+                            Group values into custom categories. Ungrouped
+                            values will be labeled &quot;Other&quot;.
+                        </Text>
+                    ) : (
+                        <Radio.Group
+                            label="Bin type"
+                            withAsterisk
+                            required
+                            {...form.getInputProps('binType')}
+                        >
+                            <Group mt="md">
+                                <Radio
+                                    value={BinType.FIXED_NUMBER}
+                                    label="Fixed number of bins"
+                                />
+                                <Radio
+                                    value={BinType.FIXED_WIDTH}
+                                    label="Fixed Width"
+                                />
+                                <Radio
+                                    value={BinType.CUSTOM_RANGE}
+                                    label="Custom range"
+                                />
+                            </Group>
+                        </Radio.Group>
+                    )}
 
                     {form.values.binType === BinType.FIXED_NUMBER && (
                         <NumberInput
@@ -462,6 +503,165 @@ export const CustomBinDimensionModal: FC<{
                             >
                                 + Add a range
                             </Button>
+                        </>
+                    )}
+
+                    {form.values.binType === BinType.CUSTOM_GROUP && (
+                        <>
+                            <Text fw={500}>Groups</Text>
+                            {form.values.binConfig.customGroups.map(
+                                (group, groupIndex) => (
+                                    <Stack
+                                        key={`custom-group.${groupIndex}`}
+                                        gap="xs"
+                                        p="sm"
+                                        style={{
+                                            border: '1px solid var(--mantine-color-ldGray-3)',
+                                            borderRadius:
+                                                'var(--mantine-radius-sm)',
+                                        }}
+                                    >
+                                        <Flex gap="sm" align="center">
+                                            <TextInput
+                                                flex={1}
+                                                size="sm"
+                                                label="Group name"
+                                                required
+                                                placeholder="e.g. North America"
+                                                {...form.getInputProps(
+                                                    `binConfig.customGroups.${groupIndex}.name`,
+                                                )}
+                                            />
+                                            {form.values.binConfig.customGroups
+                                                .length > 1 && (
+                                                <ActionIcon
+                                                    variant="subtle"
+                                                    color="ldDark.6"
+                                                    mt="xl"
+                                                    onClick={() => {
+                                                        const newGroups = [
+                                                            ...form.values
+                                                                .binConfig
+                                                                .customGroups,
+                                                        ];
+                                                        newGroups.splice(
+                                                            groupIndex,
+                                                            1,
+                                                        );
+                                                        form.setFieldValue(
+                                                            'binConfig.customGroups',
+                                                            newGroups,
+                                                        );
+                                                    }}
+                                                >
+                                                    <MantineIcon icon={IconX} />
+                                                </ActionIcon>
+                                            )}
+                                        </Flex>
+
+                                        {group.values.map(
+                                            (value, valueIndex) => (
+                                                <Flex
+                                                    key={`custom-group.${groupIndex}.value.${valueIndex}`}
+                                                    gap="sm"
+                                                    align="center"
+                                                    ml="md"
+                                                >
+                                                    <TextInput
+                                                        flex={1}
+                                                        size="xs"
+                                                        placeholder="Enter a value"
+                                                        {...form.getInputProps(
+                                                            `binConfig.customGroups.${groupIndex}.values.${valueIndex}`,
+                                                        )}
+                                                    />
+                                                    <ActionIcon
+                                                        variant="subtle"
+                                                        color="ldDark.6"
+                                                        size="sm"
+                                                        onClick={() => {
+                                                            const newGroups =
+                                                                cloneDeep(
+                                                                    form.values
+                                                                        .binConfig
+                                                                        .customGroups,
+                                                                );
+                                                            newGroups[
+                                                                groupIndex
+                                                            ].values.splice(
+                                                                valueIndex,
+                                                                1,
+                                                            );
+                                                            form.setFieldValue(
+                                                                'binConfig.customGroups',
+                                                                newGroups,
+                                                            );
+                                                        }}
+                                                    >
+                                                        <MantineIcon
+                                                            icon={IconX}
+                                                        />
+                                                    </ActionIcon>
+                                                </Flex>
+                                            ),
+                                        )}
+
+                                        <Button
+                                            c="blue"
+                                            variant="light"
+                                            size="compact-xs"
+                                            fw="400"
+                                            ml="md"
+                                            style={{
+                                                alignSelf: 'flex-start',
+                                            }}
+                                            onClick={() => {
+                                                const newGroups = cloneDeep(
+                                                    form.values.binConfig
+                                                        .customGroups,
+                                                );
+                                                newGroups[
+                                                    groupIndex
+                                                ].values.push('');
+                                                form.setFieldValue(
+                                                    'binConfig.customGroups',
+                                                    newGroups,
+                                                );
+                                            }}
+                                        >
+                                            + Add a value
+                                        </Button>
+                                    </Stack>
+                                ),
+                            )}
+
+                            <Button
+                                c="blue"
+                                variant="light"
+                                size="compact-xs"
+                                fw="400"
+                                style={{ alignSelf: 'flex-start' }}
+                                onClick={() => {
+                                    form.setFieldValue(
+                                        'binConfig.customGroups',
+                                        [
+                                            ...form.values.binConfig
+                                                .customGroups,
+                                            {
+                                                name: '',
+                                                values: [],
+                                            },
+                                        ],
+                                    );
+                                }}
+                            >
+                                + Add a group
+                            </Button>
+
+                            <Text size="xs" c="ldDark.6">
+                                Values not assigned to any group will be labeled
+                                &quot;Other&quot;.
+                            </Text>
                         </>
                     )}
                 </Stack>
