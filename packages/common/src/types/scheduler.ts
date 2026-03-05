@@ -669,8 +669,8 @@ export type SchedulerCronUpdate = { schedulerUuid: string; cron: string };
 export type ExportCsvDashboardPayload = TraceTaskBase & {
     dashboardUuid: string;
     dashboardFilters: DashboardFilters;
-    dateZoomGranularity?: DateGranularity;
     selectedTabs: string[] | null;
+    dateZoomGranularity?: DateGranularity | string;
 };
 
 export type DownloadAsyncQueryResultsPayload = TraceTaskBase & {

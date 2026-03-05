@@ -2163,11 +2163,25 @@
             "DashboardConfig": {
                 "properties": {
                     "defaultDateZoomGranularity": {
-                        "$ref": "#/components/schemas/DateGranularity"
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/DateGranularity"
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ]
                     },
                     "dateZoomGranularities": {
                         "items": {
-                            "$ref": "#/components/schemas/DateGranularity"
+                            "anyOf": [
+                                {
+                                    "$ref": "#/components/schemas/DateGranularity"
+                                },
+                                {
+                                    "type": "string"
+                                }
+                            ]
                         },
                         "type": "array"
                     },
@@ -7477,7 +7491,14 @@
                         "type": "string"
                     },
                     "granularity": {
-                        "$ref": "#/components/schemas/DateGranularity"
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/DateGranularity"
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ]
                     }
                 },
                 "type": "object"

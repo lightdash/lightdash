@@ -2026,10 +2026,22 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                defaultDateZoomGranularity: { ref: 'DateGranularity' },
+                defaultDateZoomGranularity: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'DateGranularity' },
+                        { dataType: 'string' },
+                    ],
+                },
                 dateZoomGranularities: {
                     dataType: 'array',
-                    array: { dataType: 'refEnum', ref: 'DateGranularity' },
+                    array: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { ref: 'DateGranularity' },
+                            { dataType: 'string' },
+                        ],
+                    },
                 },
                 pinnedParameters: {
                     dataType: 'array',
@@ -6170,7 +6182,13 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 xAxisFieldId: { dataType: 'string' },
-                granularity: { ref: 'DateGranularity' },
+                granularity: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'DateGranularity' },
+                        { dataType: 'string' },
+                    ],
+                },
             },
             validators: {},
         },
@@ -29040,7 +29058,13 @@ export function RegisterRoutes(app: Router) {
                     dataType: 'array',
                     array: { dataType: 'refAlias', ref: 'SortField' },
                 },
-                dateZoomGranularity: { ref: 'DateGranularity' },
+                dateZoomGranularity: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'DateGranularity' },
+                        { dataType: 'string' },
+                    ],
+                },
                 dashboardFilters: { ref: 'DashboardFilters' },
                 tileUuid: { dataType: 'string', required: true },
             },

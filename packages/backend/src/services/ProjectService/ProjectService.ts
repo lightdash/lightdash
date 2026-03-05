@@ -2885,7 +2885,16 @@ export class ProjectService extends BaseService {
                     );
 
                     if (customDim) {
-                        return replaceDimensionInExplore(explore, customDim);
+                        // Override the original dimension with the custom granularity's SQL/type/label,
+                        // keeping the original name so the metric query still references it correctly
+                        const dimWithCustomOverride: CompiledDimension = {
+                            ...customDim,
+                            name: dimToOverride.name,
+                        };
+                        return replaceDimensionInExplore(
+                            explore,
+                            dimWithCustomOverride,
+                        );
                     }
                     // Custom granularity not found — return unchanged explore
                 } else {
