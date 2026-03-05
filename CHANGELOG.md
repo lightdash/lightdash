@@ -1,3 +1,11 @@
+# [0.2576.0](https://github.com/lightdash/lightdash/compare/0.2575.0...0.2576.0) (2026-03-05)
+
+
+### Features
+
+* add default sort behavior for MetricQueryBuilder ([#20869](https://github.com/lightdash/lightdash/issues/20869)) ([9c9d286](https://github.com/lightdash/lightdash/commit/9c9d286e022baa9147872dc1f88bde3750eaa7bf))
+* add Google Chat integration for scheduled deliveries (backend) ([#20881](https://github.com/lightdash/lightdash/issues/20881)) ([a600717](https://github.com/lightdash/lightdash/commit/a60071740b18e728dfe40ef028509b2079c4aadd)), closes [#18267](https://github.com/lightdash/lightdash/issues/18267)
+
 # [0.2575.0](https://github.com/lightdash/lightdash/compare/0.2574.0...0.2575.0) (2026-03-05)
 
 
