@@ -18,9 +18,9 @@ dbt's semantic layer has a similar concept called `non_additive_dimension`. We'l
 
 4. **Summing across non-time dimensions is safe.** You can sum balances across accounts, regions, etc. within the same point in time. The danger is only when summing across time.
 
-5. **The "correct" value for a rolled-up time period uses the latest snapshot per entity.** To answer "what is the total balance this year?", you take each account's most recent balance within that year and sum them — not every daily balance.
+5. **The "correct" value for a rolled-up time period uses the global latest snapshot date.** To answer "what is the total balance this year?", you find the latest date within that year, filter to rows on that date, and sum across entities. This assumes all entities have data on the global max date within each time bucket.
 
-6. **ROW_NUMBER must partition by all non-time PK columns.** Partitioning by a subset (e.g. just `account_region`) would arbitrarily drop entities that share the same region, silently losing data.
+6. **Data completeness is the user's responsibility.** The semi-additive implementation uses a global MAX/MIN date filter, not per-entity ROW_NUMBER. If an entity is missing data on the global max date, it will be silently excluded from results. Users must ensure their data pipelines produce complete snapshots.
 
 ---
 
@@ -58,7 +58,7 @@ models:
               semi_additive:
                 time_dimension: date_day      # Which time dimension to not aggregate over
                 window_choice: max            # 'max' = latest/last, 'min' = earliest/first
-                window_groupings:             # Optional: partition by these entities
+                window_groupings:             # Optional: document the entity grain
                   - account_id
 ```
 
@@ -83,11 +83,11 @@ models:
 |----------|----------|--------|-------------|
 | `time_dimension` | Yes | dimension name | The time/date dimension that should not be aggregated over. Must reference a DATE or TIMESTAMP dimension in the same table. |
 | `window_choice` | Yes | `min` or `max` | `max` = take the **latest** (most recent) value. `min` = take the **earliest** (oldest) value. Most use cases want `max`. |
-| `window_groupings` | No | list of dimension names | Entity dimensions to partition by when selecting first/last. Use this when your table has multiple entities per date (e.g., one row per account per day). |
+| `window_groupings` | No | list of dimension names | Entity dimensions that document the entity grain of the table. Used for validation (ensuring referenced dimensions exist) and documentation. Does not change the SQL generation — both with and without `window_groupings`, the SQL uses a global MAX/MIN date filter. |
 
 ### When to use `window_groupings`
 
-**Use `window_groupings`** when your source table has **multiple entities per time period**:
+**Use `window_groupings`** when your source table has **multiple entities per time period** — it documents the entity grain and validates the referenced dimensions:
 
 ```
 # Table: daily_account_balances
@@ -101,9 +101,11 @@ models:
 ```
 
 With `window_groupings: [account_id]` and `window_choice: max`:
-→ For each account, take the row with the latest `date_day`
-→ Account A: balance = 150 (from Jan 2), Account B: balance = 250 (from Jan 2)
+→ Find the global max `date_day` (Jan 2)
+→ Filter to all rows on Jan 2: Account A = 150, Account B = 250
 → Then SUM across accounts: total = 400
+
+**Note**: This assumes all entities have data on the global max date. If Account A's last row was Jan 1, it would be silently excluded. Data completeness is the user's responsibility.
 
 **Omit `window_groupings`** when your table has **one row per time period** (already at the grain you want):
 
@@ -117,13 +119,10 @@ With `window_groupings: [account_id]` and `window_choice: max`:
 ```
 
 Without `window_groupings`, `window_choice: max`:
-→ Take the single row with the latest `date_day`
-→ total_mrr = 55000, headcount = 210
+→ Find the global max `date_day` (Feb 1)
+→ Filter to that row: total_mrr = 55000, headcount = 210
 
-This mode has intentionally different semantics from entity-level collapse:
-- It is for tables that are already at the final grain (one row per time period).
-- It means "latest snapshot for the whole table/time bucket", not "latest row per entity".
-- If your table has multiple entities per time period, use `window_groupings`.
+Both modes use the same SQL strategy (global MAX/MIN date filter). The `window_groupings` property is for documentation and validation only.
 
 ### Combining with other metric features
 
@@ -184,27 +183,26 @@ When the time dimension itself is in the GROUP BY, the semi-additive logic appli
 
 ## Generated SQL (Conceptual)
 
-**Case A: With `window_groupings`** (ROW_NUMBER approach):
+**Both Case A (with `window_groupings`) and Case B (without)** use the same global MAX/MIN date filter approach. The `window_groupings` property is used for validation and documentation but does not change the SQL generation strategy. This assumes data completeness — all entities have data on the global max date within each time bucket.
 
 ```sql
 -- When time dimension is NOT in query dimensions:
-WITH sa_current_balance AS (
+-- CTE computes the single global max date, then JOIN to filter rows.
+WITH sa_max_date AS (
+  SELECT MAX(date_day) AS max_date           -- or MIN for window_choice: min
+  FROM daily_account_balances
+  WHERE date_day IS NOT NULL
+    AND <filters>
+),
+sa_current_balance AS (
   SELECT
-    region,
-    SUM(balance) AS current_balance
-  FROM (
-    SELECT
-      region,
-      balance,
-      ROW_NUMBER() OVER (
-        PARTITION BY account_id    -- window_groupings only
-        ORDER BY date_day DESC     -- DESC for 'max', ASC for 'min'
-      ) AS __sa_rn
-    FROM daily_account_balances
-    WHERE <dimension_filters>
-  ) __sa_sub
-  WHERE __sa_rn = 1
-  GROUP BY region
+    t.region,
+    SUM(t.balance) AS current_balance
+  FROM daily_account_balances t
+  INNER JOIN sa_max_date m ON t.date_day = m.max_date
+  WHERE t.date_day IS NOT NULL
+    AND <dimension_filters>
+  GROUP BY t.region
 )
 SELECT
   base.region,
@@ -212,72 +210,27 @@ SELECT
 FROM base_query base
 LEFT JOIN sa_current_balance ON base.region = sa_current_balance.region
 
--- When time dimension IS in query dimensions (e.g. grouped by month):
--- The PARTITION BY must include the time bucket so we get the latest row
--- WITHIN each time period, not just one global latest row.
-WITH sa_current_balance AS (
+-- When time dimension IS in query dimensions (e.g. grouped by month + region):
+-- CTE computes the max date per time bucket, then JOIN to filter rows.
+WITH sa_max_dates AS (
   SELECT
     DATE_TRUNC('month', date_day) AS date_month,
-    region,
-    SUM(balance) AS current_balance
-  FROM (
-    SELECT
-      DATE_TRUNC('month', date_day) AS date_month,
-      region,
-      balance,
-      ROW_NUMBER() OVER (
-        PARTITION BY account_id,                       -- window_groupings
-                     DATE_TRUNC('month', date_day)     -- + time bucket
-        ORDER BY date_day DESC
-      ) AS __sa_rn
-    FROM daily_account_balances
-    WHERE <dimension_filters>
-  ) __sa_sub
-  WHERE __sa_rn = 1
-  GROUP BY date_month, region
-)
-...
-```
-
-**Case B: Without `window_groupings`** (global snapshot min/max date filter):
-
-```sql
--- Intended for tables already at one-row-per-time-period grain
--- (example: daily_company_metrics)
-
--- When time dimension is NOT in query dimensions:
-WITH sa_total_mrr AS (
-  SELECT
-    SUM(total_mrr) AS total_mrr
-  FROM daily_company_metrics
+    MAX(date_day) AS max_date                -- or MIN for window_choice: min
+  FROM daily_account_balances
   WHERE date_day IS NOT NULL
-    AND date_day = (
-      SELECT MAX(date_day)
-      FROM daily_company_metrics
-      WHERE date_day IS NOT NULL
-        AND <filters>
-    )
-    AND <dimension_filters>
-)
-...
-
--- When time dimension IS in query dimensions (e.g. grouped by month):
--- Must use a per-bucket max, not a global max, so each time period gets its own latest row.
-WITH sa_total_mrr AS (
+    AND <filters>
+  GROUP BY DATE_TRUNC('month', date_day)
+),
+sa_current_balance AS (
   SELECT
-    DATE_TRUNC('month', date_day) AS date_month,
-    SUM(total_mrr) AS total_mrr
-  FROM daily_company_metrics
-  WHERE date_day IS NOT NULL
-    AND date_day IN (
-      SELECT MAX(date_day)
-      FROM daily_company_metrics
-      WHERE date_day IS NOT NULL
-        AND <filters>
-      GROUP BY DATE_TRUNC('month', date_day)
-    )
+    m.date_month,
+    t.region,
+    SUM(t.balance) AS current_balance
+  FROM daily_account_balances t
+  INNER JOIN sa_max_dates m ON t.date_day = m.max_date
+  WHERE t.date_day IS NOT NULL
     AND <dimension_filters>
-  GROUP BY date_month
+  GROUP BY m.date_month, t.region
 )
 ...
 ```
@@ -300,7 +253,7 @@ export type SemiAdditiveConfig = {
     timeDimension: string;
     /** Whether to pick the first (min) or last (max) value */
     windowChoice: WindowChoice;
-    /** Optional dimension/entity names to partition by before applying the window */
+    /** Optional dimension/entity names that document the entity grain of the table */
     windowGroupings: string[];
 };
 ```
@@ -390,7 +343,7 @@ Add `semi_additive` to the `LightdashMetric` definition (after `distinct_keys`):
         "window_groupings": {
             "type": "array",
             "items": { "type": "string" },
-            "description": "Dimensions to partition by before applying the window choice"
+            "description": "Entity dimensions that document the table grain (used for validation)"
         }
     }
 }
@@ -468,79 +421,54 @@ private buildSemiAdditiveCtes({
 }): { ctes: string[]; saJoins: string[]; saMetricSelects: string[] }
 ```
 
-**For each semi-additive metric**, generate a CTE with this structure.
+**For each semi-additive metric**, generate a CTE with this structure. Both Case A (with `windowGroupings`) and Case B (without) use the same global date filter approach.
 
 > `AGG()` below is a placeholder for the metric's actual aggregation function (SUM, COUNT, AVG, etc.) — determined by the metric's `type` property.
 
-**Case A: With `windowGroupings`** (ROW_NUMBER approach):
-
-```sql
--- If the time dimension is in the query dimensions, add the time bucket
--- to PARTITION BY so we get the latest row within each time period.
-sa_metric_name AS (
-  SELECT
-    dim1, dim2,                             -- all query dimensions
-    AGG(__sa_val) AS "metric_id"
-  FROM (
-    SELECT
-      dim1, dim2,                           -- all query dimensions
-      value_expression AS __sa_val,         -- un-aggregated metric value
-      ROW_NUMBER() OVER (
-        PARTITION BY grouping1, grouping2   -- window_groupings
-                     [, time_bucket]        -- + time bucket if time dim in query
-        ORDER BY time_dim DESC              -- DESC for max, ASC for min
-      ) AS __sa_rn
-    FROM base_table
-    [JOINs]
-    [WHERE time_dim IS NOT NULL AND dimension_filters]
-  ) __sa_sub
-  WHERE __sa_rn = 1
-  GROUP BY dim1, dim2
-)
-```
-
-**Case B: Without `windowGroupings`** (global snapshot min/max date filter):
-
-This mode is only correct when the source is already one-row-per-time-period at the metric grain.
-It intentionally selects one global snapshot date per bucket (or globally when no time bucket is selected).
-Do **not** try to emulate per-entity semantics here by using `ROW_NUMBER()` without entity partition columns.
+> The date filter function (`MAX` or `MIN`) is determined by the metric's `window_choice` YAML property: `max` → `MAX(time_dim)` (latest/last), `min` → `MIN(time_dim)` (earliest/first).
 
 ```sql
 -- When time dimension is NOT in query dimensions:
+-- CTE computes the single global max date, then JOIN to filter rows.
+sa_metric_name_max_date AS (
+  SELECT MAX(time_dim) AS max_date          -- or MIN for window_choice: min
+  FROM base_table
+  [JOINs]
+  [WHERE time_dim IS NOT NULL AND dimension_filters]
+),
 sa_metric_name AS (
   SELECT
     dim1, dim2,
     AGG(value_expression) AS "metric_id"
-  FROM base_table
+  FROM base_table t
   [JOINs]
-  WHERE time_dim IS NOT NULL
-    AND time_dim = (
-    SELECT MAX(time_dim)                    -- or MIN for window_choice: min
-    FROM base_table
-    [JOINs]
-    [WHERE time_dim IS NOT NULL AND dimension_filters]
-  )
-  AND [dimension_filters]
+  INNER JOIN sa_metric_name_max_date m ON t.time_dim = m.max_date
+  WHERE t.time_dim IS NOT NULL
+    AND [dimension_filters]
   GROUP BY dim1, dim2
 )
 
 -- When time dimension IS in query dimensions:
-sa_metric_name AS (
+-- CTE computes the max date per time bucket, then JOIN to filter rows.
+sa_metric_name_max_dates AS (
   SELECT
-    time_bucket, dim1, dim2,
-    AGG(value_expression) AS "metric_id"
+    time_bucket,
+    MAX(time_dim) AS max_date               -- or MIN for window_choice: min
   FROM base_table
   [JOINs]
-  WHERE time_dim IS NOT NULL
-    AND time_dim IN (
-    SELECT MAX(time_dim)
-    FROM base_table
-    [JOINs]
-    [WHERE time_dim IS NOT NULL AND dimension_filters]
-    GROUP BY time_bucket                    -- per-bucket max, not global
-  )
-  AND [dimension_filters]
-  GROUP BY time_bucket, dim1, dim2
+  [WHERE time_dim IS NOT NULL AND dimension_filters]
+  GROUP BY time_bucket
+),
+sa_metric_name AS (
+  SELECT
+    m.time_bucket, dim1, dim2,
+    AGG(value_expression) AS "metric_id"
+  FROM base_table t
+  [JOINs]
+  INNER JOIN sa_metric_name_max_dates m ON t.time_dim = m.max_date
+  WHERE t.time_dim IS NOT NULL
+    AND [dimension_filters]
+  GROUP BY m.time_bucket, dim1, dim2
 )
 ```
 
@@ -614,18 +542,18 @@ Add validation in the ExploreCompiler:
 4. Cannot combine `semi_additive` with `distinct_keys` (sum_distinct) — they're separate CTE-based row-selection strategies that cannot coexist (see Phase 6 conflict analysis)
 5. PoP (Period-over-Period) comparisons on semi-additive metrics are **not supported in initial release** — the metric falls back to regular calculation for the PoP portion (see Phase 6)
 6. Rows where `semi_additive.time_dimension` is `NULL` are always excluded from semi-additive CTEs (`WHERE time_dim IS NOT NULL`) to avoid cross-warehouse ordering differences and bad-data ambiguity
-7. If `window_groupings` is omitted, the metric is treated as table-level snapshot semantics (one row per time period at metric grain); this mode should not be used for entity-level sparse datasets
+7. `window_groupings` is used for validation and documentation only (e.g. ensuring referenced dimensions exist). Both with and without `window_groupings`, the SQL uses a global MAX/MIN date filter — data completeness is the user's responsibility
 
 #### 5.2 Edge cases to handle
 
 - **No dimensions selected**: When querying a semi-additive metric with no GROUP BY, it should still filter to the last/first date row(s) before aggregating
 - **Time dimension is in the query**: When the semi-additive time dimension itself is included as a GROUP BY column, the semi-additive behavior should still apply within each time bucket (e.g., grouping by month should take the last date within each month)
-- **Metric filters**: Metric-level filters (CASE WHEN) should be applied inside the semi-additive CTE, before the ROW_NUMBER
+- **Metric filters**: Metric-level filters (CASE WHEN) should be applied inside the semi-additive CTE, before the aggregation
 - **Multiple semi-additive metrics in one query**: Each gets its own CTE, joined back independently (same pattern as multiple sum_distinct metrics)
 - **Interaction with PoP metrics**: Not supported in Phase 1; PoP portion falls back to regular metric calculation and logs a warning
 - **Interaction with metric inflation protection**: Need to ensure the experimental metrics CTE logic also handles semi-additive metrics correctly, or excludes them (since they already have their own CTE isolation)
 - **NULL values in the time dimension**: Always excluded from semi-additive CTE input (`WHERE time_dim IS NOT NULL`) for deterministic cross-warehouse behavior
-- **Case B semantics with sparse data**: Keep global min/max subquery behavior. This is correct for Case B's intended use case (already one row per time period). Sparse entity-level data must use Case A with `window_groupings`.
+- **Missing data on global max date**: If an entity is missing data on the global max date within a time bucket, it will be silently excluded from results. This is by design — data completeness is the user's responsibility. The `window_groupings` config documents the expected entity grain but does not change the SQL strategy.
 
 ### Phase 6: CTE Conflict Analysis & Integration Strategy
 
@@ -657,7 +585,7 @@ Steps 5 and 6 are the critical integration points. Semi-additive CTEs slot in **
 
 **Risk**: The experimental metrics CTE (`getExperimentalMetricsCteSQL()`) creates its own per-table CTEs (`cte_keys_<table>`, `cte_metrics_<table>`) to prevent metric inflation from join fan-out. Semi-additive also creates per-metric CTEs. Both could try to handle the same metric.
 
-**Resolution — Phase 1 approach**: When a metric has `semiAdditive`, the experimental metrics CTE should **skip it** (don't create a `cte_metrics_<table>` for it). Semi-additive CTEs already isolate the metric from regular aggregation, providing their own inflation protection by operating on raw data with explicit ROW_NUMBER partitioning.
+**Resolution — Phase 1 approach**: When a metric has `semiAdditive`, the experimental metrics CTE should **skip it** (don't create a `cte_metrics_<table>` for it). Semi-additive CTEs already isolate the metric from regular aggregation, providing their own inflation protection by operating on raw data with a global MAX/MIN date filter.
 
 **Implementation detail**: In `getExperimentalMetricsCteSQL()`, add a check:
 ```typescript
@@ -679,7 +607,7 @@ The semi-additive CTE itself queries from raw tables (not from experimental CTEs
 1. Log a warning
 2. Fall back to treating it as a regular metric for the PoP portion (calculate normally without semi-additive logic)
 
-**Future enhancement**: Build dedicated `sa_pop_<metric>_<suffix>` CTEs that apply ROW_NUMBER within the shifted date range. This is tractable but adds significant complexity.
+**Future enhancement**: Build dedicated `sa_pop_<metric>_<suffix>` CTEs that apply the global MAX/MIN date filter within the shifted date range. This is tractable but adds significant complexity.
 
 #### Conflict: Semi-additive + Table Calculations
 
@@ -745,9 +673,17 @@ This placement ensures:
 
 **CTE approach chosen because:**
 1. Semi-additive metrics need to change **which rows** are aggregated, not just wrap the aggregation in a window function
-2. The ROW_NUMBER + filter pattern requires access to raw (pre-aggregated) data
-3. It's the exact same pattern as sum_distinct, which is already battle-tested
+2. The global MAX/MIN date filter requires access to raw (pre-aggregated) data
+3. It's the same CTE isolation pattern as sum_distinct, which is already battle-tested
 4. PostCalculation metrics operate on already-aggregated results — too late to filter rows
+
+### Why global MAX/MIN date filter instead of ROW_NUMBER per entity?
+
+Both approaches produce identical results when data is complete (every entity has a row on the global max date). We chose the global MAX/MIN approach because:
+1. **One code path** — no branching between Case A and Case B SQL generation
+2. **Simpler SQL** — no window functions, just a subquery filter
+3. **Better performance** — subquery filter is cheaper than ROW_NUMBER on large tables
+4. **User responsibility** — data completeness is already assumed in most BI tools; users whose pipelines produce sparse data can handle this at the data layer
 
 ### Why not a new MetricType?
 
@@ -769,22 +705,22 @@ Three seed datasets in `examples/full-jaffle-shop-demo/dbt/data/`, each exercisi
 | Seed | PK | Time Column | Non-Time PK | Semi-Additive Metrics | Additive Metrics | Key Data Quality Issues |
 |------|----|-------------|-------------|----------------------|-----------------|------------------------|
 | `raw_account_balances.csv` (3,162 rows) | `(date, account_id)` | `date` (daily) | `account_id` | `daily_account_balance` | — | Scattered missing days (~4%), account 1002 starts late, account 1005 has 15-day gap, account 1007 missing Dec 2025, account 1008 stops Jan 2026 |
-| `raw_monthly_recurring_revenue.csv` | `(month, division, sub_division, plan_tier)` | `month` (monthly) | `division, sub_division, plan_tier` | `mrr`, `active_subscriptions` | `new_subscriptions`, `churned_subscriptions`, `new_mrr`, `churned_mrr`, `expansion_mrr`, `contraction_mrr` | Multi-column non-time PK; tests that ROW_NUMBER partitions by ALL non-time PK columns |
-| `raw_stock_inventory.csv` | `(month, warehouse, product_category)` | `month` (monthly) | `warehouse, product_category` | `units_in_stock` | `units_sold`, `units_received`, `damaged_units` | Non-PK dimensions (`country`, `region`) that are safe to GROUP BY but must NOT be in the PARTITION BY |
+| `raw_monthly_recurring_revenue.csv` | `(month, division, sub_division, plan_tier)` | `month` (monthly) | `division, sub_division, plan_tier` | `mrr`, `active_subscriptions` | `new_subscriptions`, `churned_subscriptions`, `new_mrr`, `churned_mrr`, `expansion_mrr`, `contraction_mrr` | Multi-column non-time PK; tests that all entities are present on the global max month |
+| `raw_stock_inventory.csv` | `(month, warehouse, product_category)` | `month` (monthly) | `warehouse, product_category` | `units_in_stock` | `units_sold`, `units_received`, `damaged_units` | Non-PK dimensions (`country`, `region`) that are safe to GROUP BY without affecting the max date filter |
 
 Supporting table: `raw_account_owners.csv` (17 rows) — joins to `account_balances` on `account_id` with 1–4 owners per account, creating a many-to-one fan-out that inflates naive sums.
 
 ### Comparison Models
 
-Three dbt comparison models in `models/semi_additive_examples/` compute **correct** (semi-additive ROW_NUMBER) vs **incorrect** (naive SUM) results side by side:
+Three dbt comparison models in `models/semi_additive_examples/` compute **correct** (global MAX date filter) vs **incorrect** (naive SUM) results side by side:
 
 - **`semi_additive_account_balances_comparison`** — compares `daily_account_balance` by year and by `account_region`
 - **`semi_additive_mrr_comparison`** — compares `mrr` and `active_subscriptions` by year, `division`, and `sub_division`
 - **`semi_additive_stock_inventory_comparison`** — compares `units_in_stock` by year, `warehouse`, `product_category`, and `region`
 
 Each comparison model demonstrates two modes:
-1. **Time dimension selected** (e.g. year): PARTITION BY includes `non_time_pk_cols + time_bucket`
-2. **No time dimension**: PARTITION BY includes only `non_time_pk_cols`
+1. **Time dimension selected** (e.g. year): filter to the global MAX date within each time bucket
+2. **No time dimension**: filter to the single global MAX date
 
 ### Test Cases (validated against comparison models)
 
@@ -793,8 +729,8 @@ Each comparison model demonstrates two modes:
 - **How to check**: `WHERE correct >= incorrect` should return 0 rows across all three comparison models
 
 #### Test 2: correct with no time dim = filtered to max date
-- **What it validates**: For Case B tables (one row per time period), when no time dimension is selected, the collapsed result equals `WHERE date = (SELECT MAX(date) WHERE date IS NOT NULL)`
-- **How to check**: For a one-row-per-period model, compare values against `SELECT SUM(metric_value) FROM model WHERE date IS NOT NULL AND date = (SELECT MAX(date) FROM model WHERE date IS NOT NULL)`
+- **What it validates**: When no time dimension is selected, the collapsed result equals `WHERE date = (SELECT MAX(date) WHERE date IS NOT NULL)`
+- **How to check**: For any model, compare values against `SELECT SUM(metric_value) FROM model WHERE date IS NOT NULL AND date = (SELECT MAX(date) FROM model WHERE date IS NOT NULL)`
 
 #### Test 3: correct per year = filtered to max date within year
 - **What it validates**: Same as above but scoped to each time bucket
@@ -808,20 +744,16 @@ Each comparison model demonstrates two modes:
 - **What it validates**: Correct values per dimension should sum to the overall correct total
 - **How to check**: `SUM(correct)` across all regions should equal the correct grand total. The MRR comparison tests this across `division` and `sub_division` independently.
 
-#### Test 6: entities with missing time periods are handled
-- **What it validates**: (Case A with `window_groupings`) entities with data gaps still contribute their latest available balance — not zero
-- **How to check**: Accounts 1002 (starts late), 1005 (15-day gap), 1007 (missing Dec 2025), and 1008 (stops Jan 2026) all appear in the collapsed result with their most recent value
+#### Test 6: entities missing on global max date are excluded
+- **What it validates**: Entities without data on the global max date within a time bucket are silently excluded (by design — data completeness is the user's responsibility)
+- **How to check**: For account_balances, some accounts are missing on month-end dates. Verify that the correct value only includes accounts present on the max date, not accounts whose last row is an earlier date.
 
-#### Test 7: multi-column non-time PK partitioning is correct
-- **What it validates**: ROW_NUMBER partitions by ALL non-time PK columns, not a subset
-- **How to check**: The MRR comparison model partitions by `(division, sub_division, plan_tier)` — not just `division`. Partitioning by only `division` would silently drop rows. Verify all `(division, sub_division, plan_tier)` combos contribute exactly one row to the collapsed result.
+#### Test 7: non-PK dimensions don't affect the max date filter
+- **What it validates**: Dimensions like `region` and `country` on `stock_inventory` can be used for GROUP BY without affecting which date is selected as the max
+- **How to check**: The stock inventory comparison groups by `region` — verify correct values match regardless of which non-PK dimension is used for grouping.
 
-#### Test 8: non-PK dimensions don't corrupt the partition
-- **What it validates**: Dimensions like `region` and `country` on `stock_inventory` can be used for GROUP BY but must NOT appear in the PARTITION BY (they're not part of the PK)
-- **How to check**: The stock inventory comparison groups by `region` while partitioning by `(warehouse, product_category)`. Verify correct values match regardless of which non-PK dimension is used for grouping.
-
-#### Test 9: NULL time values are excluded deterministically
-- **What it validates**: Rows with `NULL` in the semi-additive time dimension never participate in ROW_NUMBER or max/min subqueries
+#### Test 8: NULL time values are excluded deterministically
+- **What it validates**: Rows with `NULL` in the semi-additive time dimension never participate in max/min subqueries
 - **How to check**: Insert (or use) rows with `NULL` time values and verify semi-additive results match the same query run with explicit `WHERE time_dim IS NOT NULL`
 
 ### Unit Tests
@@ -832,10 +764,10 @@ Each comparison model demonstrates two modes:
 ### Integration Tests
 
 3. **`packages/backend`**: Test `buildSemiAdditiveCtes()` generates correct SQL for:
-   - With `window_groupings` (ROW_NUMBER pattern) — account_balances and MRR scenarios
-   - Without `window_groupings` (global subquery MIN/MAX pattern for one-row-per-time-period tables)
+   - With `window_groupings` (global MAX/MIN subquery with entity-level tables) — account_balances and MRR scenarios
+   - Without `window_groupings` (global MAX/MIN subquery with single-row-per-period tables)
    - Multiple semi-additive metrics in one query — MRR model has both `mrr` and `active_subscriptions`
    - Semi-additive + regular additive metrics in same query — MRR model mixes semi-additive (`mrr`) with additive (`new_mrr`, `churned_mrr`)
    - No dimensions selected (grand total)
-   - Time dimension included in GROUP BY (within-bucket collapse)
-   - `time_dim IS NOT NULL` predicate is applied in both Case A and Case B SQL
+   - Time dimension included in GROUP BY (per-bucket MAX in subquery)
+   - `time_dim IS NOT NULL` predicate is applied in the subquery and outer WHERE

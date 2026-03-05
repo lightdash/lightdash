@@ -5,37 +5,24 @@
 -- Records are unique per (month, warehouse, product_category) — the
 -- primary key.
 --
--- Non-time primary key columns: (warehouse, product_category)
---
--- ROW_NUMBER must always partition by ALL non-time primary key columns
--- to ensure every entity contributes exactly one snapshot value.
--- When a time dimension is in the query, add it to the PARTITION BY.
--- When no time dimension is selected, partition by non-time PK only.
+-- The "correct" approach finds the global MAX month within each time
+-- bucket and filters to rows on that month. This assumes all entities
+-- have data on the last month in each bucket (no missing data handling).
 -- =====================================================================
 
 -- units_in_stock per year (time dimension selected)
 
-WITH latest_per_entity_year AS (
-    SELECT
-        warehouse,
-        product_category,
-        country,
-        region,
-        DATE_TRUNC('year', month) AS year,
-        month,
-        units_in_stock,
-        ROW_NUMBER() OVER (
-            PARTITION BY warehouse, product_category, DATE_TRUNC('year', month)
-            ORDER BY month DESC
-        ) AS rn
+WITH max_month_per_year AS (
+    SELECT DATE_TRUNC('year', month) AS year, MAX(month) AS max_month
     FROM {{ ref('stock_inventory') }}
+    GROUP BY DATE_TRUNC('year', month)
 ),
 
 year_correct AS (
-    SELECT year, SUM(units_in_stock) AS correct
-    FROM latest_per_entity_year
-    WHERE rn = 1
-    GROUP BY year
+    SELECT m.year, SUM(si.units_in_stock) AS correct
+    FROM {{ ref('stock_inventory') }} si
+    INNER JOIN max_month_per_year m ON si.month = m.max_month
+    GROUP BY m.year
 ),
 
 year_incorrect AS (
@@ -46,25 +33,16 @@ year_incorrect AS (
 
 -- units_in_stock per warehouse / product_category / region (no time dimension)
 
-latest_per_entity AS (
-    SELECT
-        warehouse,
-        product_category,
-        country,
-        region,
-        units_in_stock,
-        ROW_NUMBER() OVER (
-            PARTITION BY warehouse, product_category
-            ORDER BY month DESC
-        ) AS rn
+max_month_global AS (
+    SELECT MAX(month) AS max_month
     FROM {{ ref('stock_inventory') }}
 ),
 
 warehouse_correct AS (
-    SELECT warehouse, SUM(units_in_stock) AS correct
-    FROM latest_per_entity
-    WHERE rn = 1
-    GROUP BY warehouse
+    SELECT si.warehouse, SUM(si.units_in_stock) AS correct
+    FROM {{ ref('stock_inventory') }} si
+    INNER JOIN max_month_global g ON si.month = g.max_month
+    GROUP BY si.warehouse
 ),
 
 warehouse_incorrect AS (
@@ -74,10 +52,10 @@ warehouse_incorrect AS (
 ),
 
 product_category_correct AS (
-    SELECT product_category, SUM(units_in_stock) AS correct
-    FROM latest_per_entity
-    WHERE rn = 1
-    GROUP BY product_category
+    SELECT si.product_category, SUM(si.units_in_stock) AS correct
+    FROM {{ ref('stock_inventory') }} si
+    INNER JOIN max_month_global g ON si.month = g.max_month
+    GROUP BY si.product_category
 ),
 
 product_category_incorrect AS (
@@ -87,10 +65,10 @@ product_category_incorrect AS (
 ),
 
 region_correct AS (
-    SELECT region, SUM(units_in_stock) AS correct
-    FROM latest_per_entity
-    WHERE rn = 1
-    GROUP BY region
+    SELECT si.region, SUM(si.units_in_stock) AS correct
+    FROM {{ ref('stock_inventory') }} si
+    INNER JOIN max_month_global g ON si.month = g.max_month
+    GROUP BY si.region
 ),
 
 region_incorrect AS (

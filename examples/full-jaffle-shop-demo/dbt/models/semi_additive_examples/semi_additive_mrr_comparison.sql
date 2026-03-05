@@ -5,108 +5,73 @@
 -- not a flow. Records are unique per (month, division, sub_division,
 -- plan_tier) — the primary key.
 --
--- WHY ROW_NUMBER MUST PARTITION BY ALL NON-TIME PRIMARY KEY COLUMNS?
---
--- Primary key: (month, division, sub_division, plan_tier)
--- Non-time primary key columns: (division, sub_division, plan_tier)
---
--- MRR is recorded once per month for each (division, sub_division,
--- plan_tier) combination. A naive SUM(mrr) across rows double-counts
--- because it adds up every monthly snapshot — e.g. if Web/Web/Starter
--- has MRR of $30k in Jan, $31k in Feb, and $32k in Mar, a naive SUM
--- returns $93k instead of the actual current MRR of $32k.
---
--- To get the correct MRR we must first collapse to a single row per
--- entity. We use ROW_NUMBER() partitioned by ALL non-time primary key
--- columns (division, sub_division, plan_tier) and ordered by month DESC
--- to pick each entity's most recent snapshot. Only then can we safely
--- SUM across entities — because each entity contributes exactly one
--- MRR value, not one per month.
---
--- It must be ALL non-time primary key columns, not just the dimension
--- in the query. If we partitioned by only (division), each partition
--- would contain multiple sub_division/plan_tier combos, and ROW_NUMBER
--- would arbitrarily keep just one — silently dropping data. The primary
--- key defines the grain, so we always partition at that grain to ensure
--- every entity is represented exactly once.
---
--- When a time dimension IS in the query (e.g. year), we add it to the
--- PARTITION BY so each entity contributes one row per year.
--- When NO time dimension is selected, we partition only by the non-time
--- primary key columns, giving each entity's latest-ever snapshot.
+-- The "correct" approach finds the global MAX month within each time
+-- bucket and filters to rows on that month. This assumes all entities
+-- have data on the last month in each bucket (no missing data handling).
 -- =====================================================================
 
 -- MRR per year (time dimension selected)
--- Partition includes year so each entity gets one row per year.
 
-WITH latest_per_entity_year AS (
-    SELECT
-        division,
-        sub_division,
-        plan_tier,
-        DATE_TRUNC('year', month) AS year,
-        month,
-        mrr,
-        active_subscriptions,
-        ROW_NUMBER() OVER (
-            PARTITION BY division, sub_division, plan_tier, DATE_TRUNC('year', month)
-            ORDER BY month DESC
-        ) AS rn
+WITH max_month_per_year AS (
+    SELECT DATE_TRUNC('year', month) AS year, MAX(month) AS max_month
     FROM {{ ref('monthly_recurring_revenue') }}
+    GROUP BY DATE_TRUNC('year', month)
 ),
 
 year_correct AS (
-    SELECT year, SUM(mrr) AS mrr_correct, SUM(active_subscriptions) AS subs_correct
-    FROM latest_per_entity_year
-    WHERE rn = 1
-    GROUP BY year
+    SELECT m.year,
+           SUM(mrr.mrr) AS mrr_correct,
+           SUM(mrr.active_subscriptions) AS subs_correct
+    FROM {{ ref('monthly_recurring_revenue') }} mrr
+    INNER JOIN max_month_per_year m ON mrr.month = m.max_month
+    GROUP BY m.year
 ),
 
 year_incorrect AS (
-    SELECT DATE_TRUNC('year', month) AS year, SUM(mrr) AS mrr_incorrect, SUM(active_subscriptions) AS subs_incorrect
+    SELECT DATE_TRUNC('year', month) AS year,
+           SUM(mrr) AS mrr_incorrect,
+           SUM(active_subscriptions) AS subs_incorrect
     FROM {{ ref('monthly_recurring_revenue') }}
     GROUP BY DATE_TRUNC('year', month)
 ),
 
 -- MRR per division / sub_division (no time dimension selected)
--- Partition by all non-time primary key columns only.
 
-latest_per_entity AS (
-    SELECT
-        division,
-        sub_division,
-        plan_tier,
-        mrr,
-        active_subscriptions,
-        ROW_NUMBER() OVER (
-            PARTITION BY division, sub_division, plan_tier
-            ORDER BY month DESC
-        ) AS rn
+max_month_global AS (
+    SELECT MAX(month) AS max_month
     FROM {{ ref('monthly_recurring_revenue') }}
 ),
 
 division_correct AS (
-    SELECT division, SUM(mrr) AS mrr_correct, SUM(active_subscriptions) AS subs_correct
-    FROM latest_per_entity
-    WHERE rn = 1
-    GROUP BY division
+    SELECT mrr.division,
+           SUM(mrr.mrr) AS mrr_correct,
+           SUM(mrr.active_subscriptions) AS subs_correct
+    FROM {{ ref('monthly_recurring_revenue') }} mrr
+    INNER JOIN max_month_global g ON mrr.month = g.max_month
+    GROUP BY mrr.division
 ),
 
 division_incorrect AS (
-    SELECT division, SUM(mrr) AS mrr_incorrect, SUM(active_subscriptions) AS subs_incorrect
+    SELECT division,
+           SUM(mrr) AS mrr_incorrect,
+           SUM(active_subscriptions) AS subs_incorrect
     FROM {{ ref('monthly_recurring_revenue') }}
     GROUP BY division
 ),
 
 sub_division_correct AS (
-    SELECT sub_division, SUM(mrr) AS mrr_correct, SUM(active_subscriptions) AS subs_correct
-    FROM latest_per_entity
-    WHERE rn = 1
-    GROUP BY sub_division
+    SELECT mrr.sub_division,
+           SUM(mrr.mrr) AS mrr_correct,
+           SUM(mrr.active_subscriptions) AS subs_correct
+    FROM {{ ref('monthly_recurring_revenue') }} mrr
+    INNER JOIN max_month_global g ON mrr.month = g.max_month
+    GROUP BY mrr.sub_division
 ),
 
 sub_division_incorrect AS (
-    SELECT sub_division, SUM(mrr) AS mrr_incorrect, SUM(active_subscriptions) AS subs_incorrect
+    SELECT sub_division,
+           SUM(mrr) AS mrr_incorrect,
+           SUM(active_subscriptions) AS subs_incorrect
     FROM {{ ref('monthly_recurring_revenue') }}
     GROUP BY sub_division
 )

@@ -410,8 +410,6 @@ date,account_id,account_region,daily_account_balance
 2025-02-27,1006,Asia Pacific,66164
 2025-02-27,1007,Latin America,191809
 2025-02-27,1008,Latin America,30052
-2025-02-28,1001,North America,153798
-2025-02-28,1002,North America,85963
 2025-02-28,1003,Europe,218676
 2025-02-28,1004,Europe,46293
 2025-02-28,1005,Asia Pacific,308939
@@ -629,13 +627,11 @@ date,account_id,account_region,daily_account_balance
 2025-03-30,1007,Latin America,193158
 2025-03-30,1008,Latin America,29986
 2025-03-31,1001,North America,149727
-2025-03-31,1002,North America,87064
 2025-03-31,1003,Europe,220989
 2025-03-31,1004,Europe,45130
 2025-03-31,1005,Asia Pacific,315262
 2025-03-31,1006,Asia Pacific,70298
 2025-03-31,1007,Latin America,194790
-2025-03-31,1008,Latin America,28078
 2025-04-01,1001,North America,153242
 2025-04-01,1002,North America,89427
 2025-04-01,1003,Europe,223368
@@ -856,7 +852,6 @@ date,account_id,account_region,daily_account_balance
 2025-04-29,1008,Latin America,28560
 2025-04-30,1002,North America,90623
 2025-04-30,1003,Europe,224235
-2025-04-30,1004,Europe,40834
 2025-04-30,1005,Asia Pacific,312105
 2025-04-30,1006,Asia Pacific,71766
 2025-04-30,1007,Latin America,193292
@@ -1092,8 +1087,6 @@ date,account_id,account_region,daily_account_balance
 2025-05-30,1006,Asia Pacific,69807
 2025-05-30,1007,Latin America,195262
 2025-05-30,1008,Latin America,26185
-2025-05-31,1001,North America,152917
-2025-05-31,1002,North America,92382
 2025-05-31,1003,Europe,224020
 2025-05-31,1004,Europe,43882
 2025-05-31,1005,Asia Pacific,315848
@@ -1325,13 +1318,11 @@ date,account_id,account_region,daily_account_balance
 2025-06-29,1007,Latin America,196473
 2025-06-29,1008,Latin America,25998
 2025-06-30,1001,North America,155985
-2025-06-30,1002,North America,92579
 2025-06-30,1003,Europe,223924
 2025-06-30,1004,Europe,42096
 2025-06-30,1005,Asia Pacific,314080
 2025-06-30,1006,Asia Pacific,75121
 2025-06-30,1007,Latin America,194985
-2025-06-30,1008,Latin America,24992
 2025-07-01,1001,North America,157708
 2025-07-01,1002,North America,94910
 2025-07-01,1003,Europe,227978
@@ -1560,10 +1551,8 @@ date,account_id,account_region,daily_account_balance
 2025-07-30,1006,Asia Pacific,71556
 2025-07-30,1007,Latin America,197614
 2025-07-30,1008,Latin America,23258
-2025-07-31,1001,North America,155504
 2025-07-31,1002,North America,94035
 2025-07-31,1003,Europe,229411
-2025-07-31,1004,Europe,62054
 2025-07-31,1005,Asia Pacific,315679
 2025-07-31,1006,Asia Pacific,73039
 2025-07-31,1007,Latin America,197730
@@ -1801,13 +1790,11 @@ date,account_id,account_region,daily_account_balance
 2025-08-30,1007,Latin America,226220
 2025-08-30,1008,Latin America,22901
 2025-08-31,1001,North America,156369
-2025-08-31,1002,North America,93059
 2025-08-31,1003,Europe,229387
 2025-08-31,1004,Europe,42529
 2025-08-31,1005,Asia Pacific,318696
 2025-08-31,1006,Asia Pacific,75690
 2025-08-31,1007,Latin America,201341
-2025-08-31,1008,Latin America,25870
 2025-09-01,1001,North America,159996
 2025-09-01,1002,North America,94977
 2025-09-01,1004,Europe,43282
@@ -2036,7 +2023,6 @@ date,account_id,account_region,daily_account_balance
 2025-09-30,1005,Asia Pacific,320406
 2025-09-30,1006,Asia Pacific,77057
 2025-09-30,1007,Latin America,198573
-2025-09-30,1008,Latin America,22898
 2025-10-01,1001,North America,159025
 2025-10-01,1002,North America,93258
 2025-10-01,1003,Europe,227888
@@ -2266,8 +2252,6 @@ date,account_id,account_region,daily_account_balance
 2025-10-30,1006,Asia Pacific,76814
 2025-10-30,1007,Latin America,200979
 2025-10-30,1008,Latin America,23018
-2025-10-31,1001,North America,160795
-2025-10-31,1002,North America,97518
 2025-10-31,1003,Europe,229062
 2025-10-31,1004,Europe,42429
 2025-10-31,1005,Asia Pacific,318989
@@ -2500,7 +2484,6 @@ date,account_id,account_region,daily_account_balance
 2025-11-30,1001,North America,182596
 2025-11-30,1002,North America,99407
 2025-11-30,1003,Europe,229086
-2025-11-30,1004,Europe,41918
 2025-11-30,1006,Asia Pacific,79065
 2025-11-30,1007,Latin America,202203
 2025-11-30,1008,Latin America,22174
@@ -2707,7 +2690,6 @@ date,account_id,account_region,daily_account_balance
 2025-12-30,1006,Asia Pacific,79464
 2025-12-30,1008,Latin America,20402
 2025-12-31,1001,North America,164148
-2025-12-31,1002,North America,96335
 2025-12-31,1003,Europe,235470
 2025-12-31,1004,Europe,40580
 2025-12-31,1005,Asia Pacific,324184
@@ -2948,7 +2930,6 @@ date,account_id,account_region,daily_account_balance
 2026-01-31,1005,Asia Pacific,325738
 2026-01-31,1006,Asia Pacific,81183
 2026-01-31,1007,Latin America,206747
-2026-01-31,1008,Latin America,23111
 2026-02-01,1001,North America,164419
 2026-02-01,1002,North America,97722
 2026-02-01,1003,Europe,237783

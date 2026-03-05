@@ -4,35 +4,24 @@
 -- daily_account_balance is a semi-additive metric: a point-in-time
 -- snapshot. Records are unique per (date, account_id) — the primary key.
 --
--- Non-time primary key columns: (account_id)
---
--- ROW_NUMBER must always partition by ALL non-time primary key columns
--- to ensure every entity contributes exactly one snapshot value.
--- When a time dimension is in the query, add it to the PARTITION BY.
--- When no time dimension is selected, partition by non-time PK only.
+-- The "correct" approach finds the global MAX date within each time
+-- bucket and filters to rows on that date. This assumes all entities
+-- have data on the last date in each bucket (no missing data handling).
 -- =====================================================================
 
 -- daily_account_balance per year (time dimension selected)
 
-WITH latest_per_entity_year AS (
-    SELECT
-        account_id,
-        account_region,
-        DATE_TRUNC('year', date) AS year,
-        date,
-        daily_account_balance,
-        ROW_NUMBER() OVER (
-            PARTITION BY account_id, DATE_TRUNC('year', date)
-            ORDER BY date DESC
-        ) AS rn
+WITH max_date_per_year AS (
+    SELECT DATE_TRUNC('year', date) AS year, MAX(date) AS max_date
     FROM {{ ref('account_balances') }}
+    GROUP BY DATE_TRUNC('year', date)
 ),
 
 year_correct AS (
-    SELECT year, SUM(daily_account_balance) AS correct
-    FROM latest_per_entity_year
-    WHERE rn = 1
-    GROUP BY year
+    SELECT m.year, SUM(ab.daily_account_balance) AS correct
+    FROM {{ ref('account_balances') }} ab
+    INNER JOIN max_date_per_year m ON ab.date = m.max_date
+    GROUP BY m.year
 ),
 
 year_incorrect AS (
@@ -43,23 +32,16 @@ year_incorrect AS (
 
 -- daily_account_balance per account_region (no time dimension)
 
-latest_per_entity AS (
-    SELECT
-        account_id,
-        account_region,
-        daily_account_balance,
-        ROW_NUMBER() OVER (
-            PARTITION BY account_id
-            ORDER BY date DESC
-        ) AS rn
+max_date_global AS (
+    SELECT MAX(date) AS max_date
     FROM {{ ref('account_balances') }}
 ),
 
 region_correct AS (
-    SELECT account_region, SUM(daily_account_balance) AS correct
-    FROM latest_per_entity
-    WHERE rn = 1
-    GROUP BY account_region
+    SELECT ab.account_region, SUM(ab.daily_account_balance) AS correct
+    FROM {{ ref('account_balances') }} ab
+    INNER JOIN max_date_global g ON ab.date = g.max_date
+    GROUP BY ab.account_region
 ),
 
 region_incorrect AS (
