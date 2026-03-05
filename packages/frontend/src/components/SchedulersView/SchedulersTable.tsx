@@ -701,6 +701,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                         {item.format !== SchedulerFormat.GSHEETS &&
                             slackChannels.length === 0 &&
                             emails.length === 0 &&
+                            msTeamsTargets.length === 0 &&
                             googleChatTargets.length === 0 && (
                                 <Text fz="xs" c="ldGray.6">
                                     No destinations

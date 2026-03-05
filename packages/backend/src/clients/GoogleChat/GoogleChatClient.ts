@@ -27,7 +27,7 @@ export class GoogleChatClient {
             Logger.error(
                 `Google Chat webhook returned an error: ${response.status} ${responseText}`,
             );
-            Logger.info(
+            Logger.debug(
                 `Google Chat webhook payload ${JSON.stringify(
                     payload,
                     null,
@@ -92,7 +92,7 @@ export class GoogleChatClient {
                             threshold.operator,
                             threshold.value,
                             '<b>',
-                        ).replace('<b>', '</b>')}`,
+                        ).replace(/<b>([^<]*)<b>/, '<b>$1</b>')}`,
                 )
                 .join('\n');
 

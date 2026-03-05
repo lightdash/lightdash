@@ -267,6 +267,7 @@ export type UpdateSchedulerAndTargets = Pick<
             | CreateSchedulerTarget
             | UpdateSchedulerSlackTarget
             | UpdateSchedulerEmailTarget
+            | UpdateSchedulerMsTeamsTarget
             | UpdateSchedulerGoogleChatTarget
         >;
     };
