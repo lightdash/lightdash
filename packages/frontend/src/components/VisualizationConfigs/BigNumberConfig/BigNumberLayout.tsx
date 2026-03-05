@@ -82,7 +82,7 @@ export const Layout: FC = () => {
                             value={bigNumberLabel ?? ''}
                             placeholder={defaultLabel}
                             onChange={setBigNumberLabel}
-                            fields={granularityFields ?? []}
+                            fields={granularityFields}
                             readOnly={!showBigNumberLabel}
                         />
                     </div>
@@ -108,11 +108,6 @@ export const Layout: FC = () => {
                                     }
                                 }}
                                 disabled={!!bigNumberLabel}
-                                style={{
-                                    cursor: bigNumberLabel
-                                        ? 'not-allowed'
-                                        : 'pointer',
-                                }}
                             >
                                 <MantineIcon
                                     icon={

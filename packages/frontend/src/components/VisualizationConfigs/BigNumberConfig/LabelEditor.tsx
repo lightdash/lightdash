@@ -1,10 +1,4 @@
-import {
-    getDefaultZIndex,
-    Input,
-    Paper,
-    Text,
-    useMantineColorScheme,
-} from '@mantine-8/core';
+import { Input, Paper, Text, useMantineColorScheme } from '@mantine-8/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import {
     Editor,
@@ -13,7 +7,7 @@ import {
     type Monaco,
     type OnMount,
 } from '@monaco-editor/react';
-import { type editor, type IDisposable, type languages } from 'monaco-editor';
+import { type IDisposable, type languages } from 'monaco-editor';
 import { useCallback, useEffect, useRef, useState, type FC } from 'react';
 import { useDeepCompareEffect } from 'react-use';
 import { getLightdashMonacoTheme } from '../../../features/sqlRunner/utils/monaco';
@@ -110,7 +104,6 @@ export const LabelEditor: FC<LabelEditorProps> = ({
     const { colorScheme } = useMantineColorScheme();
     const [localValue, setLocalValue] = useState(value);
     const [debouncedValue] = useDebouncedValue(localValue, 500);
-    const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
     const contentDisposableRef = useRef<IDisposable | null>(null);
     const completionDisposableRef = useRef<IDisposable | null>(null);
     const [editorHeight, setEditorHeight] = useState(calculateEditorHeight(1));
@@ -186,7 +179,6 @@ export const LabelEditor: FC<LabelEditorProps> = ({
     );
 
     const onMount: OnMount = useCallback((monacoEditor) => {
-        editorRef.current = monacoEditor;
         const model = monacoEditor.getModel();
         if (model) {
             setEditorHeight(calculateEditorHeight(model.getLineCount()));
@@ -213,7 +205,6 @@ export const LabelEditor: FC<LabelEditorProps> = ({
                         c="ldGray.5"
                         fz="xs"
                         className={styles.placeholderText}
-                        style={{ zIndex: getDefaultZIndex('overlay') }}
                     >
                         {placeholder}
                     </Text>

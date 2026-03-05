@@ -197,7 +197,7 @@ export const Comparison: React.FC = () => {
                                 value={comparisonLabel ?? ''}
                                 placeholder="Add an optional label"
                                 onChange={setComparisonLabel}
-                                fields={granularityFields ?? []}
+                                fields={granularityFields}
                             />
                         </>
                     ) : null}
