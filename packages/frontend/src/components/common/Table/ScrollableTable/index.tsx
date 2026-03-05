@@ -47,12 +47,19 @@ const ScrollableTable: FC<ScrollableTableProps> = ({
         [columns],
     );
 
+    // Extract user-customized widths from column meta so the colgroup respects them
+    const customWidths = useMemo(
+        () => columns.map((col) => col.meta?.width as number | undefined),
+        [columns],
+    );
+
     const { columnWidths, totalWidth } = useMeasureAndLockColumns({
         tableRef,
         enabled: isTableColumnWidthStabilizationEnabled,
         columnKey,
         hasData: data.length > 0,
         containerWidth,
+        customWidths,
     });
 
     return (
