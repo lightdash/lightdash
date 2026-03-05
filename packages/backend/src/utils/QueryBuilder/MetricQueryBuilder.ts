@@ -2299,7 +2299,7 @@ export class MetricQueryBuilder {
                         warehouseSqlBuilder.getFloatingType();
                     outerAgg = `CAST(SUM(CASE WHEN __dd_rn = 1 THEN __dd_val ELSE NULL END) AS ${floatType}) / CAST(NULLIF(COUNT(CASE WHEN __dd_rn = 1 THEN __dd_val END), 0) AS ${floatType})`;
                 } else {
-                    outerAgg = `COALESCE(SUM(CASE WHEN __dd_rn = 1 THEN __dd_val ELSE NULL END), 0)`;
+                    outerAgg = `SUM(CASE WHEN __dd_rn = 1 THEN __dd_val ELSE NULL END)`;
                 }
                 const outerSelects = [
                     ...dimensionAlias,

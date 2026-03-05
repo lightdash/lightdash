@@ -2410,7 +2410,7 @@ LIMIT 10`;
             expect(result.query).toContain(
                 'CAST(NULLIF(COUNT(CASE WHEN __dd_rn = 1 THEN __dd_val END), 0) AS FLOAT)',
             );
-            // Should NOT use COALESCE (that's sum_distinct)
+            // Neither distinct metric type should use COALESCE
             expect(result.query).not.toContain('COALESCE');
         });
 
