@@ -99,9 +99,12 @@ import {
     type SchedulerIndexCatalogJobPayload,
     type SlackBatchNotificationPayload,
 } from '@lightdash/common';
+import archiver from 'archiver';
+import fsSync from 'fs';
 import fs from 'fs/promises';
 import { nanoid } from 'nanoid';
 import slackifyMarkdown from 'slackify-markdown';
+import { Readable } from 'stream';
 import {
     DownloadCsv,
     LightdashAnalytics,
@@ -147,6 +150,7 @@ import {
 import { UserService } from '../services/UserService';
 import { ValidationService } from '../services/ValidationService/ValidationService';
 import { EncryptionUtil } from '../utils/EncryptionUtil/EncryptionUtil';
+import { sanitizeGenericFileName } from '../utils/FileDownloadUtils/FileDownloadUtils';
 import { getDailyDatesFromCron, SchedulerClient } from './SchedulerClient';
 
 export type SchedulerTaskArguments = {
@@ -3605,10 +3609,323 @@ export default class SchedulerTask {
                 },
             },
             async () => {
-                const url =
-                    await this.csvService.runScheduledExportCsvDashboard(
-                        payload,
+                if (!this.fileStorageClient.isEnabled()) {
+                    throw new MissingConfigError(
+                        'Cloud storage is not enabled',
                     );
+                }
+
+                const {
+                    dashboardUuid,
+                    dashboardFilters,
+                    dateZoomGranularity,
+                    userUuid,
+                    organizationUuid,
+                    projectUuid,
+                } = payload;
+
+                const sessionUser =
+                    await this.userService.getSessionByUserUuid(userUuid);
+                const account = Account.fromSession(sessionUser);
+                const dashboard =
+                    await this.schedulerService.dashboardModel.getByIdOrSlug(
+                        dashboardUuid,
+                    );
+
+                const pivotResultsFlag = await this.featureFlagService.get({
+                    user: account.user,
+                    featureFlagId: FeatureFlags.UseSqlPivotResults,
+                });
+
+                const baseAnalyticsProperties: DownloadCsv['properties'] = {
+                    jobId,
+                    userId: userUuid,
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                    fileType: SchedulerFormat.CSV,
+                    values: 'formatted',
+                    limit: 'results',
+                    storage: 's3',
+                    context: 'dashboard csv zip',
+                };
+
+                this.analytics.trackAccount(account, {
+                    event: 'download_results.started',
+                    userId: account.user.id,
+                    properties: baseAnalyticsProperties,
+                });
+
+                const chartTiles = dashboard.tiles
+                    .filter(isDashboardChartTileType)
+                    .filter((tile) => tile.properties.savedChartUuid)
+                    .map((tile) => ({
+                        tileUuid: tile.uuid,
+                        chartUuid: tile.properties.savedChartUuid!,
+                        chartName:
+                            tile.properties.title ||
+                            tile.properties.chartName ||
+                            'Unknown Chart',
+                        type: 'chart' as const,
+                    }));
+
+                const sqlChartTiles = dashboard.tiles
+                    .filter(isDashboardSqlChartTile)
+                    .filter((tile) => !!tile.properties.savedSqlUuid)
+                    .map((tile) => ({
+                        tileUuid: tile.uuid,
+                        chartUuid: tile.properties.savedSqlUuid!,
+                        chartName:
+                            tile.properties.title ||
+                            tile.properties.chartName ||
+                            'Unknown SQL Chart',
+                        type: 'sql_chart' as const,
+                    }));
+
+                const dateZoom = dateZoomGranularity
+                    ? { granularity: dateZoomGranularity }
+                    : undefined;
+
+                const csvForChartPromises = chartTiles.map(
+                    async ({ chartUuid, tileUuid }) => {
+                        const query =
+                            await this.asyncQueryService.executeAsyncDashboardChartQuery(
+                                {
+                                    account,
+                                    projectUuid,
+                                    tileUuid,
+                                    chartUuid,
+                                    invalidateCache: true,
+                                    context: QueryExecutionContext.CSV,
+                                    dashboardUuid,
+                                    dashboardFilters,
+                                    dashboardSorts: [],
+                                    dateZoom,
+                                    limit: getSchedulerCsvLimit({
+                                        formatted: true,
+                                        limit: 'table',
+                                    }),
+                                    pivotResults: pivotResultsFlag.enabled,
+                                },
+                            );
+                        const chart =
+                            await this.schedulerService.savedChartModel.get(
+                                chartUuid,
+                            );
+                        const downloadResult =
+                            await this.asyncQueryService.downloadSyncQueryResults(
+                                {
+                                    account,
+                                    projectUuid,
+                                    queryUuid: query.queryUuid,
+                                    type: DownloadFileType.CSV,
+                                    onlyRaw: false,
+                                    customLabels:
+                                        getCustomLabelsFromTableConfig(
+                                            chart.chartConfig.config,
+                                        ),
+                                    hiddenFields: getHiddenTableFields(
+                                        chart.chartConfig,
+                                    ),
+                                    pivotConfig: getPivotConfig(chart),
+                                    columnOrder: chart.tableConfig.columnOrder,
+                                },
+                            );
+                        return {
+                            chartName: chart.name,
+                            filename: chart.name,
+                            fileUrl: downloadResult.fileUrl,
+                        };
+                    },
+                );
+
+                const csvForSqlChartPromises = sqlChartTiles.map(
+                    async ({ chartUuid, tileUuid }) => {
+                        const query =
+                            await this.asyncQueryService.executeAsyncDashboardSqlChartQuery(
+                                {
+                                    account,
+                                    projectUuid,
+                                    savedSqlUuid: chartUuid,
+                                    invalidateCache: true,
+                                    context: QueryExecutionContext.CSV,
+                                    dashboardUuid,
+                                    tileUuid,
+                                    dashboardFilters,
+                                    dashboardSorts: [],
+                                    limit:
+                                        getSchedulerCsvLimit({
+                                            formatted: true,
+                                            limit: 'table',
+                                        }) ?? MAX_SAFE_INTEGER,
+                                },
+                            );
+                        const chart =
+                            await this.asyncQueryService.savedSqlModel.getByUuid(
+                                chartUuid,
+                                { projectUuid },
+                            );
+                        const downloadResult =
+                            await this.asyncQueryService.downloadSyncQueryResults(
+                                {
+                                    account,
+                                    projectUuid,
+                                    queryUuid: query.queryUuid,
+                                    type: DownloadFileType.CSV,
+                                    onlyRaw: false,
+                                    customLabels:
+                                        getCustomLabelsFromVizTableConfig(
+                                            isVizTableConfig(chart.config)
+                                                ? chart.config
+                                                : undefined,
+                                        ),
+                                    hiddenFields:
+                                        getHiddenFieldsFromVizTableConfig(
+                                            isVizTableConfig(chart.config)
+                                                ? chart.config
+                                                : undefined,
+                                        ),
+                                    columnOrder:
+                                        getColumnOrderFromVizTableConfig(
+                                            isVizTableConfig(chart.config)
+                                                ? chart.config
+                                                : undefined,
+                                        ),
+                                },
+                            );
+                        return {
+                            chartName: chart.name,
+                            filename: chart.name,
+                            fileUrl: downloadResult.fileUrl,
+                        };
+                    },
+                );
+
+                const results = await Promise.allSettled([
+                    ...csvForChartPromises,
+                    ...csvForSqlChartPromises,
+                ]);
+
+                const successfulResults = results.filter(
+                    (
+                        result,
+                    ): result is PromiseFulfilledResult<{
+                        chartName: string;
+                        filename: string;
+                        fileUrl: string;
+                    }> => result.status === 'fulfilled',
+                );
+
+                const failedCount = results.filter(
+                    (r) => r.status === 'rejected',
+                ).length;
+                if (failedCount > 0) {
+                    Logger.warn(
+                        `Dashboard CSV export completed with ${failedCount} failed chart(s) out of ${results.length} total`,
+                    );
+                }
+
+                // Fetch CSVs from presigned URLs and zip them
+                const zipPath = `/tmp/${nanoid()}.zip`;
+                const zipWriteStream = fsSync.createWriteStream(zipPath);
+                const archive = archiver('zip', {
+                    zlib: { level: 9 },
+                });
+
+                const zipDone = new Promise<void>((resolve, reject) => {
+                    zipWriteStream.on('close', resolve);
+                    archive.on('error', reject);
+                });
+                archive.pipe(zipWriteStream);
+
+                // Fetch all CSVs from presigned URLs in parallel
+                const csvStreams = await Promise.all(
+                    successfulResults.map(async (r) => {
+                        const csvResponse = await fetch(r.value.fileUrl);
+                        if (!csvResponse.ok || !csvResponse.body) {
+                            Logger.warn(
+                                `Failed to fetch CSV for ${r.value.chartName} from presigned URL`,
+                            );
+                            return null;
+                        }
+                        return {
+                            filename: r.value.filename,
+                            stream: Readable.fromWeb(
+                                csvResponse.body as Parameters<
+                                    typeof Readable.fromWeb
+                                >[0],
+                            ),
+                        };
+                    }),
+                );
+
+                const usedNames = new Set<string>();
+                const deduplicateName = (baseName: string): string => {
+                    let name = sanitizeGenericFileName(baseName);
+                    if (usedNames.has(name)) {
+                        let suffix = 2;
+                        while (usedNames.has(`${name}_${suffix}`)) suffix += 1;
+                        name = `${name}_${suffix}`;
+                    }
+                    usedNames.add(name);
+                    return name;
+                };
+
+                csvStreams
+                    .filter(
+                        (
+                            s,
+                        ): s is {
+                            filename: string;
+                            stream: Readable;
+                        } => s !== null,
+                    )
+                    .forEach((s) => {
+                        const name = deduplicateName(s.filename);
+                        archive.append(s.stream, {
+                            name: `${name}.csv`,
+                        });
+                    });
+
+                await archive.finalize();
+                await zipDone;
+
+                Logger.info(
+                    `Generated zip of ${successfulResults.length} CSVs for dashboard ${dashboardUuid}`,
+                );
+
+                const zipFileName = `${sanitizeGenericFileName(
+                    dashboard.name,
+                )}-${new Date().toISOString().replace(/[:.]/g, '-')}.zip`;
+
+                await this.fileStorageClient.uploadZip(
+                    fsSync.createReadStream(zipPath),
+                    zipFileName,
+                );
+
+                // Clean up temp zip
+                await fs.unlink(zipPath).catch(() => {});
+
+                const url =
+                    await this.persistentDownloadFileService.createPersistentUrl(
+                        {
+                            s3Key: zipFileName,
+                            fileType: 'zip',
+                            organizationUuid,
+                            projectUuid,
+                            createdByUserUuid: userUuid,
+                        },
+                    );
+
+                this.analytics.trackAccount(account, {
+                    event: 'download_results.completed',
+                    userId: account.user.id,
+                    properties: {
+                        ...baseAnalyticsProperties,
+                        numCharts: successfulResults.length,
+                        numFailures: failedCount,
+                    },
+                });
+
                 return { url };
             },
         );
