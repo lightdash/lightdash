@@ -613,6 +613,29 @@ describe('scheduler poll interval', () => {
     });
 });
 
+describe('scheduler async query worker gates', () => {
+    test('should default async query worker gates to disabled', () => {
+        const config = parseConfig();
+
+        expect(config.scheduler.asyncQueryWorkers).toEqual({
+            preAggregatesEnabled: false,
+            warehouseEnabled: false,
+        });
+    });
+
+    test('should parse async query worker gates from environment variables', () => {
+        process.env.SCHEDULER_PRE_AGGREGATE_QUERY_WORKER_ENABLED = 'true';
+        process.env.SCHEDULER_WAREHOUSE_QUERY_WORKER_ENABLED = 'true';
+
+        const config = parseConfig();
+
+        expect(config.scheduler.asyncQueryWorkers).toEqual({
+            preAggregatesEnabled: true,
+            warehouseEnabled: true,
+        });
+    });
+});
+
 test('should set useSqlPivotResults only when the environment variable is set', () => {
     const undefinedConfig = parseConfig();
     expect(undefinedConfig.query.useSqlPivotResults).toBeUndefined();

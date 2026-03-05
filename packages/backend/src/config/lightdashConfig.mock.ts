@@ -158,6 +158,10 @@ export const lightdashConfigMock: LightdashConfig = {
         pollInterval: 1000,
         jobTimeout: 0,
         tasks: ALL_TASK_NAMES,
+        asyncQueryWorkers: {
+            preAggregatesEnabled: false,
+            warehouseEnabled: false,
+        },
         queryHistory: {
             cleanup: {
                 enabled: true,

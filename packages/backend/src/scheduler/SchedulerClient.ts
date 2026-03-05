@@ -23,6 +23,8 @@ import {
     NotificationPayloadBase,
     QueueTraceProperties,
     ReplaceCustomFieldsPayload,
+    RunAsyncPreAggregateQueryPayload,
+    RunAsyncWarehouseQueryPayload,
     ScheduledDeliveryPayload,
     ScheduledJobs,
     Scheduler,
@@ -1218,6 +1220,36 @@ export class SchedulerClient {
                 createdByUserUuid: payload.userUuid,
             },
         });
+
+        return { jobId };
+    }
+
+    async runAsyncPreAggregateQuery(payload: RunAsyncPreAggregateQueryPayload) {
+        const graphileClient = await this.graphileUtils;
+        const now = new Date();
+        const jobId = await SchedulerClient.addJob(
+            graphileClient,
+            SCHEDULER_TASKS.RUN_ASYNC_PRE_AGGREGATE_QUERY,
+            payload,
+            now,
+            JobPriority.HIGH,
+            1,
+        );
+
+        return { jobId };
+    }
+
+    async runAsyncWarehouseQuery(payload: RunAsyncWarehouseQueryPayload) {
+        const graphileClient = await this.graphileUtils;
+        const now = new Date();
+        const jobId = await SchedulerClient.addJob(
+            graphileClient,
+            SCHEDULER_TASKS.RUN_ASYNC_WAREHOUSE_QUERY,
+            payload,
+            now,
+            JobPriority.HIGH,
+            1,
+        );
 
         return { jobId };
     }

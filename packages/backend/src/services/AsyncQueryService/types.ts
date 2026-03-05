@@ -4,6 +4,8 @@ import {
     MetricQuery,
     PivotConfig,
     PivotConfiguration,
+    RunAsyncPreAggregateQueryPayload,
+    RunAsyncWarehouseQueryPayload,
     type CacheMetadata,
     type DashboardFilters,
     type DateZoom,
@@ -151,20 +153,13 @@ export const isExecuteAsyncSqlChartByUuid = (
 ): args is ExecuteAsyncSqlChartByUuidArgs => 'savedSqlUuid' in args;
 
 export type RunAsyncWarehouseQueryArgs = {
-    userId: string;
-    // Is the user in the database?
-    isRegisteredUser: boolean;
-    isServiceAccount?: boolean;
-    projectUuid: string;
-    queryTags: RunQueryTags;
-    query: string;
-    fieldsMap: ItemsMap;
-    queryHistoryUuid: string;
-    cacheKey: string;
-    warehouseCredentialsOverrides?: {
-        snowflakeVirtualWarehouse?: string;
-        databricksCompute?: string;
-    };
-    pivotConfiguration?: PivotConfiguration;
-    originalColumns?: ResultColumns;
-};
+    query: RunAsyncWarehouseQueryPayload['query'];
+} & Omit<
+    RunAsyncWarehouseQueryPayload,
+    'organizationUuid' | 'schedulerUuid' | 'query'
+>;
+
+export type RunAsyncPreAggregateQueryArgs = Omit<
+    RunAsyncPreAggregateQueryPayload,
+    'organizationUuid' | 'schedulerUuid'
+>;
