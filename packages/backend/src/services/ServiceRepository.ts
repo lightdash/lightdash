@@ -623,6 +623,8 @@ export class ServiceRepository
                         this.models.getWarehouseAvailableTablesModel(),
                     emailModel: this.models.getEmailModel(),
                     schedulerClient: this.clients.getSchedulerClient(),
+                    asyncQuerySchedulerClient:
+                        this.clients.getAsyncQuerySchedulerClient(),
                     downloadFileModel: this.models.getDownloadFileModel(),
                     fileStorageClient: this.clients.getFileStorageClient(),
                     groupsModel: this.models.getGroupsModel(),
@@ -670,6 +672,8 @@ export class ServiceRepository
                         this.models.getWarehouseAvailableTablesModel(),
                     emailModel: this.models.getEmailModel(),
                     schedulerClient: this.clients.getSchedulerClient(),
+                    asyncQuerySchedulerClient:
+                        this.clients.getAsyncQuerySchedulerClient(),
                     downloadFileModel: this.models.getDownloadFileModel(),
                     fileStorageClient: this.clients.getFileStorageClient(),
                     groupsModel: this.models.getGroupsModel(),
