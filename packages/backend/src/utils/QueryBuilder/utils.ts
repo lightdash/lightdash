@@ -15,6 +15,7 @@ import {
     FieldId,
     FieldReferenceError,
     ForbiddenError,
+    getCustomGroupSelectSql,
     getCustomRangeSelectSql,
     getDateDimension,
     getDimensionMapFromTables,
@@ -590,6 +591,7 @@ export const getCustomBinDimensionSql = ({
         switch (customDimension.binType) {
             case BinType.FIXED_WIDTH:
             case BinType.CUSTOM_RANGE:
+            case BinType.CUSTOM_GROUP:
                 // No need for cte
                 return acc;
             case BinType.FIXED_NUMBER:
@@ -631,6 +633,7 @@ export const getCustomBinDimensionSql = ({
         switch (customDimension.binType) {
             case BinType.CUSTOM_RANGE:
             case BinType.FIXED_WIDTH:
+            case BinType.CUSTOM_GROUP:
                 // No need for cte
                 return acc;
             case BinType.FIXED_NUMBER:
@@ -811,6 +814,29 @@ export const getCustomBinDimensionSql = ({
                     ${sortedWhens.join('\n')}
                     END
                     AS ${quotedDimensionOrder}`;
+                break;
+
+            case BinType.CUSTOM_GROUP:
+                if (!customDimension.customGroups) {
+                    throw new Error(
+                        `Undefined customGroups for custom dimension ${BinType.CUSTOM_GROUP} `,
+                    );
+                }
+
+                const customGroupSql = `${getCustomGroupSelectSql({
+                    binGroups: customDimension.customGroups,
+                    baseDimensionSql: dimension.compiledSql,
+                    warehouseSqlBuilder,
+                })} AS ${quotedDimensionName}`;
+
+                selects[dimensionId] = customGroupSql;
+
+                // Alphabetical ordering: use the group name itself as the sort key
+                selects[orderDimensionId] = `${getCustomGroupSelectSql({
+                    binGroups: customDimension.customGroups,
+                    baseDimensionSql: dimension.compiledSql,
+                    warehouseSqlBuilder,
+                })} AS ${quotedDimensionOrder}`;
                 break;
 
             default:

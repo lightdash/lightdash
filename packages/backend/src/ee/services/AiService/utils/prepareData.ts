@@ -63,6 +63,15 @@ export function fieldDesc(fieldName: string, item: Item) {
 
                 binString = `having fixed width: ${item.binWidth}`;
                 break;
+            case BinType.CUSTOM_GROUP:
+                if (!item.customGroups) {
+                    break;
+                }
+
+                binString = `having custom groups: ${item.customGroups
+                    .map((g) => `${g.name} (${g.values.join(', ')})`)
+                    .join('; ')}`;
+                break;
             default:
                 return assertUnreachable(
                     item.binType,

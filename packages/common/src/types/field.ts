@@ -205,6 +205,7 @@ export enum BinType {
     FIXED_NUMBER = 'fixed_number',
     FIXED_WIDTH = 'fixed_width',
     CUSTOM_RANGE = 'custom_range',
+    CUSTOM_GROUP = 'custom_group',
 }
 
 export type BinRange = {
@@ -212,6 +213,13 @@ export type BinRange = {
     from: number | undefined;
     /** End value for this bin range (undefined for the last range) */
     to: number | undefined;
+};
+
+export type BinGroup = {
+    /** Display name for this group (e.g. "North America") */
+    name: string;
+    /** Values that belong to this group (e.g. ["US", "CA", "MX"]) */
+    values: string[];
 };
 
 export enum CustomDimensionType {
@@ -242,6 +250,8 @@ export interface CustomBinDimension extends BaseCustomDimension {
     binWidth?: number;
     /** Custom bin ranges (for custom_range bin type) */
     customRange?: BinRange[];
+    /** Custom groups mapping values to group names (for custom_group bin type) */
+    customGroups?: BinGroup[];
 }
 
 export interface CustomSqlDimension extends BaseCustomDimension {
