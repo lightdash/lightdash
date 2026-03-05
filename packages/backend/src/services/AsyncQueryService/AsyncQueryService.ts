@@ -310,10 +310,12 @@ export class AsyncQueryService extends ProjectService {
         metricQuery,
         explore,
         context,
+        usePreAggregateCache,
     }: {
         metricQuery: MetricQuery;
         explore: Explore;
         context: QueryExecutionContext;
+        usePreAggregateCache?: boolean;
     }): PreAggregationRoutingDecision {
         if (
             !this.lightdashConfig.preAggregates.enabled ||
@@ -332,6 +334,7 @@ export class AsyncQueryService extends ProjectService {
         if (
             matchResult.hit &&
             matchResult.preAggregateName &&
+            usePreAggregateCache !== false &&
             context !== QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION
         ) {
             return {
@@ -2238,6 +2241,7 @@ export class AsyncQueryService extends ProjectService {
         context,
         metricQuery,
         invalidateCache,
+        usePreAggregateCache,
         parameters,
         pivotConfiguration,
     }: ExecuteAsyncMetricQueryArgs): Promise<ApiExecuteAsyncMetricQueryResults> {
@@ -2337,6 +2341,7 @@ export class AsyncQueryService extends ProjectService {
             metricQuery,
             explore,
             context,
+            usePreAggregateCache,
         });
 
         if (routingDecision.preAggregateMetadata) {

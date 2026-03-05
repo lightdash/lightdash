@@ -3,11 +3,14 @@ import {
     FeatureFlags,
     getFieldsFromMetricQuery,
 } from '@lightdash/common';
+import { useLocalStorage as useLocalStorageV8 } from '@mantine-8/hooks';
 import { useLocalStorage } from '@mantine/hooks';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import {
     AUTO_FETCH_ENABLED_DEFAULT,
     AUTO_FETCH_ENABLED_KEY,
+    PRE_AGGREGATE_CACHE_ENABLED_DEFAULT,
+    PRE_AGGREGATE_CACHE_ENABLED_KEY,
 } from '../components/RunQuerySettings/defaults';
 import {
     explorerActions,
@@ -136,6 +139,22 @@ export const useExplorerQueryEffects = ({
             dispatch(explorerActions.setUnpivotedQueryArgs(null));
         }
     }, [validQueryArgs, needsUnpivotedData, isResultsOpen, dispatch]);
+
+    // Effect 4: Re-run query when pre-aggregate cache toggle changes
+    const [preAggCacheEnabled] = useLocalStorageV8({
+        key: PRE_AGGREGATE_CACHE_ENABLED_KEY,
+        defaultValue: PRE_AGGREGATE_CACHE_ENABLED_DEFAULT,
+    });
+    const prevPreAggCacheRef = useRef(preAggCacheEnabled);
+    useEffect(() => {
+        if (
+            prevPreAggCacheRef.current !== preAggCacheEnabled &&
+            query.isFetched
+        ) {
+            runQuery();
+        }
+        prevPreAggCacheRef.current = preAggCacheEnabled;
+    }, [preAggCacheEnabled, query.isFetched, runQuery]);
 
     // No return - this hook just orchestrates effects
 };

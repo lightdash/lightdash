@@ -244,6 +244,10 @@ export type ApiCompiledQueryResults = {
     compilationErrors?: string[];
 };
 
+export type ApiCompiledPreAggregateQueryResults =
+    | { available: true; query: string; pivotQuery?: string }
+    | { available: false; reason: string };
+
 export type ApiExploresResults = SummaryExplore[];
 
 export type ApiExploreResults = Omit<Explore, 'unfilteredTables'>;
@@ -780,6 +784,7 @@ type ApiResults =
     | ApiQueryResults
     | ApiSqlQueryResults
     | ApiCompiledQueryResults
+    | ApiCompiledPreAggregateQueryResults
     | ApiExploresResults
     | ApiExploreResults
     | ApiStatusResults
