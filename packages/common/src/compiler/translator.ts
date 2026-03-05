@@ -54,6 +54,7 @@ import { type WarehouseSqlBuilder } from '../types/warehouse';
 import assertUnreachable from '../utils/assertUnreachable';
 import {
     getDefaultTimeFrames,
+    isTimeInterval,
     timeFrameConfigs,
     validateTimeFrames,
     type WeekDay,
@@ -572,7 +573,7 @@ export const convertTable = (
     spotlightConfig: LightdashProjectConfig['spotlight'],
     startOfWeek?: WeekDay | null,
     disableTimestampConversion?: boolean,
-    _customGranularities?: Record<string, CustomGranularity>,
+    customGranularities?: Record<string, CustomGranularity>,
 ): Omit<Table, 'lineageGraph'> => {
     // Config block takes priority, then meta block
     const meta = merge({}, model.meta, model.config?.meta);
@@ -604,24 +605,31 @@ export const convertTable = (
                 overrideTimeIntervals: DbtColumnLightdashDimension['time_intervals'],
             ) => {
                 if (dim.isIntervalBase) {
-                    let intervals: TimeFrames[] = [];
+                    let allIntervals: string[] = [];
 
                     if (
                         !dim.isAdditionalDimension &&
                         columnMeta.dimension?.time_intervals &&
                         Array.isArray(columnMeta?.dimension.time_intervals)
                     ) {
-                        intervals = validateTimeFrames(
-                            columnMeta.dimension.time_intervals,
-                        );
+                        allIntervals = columnMeta.dimension
+                            .time_intervals as string[];
                     } else if (
                         dim.isAdditionalDimension &&
                         Array.isArray(overrideTimeIntervals)
                     ) {
-                        intervals = validateTimeFrames(overrideTimeIntervals);
+                        allIntervals = overrideTimeIntervals as string[];
                     } else {
-                        intervals = getDefaultTimeFrames(dim.type);
+                        allIntervals = getDefaultTimeFrames(
+                            dim.type,
+                        ) as string[];
                     }
+
+                    // Split into standard TimeFrames and custom granularity names
+                    const intervals = validateTimeFrames(allIntervals);
+                    const customIntervalNames = allIntervals.filter(
+                        (v) => !isTimeInterval(v.toUpperCase()),
+                    );
 
                     const dimensionMeta = {
                         ...columnMeta.dimension,
@@ -633,7 +641,8 @@ export const convertTable = (
                         hidden: dim.hidden,
                     };
 
-                    return intervals.reduce(
+                    // Generate standard interval dimensions
+                    const standardDims = intervals.reduce(
                         (acc, interval) => ({
                             ...acc,
                             [`${dim.name}_${interval.toLowerCase()}`]:
@@ -671,8 +680,59 @@ export const convertTable = (
                                     disableTimestampConversion,
                                 ),
                         }),
-                        {},
+                        {} as Record<string, Dimension>,
                     );
+
+                    // Generate custom granularity dimensions
+                    const customDims = customIntervalNames.reduce(
+                        (acc, customName) => {
+                            const granularity =
+                                customGranularities?.[customName];
+                            if (!granularity) {
+                                return acc;
+                            }
+
+                            const customSql = granularity.sql.replace(
+                                /\$\{COLUMN\}/g,
+                                dim.sql,
+                            );
+                            const customType = (granularity.type ||
+                                'date') as DimensionType;
+                            const customDimName = `${dim.name}_${customName}`;
+
+                            const groups: string[] = [...(dim.groups || [])];
+                            if (!groups.includes(dim.label)) {
+                                groups.push(dim.label);
+                            }
+
+                            return {
+                                ...acc,
+                                [customDimName]: {
+                                    index,
+                                    fieldType: FieldType.DIMENSION,
+                                    name: customDimName,
+                                    label: granularity.label,
+                                    sql: customSql,
+                                    table: model.name,
+                                    tableLabel,
+                                    type: customType,
+                                    description: dim.description,
+                                    source: undefined,
+                                    timeInterval: undefined,
+                                    timeIntervalBaseDimensionName: dim.name,
+                                    hidden: dim.hidden,
+                                    format: undefined,
+                                    round: undefined,
+                                    compact: undefined,
+                                    groups,
+                                    isIntervalBase: false,
+                                } as Dimension,
+                            };
+                        },
+                        {} as Record<string, Dimension>,
+                    );
+
+                    return { ...standardDims, ...customDims };
                 }
                 return {};
             };
