@@ -118,19 +118,19 @@ export const useDashboardChartReadyQuery = (
         }
     }, [explore, addParameterDefinitions]);
 
-    // Discover custom granularity names from explore dimensions
+    // Discover custom granularity key → label pairs from explore dimensions
     useEffect(() => {
         if (!explore) return;
 
-        const customGranularityNames: string[] = [];
+        const customGranularities: Record<string, string> = {};
         for (const dim of getDimensions(explore)) {
             if (dim.customTimeInterval) {
-                customGranularityNames.push(dim.customTimeInterval);
+                customGranularities[dim.customTimeInterval] = dim.label;
             }
         }
 
-        if (customGranularityNames.length > 0) {
-            addAvailableCustomGranularities(customGranularityNames);
+        if (Object.keys(customGranularities).length > 0) {
+            addAvailableCustomGranularities(customGranularities);
         }
     }, [explore, addAvailableCustomGranularities]);
 

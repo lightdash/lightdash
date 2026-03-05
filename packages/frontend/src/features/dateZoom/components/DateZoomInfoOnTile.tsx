@@ -2,6 +2,7 @@ import { Group, Paper, Text, Tooltip } from '@mantine-8/core';
 import { IconCalendar } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
+import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import { getGranularityLabel } from '../utils';
 import { type DateZoomInfoOnTileProps } from './types';
 
@@ -9,7 +10,13 @@ export const DateZoomInfoOnTile: FC<DateZoomInfoOnTileProps> = ({
     dateZoomGranularity,
     dateDimension,
 }) => {
-    const label = getGranularityLabel(dateZoomGranularity);
+    const availableCustomGranularities = useDashboardContext(
+        (c) => c.availableCustomGranularities,
+    );
+    const label = getGranularityLabel(
+        dateZoomGranularity,
+        availableCustomGranularities,
+    );
 
     return (
         <Tooltip
