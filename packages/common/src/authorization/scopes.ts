@@ -13,7 +13,6 @@ const addUuidCondition = (
     context: ScopeContext,
     modifiers?:
         | { inheritsFromOrgOrProject: true }
-        | { isPrivate: false }
         | { userUuid: string | boolean },
 ) => {
     const projectOrOrg = context.organizationUuid
@@ -47,8 +46,6 @@ const scopes: Scope[] = [
         isEnterprise: false,
         group: ScopeGroup.CONTENT,
         getConditions: (context) => [
-            // TODO: remove once we're confident that nobody is stuck on an old frontend version
-            addUuidCondition(context, { isPrivate: false }),
             addUuidCondition(context, { inheritsFromOrgOrProject: true }),
             addAccessCondition(context),
         ],
@@ -77,8 +74,6 @@ const scopes: Scope[] = [
         isEnterprise: false,
         group: ScopeGroup.CONTENT,
         getConditions: (context) => [
-            // TODO: remove once we're confident that nobody is stuck on an old frontend version
-            addUuidCondition(context, { isPrivate: false }),
             addUuidCondition(context, { inheritsFromOrgOrProject: true }),
             addAccessCondition(context),
         ],
@@ -107,8 +102,6 @@ const scopes: Scope[] = [
         isEnterprise: false,
         group: ScopeGroup.CONTENT,
         getConditions: (context) => [
-            // TODO: remove once we're confident that nobody is stuck on an old frontend version
-            addUuidCondition(context, { isPrivate: false }),
             addUuidCondition(context, { inheritsFromOrgOrProject: true }),
             addAccessCondition(context),
         ],
@@ -133,8 +126,6 @@ const scopes: Scope[] = [
         isEnterprise: false,
         group: ScopeGroup.CONTENT,
         getConditions: (context) => [
-            // TODO: remove once we're confident that nobody is stuck on an old frontend version
-            addUuidCondition(context, { isPrivate: false }),
             addUuidCondition(context, { inheritsFromOrgOrProject: true }),
         ],
     },
