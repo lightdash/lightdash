@@ -65,9 +65,16 @@ export const DateZoom: FC<Props> = ({ isEditMode }) => {
                 return; // Must keep at least one granularity
             }
 
-            const newGranularities = isEnabled
-                ? dateZoomGranularities.filter((g) => g !== granularity)
-                : [...dateZoomGranularities, granularity];
+            const enabledSet = new Set(dateZoomGranularities);
+            if (isEnabled) {
+                enabledSet.delete(granularity);
+            } else {
+                enabledSet.add(granularity);
+            }
+            // Maintain canonical enum order
+            const newGranularities = Object.values(DateGranularity).filter(
+                (g) => enabledSet.has(g),
+            );
 
             setDateZoomGranularities(newGranularities);
 
