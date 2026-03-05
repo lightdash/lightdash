@@ -1,9 +1,9 @@
+import { PRE_AGGREGATE_MATERIALIZED_TABLE_PLACEHOLDER } from '../preAggregates/buildPreAggregateExplore';
 import { SupportedDbtAdapter, type DbtModelNode } from '../types/dbt';
 import { ExploreType, InlineErrorType, type Explore } from '../types/explore';
 import { DimensionType, FieldType } from '../types/field';
 import { DEFAULT_SPOTLIGHT_CONFIG } from '../types/lightdashProjectConfig';
 import { TimeFrames } from '../types/timeFrames';
-import { PRE_AGGREGATE_MATERIALIZED_TABLE_PLACEHOLDER } from '../preAggregates/buildPreAggregateExplore';
 import { warehouseClientMock } from './exploreCompiler.mock';
 import {
     attachTypesToModels,
