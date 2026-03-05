@@ -689,7 +689,9 @@ export const convertTable = (
                             const granularity =
                                 customGranularities?.[customName];
                             if (!granularity) {
-                                return acc;
+                                throw new CompileError(
+                                    `Unknown time interval "${customName}" on column "${dim.name}" in model "${model.name}". It is not a standard time frame or a custom granularity defined in lightdash.config.yml.`,
+                                );
                             }
 
                             const customSql = granularity.sql.replace(
@@ -720,6 +722,7 @@ export const convertTable = (
                                     source: undefined,
                                     timeInterval: undefined,
                                     timeIntervalBaseDimensionName: dim.name,
+                                    customTimeInterval: customName,
                                     hidden: dim.hidden,
                                     format: undefined,
                                     round: undefined,
