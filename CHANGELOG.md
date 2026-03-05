@@ -1,3 +1,11 @@
+## [0.2572.1](https://github.com/lightdash/lightdash/compare/0.2572.0...0.2572.1) (2026-03-05)
+
+
+### Bug Fixes
+
+* clean up LabelEditor and BigNumber config ([#20859](https://github.com/lightdash/lightdash/issues/20859)) ([96945c4](https://github.com/lightdash/lightdash/commit/96945c48e7a12b6cad7514ede7ad9b1d855d64d1))
+* preserve canonical order when toggling date zoom granularities ([#20860](https://github.com/lightdash/lightdash/issues/20860)) ([5cbb61b](https://github.com/lightdash/lightdash/commit/5cbb61bcfe8cd5d6c03736f3fae1ff69257af18b))
+
 # [0.2572.0](https://github.com/lightdash/lightdash/compare/0.2571.0...0.2572.0) (2026-03-05)
 
 
