@@ -64,11 +64,16 @@ export const convertCustomBinDimensionToDbt = ({
                 'Bin with fixed number of bins can not be converted to dbt as it requires a CTE',
             );
         case BinType.CUSTOM_GROUP:
+            if (!customDimension.customGroups) {
+                throw new Error(
+                    `Undefined customGroups for custom dimension ${customDimension.name}`,
+                );
+            }
             return {
                 label: friendlyName(customDimension.name),
                 type: DimensionType.STRING,
                 sql: getCustomGroupSelectSql({
-                    binGroups: customDimension.customGroups || [],
+                    binGroups: customDimension.customGroups,
                     baseDimensionSql,
                     warehouseSqlBuilder,
                 }),

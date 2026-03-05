@@ -120,7 +120,7 @@ export const CustomBinDimensionModal: FC<{
             customGroups: z.array(
                 z.object({
                     name: z.string().min(1),
-                    values: z.array(z.string()).min(1),
+                    values: z.array(z.string().min(1)).min(1),
                 }),
             ),
         }),
@@ -205,8 +205,14 @@ export const CustomBinDimensionModal: FC<{
                     binNumber: values.binConfig.fixedNumber.binNumber,
                     binWidth: values.binConfig.fixedWidth.binWidth,
                     table: item.table,
-                    customRange: values.binConfig.customRange,
-                    customGroups: values.binConfig.customGroups,
+                    customRange:
+                        values.binType === BinType.CUSTOM_RANGE
+                            ? values.binConfig.customRange
+                            : undefined,
+                    customGroups:
+                        values.binType === BinType.CUSTOM_GROUP
+                            ? values.binConfig.customGroups
+                            : undefined,
                 };
                 const updatedDimensions = (customDimensions ?? []).map((dim) =>
                     dim.id === item.id ? updatedDimension : dim,
@@ -229,8 +235,14 @@ export const CustomBinDimensionModal: FC<{
                         binNumber: values.binConfig.fixedNumber.binNumber,
                         binWidth: values.binConfig.fixedWidth.binWidth,
                         table: item.table,
-                        customRange: values.binConfig.customRange,
-                        customGroups: values.binConfig.customGroups,
+                        customRange:
+                            values.binType === BinType.CUSTOM_RANGE
+                                ? values.binConfig.customRange
+                                : undefined,
+                        customGroups:
+                            values.binType === BinType.CUSTOM_GROUP
+                                ? values.binConfig.customGroups
+                                : undefined,
                     }),
                 );
 

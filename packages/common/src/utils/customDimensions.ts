@@ -1,6 +1,22 @@
 import { type BinGroup, type BinRange } from '../types/field';
 import { type WarehouseSqlBuilder } from '../types/warehouse';
 
+const createEscapeValue = (
+    quoteChar: string,
+    escapeChar: string,
+): ((value: string) => string) => {
+    if (escapeChar === quoteChar) {
+        return (value: string) =>
+            value.split(quoteChar).join(`${quoteChar}${quoteChar}`);
+    }
+    return (value: string) =>
+        value
+            .split(escapeChar)
+            .join(`${escapeChar}${escapeChar}`)
+            .split(quoteChar)
+            .join(`${escapeChar}${quoteChar}`);
+};
+
 export const getFixedWidthBinSelectSql = ({
     binWidth,
     baseDimensionSql,
@@ -79,13 +95,7 @@ export const getCustomGroupSelectSql = ({
 }) => {
     const quoteChar = warehouseSqlBuilder.getStringQuoteChar();
     const escapeChar = warehouseSqlBuilder.getEscapeStringQuoteChar();
-
-    const escapeValue = (value: string) =>
-        value
-            .split(escapeChar)
-            .join(`${escapeChar}${escapeChar}`)
-            .split(quoteChar)
-            .join(`${escapeChar}${quoteChar}`);
+    const escapeValue = createEscapeValue(quoteChar, escapeChar);
 
     const nonEmptyGroups = binGroups.filter((group) => group.values.length > 0);
 
@@ -118,13 +128,7 @@ export const getCustomGroupOrderSql = ({
 }) => {
     const quoteChar = warehouseSqlBuilder.getStringQuoteChar();
     const escapeChar = warehouseSqlBuilder.getEscapeStringQuoteChar();
-
-    const escapeValue = (value: string) =>
-        value
-            .split(escapeChar)
-            .join(`${escapeChar}${escapeChar}`)
-            .split(quoteChar)
-            .join(`${escapeChar}${quoteChar}`);
+    const escapeValue = createEscapeValue(quoteChar, escapeChar);
 
     const nonEmptyGroups = binGroups.filter((group) => group.values.length > 0);
 
