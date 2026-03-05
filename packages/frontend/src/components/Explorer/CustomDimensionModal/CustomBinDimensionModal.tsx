@@ -17,6 +17,7 @@ import {
     Button,
     Flex,
     Group,
+    Menu,
     NumberInput,
     Radio,
     Stack,
@@ -24,7 +25,11 @@ import {
     TextInput,
 } from '@mantine-8/core';
 import { useForm, zodResolver } from '@mantine/form';
-import { IconLayoutDashboard, IconX } from '@tabler/icons-react';
+import {
+    IconArrowsTransferDown,
+    IconLayoutDashboard,
+    IconX,
+} from '@tabler/icons-react';
 import cloneDeep from 'lodash/cloneDeep';
 import { useEffect, useMemo, type FC } from 'react';
 import { z } from 'zod';
@@ -587,6 +592,79 @@ export const CustomBinDimensionModal: FC<{
                                                             `binConfig.customGroups.${groupIndex}.values.${valueIndex}`,
                                                         )}
                                                     />
+                                                    {form.values.binConfig
+                                                        .customGroups.length >
+                                                        1 && (
+                                                        <Menu
+                                                            position="bottom-end"
+                                                            withinPortal
+                                                        >
+                                                            <Menu.Target>
+                                                                <ActionIcon
+                                                                    variant="subtle"
+                                                                    color="ldDark.4"
+                                                                    size="sm"
+                                                                    title="Move to group"
+                                                                >
+                                                                    <MantineIcon
+                                                                        icon={
+                                                                            IconArrowsTransferDown
+                                                                        }
+                                                                    />
+                                                                </ActionIcon>
+                                                            </Menu.Target>
+                                                            <Menu.Dropdown>
+                                                                <Menu.Label>
+                                                                    Move to
+                                                                    group
+                                                                </Menu.Label>
+                                                                {form.values.binConfig.customGroups.map(
+                                                                    (
+                                                                        targetGroup,
+                                                                        targetIndex,
+                                                                    ) =>
+                                                                        targetIndex !==
+                                                                            groupIndex && (
+                                                                            <Menu.Item
+                                                                                key={
+                                                                                    targetIndex
+                                                                                }
+                                                                                onClick={() => {
+                                                                                    const newGroups =
+                                                                                        cloneDeep(
+                                                                                            form
+                                                                                                .values
+                                                                                                .binConfig
+                                                                                                .customGroups,
+                                                                                        );
+                                                                                    const [
+                                                                                        movedValue,
+                                                                                    ] =
+                                                                                        newGroups[
+                                                                                            groupIndex
+                                                                                        ].values.splice(
+                                                                                            valueIndex,
+                                                                                            1,
+                                                                                        );
+                                                                                    newGroups[
+                                                                                        targetIndex
+                                                                                    ].values.push(
+                                                                                        movedValue,
+                                                                                    );
+                                                                                    form.setFieldValue(
+                                                                                        'binConfig.customGroups',
+                                                                                        newGroups,
+                                                                                    );
+                                                                                }}
+                                                                            >
+                                                                                {targetGroup.name ||
+                                                                                    `Group ${targetIndex + 1}`}
+                                                                            </Menu.Item>
+                                                                        ),
+                                                                )}
+                                                            </Menu.Dropdown>
+                                                        </Menu>
+                                                    )}
                                                     <ActionIcon
                                                         variant="subtle"
                                                         color="ldDark.6"
