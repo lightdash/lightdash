@@ -1652,21 +1652,18 @@ describe('custom granularities', () => {
         expect(result.dimensions.created_at_slt_week).toBeDefined();
     });
 
-    it('should skip unknown custom granularity names', () => {
+    it('should throw compile error for unknown custom granularity names', () => {
         // time_intervals has 'slt_week' but no custom granularity defined for it
-        const result = convertTable(
-            SupportedDbtAdapter.POSTGRES,
-            MODEL_WITH_CUSTOM_GRANULARITY,
-            [],
-            DEFAULT_SPOTLIGHT_CONFIG,
-            undefined,
-            undefined,
-            {}, // empty custom granularities
-        );
-
-        // Should NOT have the custom dimension
-        expect(result.dimensions.created_at_slt_week).toBeUndefined();
-        // Should still have standard day dimension
-        expect(result.dimensions.created_at_day).toBeDefined();
+        expect(() =>
+            convertTable(
+                SupportedDbtAdapter.POSTGRES,
+                MODEL_WITH_CUSTOM_GRANULARITY,
+                [],
+                DEFAULT_SPOTLIGHT_CONFIG,
+                undefined,
+                undefined,
+                {}, // empty custom granularities
+            ),
+        ).toThrow(/Unknown time interval "slt_week"/);
     });
 });
