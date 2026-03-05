@@ -706,6 +706,7 @@ export enum MetricType {
     COUNT_DISTINCT = 'count_distinct',
     SUM = 'sum',
     SUM_DISTINCT = 'sum_distinct',
+    AVERAGE_DISTINCT = 'average_distinct',
     MIN = 'min',
     MAX = 'max',
     PERCENT_OF_PREVIOUS = 'percent_of_previous',
@@ -750,6 +751,8 @@ export const parseMetricType = (metricType: string): MetricType => {
             return MetricType.SUM;
         case 'sum_distinct':
             return MetricType.SUM_DISTINCT;
+        case 'average_distinct':
+            return MetricType.AVERAGE_DISTINCT;
         case 'min':
             return MetricType.MIN;
         case 'max':

@@ -880,8 +880,11 @@ export class MetricQueryBuilder {
             try {
                 const alias = field;
                 const metric = this.getMetricFromId(field);
-                // Sum distinct metrics are handled separately via CTE
-                if (metric.type === MetricType.SUM_DISTINCT) {
+                // Distinct metrics are handled separately via CTE
+                if (
+                    metric.type === MetricType.SUM_DISTINCT ||
+                    metric.type === MetricType.AVERAGE_DISTINCT
+                ) {
                     // Still track table references for JOIN generation
                     (metric.tablesReferences || [metric.table]).forEach(
                         (table) => tables.add(table),
@@ -1917,8 +1920,10 @@ export class MetricQueryBuilder {
                     !metricsWithCteReferences.find(
                         (m) => getItemId(metric) === getItemId(m),
                     );
-                // Sum distinct metrics are handled via their own CTE
-                const notSumDistinct = metric.type !== MetricType.SUM_DISTINCT;
+                // Distinct metrics are handled via their own CTE
+                const notSumDistinct =
+                    metric.type !== MetricType.SUM_DISTINCT &&
+                    metric.type !== MetricType.AVERAGE_DISTINCT;
                 return (
                     notInMetricCtes &&
                     notMetricWithCteReferences &&
@@ -2195,10 +2200,10 @@ export class MetricQueryBuilder {
     }
 
     /**
-     * Builds CTE(s) for sum_distinct metrics using ROW_NUMBER deduplication.
+     * Builds CTE(s) for distinct metrics (sum_distinct, average_distinct) using ROW_NUMBER deduplication.
      * Follows the same pattern as PoP CTEs: separate CTE per metric, joined on dimensions.
      */
-    private buildSumDistinctCtes({
+    private buildDistinctMetricCtes({
         dimensionSelects,
         dimensionGroupBy,
         dimensionFilters,
@@ -2216,16 +2221,19 @@ export class MetricQueryBuilder {
         baseCteName: string;
     }): {
         ctes: string[];
-        sdJoins: string[];
-        sdMetricSelects: string[];
+        ddJoins: string[];
+        ddMetricSelects: string[];
     } {
         const { warehouseSqlBuilder } = this.args;
         const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
 
-        const sdMetricIds = this.getSelectedAndReferencedMetricIds().filter(
+        const ddMetricIds = this.getSelectedAndReferencedMetricIds().filter(
             (id) => {
                 const metric = this.getMetricFromId(id);
-                return metric.type === MetricType.SUM_DISTINCT;
+                return (
+                    metric.type === MetricType.SUM_DISTINCT ||
+                    metric.type === MetricType.AVERAGE_DISTINCT
+                );
             },
         );
 
@@ -2234,14 +2242,14 @@ export class MetricQueryBuilder {
         );
 
         // Recompute GROUP BY for the outer CTE using dimension count
-        const sdGroupBy =
+        const ddGroupBy =
             dimensionAlias.length > 0
                 ? `GROUP BY ${dimensionAlias.map((_, i) => i + 1).join(',')}`
                 : undefined;
 
         const ctes: string[] = [];
-        const sdJoins: string[] = [];
-        const sdMetricSelects: string[] = [];
+        const ddJoins: string[] = [];
+        const ddMetricSelects: string[] = [];
 
         // Extract raw SQL expressions from dimension selects (strip " AS alias" suffix)
         const dimensionExprs = Object.entries(dimensionSelects).map(
@@ -2254,13 +2262,13 @@ export class MetricQueryBuilder {
             },
         );
 
-        for (const metricId of sdMetricIds) {
+        for (const metricId of ddMetricIds) {
             const metric = this.getMetricFromId(metricId);
             if (
                 metric.compiledValueSql &&
                 metric.compiledDistinctKeys?.length
             ) {
-                const sdCteName = `sd_${snakeCaseName(metricId)}`;
+                const ddCteName = `dd_${snakeCaseName(metricId)}`;
 
                 // Include selected dimensions in PARTITION BY so each
                 // (distinct_key, dimension) combination gets its own rn=1
@@ -2272,8 +2280,8 @@ export class MetricQueryBuilder {
                 // Inner subquery: raw data + ROW_NUMBER
                 const innerSelects = [
                     ...Object.values(dimensionSelects),
-                    `  ${metric.compiledValueSql} AS __sd_val`,
-                    `  ROW_NUMBER() OVER (PARTITION BY ${partitionExprs.join(', ')} ORDER BY ${metric.compiledValueSql}) AS __sd_rn`,
+                    `  ${metric.compiledValueSql} AS __dd_val`,
+                    `  ROW_NUMBER() OVER (PARTITION BY ${partitionExprs.join(', ')} ORDER BY ${metric.compiledValueSql}) AS __dd_rn`,
                 ];
 
                 const innerSubquery = MetricQueryBuilder.assembleSqlParts([
@@ -2285,36 +2293,44 @@ export class MetricQueryBuilder {
                 ]);
 
                 // Outer CTE: aggregate with CASE WHEN on ROW_NUMBER
+                let outerAgg: string;
+                if (metric.type === MetricType.AVERAGE_DISTINCT) {
+                    const floatType =
+                        warehouseSqlBuilder.getFloatingType();
+                    outerAgg = `CAST(SUM(CASE WHEN __dd_rn = 1 THEN __dd_val ELSE NULL END) AS ${floatType}) / CAST(NULLIF(COUNT(CASE WHEN __dd_rn = 1 THEN __dd_val END), 0) AS ${floatType})`;
+                } else {
+                    outerAgg = `SUM(CASE WHEN __dd_rn = 1 THEN __dd_val ELSE NULL END)`;
+                }
                 const outerSelects = [
                     ...dimensionAlias,
-                    `  COALESCE(SUM(CASE WHEN __sd_rn = 1 THEN __sd_val ELSE NULL END), 0) AS ${fieldQuoteChar}${metricId}${fieldQuoteChar}`,
+                    `  ${outerAgg} AS ${fieldQuoteChar}${metricId}${fieldQuoteChar}`,
                 ];
 
-                const cteSql = `${sdCteName} AS (\nSELECT\n${outerSelects.join(',\n')}\nFROM (\n${innerSubquery}\n) __sd_sub\n${sdGroupBy ?? ''}\n)`;
+                const cteSql = `${ddCteName} AS (\nSELECT\n${outerSelects.join(',\n')}\nFROM (\n${innerSubquery}\n) __dd_sub\n${ddGroupBy ?? ''}\n)`;
                 ctes.push(cteSql);
 
                 // Build JOIN clause (same NULL-safe pattern as PoP)
                 if (dimensionAlias.length === 0) {
-                    sdJoins.push(`CROSS JOIN ${sdCteName}`);
+                    ddJoins.push(`CROSS JOIN ${ddCteName}`);
                 } else {
-                    sdJoins.push(
-                        `INNER JOIN ${sdCteName} ON ${dimensionAlias
+                    ddJoins.push(
+                        `INNER JOIN ${ddCteName} ON ${dimensionAlias
                             .map(
                                 (alias) =>
-                                    `( ${baseCteName}.${alias} = ${sdCteName}.${alias} OR ( ${baseCteName}.${alias} IS NULL AND ${sdCteName}.${alias} IS NULL ) )`,
+                                    `( ${baseCteName}.${alias} = ${ddCteName}.${alias} OR ( ${baseCteName}.${alias} IS NULL AND ${ddCteName}.${alias} IS NULL ) )`,
                             )
                             .join(' AND ')}`,
                     );
                 }
 
                 // Metric select for final query
-                sdMetricSelects.push(
-                    `  ${sdCteName}.${fieldQuoteChar}${metricId}${fieldQuoteChar} AS ${fieldQuoteChar}${metricId}${fieldQuoteChar}`,
+                ddMetricSelects.push(
+                    `  ${ddCteName}.${fieldQuoteChar}${metricId}${fieldQuoteChar} AS ${fieldQuoteChar}${metricId}${fieldQuoteChar}`,
                 );
             }
         }
 
-        return { ctes, sdJoins, sdMetricSelects };
+        return { ctes, ddJoins, ddMetricSelects };
     }
 
     // Build the optional metric_filters CTE; return next cte name + cte text (if created)
@@ -2995,68 +3011,70 @@ export class MetricQueryBuilder {
         }
         warnings.push(...experimentalMetricsCteSQL.warnings);
 
-        // Sum distinct CTE: build separate CTEs for sum_distinct metrics, joined on dimensions
-        const sdMetricIds = this.getSelectedAndReferencedMetricIds().filter(
+        // Deduplicated distinct CTE: build separate CTEs for distinct metrics (sum_distinct, average_distinct), joined on dimensions
+        const ddMetricIds = this.getSelectedAndReferencedMetricIds().filter(
             (id) => {
                 try {
                     const metric = this.getMetricFromId(id);
-                    return metric.type === MetricType.SUM_DISTINCT;
+                    return (
+                        metric.type === MetricType.SUM_DISTINCT ||
+                        metric.type === MetricType.AVERAGE_DISTINCT
+                    );
                 } catch {
                     return false;
                 }
             },
         );
 
-        if (sdMetricIds.length > 0) {
-            // Base query has dimensions or regular metrics — wrap it and join
-            const sdBaseCteName = 'sd_base';
+        if (ddMetricIds.length > 0) {
+            const ddBaseCteName = 'dd_base';
 
-            const hasNonSdSelects =
+            const hasNonDdSelects =
                 Object.keys(dimensionsSQL.selects).length > 0 ||
                 metricsSQL.selects.length > 0;
 
             const {
-                ctes: sdCtes,
-                sdJoins,
-                sdMetricSelects,
-            } = this.buildSumDistinctCtes({
+                ctes: ddCtes,
+                ddJoins,
+                ddMetricSelects,
+            } = this.buildDistinctMetricCtes({
                 dimensionSelects: dimensionsSQL.selects,
                 dimensionGroupBy: dimensionsSQL.groupBySQL,
                 dimensionFilters: dimensionsSQL.filtersSQL,
                 sqlFrom,
                 joinsSql: joins.joinSQL,
                 dimensionJoins: dimensionsSQL.joins,
-                baseCteName: sdBaseCteName,
+                baseCteName: ddBaseCteName,
             });
-            ctes.push(...sdCtes);
+            ctes.push(...ddCtes);
 
-            if (hasNonSdSelects) {
+            if (hasNonDdSelects) {
                 ctes.push(
                     MetricQueryBuilder.wrapAsCte(
-                        sdBaseCteName,
+                        ddBaseCteName,
                         finalSelectParts,
                     ),
                 );
 
                 finalSelectParts = [
                     `SELECT`,
-                    [`  ${sdBaseCteName}.*`, ...sdMetricSelects].join(',\n'),
-                    `FROM ${sdBaseCteName}`,
-                    ...sdJoins,
+                    [`  ${ddBaseCteName}.*`, ...ddMetricSelects].join(',\n'),
+                    `FROM ${ddBaseCteName}`,
+                    ...ddJoins,
                 ];
             } else {
-                // Only sum_distinct metrics, no dimensions or regular metrics
-                // Select directly from the first sd CTE (no base needed)
+                // Only distinct metrics, no dimensions or regular metrics
+                // Select directly from the first dd CTE (no base needed)
                 finalSelectParts = [
                     `SELECT`,
-                    sdMetricSelects.join(',\n'),
-                    `FROM ${sdCtes.length > 0 ? `sd_${snakeCaseName(sdMetricIds[0])}` : 'sd_base'}`,
+                    ddMetricSelects.join(',\n'),
+                    `FROM ${ddCtes.length > 0 ? `dd_${snakeCaseName(ddMetricIds[0])}` : 'dd_base'}`,
                 ];
 
-                // If there are multiple sd CTEs, cross join them
-                for (let i = 1; i < sdMetricIds.length; i += 1) {
-                    const sdCteName = `sd_${snakeCaseName(sdMetricIds[i])}`;
-                    finalSelectParts.push(`CROSS JOIN ${sdCteName}`);
+                // If there are multiple dd CTEs, cross join them
+                for (let i = 1; i < ddMetricIds.length; i += 1) {
+                    const ddCteName = `dd_${snakeCaseName(ddMetricIds[i])}`;
+                    finalSelectParts.push(`CROSS JOIN ${ddCteName}`);
                 }
             }
         }

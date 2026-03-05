@@ -2435,6 +2435,96 @@ export const METRIC_QUERY_SUM_DISTINCT_NO_DIMS: CompiledMetricQuery = {
     compiledCustomDimensions: [],
 };
 
+// --- average_distinct fixtures ---
+
+export const EXPLORE_WITH_AVERAGE_DISTINCT: Explore = {
+    targetDatabase: SupportedDbtAdapter.POSTGRES,
+    name: 'orders',
+    label: 'orders',
+    baseTable: 'orders',
+    tags: [],
+    joinedTables: [],
+    tables: {
+        orders: {
+            name: 'orders',
+            label: 'orders',
+            database: 'db',
+            schema: 'schema',
+            sqlTable: '"db"."schema"."orders"',
+            primaryKey: ['order_id'],
+            dimensions: {
+                order_id: {
+                    type: DimensionType.STRING,
+                    name: 'order_id',
+                    label: 'Order ID',
+                    table: 'orders',
+                    tableLabel: 'orders',
+                    fieldType: FieldType.DIMENSION,
+                    sql: '${TABLE}.order_id',
+                    compiledSql: '"orders".order_id',
+                    tablesReferences: ['orders'],
+                    hidden: false,
+                },
+                payment_method: {
+                    type: DimensionType.STRING,
+                    name: 'payment_method',
+                    label: 'Payment Method',
+                    table: 'orders',
+                    tableLabel: 'orders',
+                    fieldType: FieldType.DIMENSION,
+                    sql: '${TABLE}.payment_method',
+                    compiledSql: '"orders".payment_method',
+                    tablesReferences: ['orders'],
+                    hidden: false,
+                },
+            },
+            metrics: {
+                avg_shipping_cost: {
+                    type: MetricType.AVERAGE_DISTINCT,
+                    fieldType: FieldType.METRIC,
+                    table: 'orders',
+                    tableLabel: 'orders',
+                    name: 'avg_shipping_cost',
+                    label: 'Avg Shipping Cost',
+                    sql: '${TABLE}.shipping_cost',
+                    compiledSql: 'AVG("orders".shipping_cost)',
+                    compiledValueSql: '"orders".shipping_cost',
+                    compiledDistinctKeys: ['"orders".line_item_id'],
+                    tablesReferences: ['orders'],
+                    hidden: false,
+                },
+            },
+            lineageGraph: {},
+        },
+    },
+};
+
+export const METRIC_QUERY_AVERAGE_DISTINCT_WITH_DIMS: CompiledMetricQuery = {
+    exploreName: 'orders',
+    dimensions: ['orders_payment_method'],
+    metrics: ['orders_avg_shipping_cost'],
+    filters: {},
+    sorts: [{ fieldId: 'orders_avg_shipping_cost', descending: true }],
+    limit: 10,
+    tableCalculations: [],
+    compiledTableCalculations: [],
+    compiledAdditionalMetrics: [],
+    compiledCustomDimensions: [],
+};
+
+export const METRIC_QUERY_AVERAGE_DISTINCT_NO_DIMS: CompiledMetricQuery = {
+    exploreName: 'orders',
+    dimensions: [],
+    metrics: ['orders_avg_shipping_cost'],
+    filters: {},
+    sorts: [{ fieldId: 'orders_avg_shipping_cost', descending: true }],
+    limit: 10,
+    tableCalculations: [],
+    compiledTableCalculations: [],
+    compiledAdditionalMetrics: [],
+    compiledCustomDimensions: [],
+};
+
 // Expected: SELECT uses DATE_TRUNC (zoomed), but WHERE uses raw column
 export const METRIC_QUERY_WITH_DATE_ZOOM_FILTER_SQL = `SELECT
   DATE_TRUNC('month', "orders".created_at) AS "orders_created_at",

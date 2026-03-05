@@ -875,6 +875,7 @@ export const isInflationProofMetric = (metricType: MetricType): boolean =>
     [
         MetricType.COUNT_DISTINCT,
         MetricType.SUM_DISTINCT,
+        MetricType.AVERAGE_DISTINCT,
         MetricType.MIN,
         MetricType.MAX,
     ].includes(metricType);

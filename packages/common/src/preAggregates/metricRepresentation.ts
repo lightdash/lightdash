@@ -65,6 +65,7 @@ export const getPreAggregateMetricRepresentation = (
             };
         case MetricType.COUNT_DISTINCT:
         case MetricType.SUM_DISTINCT:
+        case MetricType.AVERAGE_DISTINCT:
         case MetricType.MEDIAN:
         case MetricType.PERCENTILE:
         case MetricType.NUMBER:
