@@ -249,24 +249,28 @@ const DashboardProvider: React.FC<
         [],
     );
 
-    // Custom granularities discovered from explores (e.g., fiscal_quarter, biweekly)
+    // Custom granularities discovered from explores: key → label (e.g., "fiscal_quarter" → "Fiscal Quarter")
     const [availableCustomGranularities, setAvailableCustomGranularities] =
-        useState<string[]>([]);
+        useState<Record<string, string>>({});
 
     const addAvailableCustomGranularities = useCallback(
-        (granularities: string[]) => {
+        (granularities: Record<string, string>) => {
             setAvailableCustomGranularities((prev) => {
-                const currentSet = new Set(prev);
-                const hasNew = granularities.some((g) => !currentSet.has(g));
-                if (!hasNew) return prev;
-                return [...new Set([...prev, ...granularities])];
+                const newKeys = Object.keys(granularities).filter(
+                    (k) => !(k in prev),
+                );
+                if (newKeys.length === 0) return prev;
+                return { ...prev, ...granularities };
             });
         },
         [],
     );
 
     const allGranularities = useMemo(
-        () => [...allStandardGranularities, ...availableCustomGranularities],
+        () => [
+            ...allStandardGranularities,
+            ...Object.keys(availableCustomGranularities),
+        ],
         [allStandardGranularities, availableCustomGranularities],
     );
 

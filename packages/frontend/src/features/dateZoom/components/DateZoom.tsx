@@ -71,7 +71,7 @@ export const DateZoom: FC<Props> = ({ isEditMode }) => {
         );
         const allCustom = new Set([
             ...enabledCustom,
-            ...availableCustomGranularities,
+            ...Object.keys(availableCustomGranularities),
         ]);
         return [...standard, ...allCustom];
     }, [dateZoomGranularities, availableCustomGranularities]);
@@ -189,7 +189,10 @@ export const DateZoom: FC<Props> = ({ isEditMode }) => {
                             <>
                                 :{' '}
                                 <Text fz="inherit" fw={500} ml="xxs">
-                                    {getGranularityLabel(dateZoomGranularity)}
+                                    {getGranularityLabel(
+                                        dateZoomGranularity,
+                                        availableCustomGranularities,
+                                    )}
                                 </Text>
                             </>
                         ) : null}
@@ -269,7 +272,10 @@ export const DateZoom: FC<Props> = ({ isEditMode }) => {
                                         handleToggleGranularity(granularity)
                                     }
                                 >
-                                    {getGranularityLabel(granularity)}
+                                    {getGranularityLabel(
+                                        granularity,
+                                        availableCustomGranularities,
+                                    )}
                                 </Menu.Item>
                             );
                         })}
@@ -331,7 +337,10 @@ export const DateZoom: FC<Props> = ({ isEditMode }) => {
                                     ) : null
                                 }
                             >
-                                {getGranularityLabel(granularity)}
+                                {getGranularityLabel(
+                                    granularity,
+                                    availableCustomGranularities,
+                                )}
                             </Menu.Item>
                         ))}
                     </>
