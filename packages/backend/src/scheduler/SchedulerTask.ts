@@ -3723,7 +3723,7 @@ export default class SchedulerTask {
                 }
 
                 if (successfulResults.length === 0) {
-                    throw new NotFoundError(
+                    throw new UnexpectedServerError(
                         'All chart queries failed — no CSVs to export',
                     );
                 }
