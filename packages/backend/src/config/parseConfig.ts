@@ -1958,7 +1958,7 @@ export const parseConfig = (): LightdashConfig => {
             enabled: process.env.EDIT_YAML_IN_UI_ENABLED === 'true',
         },
         partialCompilation: {
-            enabled: process.env.PARTIAL_COMPILATION_ENABLED === 'true',
+            enabled: process.env.PARTIAL_COMPILATION_ENABLED !== 'false',
         },
         funnelBuilder: {
             enabled:
