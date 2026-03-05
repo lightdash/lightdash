@@ -1,4 +1,5 @@
 import {
+    buildTotalFieldRegex,
     CompiledDimension,
     CompiledMetric,
     CompiledMetricQuery,
@@ -6,9 +7,9 @@ import {
     CompiledTableCalculation,
     CompileError,
     createFilterRuleFromModelRequiredFilterRule,
+    DimensionType,
     Explore,
     ExploreCompiler,
-    buildTotalFieldRegex,
     extractTotalReferences,
     FieldReferenceError,
     FieldType,
@@ -1207,15 +1208,74 @@ export class MetricQueryBuilder {
         return sort.nullsFirst ? ' NULLS FIRST' : ' NULLS LAST';
     }
 
+    /**
+     * Gets the default sort field when no sorts are specified.
+     * Priority order:
+     * 1. Time dimension (DATE/TIMESTAMP) - descending
+     * 2. First metric - descending
+     * 3. First dimension - ascending
+     */
+    private getDefaultSort(): SortField | undefined {
+        const { compiledMetricQuery } = this.args;
+        const { dimensions, metrics } = compiledMetricQuery;
+
+        if (dimensions.length === 0 && metrics.length === 0) {
+            return undefined;
+        }
+
+        // Priority 1: Time dimension (DATE or TIMESTAMP)
+        const selectedDimensions = dimensions
+            .map((dimId) => this.exploreDimensions[dimId])
+            .filter(Boolean);
+
+        const timeDimension = selectedDimensions.find(({ type }) =>
+            [DimensionType.DATE, DimensionType.TIMESTAMP].includes(type),
+        );
+
+        if (timeDimension) {
+            return {
+                fieldId: getItemId(timeDimension),
+                descending: true,
+            };
+        }
+
+        // Priority 2: First metric
+        if (metrics.length > 0) {
+            const firstMetricId = metrics[0];
+            return {
+                fieldId: firstMetricId,
+                descending: true,
+            };
+        }
+
+        // Priority 3: First dimension
+        if (dimensions.length > 0) {
+            const firstDimensionId = dimensions[0];
+            return {
+                fieldId: firstDimensionId,
+                descending: false,
+            };
+        }
+
+        return undefined;
+    }
+
     private getSortSQL(excludePostCalculationMetrics: boolean = false) {
-        const { explore, compiledMetricQuery, warehouseSqlBuilder } = this.args;
+        const { compiledMetricQuery, warehouseSqlBuilder } = this.args;
         const { sorts, metrics, compiledCustomDimensions } =
             compiledMetricQuery;
         const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
         const startOfWeek = warehouseSqlBuilder.getStartOfWeek();
-        const compiledDimensions = getDimensions(explore);
         let requiresQueryInCTE = false;
-        const fieldOrders = sorts.reduce<string[]>((acc, sort) => {
+
+        // Apply default sort if no sorts are specified
+        let effectiveSorts: SortField[] = sorts;
+        if (sorts.length === 0) {
+            const defaultSort = this.getDefaultSort();
+            effectiveSorts = defaultSort ? [defaultSort] : [];
+        }
+
+        const fieldOrders = effectiveSorts.reduce<string[]>((acc, sort) => {
             // Default sort
             let fieldSort: string = `${fieldQuoteChar}${
                 sort.fieldId
@@ -1223,9 +1283,7 @@ export class MetricQueryBuilder {
                 sort.descending ? ' DESC' : ''
             }${MetricQueryBuilder.getNullsFirstLast(sort)}`;
 
-            const sortedDimension = compiledDimensions.find(
-                (d) => getItemId(d) === sort.fieldId,
-            );
+            const sortedDimension = this.exploreDimensions[sort.fieldId];
 
             if (
                 compiledCustomDimensions &&

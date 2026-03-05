@@ -4334,3 +4334,107 @@ describe('Date zoom with filters', () => {
         expect(result.query).not.toContain('DATE_TRUNC');
     });
 });
+
+describe('Default sort behavior', () => {
+    test('Should apply default sort by time dimension DESC when no sorts are specified', () => {
+        const result = buildQuery({
+            explore: EXPLORE_WITH_DATE_DIMENSION,
+            compiledMetricQuery: {
+                ...METRIC_QUERY,
+                dimensions: ['orders_created_at'],
+                metrics: ['orders_order_count'],
+                sorts: [], // No sorts specified
+            },
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        // Should apply default sort by date dimension descending
+        expect(result.query).toContain('ORDER BY');
+        expect(result.query).toContain('"orders_created_at" DESC');
+    });
+
+    test('Should apply default sort by first metric DESC when no time dimension', () => {
+        const result = buildQuery({
+            explore: EXPLORE,
+            compiledMetricQuery: {
+                ...METRIC_QUERY,
+                dimensions: ['table1_dim1'],
+                metrics: ['table1_metric1'],
+                sorts: [], // No sorts specified
+            },
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        // Should apply default sort by first metric descending
+        expect(result.query).toContain('ORDER BY');
+        expect(result.query).toContain('"table1_metric1" DESC');
+    });
+
+    test('Should apply default sort by first dimension ASC when only dimensions', () => {
+        const result = buildQuery({
+            explore: EXPLORE,
+            compiledMetricQuery: {
+                ...METRIC_QUERY,
+                dimensions: ['table1_dim1'],
+                metrics: [],
+                sorts: [], // No sorts specified
+            },
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        // Should apply default sort by first dimension ascending
+        expect(result.query).toContain('ORDER BY');
+        expect(result.query).toContain('"table1_dim1"');
+        expect(result.query).not.toContain('"table1_dim1" DESC');
+    });
+
+    test('Should not apply default sort when sorts are already specified', () => {
+        const result = buildQuery({
+            explore: EXPLORE,
+            compiledMetricQuery: {
+                ...METRIC_QUERY,
+                dimensions: ['table1_dim1'],
+                metrics: ['table1_metric1'],
+                sorts: [
+                    {
+                        fieldId: 'table1_dim1',
+                        descending: true,
+                    },
+                ],
+            },
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        // Should use the specified sort, not the default
+        expect(result.query).toContain('ORDER BY');
+        expect(result.query).toContain('"table1_dim1" DESC');
+        // Should not contain the default metric sort
+        expect(result.query).not.toContain('"table1_metric1" DESC');
+    });
+
+    test('Should have no ORDER BY when no dimensions and no metrics', () => {
+        const result = buildQuery({
+            explore: EXPLORE,
+            compiledMetricQuery: {
+                ...METRIC_QUERY,
+                dimensions: [],
+                metrics: [],
+                sorts: [],
+            },
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        // Should have no ORDER BY clause at all
+        expect(result.query).not.toContain('ORDER BY');
+    });
+});
