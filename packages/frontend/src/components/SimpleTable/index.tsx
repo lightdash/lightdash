@@ -187,10 +187,15 @@ const SimpleTable: FC<SimpleTableProps> = ({
         resultsData?.setFetchAll(true);
     }, [shouldPaginateResults, resultsData]);
 
+    const tableColumns = useMemo(() => {
+        return isTableVisualizationConfig(visualizationConfig)
+            ? visualizationConfig.chartConfig.columns
+            : [];
+    }, [visualizationConfig]);
+
     if (!isTableVisualizationConfig(visualizationConfig)) return null;
 
     const {
-        columns,
         conditionalFormattings,
         minMaxMap,
         hideRowNumbers,
@@ -304,7 +309,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
                 loadingState={() => <LoadingChart />}
                 emptyState={isDashboard ? DashboardEmptyState : undefined}
                 fetchMoreRows={resultsData?.fetchMoreRows || noop}
-                columns={columns}
+                columns={tableColumns}
                 columnOrder={columnOrder}
                 hideRowNumbers={hideRowNumbers}
                 showColumnCalculation={showColumnCalculation}

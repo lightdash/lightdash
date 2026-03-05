@@ -21,7 +21,7 @@ import {
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { flexRender, type Row } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import React, { useEffect, useMemo, type FC } from 'react';
+import React, { useCallback, useEffect, useMemo, type FC } from 'react';
 import {
     getColorFromRange,
     transformColorsForDarkMode,
@@ -59,8 +59,9 @@ export const VirtualizedArea: FC<{ cellCount: number; padding: number }> = ({
 
 interface TableRowProps {
     index: number;
+    virtualIndex: number;
     row: Row<ResultRow>;
-
+    measureElement: (node: HTMLElement | null) => void;
     cellContextMenu?: TableContext['cellContextMenu'];
     conditionalFormattings: TableContext['conditionalFormattings'];
     minMaxMap: TableContext['minMaxMap'];
@@ -70,6 +71,8 @@ interface TableRowProps {
 const TableRow: FC<TableRowProps> = ({
     row,
     index,
+    virtualIndex,
+    measureElement,
     cellContextMenu,
     conditionalFormattings,
     minMaxMap,
@@ -98,7 +101,7 @@ const TableRow: FC<TableRowProps> = ({
     );
 
     return (
-        <Tr $index={index}>
+        <Tr $index={index} ref={measureElement} data-index={virtualIndex}>
             {row.getVisibleCells().map((cell) => {
                 const meta = cell.column.columnDef.meta;
                 const field = meta?.item;
@@ -300,14 +303,14 @@ const VirtualizedTableBody: FC<{
     ]);
 
     const virtualRows = rowVirtualizer.getVirtualItems();
-    const paddingTop =
-        virtualRows.length > 0 ? virtualRows?.[0]?.start || 0 : 0;
-    const paddingBottom =
-        virtualRows.length > 0
-            ? rowVirtualizer.getTotalSize() -
-              (virtualRows?.[virtualRows.length - 1]?.end || 0)
-            : 0;
     const cellsCount = rows[0]?.getVisibleCells().length || 0;
+
+    const measureElement = useCallback(
+        (node: HTMLElement | null) => {
+            rowVirtualizer.measureElement(node);
+        },
+        [rowVirtualizer],
+    );
 
     const skeletonRows = useMemo(() => {
         const tableColumnsCount = table.getAllColumns().length;
@@ -332,6 +335,15 @@ const VirtualizedTableBody: FC<{
         });
     }, [table]);
 
+    // Use before/after padding rows to maintain correct total scroll height
+    // while only rendering visible rows
+    const paddingTop = virtualRows.length > 0 ? virtualRows[0]?.start || 0 : 0;
+    const paddingBottom =
+        virtualRows.length > 0
+            ? rowVirtualizer.getTotalSize() -
+              (virtualRows[virtualRows.length - 1]?.end || 0)
+            : 0;
+
     return (
         <tbody>
             {paddingTop > 0 && (
@@ -340,7 +352,8 @@ const VirtualizedTableBody: FC<{
 
             {virtualRows.length === 0 && isFetchingRows
                 ? skeletonRows
-                : virtualRows.map(({ index }) => {
+                : virtualRows.map((virtualRow) => {
+                      const { index } = virtualRow;
                       // If this is the last row and we're loading, show the loader
                       if (
                           isFetchingRows &&
@@ -348,7 +361,11 @@ const VirtualizedTableBody: FC<{
                           isInfiniteScrollEnabled
                       ) {
                           return (
-                              <tr key={index}>
+                              <tr
+                                  key={index}
+                                  data-index={virtualRow.index}
+                                  ref={measureElement}
+                              >
                                   <td
                                       colSpan={
                                           table.getVisibleFlatColumns().length
@@ -373,6 +390,8 @@ const VirtualizedTableBody: FC<{
                               minimal={minimal}
                               key={index}
                               index={index}
+                              virtualIndex={virtualRow.index}
+                              measureElement={measureElement}
                               row={rows[index]}
                               cellContextMenu={cellContextMenu}
                               conditionalFormattings={conditionalFormattings}
