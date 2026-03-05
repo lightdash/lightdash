@@ -1,3 +1,10 @@
+## [0.2572.2](https://github.com/lightdash/lightdash/compare/0.2572.1...0.2572.2) (2026-03-05)
+
+
+### Bug Fixes
+
+* add configurable query retry on transient errors ([#20400](https://github.com/lightdash/lightdash/issues/20400)) ([cbdb8c3](https://github.com/lightdash/lightdash/commit/cbdb8c3af650f5fca1f67b49c70d78bc83d884a8))
+
 ## [0.2572.1](https://github.com/lightdash/lightdash/compare/0.2572.0...0.2572.1) (2026-03-05)
 
 
