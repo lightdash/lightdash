@@ -1,5 +1,6 @@
 import {
     parameterRegex,
+    renderLiquidSql,
     UnexpectedServerError,
     type ParameterDefinitions,
     type ParametersValuesMap,
@@ -168,10 +169,15 @@ export const safeReplaceParametersWithTypes = ({
     sqlBuilder: WarehouseSqlBuilder;
     wrapChar?: string;
 }) => {
+    // Render Liquid template blocks ({% if %}/{% elsif %}/{% else %}/{% endif %})
+    // before parameter substitution. This evaluates conditional SQL based on parameter values,
+    // e.g., {% if ld.parameters.grain == "day" %} ${snapshot_date} {% endif %}
+    const liquidRenderedSql = renderLiquidSql(sql, parameterValuesMap);
+
     // First, get all parameter references from the original SQL using the standard function
     // This ensures we capture ALL parameter references, not just the ones we have values for
     const allParametersResult = safeReplaceParameters({
-        sql,
+        sql: liquidRenderedSql,
         parameterValuesMap,
         escapeString: sqlBuilder.escapeString.bind(sqlBuilder),
         quoteChar: sqlBuilder.getStringQuoteChar(),
@@ -214,7 +220,7 @@ export const safeReplaceParametersWithTypes = ({
     });
 
     // First replace string parameters (with quotes and escaping)
-    let processedSql = sql;
+    let processedSql = liquidRenderedSql;
     if (Object.keys(stringParameters).length > 0) {
         const stringResult = safeReplaceParameters({
             sql: processedSql,
