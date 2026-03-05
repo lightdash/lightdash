@@ -14,7 +14,9 @@ import {
 } from '@mantine/core';
 import { IconArrowDown, IconArrowUp } from '@tabler/icons-react';
 import { flexRender } from '@tanstack/react-table';
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
+import { useIsTableColumnWidthStabilizationEnabled } from '../../../hooks/useIsTableColumnWidthStabilizationEnabled';
+import { useMeasureAndLockColumns } from '../../../hooks/useMeasureAndLockColumns';
 import { SMALL_TEXT_LENGTH } from '../../common/LightTable/constants';
 import MantineIcon from '../../common/MantineIcon';
 import BodyCell from '../../common/Table/ScrollableTable/BodyCell';
@@ -44,8 +46,26 @@ export const ChartDataTable = ({
     onTHClick,
 }: TableProps) => {
     const theme = useMantineTheme();
-    const { tableWrapperRef, getTableData, paddingTop, paddingBottom } =
-        useVirtualTable({ columnNames, rows, config: columnsConfig });
+    const tableRef = useRef<HTMLTableElement>(null);
+    const {
+        tableWrapperRef,
+        getTableData,
+        paddingTop,
+        paddingBottom,
+        containerWidth,
+    } = useVirtualTable({ columnNames, rows, config: columnsConfig });
+
+    const isStabilizationEnabled = useIsTableColumnWidthStabilizationEnabled();
+
+    const columnKey = useMemo(() => columnNames.join('\0'), [columnNames]);
+
+    const { columnWidths, totalWidth } = useMeasureAndLockColumns({
+        tableRef,
+        enabled: isStabilizationEnabled,
+        columnKey,
+        hasData: rows.length > 0,
+        containerWidth,
+    });
 
     const columnsCount = useMemo(() => columnNames.length, [columnNames]);
     const { headerGroups, virtualRows, rowModelRows } = getTableData();
@@ -65,7 +85,14 @@ export const ChartDataTable = ({
             className="sentry-block ph-no-capture"
             data-testid="chart-data-table"
         >
-            <TableStyled>
+            <TableStyled ref={tableRef} $totalColumnWidth={totalWidth}>
+                {columnWidths !== null && (
+                    <colgroup>
+                        {columnWidths.map((w, i) => (
+                            <col key={i} style={{ width: w }} />
+                        ))}
+                    </colgroup>
+                )}
                 <Tooltip.Group>
                     <thead>
                         <tr>

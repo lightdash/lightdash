@@ -14,6 +14,9 @@ import {
 } from '@mantine/core';
 import { IconArrowDown, IconArrowUp } from '@tabler/icons-react';
 import { flexRender } from '@tanstack/react-table';
+import { useMemo, useRef } from 'react';
+import { useIsTableColumnWidthStabilizationEnabled } from '../../../hooks/useIsTableColumnWidthStabilizationEnabled';
+import { useMeasureAndLockColumns } from '../../../hooks/useMeasureAndLockColumns';
 import { SMALL_TEXT_LENGTH } from '../../common/LightTable/constants';
 import MantineIcon from '../../common/MantineIcon';
 import BodyCell from '../../common/Table/ScrollableTable/BodyCell';
@@ -37,17 +40,33 @@ export const Table = <T extends IResultsRunner>({
     onTHClick,
 }: TableProps<T>) => {
     const theme = useMantineTheme();
+    const tableRef = useRef<HTMLTableElement>(null);
     const {
         tableWrapperRef,
         getColumnsCount,
         getTableData,
         paddingTop,
         paddingBottom,
+        columns: dataColumns,
+        rows,
+        containerWidth,
     } = useTableDataModel({
         config: {
             columns: columnsConfig,
         },
         resultsRunner,
+    });
+
+    const isStabilizationEnabled = useIsTableColumnWidthStabilizationEnabled();
+
+    const columnKey = useMemo(() => dataColumns.join('\0'), [dataColumns]);
+
+    const { columnWidths, totalWidth } = useMeasureAndLockColumns({
+        tableRef,
+        enabled: isStabilizationEnabled,
+        columnKey,
+        hasData: rows.length > 0,
+        containerWidth,
     });
 
     const columnsCount = getColumnsCount();
@@ -67,7 +86,14 @@ export const Table = <T extends IResultsRunner>({
             }}
             className="sentry-block ph-no-capture"
         >
-            <TableStyled>
+            <TableStyled ref={tableRef} $totalColumnWidth={totalWidth}>
+                {columnWidths !== null && (
+                    <colgroup>
+                        {columnWidths.map((w, i) => (
+                            <col key={i} style={{ width: w }} />
+                        ))}
+                    </colgroup>
+                )}
                 <thead>
                     <tr>
                         {headerGroups.map((headerGroup) =>

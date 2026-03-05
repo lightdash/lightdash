@@ -50,6 +50,7 @@ export class HealthService extends BaseService {
         const migrationExecutionTime = performance.now() - migrationStartTime;
 
         if (migrationStatus < 0) {
+            // eslint-disable-next-line @typescript-eslint/no-throw-literal, @typescript-eslint/only-throw-error
             throw new UnexpectedDatabaseError(
                 'Database has not been migrated yet',
                 { currentVersion },
@@ -223,6 +224,10 @@ export class HealthService extends BaseService {
             },
             echarts6: {
                 enabled: this.lightdashConfig.echarts6.enabled,
+            },
+            tableColumnWidthStabilization: {
+                enabled:
+                    this.lightdashConfig.tableColumnWidthStabilization.enabled,
             },
             funnelBuilder: {
                 enabled: this.lightdashConfig.funnelBuilder.enabled,

@@ -62,11 +62,21 @@ export const TableContainer = styled.div<
 
 export const Table = styled.table<{
     $showFooter?: boolean;
+    $totalColumnWidth?: number;
 }>`
     border-spacing: 0;
     font-size: 14px;
     width: 100%;
     border-radius: 4px;
+
+    ${({ $totalColumnWidth }) =>
+        $totalColumnWidth && $totalColumnWidth > 0
+            ? css`
+                  table-layout: fixed;
+                  width: ${$totalColumnWidth}px;
+                  min-width: ${$totalColumnWidth}px;
+              `
+            : ''}
 
     th,
     td {

@@ -125,6 +125,9 @@ export default function mockHealthResponse(
         funnelBuilder: {
             enabled: false,
         },
+        tableColumnWidthStabilization: {
+            enabled: false,
+        },
         softDelete: {
             enabled: false,
             retentionDays: 30,

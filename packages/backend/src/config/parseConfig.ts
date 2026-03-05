@@ -1099,6 +1099,9 @@ export type LightdashConfig = {
     defaultUserSpaces: {
         enabled: boolean;
     };
+    tableColumnWidthStabilization: {
+        enabled: boolean;
+    };
     softDelete: {
         enabled: boolean;
         retentionDays: number;
@@ -1990,6 +1993,10 @@ export const parseConfig = (): LightdashConfig => {
         defaultUserSpaces: {
             enabled:
                 process.env.LIGHTDASH_DEFAULT_USER_SPACES_ENABLED === 'true',
+        },
+        tableColumnWidthStabilization: {
+            enabled:
+                process.env.TABLE_COLUMN_WIDTH_STABILIZATION_ENABLED === 'true',
         },
         softDelete: {
             enabled: process.env.SOFT_DELETE_ENABLED === 'true',

@@ -316,6 +316,9 @@ export const lightdashConfigMock: LightdashConfig = {
     funnelBuilder: {
         enabled: false,
     },
+    tableColumnWidthStabilization: {
+        enabled: false,
+    },
     maps: {
         enabled: false,
     },

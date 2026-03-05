@@ -125,6 +125,9 @@ export const BaseResponse: HealthState = {
     funnelBuilder: {
         enabled: false,
     },
+    tableColumnWidthStabilization: {
+        enabled: false,
+    },
     softDelete: {
         enabled: false,
         retentionDays: 30,

@@ -464,6 +464,9 @@ export type HealthState = {
     echarts6: {
         enabled: boolean;
     };
+    tableColumnWidthStabilization: {
+        enabled: boolean;
+    };
     funnelBuilder: {
         enabled: boolean;
     };
