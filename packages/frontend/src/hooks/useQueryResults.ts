@@ -38,7 +38,7 @@ export type QueryResultsProps = {
     csvLimit?: number | null; //giving null returns all results (no limit)
     chartUuid?: string;
     chartVersionUuid?: string;
-    dateZoomGranularity?: DateGranularity;
+    dateZoomGranularity?: DateGranularity | string;
     context?: QueryExecutionContext;
     invalidateCache?: boolean;
     parameters?: ParametersValuesMap;

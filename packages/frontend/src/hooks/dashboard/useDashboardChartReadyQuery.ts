@@ -106,6 +106,10 @@ export const useDashboardChartReadyQuery = (
         chartQuery.data?.metricQuery?.exploreName,
     );
 
+    const addAvailableCustomGranularities = useDashboardContext(
+        (c) => c.addAvailableCustomGranularities,
+    );
+
     useEffect(() => {
         if (explore) {
             addParameterDefinitions(
@@ -113,6 +117,22 @@ export const useDashboardChartReadyQuery = (
             );
         }
     }, [explore, addParameterDefinitions]);
+
+    // Discover custom granularity names from explore dimensions
+    useEffect(() => {
+        if (!explore) return;
+
+        const customGranularityNames: string[] = [];
+        for (const dim of getDimensions(explore)) {
+            if (dim.customTimeInterval) {
+                customGranularityNames.push(dim.customTimeInterval);
+            }
+        }
+
+        if (customGranularityNames.length > 0) {
+            addAvailableCustomGranularities(customGranularityNames);
+        }
+    }, [explore, addAvailableCustomGranularities]);
 
     const timezoneFixFilters =
         dashboardFilters && convertDateDashboardFilters(dashboardFilters);
