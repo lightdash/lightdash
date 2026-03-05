@@ -5,6 +5,7 @@ import {
     Box,
     Collapse,
     Drawer,
+    getDefaultZIndex,
     Group,
     Stack,
     Text,
@@ -13,15 +14,20 @@ import {
 } from '@mantine-8/core';
 import { useDisclosure } from '@mantine-8/hooks';
 import {
+    IconCalendarClock,
     IconChevronDown,
     IconChevronRight,
+    IconClock,
+    IconDatabase,
+    IconLayersIntersect,
     IconRefresh,
+    IconTableRow,
 } from '@tabler/icons-react';
 import cronstrue from 'cronstrue';
 import { type FC } from 'react';
 import { LD_FIELD_COLORS } from '../../mantineTheme';
 import MantineIcon from '../common/MantineIcon';
-import { StatusBadge } from './StatusBadge';
+import { IconBox } from '../common/ResourceIcon';
 
 const TRIGGER_LABELS: Record<string, string> = {
     compile: 'Project compile',
@@ -119,12 +125,13 @@ const MaterializationDetailDrawer: FC<Props> = ({
             onClose={onClose}
             position="right"
             size="md"
+            zIndex={getDefaultZIndex('max') + 1}
             title={
                 <Group gap="xs">
-                    <Text fw={600} fz="md">
-                        {summary.preAggregateName}
+                    <IconBox icon={IconLayersIntersect} color="ldDark.9" />
+                    <Text fw={600} fz="sm">
+                        Pre-aggregate details
                     </Text>
-                    <StatusBadge summary={summary} />
                 </Group>
             }
         >
@@ -219,14 +226,21 @@ const MaterializationDetailDrawer: FC<Props> = ({
                         <Box
                             style={{
                                 borderTop:
-                                    '1px solid var(--mantine-color-ldGray-2)',
+                                    '1px dashed var(--mantine-color-ldGray-2)',
                             }}
                             pt="md"
                         >
                             <Group justify="space-between" mb="sm">
-                                <Text fz="sm" fw={600}>
-                                    Last materialization
-                                </Text>
+                                <Group gap="xs">
+                                    <IconBox
+                                        icon={IconDatabase}
+                                        color="ldDark.9"
+                                        fill={undefined}
+                                    />
+                                    <Text fw={600} fz="sm">
+                                        Last materialization
+                                    </Text>
+                                </Group>
                                 <Tooltip label="Refresh this pre-aggregate">
                                     <ActionIcon
                                         variant="subtle"
@@ -244,37 +258,46 @@ const MaterializationDetailDrawer: FC<Props> = ({
                                     </ActionIcon>
                                 </Tooltip>
                             </Group>
-                            <Stack gap="sm">
-                                <Group gap="xl">
-                                    <Box>
-                                        <DetailLabel>Trigger</DetailLabel>
-                                        <DetailValue>
-                                            {TRIGGER_LABELS[
-                                                materialization.trigger
-                                            ] ?? materialization.trigger}
-                                        </DetailValue>
-                                    </Box>
-                                    {materialization.materializedAt && (
-                                        <Box>
-                                            <DetailLabel>
-                                                Materialized at
-                                            </DetailLabel>
-                                            <DetailValue>
-                                                {new Date(
-                                                    materialization.materializedAt,
-                                                ).toLocaleString()}
-                                            </DetailValue>
-                                        </Box>
-                                    )}
+                            <Stack gap="xs">
+                                <Group gap={4}>
+                                    <MantineIcon
+                                        icon={IconCalendarClock}
+                                        color="ldGray.6"
+                                    />
+                                    <Text size="sm" c="ldGray.6">
+                                        Trigger:{' '}
+                                        {TRIGGER_LABELS[
+                                            materialization.trigger
+                                        ] ?? materialization.trigger}
+                                    </Text>
                                 </Group>
 
+                                {materialization.materializedAt && (
+                                    <Group gap={4}>
+                                        <MantineIcon
+                                            icon={IconClock}
+                                            color="ldGray.6"
+                                        />
+                                        <Text size="sm" c="ldGray.6">
+                                            Materialized at:{' '}
+                                            {new Date(
+                                                materialization.materializedAt,
+                                            ).toLocaleString()}
+                                        </Text>
+                                    </Group>
+                                )}
+
                                 {materialization.rowCount != null && (
-                                    <Box>
-                                        <DetailLabel>Row count</DetailLabel>
-                                        <DetailValue mono>
+                                    <Group gap={4}>
+                                        <MantineIcon
+                                            icon={IconTableRow}
+                                            color="ldGray.6"
+                                        />
+                                        <Text size="sm" c="ldGray.6">
+                                            Rows:{' '}
                                             {materialization.rowCount.toLocaleString()}
-                                        </DetailValue>
-                                    </Box>
+                                        </Text>
+                                    </Group>
                                 )}
 
                                 {materialization.errorMessage && (
