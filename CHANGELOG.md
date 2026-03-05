@@ -1,3 +1,10 @@
+# [0.2571.0](https://github.com/lightdash/lightdash/compare/0.2570.0...0.2571.0) (2026-03-05)
+
+
+### Features
+
+* add ThoughtSpot TML to Lightdash translation skill ([#20852](https://github.com/lightdash/lightdash/issues/20852)) ([6d7100c](https://github.com/lightdash/lightdash/commit/6d7100c1bfef760de29b8dbc139f688400cf4023))
+
 # [0.2570.0](https://github.com/lightdash/lightdash/compare/0.2569.1...0.2570.0) (2026-03-05)
 
 
