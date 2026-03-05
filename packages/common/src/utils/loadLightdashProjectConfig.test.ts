@@ -1,18 +1,23 @@
-import { ParseError } from '../types/errors';
+import { LightdashProjectConfigError, ParseError } from '../types/errors';
 import { loadLightdashProjectConfig } from './loadLightdashProjectConfig';
 import {
     configWithEmptyOptionsArray,
     emptyConfig,
+    invalidConfigCustomGranularityConflictsWithTimeFrames,
+    invalidConfigCustomGranularityNoLabel,
+    invalidConfigCustomGranularityNoSql,
     invalidConfigWithAllowCustomValuesFalse,
     invalidConfigWithIncompleteOptionsFromDimension,
     invalidConfigWithNoOptions,
     validConfigWithAllowCustomValues,
+    validConfigWithCustomGranularities,
     validConfigWithDateParameter,
     validConfigWithDateParameterFromDimension,
     validConfigWithMixedArrayTypes,
     validConfigWithNumberArrayParameter,
     validConfigWithNumberParameter,
     validConfigWithOptionsFromDimension,
+    validConfigWithoutCustomGranularities,
     validConfigWithParameters,
     validConfigWithStringTypeExplicit,
 } from './loadLightdashProjectConfig.mock';
@@ -223,5 +228,50 @@ describe('loadLightdashProjectConfig', () => {
                 },
             },
         });
+    });
+
+    it('should load config with custom_granularities', async () => {
+        const config = await loadLightdashProjectConfig(
+            validConfigWithCustomGranularities,
+        );
+        expect(config.custom_granularities).toBeDefined();
+        expect(config.custom_granularities!.slt_week.label).toBe('SLT Week');
+        expect(config.custom_granularities!.slt_week.type).toBeUndefined();
+        expect(config.custom_granularities!.fiscal_quarter.type).toBe('string');
+    });
+
+    it('should reject custom_granularity without sql', async () => {
+        await expect(
+            loadLightdashProjectConfig(invalidConfigCustomGranularityNoSql),
+        ).rejects.toThrow(ParseError);
+    });
+
+    it('should reject custom_granularity without label', async () => {
+        await expect(
+            loadLightdashProjectConfig(invalidConfigCustomGranularityNoLabel),
+        ).rejects.toThrow(ParseError);
+    });
+
+    it('should reject custom_granularity that conflicts with standard TimeFrames', async () => {
+        await expect(
+            loadLightdashProjectConfig(
+                invalidConfigCustomGranularityConflictsWithTimeFrames,
+            ),
+        ).rejects.toThrow(/conflict.*standard time intervals/i);
+    });
+
+    it('should reject custom_granularity that conflicts with standard TimeFrames with correct error type', async () => {
+        await expect(
+            loadLightdashProjectConfig(
+                invalidConfigCustomGranularityConflictsWithTimeFrames,
+            ),
+        ).rejects.toThrow(LightdashProjectConfigError);
+    });
+
+    it('should load config without custom_granularities', async () => {
+        const config = await loadLightdashProjectConfig(
+            validConfigWithoutCustomGranularities,
+        );
+        expect(config.custom_granularities).toBeUndefined();
     });
 });

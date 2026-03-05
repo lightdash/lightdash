@@ -43,7 +43,10 @@ import {
     parseFilters,
     parseModelRequiredFilters,
 } from '../types/filterGrammar';
-import { type LightdashProjectConfig } from '../types/lightdashProjectConfig';
+import {
+    type CustomGranularity,
+    type LightdashProjectConfig,
+} from '../types/lightdashProjectConfig';
 import { type PreAggregateDef } from '../types/preAggregate';
 import { OrderFieldsByStrategy, type GroupType } from '../types/table';
 import { type TimeFrames } from '../types/timeFrames';
@@ -569,6 +572,7 @@ export const convertTable = (
     spotlightConfig: LightdashProjectConfig['spotlight'],
     startOfWeek?: WeekDay | null,
     disableTimestampConversion?: boolean,
+    _customGranularities?: Record<string, CustomGranularity>,
 ): Omit<Table, 'lineageGraph'> => {
     // Config block takes priority, then meta block
     const meta = merge({}, model.meta, model.config?.meta);
@@ -959,6 +963,7 @@ export const convertExplores = async (
                     lightdashProjectConfig.spotlight,
                     warehouseSqlBuilder.getStartOfWeek(),
                     disableTimestampConversion,
+                    lightdashProjectConfig.custom_granularities,
                 );
 
                 // add lineage
