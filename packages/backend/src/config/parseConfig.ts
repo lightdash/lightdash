@@ -585,10 +585,7 @@ export const parsePreAggregateResultsS3Config = ():
     const secretKey = process.env.PRE_AGGREGATE_RESULTS_S3_SECRET_KEY;
 
     const hasAnyPreAggregateS3Config =
-        bucket !== undefined ||
-        region !== undefined ||
-        accessKey !== undefined ||
-        secretKey !== undefined;
+        bucket || region || accessKey || secretKey;
 
     if (!hasAnyPreAggregateS3Config) {
         return undefined;
