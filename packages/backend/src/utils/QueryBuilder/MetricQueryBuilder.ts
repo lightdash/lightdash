@@ -2297,7 +2297,7 @@ export class MetricQueryBuilder {
                 if (metric.type === MetricType.AVERAGE_DISTINCT) {
                     const floatType =
                         warehouseSqlBuilder.getFloatingType();
-                    outerAgg = `CAST(SUM(CASE WHEN __dd_rn = 1 THEN __dd_val ELSE NULL END) AS ${floatType}) / CAST(NULLIF(COUNT(CASE WHEN __dd_rn = 1 THEN 1 END), 0) AS ${floatType})`;
+                    outerAgg = `CAST(SUM(CASE WHEN __dd_rn = 1 THEN __dd_val ELSE NULL END) AS ${floatType}) / CAST(NULLIF(COUNT(CASE WHEN __dd_rn = 1 THEN __dd_val END), 0) AS ${floatType})`;
                 } else {
                     outerAgg = `COALESCE(SUM(CASE WHEN __dd_rn = 1 THEN __dd_val ELSE NULL END), 0)`;
                 }
