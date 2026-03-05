@@ -359,12 +359,13 @@ const getEmptyTable = (
     metrics: {},
 });
 
+export const PRE_AGGREGATE_MATERIALIZED_TABLE_PLACEHOLDER =
+    '${materialized_table}';
+
 export const buildPreAggregateExplore = (
     sourceExplore: Explore,
     preAggregateDef: PreAggregateDef,
 ): Explore => {
-    const baseTableSqlTable =
-        sourceExplore.tables[sourceExplore.baseTable].sqlTable;
     const includedDimensions = getIncludedDimensions(
         sourceExplore,
         preAggregateDef,
@@ -386,7 +387,10 @@ export const buildPreAggregateExplore = (
                 `Pre-aggregate "${preAggregateDef.name}" references unknown table "${tableName}"`,
             );
         }
-        acc[tableName] = getEmptyTable(sourceTable, baseTableSqlTable);
+        acc[tableName] = getEmptyTable(
+            sourceTable,
+            PRE_AGGREGATE_MATERIALIZED_TABLE_PLACEHOLDER,
+        );
         return acc;
     }, {});
 
