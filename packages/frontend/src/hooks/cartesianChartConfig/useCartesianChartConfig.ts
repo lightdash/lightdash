@@ -454,6 +454,16 @@ const useCartesianChartConfig = ({
         [],
     );
 
+    const setAllCategoryColorOverrides = useCallback(
+        (overrides: Record<string, string>) => {
+            setDirtyLayout((prev) => ({
+                ...prev,
+                categoryColorOverrides: overrides,
+            }));
+        },
+        [],
+    );
+
     const setAxisLabelFontSize = useCallback((fontSize: number | undefined) => {
         setDirtyEchartsConfig((prev) => ({
             ...prev,
@@ -1191,6 +1201,7 @@ const useCartesianChartConfig = ({
         setConnectNulls,
         setColorByCategory,
         setCategoryColorOverride,
+        setAllCategoryColorOverrides,
         setAxisLabelFontSize,
         setAxisTitleFontSize,
         setXAxisSort,

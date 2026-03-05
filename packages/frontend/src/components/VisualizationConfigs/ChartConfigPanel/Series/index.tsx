@@ -167,6 +167,21 @@ export const Series: FC<Props> = ({ items }) => {
         resultsData?.rows,
     ]);
 
+    // When colorByCategory is on, the top-level series color picker sets all categories
+    const handleSetAllCategoryColors = useCallback(
+        (color: string) => {
+            if (!isCartesianChart) return;
+            const overrides: Record<string, string> = {};
+            for (const [rawKey] of uniqueCategories) {
+                overrides[rawKey] = color;
+            }
+            visualizationConfig.chartConfig.setAllCategoryColorOverrides(
+                overrides,
+            );
+        },
+        [isCartesianChart, uniqueCategories, visualizationConfig],
+    );
+
     if (!isCartesianChart) return null;
 
     const {
@@ -215,6 +230,17 @@ export const Series: FC<Props> = ({ items }) => {
 
     const colorByCategory = dirtyLayout?.colorByCategory ?? false;
     const categoryColorOverrides = dirtyLayout?.categoryColorOverrides ?? {};
+
+    // Wraps updateSingleSeries: when colorByCategory is on and a color is set,
+    // also apply that color to all category overrides
+    const colorByCategoryUpdateSingleSeries: typeof updateSingleSeries = (
+        updatedSeries,
+    ) => {
+        updateSingleSeries(updatedSeries);
+        if (colorByCategory && updatedSeries.color) {
+            handleSetAllCategoryColors(updatedSeries.color);
+        }
+    };
 
     return (
         <Stack spacing="md">
@@ -322,13 +348,16 @@ export const Series: FC<Props> = ({ items }) => {
                                                                 getSingleSeries
                                                             }
                                                             updateSingleSeries={
-                                                                updateSingleSeries
+                                                                colorByCategoryUpdateSingleSeries
                                                             }
                                                             dragHandleProps={
                                                                 dragHandleProps
                                                             }
                                                             isDragDisabled={
                                                                 sortedByPivot
+                                                            }
+                                                            showColorPickerIcon={
+                                                                colorByCategory
                                                             }
                                                         />
                                                     )}
