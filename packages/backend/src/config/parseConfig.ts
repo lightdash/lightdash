@@ -932,9 +932,6 @@ export type LightdashConfig = {
     groups: {
         enabled: boolean | undefined;
     };
-    adminChangeNotifications: {
-        enabled: boolean;
-    };
     persistentDownloadUrls: {
         enabled: boolean;
         expirationSeconds: number;
@@ -1802,9 +1799,6 @@ export const parseConfig = (): LightdashConfig => {
             enabled: process.env.GROUPS_ENABLED
                 ? process.env.GROUPS_ENABLED === 'true'
                 : undefined,
-        },
-        adminChangeNotifications: {
-            enabled: process.env.ADMIN_CHANGE_NOTIFICATIONS_ENABLED === 'true',
         },
         persistentDownloadUrls: {
             enabled: process.env.PERSISTENT_DOWNLOAD_URLS_ENABLED === 'true',
