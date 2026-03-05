@@ -15,6 +15,7 @@ import {
     FieldId,
     FieldReferenceError,
     ForbiddenError,
+    getCustomGroupOrderSql,
     getCustomGroupSelectSql,
     getCustomRangeSelectSql,
     getDateDimension,
@@ -823,16 +824,13 @@ export const getCustomBinDimensionSql = ({
                     );
                 }
 
-                const customGroupSql = `${getCustomGroupSelectSql({
+                selects[dimensionId] = `${getCustomGroupSelectSql({
                     binGroups: customDimension.customGroups,
                     baseDimensionSql: dimension.compiledSql,
                     warehouseSqlBuilder,
                 })} AS ${quotedDimensionName}`;
 
-                selects[dimensionId] = customGroupSql;
-
-                // Alphabetical ordering: use the group name itself as the sort key
-                selects[orderDimensionId] = `${getCustomGroupSelectSql({
+                selects[orderDimensionId] = `${getCustomGroupOrderSql({
                     binGroups: customDimension.customGroups,
                     baseDimensionSql: dimension.compiledSql,
                     warehouseSqlBuilder,

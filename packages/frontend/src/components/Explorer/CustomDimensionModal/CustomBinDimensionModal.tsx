@@ -120,7 +120,7 @@ export const CustomBinDimensionModal: FC<{
             customGroups: z.array(
                 z.object({
                     name: z.string().min(1),
-                    values: z.array(z.string()),
+                    values: z.array(z.string()).min(1),
                 }),
             ),
         }),

@@ -81,12 +81,15 @@ export const getCustomGroupSelectSql = ({
     const escapeChar = warehouseSqlBuilder.getEscapeStringQuoteChar();
 
     const escapeValue = (value: string) =>
-        value.replace(
-            new RegExp(`[${escapeChar}${quoteChar}]`, 'g'),
-            (char) => `${escapeChar}${char}`,
-        );
+        value
+            .split(escapeChar)
+            .join(`${escapeChar}${escapeChar}`)
+            .split(quoteChar)
+            .join(`${escapeChar}${quoteChar}`);
 
-    const groupWhens = binGroups.map((group) => {
+    const nonEmptyGroups = binGroups.filter((group) => group.values.length > 0);
+
+    const groupWhens = nonEmptyGroups.map((group) => {
         const inValues = group.values
             .map((v) => `${quoteChar}${escapeValue(v)}${quoteChar}`)
             .join(', ');
@@ -97,6 +100,45 @@ export const getCustomGroupSelectSql = ({
         `WHEN ${baseDimensionSql} IS NULL THEN NULL`,
         ...groupWhens,
         `ELSE ${quoteChar}Other${quoteChar}`,
+    ];
+
+    return `CASE
+            ${whens.join('\n')}
+            END`;
+};
+
+export const getCustomGroupOrderSql = ({
+    binGroups,
+    baseDimensionSql,
+    warehouseSqlBuilder,
+}: {
+    binGroups: BinGroup[];
+    baseDimensionSql: string;
+    warehouseSqlBuilder: WarehouseSqlBuilder;
+}) => {
+    const quoteChar = warehouseSqlBuilder.getStringQuoteChar();
+    const escapeChar = warehouseSqlBuilder.getEscapeStringQuoteChar();
+
+    const escapeValue = (value: string) =>
+        value
+            .split(escapeChar)
+            .join(`${escapeChar}${escapeChar}`)
+            .split(quoteChar)
+            .join(`${escapeChar}${quoteChar}`);
+
+    const nonEmptyGroups = binGroups.filter((group) => group.values.length > 0);
+
+    const groupWhens = nonEmptyGroups.map((group, index) => {
+        const inValues = group.values
+            .map((v) => `${quoteChar}${escapeValue(v)}${quoteChar}`)
+            .join(', ');
+        return `WHEN ${baseDimensionSql} IN (${inValues}) THEN ${index}`;
+    });
+
+    const whens = [
+        `WHEN ${baseDimensionSql} IS NULL THEN NULL`,
+        ...groupWhens,
+        `ELSE ${nonEmptyGroups.length}`,
     ];
 
     return `CASE
