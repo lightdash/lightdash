@@ -3643,6 +3643,7 @@ export default class SchedulerTask {
                     dashboardUuid,
                     dashboardFilters,
                     dateZoomGranularity,
+                    selectedTabs,
                     userUuid,
                     organizationUuid,
                     projectUuid,
@@ -3685,9 +3686,13 @@ export default class SchedulerTask {
 
                 const limit = pLimit(5);
 
+                const isInSelectedTab = (tile: { tabUuid?: string }) =>
+                    !selectedTabs || selectedTabs.includes(tile.tabUuid ?? '');
+
                 const chartTilePromises = dashboard.tiles
                     .filter(isDashboardChartTileType)
                     .filter((tile) => tile.properties.savedChartUuid)
+                    .filter(isInSelectedTab)
                     .map((tile) =>
                         limit(() =>
                             this.exportCsvForChartTile({
@@ -3706,6 +3711,7 @@ export default class SchedulerTask {
                 const sqlChartTilePromises = dashboard.tiles
                     .filter(isDashboardSqlChartTile)
                     .filter((tile) => !!tile.properties.savedSqlUuid)
+                    .filter(isInSelectedTab)
                     .map((tile) =>
                         limit(() =>
                             this.exportCsvForSqlChartTile({
