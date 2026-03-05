@@ -66,6 +66,7 @@ import {
     job,
     lightdashConfigWithNoSMTP,
     metricQueryMock,
+    preAggregateExplore,
     projectSummary,
     projectWithSensitiveFields,
     resultsWith1Row,
@@ -76,7 +77,10 @@ import {
 } from '../ProjectService/ProjectService.mock';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { AsyncQueryService } from './AsyncQueryService';
-import type { PreAggregationDuckDbClient } from './PreAggregationDuckDbClient';
+import {
+    PreAggregationDuckDbResolveReason,
+    type PreAggregationDuckDbClient,
+} from './PreAggregationDuckDbClient';
 import type {
     ExecuteAsyncQueryReturn,
     RunAsyncWarehouseQueryArgs,
@@ -240,7 +244,7 @@ const getMockedAsyncQueryService = (
         preAggregationDuckDbClient: {
             resolve: jest.fn(async () => ({
                 resolved: false as const,
-                reason: 'test_default_unresolved',
+                reason: PreAggregationDuckDbResolveReason.RESOLVE_ERROR,
             })),
         } as unknown as PreAggregationDuckDbClient,
         projectCompileLogModel: {} as ProjectCompileLogModel,
@@ -735,7 +739,7 @@ describe('AsyncQueryService', () => {
         test('does not resolve pre-aggregates when flag is disabled', async () => {
             const resolveSpy = jest.fn(async () => ({
                 resolved: false as const,
-                reason: 'should_not_be_called',
+                reason: PreAggregationDuckDbResolveReason.RESOLVE_ERROR,
             }));
             const service = getMockedAsyncQueryService({
                 ...lightdashConfigMock,
@@ -770,6 +774,7 @@ describe('AsyncQueryService', () => {
                     preAggregationRoute: {
                         sourceExploreName: metricQueryMock.exploreName,
                         preAggregateName: 'orders_daily',
+                        mode: 'opportunistic',
                     },
                     userAccessControls: {
                         userAttributes: {},
@@ -782,6 +787,283 @@ describe('AsyncQueryService', () => {
 
             expect(resolveSpy).not.toHaveBeenCalled();
             expect(runAsyncWarehouseQuerySpy).toHaveBeenCalledTimes(1);
+        });
+
+        test('required pre-aggregate routes do not fall back when DuckDB cannot resolve', async () => {
+            const resolveSpy = jest.fn(async () => ({
+                resolved: false as const,
+                reason: PreAggregationDuckDbResolveReason.NO_ACTIVE_MATERIALIZATION,
+            }));
+            const service = getMockedAsyncQueryService({
+                ...lightdashConfigMock,
+                preAggregates: {
+                    ...lightdashConfigMock.preAggregates,
+                    enabled: true,
+                },
+            });
+            (service as AnyType).preAggregationDuckDbClient = {
+                resolve: resolveSpy,
+            } as unknown as PreAggregationDuckDbClient;
+
+            (service.queryHistoryModel.create as jest.Mock).mockResolvedValue({
+                queryUuid: 'test-query-uuid',
+            });
+
+            const runAsyncWarehouseQuerySpy = jest
+                .spyOn(service, 'runAsyncWarehouseQuery')
+                .mockResolvedValue();
+
+            await service.executeAsyncQuery(
+                {
+                    account: sessionAccount,
+                    projectUuid,
+                    metricQuery: {
+                        ...metricQueryMock,
+                        exploreName: preAggregateExplore.name,
+                    },
+                    context: QueryExecutionContext.EXPLORE,
+                    dateZoom: undefined,
+                    queryTags: {
+                        query_context: QueryExecutionContext.EXPLORE,
+                    },
+                    explore: preAggregateExplore,
+                    invalidateCache: false,
+                    sql: 'SELECT * FROM test',
+                    fields: {},
+                    missingParameterReferences: [],
+                    preAggregationRoute: {
+                        ...preAggregateExplore.preAggregateSource!,
+                        mode: 'required',
+                    },
+                    userAccessControls: {
+                        userAttributes: {},
+                        intrinsicUserAttributes: {},
+                    },
+                    availableParameterDefinitions: {},
+                },
+                {
+                    query: {
+                        ...metricQueryMock,
+                        exploreName: preAggregateExplore.name,
+                    },
+                },
+            );
+
+            await new Promise(setImmediate);
+
+            expect(resolveSpy).toHaveBeenCalledTimes(1);
+            expect(runAsyncWarehouseQuerySpy).not.toHaveBeenCalled();
+            expect(service.queryHistoryModel.update).toHaveBeenCalledWith(
+                'test-query-uuid',
+                projectUuid,
+                {
+                    status: QueryHistoryStatus.ERROR,
+                    error: 'No active materialization found for pre-aggregate explore "__preagg__valid_explore__rollup"',
+                },
+                sessionAccount,
+            );
+        });
+
+        test('required pre-aggregate routes do not fall back when DuckDB execution fails', async () => {
+            const service = getMockedAsyncQueryService({
+                ...lightdashConfigMock,
+                preAggregates: {
+                    ...lightdashConfigMock.preAggregates,
+                    enabled: true,
+                },
+            });
+            (service as AnyType).preAggregationDuckDbClient = {
+                resolve: jest.fn(async () => ({
+                    resolved: true as const,
+                    query: 'SELECT * FROM duckdb_preagg',
+                    warehouseClient: warehouseClientMock,
+                })),
+            } as unknown as PreAggregationDuckDbClient;
+
+            (service.queryHistoryModel.create as jest.Mock).mockResolvedValue({
+                queryUuid: 'test-query-uuid',
+            });
+
+            const runAsyncWarehouseQuerySpy = jest
+                .spyOn(service, 'runAsyncWarehouseQuery')
+                .mockRejectedValueOnce(new Error('duckdb failed'));
+
+            await service.executeAsyncQuery(
+                {
+                    account: sessionAccount,
+                    projectUuid,
+                    metricQuery: {
+                        ...metricQueryMock,
+                        exploreName: preAggregateExplore.name,
+                    },
+                    context: QueryExecutionContext.EXPLORE,
+                    dateZoom: undefined,
+                    queryTags: {
+                        query_context: QueryExecutionContext.EXPLORE,
+                    },
+                    explore: preAggregateExplore,
+                    invalidateCache: false,
+                    sql: 'SELECT * FROM warehouse',
+                    fields: {},
+                    missingParameterReferences: [],
+                    preAggregationRoute: {
+                        ...preAggregateExplore.preAggregateSource!,
+                        mode: 'required',
+                    },
+                    userAccessControls: {
+                        userAttributes: {},
+                        intrinsicUserAttributes: {},
+                    },
+                    availableParameterDefinitions: {},
+                },
+                {
+                    query: {
+                        ...metricQueryMock,
+                        exploreName: preAggregateExplore.name,
+                    },
+                },
+            );
+
+            await new Promise(setImmediate);
+
+            expect(runAsyncWarehouseQuerySpy).toHaveBeenCalledTimes(1);
+            expect(runAsyncWarehouseQuerySpy).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    query: 'SELECT * FROM duckdb_preagg',
+                    warehouseClientOverride: warehouseClientMock,
+                }),
+            );
+        });
+
+        test('opportunistic pre-aggregate routes still fall back to the warehouse when DuckDB cannot resolve', async () => {
+            const resolveSpy = jest.fn(async () => ({
+                resolved: false as const,
+                reason: PreAggregationDuckDbResolveReason.NO_ACTIVE_MATERIALIZATION,
+            }));
+            const service = getMockedAsyncQueryService({
+                ...lightdashConfigMock,
+                preAggregates: {
+                    ...lightdashConfigMock.preAggregates,
+                    enabled: true,
+                },
+            });
+            (service as AnyType).preAggregationDuckDbClient = {
+                resolve: resolveSpy,
+            } as unknown as PreAggregationDuckDbClient;
+
+            (service.queryHistoryModel.create as jest.Mock).mockResolvedValue({
+                queryUuid: 'test-query-uuid',
+            });
+
+            const runAsyncWarehouseQuerySpy = jest
+                .spyOn(service, 'runAsyncWarehouseQuery')
+                .mockResolvedValue();
+
+            await service.executeAsyncQuery(
+                {
+                    account: sessionAccount,
+                    projectUuid,
+                    metricQuery: metricQueryMock,
+                    context: QueryExecutionContext.EXPLORE,
+                    dateZoom: undefined,
+                    queryTags: {
+                        query_context: QueryExecutionContext.EXPLORE,
+                    },
+                    explore: validExplore,
+                    invalidateCache: false,
+                    sql: 'SELECT * FROM warehouse',
+                    fields: {},
+                    missingParameterReferences: [],
+                    preAggregationRoute: {
+                        sourceExploreName: metricQueryMock.exploreName,
+                        preAggregateName: 'orders_daily',
+                        mode: 'opportunistic',
+                    },
+                    userAccessControls: {
+                        userAttributes: {},
+                        intrinsicUserAttributes: {},
+                    },
+                    availableParameterDefinitions: {},
+                },
+                { query: metricQueryMock },
+            );
+
+            await new Promise(setImmediate);
+
+            expect(resolveSpy).toHaveBeenCalledTimes(1);
+            expect(runAsyncWarehouseQuerySpy).toHaveBeenCalledTimes(1);
+            expect(runAsyncWarehouseQuerySpy).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    query: 'SELECT * FROM warehouse',
+                }),
+            );
+        });
+    });
+
+    describe('executeAsyncMetricQuery', () => {
+        test('attaches required pre-aggregate routing metadata for direct pre-aggregate explores', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            service.getExplore = jest
+                .fn()
+                .mockResolvedValue(preAggregateExplore);
+            (service as AnyType).getWarehouseCredentials = jest
+                .fn()
+                .mockResolvedValue(warehouseClientMock.credentials);
+            service.combineParameters = jest.fn().mockResolvedValue(undefined);
+            (service as AnyType).prepareMetricQueryAsyncQueryArgs = jest
+                .fn()
+                .mockResolvedValue({
+                    sql: 'SELECT * FROM duckdb_preagg',
+                    fields: {},
+                    warnings: [],
+                    parameterReferences: [],
+                    missingParameterReferences: [],
+                    usedParameters: {},
+                    responseMetricQuery: {
+                        ...metricQueryMock,
+                        exploreName: preAggregateExplore.name,
+                    },
+                    userAccessControls: {
+                        userAttributes: {},
+                        intrinsicUserAttributes: {},
+                    },
+                    availableParameterDefinitions: {},
+                });
+            service.executeAsyncQuery = jest.fn().mockResolvedValue({
+                queryUuid: 'queryUuid',
+                cacheMetadata: {
+                    cacheHit: false,
+                },
+            });
+
+            const result = await service.executeAsyncMetricQuery({
+                account: sessionAccount,
+                projectUuid,
+                metricQuery: {
+                    ...metricQueryMock,
+                    exploreName: preAggregateExplore.name,
+                },
+                context: QueryExecutionContext.EXPLORE,
+                invalidateCache: false,
+                dateZoom: undefined,
+                parameters: undefined,
+                pivotConfiguration: undefined,
+            });
+
+            expect(service.executeAsyncQuery).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    preAggregationRoute: {
+                        sourceExploreName: 'valid_explore',
+                        preAggregateName: 'rollup',
+                        mode: 'required',
+                    },
+                }),
+                expect.any(Object),
+            );
+            expect(result.cacheMetadata.preAggregate).toEqual({
+                hit: true,
+                name: 'rollup',
+            });
         });
     });
 

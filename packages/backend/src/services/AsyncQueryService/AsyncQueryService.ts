@@ -22,6 +22,7 @@ import {
     DownloadFileType,
     Explore,
     ExploreCompiler,
+    ExploreType,
     FieldType,
     findMatch,
     ForbiddenError,
@@ -143,7 +144,10 @@ import {
 } from '../ProjectService/resultsPagination';
 import { getPivotedColumns } from './getPivotedColumns';
 import { getUnpivotedColumns } from './getUnpivotedColumns';
-import type { PreAggregationDuckDbClient } from './PreAggregationDuckDbClient';
+import {
+    PreAggregationDuckDbClient,
+    PreAggregationDuckDbResolveReason,
+} from './PreAggregationDuckDbClient';
 import {
     ExecuteAsyncSqlQueryArgs,
     isExecuteAsyncDashboardSqlChartByUuid,
@@ -315,6 +319,26 @@ export class AsyncQueryService extends ProjectService {
         explore: Explore;
         context: QueryExecutionContext;
     }): PreAggregationRoutingDecision {
+        if (explore.type === ExploreType.PRE_AGGREGATE) {
+            if (!explore.preAggregateSource) {
+                throw new UnexpectedServerError(
+                    `Pre-aggregate explore "${explore.name}" is missing source metadata`,
+                );
+            }
+
+            return {
+                target: 'pre_aggregate',
+                preAggregateMetadata: {
+                    hit: true,
+                    name: explore.preAggregateSource.preAggregateName,
+                },
+                route: {
+                    ...explore.preAggregateSource,
+                    mode: 'required',
+                },
+            };
+        }
+
         if (
             !this.lightdashConfig.preAggregates.enabled ||
             (explore.preAggregates || []).length === 0
@@ -340,6 +364,7 @@ export class AsyncQueryService extends ProjectService {
                 route: {
                     sourceExploreName: metricQuery.exploreName,
                     preAggregateName: matchResult.preAggregateName,
+                    mode: 'opportunistic',
                 },
             };
         }
@@ -2155,51 +2180,110 @@ export class AsyncQueryService extends ProjectService {
                     };
 
                     void (async () => {
-                        const preAggResolution =
-                            this.lightdashConfig.preAggregates.enabled &&
-                            preAggregationRoute &&
-                            userAccessControls &&
-                            availableParameterDefinitions
-                                ? await this.preAggregationDuckDbClient.resolve(
-                                      {
-                                          projectUuid,
-                                          metricQuery,
-                                          dateZoom,
-                                          parameters,
-                                          preAggregationRoute,
-                                          fieldsMap,
-                                          pivotConfiguration,
-                                          startOfWeek:
-                                              warehouseCredentials.startOfWeek,
-                                          userAccessControls,
-                                          availableParameterDefinitions,
-                                      },
-                                  )
-                                : undefined;
+                        if (!preAggregationRoute) {
+                            await this.runAsyncWarehouseQuery(warehouseArgs);
+                            return;
+                        }
 
-                        if (preAggResolution?.resolved) {
-                            this.logger.info(
-                                `DuckDB pre-agg route selected for ${queryHistoryUuid}: ${preAggregationRoute!.sourceExploreName}/${preAggregationRoute!.preAggregateName}`,
+                        const isRequiredPreAggregationRoute =
+                            preAggregationRoute.mode === 'required';
+                        const isPreAggregationEnabled =
+                            this.lightdashConfig.preAggregates.enabled;
+                        const canResolvePreAggregation =
+                            isPreAggregationEnabled &&
+                            !!userAccessControls &&
+                            !!availableParameterDefinitions;
+
+                        const updateRequiredPreAggregationError = async (
+                            reason: PreAggregationDuckDbResolveReason,
+                        ) =>
+                            this.queryHistoryModel.update(
+                                queryHistoryUuid,
+                                projectUuid,
+                                {
+                                    status: QueryHistoryStatus.ERROR,
+                                    error: PreAggregationDuckDbClient.getPreAggregationResolutionErrorMessage(
+                                        {
+                                            route: preAggregationRoute,
+                                            reason,
+                                        },
+                                    ),
+                                },
+                                account,
                             );
-                            try {
-                                await this.runAsyncWarehouseQuery({
-                                    ...warehouseArgs,
-                                    query: preAggResolution.query,
-                                    warehouseClientOverride:
-                                        preAggResolution.warehouseClient,
-                                    warehouseCredentialsTypeOverride:
-                                        preAggResolution.warehouseClient
-                                            .credentials.type,
-                                });
-                            } catch (duckdbError) {
-                                this.logger.warn(
-                                    `DuckDB pre-agg execution failed for ${queryHistoryUuid}: ${getErrorMessage(duckdbError)}. Falling back to warehouse`,
-                                );
-                                await this.runAsyncWarehouseQuery(
-                                    warehouseArgs,
-                                );
+
+                        const handlePreAggregationMiss = async (
+                            reason: PreAggregationDuckDbResolveReason,
+                        ) => {
+                            if (isRequiredPreAggregationRoute) {
+                                await updateRequiredPreAggregationError(reason);
+                                return;
                             }
-                        } else {
+
+                            await this.runAsyncWarehouseQuery(warehouseArgs);
+                        };
+
+                        if (!isPreAggregationEnabled) {
+                            await handlePreAggregationMiss(
+                                PreAggregationDuckDbResolveReason.PRE_AGGREGATES_DISABLED,
+                            );
+                            return;
+                        }
+
+                        if (!canResolvePreAggregation) {
+                            await handlePreAggregationMiss(
+                                PreAggregationDuckDbResolveReason.RESOLVE_ERROR,
+                            );
+                            return;
+                        }
+
+                        const preAggResolution =
+                            await this.preAggregationDuckDbClient.resolve({
+                                projectUuid,
+                                metricQuery,
+                                dateZoom,
+                                parameters,
+                                preAggregationRoute,
+                                fieldsMap,
+                                pivotConfiguration,
+                                startOfWeek: warehouseCredentials.startOfWeek,
+                                userAccessControls,
+                                availableParameterDefinitions,
+                            });
+
+                        if (!preAggResolution?.resolved) {
+                            await handlePreAggregationMiss(
+                                preAggResolution?.reason ??
+                                    PreAggregationDuckDbResolveReason.RESOLVE_ERROR,
+                            );
+                            return;
+                        }
+
+                        this.logger.info(
+                            `DuckDB pre-agg route selected for ${queryHistoryUuid}: ${preAggregationRoute.sourceExploreName}/${preAggregationRoute.preAggregateName}`,
+                        );
+
+                        try {
+                            await this.runAsyncWarehouseQuery({
+                                ...warehouseArgs,
+                                query: preAggResolution.query,
+                                warehouseClientOverride:
+                                    preAggResolution.warehouseClient,
+                                warehouseCredentialsTypeOverride:
+                                    preAggResolution.warehouseClient.credentials
+                                        .type,
+                            });
+                        } catch (duckdbError) {
+                            if (isRequiredPreAggregationRoute) {
+                                this.logger.warn(
+                                    `DuckDB pre-agg execution failed for ${queryHistoryUuid}: ${getErrorMessage(duckdbError)}`,
+                                );
+                                return;
+                            }
+
+                            this.logger.warn(
+                                `DuckDB pre-agg execution failed for ${queryHistoryUuid}: ${getErrorMessage(duckdbError)}. Falling back to warehouse`,
+                            );
                             await this.runAsyncWarehouseQuery(warehouseArgs);
                         }
                     })().catch((e) => {

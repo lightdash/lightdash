@@ -427,6 +427,10 @@ export const buildPreAggregateExplore = (
             preAggregateDef.name,
         ),
         type: ExploreType.PRE_AGGREGATE,
+        preAggregateSource: {
+            sourceExploreName: sourceExplore.name,
+            preAggregateName: preAggregateDef.name,
+        },
         joinedTables: [],
         tables,
         preAggregates: [],
