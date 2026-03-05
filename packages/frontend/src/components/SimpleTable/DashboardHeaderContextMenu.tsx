@@ -4,16 +4,15 @@ import {
     type Field,
     type TableCalculation,
 } from '@lightdash/common';
-import { Menu } from '@mantine-8/core';
-import { ActionIcon, Flex, Text } from '@mantine/core';
+import { ActionIcon, Flex, Menu, Text } from '@mantine-8/core';
 import { IconCheck, IconChevronDown } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import {
-    SortDirection,
     getSortDirectionOrder,
     getSortIcon,
     getSortLabel,
+    SortDirection,
 } from '../../utils/sortUtils';
 import MantineIcon from '../common/MantineIcon';
 import { type HeaderProps, type TableColumn } from '../common/Table/types';

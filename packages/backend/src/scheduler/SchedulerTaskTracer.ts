@@ -34,6 +34,11 @@ const getTagsForTask: {
         'user.uuid': payload.userUuid,
         'project.uuid': payload.projectUuid,
     }),
+    [SCHEDULER_TASKS.SEND_GOOGLE_CHAT_NOTIFICATION]: (payload) => ({
+        'organization.uuid': payload.organizationUuid,
+        'user.uuid': payload.userUuid,
+        'project.uuid': payload.projectUuid,
+    }),
     [SCHEDULER_TASKS.SEND_EMAIL_NOTIFICATION]: (payload) => ({
         'organization.uuid': payload.organizationUuid,
         'user.uuid': payload.userUuid,
@@ -52,6 +57,11 @@ const getTagsForTask: {
         'project.uuid': payload.projectUuid,
     }),
     [SCHEDULER_TASKS.SEND_MSTEAMS_BATCH_NOTIFICATION]: (payload) => ({
+        'organization.uuid': payload.organizationUuid,
+        'user.uuid': payload.userUuid,
+        'project.uuid': payload.projectUuid,
+    }),
+    [SCHEDULER_TASKS.SEND_GOOGLE_CHAT_BATCH_NOTIFICATION]: (payload) => ({
         'organization.uuid': payload.organizationUuid,
         'user.uuid': payload.userUuid,
         'project.uuid': payload.projectUuid,
@@ -82,6 +92,11 @@ const getTagsForTask: {
     }),
 
     [SCHEDULER_TASKS.COMPILE_PROJECT]: (payload) => ({
+        'organization.uuid': payload.organizationUuid,
+        'user.uuid': payload.userUuid,
+        'project.uuid': payload.projectUuid,
+    }),
+    [SCHEDULER_TASKS.MATERIALIZE_PRE_AGGREGATE]: (payload) => ({
         'organization.uuid': payload.organizationUuid,
         'user.uuid': payload.userUuid,
         'project.uuid': payload.projectUuid,
@@ -172,6 +187,7 @@ const getTagsForTask: {
     }),
     [SCHEDULER_TASKS.GENERATE_SLACK_CHANNEL_SYNC_JOBS]: () => ({}),
     [SCHEDULER_TASKS.CHECK_FOR_STUCK_JOBS]: () => ({}),
+    [SCHEDULER_TASKS.CLEAN_DEPLOY_SESSIONS]: () => ({}),
 } as const;
 
 // Generic accessor function

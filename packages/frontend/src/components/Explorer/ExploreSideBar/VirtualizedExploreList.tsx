@@ -1,5 +1,5 @@
 import { type SummaryExplore } from '@lightdash/common';
-import { Divider, Text } from '@mantine/core';
+import { Divider, Text } from '@mantine-8/core';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { memo, useCallback, useMemo, useRef, useState, type FC } from 'react';
 import ExploreNavLink from './ExploreNavLink';
@@ -11,7 +11,6 @@ export type VirtualListItem =
           type: 'group-header';
           id: string;
           label: string;
-          explores: SummaryExplore[];
           isExpanded: boolean;
       }
     | {
@@ -28,6 +27,7 @@ interface VirtualizedExploreListProps {
     exploreGroupMap: Record<string, SummaryExplore[]>;
     defaultUngroupedExplores: SummaryExplore[];
     customUngroupedExplores: SummaryExplore[];
+    preAggregateExplores: SummaryExplore[];
     searchQuery: string;
     onExploreClick: (explore: SummaryExplore) => void;
 }
@@ -42,6 +42,7 @@ const VirtualizedExploreList: FC<VirtualizedExploreListProps> = ({
     exploreGroupMap,
     defaultUngroupedExplores,
     customUngroupedExplores,
+    preAggregateExplores,
     searchQuery,
     onExploreClick,
 }) => {
@@ -77,7 +78,6 @@ const VirtualizedExploreList: FC<VirtualizedExploreListProps> = ({
                 type: 'group-header',
                 id: `group-${itemId++}`,
                 label: groupLabel,
-                explores,
                 isExpanded,
             });
 
@@ -124,12 +124,34 @@ const VirtualizedExploreList: FC<VirtualizedExploreListProps> = ({
             }
         }
 
+        // Add pre-aggregates section if there are pre-aggregate explores
+        if (preAggregateExplores.length > 0) {
+            items.push({
+                type: 'divider',
+                id: `divider-${itemId++}`,
+            });
+            items.push({
+                type: 'section-header',
+                id: `section-${itemId++}`,
+                label: 'Pre-aggregates',
+            });
+
+            for (const explore of preAggregateExplores) {
+                items.push({
+                    type: 'explore',
+                    id: `pre-aggregate-${itemId++}`,
+                    explore,
+                });
+            }
+        }
+
         return items;
     }, [
         sortedGroupLabels,
         exploreGroupMap,
         defaultUngroupedExplores,
         customUngroupedExplores,
+        preAggregateExplores,
         expandedGroups,
     ]);
 

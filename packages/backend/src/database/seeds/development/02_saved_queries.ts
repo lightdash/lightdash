@@ -11,12 +11,19 @@ import {
 import { Knex } from 'knex';
 import { lightdashConfig } from '../../../config/lightdashConfig';
 import { SavedChartModel } from '../../../models/SavedChartModel';
+import { SpaceModel } from '../../../models/SpaceModel';
 
 export async function seed(knex: Knex): Promise<void> {
     const savedChartModel = new SavedChartModel({
         database: knex,
         lightdashConfig,
     });
+    const spaceModel = new SpaceModel({ database: knex });
+    const rootSpaces = await spaceModel.getRootSpaceUuidsForProject(
+        SEED_PROJECT.project_uuid,
+    );
+    const spaceUuid = rootSpaces[0];
+    if (!spaceUuid) throw new Error('No space found for seeding');
 
     // Deletes ALL existing entries
     await knex('saved_queries').del();
@@ -32,6 +39,7 @@ export async function seed(knex: Knex): Promise<void> {
         SEED_PROJECT.project_uuid,
         SEED_ORG_1_ADMIN.user_uuid,
         {
+            spaceUuid,
             slug: generateSlug(
                 'How much revenue do we have per payment method?',
             ),
@@ -106,6 +114,7 @@ export async function seed(knex: Knex): Promise<void> {
         SEED_PROJECT.project_uuid,
         SEED_ORG_1_ADMIN.user_uuid,
         {
+            spaceUuid,
             slug: generateSlug(`What's our total revenue to date?`),
 
             name: `What's our total revenue to date?`,
@@ -152,6 +161,7 @@ export async function seed(knex: Knex): Promise<void> {
         SEED_PROJECT.project_uuid,
         SEED_ORG_1_ADMIN.user_uuid,
         {
+            spaceUuid,
             slug: generateSlug(`How many orders we have over time ?`),
 
             name: 'How many orders we have over time ?',
@@ -227,6 +237,7 @@ export async function seed(knex: Knex): Promise<void> {
         SEED_PROJECT.project_uuid,
         SEED_ORG_1_ADMIN.user_uuid,
         {
+            spaceUuid,
             slug: generateSlug(`What's the average spend per customer?`),
 
             name: "What's the average spend per customer?",
@@ -284,6 +295,7 @@ export async function seed(knex: Knex): Promise<void> {
         SEED_PROJECT.project_uuid,
         SEED_ORG_1_ADMIN.user_uuid,
         {
+            spaceUuid,
             slug: generateSlug(
                 `Which customers have not recently ordered an item?`,
             ),
@@ -334,6 +346,7 @@ export async function seed(knex: Knex): Promise<void> {
         SEED_PROJECT.project_uuid,
         SEED_ORG_1_ADMIN.user_uuid,
         {
+            spaceUuid,
             slug: generateSlug(`How many orders did we get in June?`),
 
             name: 'How many orders did we get in June?',
@@ -391,6 +404,7 @@ export async function seed(knex: Knex): Promise<void> {
         SEED_PROJECT.project_uuid,
         SEED_ORG_1_ADMIN.user_uuid,
         {
+            spaceUuid,
             slug: generateSlug(
                 `How much revenue do we have per payment method each month?`,
             ),
@@ -459,6 +473,7 @@ export async function seed(knex: Knex): Promise<void> {
         SEED_PROJECT.project_uuid,
         SEED_ORG_1_ADMIN.user_uuid,
         {
+            spaceUuid,
             slug: generateSlug(`How many users were created each month ?`),
 
             name: 'How many users were created each month ?',
@@ -513,6 +528,7 @@ export async function seed(knex: Knex): Promise<void> {
         SEED_PROJECT.project_uuid,
         SEED_ORG_1_ADMIN.user_uuid,
         {
+            spaceUuid,
             slug: generateSlug(
                 `How do payment methods vary across different amount ranges?`,
             ),
@@ -595,6 +611,7 @@ export async function seed(knex: Knex): Promise<void> {
         SEED_PROJECT.project_uuid,
         SEED_ORG_1_ADMIN.user_uuid,
         {
+            spaceUuid,
             slug: generateSlug('Shipping counts by method'),
             name: 'Shipping counts by method',
             description: '',

@@ -114,7 +114,12 @@ describe('Dashboard', () => {
             .first()
             .scrollIntoView()
             .click();
-        cy.contains('View underlying data').click();
+        // Use findByRole to match only visible menu items in the accessibility tree.
+        // With Mantine v8 withinPortal, hidden dropdowns persist in the DOM -
+        // cy.contains() can match text in a different tile's hidden dropdown.
+        cy.findByRole('menuitem', { name: 'View underlying data' }).click({
+            force: true,
+        });
 
         cy.get('section[role="dialog"]').within(() => {
             // Metrics
@@ -140,8 +145,12 @@ describe('Dashboard', () => {
         cy.findByText('Create', { timeout: 10000 }).click();
 
         // Add Saved Chart
-        cy.findAllByText('Add tile').click({ multiple: true });
-        cy.findByText('Saved chart').click();
+        // Use findAllByRole + first() to handle both toolbar and empty state buttons.
+        // With Mantine v8, clicking multiple Menu triggers toggles open→closed.
+        cy.findAllByRole('button', { name: 'Add tile' }).first().click();
+        cy.findByRole('menuitem', { name: 'Saved chart' }).click({
+            force: true,
+        });
         cy.findByRole('dialog').findByPlaceholderText('Search...').click();
         // search
         cy.findByRole('dialog')
@@ -157,8 +166,10 @@ describe('Dashboard', () => {
         );
 
         // Create chart within dashboard
-        cy.findAllByText('Add tile').click({ multiple: true });
-        cy.findByText('New chart').click();
+        cy.findAllByRole('button', { name: 'Add tile' }).first().click();
+        cy.findByRole('menuitem', { name: /New chart/ }).click({
+            force: true,
+        });
         cy.findByText('You are creating this chart from within "Title"').should(
             'exist',
         );
@@ -198,9 +209,19 @@ describe('Dashboard', () => {
         // Filter should be applied and no other payment methods should be visible in the charts
         cy.contains('bank_transfer').should('have.length', 0);
 
+        // Save dashboard so that the filter persists across navigations
+        // (creating a chart within dashboard navigates away and back)
+        cy.findByText('Save changes').click();
+        cy.contains('Dashboard was updated');
+
+        // Re-enter edit mode
+        cy.findByLabelText('Edit dashboard').click();
+
         // Create another chart within dashboard
-        cy.findAllByText('Add tile').click({ multiple: true });
-        cy.findByText('New chart').click();
+        cy.findAllByRole('button', { name: 'Add tile' }).first().click();
+        cy.findByRole('menuitem', { name: /New chart/ }).click({
+            force: true,
+        });
         cy.findByText('You are creating this chart from within "Title"').should(
             'exist',
         );
@@ -246,9 +267,18 @@ describe('Dashboard', () => {
         cy.get('.react-grid-item').first().should('contain', 'bank_transfer');
         cy.contains('bank_transfer').should('have.length', 1);
 
+        // Save dashboard so that the filter target change persists across navigations
+        cy.findByText('Save changes').click();
+        cy.contains('Dashboard was updated');
+
+        // Re-enter edit mode
+        cy.findByLabelText('Edit dashboard').click();
+
         // Create new chart within dashboard, but reference another explore
-        cy.findAllByText('Add tile').click({ multiple: true });
-        cy.findByText('New chart').click();
+        cy.findAllByRole('button', { name: 'Add tile' }).first().click();
+        cy.findByRole('menuitem', { name: /New chart/ }).click({
+            force: true,
+        });
         cy.findByText('You are creating this chart from within "Title"').should(
             'exist',
         );
@@ -275,28 +305,22 @@ describe('Dashboard', () => {
             '[data-testid="DashboardFilterConfiguration/ChartTiles"] .mantine-Checkbox-body',
         ).should('have.length', 5); // 4 checkboxes for the 4 charts + `select all` checkbox
 
-        // Enable filter for the new chart
-        cy.get(
-            '[data-testid="DashboardFilterConfiguration/ChartTiles"] .mantine-Checkbox-body',
-        )
-            .eq(4)
-            .click();
-        cy.get(
-            '[data-testid="DashboardFilterConfiguration/ChartTiles"] .mantine-Checkbox-body',
-        )
-            .eq(4)
-            .within(() => {
-                cy.get('input').should('be.checked');
-            });
+        // Enable filter for the new chart (Stg payments - different explore)
+        // Checking the box auto-selects a default field via matchFieldByTypeAndName
         cy.get(
             '[data-testid="DashboardFilterConfiguration/ChartTiles"] [data-testid="tile-filter-item"]',
         )
-            .eq(3) // 4th tile (0-indexed), excludes "select all" checkbox
+            .contains('Stg Payments (payment method x amount)?')
+            .closest('[data-testid="tile-filter-item"]')
+            .find('.mantine-Checkbox-body')
+            .click();
+        cy.get(
+            '[data-testid="DashboardFilterConfiguration/ChartTiles"] [data-testid="tile-filter-item"]',
+        )
+            .contains('Stg Payments (payment method x amount)?')
+            .closest('[data-testid="tile-filter-item"]')
             .within(() => {
-                cy.get('input.mantine-Input-input').should(
-                    'have.value',
-                    'Stg payments Payment method',
-                );
+                cy.get('input[type="checkbox"]').should('be.checked');
             });
         cy.contains('button', 'Apply').click({ force: true });
 
@@ -306,8 +330,10 @@ describe('Dashboard', () => {
             .should('not.contain', 'bank_transfer');
 
         // Add Markdown tile
-        cy.findAllByText('Add tile').click();
-        cy.findByText('Markdown').click();
+        cy.findAllByRole('button', { name: 'Add tile' }).first().click();
+        cy.findByRole('menuitem', { name: 'Markdown' }).click({
+            force: true,
+        });
         cy.findByLabelText('Title').type('Title');
         cy.findByTestId('add-tile-form').find('textarea').type('Content');
         cy.findByText('Add').click();

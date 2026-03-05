@@ -1,8 +1,11 @@
 import {
+    convertProjectRoleToSpaceRole,
     defineUserAbility,
+    getHighestSpaceRole,
     OrganizationMemberRole,
     ProjectMemberRole,
     SpaceMemberRole,
+    type SpaceAccess,
 } from '@lightdash/common';
 
 type TestUserParams = {
@@ -26,7 +29,7 @@ type TestAccessParams = {
     spaceRole?: SpaceMemberRole | null;
     groupSpaceRole?: SpaceMemberRole | null;
     groupSpaceRoles?: SpaceMemberRole[];
-    isPrivate?: boolean;
+    inheritsFromOrgOrProject: boolean;
     spaceUuid?: string;
     userUuid?: string;
     organizationRole?: OrganizationMemberRole;
@@ -82,33 +85,78 @@ export const createTestSpace = ({
     isPrivate,
 });
 
-export const createSpaceAccessResponse = ({
-    spaceUuid = 'test-space-uuid',
+export const createSpaceAccessContext = ({
     userUuid = 'test-user-uuid',
+    organizationUuid = 'test-org-uuid',
+    projectUuid = 'test-project-uuid',
+    inheritsFromOrgOrProject,
     organizationRole = OrganizationMemberRole.MEMBER,
     projectRole,
     spaceRole = null,
     groupSpaceRole = null,
     groupSpaceRoles,
     projectGroupRoles = [],
-    isPrivate = true,
-}: TestAccessParams = {}) => ({
-    space_uuid: spaceUuid,
-    user_uuid: userUuid,
-    first_name: 'Test',
-    last_name: 'User',
-    email: 'test@lightdash.com',
-    is_private: isPrivate,
-    space_role: spaceRole,
-    // Have to copy logic from the select query waaaah
-    user_with_direct_access:
-        spaceRole !== null ||
-        groupSpaceRole !== null ||
-        groupSpaceRoles?.length,
-    // end biz logic
-    project_role: projectRole,
-    organization_role: organizationRole,
-    group_roles: projectGroupRoles,
-    space_group_roles:
-        groupSpaceRoles || (groupSpaceRole ? [groupSpaceRole] : []),
-});
+}: TestAccessParams & {
+    organizationUuid?: string;
+    projectUuid?: string;
+}): {
+    organizationUuid: string;
+    projectUuid: string;
+    inheritsFromOrgOrProject: boolean;
+    access: SpaceAccess[];
+} => {
+    // Compute effective space role (mirrors resolveSpaceAccess logic)
+    const allSpaceRoles = [
+        spaceRole,
+        groupSpaceRole,
+        ...(groupSpaceRoles ?? []),
+    ].filter((r): r is SpaceMemberRole => r !== null && r !== undefined);
+
+    const hasDirectAccess = allSpaceRoles.length > 0;
+
+    // Project admin always gets space admin
+    const isProjectAdmin = projectRole === ProjectMemberRole.ADMIN;
+    const isProjectAdminViaGroup = projectGroupRoles.includes(
+        ProjectMemberRole.ADMIN,
+    );
+
+    let effectiveRole: SpaceMemberRole | undefined;
+    if (isProjectAdmin || isProjectAdminViaGroup) {
+        effectiveRole = SpaceMemberRole.ADMIN;
+    } else if (hasDirectAccess) {
+        // User direct access takes priority over group access (mirrors resolveSpaceAccess)
+        if (spaceRole !== null && spaceRole !== undefined) {
+            effectiveRole = spaceRole;
+        } else {
+            const groupRoles = [
+                groupSpaceRole,
+                ...(groupSpaceRoles ?? []),
+            ].filter(
+                (r): r is SpaceMemberRole => r !== null && r !== undefined,
+            );
+            effectiveRole = getHighestSpaceRole(groupRoles);
+        }
+    } else if (inheritsFromOrgOrProject && projectRole) {
+        effectiveRole = convertProjectRoleToSpaceRole(projectRole);
+    }
+
+    const access: SpaceAccess[] = effectiveRole
+        ? [
+              {
+                  userUuid,
+                  role: effectiveRole,
+                  hasDirectAccess,
+                  inheritedFrom: hasDirectAccess ? undefined : 'project',
+                  projectRole: projectRole ?? undefined,
+                  inheritedRole: organizationRole,
+              },
+          ]
+        : [];
+
+    return {
+        organizationUuid,
+        projectUuid,
+        inheritsFromOrgOrProject,
+        access,
+    };
+};

@@ -1,5 +1,8 @@
 import type { WarehouseSqlBuilder } from '../types/warehouse';
 import {
+    AGGREGATE_FUNCTIONS,
+    buildTotalFieldRegex,
+    extractTotalReferences,
     parseTableCalculationFunctions,
     PIVOT_FUNCTIONS,
     ROW_FUNCTIONS,
@@ -215,7 +218,7 @@ describe('tableCalculationFunctions', () => {
                 );
                 if (result[0].type === TableCalculationFunctionType.OFFSET) {
                     expect(result[0].column).toBe('revenue');
-                    expect(result[0].rowOffset).toBe(-1);
+                    expect(result[0].rowOffset).toBe('-1');
                     expect(result[0].rawSql).toBe('offset(revenue, -1)');
                 }
             });
@@ -232,6 +235,77 @@ describe('tableCalculationFunctions', () => {
                 expect(result[1].type).toBe(
                     TableCalculationFunctionType.OFFSET,
                 );
+            });
+
+            it('should parse offset with dynamic expression', () => {
+                const sql = 'offset(revenue, ${y_oy_calculation_offset})';
+                const result = parseTableCalculationFunctions(sql);
+
+                expect(result).toHaveLength(1);
+                expect(result[0].type).toBe(
+                    TableCalculationFunctionType.OFFSET,
+                );
+                if (result[0].type === TableCalculationFunctionType.OFFSET) {
+                    expect(result[0].column).toBe('revenue');
+                    expect(result[0].rowOffset).toBe(
+                        '${y_oy_calculation_offset}',
+                    );
+                    expect(result[0].rawSql).toBe(
+                        'offset(revenue, ${y_oy_calculation_offset})',
+                    );
+                }
+            });
+
+            it('should parse offset with CASE expression', () => {
+                const sql = `offset(customers, CASE WHEN date_part='Month' THEN 12 ELSE 1 END)`;
+                const result = parseTableCalculationFunctions(sql);
+
+                expect(result).toHaveLength(1);
+                expect(result[0].type).toBe(
+                    TableCalculationFunctionType.OFFSET,
+                );
+                if (result[0].type === TableCalculationFunctionType.OFFSET) {
+                    expect(result[0].column).toBe('customers');
+                    expect(result[0].rowOffset).toBe(
+                        `CASE WHEN date_part='Month' THEN 12 ELSE 1 END`,
+                    );
+                }
+            });
+
+            it('should parse offset with nested parentheses in expression', () => {
+                const sql = 'offset(revenue, COALESCE(offset_var, ABS(-1)))';
+                const result = parseTableCalculationFunctions(sql);
+
+                expect(result).toHaveLength(1);
+                expect(result[0].type).toBe(
+                    TableCalculationFunctionType.OFFSET,
+                );
+                if (result[0].type === TableCalculationFunctionType.OFFSET) {
+                    expect(result[0].column).toBe('revenue');
+                    expect(result[0].rowOffset).toBe(
+                        'COALESCE(offset_var, ABS(-1))',
+                    );
+                    expect(result[0].rawSql).toBe(
+                        'offset(revenue, COALESCE(offset_var, ABS(-1)))',
+                    );
+                }
+            });
+
+            it('should parse multiple offsets with complex expressions', () => {
+                const sql =
+                    'offset(a, ROUND(b * 2)) + offset(c, IF(d > 0, 1, -1))';
+                const result = parseTableCalculationFunctions(sql);
+
+                expect(result).toHaveLength(2);
+                // Functions are parsed last to first
+                if (result[0].type === TableCalculationFunctionType.OFFSET) {
+                    expect(result[0].column).toBe('c');
+                    expect(result[0].rowOffset).toBe('IF(d > 0, 1, -1)');
+                }
+                if (result[1].type === TableCalculationFunctionType.OFFSET) {
+                    expect(result[1].column).toBe('a');
+                    expect(result[1].rowOffset).toBe('ROUND(b * 2)');
+                }
             });
         });
 
@@ -902,6 +976,34 @@ describe('tableCalculationFunctions', () => {
                         'revenue - LAG(revenue, 1) OVER (ORDER BY "date" ASC)',
                     );
                 });
+
+                it('should compile offset with dynamic expression', () => {
+                    const sql = 'offset(revenue, ${y_oy_calculation_offset})';
+                    const functions = parseTableCalculationFunctions(sql);
+                    const compiled = compiler.compileFunctions(
+                        sql,
+                        functions,
+                        '"date"',
+                    );
+                    // Dynamic offsets compile to LAG (assume looking backwards for period comparisons)
+                    expect(compiled).toBe(
+                        'LAG(revenue, ${y_oy_calculation_offset}) OVER (ORDER BY "date")',
+                    );
+                });
+
+                it('should compile offset with CASE expression', () => {
+                    const sql = `offset(customers, CASE WHEN period='Month' THEN 12 ELSE 1 END)`;
+                    const functions = parseTableCalculationFunctions(sql);
+                    const compiled = compiler.compileFunctions(
+                        sql,
+                        functions,
+                        '"date"',
+                    );
+                    // CASE expressions compile to LAG (assume looking backwards for period comparisons)
+                    expect(compiled).toBe(
+                        `LAG(customers, CASE WHEN period='Month' THEN 12 ELSE 1 END) OVER (ORDER BY "date")`,
+                    );
+                });
             });
 
             describe('index() compilation', () => {
@@ -1084,6 +1186,238 @@ describe('tableCalculationFunctions', () => {
             expect(PIVOT_FUNCTIONS).toContain(
                 TableCalculationFunctionType.PIVOT_WHERE,
             );
+        });
+
+        it('should include aggregate functions', () => {
+            expect(AGGREGATE_FUNCTIONS).toContain(
+                TableCalculationFunctionType.TOTAL,
+            );
+            expect(AGGREGATE_FUNCTIONS).toContain(
+                TableCalculationFunctionType.ROW_TOTAL,
+            );
+        });
+    });
+
+    describe('total parsing', () => {
+        it('should parse simple total call', () => {
+            const sql = 'total("revenue")';
+            const result = parseTableCalculationFunctions(sql);
+
+            expect(result).toHaveLength(1);
+            expect(result[0].type).toBe(TableCalculationFunctionType.TOTAL);
+            if (result[0].type === TableCalculationFunctionType.TOTAL) {
+                expect(result[0].expression).toBe('"revenue"');
+                expect(result[0].rawSql).toBe('total("revenue")');
+            }
+        });
+
+        it('should parse total with whitespace', () => {
+            const sql = 'total ( "orders_revenue" )';
+            const result = parseTableCalculationFunctions(sql);
+
+            expect(result).toHaveLength(1);
+            expect(result[0].type).toBe(TableCalculationFunctionType.TOTAL);
+            if (result[0].type === TableCalculationFunctionType.TOTAL) {
+                expect(result[0].expression).toBe('"orders_revenue"');
+            }
+        });
+
+        it('should parse multiple total calls', () => {
+            const sql =
+                '"revenue" / total("revenue") + "users" / total("users")';
+            const result = parseTableCalculationFunctions(sql);
+
+            const totalCalls = result.filter(
+                (f) => f.type === TableCalculationFunctionType.TOTAL,
+            );
+            expect(totalCalls).toHaveLength(2);
+        });
+
+        it('should not match row_total as total', () => {
+            const sql = 'row_total("revenue")';
+            const result = parseTableCalculationFunctions(sql);
+
+            const totalCalls = result.filter(
+                (f) => f.type === TableCalculationFunctionType.TOTAL,
+            );
+            expect(totalCalls).toHaveLength(0);
+
+            const rowTotalCalls = result.filter(
+                (f) => f.type === TableCalculationFunctionType.ROW_TOTAL,
+            );
+            expect(rowTotalCalls).toHaveLength(1);
+        });
+
+        it('should parse total with backtick-quoted field', () => {
+            const sql = 'total(`revenue`)';
+            const result = parseTableCalculationFunctions(sql);
+
+            expect(result).toHaveLength(1);
+            expect(result[0].type).toBe(TableCalculationFunctionType.TOTAL);
+            if (result[0].type === TableCalculationFunctionType.TOTAL) {
+                expect(result[0].expression).toBe('`revenue`');
+            }
+        });
+    });
+
+    describe('row_total parsing', () => {
+        it('should parse simple row_total call', () => {
+            const sql = 'row_total("count")';
+            const result = parseTableCalculationFunctions(sql);
+
+            expect(result).toHaveLength(1);
+            expect(result[0].type).toBe(TableCalculationFunctionType.ROW_TOTAL);
+            if (result[0].type === TableCalculationFunctionType.ROW_TOTAL) {
+                expect(result[0].expression).toBe('"count"');
+                expect(result[0].rawSql).toBe('row_total("count")');
+            }
+        });
+
+        it('should parse row_total with whitespace', () => {
+            const sql = 'row_total ( "unique_users" )';
+            const result = parseTableCalculationFunctions(sql);
+
+            expect(result).toHaveLength(1);
+            expect(result[0].type).toBe(TableCalculationFunctionType.ROW_TOTAL);
+            if (result[0].type === TableCalculationFunctionType.ROW_TOTAL) {
+                expect(result[0].expression).toBe('"unique_users"');
+            }
+        });
+
+        it('should parse both total and row_total in same expression', () => {
+            const sql = '"revenue" / total("revenue") + row_total("revenue")';
+            const result = parseTableCalculationFunctions(sql);
+
+            const totalCalls = result.filter(
+                (f) => f.type === TableCalculationFunctionType.TOTAL,
+            );
+            const rowTotalCalls = result.filter(
+                (f) => f.type === TableCalculationFunctionType.ROW_TOTAL,
+            );
+            expect(totalCalls).toHaveLength(1);
+            expect(rowTotalCalls).toHaveLength(1);
+        });
+
+        it('should parse total combined with offset', () => {
+            const sql = 'total("revenue") + offset("revenue", -1)';
+            const result = parseTableCalculationFunctions(sql);
+
+            const totalCalls = result.filter(
+                (f) => f.type === TableCalculationFunctionType.TOTAL,
+            );
+            const offsetCalls = result.filter(
+                (f) => f.type === TableCalculationFunctionType.OFFSET,
+            );
+            expect(totalCalls).toHaveLength(1);
+            expect(offsetCalls).toHaveLength(1);
+        });
+    });
+
+    describe('buildTotalFieldRegex', () => {
+        it('should match any quote char when no quoteChar specified', () => {
+            const { totalRegex, rowTotalRegex } = buildTotalFieldRegex();
+            expect('total("revenue")'.match(totalRegex)).toBeTruthy();
+            expect('total(`revenue`)'.match(totalRegex)).toBeTruthy();
+            expect("total('revenue')".match(totalRegex)).toBeTruthy();
+            expect('row_total("cost")'.match(rowTotalRegex)).toBeTruthy();
+            expect('row_total(`cost`)'.match(rowTotalRegex)).toBeTruthy();
+        });
+
+        it('should match only the specified quote char', () => {
+            const { totalRegex } = buildTotalFieldRegex('"');
+            expect('total("revenue")'.match(totalRegex)).toBeTruthy();
+            expect('total(`revenue`)'.match(totalRegex)).toBeNull();
+            expect("total('revenue')".match(totalRegex)).toBeNull();
+        });
+
+        it('should capture the field ID', () => {
+            const { totalRegex } = buildTotalFieldRegex('"');
+            totalRegex.lastIndex = 0;
+            const match = totalRegex.exec('total("my_field_id")');
+            expect(match?.[1]).toBe('my_field_id');
+        });
+
+        it('should handle backtick as quote char', () => {
+            const { totalRegex, rowTotalRegex } = buildTotalFieldRegex('`');
+            expect('total(`revenue`)'.match(totalRegex)).toBeTruthy();
+            expect('total("revenue")'.match(totalRegex)).toBeNull();
+            expect('row_total(`cost`)'.match(rowTotalRegex)).toBeTruthy();
+        });
+    });
+
+    describe('extractTotalReferences', () => {
+        it('should extract total field references', () => {
+            const result = extractTotalReferences([
+                {
+                    compiledSql: '"revenue" / total("revenue")',
+                },
+            ]);
+            expect(result.totalFields).toEqual(['revenue']);
+            expect(result.rowTotalFields).toEqual([]);
+        });
+
+        it('should extract row_total field references', () => {
+            const result = extractTotalReferences([
+                {
+                    compiledSql: 'row_total("unique_users")',
+                },
+            ]);
+            expect(result.totalFields).toEqual([]);
+            expect(result.rowTotalFields).toEqual(['unique_users']);
+        });
+
+        it('should extract both total and row_total references', () => {
+            const result = extractTotalReferences([
+                {
+                    compiledSql:
+                        '"revenue" / total("revenue") + row_total("count")',
+                },
+            ]);
+            expect(result.totalFields).toEqual(['revenue']);
+            expect(result.rowTotalFields).toEqual(['count']);
+        });
+
+        it('should deduplicate field references across table calcs', () => {
+            const result = extractTotalReferences([
+                { compiledSql: 'total("revenue")' },
+                { compiledSql: '"cost" / total("revenue")' },
+            ]);
+            expect(result.totalFields).toEqual(['revenue']);
+        });
+
+        it('should handle multiple distinct field references', () => {
+            const result = extractTotalReferences([
+                {
+                    compiledSql: 'total("revenue") + total("cost")',
+                },
+            ]);
+            expect(result.totalFields).toEqual(
+                expect.arrayContaining(['revenue', 'cost']),
+            );
+            expect(result.totalFields).toHaveLength(2);
+        });
+
+        it('should handle backtick-quoted fields', () => {
+            const result = extractTotalReferences([
+                { compiledSql: 'total(`revenue`)' },
+            ]);
+            expect(result.totalFields).toEqual(['revenue']);
+        });
+
+        it('should not match row_total as total', () => {
+            const result = extractTotalReferences([
+                { compiledSql: 'row_total("revenue")' },
+            ]);
+            expect(result.totalFields).toEqual([]);
+            expect(result.rowTotalFields).toEqual(['revenue']);
+        });
+
+        it('should return empty arrays when no totals present', () => {
+            const result = extractTotalReferences([
+                { compiledSql: '"revenue" * 2' },
+            ]);
+            expect(result.totalFields).toEqual([]);
+            expect(result.rowTotalFields).toEqual([]);
         });
     });
 });

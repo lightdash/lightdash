@@ -63,6 +63,7 @@ import { CatalogService } from '../../../services/CatalogService/CatalogService'
 import { CsvService } from '../../../services/CsvService/CsvService';
 import { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
+import { ShareService } from '../../../services/ShareService/ShareService';
 import { SpaceService } from '../../../services/SpaceService/SpaceService';
 import {
     doesExploreMatchRequiredAttributes,
@@ -83,6 +84,7 @@ import {
     FindContentFn,
     FindExploresFn,
     FindFieldFn,
+    GetExploreFn,
     RunAsyncQueryFn,
     SearchFieldValuesFn,
 } from '../ai/types/aiAgentDependencies';
@@ -90,6 +92,7 @@ import { AgentContext } from '../ai/utils/AgentContext';
 import { getPivotedResults } from '../ai/utils/getPivotedResults';
 import { populateCustomMetricsSQL } from '../ai/utils/populateCustomMetricsSQL';
 import { serializeData } from '../ai/utils/serializeData';
+import { AiOrganizationSettingsService } from '../AiOrganizationSettingsService';
 import {
     registerAppResource,
     registerAppTool,
@@ -117,11 +120,13 @@ type McpServiceArguments = {
     catalogService: CatalogService;
     projectModel: ProjectModel;
     projectService: ProjectService;
+    shareService: ShareService;
     userAttributesModel: UserAttributesModel;
     searchModel: SearchModel;
     spaceService: SpaceService;
     mcpContextModel: McpContextModel;
     featureFlagService: FeatureFlagService;
+    aiOrganizationSettingsService: AiOrganizationSettingsService;
 };
 
 export type ExtraContext = {
@@ -157,7 +162,11 @@ export class McpService extends BaseService {
 
     private mcpContextModel: McpContextModel;
 
+    private shareService: ShareService;
+
     private featureFlagService: FeatureFlagService;
+
+    private aiOrganizationSettingsService: AiOrganizationSettingsService;
 
     private mcpServer: McpServer;
 
@@ -169,12 +178,14 @@ export class McpService extends BaseService {
         asyncQueryService,
         catalogService,
         projectService,
+        shareService,
         userAttributesModel,
         searchModel,
         spaceService,
         projectModel,
         mcpContextModel,
         featureFlagService,
+        aiOrganizationSettingsService,
     }: McpServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -182,12 +193,14 @@ export class McpService extends BaseService {
         this.asyncQueryService = asyncQueryService;
         this.catalogService = catalogService;
         this.projectService = projectService;
+        this.shareService = shareService;
         this.userAttributesModel = userAttributesModel;
         this.searchModel = searchModel;
         this.projectModel = projectModel;
         this.spaceService = spaceService;
         this.mcpContextModel = mcpContextModel;
         this.featureFlagService = featureFlagService;
+        this.aiOrganizationSettingsService = aiOrganizationSettingsService;
         this.mcpCompatLayer = new McpSchemaCompatLayer();
         try {
             this.mcpServer = Sentry.wrapMcpServerWithSentry(
@@ -453,13 +466,14 @@ export class McpService extends BaseService {
                     projectUuid,
                 );
 
-                const findFields: FindFieldFn =
+                const { findFields, getExplore } =
                     await this.getFindFieldsFunction(
                         argsWithProject,
                         extra as McpProtocolContext,
                     );
 
                 const findFieldsTool = getFindFields({
+                    getExplore,
                     findFields,
                     updateProgress: async () => {}, // No-op for MCP context
                     pageSize: 15,
@@ -821,12 +835,14 @@ export class McpService extends BaseService {
                             ),
                     };
 
+                    const populatedAdditionalMetrics = populateCustomMetricsSQL(
+                        queryTool.customMetrics,
+                        explore,
+                    );
+
                     const results = await runAsyncQuery(
                         query,
-                        populateCustomMetricsSQL(
-                            queryTool.customMetrics,
-                            explore,
-                        ),
+                        populatedAdditionalMetrics,
                     );
 
                     if (results.rows.length === 0) {
@@ -900,7 +916,7 @@ export class McpService extends BaseService {
                             sorts: queryTool.queryConfig.sorts,
                             limit: query.limit,
                             filters: queryTool.filters ?? {},
-                            additionalMetrics: query.additionalMetrics,
+                            additionalMetrics: populatedAdditionalMetrics,
                             tableCalculations: query.tableCalculations,
                         },
                         tableConfig: {
@@ -925,7 +941,15 @@ export class McpService extends BaseService {
                     const exploreParams = `?create_saved_chart_version=${encodeURIComponent(
                         JSON.stringify(exploreConfigState),
                     )}&isExploreFromHere=true`;
-                    const exploreUrl = `${this.lightdashConfig.siteUrl}${explorePath}${exploreParams}`;
+
+                    const { user: mcpUser } = (extra as McpProtocolContext)
+                        .authInfo!.extra;
+                    const shareUrl = await this.shareService.createShareUrl(
+                        mcpUser,
+                        explorePath,
+                        exploreParams,
+                    );
+                    const exploreUrl = `${this.lightdashConfig.siteUrl}/share/${shareUrl.nanoid}`;
 
                     return {
                         content: [
@@ -1122,12 +1146,14 @@ export class McpService extends BaseService {
         projectUuid: string,
         availableTags: string[] | null,
         userAttributeOverrides?: UserAttributeValueMap,
+        exploreNames?: string[],
     ) {
         return wrapSentryTransaction(
             'AiAgent.getAvailableExplores',
             {
                 projectUuid,
                 availableTags,
+                exploreNames,
             },
             async () => {
                 const { organizationUuid } = user;
@@ -1149,6 +1175,7 @@ export class McpService extends BaseService {
                     await this.projectModel.findExploresFromCache(
                         projectUuid,
                         'name',
+                        exploreNames,
                     ),
                 );
 
@@ -1161,6 +1188,7 @@ export class McpService extends BaseService {
                         doesExploreMatchRequiredAttributes(
                             explore.tables[explore.baseTable]
                                 .requiredAttributes,
+                            explore.tables[explore.baseTable].anyAttributes,
                             userAttributes,
                         ),
                     )
@@ -1182,15 +1210,13 @@ export class McpService extends BaseService {
         exploreName: string,
         userAttributeOverrides?: UserAttributeValueMap,
     ) {
-        const explores = await this.getAvailableExplores(
+        const [explore] = await this.getAvailableExplores(
             user,
             projectUuid,
             availableTags,
             userAttributeOverrides,
+            [exploreName],
         );
-
-        const explore = explores.find((e) => e.name === exploreName);
-
         if (!explore) {
             throw new NotFoundError('Explore not found');
         }
@@ -1304,7 +1330,7 @@ export class McpService extends BaseService {
     async getFindFieldsFunction(
         toolArgs: Omit<ToolFindFieldsArgs, 'type'> & { projectUuid: string },
         context: McpProtocolContext,
-    ): Promise<FindFieldFn> {
+    ): Promise<{ findFields: FindFieldFn; getExplore: GetExploreFn }> {
         const { user, account } = context.authInfo!.extra;
         const { organizationUuid } = user;
         const { projectUuid } = toolArgs;
@@ -1338,16 +1364,17 @@ export class McpService extends BaseService {
         const userAttributeOverrides =
             await this.getUserAttributeOverridesFromContext(context);
 
+        const getExplore: GetExploreFn = async ({ table }) =>
+            this.getExplore(
+                user,
+                projectUuid,
+                tagsFromContext,
+                table,
+                userAttributeOverrides,
+            );
+
         const findFields: FindFieldFn = (args) =>
             wrapSentryTransaction('McpService.findFields', args, async () => {
-                const explore = await this.getExplore(
-                    user,
-                    projectUuid,
-                    tagsFromContext,
-                    args.table,
-                    userAttributeOverrides,
-                );
-
                 const { data: catalogItems, pagination } =
                     await this.catalogService.searchCatalog({
                         projectUuid,
@@ -1362,7 +1389,7 @@ export class McpService extends BaseService {
                         },
                         userAttributes,
                         fullTextSearchOperator: 'OR',
-                        filteredExplores: [explore],
+                        filteredExplores: [args.explore],
                     });
 
                 const catalogFields = catalogItems.filter(
@@ -1372,7 +1399,7 @@ export class McpService extends BaseService {
                 return { fields: catalogFields, pagination };
             });
 
-        return findFields;
+        return { findFields, getExplore };
     }
 
     async getFindContentFunction(
@@ -1653,7 +1680,7 @@ export class McpService extends BaseService {
         return true;
     }
 
-    // MCP is enabled if MCP_ENABLED is true OR if AI Copilot is enabled
+    // MCP is enabled if MCP_ENABLED is true, AI Copilot is enabled, or user is on trial
     public async isEnabled(
         user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
     ): Promise<boolean> {
@@ -1665,7 +1692,19 @@ export class McpService extends BaseService {
             user,
             featureFlagId: CommercialFeatureFlags.AiCopilot,
         });
-        return aiCopilotFlag.enabled;
+
+        if (aiCopilotFlag.enabled) {
+            return true;
+        }
+
+        if (!user.organizationUuid) {
+            return false;
+        }
+
+        return this.aiOrganizationSettingsService.isEligibleForTrial(
+            aiCopilotFlag.enabled,
+            user.organizationUuid,
+        );
     }
 
     public getLightdashVersion(context: McpProtocolContext): string {

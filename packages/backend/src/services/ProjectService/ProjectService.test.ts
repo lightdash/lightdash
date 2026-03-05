@@ -1,16 +1,19 @@
+import { Ability } from '@casl/ability';
 import {
     defineUserAbility,
     FilterOperator,
+    ForbiddenError,
     NotFoundError,
     OrganizationMemberRole,
     ParameterError,
     SessionUser,
     WarehouseTypes,
+    type PossibleAbilities,
 } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { S3CacheClient } from '../../clients/Aws/S3CacheClient';
-import { S3Client } from '../../clients/Aws/S3Client';
 import EmailClient from '../../clients/EmailClient/EmailClient';
+import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { type LightdashConfig } from '../../config/parseConfig';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
@@ -24,6 +27,7 @@ import { GroupsModel } from '../../models/GroupsModel';
 import { JobModel } from '../../models/JobModel/JobModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { OrganizationWarehouseCredentialsModel } from '../../models/OrganizationWarehouseCredentialsModel';
+import { PreAggregateModel } from '../../models/PreAggregateModel';
 import { ProjectCompileLogModel } from '../../models/ProjectCompileLogModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { ProjectParametersModel } from '../../models/ProjectParametersModel';
@@ -36,13 +40,14 @@ import { UserModel } from '../../models/UserModel';
 import { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseAvailableTablesModel } from '../../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
+import { metricQueryWithLimit } from '../../utils/csvLimitUtils';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import {
     METRIC_QUERY,
     warehouseClientMock,
 } from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
-import { metricQueryWithLimit } from '../../utils/csvLimitUtils';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
+import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { UserService } from '../UserService';
 import { ProjectService } from './ProjectService';
 import {
@@ -61,6 +66,7 @@ import {
     job,
     lightdashConfigWithNoSMTP,
     metricQueryMock,
+    preAggregateExplore,
     projectSummary,
     projectWithSensitiveFields,
     resultsWith1Row,
@@ -102,6 +108,12 @@ const projectModel = {
         runQuery: jest.fn(async () => resultsWith1Row),
     })),
     findExploreByTableName: jest.fn(async () => validExplore),
+    updateDefaultUserSpaces: jest.fn(async () => undefined),
+};
+const preAggregateModel = {
+    upsertPreAggregateDefinitions: jest.fn(),
+    getPreAggregateDefinitionsForProject: jest.fn(async () => []),
+    getPreAggregateDefinitionByName: jest.fn(async () => undefined),
 };
 const onboardingModel = {
     getByOrganizationUuid: jest.fn(async () => ({
@@ -123,11 +135,16 @@ const userAttributesModel = {
     getAttributeValuesForOrgMember: jest.fn(async () => ({})),
 };
 
+const schedulerClient = {
+    materializePreAggregate: jest.fn(async () => ({ jobId: 'job-1' })),
+};
+
 const getMockedProjectService = (lightdashConfig: LightdashConfig) =>
     new ProjectService({
         lightdashConfig,
         analytics: analyticsMock,
         projectModel: projectModel as unknown as ProjectModel,
+        preAggregateModel: preAggregateModel as unknown as PreAggregateModel,
         onboardingModel: onboardingModel as unknown as OnboardingModel,
         savedChartModel: savedChartModel as unknown as SavedChartModel,
         jobModel: jobModel as unknown as JobModel,
@@ -150,9 +167,9 @@ const getMockedProjectService = (lightdashConfig: LightdashConfig) =>
                 isVerified: true,
             }),
         } as unknown as EmailModel,
-        schedulerClient: {} as SchedulerClient,
+        schedulerClient: schedulerClient as unknown as SchedulerClient,
         downloadFileModel: {} as unknown as DownloadFileModel,
-        s3Client: {} as S3Client,
+        fileStorageClient: {} as FileStorageClient,
         groupsModel: {} as GroupsModel,
         tagsModel: {} as TagsModel,
         catalogModel: {} as CatalogModel,
@@ -169,12 +186,26 @@ const getMockedProjectService = (lightdashConfig: LightdashConfig) =>
         adminNotificationService: {
             notifyConnectionSettingsChange: jest.fn(async () => undefined),
         } as unknown as AdminNotificationService,
+        spacePermissionService: {} as SpacePermissionService,
     });
 
 const account = buildAccount({
     accountType: 'session',
     userType: 'registered',
 });
+const developerAccount = {
+    ...account,
+    user: {
+        ...account.user,
+        ability: new Ability<PossibleAbilities>([
+            { subject: 'Project', action: ['update', 'view'] },
+            { subject: 'Job', action: ['view'] },
+            { subject: 'SqlRunner', action: ['manage'] },
+            { subject: 'Explore', action: ['manage'] },
+            { subject: 'PreAggregation', action: ['manage'] },
+        ]),
+    },
+} as typeof account;
 
 describe('ProjectService', () => {
     const { projectUuid } = defaultProject;
@@ -634,6 +665,70 @@ describe('ProjectService', () => {
             expect(result[0].type).toEqual('virtual');
         });
 
+        test('should include pre-aggregate explores for developer users when requested', async () => {
+            const serviceWithPreAggregatesEnabled = getMockedProjectService({
+                ...lightdashConfigMock,
+                preAggregates: {
+                    ...lightdashConfigMock.preAggregates,
+                    enabled: true,
+                },
+            });
+            const exploresWithPreAggregates = [
+                ...allExplores,
+                preAggregateExplore,
+            ];
+            (
+                projectModel.getAllExploreSummaries as jest.Mock
+            ).mockImplementationOnce(async () =>
+                exploresWithPreAggregates.map(exploreToSummaryWithAttributes),
+            );
+
+            const result =
+                await serviceWithPreAggregatesEnabled.getAllExploresSummary(
+                    developerAccount,
+                    projectUuid,
+                    true,
+                    true,
+                    true,
+                );
+
+            expect(result.map((explore) => explore.name)).toContain(
+                preAggregateExplore.name,
+            );
+        });
+
+        test('should exclude pre-aggregate explores for non-developer users even when requested', async () => {
+            const serviceWithPreAggregatesEnabled = getMockedProjectService({
+                ...lightdashConfigMock,
+                preAggregates: {
+                    ...lightdashConfigMock.preAggregates,
+                    enabled: true,
+                },
+            });
+            const exploresWithPreAggregates = [
+                ...allExplores,
+                preAggregateExplore,
+            ];
+            (
+                projectModel.getAllExploreSummaries as jest.Mock
+            ).mockImplementationOnce(async () =>
+                exploresWithPreAggregates.map(exploreToSummaryWithAttributes),
+            );
+
+            const result =
+                await serviceWithPreAggregatesEnabled.getAllExploresSummary(
+                    account,
+                    projectUuid,
+                    true,
+                    true,
+                    true,
+                );
+
+            expect(result.map((explore) => explore.name)).not.toContain(
+                preAggregateExplore.name,
+            );
+        });
+
         test('should exclude explores when user does not have required attributes', async () => {
             const exploresWithRequiredAttrs = [
                 validExplore,
@@ -697,6 +792,52 @@ describe('ProjectService', () => {
             expect(result.map((e) => e.name)).toContain('valid_explore');
             expect(result.map((e) => e.name)).toContain(
                 'explore_with_required_attributes',
+            );
+        });
+    });
+
+    describe('getExplore', () => {
+        test('should allow developer users to get a pre-aggregate explore', async () => {
+            const serviceWithPreAggregatesEnabled = getMockedProjectService({
+                ...lightdashConfigMock,
+                preAggregates: {
+                    ...lightdashConfigMock.preAggregates,
+                    enabled: true,
+                },
+            });
+            (
+                projectModel.findExploresFromCache as jest.Mock
+            ).mockImplementationOnce(async () => [preAggregateExplore]);
+
+            const result = await serviceWithPreAggregatesEnabled.getExplore(
+                developerAccount,
+                projectUuid,
+                preAggregateExplore.name,
+            );
+
+            expect(result.name).toEqual(preAggregateExplore.name);
+        });
+
+        test('should not allow non-developer users to get a pre-aggregate explore', async () => {
+            const serviceWithPreAggregatesEnabled = getMockedProjectService({
+                ...lightdashConfigMock,
+                preAggregates: {
+                    ...lightdashConfigMock.preAggregates,
+                    enabled: true,
+                },
+            });
+            (
+                projectModel.findExploresFromCache as jest.Mock
+            ).mockImplementationOnce(async () => [preAggregateExplore]);
+
+            await expect(
+                serviceWithPreAggregatesEnabled.getExplore(
+                    account,
+                    projectUuid,
+                    preAggregateExplore.name,
+                ),
+            ).rejects.toThrow(
+                `Explore "${preAggregateExplore.name}" does not exist.`,
             );
         });
     });
@@ -904,6 +1045,230 @@ describe('ProjectService', () => {
                                         GROUP BY 1
                                         ORDER BY "a_dim1"
                                         LIMIT 10`),
+            );
+        });
+    });
+
+    describe('updateDefaultUserSpaces', () => {
+        test('should throw ForbiddenError when feature flag is disabled', async () => {
+            const serviceWithFeatureOff = getMockedProjectService({
+                ...lightdashConfigMock,
+                defaultUserSpaces: { enabled: false },
+            });
+
+            await expect(
+                serviceWithFeatureOff.updateDefaultUserSpaces(
+                    user,
+                    projectUuid,
+                    { hasDefaultUserSpaces: true },
+                ),
+            ).rejects.toThrowError(ForbiddenError);
+        });
+
+        test('should throw ForbiddenError when user cannot manage the project', async () => {
+            const serviceWithFeatureOn = getMockedProjectService({
+                ...lightdashConfigMock,
+                defaultUserSpaces: { enabled: true },
+            });
+
+            const viewerUser: SessionUser = {
+                ...user,
+                userUuid: 'viewer-uuid',
+                role: OrganizationMemberRole.VIEWER,
+                ability: defineUserAbility(
+                    {
+                        userUuid: 'viewer-uuid',
+                        role: OrganizationMemberRole.VIEWER,
+                        organizationUuid: 'organizationUuid',
+                    },
+                    [],
+                ),
+            };
+
+            await expect(
+                serviceWithFeatureOn.updateDefaultUserSpaces(
+                    viewerUser,
+                    projectUuid,
+                    { hasDefaultUserSpaces: true },
+                ),
+            ).rejects.toThrowError(ForbiddenError);
+        });
+
+        test('should delegate to projectModel when admin enables the feature', async () => {
+            const serviceWithFeatureOn = getMockedProjectService({
+                ...lightdashConfigMock,
+                defaultUserSpaces: { enabled: true },
+            });
+
+            const adminUser: SessionUser = {
+                ...user,
+                role: OrganizationMemberRole.ADMIN,
+                ability: defineUserAbility(
+                    {
+                        userUuid: user.userUuid,
+                        role: OrganizationMemberRole.ADMIN,
+                        organizationUuid: 'organizationUuid',
+                    },
+                    [],
+                ),
+            };
+
+            await serviceWithFeatureOn.updateDefaultUserSpaces(
+                adminUser,
+                projectUuid,
+                { hasDefaultUserSpaces: true },
+            );
+
+            expect(projectModel.updateDefaultUserSpaces).toHaveBeenCalledTimes(
+                1,
+            );
+            expect(projectModel.updateDefaultUserSpaces).toHaveBeenCalledWith(
+                projectUuid,
+                true,
+            );
+        });
+
+        test('should delegate to projectModel when admin disables the feature', async () => {
+            const serviceWithFeatureOn = getMockedProjectService({
+                ...lightdashConfigMock,
+                defaultUserSpaces: { enabled: true },
+            });
+
+            const adminUser: SessionUser = {
+                ...user,
+                role: OrganizationMemberRole.ADMIN,
+                ability: defineUserAbility(
+                    {
+                        userUuid: user.userUuid,
+                        role: OrganizationMemberRole.ADMIN,
+                        organizationUuid: 'organizationUuid',
+                    },
+                    [],
+                ),
+            };
+
+            await serviceWithFeatureOn.updateDefaultUserSpaces(
+                adminUser,
+                projectUuid,
+                { hasDefaultUserSpaces: false },
+            );
+
+            expect(projectModel.updateDefaultUserSpaces).toHaveBeenCalledTimes(
+                1,
+            );
+            expect(projectModel.updateDefaultUserSpaces).toHaveBeenCalledWith(
+                projectUuid,
+                false,
+            );
+        });
+    });
+
+    describe('pre-aggregate refreshes', () => {
+        const adminUser: SessionUser = {
+            ...user,
+            role: OrganizationMemberRole.ADMIN,
+            ability: defineUserAbility(
+                {
+                    userUuid: user.userUuid,
+                    role: OrganizationMemberRole.ADMIN,
+                    organizationUuid: 'organizationUuid',
+                },
+                [],
+            ),
+        };
+
+        test('refreshPreAggregates schedules only materializable definitions', async () => {
+            (
+                preAggregateModel.getPreAggregateDefinitionsForProject as jest.Mock
+            ).mockResolvedValue([
+                {
+                    preAggregateDefinitionUuid: 'def-valid',
+                    projectUuid,
+                    sourceCachedExploreUuid: 'source-1',
+                    preAggCachedExploreUuid: 'preagg-1',
+                    preAggregateDefinition: {
+                        name: 'valid',
+                        dimensions: ['orders.status'],
+                        metrics: ['orders.count'],
+                    },
+                    materializationMetricQuery: {
+                        metricQuery: METRIC_QUERY,
+                        metricComponents: {},
+                    },
+                    materializationQueryError: null,
+                    refreshCron: null,
+                    createdAt: new Date('2024-01-01'),
+                    updatedAt: new Date('2024-01-01'),
+                },
+                {
+                    preAggregateDefinitionUuid: 'def-invalid',
+                    projectUuid,
+                    sourceCachedExploreUuid: 'source-1',
+                    preAggCachedExploreUuid: 'preagg-2',
+                    preAggregateDefinition: {
+                        name: 'invalid',
+                        dimensions: ['orders.status'],
+                        metrics: ['orders.count'],
+                    },
+                    materializationMetricQuery: null,
+                    materializationQueryError: 'Unknown metric "orders.count"',
+                    refreshCron: null,
+                    createdAt: new Date('2024-01-01'),
+                    updatedAt: new Date('2024-01-01'),
+                },
+            ]);
+            (
+                schedulerClient.materializePreAggregate as jest.Mock
+            ).mockResolvedValueOnce({ jobId: 'job-valid' });
+
+            const result = await service.refreshPreAggregates(
+                adminUser,
+                projectUuid,
+            );
+
+            expect(result).toEqual({ jobIds: ['job-valid'] });
+            expect(
+                schedulerClient.materializePreAggregate,
+            ).toHaveBeenCalledTimes(1);
+            expect(
+                schedulerClient.materializePreAggregate,
+            ).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    preAggregateDefinitionUuid: 'def-valid',
+                    trigger: 'manual',
+                }),
+            );
+        });
+
+        test('refreshPreAggregateByName throws actionable error when definition is invalid', async () => {
+            (
+                preAggregateModel.getPreAggregateDefinitionByName as jest.Mock
+            ).mockResolvedValue({
+                preAggregateDefinitionUuid: 'def-invalid',
+                projectUuid,
+                sourceCachedExploreUuid: 'source-1',
+                preAggCachedExploreUuid: 'preagg-2',
+                preAggregateDefinition: {
+                    name: 'invalid',
+                    dimensions: ['orders.status'],
+                    metrics: ['orders.count'],
+                },
+                materializationMetricQuery: null,
+                materializationQueryError: 'Unknown metric "orders.count"',
+                refreshCron: null,
+                createdAt: new Date('2024-01-01'),
+                updatedAt: new Date('2024-01-01'),
+                preAggExploreName: 'orders__invalid',
+            });
+
+            await expect(
+                service.refreshPreAggregateByName(
+                    adminUser,
+                    projectUuid,
+                    'orders__invalid',
+                ),
+            ).rejects.toThrowError(
+                'Pre-aggregate explore "orders__invalid" cannot be materialized: Unknown metric "orders.count"',
             );
         });
     });

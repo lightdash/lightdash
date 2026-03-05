@@ -2,7 +2,7 @@ import {
     ChartContent,
     ContentSortByColumns,
     ContentType,
-    SummaryContent,
+    SummaryContentBase,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 
@@ -26,6 +26,9 @@ export type ContentFilters = {
     space?: {
         rootSpaces: boolean;
     };
+    deleted?: boolean;
+    deletedByUserUuids?: string[];
+    includeDescendantCounts?: boolean;
 };
 
 export type ContentArgs = {
@@ -59,6 +62,10 @@ export type SummaryContentRow<
     last_updated_by_user_last_name: string | null;
     views: number;
     first_viewed_at: Date | null;
+    deleted_at: Date | null;
+    deleted_by_user_uuid: string | null;
+    deleted_by_user_first_name: string | null;
+    deleted_by_user_last_name: string | null;
     metadata: T;
 };
 
@@ -68,5 +75,5 @@ export type ContentConfiguration<
     shouldQueryBeIncluded: (filters: ContentFilters) => boolean;
     getSummaryQuery: (knex: Knex, filters: ContentFilters) => Knex.QueryBuilder;
     shouldRowBeConverted: (value: SummaryContentRow) => value is T;
-    convertSummaryRow: (value: SummaryContentRow) => SummaryContent;
+    convertSummaryRow: (value: SummaryContentRow) => SummaryContentBase;
 };

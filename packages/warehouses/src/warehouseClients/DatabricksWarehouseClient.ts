@@ -35,11 +35,21 @@ import WarehouseBaseSqlBuilder from './WarehouseBaseSqlBuilder';
 /**
  * Pre-registered Databricks public OAuth client ID for U2M authentication.
  * This is a built-in client that doesn't require registering a custom OAuth app.
- * This client id only works on he CLI redirect URIs. For the UI we require a custom OAuth app
+ * This client id only works on the CLI redirect URIs. For the UI we require a custom OAuth app
  * with a valid whitelisted redirect URI.
  * https://docs.databricks.com/en/dev-tools/auth/oauth-u2m.html
  */
 export const DATABRICKS_DEFAULT_OAUTH_CLIENT_ID = 'databricks-cli';
+
+/** Client IDs that only work with CLI redirect URIs, not browser OAuth flows */
+const DATABRICKS_CLI_OAUTH_CLIENT_IDS = new Set([
+    'databricks-cli',
+    'dbt-databricks',
+]);
+
+export const isDatabricksCliOAuthClientId = (
+    clientId: string | undefined,
+): boolean => !!clientId && DATABRICKS_CLI_OAUTH_CLIENT_IDS.has(clientId);
 
 type SchemaResult = {
     TABLE_CAT: string;
@@ -619,6 +629,7 @@ export const refreshDatabricksOAuthToken = async (
     host: string,
     clientId: string,
     refreshToken: string,
+    clientSecret?: string,
 ): Promise<{
     accessToken: string;
     refreshToken: string;
@@ -626,16 +637,21 @@ export const refreshDatabricksOAuthToken = async (
 }> => {
     const tokenUrl = `https://${host}/oidc/v1/token`;
 
+    const params = new URLSearchParams({
+        grant_type: 'refresh_token',
+        refresh_token: refreshToken,
+        client_id: clientId,
+    });
+    if (clientSecret) {
+        params.set('client_secret', clientSecret);
+    }
+
     const response = await fetch(tokenUrl, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
         },
-        body: new URLSearchParams({
-            grant_type: 'refresh_token',
-            refresh_token: refreshToken,
-            client_id: clientId,
-        }).toString(),
+        body: params.toString(),
     });
 
     if (!response.ok) {

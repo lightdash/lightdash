@@ -14,16 +14,26 @@ export const projectMemberAbilities: Record<
     ) => void
 > = {
     viewer(member, { can }) {
+        // TODO: remove once we're confident that nobody is stuck on an old frontend version
         can('view', 'Dashboard', {
             projectUuid: member.projectUuid,
             isPrivate: false,
+        });
+        can('view', 'Dashboard', {
+            projectUuid: member.projectUuid,
+            inheritsFromOrgOrProject: true,
         });
         can('view', 'JobStatus', {
             createdByUserUuid: member.userUuid,
         });
+        // TODO: remove once we're confident that nobody is stuck on an old frontend version
         can('view', 'SavedChart', {
             projectUuid: member.projectUuid,
             isPrivate: false,
+        });
+        can('view', 'SavedChart', {
+            projectUuid: member.projectUuid,
+            inheritsFromOrgOrProject: true,
         });
         can('view', 'Dashboard', {
             projectUuid: member.projectUuid,
@@ -37,9 +47,14 @@ export const projectMemberAbilities: Record<
                 $elemMatch: { userUuid: member.userUuid },
             },
         });
+        // TODO: remove once we're confident that nobody is stuck on an old frontend version
         can('view', 'Space', {
             projectUuid: member.projectUuid,
             isPrivate: false,
+        });
+        can('view', 'Space', {
+            projectUuid: member.projectUuid,
+            inheritsFromOrgOrProject: true,
         });
         can('view', 'Space', {
             projectUuid: member.projectUuid,
@@ -159,9 +174,14 @@ export const projectMemberAbilities: Record<
         can('create', 'Space', {
             projectUuid: member.projectUuid,
         });
+        // TODO: remove once we're confident that nobody is stuck on an old frontend version
         can('manage', 'Space', {
             projectUuid: member.projectUuid,
             isPrivate: false,
+        });
+        can('manage', 'Space', {
+            projectUuid: member.projectUuid,
+            inheritsFromOrgOrProject: true,
         });
         can('manage', 'Job');
         can('manage', 'PinnedItems', {
@@ -185,6 +205,9 @@ export const projectMemberAbilities: Record<
     },
     developer(member, { can }) {
         projectMemberAbilities.editor(member, { can });
+        can('manage', 'PreAggregation', {
+            projectUuid: member.projectUuid,
+        });
         can('manage', 'VirtualView', {
             projectUuid: member.projectUuid,
         });
@@ -202,10 +225,20 @@ export const projectMemberAbilities: Record<
         });
         can('manage', 'SourceCode', {
             projectUuid: member.projectUuid,
+            isProtectedBranch: false, // Only allow writes when NOT writing to protected branch
         });
 
         can('manage', 'CompileProject', {
             projectUuid: member.projectUuid,
+        });
+
+        can('manage', 'DeployProject', {
+            projectUuid: member.projectUuid,
+        });
+        can('manage', 'DeployProject', {
+            projectUuid: member.projectUuid,
+            type: ProjectType.PREVIEW,
+            createdByUserUuid: member.userUuid,
         });
 
         can('delete', 'Project', {
@@ -274,6 +307,10 @@ export const projectMemberAbilities: Record<
         });
 
         can('manage', 'ScheduledDeliveries', {
+            projectUuid: member.projectUuid,
+        });
+
+        can('manage', 'DeletedContent', {
             projectUuid: member.projectUuid,
         });
     },

@@ -13,10 +13,13 @@ import {
     friendlyName,
     getErrorMessage,
     getLatestSupportDbtVersion,
+    GitBranch,
+    GitFileOrDirectory,
     GitIntegrationConfiguration,
     isUserWithOrg,
     ParameterError,
     ParseError,
+    ProjectType,
     PullRequestCreated,
     QueryExecutionContext,
     SavedChart,
@@ -429,6 +432,33 @@ Affected charts:
                 | DbtProjectType.GITHUB
                 | DbtProjectType.GITLAB,
         };
+    }
+
+    /**
+     * Get the protected branch for a project.
+     * For normal projects: the project's configured branch (e.g., "main")
+     * For preview projects: the upstream project's configured branch
+     */
+    private async getProtectedBranch(projectUuid: string): Promise<string> {
+        const project = await this.projectModel.getSummary(projectUuid);
+
+        if (
+            project.type === ProjectType.PREVIEW &&
+            project.upstreamProjectUuid
+        ) {
+            // Preview project: protected branch is upstream's configured branch
+            const upstream = await this.projectModel.get(
+                project.upstreamProjectUuid,
+            );
+            const upstreamConnection = upstream.dbtConnection as
+                | DbtGithubProjectConfig
+                | DbtGitlabProjectConfig;
+            return upstreamConnection.branch;
+        }
+
+        // Normal project: protected branch is this project's configured branch
+        const { branch } = await this.getProjectRepo(projectUuid);
+        return branch;
     }
 
     async getOrUpdateToken(organizationUuid: string) {
@@ -972,6 +1002,47 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
     }
 
     /**
+     * Get the file path for an explore's YAML file (without fetching content)
+     * Used for deep-linking to the source code editor
+     */
+    async getFilePathForExplore(
+        user: SessionUser,
+        projectUuid: string,
+        exploreName: string,
+    ): Promise<{ filePath: string }> {
+        if (
+            user.ability.cannot(
+                'view',
+                subject('SourceCode', {
+                    organizationUuid: user.organizationUuid!,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const explore = await this.projectModel.getExploreFromCache(
+            projectUuid,
+            exploreName,
+        );
+
+        if (!explore.ymlPath) {
+            throw new ParameterError(
+                'Your project needs to be compiled before accessing model files. Please refresh your project to fix this issue.',
+            );
+        }
+
+        const { path } = await this.getProjectRepo(projectUuid);
+
+        const fullPath = GitIntegrationService.removeExtraSlashes(
+            `${path}/${explore.ymlPath}`,
+        );
+
+        return { filePath: fullPath };
+    }
+
+    /**
      * Create a pull request with arbitrary file changes
      */
     async createPullRequestWithFileChange(
@@ -983,12 +1054,14 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
         prTitle: string,
         prDescription: string,
     ): Promise<PullRequestCreated> {
+        // PR creates its own feature branch, so always allow (isProtectedBranch: false)
         if (
             user.ability.cannot(
                 'manage',
                 subject('SourceCode', {
                     organizationUuid: user.organizationUuid!,
                     projectUuid,
+                    isProtectedBranch: false,
                 }),
             )
         ) {
@@ -1073,6 +1146,492 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
                 filePath,
                 fileSize: newContent.length,
                 gitProvider: gitProps.type,
+            },
+        });
+
+        return {
+            prTitle: pullRequest.title,
+            prUrl: pullRequest.html_url,
+        };
+    }
+
+    /**
+     * Get git credentials for a project (without generating a new branch name)
+     * This is used for read/write operations on existing branches
+     */
+    private async getGitCredentials(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<{
+        owner: string;
+        repo: string;
+        token: string;
+        installationId?: string;
+        hostDomain?: string;
+        type: DbtProjectType.GITHUB | DbtProjectType.GITLAB;
+    }> {
+        const { owner, repo, hostDomain, type } =
+            await this.getProjectRepo(projectUuid);
+        let token: string = '';
+        let installationId: string | undefined;
+
+        if (type === DbtProjectType.GITHUB) {
+            try {
+                installationId = await this.getInstallationId(user);
+                token = await this.getOrUpdateToken(user.organizationUuid!);
+            } catch {
+                const project =
+                    await this.projectModel.getWithSensitiveFields(projectUuid);
+                const connection =
+                    project.dbtConnection as DbtGithubProjectConfig;
+                token = connection.personal_access_token || '';
+                if (!token) {
+                    throw new ParameterError(
+                        'Invalid personal access token for GitHub project',
+                    );
+                }
+            }
+        } else if (type === DbtProjectType.GITLAB) {
+            const project =
+                await this.projectModel.getWithSensitiveFields(projectUuid);
+            const connection = project.dbtConnection as DbtGitlabProjectConfig;
+            token = connection.personal_access_token || '';
+            if (!token) {
+                throw new ParameterError(
+                    'Invalid personal access token for GitLab project',
+                );
+            }
+        } else {
+            throw new ParameterError(`Unsupported project type: ${type}`);
+        }
+
+        return {
+            owner,
+            repo,
+            token,
+            installationId,
+            hostDomain,
+            type,
+        };
+    }
+
+    /**
+     * List branches for a project's repository with protected status
+     */
+    async listBranchesForProject(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<GitBranch[]> {
+        if (
+            user.ability.cannot(
+                'view',
+                subject('SourceCode', {
+                    organizationUuid: user.organizationUuid!,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const creds = await this.getGitCredentials(user, projectUuid);
+
+        const getBranches =
+            creds.type === DbtProjectType.GITHUB
+                ? GithubClient.getBranches
+                : GitlabClient.getBranches;
+
+        const branches = await getBranches({
+            owner: creds.owner,
+            repo: creds.repo,
+            installationId: creds.installationId,
+            token: creds.token,
+            hostDomain: creds.hostDomain,
+        });
+
+        const protectedBranch = await this.getProtectedBranch(projectUuid);
+
+        return branches.map(
+            (branch: { name: string; protected?: boolean }) => ({
+                name: branch.name,
+                isProtected:
+                    (branch.protected ?? false) ||
+                    branch.name === protectedBranch,
+            }),
+        );
+    }
+
+    /**
+     * Get file content or directory listing
+     */
+    async getFileOrDirectory(
+        user: SessionUser,
+        projectUuid: string,
+        branch: string,
+        path?: string,
+    ): Promise<GitFileOrDirectory> {
+        if (
+            user.ability.cannot(
+                'view',
+                subject('SourceCode', {
+                    organizationUuid: user.organizationUuid!,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const creds = await this.getGitCredentials(user, projectUuid);
+        const targetPath = path || '';
+
+        // Try to get file content first
+        try {
+            const getFileContent =
+                creds.type === DbtProjectType.GITHUB
+                    ? GithubClient.getFileContent
+                    : GitlabClient.getFileContent;
+
+            const { content, sha } = await getFileContent({
+                fileName: targetPath,
+                owner: creds.owner,
+                repo: creds.repo,
+                branch,
+                installationId: creds.installationId,
+                token: creds.token,
+                hostDomain: creds.hostDomain,
+            });
+
+            return {
+                type: 'file',
+                content,
+                sha,
+                path: targetPath,
+            };
+        } catch (error) {
+            // If it's not a file, try as directory
+            if (error instanceof ParameterError) {
+                // "Path is not a directory" error from getFileContent means it's a file
+                throw error;
+            }
+        }
+
+        // Try to get directory contents
+        const getDirectoryContents =
+            creds.type === DbtProjectType.GITHUB
+                ? GithubClient.getDirectoryContents
+                : GitlabClient.getDirectoryContents;
+
+        const entries = await getDirectoryContents({
+            owner: creds.owner,
+            repo: creds.repo,
+            branch,
+            path: targetPath,
+            installationId: creds.installationId,
+            token: creds.token,
+            hostDomain: creds.hostDomain,
+        });
+
+        return {
+            type: 'directory',
+            entries: entries.map((entry) => ({
+                name: entry.name,
+                path: entry.path,
+                type: entry.type === 'dir' ? 'dir' : 'file',
+                size: entry.size,
+                sha: entry.sha,
+            })),
+        };
+    }
+
+    /**
+     * Save (create or update) a file in the repository
+     */
+    async saveFile(
+        user: SessionUser,
+        projectUuid: string,
+        branch: string,
+        path: string,
+        content: string,
+        sha?: string,
+        message?: string,
+    ): Promise<{ sha: string; path: string }> {
+        const protectedBranch = await this.getProtectedBranch(projectUuid);
+        const isProtectedBranch = branch === protectedBranch;
+
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('SourceCode', {
+                    organizationUuid: user.organizationUuid!,
+                    projectUuid,
+                    isProtectedBranch,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                `Cannot write to protected branch "${protectedBranch}". ` +
+                    `Please use a feature branch and submit changes via pull request.`,
+            );
+        }
+
+        const creds = await this.getGitCredentials(user, projectUuid);
+        const commitMessage =
+            message || (sha ? `Update ${path}` : `Create ${path}`);
+
+        if (sha) {
+            // Update existing file
+            const updateFile =
+                creds.type === DbtProjectType.GITHUB
+                    ? GithubClient.updateFile
+                    : GitlabClient.updateFile;
+
+            const response = await updateFile({
+                owner: creds.owner,
+                repo: creds.repo,
+                fileName: path,
+                content,
+                fileSha: sha,
+                branch,
+                message: commitMessage,
+                installationId: creds.installationId,
+                token: creds.token,
+                hostDomain: creds.hostDomain,
+            });
+
+            const newSha =
+                creds.type === DbtProjectType.GITHUB
+                    ? (response as { data: { content: { sha: string } } }).data
+                          .content.sha
+                    : sha; // GitLab doesn't return new SHA in same format
+
+            Logger.debug(
+                `Successfully updated file ${path} in ${creds.owner}/${creds.repo} (branch: ${branch})`,
+            );
+
+            return { sha: newSha, path };
+        }
+
+        // Create new file
+        const createFile =
+            creds.type === DbtProjectType.GITHUB
+                ? GithubClient.createFile
+                : GitlabClient.createFile;
+
+        const response = await createFile({
+            owner: creds.owner,
+            repo: creds.repo,
+            fileName: path,
+            content,
+            branch,
+            message: commitMessage,
+            installationId: creds.installationId,
+            token: creds.token,
+            hostDomain: creds.hostDomain,
+        });
+
+        const newSha =
+            creds.type === DbtProjectType.GITHUB
+                ? (response as { data: { content: { sha: string } } }).data
+                      .content.sha
+                : ''; // GitLab returns different structure
+
+        Logger.debug(
+            `Successfully created file ${path} in ${creds.owner}/${creds.repo} (branch: ${branch})`,
+        );
+
+        return { sha: newSha, path };
+    }
+
+    /**
+     * Delete a file from the repository
+     */
+    async deleteFileFromRepo(
+        user: SessionUser,
+        projectUuid: string,
+        branch: string,
+        path: string,
+        sha: string,
+        message?: string,
+    ): Promise<void> {
+        const protectedBranch = await this.getProtectedBranch(projectUuid);
+        const isProtectedBranch = branch === protectedBranch;
+
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('SourceCode', {
+                    organizationUuid: user.organizationUuid!,
+                    projectUuid,
+                    isProtectedBranch,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                `Cannot delete from protected branch "${protectedBranch}". ` +
+                    `Please use a feature branch and submit changes via pull request.`,
+            );
+        }
+
+        const creds = await this.getGitCredentials(user, projectUuid);
+        const commitMessage = message || `Delete ${path}`;
+
+        const deleteFile =
+            creds.type === DbtProjectType.GITHUB
+                ? GithubClient.deleteFile
+                : GitlabClient.deleteFile;
+
+        await deleteFile({
+            owner: creds.owner,
+            repo: creds.repo,
+            path,
+            sha,
+            branch,
+            message: commitMessage,
+            installationId: creds.installationId,
+            token: creds.token,
+            hostDomain: creds.hostDomain,
+        });
+
+        Logger.debug(
+            `Successfully deleted file ${path} in ${creds.owner}/${creds.repo} (branch: ${branch})`,
+        );
+    }
+
+    /**
+     * Create a new branch from a source branch
+     */
+    async createBranchFromSource(
+        user: SessionUser,
+        projectUuid: string,
+        branchName: string,
+        sourceBranch: string,
+    ): Promise<GitBranch> {
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('SourceCode', {
+                    organizationUuid: user.organizationUuid!,
+                    projectUuid,
+                    isProtectedBranch: false,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const creds = await this.getGitCredentials(user, projectUuid);
+
+        // Get the latest commit from the source branch
+        const getLastCommit =
+            creds.type === DbtProjectType.GITHUB
+                ? GithubClient.getLastCommit
+                : GitlabClient.getLastCommit;
+
+        const { sha: commitSha } = await getLastCommit({
+            owner: creds.owner,
+            repo: creds.repo,
+            branch: sourceBranch,
+            installationId: creds.installationId,
+            token: creds.token,
+            hostDomain: creds.hostDomain,
+        });
+
+        Logger.debug(
+            `Creating branch ${branchName} from ${sourceBranch} (commit: ${commitSha}) in ${creds.owner}/${creds.repo}`,
+        );
+
+        // Create the new branch
+        const createBranch =
+            creds.type === DbtProjectType.GITHUB
+                ? GithubClient.createBranch
+                : GitlabClient.createBranch;
+
+        await createBranch({
+            branch: branchName,
+            owner: creds.owner,
+            repo: creds.repo,
+            sha: commitSha,
+            installationId: creds.installationId,
+            token: creds.token,
+            hostDomain: creds.hostDomain,
+        });
+
+        Logger.debug(
+            `Successfully created branch ${branchName} in ${creds.owner}/${creds.repo}`,
+        );
+
+        return {
+            name: branchName,
+            isProtected: false, // Newly created branches are never protected
+        };
+    }
+
+    /**
+     * Create a pull request from a branch to the default branch
+     */
+    async createPullRequestFromBranch(
+        user: SessionUser,
+        projectUuid: string,
+        branch: string,
+        title: string,
+        description: string,
+    ): Promise<PullRequestCreated> {
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('SourceCode', {
+                    organizationUuid: user.organizationUuid!,
+                    projectUuid,
+                    isProtectedBranch: false,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const creds = await this.getGitCredentials(user, projectUuid);
+        const protectedBranch = await this.getProtectedBranch(projectUuid);
+
+        Logger.debug(
+            `Creating pull request from branch ${branch} to ${protectedBranch} in ${creds.owner}/${creds.repo}`,
+        );
+
+        const createPullRequest =
+            creds.type === DbtProjectType.GITHUB
+                ? GithubClient.createPullRequest
+                : GitlabClient.createPullRequest;
+
+        const fullDescription = `${description}
+
+Triggered by user ${user.firstName} ${user.lastName} (${user.email})
+
+🤖 Created with Lightdash`;
+
+        const pullRequest = await createPullRequest({
+            owner: creds.owner,
+            repo: creds.repo,
+            title,
+            body: fullDescription,
+            head: branch,
+            base: protectedBranch,
+            installationId: creds.installationId,
+            token: creds.token,
+        });
+
+        Logger.debug(
+            `Successfully created pull request #${pullRequest.number} in ${creds.owner}/${creds.repo}`,
+        );
+
+        this.analytics.track({
+            event: 'source_code.branch_pull_request_created',
+            userId: user.userUuid,
+            properties: {
+                organizationId: user.organizationUuid!,
+                projectId: projectUuid,
+                branch,
+                baseBranch: protectedBranch,
+                gitProvider: creds.type,
             },
         });
 

@@ -44,7 +44,6 @@ import {
     getCachedPivotConfig,
     getValidChartConfig,
 } from '../../../providers/Explorer/utils';
-
 import { calcColumnOrder } from './utils';
 
 export type ExplorerSliceState = ExplorerReduceState;

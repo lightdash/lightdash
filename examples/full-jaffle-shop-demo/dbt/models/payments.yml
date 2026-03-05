@@ -48,6 +48,19 @@ models:
         config:
           meta:
             metrics:
+              total_order_amount_deduped:
+                type: sum_distinct
+                sql: ${orders.amount}
+                distinct_keys: [orders.order_id]
+                description: "Total order amount without double-counting from multiple payments per order. Each order's amount is counted once regardless of how many payment rows exist."
+                format: usd
+                round: 2
+              total_order_amount_inflated:
+                type: sum
+                sql: ${orders.amount}
+                description: "Regular SUM of order amount — inflated by join fan-out when orders have multiple payments. Compare with total_order_amount_deduped to see the difference."
+                format: usd
+                round: 2
               total_revenue:
                 spotlight:
                   owner: demo2@lightdash.com

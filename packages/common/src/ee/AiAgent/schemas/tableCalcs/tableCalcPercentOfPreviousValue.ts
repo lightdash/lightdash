@@ -4,6 +4,8 @@ import {
     baseTableCalcSchema,
     orderBySchema,
     orderBySchemaDescription,
+    partitionBySchema,
+    partitionBySchemaDescription,
 } from './tableCalcBaseSchemas';
 
 export const tableCalcPercentOfPreviousValueSchema = baseTableCalcSchema.extend(
@@ -16,6 +18,10 @@ export const tableCalcPercentOfPreviousValueSchema = baseTableCalcSchema.extend(
             .array(orderBySchema)
             .min(1)
             .describe(orderBySchemaDescription),
+        partitionBy: z
+            .array(partitionBySchema)
+            .nullable()
+            .describe(partitionBySchemaDescription),
     },
 );
 

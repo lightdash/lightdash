@@ -29,10 +29,13 @@ export type DbDashboard = {
     slug: string;
     views_count: number;
     first_viewed_at: Date | null;
+    deleted_at: Date | null;
+    deleted_by_user_uuid: string | null;
 };
 
 type DbDashboardVersion = {
     dashboard_version_id: number;
+    dashboard_version_uuid: string;
     dashboard_id: number;
     created_at: Date;
     updated_by_user_uuid: string | undefined;
@@ -81,13 +84,19 @@ export type DashboardTable = Knex.CompositeTableType<
             | 'first_viewed_at'
             | 'space_id'
             | 'slug'
+            | 'deleted_at'
+            | 'deleted_by_user_uuid'
         >
     >
 >;
 
 export type DashboardVersionTable = Knex.CompositeTableType<
     DbDashboardVersion,
-    Pick<DbDashboardVersion, 'dashboard_id' | 'updated_by_user_uuid' | 'config'>
+    Pick<
+        DbDashboardVersion,
+        'dashboard_id' | 'updated_by_user_uuid' | 'config'
+    > &
+        Partial<Pick<DbDashboardVersion, 'dashboard_version_uuid'>>
 >;
 
 export type DashboardViewTable = Knex.CompositeTableType<

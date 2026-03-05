@@ -29,7 +29,6 @@ import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/
 import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../../common/Config';
 import styles from './TooltipConfig.module.css';
-
 import '../../../../styles/monaco.css';
 
 const MONACO_DEFAULT_OPTIONS: EditorProps['options'] = {

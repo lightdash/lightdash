@@ -21,7 +21,7 @@ import {
     IconSettings,
     IconSparkles,
 } from '@tabler/icons-react';
-import { type FC, useState } from 'react';
+import { useState, type FC } from 'react';
 import { Link, Navigate, Outlet, useParams } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { AgentSelector } from '../../features/aiCopilot/components/AgentSelector';
@@ -82,10 +82,10 @@ const AgentSidebar: FC<{
     threadUuid?: string;
     isAgentSidebarCollapsed: boolean;
 }> = ({ agent, projectUuid, threadUuid, isAgentSidebarCollapsed }) => {
-    const organizationSettingsQuery = useAiOrganizationSettings();
+    const aiOrganizationSettingsQuery = useAiOrganizationSettings();
     const isTrial =
-        organizationSettingsQuery.isSuccess &&
-        organizationSettingsQuery.data?.isTrial;
+        aiOrganizationSettingsQuery.isSuccess &&
+        aiOrganizationSettingsQuery.data.isTrial;
     const { data: threads } = useAiAgentThreads(projectUuid, agent.uuid);
     const [showMaxItems, setShowMaxItems] = useState(INITIAL_MAX_THREADS);
 

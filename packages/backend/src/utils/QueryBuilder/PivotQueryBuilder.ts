@@ -3,6 +3,7 @@ import {
     getItemId,
     getParsedReference,
     hasPivotFunctions,
+    isCustomBinDimension,
     isDimension,
     isSqlTableCalculation,
     isTableCalculation,
@@ -94,6 +95,53 @@ export class PivotQueryBuilder {
     }
 
     /**
+     * Returns the set of column references that are both custom bin dimensions
+     * AND have a sort entry in pivotConfiguration.sortBy.
+     * MetricQueryBuilder always generates an `_order` column for bin dimensions,
+     * but we only carry it through the pivot query when the bin is actively sorted.
+     */
+    private getSortedBinDimensionReferences(
+        columns: Array<{ reference: string }>,
+    ): Set<string> {
+        const sortedRefs = new Set(
+            this.pivotConfiguration.sortBy?.map((s) => s.reference) ?? [],
+        );
+        const result = new Set<string>();
+        for (const col of columns) {
+            if (
+                sortedRefs.has(col.reference) &&
+                isCustomBinDimension(this.itemsMap[col.reference])
+            ) {
+                result.add(col.reference);
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Replaces `"reference"` with `alias."reference"` in a sort expression.
+     * For custom bin dimensions, also replaces `"reference_order"` with `alias."reference_order"`.
+     */
+    private prefixSortExprWithAlias(
+        sortExpr: string,
+        reference: string,
+        alias: string,
+    ): string {
+        const q = this.warehouseSqlBuilder.getFieldQuoteChar();
+        let result = sortExpr.replaceAll(
+            `${q}${reference}${q}`,
+            `${alias}.${q}${reference}${q}`,
+        );
+        if (isCustomBinDimension(this.itemsMap[reference])) {
+            result = result.replaceAll(
+                `${q}${reference}_order${q}`,
+                `${alias}.${q}${reference}_order${q}`,
+            );
+        }
+        return result;
+    }
+
+    /**
      * Returns the SQL NULLS FIRST/LAST clause based on the nullsFirst flag.
      * @param nullsFirst Whether to sort nulls first (undefined means no clause)
      * @returns SQL clause string (' NULLS FIRST', ' NULLS LAST', or '')
@@ -119,6 +167,20 @@ export class PivotQueryBuilder {
         const q = this.warehouseSqlBuilder.getFieldQuoteChar();
         const field = this.itemsMap[reference];
         const nullsClause = PivotQueryBuilder.getNullsFirstLast(nullsFirst);
+
+        // Custom bin dimensions use a separate _order column for numeric sorting.
+        // MetricQueryBuilder always generates _order, but we only use it for
+        // ORDER BY in the pivot query when the dimension is explicitly sorted.
+        if (field && isCustomBinDimension(field)) {
+            const isSorted = this.pivotConfiguration.sortBy?.some(
+                (s) => s.reference === reference,
+            );
+            if (isSorted) {
+                return `${q}${reference}_order${q}${
+                    descending ? ' DESC' : ' ASC'
+                }${nullsClause}`;
+            }
+        }
 
         if (!field || !isDimension(field)) {
             return `${q}${reference}${q}${
@@ -258,6 +320,15 @@ export class PivotQueryBuilder {
             ...indexColumns.map((col) => `${q}${col.reference}${q}`),
         ];
 
+        // Carry _order columns through for sorted custom bin dimensions
+        const sortedBinRefs = this.getSortedBinDimensionReferences([
+            ...(groupByColumns || []),
+            ...indexColumns,
+        ]);
+        for (const ref of sortedBinRefs) {
+            groupBySelectDimensions.push(`${q}${ref}_order${q}`);
+        }
+
         const groupBySelectMetrics = [
             ...(valuesColumns ?? []).map((col) => {
                 const aggregationField = getAggregatedField(
@@ -348,7 +419,7 @@ export class PivotQueryBuilder {
                         metricFirstValueQueries[colAnchorCteName]
                     ) {
                         acc.push(
-                            `${colAnchorCteName}.${q}${colAnchorCteName}_value${q}${sortDirection}${nullsClause}`,
+                            `${q}${colAnchorCteName}${q}.${q}${colAnchorCteName}_value${q}${sortDirection}${nullsClause}`,
                         );
                     }
                     return acc;
@@ -362,10 +433,10 @@ export class PivotQueryBuilder {
                     sort?.direction === SortByDirection.DESC,
                     sort?.nullsFirst,
                 );
-                // Prefix with g. table alias
-                return sortExpr.replaceAll(
-                    `${q}${col.reference}${q}`,
-                    `g.${q}${col.reference}${q}`,
+                return this.prefixSortExprWithAlias(
+                    sortExpr,
+                    col.reference,
+                    'g',
                 );
             });
 
@@ -442,7 +513,7 @@ export class PivotQueryBuilder {
                         sort.nullsFirst,
                     );
                     orderByParts.push(
-                        `${rowAnchorCteName}.${q}${rowAnchorCteName}_value${q}${sortDirection}${nullsClause}`,
+                        `${q}${rowAnchorCteName}${q}.${q}${rowAnchorCteName}_value${q}${sortDirection}${nullsClause}`,
                     );
                 }
             } else if (isIndexColumn) {
@@ -452,10 +523,10 @@ export class PivotQueryBuilder {
                     sort.direction === SortByDirection.DESC,
                     sort.nullsFirst,
                 );
-                // Prefix with g. table alias
-                const prefixedExpr = sortExpr.replaceAll(
-                    `${q}${sort.reference}${q}`,
-                    `g.${q}${sort.reference}${q}`,
+                const prefixedExpr = this.prefixSortExprWithAlias(
+                    sortExpr,
+                    sort.reference,
+                    'g',
                 );
                 orderByParts.push(prefixedExpr);
             }
@@ -471,9 +542,10 @@ export class PivotQueryBuilder {
                     indexCol.reference,
                     false,
                 );
-                const prefixedExpr = sortExpr.replaceAll(
-                    `${q}${indexCol.reference}${q}`,
-                    `g.${q}${indexCol.reference}${q}`,
+                const prefixedExpr = this.prefixSortExprWithAlias(
+                    sortExpr,
+                    indexCol.reference,
+                    'g',
                 );
                 orderByParts.push(prefixedExpr);
             }
@@ -574,10 +646,10 @@ export class PivotQueryBuilder {
             const joinConditions = groupByColumns
                 .map(
                     (col) =>
-                        `g.${q}${col.reference}${q} = ${cteName}.${q}${col.reference}${q}`,
+                        `g.${q}${col.reference}${q} = ${q}${cteName}${q}.${q}${col.reference}${q}`,
                 )
                 .join(' AND ');
-            joins.push(`LEFT JOIN ${cteName} ON ${joinConditions}`);
+            joins.push(`LEFT JOIN ${q}${cteName}${q} ON ${joinConditions}`);
         });
 
         if (joins.length > 0) {
@@ -726,8 +798,9 @@ export class PivotQueryBuilder {
             sortBy,
         );
 
+        const q = this.warehouseSqlBuilder.getFieldQuoteChar();
         const columnAnchorCTEs = Object.values(columnAnchorQueries).map(
-            ({ cteName, sql }) => `${cteName} AS (${sql})`,
+            ({ cteName, sql }) => `${q}${cteName}${q} AS (${sql})`,
         );
 
         // Check if we need row anchor CTEs (only when sorting by a metric value AND have index columns)
@@ -770,7 +843,7 @@ export class PivotQueryBuilder {
                 sortBy,
             );
             rowAnchorCTEs = Object.values(rowAnchorQueries).map(
-                ({ cteName, sql }) => `${cteName} AS (${sql})`,
+                ({ cteName, sql }) => `${q}${cteName}${q} AS (${sql})`,
             );
         }
 
@@ -799,6 +872,60 @@ export class PivotQueryBuilder {
      * @param metricFirstValueQueries - Map of value column references to their CTE info
      * @returns SQL for the pivot_query CTE with ranking columns
      */
+
+    /**
+     * Generates the row_ranking CTE that computes row_index for each distinct
+     * index column combination. Isolates Window function + anchor value references
+     * in a self-contained CTE so Databricks/Spark can resolve them when inlining.
+     *
+     * @param indexColumns - Index columns for row identification
+     * @param valuesColumns - Value columns configuration
+     * @param sortBy - Sort configuration
+     * @param rowAnchorQueries - Row anchor CTEs to join with
+     * @returns SQL for the row_ranking CTE
+     */
+    private getRowRankingSQL(
+        indexColumns: ReturnType<typeof normalizeIndexColumns>,
+        valuesColumns: PivotConfiguration['valuesColumns'],
+        sortBy: PivotConfiguration['sortBy'],
+        rowAnchorQueries: Record<string, { cteName: string; sql: string }>,
+    ): string {
+        const q = this.warehouseSqlBuilder.getFieldQuoteChar();
+
+        const indexRefs = indexColumns
+            .map((col) => `g.${q}${col.reference}${q}`)
+            .join(', ');
+
+        // Reuse buildRowIndexOrderBy to get the same ORDER BY logic
+        const rowIndexOrderBy = this.buildRowIndexOrderBy(
+            indexColumns,
+            valuesColumns,
+            sortBy,
+            rowAnchorQueries,
+            q,
+        );
+
+        // Build FROM clause with JOINs for row anchor CTEs
+        let fromClause = 'group_by_query g';
+        const joins: string[] = [];
+
+        Object.values(rowAnchorQueries).forEach(({ cteName }) => {
+            const joinConditions = indexColumns
+                .map(
+                    (col) =>
+                        `g.${q}${col.reference}${q} = ${q}${cteName}${q}.${q}${col.reference}${q}`,
+                )
+                .join(' AND ');
+            joins.push(`LEFT JOIN ${q}${cteName}${q} ON ${joinConditions}`);
+        });
+
+        if (joins.length > 0) {
+            fromClause += ` ${joins.join(' ')}`;
+        }
+
+        return `SELECT DISTINCT ${indexRefs}, DENSE_RANK() OVER (ORDER BY ${rowIndexOrderBy}) AS ${q}row_index${q} FROM ${fromClause}`;
+    }
+
     private getPivotQuerySQL(
         indexColumns: ReturnType<typeof normalizeIndexColumns>,
         valuesColumns: PivotConfiguration['valuesColumns'],
@@ -808,10 +935,63 @@ export class PivotQueryBuilder {
             string,
             { cteName: string; sql: string }
         >,
+        usePrecomputedRankings: boolean = false,
     ): string {
         const q = this.warehouseSqlBuilder.getFieldQuoteChar();
 
-        // Build base table and joins
+        const selectReferences = [
+            ...indexColumns.map((col) => `g.${q}${col.reference}${q}`),
+            ...groupByColumns.map((col) => `g.${q}${col.reference}${q}`),
+            ...(valuesColumns || []).map((col) => {
+                const fieldName = PivotQueryBuilder.getValueColumnFieldName(
+                    col.reference,
+                    col.aggregation,
+                );
+                return `g.${q}${fieldName}${q}`;
+            }),
+        ];
+
+        if (usePrecomputedRankings) {
+            // Join with precomputed row_ranking and column_ranking CTEs.
+            // This avoids Window functions in pivot_query — anchor column references
+            // stay isolated in the ranking CTEs where Databricks/Spark can resolve
+            // them within each CTE's self-contained scope.
+            let fromClause = 'group_by_query g';
+            const joins: string[] = [];
+
+            if (indexColumns.length > 0) {
+                const rowRankJoinConditions = indexColumns
+                    .map(
+                        (col) =>
+                            `g.${q}${col.reference}${q} = rr.${q}${col.reference}${q}`,
+                    )
+                    .join(' AND ');
+                joins.push(
+                    `LEFT JOIN row_ranking rr ON ${rowRankJoinConditions}`,
+                );
+            }
+
+            const colRankJoinConditions = groupByColumns
+                .map(
+                    (col) =>
+                        `g.${q}${col.reference}${q} = cr.${q}${col.reference}${q}`,
+                )
+                .join(' AND ');
+            joins.push(
+                `LEFT JOIN column_ranking cr ON ${colRankJoinConditions}`,
+            );
+
+            if (joins.length > 0) {
+                fromClause += ` ${joins.join(' ')}`;
+            }
+
+            const rowIndexExpression =
+                indexColumns.length > 0 ? `rr.${q}row_index${q}` : '1';
+
+            return `SELECT ${selectReferences.join(', ')}, ${rowIndexExpression} AS ${q}row_index${q}, cr.${q}col_idx${q} AS ${q}column_index${q} FROM ${fromClause}`;
+        }
+
+        // Original path: compute rankings inline with Window functions
         let fromClause = 'group_by_query g';
         const joins: string[] = [];
 
@@ -825,38 +1005,28 @@ export class PivotQueryBuilder {
                     const joinConditions = indexColumns
                         .map(
                             (col) =>
-                                `g.${q}${col.reference}${q} = ${cteName}.${q}${col.reference}${q}`,
+                                `g.${q}${col.reference}${q} = ${q}${cteName}${q}.${q}${col.reference}${q}`,
                         )
                         .join(' AND ');
-                    joins.push(`LEFT JOIN ${cteName} ON ${joinConditions}`);
+                    joins.push(
+                        `LEFT JOIN ${q}${cteName}${q} ON ${joinConditions}`,
+                    );
                 }
             } else if (cteName.endsWith('_column_anchor')) {
                 // Join on group columns for column anchor CTEs
                 const joinConditions = groupByColumns
                     .map(
                         (col) =>
-                            `g.${q}${col.reference}${q} = ${cteName}.${q}${col.reference}${q}`,
+                            `g.${q}${col.reference}${q} = ${q}${cteName}${q}.${q}${col.reference}${q}`,
                     )
                     .join(' AND ');
-                joins.push(`LEFT JOIN ${cteName} ON ${joinConditions}`);
+                joins.push(`LEFT JOIN ${q}${cteName}${q} ON ${joinConditions}`);
             }
         });
 
         if (joins.length > 0) {
             fromClause += ` ${joins.join(' ')}`;
         }
-
-        const selectReferences = [
-            ...indexColumns.map((col) => `g.${q}${col.reference}${q}`),
-            ...groupByColumns.map((col) => `g.${q}${col.reference}${q}`),
-            ...(valuesColumns || []).map((col) => {
-                const fieldName = PivotQueryBuilder.getValueColumnFieldName(
-                    col.reference,
-                    col.aggregation,
-                );
-                return `g.${q}${fieldName}${q}`;
-            }),
-        ];
 
         // Build ORDER BY for row_index - should only consider index columns, not groupBy columns
         const rowIndexOrderBy = this.buildRowIndexOrderBy(
@@ -972,7 +1142,8 @@ export class PivotQueryBuilder {
                 '', // todo: explore base table
             );
             const fieldId = getItemId({ table: refTable, name: refName });
-            return fieldAliasMap[fieldId] || fullmatch;
+            // First field match, second table calculation match, fallback
+            return fieldAliasMap[fieldId] || fieldAliasMap[ref] || fullmatch;
         });
     }
 
@@ -1018,12 +1189,37 @@ export class PivotQueryBuilder {
             sortBy,
         );
 
+        // When metric sorting with index columns is active (needsRowAnchor),
+        // compute rankings in separate CTEs instead of inline Window functions.
+        // This prevents Databricks/Spark from failing when it inlines CTEs and
+        // can't resolve anchor column references in Window ORDER BY clauses.
+        const needsPrecomputedRankings =
+            columnRankingCTE !== null && indexColumns.length > 0;
+
+        let rowRankingCTE: string | null = null;
+        if (needsPrecomputedRankings) {
+            // Extract only row anchor queries for the row_ranking CTE
+            const rowAnchorQueries = Object.fromEntries(
+                Object.entries(metricFirstValueQueries).filter(([key]) =>
+                    key.endsWith('_row_anchor'),
+                ),
+            );
+            const rowRankingSQL = this.getRowRankingSQL(
+                indexColumns,
+                valuesColumnsWithoutPivotTableCalculations,
+                sortBy,
+                rowAnchorQueries,
+            );
+            rowRankingCTE = `row_ranking AS (${rowRankingSQL})`;
+        }
+
         const pivotQuery = this.getPivotQuerySQL(
             indexColumns,
             valuesColumnsWithoutPivotTableCalculations,
             groupByColumns,
             sortBy,
             metricFirstValueQueries,
+            needsPrecomputedRankings,
         );
 
         let maxColumnsPerValueColumnSql = '';
@@ -1051,8 +1247,9 @@ export class PivotQueryBuilder {
         // 2. column anchor CTEs (for column ordering)
         // 3. column_ranking, anchor_column (for metric-based row sorting - identifies first pivot column)
         // 4. row anchor CTEs (uses anchor_column to get metric value at first column only)
-        // 5. pivot_query, filtered_rows, total_columns
-        // 6. pivot_table_calculations (if there are any pivot table calculations)
+        // 5. row_ranking (when precomputed rankings are used)
+        // 6. pivot_query, filtered_rows, total_columns
+        // 7. pivot_table_calculations (if there are any pivot table calculations)
         const ctes = [
             `original_query AS (${userSql})`,
             `group_by_query AS (${groupByQuery})`,
@@ -1060,6 +1257,7 @@ export class PivotQueryBuilder {
             ...(columnRankingCTE ? [columnRankingCTE] : []),
             ...(anchorColumnCTE ? [anchorColumnCTE] : []),
             ...rowAnchorCTEs,
+            ...(rowRankingCTE ? [rowRankingCTE] : []),
             `pivot_query AS (${pivotQuery})`,
         ];
 

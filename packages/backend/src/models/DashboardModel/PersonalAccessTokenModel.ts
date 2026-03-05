@@ -101,7 +101,7 @@ export class PersonalAccessTokenModel {
         };
     }
 
-    /* 
+    /*
     Generates a new token and saves it
     */
     async create(
@@ -117,7 +117,7 @@ export class PersonalAccessTokenModel {
         });
     }
 
-    /* 
+    /*
     Save an already generated token
     it might be provided by the user, or generated automatically on this.create
     */

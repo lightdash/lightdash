@@ -1,19 +1,20 @@
 import {
-    ProjectMemberRole,
     type GroupRole,
     type OrganizationRole,
+    type ProjectMemberRole,
     type ProjectRole,
     type SpaceGroupAccessRole,
 } from '../../types/projectMemberRole';
 import {
     DirectSpaceAccessOrigin,
     ProjectSpaceAccessOrigin,
-    SpaceMemberRole,
+    type ChainSpaceDirectAccess,
     type DirectSpaceAccess,
     type OrganizationSpaceAccess,
     type ProjectSpaceAccess,
-    type SpaceAccessInput,
-    type SpaceShare,
+    type SpaceAccess,
+    type SpaceAccessWithInheritanceInput,
+    type SpaceMemberRole,
 } from '../../types/space';
 import {
     convertOrganizationRoleToProjectRole,
@@ -22,16 +23,6 @@ import {
     getHighestProjectRole,
     getHighestSpaceRole,
 } from '../../utils/projectMemberRole';
-
-export type SpaceAccess = Pick<
-    SpaceShare,
-    | 'userUuid'
-    | 'role'
-    | 'hasDirectAccess'
-    | 'inheritedFrom'
-    | 'projectRole'
-    | 'inheritedRole'
->;
 
 const getUserOrganizationRole = (
     organizationAccess: OrganizationSpaceAccess[],
@@ -101,35 +92,47 @@ const getUserDirectGroupAccess = (
 };
 
 const getSpaceRole = (
-    highestRole: ProjectMemberRole,
-    userDirectAccess: DirectSpaceAccess[],
-    isPrivate: boolean,
-): SpaceMemberRole | undefined => {
-    const userAccessEntries = userDirectAccess.filter(
-        (a) => a.from === DirectSpaceAccessOrigin.USER_ACCESS,
-    );
-    const groupAccessEntries = userDirectAccess.filter(
-        (a) => a.from === DirectSpaceAccessOrigin.GROUP_ACCESS,
-    );
-
-    const hasDirectAccess = userDirectAccess.length > 0;
-
-    if (highestRole === ProjectMemberRole.ADMIN) {
-        return SpaceMemberRole.ADMIN;
+    highestProjectRole: ProjectMemberRole,
+    userUuid: string,
+    chainDirectAccess: ChainSpaceDirectAccess[],
+    leafSpaceUuid: string,
+    inheritsFromOrgOrProject: boolean,
+): { role: SpaceMemberRole; fromParent: boolean } | undefined => {
+    // Collect all direct access entries for this user across the entire chain
+    const allUserEntries: { role: SpaceMemberRole; spaceUuid: string }[] = [];
+    for (const chainLevel of chainDirectAccess) {
+        for (const access of chainLevel.directAccess) {
+            if (access.userUuid === userUuid) {
+                allUserEntries.push({
+                    role: access.role,
+                    spaceUuid: chainLevel.spaceUuid,
+                });
+            }
+        }
     }
-    if (hasDirectAccess) {
-        // If user has explicit user role in space, use that; otherwise use highest group role
-        const userSpaceRole =
-            userAccessEntries.length > 0
-                ? userAccessEntries[0].role
-                : undefined;
-        return (
-            userSpaceRole ??
-            getHighestSpaceRole(groupAccessEntries.map((e) => e.role))
+
+    if (allUserEntries.length > 0) {
+        // Most permissive wins: highest role across all chain levels, all origins
+        const highestDirectRole = getHighestSpaceRole(
+            allUserEntries.map((e) => e.role),
         );
+        if (!highestDirectRole) return undefined;
+
+        // Check if the winning role came from a parent space (not the leaf)
+        const winningEntry = allUserEntries.find(
+            (e) => e.role === highestDirectRole,
+        );
+        const fromParent = winningEntry?.spaceUuid !== leafSpaceUuid;
+
+        return { role: highestDirectRole, fromParent };
     }
-    if (!isPrivate) {
-        return convertProjectRoleToSpaceRole(highestRole);
+
+    // No direct access anywhere in chain — fall through to project/org inheritance
+    if (inheritsFromOrgOrProject) {
+        return {
+            role: convertProjectRoleToSpaceRole(highestProjectRole),
+            fromParent: false, // not from a parent space — access is from org/project level
+        };
     }
 
     return undefined;
@@ -137,22 +140,31 @@ const getSpaceRole = (
 
 const resolveUserSpaceAccess = (
     userUuid: string,
-    input: SpaceAccessInput,
+    input: SpaceAccessWithInheritanceInput,
 ): SpaceAccess | undefined => {
-    const { isPrivate, directAccess, projectAccess, organizationAccess } =
-        input;
+    const {
+        spaceUuid,
+        inheritsFromOrgOrProject,
+        chainDirectAccess,
+        projectAccess,
+        organizationAccess,
+    } = input;
+
+    // Step 1: Compute highest project-level role (same as existing logic)
     const organizationRole = getUserOrganizationRole(
         organizationAccess,
         userUuid,
     );
     const projectRole = getUserProjectRole(projectAccess, userUuid);
     const groupRoles = getUserProjectGroupRoles(projectAccess, userUuid);
+
+    // Flatten all direct access for group role computation at project level
+    const allDirectAccess = chainDirectAccess.flatMap((c) => c.directAccess);
     const spaceGroupAccessRoles = getUserDirectGroupAccess(
-        directAccess,
+        allDirectAccess,
         userUuid,
     );
 
-    // Compute highest role across all sources
     const highestRole = getHighestProjectRole([
         organizationRole,
         projectRole,
@@ -162,39 +174,57 @@ const resolveUserSpaceAccess = (
 
     if (!highestRole) return undefined;
 
-    const userDirectAccess = directAccess.filter(
-        (a) => a.userUuid === userUuid,
-    );
-
-    const spaceRole = getSpaceRole(
+    // Step 2: Compute effective space role using "most permissive wins"
+    const spaceRoleResult = getSpaceRole(
         highestRole.role,
-        userDirectAccess,
-        isPrivate,
+        userUuid,
+        chainDirectAccess,
+        spaceUuid,
+        inheritsFromOrgOrProject,
     );
-    if (!spaceRole) return undefined;
+    if (!spaceRoleResult) return undefined;
 
-    // Compute highest project role (org + direct project membership only)
+    // Step 3: Determine hasDirectAccess (leaf space only)
+    const leafLevel = chainDirectAccess.find((c) => c.spaceUuid === spaceUuid);
+    const hasDirectAccess = leafLevel
+        ? leafLevel.directAccess.some((a) => a.userUuid === userUuid)
+        : false;
+
+    // Step 4: Compute projectRole metadata (org + direct project only)
     const highestProjectRole = getHighestProjectRole([
         organizationRole,
         projectRole,
     ]);
 
+    // Step 5: Determine inheritedFrom — use chain-wide check (not leaf-only)
+    const hasAccessInChain = allDirectAccess.some(
+        (a) => a.userUuid === userUuid,
+    );
+    const inheritedFrom: SpaceAccess['inheritedFrom'] =
+        hasAccessInChain && spaceRoleResult.fromParent
+            ? 'parent_space'
+            : highestRole.type;
+
     return {
         userUuid,
-        role: spaceRole,
-        hasDirectAccess: userDirectAccess.length > 0,
+        role: spaceRoleResult.role,
+        hasDirectAccess,
         inheritedRole: highestRole.role,
-        inheritedFrom: highestRole.type,
+        inheritedFrom,
         projectRole: highestProjectRole?.role,
     };
 };
 
-export const resolveSpaceAccess = (input: SpaceAccessInput): SpaceAccess[] => {
-    const { directAccess, projectAccess, organizationAccess } = input;
+export const resolveSpaceAccess = (
+    input: SpaceAccessWithInheritanceInput,
+): SpaceAccess[] => {
+    const { chainDirectAccess, projectAccess, organizationAccess } = input;
+
+    const allDirectAccess = chainDirectAccess.flatMap((c) => c.directAccess);
 
     // Collect all unique user UUIDs
     const uniqueUserUuids = new Set(
-        [...directAccess, ...projectAccess, ...organizationAccess].map(
+        [...allDirectAccess, ...projectAccess, ...organizationAccess].map(
             (e) => e.userUuid,
         ),
     );

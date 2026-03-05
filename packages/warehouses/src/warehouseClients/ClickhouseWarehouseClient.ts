@@ -227,20 +227,24 @@ export class ClickhouseWarehouseClient extends WarehouseBaseClient<CreateClickho
         },
     ): Promise<void> {
         try {
-            let alteredQuery = sql;
+            // Build clickhouse_settings with optional timezone and log_comment for query tags
+            const clickhouseSettings: Record<string, string> = {};
+            if (options?.timezone) {
+                clickhouseSettings.timezone = options.timezone;
+            }
             if (options?.tags) {
-                alteredQuery = `${alteredQuery}\n-- ${JSON.stringify(
-                    options?.tags,
-                )}`;
+                // Use native log_comment setting - persists in system.query_log
+                clickhouseSettings.log_comment = JSON.stringify(options.tags);
             }
 
             const resultSet = await this.client.query({
-                query: alteredQuery,
+                query: sql,
                 format: 'JSONCompactEachRowWithNamesAndTypes',
                 query_params: options?.queryParams,
-                clickhouse_settings: options?.timezone
-                    ? { timezone: options.timezone }
-                    : undefined,
+                clickhouse_settings:
+                    Object.keys(clickhouseSettings).length > 0
+                        ? clickhouseSettings
+                        : undefined,
             });
 
             const columnNames: string[] = [];

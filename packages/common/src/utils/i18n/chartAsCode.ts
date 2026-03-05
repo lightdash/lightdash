@@ -90,6 +90,7 @@ const chartAsCodeSchema = z.object({
                 .object({
                     label: z.string().optional(),
                     comparisonLabel: z.string().optional(),
+                    comparisonField: z.string().optional(),
                 })
                 .nullable()
                 .optional()

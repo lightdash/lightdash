@@ -46,7 +46,7 @@ import {
     useSchedulerRuns,
     useSendNowSchedulerByUuid,
 } from '../../features/scheduler/hooks/useScheduler';
-import LoadingState from '../common/LoadingState';
+import EmptyStateLoader from '../common/EmptyStateLoader';
 import MantineIcon from '../common/MantineIcon';
 import { LogsTopToolbar } from './LogsTopToolbar';
 import RunDetailsModal from './RunDetailsModal';
@@ -656,7 +656,7 @@ const LogsTable: FC<LogsTableProps> = ({
     });
 
     if (isLoading) {
-        return <LoadingState title="Loading run history" />;
+        return <EmptyStateLoader my="xl" title="Loading run history" />;
     }
 
     return (

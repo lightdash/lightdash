@@ -24,7 +24,6 @@ import {
     SessionUser,
     UnexpectedServerError,
 } from '@lightdash/common';
-
 import { attempt, isError } from 'lodash';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';

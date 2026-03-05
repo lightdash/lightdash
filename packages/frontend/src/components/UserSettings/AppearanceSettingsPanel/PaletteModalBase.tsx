@@ -8,6 +8,7 @@ import {
     Stack,
     Tabs,
     TextInput,
+    useMantineColorScheme,
     type ModalProps,
 } from '@mantine-8/core';
 import { useForm } from '@mantine/form';
@@ -17,7 +18,7 @@ import {
     IconPalette,
     IconSun,
 } from '@tabler/icons-react';
-import { useState, type FC } from 'react';
+import { useEffect, useState, type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
 import { ChartPreviewComponent } from './ChartPreviewComponent';
@@ -49,7 +50,16 @@ export const PaletteModalBase: FC<PaletteModalBaseProps> = ({
     existingPaletteNames = [],
 }) => {
     const [showAllColors, setShowAllColors] = useState(false);
-    const [activeTab, setActiveTab] = useState<string | null>('light');
+    const { colorScheme } = useMantineColorScheme();
+    const [activeTab, setActiveTab] = useState<string | null>(
+        colorScheme === 'dark' ? 'dark' : 'light',
+    );
+
+    useEffect(() => {
+        if (opened) {
+            setActiveTab(colorScheme === 'dark' ? 'dark' : 'light');
+        }
+    }, [opened, colorScheme]);
 
     const form = useForm<PaletteFormValues>({
         initialValues: {

@@ -1,15 +1,13 @@
 import {
+    isCreateProjectJob,
     ProjectType,
     WarehouseTypes,
-    isCreateProjectJob,
     type CreateWarehouseCredentials,
 } from '@lightdash/common';
 import { Button } from '@mantine/core';
 import { useEffect, useMemo, useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
-
 import { useCreateMutation } from '../../hooks/useProject';
-
 import useActiveJob from '../../providers/ActiveJob/useActiveJob';
 import useApp from '../../providers/App/useApp';
 import useTracking from '../../providers/Tracking/useTracking';

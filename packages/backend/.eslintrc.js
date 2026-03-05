@@ -1,8 +1,10 @@
 module.exports = {
-    ignorePatterns: ['src/ee/services/McpService/mcp-chart-app/**'],
+    ignorePatterns: [
+        'src/ee/services/McpService/mcp-chart-app/**',
+        'src/generated/**',
+    ],
     parserOptions: {
         project: './tsconfig.json',
-        createDefaultProgram: true,
     },
     extends: [
         './../../.eslintrc.js',
@@ -31,6 +33,9 @@ module.exports = {
         'no-restricted-syntax': 'off',
         eqeqeq: 'error',
         '@typescript-eslint/no-floating-promises': 'error',
+        '@typescript-eslint/no-throw-literal': 'off',
+        // no-throw-literal replaced with only-throw-error
+        '@typescript-eslint/only-throw-error': 'error',
     },
     overrides: [
         {
@@ -59,6 +64,7 @@ module.exports = {
                 'src/scheduler/**/*.ts',
                 'src/config/**/*.ts',
                 'src/projectAdapters/**/*.ts',
+                'src/prometheus/**/*.ts',
             ],
             rules: {
                 '@typescript-eslint/no-unsafe-member-access': 'off',

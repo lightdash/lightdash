@@ -1,6 +1,6 @@
 import {
-    DashboardTileTypes,
     assertUnreachable,
+    DashboardTileTypes,
     defaultTileSize,
     type Dashboard,
     type DashboardHeadingTileProperties,

@@ -217,7 +217,6 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
 
     constructor(credentials: CreateSnowflakeCredentials) {
         super(credentials, new SnowflakeSqlBuilder(credentials.startOfWeek));
-
         if (typeof credentials.quotedIdentifiersIgnoreCase !== 'undefined') {
             this.quotedIdentifiersIgnoreCase =
                 credentials.quotedIdentifiersIgnoreCase;
@@ -462,6 +461,8 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
 
             return { tokenSecret, tokenName };
         } catch (e: unknown) {
+            // Note: External browser connections are not destroyed as they're cached
+            // for the lifetime of the client, but we still need proper error handling
             throw new WarehouseConnectionError(
                 `Failed to create Snowflake PAT: ${getErrorMessage(e)}`,
             );
@@ -516,6 +517,15 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         );
         sqlStatements.push(
             `ALTER SESSION SET QUOTED_IDENTIFIERS_IGNORE_CASE = FALSE;`,
+        );
+
+        // Default timeout to 300 seconds if not specified
+        const timeoutSeconds = this.credentials.timeoutSeconds ?? 300;
+        console.debug(
+            `Setting Snowflake session STATEMENT_TIMEOUT_IN_SECONDS = ${timeoutSeconds}`,
+        );
+        sqlStatements.push(
+            `ALTER SESSION SET STATEMENT_TIMEOUT_IN_SECONDS = ${timeoutSeconds};`,
         );
 
         await this.executeStatements(
@@ -662,27 +672,35 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         ) => void | Promise<void>,
     ): Promise<WarehouseExecuteAsyncQuery> {
         const connection = await this.getConnection();
-        await this.prepareWarehouse(connection, {
-            timezone,
-            tags,
-        });
 
-        const { queryId, durationMs, totalRows } =
-            await this.executeAsyncStatement(
+        try {
+            await this.prepareWarehouse(connection, {
+                timezone,
+                tags,
+            });
+
+            const { queryId, durationMs, totalRows } =
+                await this.executeAsyncStatement(
+                    connection,
+                    sql,
+                    resultsStreamCallback,
+                    {
+                        values,
+                    },
+                );
+
+            return {
+                queryId,
+                queryMetadata: null,
+                totalRows,
+                durationMs,
+            };
+        } finally {
+            await this.destroyConnection(
                 connection,
-                sql,
-                resultsStreamCallback,
-                {
-                    values,
-                },
+                this.connectionOptions.authenticator,
             );
-
-        return {
-            queryId,
-            queryMetadata: null,
-            totalRows,
-            durationMs,
-        };
+        }
     }
 
     private async executeAsyncStatement(
@@ -1092,25 +1110,32 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
     ): string {
         let formattedMessage = customTemplate;
 
-        // Extract table information from the original error message
-        // Pattern matches: Object 'DATABASE.SCHEMA.TABLE' does not exist or not authorized
-        const tableMatch = originalMessage.match(
+        const objectMatch = originalMessage.match(
             /Object '([^']+)' does not exist or not authorized/i,
         );
 
-        if (tableMatch) {
-            const fullTableName = tableMatch[1];
-            const parts = fullTableName.split('.');
+        const schemaMatch = originalMessage.match(
+            /Schema '([^']+)' does not exist or not authorized/i,
+        );
+
+        if (objectMatch) {
+            const parts = objectMatch[1].split('.');
 
             if (parts.length >= 3) {
-                const snowflakeTable = parts[parts.length - 1]; // Last part is table name
-                const snowflakeSchema = parts[parts.length - 2]; // Second to last is schema
+                const snowflakeTable = parts[parts.length - 1];
+                const snowflakeSchema = parts[parts.length - 2];
 
-                // Replace variables in the custom message
                 formattedMessage = formattedMessage
                     .replace(/\{snowflakeTable\}/g, snowflakeTable)
                     .replace(/\{snowflakeSchema\}/g, snowflakeSchema);
             }
+        } else if (schemaMatch) {
+            const parts = schemaMatch[1].split('.');
+            const snowflakeSchema = parts[parts.length - 1];
+
+            formattedMessage = formattedMessage
+                .replace(/\{snowflakeTable\}/g, snowflakeSchema)
+                .replace(/\{snowflakeSchema\}/g, snowflakeSchema);
         }
 
         return formattedMessage;

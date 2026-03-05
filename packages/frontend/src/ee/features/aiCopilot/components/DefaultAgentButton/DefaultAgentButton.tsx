@@ -1,8 +1,8 @@
 import {
     ActionIcon,
+    Tooltip,
     type ActionIconProps,
     type MantineSize,
-    Tooltip,
 } from '@mantine-8/core';
 import { IconStar } from '@tabler/icons-react';
 import MantineIcon from '../../../../../components/common/MantineIcon';

@@ -41,8 +41,10 @@ meta:
 ```yaml
 meta:
   order_fields_by: "label"               # Sort fields by: "label" or "index"
-  group_label: "Sales"                   # Group in sidebar
+  group_label: "Sales"                   # Group this explore in the sidebar
 ```
+
+> **Note:** `group_label` on models/explores is used to group explores in the sidebar. For field grouping (dimensions/metrics), use the `groups` property instead.
 
 ### Primary Key
 
@@ -246,7 +248,6 @@ meta:
     completed_orders:
       label: "Completed Orders"
       description: "Only completed orders"
-      group_label: "Sales"
       required_filters:
         - status: "completed"
       joins:
@@ -324,7 +325,8 @@ models:
           label: "Revenue per Customer"
           format: "usd"
           round: 2
-          group_label: "Calculated"
+          groups:
+            - "Calculated"
 
         order_completion_rate:
           type: number
@@ -333,7 +335,8 @@ models:
             / NULLIF(COUNT(*), 0) * 100
           label: "Completion Rate"
           round: 1
-          group_label: "Calculated"
+          groups:
+            - "Calculated"
 
       explores:
         completed_orders:
@@ -349,7 +352,8 @@ models:
           dimension:
             type: string
             label: "Order ID"
-            group_label: "Order Details"
+            groups:
+              - "Order Details"
           metrics:
             order_count:
               type: count
@@ -361,7 +365,8 @@ models:
           dimension:
             type: string
             label: "Customer ID"
-            group_label: "Customer Info"
+            groups:
+              - "Customer Info"
             hidden: true
           metrics:
             unique_customers:
@@ -375,7 +380,8 @@ models:
             type: number
             label: "Order Amount"
             format: "usd"
-            group_label: "Financial"
+            groups:
+              - "Financial"
           metrics:
             total_revenue:
               type: sum
@@ -393,7 +399,8 @@ models:
           dimension:
             type: string
             label: "Status"
-            group_label: "Order Details"
+            groups:
+              - "Order Details"
             colors:
               "completed": "#22c55e"
               "pending": "#f59e0b"
@@ -405,7 +412,8 @@ models:
           dimension:
             type: timestamp
             label: "Order Date"
-            group_label: "Order Details"
+            groups:
+              - "Order Details"
             time_intervals:
               - DAY
               - WEEK
@@ -421,7 +429,7 @@ models:
 3. **Configure primary key**: Enables better query optimization
 4. **Set default time dimension**: Improves time-series exploration
 5. **Define default_show_underlying_values**: Better drill-down experience
-6. **Organize with groups**: Use group_label and group_details
+6. **Organize with groups**: Use `groups` on fields and `group_details` for group metadata
 7. **Use sql_where for data filtering**: Exclude test/deleted records
 8. **Configure joins carefully**: Choose correct join types and relationships
 9. **Add AI hints**: Help AI assistants understand the table

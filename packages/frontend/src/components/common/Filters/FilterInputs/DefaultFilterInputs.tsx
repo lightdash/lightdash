@@ -1,7 +1,7 @@
 import {
+    assertUnreachable,
     FilterOperator,
     FilterType,
-    assertUnreachable,
     isFilterRule,
     isTableCalculation,
     type BaseFilterRule,
@@ -12,6 +12,7 @@ import { TagInput } from '../../TagInput/TagInput';
 import { FILTER_SELECT_LIMIT } from '../constants';
 import useFiltersContext from '../useFiltersContext';
 import { getPlaceholderByFilterTypeAndOperator } from '../utils/getPlaceholderByFilterTypeAndOperator';
+import FilterMultiNumberInput from './FilterMultiNumberInput';
 import FilterMultiStringInput from './FilterMultiStringInput';
 import FilterNumberInput from './FilterNumberInput';
 import FilterNumberRangeInput from './FilterNumberRangeInput';
@@ -120,16 +121,11 @@ const DefaultFilterInputs = <T extends BaseFilterRule>({
                         );
                     } else {
                         return (
-                            <TagInput
-                                w="100%"
-                                clearable
+                            <FilterMultiNumberInput
                                 autoFocus={true}
-                                size="xs"
                                 disabled={disabled}
                                 placeholder={placeholder}
-                                allowDuplicates={false}
-                                validationRegex={/^-?\d+(\.\d+)?$/}
-                                value={rule.values?.map(String)}
+                                values={rule.values?.map(String) ?? []}
                                 onChange={(values) =>
                                     onChange({ ...rule, values })
                                 }

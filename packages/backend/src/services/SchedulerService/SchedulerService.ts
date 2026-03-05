@@ -5,7 +5,6 @@ import {
     CreateSchedulerAndTargets,
     CreateSchedulerLog,
     DashboardDAO,
-    FeatureFlags,
     ForbiddenError,
     getTimezoneLabel,
     getTzMinutesOffset,
@@ -60,16 +59,16 @@ import {
 import { CaslAuditWrapper } from '../../logging/caslAuditWrapper';
 import { logAuditEvent } from '../../logging/winston';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
-import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { JobModel } from '../../models/JobModel/JobModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
-import { SpaceModel } from '../../models/SpaceModel';
 import { UserModel } from '../../models/UserModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { getAdjustedCronByOffset } from '../../utils/cronUtils';
 import { BaseService } from '../BaseService';
+import type { SoftDeleteOptions } from '../SoftDeletableService';
+import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { UserService } from '../UserService';
 
 type SchedulerServiceArguments = {
@@ -79,14 +78,13 @@ type SchedulerServiceArguments = {
     dashboardModel: DashboardModel;
     savedChartModel: SavedChartModel;
     projectModel: ProjectModel;
-    spaceModel: SpaceModel;
     schedulerClient: SchedulerClient;
     slackClient: SlackClient;
     userModel: UserModel;
     googleDriveClient: GoogleDriveClient;
     userService: UserService;
     jobModel: JobModel;
-    featureFlagModel: FeatureFlagModel;
+    spacePermissionService: SpacePermissionService;
 };
 
 export class SchedulerService extends BaseService {
@@ -100,8 +98,6 @@ export class SchedulerService extends BaseService {
 
     savedChartModel: SavedChartModel;
 
-    spaceModel: SpaceModel;
-
     schedulerClient: SchedulerClient;
 
     slackClient: SlackClient;
@@ -116,7 +112,7 @@ export class SchedulerService extends BaseService {
 
     jobModel: JobModel;
 
-    featureFlagModel: FeatureFlagModel;
+    spacePermissionService: SpacePermissionService;
 
     constructor({
         lightdashConfig,
@@ -124,7 +120,6 @@ export class SchedulerService extends BaseService {
         schedulerModel,
         dashboardModel,
         savedChartModel,
-        spaceModel,
         schedulerClient,
         slackClient,
         projectModel,
@@ -132,7 +127,7 @@ export class SchedulerService extends BaseService {
         googleDriveClient,
         userService,
         jobModel,
-        featureFlagModel,
+        spacePermissionService,
     }: SchedulerServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -140,7 +135,6 @@ export class SchedulerService extends BaseService {
         this.schedulerModel = schedulerModel;
         this.dashboardModel = dashboardModel;
         this.savedChartModel = savedChartModel;
-        this.spaceModel = spaceModel;
         this.schedulerClient = schedulerClient;
         this.slackClient = slackClient;
         this.projectModel = projectModel;
@@ -148,7 +142,7 @@ export class SchedulerService extends BaseService {
         this.googleDriveClient = googleDriveClient;
         this.userService = userService;
         this.jobModel = jobModel;
-        this.featureFlagModel = featureFlagModel;
+        this.spacePermissionService = spacePermissionService;
     }
 
     private async getSchedulerResource(
@@ -223,28 +217,22 @@ export class SchedulerService extends BaseService {
         user: SessionUser,
         scheduler: CreateSchedulerAndTargets,
     ) {
-        const nestedPermissionsFlag = await this.featureFlagModel.get({
-            user,
-            featureFlagId: FeatureFlags.NestedSpacesPermissions,
-        });
-
         if (scheduler.savedChartUuid) {
             const { organizationUuid, spaceUuid, projectUuid } =
                 await this.savedChartModel.getSummary(scheduler.savedChartUuid);
 
-            const [space] = await this.spaceModel.find({ spaceUuid });
-            const access = await this.spaceModel.getUserSpaceAccess(
-                user.userUuid,
-                spaceUuid,
-                { useInheritedAccess: nestedPermissionsFlag.enabled },
-            );
+            const { inheritsFromOrgOrProject, access } =
+                await this.spacePermissionService.getSpaceAccessContext(
+                    user.userUuid,
+                    spaceUuid,
+                );
             if (
                 user.ability.cannot(
                     'view',
                     subject('SavedChart', {
                         organizationUuid,
                         projectUuid,
-                        isPrivate: space.isPrivate,
+                        inheritsFromOrgOrProject,
                         access,
                     }),
                 )
@@ -255,12 +243,11 @@ export class SchedulerService extends BaseService {
                 await this.dashboardModel.getByIdOrSlug(
                     scheduler.dashboardUuid,
                 );
-            const [space] = await this.spaceModel.find({ spaceUuid });
-            const spaceAccess = await this.spaceModel.getUserSpaceAccess(
-                user.userUuid,
-                spaceUuid,
-                { useInheritedAccess: nestedPermissionsFlag.enabled },
-            );
+            const { inheritsFromOrgOrProject, access } =
+                await this.spacePermissionService.getSpaceAccessContext(
+                    user.userUuid,
+                    spaceUuid,
+                );
 
             if (
                 user.ability.cannot(
@@ -268,8 +255,8 @@ export class SchedulerService extends BaseService {
                     subject('Dashboard', {
                         organizationUuid,
                         projectUuid,
-                        isPrivate: space.isPrivate,
-                        access: spaceAccess,
+                        inheritsFromOrgOrProject,
+                        access,
                     }),
                 )
             )
@@ -773,6 +760,9 @@ export class SchedulerService extends BaseService {
             projectUuid,
             userUuid: user.userUuid,
         });
+
+        // Always hard-delete: UI scheduler deletion is permanent.
+        // Soft delete only happens via cascade from chart/dashboard soft-delete.
         await this.schedulerModel.deleteScheduler(schedulerUuid);
         await this.schedulerModel.deleteScheduledLogs(schedulerUuid);
 
@@ -789,8 +779,191 @@ export class SchedulerService extends BaseService {
                 resourceId: isChartScheduler(scheduler)
                     ? scheduler.savedChartUuid
                     : scheduler.dashboardUuid,
+                softDelete: false,
             },
         });
+    }
+
+    /**
+     * Cascade soft-delete schedulers belonging to a chart.
+     * Called from SavedChartService.delete() which already checked
+     * the user can delete the parent chart.
+     */
+    async softDeleteByChartUuid(
+        user: SessionUser,
+        chartUuid: string,
+        context: { projectUuid: string; organizationUuid: string },
+        options?: SoftDeleteOptions,
+    ): Promise<void> {
+        if (!options?.bypassPermissions) {
+            if (
+                user.ability.cannot(
+                    'manage',
+                    subject('ScheduledDeliveries', {
+                        organizationUuid: context.organizationUuid,
+                        projectUuid: context.projectUuid,
+                    }),
+                )
+            ) {
+                throw new ForbiddenError(
+                    `User ${user.userUuid} cannot manage scheduled deliveries for cascade soft-delete on chart ${chartUuid}`,
+                );
+            }
+        }
+
+        const deletedSchedulers =
+            await this.schedulerModel.softDeleteByChartUuid(
+                chartUuid,
+                user.userUuid,
+            );
+        for (const s of deletedSchedulers) {
+            this.analytics.track({
+                userId: user.userUuid,
+                event: 'scheduler.deleted',
+                properties: {
+                    projectId: context.projectUuid,
+                    organizationId: context.organizationUuid,
+                    schedulerId: s.scheduler_uuid,
+                    resourceType: 'chart',
+                    resourceId: chartUuid,
+                    softDelete: true,
+                },
+            });
+        }
+    }
+
+    /**
+     * Cascade soft-delete schedulers belonging to a dashboard.
+     * Called from DashboardService.delete() which already checked
+     * the user can delete the parent dashboard.
+     */
+    async softDeleteByDashboardUuid(
+        user: SessionUser,
+        dashboardUuid: string,
+        context: { projectUuid: string; organizationUuid: string },
+        options?: SoftDeleteOptions,
+    ): Promise<void> {
+        if (!options?.bypassPermissions) {
+            if (
+                user.ability.cannot(
+                    'manage',
+                    subject('ScheduledDeliveries', {
+                        organizationUuid: context.organizationUuid,
+                        projectUuid: context.projectUuid,
+                    }),
+                )
+            ) {
+                throw new ForbiddenError(
+                    `User ${user.userUuid} cannot manage scheduled deliveries for cascade soft-delete on dashboard ${dashboardUuid}`,
+                );
+            }
+        }
+
+        const deletedSchedulers =
+            await this.schedulerModel.softDeleteByDashboardUuid(
+                dashboardUuid,
+                user.userUuid,
+            );
+        for (const s of deletedSchedulers) {
+            this.analytics.track({
+                userId: user.userUuid,
+                event: 'scheduler.deleted',
+                properties: {
+                    projectId: context.projectUuid,
+                    organizationId: context.organizationUuid,
+                    schedulerId: s.scheduler_uuid,
+                    resourceType: 'dashboard',
+                    resourceId: dashboardUuid,
+                    softDelete: true,
+                },
+            });
+        }
+    }
+
+    /**
+     * Cascade restore schedulers belonging to a chart.
+     * Called from SavedChartService.restore().
+     */
+    async restoreByChartUuid(
+        user: SessionUser,
+        chartUuid: string,
+        context: { projectUuid: string; organizationUuid: string },
+        options?: SoftDeleteOptions,
+    ): Promise<void> {
+        if (!options?.bypassPermissions) {
+            if (
+                user.ability.cannot(
+                    'manage',
+                    subject('ScheduledDeliveries', {
+                        organizationUuid: context.organizationUuid,
+                        projectUuid: context.projectUuid,
+                    }),
+                )
+            ) {
+                throw new ForbiddenError(
+                    `User ${user.userUuid} cannot manage scheduled deliveries for cascade restore on chart ${chartUuid}`,
+                );
+            }
+        }
+
+        const restoredSchedulers =
+            await this.schedulerModel.restoreByChartUuid(chartUuid);
+        for (const s of restoredSchedulers) {
+            this.analytics.track({
+                userId: user.userUuid,
+                event: 'scheduler.restored',
+                properties: {
+                    projectId: context.projectUuid,
+                    organizationId: context.organizationUuid,
+                    schedulerId: s.scheduler_uuid,
+                    resourceType: 'chart',
+                    resourceId: chartUuid,
+                },
+            });
+        }
+    }
+
+    /**
+     * Cascade restore schedulers belonging to a dashboard.
+     * Called from DashboardService.restore().
+     */
+    async restoreByDashboardUuid(
+        user: SessionUser,
+        dashboardUuid: string,
+        context: { projectUuid: string; organizationUuid: string },
+        options?: SoftDeleteOptions,
+    ): Promise<void> {
+        if (!options?.bypassPermissions) {
+            if (
+                user.ability.cannot(
+                    'manage',
+                    subject('ScheduledDeliveries', {
+                        organizationUuid: context.organizationUuid,
+                        projectUuid: context.projectUuid,
+                    }),
+                )
+            ) {
+                throw new ForbiddenError(
+                    `User ${user.userUuid} cannot manage scheduled deliveries for cascade restore on dashboard ${dashboardUuid}`,
+                );
+            }
+        }
+
+        const restoredSchedulers =
+            await this.schedulerModel.restoreByDashboardUuid(dashboardUuid);
+        for (const s of restoredSchedulers) {
+            this.analytics.track({
+                userId: user.userUuid,
+                event: 'scheduler.restored',
+                properties: {
+                    projectId: context.projectUuid,
+                    organizationId: context.organizationUuid,
+                    schedulerId: s.scheduler_uuid,
+                    resourceType: 'dashboard',
+                    resourceId: dashboardUuid,
+                },
+            });
+        }
     }
 
     async getScheduledJobs(

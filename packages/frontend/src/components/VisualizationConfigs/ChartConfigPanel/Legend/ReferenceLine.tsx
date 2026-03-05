@@ -1,5 +1,4 @@
 import {
-    TimeFrames,
     formatDate,
     getItemId,
     isCustomDimension,
@@ -8,6 +7,7 @@ import {
     isField,
     isNumericItem,
     isTableCalculation,
+    TimeFrames,
     type CompiledDimension,
     type CustomDimension,
     type Field,
@@ -31,8 +31,6 @@ import {
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { useCallback, useMemo, useState, type FC } from 'react';
-import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
-import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
 import FieldSelect from '../../../common/FieldSelect';
 import FilterDatePicker from '../../../common/Filters/FilterInputs/FilterDatePicker';
 import FilterMonthAndYearPicker from '../../../common/Filters/FilterInputs/FilterMonthAndYearPicker';
@@ -41,6 +39,8 @@ import FilterYearPicker from '../../../common/Filters/FilterInputs/FilterYearPic
 import { getFirstDayOfWeek } from '../../../common/Filters/utils/filterDateUtils';
 import MantineIcon from '../../../common/MantineIcon';
 import { type ReferenceLineField } from '../../../common/ReferenceLine';
+import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
+import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
 import ColorSelector from '../../ColorSelector';
 import { AccordionControl } from '../../common/AccordionControl';
 import { Config } from '../../common/Config';

@@ -1,12 +1,12 @@
 import { ChartKind, type VizColumn } from '@lightdash/common';
 import { MantineProvider, useMantineColorScheme } from '@mantine/core';
-import { type FC, useMemo } from 'react';
+import { useMemo, type FC } from 'react';
 import { Config } from '../VisualizationConfigs/common/Config';
 import { getVizConfigThemeOverride } from '../VisualizationConfigs/mantineTheme';
-import { VisualizationSwitcher } from './VisualizationSwitcher';
 import { CartesianChartConfig } from './config/CartesianChartConfiguration';
 import { PieChartConfiguration } from './config/PieChartConfiguration';
 import TableVisConfiguration from './config/TableVisConfiguration';
+import { VisualizationSwitcher } from './VisualizationSwitcher';
 
 export const VisualizationConfigPanel: FC<{
     selectedChartType: ChartKind;

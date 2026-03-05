@@ -472,6 +472,7 @@ export const expectedMixedSeriesMap: Record<string, Series> = {
     },
 };
 
+// Series are ordered to match expectedMixedSeriesMap order (respecting query sort)
 export const mergedMixedSeries: Series[] = [
     {
         label: undefined,
@@ -491,6 +492,42 @@ export const mergedMixedSeries: Series[] = [
         },
         hidden: true,
         isFilteredOut: false,
+    },
+    {
+        label: undefined,
+        type: CartesianSeriesType.BAR,
+        areaStyle: undefined,
+        stack: undefined,
+        showSymbol: undefined,
+        smooth: undefined,
+        yAxisIndex: 0,
+        encode: {
+            xRef: {
+                field: 'my_dimension',
+            },
+            yRef: {
+                field: 'my_metric',
+                pivotValues: [{ field: 'dimension_x', value: 'a' }],
+            },
+        },
+    },
+    {
+        label: undefined,
+        type: CartesianSeriesType.BAR,
+        areaStyle: undefined,
+        showSymbol: undefined,
+        smooth: undefined,
+        yAxisIndex: 0,
+        stack: undefined,
+        encode: {
+            xRef: {
+                field: 'my_dimension',
+            },
+            yRef: {
+                field: 'my_metric',
+                pivotValues: [{ field: 'dimension_x', value: 'b' }],
+            },
+        },
     },
     {
         label: undefined,
@@ -526,42 +563,6 @@ export const mergedMixedSeries: Series[] = [
             },
             yRef: {
                 field: 'my_second_metric',
-                pivotValues: [{ field: 'dimension_x', value: 'b' }],
-            },
-        },
-    },
-    {
-        label: undefined,
-        type: CartesianSeriesType.BAR,
-        areaStyle: undefined,
-        stack: undefined,
-        showSymbol: undefined,
-        smooth: undefined,
-        yAxisIndex: 0,
-        encode: {
-            xRef: {
-                field: 'my_dimension',
-            },
-            yRef: {
-                field: 'my_metric',
-                pivotValues: [{ field: 'dimension_x', value: 'a' }],
-            },
-        },
-    },
-    {
-        label: undefined,
-        type: CartesianSeriesType.BAR,
-        areaStyle: undefined,
-        stack: undefined,
-        showSymbol: undefined,
-        smooth: undefined,
-        yAxisIndex: 0,
-        encode: {
-            xRef: {
-                field: 'my_dimension',
-            },
-            yRef: {
-                field: 'my_metric',
                 pivotValues: [{ field: 'dimension_x', value: 'b' }],
             },
         },

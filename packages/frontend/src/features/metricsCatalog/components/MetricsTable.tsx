@@ -1,6 +1,7 @@
 import {
-    SpotlightTableColumns,
     assertUnreachable,
+    FeatureFlags,
+    SpotlightTableColumns,
     type CatalogCategoryFilterMode,
     type CatalogItem,
 } from '@lightdash/common';
@@ -18,8 +19,8 @@ import {
 } from '@mantine/core';
 import {
     IconArrowDown,
-    IconArrowUp,
     IconArrowsSort,
+    IconArrowUp,
 } from '@tabler/icons-react';
 import { useIsMutating } from '@tanstack/react-query';
 import { ReactFlowProvider } from '@xyflow/react';
@@ -42,6 +43,7 @@ import {
 import { useLocation, useNavigate } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
@@ -66,6 +68,7 @@ import Canvas from './Canvas';
 import { MetricExploreModal } from './MetricExploreModal';
 import { MetricsCatalogColumns } from './MetricsCatalogColumns';
 import { MetricsTableTopToolbar } from './MetricsTableTopToolbar';
+import SavedTreesContainer from './SavedTrees/SavedTreesContainer';
 
 type MetricsTableProps = {
     metricCatalogView: MetricCatalogView;
@@ -77,6 +80,10 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
     const theme = useMantineTheme();
     const location = useLocation();
     const navigate = useNavigate();
+    const { data: savedMetricsTreeFlag } = useServerFeatureFlag(
+        FeatureFlags.SavedMetricsTree,
+    );
+    const isSavedMetricsTreeEnabled = savedMetricsTreeFlag?.enabled ?? false;
 
     const userUuid = useAppSelector(
         (state) => state.metricsCatalog.user?.userUuid,
@@ -297,10 +304,7 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
     // Viewers cannot access metrics tree if there are no edges
     // In list mode, we don't know yet if edges exist, so we allow access (will show message in canvas if no edges)
     const isValidMetricsEdgeCount = useMemo(
-        () =>
-            canManageMetricsTree ||
-            !isCanvasMode ||
-            filteredEdges.length > 0,
+        () => canManageMetricsTree || !isCanvasMode || filteredEdges.length > 0,
         [canManageMetricsTree, isCanvasMode, filteredEdges],
     );
 
@@ -691,6 +695,43 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
                 </>
             );
         case MetricCatalogView.CANVAS:
+            if (isSavedMetricsTreeEnabled) {
+                return (
+                    <Paper {...mantinePaperProps}>
+                        <Box>
+                            <MetricsTableTopToolbar
+                                search={search}
+                                setSearch={(s) => dispatch(setSearch(s))}
+                                totalResults={totalResults}
+                                selectedCategories={categoryFilters}
+                                setSelectedCategories={handleSetCategoryFilters}
+                                categoryFilterMode={categoryFilterMode}
+                                setCategoryFilterMode={
+                                    handleSetCategoryFilterMode
+                                }
+                                selectedTables={tableFilters}
+                                setSelectedTables={handleSetTableFilters}
+                                selectedOwners={ownerFilters}
+                                setSelectedOwners={handleSetOwnerFilters}
+                                position="apart"
+                                p={`${theme.spacing.lg} ${theme.spacing.xl}`}
+                                showCategoriesFilter={
+                                    canManageTags || dataHasCategories
+                                }
+                                isValidMetricsTree
+                                hasMetricsSelected={hasMetricsLoaded}
+                                isValidMetricsEdgeCount
+                                metricCatalogView={metricCatalogView}
+                                table={table}
+                            />
+                            <Divider color="ldGray.2" />
+                        </Box>
+                        <Box w="100%" h="calc(100dvh - 350px)" mih={600}>
+                            <SavedTreesContainer />
+                        </Box>
+                    </Paper>
+                );
+            }
             return (
                 <Paper {...mantinePaperProps}>
                     <Box>

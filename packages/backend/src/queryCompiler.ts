@@ -12,6 +12,7 @@ import {
     Explore,
     ExploreCompiler,
     getItemId,
+    isCustomBinDimension,
     isPeriodOverPeriodAdditionalMetric,
     isPostCalculationMetricType,
     isSqlTableCalculation,
@@ -77,6 +78,7 @@ const compileTableCalculation = (
     dependencyGraph: DependencyNode[],
     warehouseSqlBuilder: WarehouseSqlBuilder,
     sortFields: MetricQuery['sorts'],
+    customBinDimensionIds: Set<string>,
 ): CompiledTableCalculation => {
     if (validFieldIds.includes(tableCalculation.name)) {
         throw new CompileError(
@@ -136,6 +138,7 @@ const compileTableCalculation = (
             tableCalculation.template,
             warehouseSqlBuilder,
             sortFields,
+            customBinDimensionIds,
         );
 
         return {
@@ -154,6 +157,7 @@ const compileTableCalculations = (
     quoteChar: string,
     warehouseSqlBuilder: WarehouseSqlBuilder,
     sortFields: MetricQuery['sorts'],
+    customBinDimensionIds: Set<string>,
 ): CompiledTableCalculation[] => {
     if (tableCalculations.length === 0) {
         return [];
@@ -178,6 +182,7 @@ const compileTableCalculations = (
             dependencyGraph,
             warehouseSqlBuilder,
             sortFields,
+            customBinDimensionIds,
         );
         compiledTableCalculations.push(compiled);
     }
@@ -322,6 +327,11 @@ export const compileMetricQuery = ({
                 availableParameters,
             ),
     );
+    const customBinDimensionIds = new Set(
+        (metricQuery.customDimensions || [])
+            .filter(isCustomBinDimension)
+            .map(getItemId),
+    );
 
     const compiledTableCalculations = compileTableCalculations(
         metricQuery.tableCalculations,
@@ -329,6 +339,7 @@ export const compileMetricQuery = ({
         fieldQuoteChar,
         warehouseSqlBuilder,
         metricQuery.sorts,
+        customBinDimensionIds,
     );
 
     return {

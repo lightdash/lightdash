@@ -35,9 +35,11 @@ const AggregationIcon: FC<{ aggregation: string | undefined }> = ({
             icon = IconMathFunction;
             break;
         case MetricType.SUM:
+        case MetricType.SUM_DISTINCT:
             icon = IconSum;
             break;
         case MetricType.AVERAGE:
+        case MetricType.AVERAGE_DISTINCT:
         case VizAggregationOptions.AVERAGE:
             icon = IconTrendingUp;
             break;

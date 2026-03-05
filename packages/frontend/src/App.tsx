@@ -8,6 +8,7 @@ import {
     CommercialWebAppRoutes,
 } from './ee/CommercialRoutes';
 import ErrorBoundary from './features/errorBoundary/ErrorBoundary';
+import { SourceCodeEditorProvider } from './features/sourceCodeEditor';
 import ChartColorMappingContextProvider from './hooks/useChartColorConfig/ChartColorMappingContextProvider';
 import MobileRoutes from './MobileRoutes';
 import AbilityProvider from './providers/Ability/AbilityProvider';
@@ -49,7 +50,9 @@ const router = sentryCreateBrowserRouter([
                                 <AbilityProvider>
                                     <ActiveJobProvider>
                                         <ChartColorMappingContextProvider>
-                                            <Outlet />
+                                            <SourceCodeEditorProvider>
+                                                <Outlet />
+                                            </SourceCodeEditorProvider>
                                         </ChartColorMappingContextProvider>
                                     </ActiveJobProvider>
                                 </AbilityProvider>

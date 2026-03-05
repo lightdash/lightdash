@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import {
+    DatabricksAuthenticationType,
     SnowflakeAuthenticationType,
     WarehouseTypes,
     type CreateAthenaCredentials,
@@ -10,7 +11,14 @@ import {
     type CreateRedshiftCredentials,
     type CreateSnowflakeCredentials,
     type CreateTrinoCredentials,
+    type ProjectType,
 } from './projects';
+
+export type UserWarehouseCredentialsProject = {
+    projectUuid: string;
+    name: string;
+    type: ProjectType;
+};
 
 export type UserWarehouseCredentials = {
     uuid: string;
@@ -30,6 +38,7 @@ export type UserWarehouseCredentials = {
         | Pick<CreateBigqueryCredentials, 'type'>
         | Pick<CreateDatabricksCredentials, 'type'>
         | Pick<CreateAthenaCredentials, 'type'>;
+    project: UserWarehouseCredentialsProject | null;
 };
 
 export type UserWarehouseCredentialsWithSecrets = Pick<
@@ -63,7 +72,10 @@ export type UserWarehouseCredentialsWithSecrets = Pick<
               Partial<
                   Pick<
                       CreateDatabricksCredentials,
-                      'database' | 'serverHostName' | 'httpPath'
+                      | 'database'
+                      | 'serverHostName'
+                      | 'httpPath'
+                      | 'oauthClientId'
                   >
               >)
         | Pick<
@@ -86,5 +98,20 @@ export const snowflakeSsoUserCredentialsSchema = z
         password: z.string().optional(),
         authenticationType: z.literal(SnowflakeAuthenticationType.SSO),
         refreshToken: z.string(),
+    })
+    .strict();
+
+// Zod schema for validating Databricks OAuth U2M user warehouse credentials
+// Requires refreshToken and allows optional compatibility fields
+export const databricksOauthU2mUserCredentialsSchema = z
+    .object({
+        type: z.literal(WarehouseTypes.DATABRICKS),
+        authenticationType: z.literal(DatabricksAuthenticationType.OAUTH_U2M),
+        refreshToken: z.string(),
+        oauthClientId: z.string().optional(),
+        personalAccessToken: z.string().optional(),
+        database: z.string().optional(),
+        serverHostName: z.string().optional(),
+        httpPath: z.string().optional(),
     })
     .strict();

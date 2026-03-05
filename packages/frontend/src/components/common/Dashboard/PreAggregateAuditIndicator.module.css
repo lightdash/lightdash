@@ -1,0 +1,89 @@
+.tileRow {
+    position: relative;
+    padding: 6px 8px;
+    border-radius: var(--mantine-radius-sm);
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.tileRow:hover {
+    background: var(--mantine-color-ldGray-0);
+}
+
+:global([data-mantine-color-scheme='dark']) .tileRow:hover {
+    background: var(--mantine-color-ldDark-5);
+}
+
+.tileName {
+    flex: 1;
+    min-width: 0;
+}
+
+.tileDetail {
+    color: var(--mantine-color-ldGray-5);
+}
+
+:global([data-mantine-color-scheme='dark']) .tileDetail {
+    color: var(--mantine-color-ldGray-6);
+}
+
+.scrollIcon {
+    flex-shrink: 0;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+}
+
+.tileRow:hover .scrollIcon {
+    opacity: 1;
+}
+
+.ineligibleTile {
+    padding: 4px 8px;
+    color: var(--mantine-color-ldGray-5);
+    @mixin dark {
+        color: var(--mantine-color-ldGray-6);
+    }
+}
+
+/* Tab blocks — vertical line nav */
+.tabBlock {
+    border-left: 2px solid var(--mantine-color-ldGray-2);
+    transition: border-color 0.15s ease;
+    @mixin dark {
+        border-left-color: var(--mantine-color-ldDark-4);
+    }
+}
+
+.tabBlock[data-active] {
+    border-left-color: var(--mantine-color-ldGray-5);
+    @mixin dark {
+        border-left-color: var(--mantine-color-ldDark-4);
+    }
+}
+
+.tabLabel {
+    padding: 6px 12px;
+    width: 100%;
+    cursor: pointer;
+    transition: background 0.1s ease;
+    border-radius: 0;
+}
+
+.tabLabel:hover {
+    background: var(--mantine-color-ldGray-0);
+    @mixin dark {
+        background: var(--mantine-color-ldDark-5);
+    }
+}
+
+.tabLabel[data-active] {
+    cursor: default;
+}
+
+.tabLabel[data-active]:hover {
+    background: transparent;
+}
+
+.tabBody {
+    padding: 4px 12px 12px;
+}

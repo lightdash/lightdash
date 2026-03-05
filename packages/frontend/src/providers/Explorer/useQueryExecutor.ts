@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
-    type QueryResultsProps,
     useGetReadyQueryResults,
     useInfiniteQueryResults,
+    type QueryResultsProps,
 } from '../../hooks/useQueryResults';
 
 /**

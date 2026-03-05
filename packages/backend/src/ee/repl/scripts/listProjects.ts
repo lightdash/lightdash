@@ -8,9 +8,13 @@ import {
 export function getListProjectsScripts(database: Knex) {
     async function listProjects(organizationUuid?: string) {
         const baseQuery = database(ProjectTableName)
-            .select<
-                DbProject[]
-            >(`${ProjectTableName}.project_uuid`, `${ProjectTableName}.name`, `${OrganizationTableName}.organization_uuid`, `${ProjectTableName}.project_type`, `${ProjectTableName}.created_at`)
+            .select<DbProject[]>(
+                `${ProjectTableName}.project_uuid`,
+                `${ProjectTableName}.name`,
+                `${OrganizationTableName}.organization_uuid`,
+                `${ProjectTableName}.project_type`,
+                `${ProjectTableName}.created_at`,
+            )
             .join(
                 OrganizationTableName,
                 `${ProjectTableName}.organization_id`,

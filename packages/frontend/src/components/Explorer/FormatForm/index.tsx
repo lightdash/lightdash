@@ -1,15 +1,15 @@
 import {
     CompactConfigMap,
-    CustomFormatType,
-    DimensionType,
-    MetricType,
-    NumberSeparator,
-    TableCalculationType,
     convertCustomFormatToFormatExpression,
     currencies,
+    CustomFormatType,
+    DimensionType,
     findCompactConfig,
     formatValueWithExpression,
     getCompactOptionsForFormatType,
+    MetricType,
+    NumberSeparator,
+    TableCalculationType,
     type CustomFormat,
 } from '@lightdash/common';
 import {

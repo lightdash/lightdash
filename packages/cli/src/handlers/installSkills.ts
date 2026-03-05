@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import fetch from 'node-fetch';
 import * as os from 'os';
 import * as path from 'path';
+import { LightdashAnalytics } from '../analytics/analytics';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
 
@@ -219,6 +220,8 @@ async function listAvailableSkills(): Promise<string[]> {
 export const installSkillsHandler = async (
     options: InstallSkillsOptions,
 ): Promise<void> => {
+    const startTime = Date.now();
+    let success = true;
     GlobalState.setVerbose(options.verbose);
 
     const installPath = getInstallPath(options);
@@ -276,8 +279,18 @@ export const installSkillsHandler = async (
         console.error(styles.success('\n✓ Skills installed successfully!\n'));
         console.error(`Skills are available at: ${styles.bold(installPath)}\n`);
     } catch (err) {
+        success = false;
         const errorMessage = err instanceof Error ? err.message : String(err);
         spinner.fail(`Failed to fetch skills: ${errorMessage}`);
         throw err;
+    } finally {
+        await LightdashAnalytics.track({
+            event: 'command.executed',
+            properties: {
+                command: 'install-skills',
+                durationMs: Date.now() - startTime,
+                success,
+            },
+        });
     }
 };

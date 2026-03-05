@@ -5,8 +5,7 @@ import {
     type ApiExploreResults,
     type EChartsSeries,
 } from '@lightdash/common';
-import { Menu } from '@mantine-8/core';
-import { Portal } from '@mantine/core';
+import { Menu, Portal } from '@mantine-8/core';
 import { useClipboard } from '@mantine/hooks';
 import { IconCopy, IconStack } from '@tabler/icons-react';
 import {
@@ -23,12 +22,12 @@ import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
+import MantineIcon from '../../common/MantineIcon';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import DrillDownMenuItem from '../../MetricQueryData/DrillDownMenuItem';
 import { useMetricQueryDataContext } from '../../MetricQueryData/useMetricQueryDataContext';
 import { getDataFromChartClick } from '../../MetricQueryData/utils';
 import { type EchartsSeriesClickEvent } from '../../SimpleChart';
-import MantineIcon from '../../common/MantineIcon';
 
 export const SeriesContextMenu: FC<{
     echartsSeriesClickEvent: EchartsSeriesClickEvent | undefined;

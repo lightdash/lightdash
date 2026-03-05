@@ -30,7 +30,9 @@ const useCreateInAnySpaceAccess = (
             subject(subjectName, {
                 organizationUuid: user.data.organizationUuid,
                 projectUuid,
-                access: spaces.data.map((space) => space.userAccess),
+                access: spaces.data
+                    .map((space) => space.userAccess)
+                    .filter((a) => a !== undefined),
             }),
         )
     );

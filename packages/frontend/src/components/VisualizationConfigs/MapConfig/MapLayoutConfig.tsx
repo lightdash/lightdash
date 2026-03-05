@@ -22,9 +22,9 @@ import {
     findMatchingProperty,
     useGeoJsonProperties,
 } from '../../../hooks/useGeoJsonProperties';
+import FieldSelect from '../../common/FieldSelect';
 import { isMapVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
-import FieldSelect from '../../common/FieldSelect';
 import { Config } from '../common/Config';
 import MapFieldConfiguration from './MapFieldConfiguration';
 

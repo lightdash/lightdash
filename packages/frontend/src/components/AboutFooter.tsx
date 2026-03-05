@@ -12,7 +12,6 @@ import {
 } from '@mantine-8/core';
 import { IconBook, IconInfoCircle } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
-
 import useApp from '../providers/App/useApp';
 import {
     TrackPage,

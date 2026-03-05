@@ -1,0 +1,25 @@
+.inactiveCardHeading {
+    cursor: not-allowed;
+}
+
+.activeCardHeading {
+    cursor: pointer;
+}
+
+.activeCardHeading:hover {
+    background-color: color-mix(
+        in srgb,
+        var(--mantine-color-ldGray-1) 50%,
+        transparent
+    );
+}
+
+.disabledButton {
+    cursor: not-allowed;
+    opacity: 0.5;
+    background-color: transparent;
+}
+
+.disabledButton:hover {
+    background-color: transparent;
+}

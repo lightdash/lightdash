@@ -1,7 +1,5 @@
-import * as Sentry from '@sentry/node';
-
 import { AnyType, TimeoutError } from '@lightdash/common';
-
+import * as Sentry from '@sentry/node';
 import { Job } from 'graphile-worker';
 import Logger from '../logging/logger';
 

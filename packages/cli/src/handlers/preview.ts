@@ -15,7 +15,7 @@ import { LightdashAnalytics } from '../analytics/analytics';
 import { getConfig, setPreviewProject, unsetPreviewProject } from '../config';
 import { getDbtContext } from '../dbt/context';
 import GlobalState from '../globalState';
-import { findLightdashModelFiles } from '../lightdash/loader';
+import { CliProjectType, detectProjectType } from '../lightdash/projectType';
 import * as styles from '../styles';
 import { compile } from './compile';
 import { createProject } from './createProject';
@@ -36,6 +36,10 @@ type PreviewHandlerOptions = DbtCompileOptions & {
     skipCopyContent?: boolean;
     organizationCredentials?: string;
     assumeYes?: boolean;
+    warehouseCredentials?: boolean;
+    useBatchedDeploy?: boolean;
+    batchSize?: string;
+    parallelBatches?: string;
 };
 
 type StopPreviewHandlerOptions = {
@@ -70,6 +74,7 @@ const deletePreviewProject = async (
 const cleanupProject = async (
     executionId: string,
     projectUuid: string,
+    previewStartTime?: number,
 ): Promise<void> => {
     const teardownSpinner = GlobalState.startSpinner(`  Cleaning up`);
 
@@ -80,6 +85,9 @@ const cleanupProject = async (
             properties: {
                 executionId,
                 projectId: projectUuid,
+                durationMs: previewStartTime
+                    ? Date.now() - previewStartTime
+                    : 0,
             },
         });
         teardownSpinner.succeed(`  Cleaned up`);
@@ -121,16 +129,16 @@ export const previewHandler = async (
     const executionId = uuidv4();
     await checkLightdashVersion();
 
-    // Check if this is a Lightdash YAML-only project (no dbt required)
+    // Detect project type
     const absoluteProjectPath = path.resolve(options.projectDir);
-    const yamlModelFiles = await findLightdashModelFiles(absoluteProjectPath);
-    const isYamlOnlyProject =
-        yamlModelFiles.length > 0 && !options.organizationCredentials;
-    if (isYamlOnlyProject) {
-        GlobalState.debug(
-            `> Found ${yamlModelFiles.length} Lightdash YAML models, skipping dbt requirements`,
-        );
-    }
+    const projectTypeConfig = await detectProjectType({
+        projectDir: options.projectDir,
+        userOptions: {
+            warehouseCredentials: options.warehouseCredentials,
+            skipDbtCompile: options.skipDbtCompile,
+            skipWarehouseCatalog: options.skipWarehouseCatalog,
+        },
+    });
 
     let name = options?.name;
     if (name === undefined) {
@@ -234,7 +242,7 @@ export const previewHandler = async (
                     ? config.context.project
                     : undefined,
             copyContent: !options.skipCopyContent && upstreamProjectValid,
-            warehouseCredentials: isYamlOnlyProject ? false : undefined,
+            warehouseCredentials: projectTypeConfig.warehouseCredentials,
         });
 
         project = results?.project;
@@ -262,6 +270,7 @@ export const previewHandler = async (
         return;
     }
 
+    const previewStartTime = Date.now();
     await LightdashAnalytics.track({
         event: 'preview.started',
         properties: {
@@ -279,7 +288,11 @@ export const previewHandler = async (
         await setPreviewProject(project.projectUuid, name);
 
         process.on('SIGINT', async () => {
-            await cleanupProject(executionId, project!.projectUuid);
+            await cleanupProject(
+                executionId,
+                project!.projectUuid,
+                previewStartTime,
+            );
 
             process.exit(0);
         });
@@ -305,43 +318,54 @@ export const previewHandler = async (
             properties: {
                 executionId,
                 projectId: project.projectUuid,
+                durationMs: Date.now() - previewStartTime,
             },
         });
-
-        const context = await getDbtContext({
-            projectDir: absoluteProjectPath,
-            targetPath: options.targetPath,
-        });
-        const manifestFilePath = path.join(context.targetDir, 'manifest.json');
 
         const pressToShutdown = GlobalState.startSpinner(
             `  Press [ENTER] to shutdown preview...`,
         );
 
-        const watcher = chokidar
-            .watch(manifestFilePath)
-            .on('change', async () => {
-                pressToShutdown.stop();
-
-                console.error(
-                    `${styles.title(
-                        '↻',
-                    )}   Detected changes on dbt project. Updating preview`,
-                );
-                watcher.unwatch(manifestFilePath);
-                // Deploying will change manifest.json too, so we need to stop watching the file until it is deployed
-                if (project) {
-                    await deploy(await compile(options), {
-                        ...options,
-                        projectUuid: project.projectUuid,
-                    });
-                }
-
-                console.error(`${styles.success('✔')}   Preview updated \n`);
-                pressToShutdown.start();
-
-                watcher.add(manifestFilePath);
+        // Only set up dbt manifest file watching for dbt projects
+        // YAML-only projects don't have a manifest.json to watch
+        let watcher: chokidar.FSWatcher | undefined;
+        if (projectTypeConfig.type === CliProjectType.Dbt) {
+            const context = await getDbtContext({
+                projectDir: absoluteProjectPath,
+                targetPath: options.targetPath,
             });
+            const manifestFilePath = path.join(
+                context.targetDir,
+                'manifest.json',
+            );
+
+            watcher = chokidar
+                .watch(manifestFilePath)
+                .on('change', async () => {
+                    pressToShutdown.stop();
+
+                    console.error(
+                        `${styles.title(
+                            '↻',
+                        )}   Detected changes on dbt project. Updating preview`,
+                    );
+                    watcher!.unwatch(manifestFilePath);
+                    // Deploying will change manifest.json too, so we need to stop watching the file until it is deployed
+                    if (project) {
+                        await deploy(await compile(options), {
+                            ...options,
+                            projectUuid: project.projectUuid,
+                        });
+                    }
+
+                    console.error(
+                        `${styles.success('✔')}   Preview updated \n`,
+                    );
+                    pressToShutdown.start();
+
+                    watcher!.add(manifestFilePath);
+                });
+        }
 
         await inquirer.prompt([
             {
@@ -352,6 +376,11 @@ export const previewHandler = async (
             },
         ]);
         pressToShutdown.clear();
+
+        // Clean up watcher if it was created
+        if (watcher) {
+            await watcher.close();
+        }
     } catch (e) {
         spinner.fail(`Error creating developer preview: ${getErrorMessage(e)}`);
 
@@ -369,7 +398,7 @@ export const previewHandler = async (
         throw e;
     }
 
-    await cleanupProject(executionId, project.projectUuid);
+    await cleanupProject(executionId, project.projectUuid, previewStartTime);
 };
 
 export const startPreviewHandler = async (
@@ -383,16 +412,15 @@ export const startPreviewHandler = async (
         return;
     }
 
-    // Check if this is a Lightdash YAML-only project (no dbt required)
-    const absoluteProjectPath = path.resolve(options.projectDir);
-    const yamlModelFiles = await findLightdashModelFiles(absoluteProjectPath);
-    const isYamlOnlyProject =
-        yamlModelFiles.length > 0 && !options.organizationCredentials;
-    if (isYamlOnlyProject) {
-        GlobalState.debug(
-            `> Found ${yamlModelFiles.length} Lightdash YAML models, skipping dbt requirements`,
-        );
-    }
+    // Detect project type
+    const projectTypeConfig = await detectProjectType({
+        projectDir: options.projectDir,
+        userOptions: {
+            warehouseCredentials: options.warehouseCredentials,
+            skipDbtCompile: options.skipDbtCompile,
+            skipWarehouseCatalog: options.skipWarehouseCatalog,
+        },
+    });
 
     const projectName = options.name;
     const config = await getConfig();
@@ -467,7 +495,7 @@ export const startPreviewHandler = async (
             type: ProjectType.PREVIEW,
             upstreamProjectUuid: config.context?.project,
             copyContent: !options.skipCopyContent,
-            warehouseCredentials: isYamlOnlyProject ? false : undefined,
+            warehouseCredentials: projectTypeConfig.warehouseCredentials,
         });
 
         const project = results?.project;

@@ -1,0 +1,73 @@
+id,sale_date,region,product_category,units_sold,revenue,customer_id
+1,2025-01-05,North America,Electronics,120,18000,1001
+2,2025-01-12,North America,Electronics,95,14250,1002
+3,2025-01-19,North America,Clothing,200,6000,1003
+4,2025-01-26,North America,Clothing,180,5400,1004
+5,2025-01-08,Europe,Electronics,80,12000,1005
+6,2025-01-15,Europe,Electronics,110,16500,1006
+7,2025-01-22,Europe,Clothing,150,4500,1007
+8,2025-01-29,Europe,Clothing,170,5100,1008
+9,2025-01-10,Asia Pacific,Electronics,200,30000,1009
+10,2025-01-17,Asia Pacific,Electronics,180,27000,1010
+11,2025-01-24,Asia Pacific,Clothing,300,9000,1011
+12,2025-01-31,Asia Pacific,Clothing,250,7500,1012
+13,2025-02-02,North America,Electronics,130,19500,1001
+14,2025-02-09,North America,Electronics,105,15750,1013
+15,2025-02-16,North America,Clothing,210,6300,1003
+16,2025-02-23,North America,Clothing,195,5850,1014
+17,2025-02-05,Europe,Electronics,90,13500,1005
+18,2025-02-12,Europe,Electronics,120,18000,1015
+19,2025-02-19,Europe,Clothing,160,4800,1007
+20,2025-02-26,Europe,Clothing,185,5550,1016
+21,2025-02-07,Asia Pacific,Electronics,220,33000,1009
+22,2025-02-14,Asia Pacific,Electronics,195,29250,1017
+23,2025-02-21,Asia Pacific,Clothing,320,9600,1011
+24,2025-02-28,Asia Pacific,Clothing,270,8100,1018
+25,2025-03-03,North America,Electronics,140,21000,1002
+26,2025-03-10,North America,Electronics,115,17250,1019
+27,2025-03-17,North America,Clothing,225,6750,1004
+28,2025-03-24,North America,Clothing,200,6000,1020
+29,2025-03-05,Europe,Electronics,100,15000,1006
+30,2025-03-12,Europe,Electronics,130,19500,1021
+31,2025-03-19,Europe,Clothing,175,5250,1008
+32,2025-03-26,Europe,Clothing,190,5700,1022
+33,2025-03-07,Asia Pacific,Electronics,240,36000,1010
+34,2025-03-14,Asia Pacific,Electronics,210,31500,1023
+35,2025-03-21,Asia Pacific,Clothing,340,10200,1012
+36,2025-03-28,Asia Pacific,Clothing,290,8700,1024
+37,2025-04-01,North America,Electronics,150,22500,1001
+38,2025-04-08,North America,Electronics,125,18750,1013
+39,2025-04-15,North America,Clothing,230,6900,1003
+40,2025-04-22,North America,Clothing,210,6300,1014
+41,2025-04-03,Europe,Electronics,110,16500,1005
+42,2025-04-10,Europe,Electronics,140,21000,1015
+43,2025-04-17,Europe,Clothing,180,5400,1007
+44,2025-04-24,Europe,Clothing,200,6000,1016
+45,2025-04-05,Asia Pacific,Electronics,260,39000,1009
+46,2025-04-12,Asia Pacific,Electronics,225,33750,1017
+47,2025-04-19,Asia Pacific,Clothing,350,10500,1011
+48,2025-04-26,Asia Pacific,Clothing,300,9000,1018
+49,2025-05-02,North America,Electronics,160,24000,1002
+50,2025-05-09,North America,Electronics,135,20250,1019
+51,2025-05-16,North America,Clothing,240,7200,1004
+52,2025-05-23,North America,Clothing,220,6600,1020
+53,2025-05-05,Europe,Electronics,120,18000,1006
+54,2025-05-12,Europe,Electronics,150,22500,1021
+55,2025-05-19,Europe,Clothing,190,5700,1008
+56,2025-05-26,Europe,Clothing,210,6300,1022
+57,2025-05-07,Asia Pacific,Electronics,270,40500,1010
+58,2025-05-14,Asia Pacific,Electronics,240,36000,1023
+59,2025-05-21,Asia Pacific,Clothing,360,10800,1012
+60,2025-05-28,Asia Pacific,Clothing,310,9300,1024
+61,2025-06-01,North America,Electronics,170,25500,1001
+62,2025-06-08,North America,Electronics,145,21750,1013
+63,2025-06-15,North America,Clothing,250,7500,1003
+64,2025-06-22,North America,Clothing,230,6900,1014
+65,2025-06-03,Europe,Electronics,130,19500,1005
+66,2025-06-10,Europe,Electronics,155,23250,1015
+67,2025-06-17,Europe,Clothing,200,6000,1007
+68,2025-06-24,Europe,Clothing,220,6600,1016
+69,2025-06-05,Asia Pacific,Electronics,280,42000,1009
+70,2025-06-12,Asia Pacific,Electronics,250,37500,1017
+71,2025-06-19,Asia Pacific,Clothing,370,11100,1011
+72,2025-06-28,Asia Pacific,Clothing,320,9600,1018

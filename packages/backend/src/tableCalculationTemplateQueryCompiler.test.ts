@@ -571,5 +571,143 @@ describe('compileTableCalculationFromTemplate - Frame Clauses', () => {
                 'SUM("table_sales") OVER (ORDER BY "table_region" ASC, "table_date" DESC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)',
             );
         });
+
+        it('Should compile RUNNING_TOTAL using _order for custom bin sort fields', () => {
+            const template: TableCalculationTemplate = {
+                type: TableCalculationTemplateType.RUNNING_TOTAL,
+                fieldId: 'table_sales',
+            };
+
+            const result = compileTableCalculationFromTemplate(
+                template,
+                warehouseClientMock,
+                [{ fieldId: 'age_range', descending: false }],
+                new Set(['age_range']),
+            );
+
+            expect(result).toBe(
+                'SUM("table_sales") OVER (ORDER BY "age_range_order" ASC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)',
+            );
+        });
+    });
+
+    describe('WINDOW_FUNCTION custom bin ordering', () => {
+        it('Should compile WINDOW_FUNCTION using _order for custom bin orderBy fields', () => {
+            const template: TableCalculationTemplate = {
+                type: TableCalculationTemplateType.WINDOW_FUNCTION,
+                windowFunction: WindowFunctionType.ROW_NUMBER,
+                fieldId: null,
+                orderBy: [{ fieldId: 'age_range', order: 'asc' }],
+                partitionBy: [],
+            };
+
+            const result = compileTableCalculationFromTemplate(
+                template,
+                warehouseClientMock,
+                [],
+                new Set(['age_range']),
+            );
+
+            expect(result).toBe(
+                'ROW_NUMBER() OVER (ORDER BY "age_range_order" ASC)',
+            );
+        });
+    });
+
+    describe('PERCENT_CHANGE_FROM_PREVIOUS partitionBy', () => {
+        it('Should compile without partitionBy (backward compatibility)', () => {
+            const template: TableCalculationTemplate = {
+                type: TableCalculationTemplateType.PERCENT_CHANGE_FROM_PREVIOUS,
+                fieldId: 'table_revenue',
+                orderBy: [{ fieldId: 'table_date', order: 'asc' }],
+            };
+
+            const result = compileTableCalculationFromTemplate(
+                template,
+                warehouseClientMock,
+                [],
+            );
+
+            expect(result).toBe(
+                '(CAST("table_revenue" AS FLOAT) / CAST(NULLIF(LAG("table_revenue") OVER(ORDER BY "table_date" ASC ), 0) AS FLOAT)) - 1',
+            );
+        });
+
+        it('Should compile with partitionBy', () => {
+            const template: TableCalculationTemplate = {
+                type: TableCalculationTemplateType.PERCENT_CHANGE_FROM_PREVIOUS,
+                fieldId: 'table_revenue',
+                orderBy: [{ fieldId: 'table_date', order: 'asc' }],
+                partitionBy: ['table_category'],
+            };
+
+            const result = compileTableCalculationFromTemplate(
+                template,
+                warehouseClientMock,
+                [],
+            );
+
+            expect(result).toBe(
+                '(CAST("table_revenue" AS FLOAT) / CAST(NULLIF(LAG("table_revenue") OVER(PARTITION BY "table_category" ORDER BY "table_date" ASC ), 0) AS FLOAT)) - 1',
+            );
+        });
+
+        it('Should compile with multiple partitionBy fields', () => {
+            const template: TableCalculationTemplate = {
+                type: TableCalculationTemplateType.PERCENT_CHANGE_FROM_PREVIOUS,
+                fieldId: 'table_revenue',
+                orderBy: [{ fieldId: 'table_date', order: 'asc' }],
+                partitionBy: ['table_category', 'table_region'],
+            };
+
+            const result = compileTableCalculationFromTemplate(
+                template,
+                warehouseClientMock,
+                [],
+            );
+
+            expect(result).toBe(
+                '(CAST("table_revenue" AS FLOAT) / CAST(NULLIF(LAG("table_revenue") OVER(PARTITION BY "table_category", "table_region" ORDER BY "table_date" ASC ), 0) AS FLOAT)) - 1',
+            );
+        });
+    });
+
+    describe('PERCENT_OF_PREVIOUS_VALUE partitionBy', () => {
+        it('Should compile without partitionBy (backward compatibility)', () => {
+            const template: TableCalculationTemplate = {
+                type: TableCalculationTemplateType.PERCENT_OF_PREVIOUS_VALUE,
+                fieldId: 'table_revenue',
+                orderBy: [{ fieldId: 'table_date', order: 'asc' }],
+            };
+
+            const result = compileTableCalculationFromTemplate(
+                template,
+                warehouseClientMock,
+                [],
+            );
+
+            expect(result).toBe(
+                '(CAST("table_revenue" AS FLOAT) / CAST(NULLIF(LAG("table_revenue") OVER(ORDER BY "table_date" ASC ), 0) AS FLOAT))',
+            );
+        });
+
+        it('Should compile with partitionBy', () => {
+            const template: TableCalculationTemplate = {
+                type: TableCalculationTemplateType.PERCENT_OF_PREVIOUS_VALUE,
+                fieldId: 'table_revenue',
+                orderBy: [{ fieldId: 'table_date', order: 'asc' }],
+                partitionBy: ['table_category'],
+            };
+
+            const result = compileTableCalculationFromTemplate(
+                template,
+                warehouseClientMock,
+                [],
+            );
+
+            expect(result).toBe(
+                '(CAST("table_revenue" AS FLOAT) / CAST(NULLIF(LAG("table_revenue") OVER(PARTITION BY "table_category" ORDER BY "table_date" ASC ), 0) AS FLOAT))',
+            );
+        });
     });
 });

@@ -1,4 +1,4 @@
-import { TextInput, type TextInputProps } from '@mantine/core';
+import { TextInput, type TextInputProps } from '@mantine-8/core';
 import {
     useCallback,
     useEffect,

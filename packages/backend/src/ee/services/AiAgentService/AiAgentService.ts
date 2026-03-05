@@ -102,7 +102,7 @@ import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { SearchModel } from '../../../models/SearchModel';
 import { UserAttributesModel } from '../../../models/UserAttributesModel';
 import { UserModel } from '../../../models/UserModel';
-import PrometheusMetrics from '../../../prometheus';
+import PrometheusMetrics from '../../../prometheus/PrometheusMetrics';
 import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
 import { CatalogService } from '../../../services/CatalogService/CatalogService';
 import { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
@@ -134,6 +134,8 @@ import {
     FindContentFn,
     FindExploresFn,
     FindFieldFn,
+    GetDashboardChartsFn,
+    GetExploreFn,
     GetPromptFn,
     ListExploresFn,
     RunAsyncQueryFn,
@@ -153,6 +155,7 @@ import {
     getFollowUpToolBlocks,
     getProposeChangeBlocks,
     getReferencedArtifactsBlocks,
+    getTextBlocks,
     getThinkingBlocks,
 } from '../ai/utils/getSlackBlocks';
 import { llmAsAJudge } from '../ai/utils/llmAsAJudge';
@@ -411,12 +414,14 @@ export class AiAgentService {
         user: SessionUser,
         projectUuid: string,
         availableTags: string[] | null,
+        exploreNames?: string[],
     ) {
         return wrapSentryTransaction(
             'AiAgent.getAvailableExplores',
             {
                 projectUuid,
                 availableTags,
+                exploreNames,
             },
             async () => {
                 const { organizationUuid } = user;
@@ -433,6 +438,7 @@ export class AiAgentService {
                     await this.projectModel.findExploresFromCache(
                         projectUuid,
                         'name',
+                        exploreNames,
                     ),
                 );
 
@@ -445,6 +451,7 @@ export class AiAgentService {
                         doesExploreMatchRequiredAttributes(
                             explore.tables[explore.baseTable]
                                 .requiredAttributes,
+                            explore.tables[explore.baseTable].anyAttributes,
                             userAttributes,
                         ),
                     )
@@ -465,14 +472,12 @@ export class AiAgentService {
         availableTags: string[] | null,
         exploreName: string,
     ) {
-        const explores = await this.getAvailableExplores(
+        const [explore] = await this.getAvailableExplores(
             user,
             projectUuid,
             availableTags,
+            [exploreName],
         );
-
-        const explore = explores.find((e) => e.name === exploreName);
-
         if (!explore) {
             throw new NotFoundError('Explore not found');
         }
@@ -2497,6 +2502,16 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                 );
             });
 
+        const getExplore: GetExploreFn = async ({ table }) => {
+            const agentSettings = await this.getAgentSettings(user, prompt);
+            return this.getExplore(
+                user,
+                projectUuid,
+                agentSettings.tags,
+                table,
+            );
+        };
+
         const findExplores: FindExploresFn = (args) =>
             wrapSentryTransaction('AiAgent.findExplores', args, async () => {
                 const agentSettings = await this.getAgentSettings(user, prompt);
@@ -2588,15 +2603,6 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                         },
                     );
 
-                const agentSettings = await this.getAgentSettings(user, prompt);
-
-                const explore = await this.getExplore(
-                    user,
-                    projectUuid,
-                    agentSettings.tags,
-                    args.table,
-                );
-
                 const { data: catalogItems, pagination } =
                     await this.catalogService.searchCatalog({
                         projectUuid,
@@ -2611,7 +2617,7 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                         },
                         userAttributes,
                         fullTextSearchOperator: 'OR',
-                        filteredExplores: [explore],
+                        filteredExplores: [args.explore],
                     });
 
                 // TODO: we should not filter here, search should be returning a proper type
@@ -2619,7 +2625,7 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                     (item) => item.type === CatalogType.Field,
                 );
 
-                return { fields: catalogFields, pagination, explore };
+                return { fields: catalogFields, pagination };
             });
 
         const updateProgress: UpdateProgressFn = (progress) =>
@@ -2787,6 +2793,15 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                 };
             });
 
+        const getDashboardCharts: GetDashboardChartsFn = async (args) =>
+            wrapSentryTransaction('AiAgent.getDashboardCharts', args, () =>
+                this.searchModel.getDashboardCharts(
+                    args.dashboardUuid,
+                    args.page,
+                    args.pageSize,
+                ),
+            );
+
         const searchFieldValues: SearchFieldValuesFn = async (args) =>
             wrapSentryTransaction(
                 'AiAgent.searchFieldValues',
@@ -2858,7 +2873,9 @@ Use them as a reference, but do all the due dilligence and follow the instructio
 
         return {
             listExplores,
+            getExplore,
             findContent,
+            getDashboardCharts,
             findFields,
             findExplores,
             updateProgress,
@@ -2932,7 +2949,9 @@ Use them as a reference, but do all the due dilligence and follow the instructio
 
         const {
             listExplores,
+            getExplore,
             findContent,
+            getDashboardCharts,
             findFields,
             findExplores,
             updateProgress,
@@ -2975,8 +2994,7 @@ Use them as a reference, but do all the due dilligence and follow the instructio
 
             findExploresFieldSearchSize: 200,
             findFieldsPageSize: 30,
-            findDashboardsPageSize: 5,
-            findChartsPageSize: 5,
+            getDashboardChartsPageSize: 20,
             maxQueryLimit: this.lightdashConfig.ai.copilot.maxQueryLimit,
             siteUrl: this.lightdashConfig.siteUrl,
             canManageAgent: options.canManageAgent,
@@ -2984,7 +3002,9 @@ Use them as a reference, but do all the due dilligence and follow the instructio
 
         const dependencies: AiAgentDependencies = {
             listExplores,
+            getExplore,
             findContent,
+            getDashboardCharts,
             findFields,
             findExplores,
             runAsyncQuery,
@@ -3386,16 +3406,15 @@ Use them as a reference, but do all the due dilligence and follow the instructio
 
         // ! This is needed because the markdownToBlocks escapes all characters and slack just needs &, <, > to be escaped
         // ! https://api.slack.com/reference/surfaces/formatting#escaping
-        const slackifiedMarkdown = slackifyMarkdown(response);
+        // Also strip trailing backslashes before newlines — slackifyMarkdown converts
+        // markdown hard line breaks (two trailing spaces) into `\` which Slack renders literally.
+        const slackifiedMarkdown = slackifyMarkdown(response).replace(
+            /\\\n/g,
+            '\n',
+        );
 
         const blocks = [
-            {
-                type: 'section',
-                text: {
-                    type: 'mrkdwn',
-                    text: slackifiedMarkdown,
-                },
-            },
+            ...getTextBlocks(slackifiedMarkdown),
             ...exploreBlocks,
             ...proposeChangeBlocks,
             ...referencedArtifactsBlocks,
@@ -3422,7 +3441,19 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                 },
                 extra: { responseLength: slackifiedMarkdown.length },
             });
-            throw error;
+
+            const threadUrl = thread.agentUuid
+                ? `${this.lightdashConfig.siteUrl}/projects/${slackPrompt.projectUuid}/ai-agents/${thread.agentUuid}/threads/${slackPrompt.threadUuid}`
+                : this.lightdashConfig.siteUrl;
+
+            newResponse = await this.slackClient.postMessage({
+                organizationUuid: slackPrompt.organizationUuid,
+                text: `⚠️ The response couldn't be displayed here. <${threadUrl}|View it in Lightdash>.`,
+                username: agent?.name,
+                channel: slackPrompt.slackChannelId,
+                thread_ts: slackPrompt.slackThreadTs,
+                unfurl_links: false,
+            });
         }
 
         await this.aiAgentModel.updateModelResponse({
@@ -3681,9 +3712,30 @@ Use them as a reference, but do all the due dilligence and follow the instructio
     public handlePromptUpvote(app: App) {
         app.action(
             'prompt_human_score.upvote',
-            async ({ ack, body, respond, context }) => {
+            async ({ ack, body, respond, context, client }) => {
                 await ack();
                 const { user } = body;
+                const { teamId } = context;
+
+                // Auth check: require linked Lightdash account to vote
+                const openIdIdentity =
+                    await this.openIdIdentityModel.findIdentityByOpenId(
+                        OpenIdIdentityIssuerType.SLACK,
+                        user.id,
+                        teamId,
+                    );
+
+                if (!openIdIdentity) {
+                    if (body.type === 'block_actions' && body.channel?.id) {
+                        await client.chat.postEphemeral({
+                            channel: body.channel.id,
+                            user: user.id,
+                            text: 'You need to link your Slack account to Lightdash to vote on AI responses. Please use the AI Agent first to complete the OAuth linking process.',
+                        });
+                    }
+                    return;
+                }
+
                 const newBlock = {
                     type: 'context',
                     elements: [
@@ -3700,7 +3752,6 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                         if (!promptUuid) {
                             return;
                         }
-                        const { teamId } = context;
                         const organizationUuid = teamId
                             ? await this.slackAuthenticationModel.getOrganizationUuidFromTeamId(
                                   teamId,
@@ -3737,6 +3788,27 @@ Use them as a reference, but do all the due dilligence and follow the instructio
             async ({ ack, body, respond, client, context }) => {
                 await ack();
                 const { user } = body;
+                const { teamId } = context;
+
+                // Auth check: require linked Lightdash account to vote
+                const openIdIdentity =
+                    await this.openIdIdentityModel.findIdentityByOpenId(
+                        OpenIdIdentityIssuerType.SLACK,
+                        user.id,
+                        teamId,
+                    );
+
+                if (!openIdIdentity) {
+                    if (body.type === 'block_actions' && body.channel?.id) {
+                        await client.chat.postEphemeral({
+                            channel: body.channel.id,
+                            user: user.id,
+                            text: 'You need to link your Slack account to Lightdash to vote on AI responses. Please use the AI Agent first to complete the OAuth linking process.',
+                        });
+                    }
+                    return;
+                }
+
                 const newBlock = {
                     type: 'context',
                     elements: [
@@ -3753,7 +3825,6 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                         if (!promptUuid) {
                             return;
                         }
-                        const { teamId } = context;
 
                         const organizationUuid = teamId
                             ? await this.slackAuthenticationModel.getOrganizationUuidFromTeamId(

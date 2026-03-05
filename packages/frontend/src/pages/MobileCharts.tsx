@@ -8,7 +8,7 @@ import { IconChartBar, IconSearch, IconX } from '@tabler/icons-react';
 import Fuse from 'fuse.js';
 import { useMemo, useState, type FC } from 'react';
 import { useParams } from 'react-router';
-import LoadingState from '../components/common/LoadingState';
+import EmptyStateLoader from '../components/common/EmptyStateLoader';
 import MantineIcon from '../components/common/MantineIcon';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import ResourceView from '../components/common/ResourceView';
@@ -43,7 +43,7 @@ const MobileCharts: FC = () => {
     }, [savedQueries, search]);
 
     if (isInitialLoading && !cannotView) {
-        return <LoadingState title="Loading charts" />;
+        return <EmptyStateLoader my="xl" title="Loading charts" />;
     }
 
     return (

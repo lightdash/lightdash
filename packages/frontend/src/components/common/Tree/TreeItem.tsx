@@ -1,4 +1,5 @@
 import { ActionIcon, Group, Highlight, Paper, rem } from '@mantine-8/core';
+import { clsx } from '@mantine/core';
 import {
     IconCheck,
     IconChevronDown,
@@ -6,10 +7,7 @@ import {
     IconFolder,
 } from '@tabler/icons-react';
 import React, { useMemo } from 'react';
-
 import MantineIcon from '../MantineIcon';
-
-import { clsx } from '@mantine/core';
 import classes from './TreeItem.module.css';
 
 type Props = {

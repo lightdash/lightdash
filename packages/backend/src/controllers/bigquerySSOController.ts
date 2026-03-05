@@ -1,5 +1,6 @@
 import {
     ApiBigqueryDatasets,
+    ApiBigqueryProjects,
     ApiErrorPayload,
     ApiSuccessEmpty,
 } from '@lightdash/common';
@@ -46,17 +47,39 @@ export class BigquerySSOController extends BaseController {
     }
 
     /**
+     * Get BigQuery projects accessible by the user
+     * @summary Get BigQuery projects
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/projects')
+    @OperationId('GetBigQueryProjects')
+    async getBigQueryProjects(
+        @Request() req: express.Request,
+    ): Promise<ApiBigqueryProjects> {
+        this.setStatus(200);
+        const projects = await this.services
+            .getProjectService()
+            .getBigqueryProjects(req.user!);
+
+        return {
+            status: 'ok',
+            results: projects,
+        };
+    }
+
+    /**
      * Check if user is authenticated with BigQuery
      * @summary Check BigQuery authentication
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Get('/is-authenticated')
-    @OperationId('getAccessToken')
+    @OperationId('checkBigqueryAuthentication')
     async get(@Request() req: express.Request): Promise<ApiSuccessEmpty> {
         this.setStatus(200);
         // This will throw an error if the user is not authenticated with bigquery scopes
-        const accessToken = await this.services
+        await this.services
             .getUserService()
             .getAccessToken(req.user!, 'bigquery');
         return {

@@ -1,5 +1,5 @@
 import { type DashboardLoomTileProperties } from '@lightdash/common';
-import { ActionIcon, Flex, Stack, TextInput } from '@mantine/core';
+import { ActionIcon, Flex, Stack, TextInput } from '@mantine-8/core';
 import { type UseFormReturnType } from '@mantine/form';
 import { IconEye, IconEyeOff } from '@tabler/icons-react';
 import MantineIcon from '../../common/MantineIcon';
@@ -10,7 +10,7 @@ interface LoomTileFormProps {
 }
 
 const LoomTileForm = ({ form, withHideTitle }: LoomTileFormProps) => (
-    <Stack spacing="md">
+    <Stack gap="md">
         <Flex
             align={form.getInputProps('title').error ? 'center' : 'flex-end'}
             gap="xs"
@@ -18,7 +18,7 @@ const LoomTileForm = ({ form, withHideTitle }: LoomTileFormProps) => (
             <TextInput
                 label="Title"
                 placeholder="Tile title"
-                style={{ flex: 1 }}
+                flex={1}
                 required
                 disabled={form.values.hideTitle}
                 {...form.getInputProps('title')}

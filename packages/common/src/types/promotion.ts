@@ -1,6 +1,6 @@
 import { type DashboardDAO } from './dashboard';
 import { type SavedChartDAO } from './savedCharts';
-import { type SpaceSummary } from './space';
+import { type SpaceSummaryBase } from './space';
 
 export enum PromotionAction {
     NO_CHANGES = 'no changes',
@@ -9,7 +9,7 @@ export enum PromotionAction {
     DELETE = 'delete',
 }
 
-export type PromotedSpace = Omit<SpaceSummary, 'userAccess'>;
+export type PromotedSpace = SpaceSummaryBase;
 
 export type PromotedDashboard = DashboardDAO & {
     spaceSlug: string;
@@ -19,6 +19,17 @@ export type PromotedChart = SavedChartDAO & {
     spaceSlug: string;
     spacePath: string;
     oldUuid: string;
+};
+
+export type PromotedSqlChart = {
+    uuid: string;
+    oldUuid: string;
+    slug: string;
+    projectUuid: string;
+    name: string;
+    description: string | null;
+    spaceSlug: string;
+    spacePath: string;
 };
 
 export type PromotionChanges = {
@@ -33,6 +44,10 @@ export type PromotionChanges = {
     charts: {
         action: PromotionAction;
         data: PromotedChart;
+    }[];
+    sqlCharts?: {
+        action: PromotionAction;
+        data: PromotedSqlChart;
     }[];
 };
 

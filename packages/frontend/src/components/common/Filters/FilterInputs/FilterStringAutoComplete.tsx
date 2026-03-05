@@ -1,7 +1,6 @@
 import { type FilterableItem } from '@lightdash/common';
 import {
     ActionIcon,
-    Button,
     Group,
     Highlight,
     Loader,
@@ -364,18 +363,6 @@ const FilterStringAutoComplete: FC<Props> = ({
                         readOnly
                         value={`${values.length.toLocaleString()} values selected`}
                         disabled={disabled}
-                        description={
-                            values.length > 0 ? (
-                                <Button
-                                    size="xs"
-                                    variant="subtle"
-                                    onClick={() => openManageValues()}
-                                    disabled={disabled}
-                                >
-                                    Manage values
-                                </Button>
-                            ) : undefined
-                        }
                         rightSection={
                             disabled ? null : (
                                 <Tooltip

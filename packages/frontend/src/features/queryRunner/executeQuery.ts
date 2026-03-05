@@ -1,11 +1,11 @@
 import {
+    QueryHistoryStatus,
     type ApiExecuteAsyncSqlQueryResults,
     type ApiGetAsyncQueryResults,
     type ExecuteAsyncDashboardSqlChartRequestParams,
     type ExecuteAsyncSqlChartRequestParams,
     type ExecuteAsyncSqlQueryRequestParams,
     type ParametersValuesMap,
-    QueryHistoryStatus,
     type RawResultRow,
 } from '@lightdash/common';
 import { lightdashApi } from '../../api';

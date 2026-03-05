@@ -44,8 +44,13 @@ export const sqlChartContentConfiguration: ContentConfiguration<SelectSavedSql> 
                 .from(SavedSqlTableName)
                 .leftJoin(
                     DashboardsTableName,
-                    `${DashboardsTableName}.dashboard_uuid`,
-                    `${SavedSqlTableName}.dashboard_uuid`,
+                    function nonDeletedDashboardJoin() {
+                        this.on(
+                            `${DashboardsTableName}.dashboard_uuid`,
+                            '=',
+                            `${SavedSqlTableName}.dashboard_uuid`,
+                        ).andOnNull(`${DashboardsTableName}.deleted_at`);
+                    },
                 )
                 .innerJoin(
                     SpaceTableName,
@@ -106,14 +111,42 @@ export const sqlChartContentConfiguration: ContentConfiguration<SelectSavedSql> 
                     knex.raw(
                         `${SavedSqlTableName}.first_viewed_at::timestamp as first_viewed_at`,
                     ),
+                    knex.raw(
+                        `${SavedSqlTableName}.deleted_at::timestamp as deleted_at`,
+                    ),
+                    knex.raw(
+                        `${SavedSqlTableName}.deleted_by_user_uuid as deleted_by_user_uuid`,
+                    ),
+                    knex.raw(
+                        `(SELECT first_name FROM ${UserTableName} WHERE user_uuid = ${SavedSqlTableName}.deleted_by_user_uuid) as deleted_by_user_first_name`,
+                    ),
+                    knex.raw(
+                        `(SELECT last_name FROM ${UserTableName} WHERE user_uuid = ${SavedSqlTableName}.deleted_by_user_uuid) as deleted_by_user_last_name`,
+                    ),
                     knex.raw(`json_build_object(
                     'source','${ChartSourceType.SQL}',
-                    'chart_kind', ${SavedSqlTableName}.last_version_chart_kind, 
+                    'chart_kind', ${SavedSqlTableName}.last_version_chart_kind,
                     'dashboard_uuid', ${DashboardsTableName}.dashboard_uuid,
                     'dashboard_name', ${DashboardsTableName}.name
                 ) as metadata`),
                 ])
                 .where((builder) => {
+                    if (filters.deleted) {
+                        void builder.whereNotNull(
+                            `${SavedSqlTableName}.deleted_at`,
+                        );
+                        if (filters.deletedByUserUuids) {
+                            void builder.whereIn(
+                                `${SavedSqlTableName}.deleted_by_user_uuid`,
+                                filters.deletedByUserUuids,
+                            );
+                        }
+                    } else {
+                        void builder.whereNull(
+                            `${SavedSqlTableName}.deleted_at`,
+                        );
+                    }
+
                     if (filters.projectUuids) {
                         void builder.whereIn(
                             `${ProjectTableName}.project_uuid`,
@@ -133,6 +166,9 @@ export const sqlChartContentConfiguration: ContentConfiguration<SelectSavedSql> 
                             [`%${filters.search.toLowerCase()}%`],
                         );
                     }
+
+                    // Exclude SQL charts in deleted spaces
+                    void builder.whereNull(`${SpaceTableName}.deleted_at`);
                 }),
         shouldRowBeConverted: (value): value is SelectSavedSql => {
             const contentTypeMatch = value.content_type === ContentType.CHART;

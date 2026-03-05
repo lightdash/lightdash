@@ -262,10 +262,7 @@ const ProjectTablesConfiguration: FC<Props> = ({ projectUuid, onSuccess }) => {
                                         clearSearchOnChange={false}
                                         searchValue={search}
                                         onSearchChange={setSearch}
-                                        itemComponent={({
-                                            label,
-                                            ...others
-                                        }) =>
+                                        itemComponent={({ label, ...others }) =>
                                             others.disabled ? (
                                                 <Text
                                                     color="dimmed"
@@ -333,10 +330,7 @@ const ProjectTablesConfiguration: FC<Props> = ({ projectUuid, onSuccess }) => {
                                         clearSearchOnChange={false}
                                         searchValue={search}
                                         onSearchChange={setSearch}
-                                        itemComponent={({
-                                            label,
-                                            ...others
-                                        }) =>
+                                        itemComponent={({ label, ...others }) =>
                                             others.disabled ? (
                                                 <Text
                                                     color="dimmed"

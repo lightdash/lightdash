@@ -11,8 +11,8 @@ import { useQuery } from '@tanstack/react-query';
 import { memo, useState, type FC } from 'react';
 import { ExportToGoogleSheet } from '../../features/export';
 import useHealth from '../../hooks/health/useHealth';
-import ExportResults, { type ExportResultsProps } from '../ExportResults';
 import MantineIcon from '../common/MantineIcon';
+import ExportResults, { type ExportResultsProps } from '../ExportResults';
 
 const ExportSelector: FC<
     ExportResultsProps & {

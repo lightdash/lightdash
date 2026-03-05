@@ -1,5 +1,5 @@
 import { Anchor, Box, Breadcrumbs, Stack, Text } from '@mantine-8/core';
-import { type FC, useEffect } from 'react';
+import { useEffect, type FC } from 'react';
 import { Panel, PanelGroup } from 'react-resizable-panels';
 import { useNavigate, useParams, useSearchParams } from 'react-router';
 import { NAVBAR_HEIGHT } from '../../../../../components/common/Page/constants';

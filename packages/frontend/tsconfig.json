@@ -3,38 +3,31 @@
     "compilerOptions": {
         "composite": true,
         "target": "ESNext",
-        "lib": [
-            "dom",
-            "dom.iterable",
-            "esnext"
-        ],
+        "lib": ["dom", "dom.iterable", "esnext"],
         "allowJs": true,
-        "skipLibCheck": true,
-        "esModuleInterop": true,
-        "allowSyntheticDefaultImports": true,
-        "strict": true,
-        "forceConsistentCasingInFileNames": true,
         "noFallthroughCasesInSwitch": true,
         "module": "ESNext",
-        "moduleResolution": "node",
+        "ignoreDeprecations": "6.0",
+        "moduleResolution": "node10",
         "resolveJsonModule": true,
         "isolatedModules": true,
         "importHelpers": true,
         "jsx": "react-jsx",
         "jsxImportSource": "react",
+        "skipLibCheck": true,
         "types": [
             "node",
             "vite/client",
             "vite-plugin-svgr/client",
             "@testing-library/jest-dom"
         ],
-        "noUncheckedIndexedAccess": false, // TODO fix errors ,then enable
-        "tsBuildInfoFile": "dist/.tsbuildinfo",
+        "noUncheckedIndexedAccess": false, // TODO fix errors, then enable
+        "tsBuildInfoFile": "dist/.tsbuildinfo"
     },
     "include": [
         "./src",
         "./sdk/index.tsx",
-        "./vite-env.d.ts",
+        "./vite-env.d.ts"
     ],
     "references": [
         {

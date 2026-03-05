@@ -18,6 +18,9 @@ models:
           - join: plan
             sql_on: ${plan.id} = ${subscriptions.plan_id}
             relationship: many-to-one
+          - join: orders
+            sql_on: ${customers.customer_id} = ${orders.customer_id}
+            relationship: one-to-many
     columns:
       - name: subscription_id
         description: Unique identifier for each subscription

@@ -539,6 +539,7 @@ export class EmbedService extends BaseService {
         return {
             ...dashboard,
             isPrivate: false,
+            inheritsFromOrgOrProject: true,
             access: [],
             dashboardFiltersInteractivity: account.access.filtering,
             parameterInteractivity: account.access.parameters,
@@ -583,15 +584,18 @@ export class EmbedService extends BaseService {
             ({ savedChartUuid }) => savedChartUuid,
         );
 
-        if (checkPermissions)
-            savedQueryUuids.map(async (chartUuid) =>
-                this._permissionsGetChartAndResults(
-                    { dashboardUuids, allowAllDashboards },
-                    projectUuid,
-                    chartUuid,
-                    dashboardUuid,
+        if (checkPermissions) {
+            await Promise.all(
+                savedQueryUuids.map((chartUuid) =>
+                    this._permissionsGetChartAndResults(
+                        { dashboardUuids, allowAllDashboards },
+                        projectUuid,
+                        chartUuid,
+                        dashboardUuid,
+                    ),
                 ),
             );
+        }
 
         const savedCharts =
             await this.savedChartModel.getInfoForAvailableFilters(
@@ -1167,6 +1171,7 @@ export class EmbedService extends BaseService {
             chart: {
                 ...chart,
                 isPrivate: false,
+                inheritsFromOrgOrProject: true,
                 access: [],
             },
             explore,

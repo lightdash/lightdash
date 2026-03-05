@@ -1,7 +1,7 @@
 import { subject } from '@casl/ability';
 import {
-    ProjectType,
     assertUnreachable,
+    ProjectType,
     type OrganizationProject,
 } from '@lightdash/common';
 import {
@@ -10,6 +10,7 @@ import {
     Box,
     Button,
     Collapse,
+    getDefaultZIndex,
     Group,
     Highlight,
     Menu,
@@ -410,6 +411,7 @@ const ProjectSwitcher = () => {
                 opened={isMenuOpen}
                 onChange={setIsMenuOpen}
                 classNames={{ dropdown: classes.dropdown }}
+                zIndex={getDefaultZIndex('max')}
                 portalProps={{ target: '#navbar-header' }}
             >
                 <Menu.Target>

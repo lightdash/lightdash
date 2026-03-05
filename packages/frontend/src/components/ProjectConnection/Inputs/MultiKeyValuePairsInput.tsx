@@ -10,8 +10,8 @@ import { IconHelpCircle, IconPlus, IconTrash } from '@tabler/icons-react';
 import get from 'lodash/get';
 import { useState, type ReactNode } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import DocumentationHelpButton from '../../DocumentationHelpButton';
 import MantineIcon from '../../common/MantineIcon';
+import DocumentationHelpButton from '../../DocumentationHelpButton';
 import { useFormContext } from '../formContext';
 
 type Props = {

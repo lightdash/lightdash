@@ -887,7 +887,7 @@ export const renameDashboardScheduler = (
         hasChanges = true;
 
         const updateTarget = (target: DashboardFieldTarget) => {
-            /* sample target filter:    
+            /* sample target filter:
                 "target": {
                     "fieldId": "purchases_payment_method",
                     "fieldName": "payment_method",

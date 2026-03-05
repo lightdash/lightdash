@@ -2,7 +2,7 @@ import { subject } from '@casl/ability';
 import { hasCustomBinDimension, type MetricQuery } from '@lightdash/common';
 import { Menu } from '@mantine-8/core';
 import { IconStack } from '@tabler/icons-react';
-import { type FC, useCallback } from 'react';
+import { useCallback, type FC } from 'react';
 import { useLocation } from 'react-router';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
 import { useAccount } from '../../hooks/user/useAccount';

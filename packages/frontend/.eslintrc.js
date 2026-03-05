@@ -9,7 +9,6 @@ const unusedVarExceptions = {
 module.exports = {
     parserOptions: {
         project: './tsconfig.json',
-        createDefaultProgram: true,
     },
     ignorePatterns: ['**/*.css', '.eslintrc.js'],
     extends: [
@@ -32,7 +31,6 @@ module.exports = {
         'import',
         'json',
         'jsx-a11y',
-        'prettier',
         'react-hooks',
         'react',
         'jest-dom',

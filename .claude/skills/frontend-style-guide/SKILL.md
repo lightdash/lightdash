@@ -22,6 +22,15 @@ When creating/updating components:
 - [ ] Use inline-style component props for styling when available (and follow <=3 props rule)
 - [ ] Use CSS modules when component props aren't available or when more than 3 inline-style props are needed
 - [ ] Theme values ('md', 'lg', 'xl', or 'ldGray.1', 'ldGray.2', 'ldDark.1', 'ldDark.2', etc) instead of magic numbers
+- [ ] When using mantine colors in css modules, always use the theme awared variables:
+    - `--mantine-color-${color}-text`: for text on filled background
+    - `--mantine-color-${color}-filled`: for filled background (strong color)
+    - `--mantine-color-${color}-filled-hover`: for filled background on hover
+    - `--mantine-color-${color}-light`: for light background
+    - `--mantine-color-${color}-light-hover`: for light background on hover (light color)
+    - `--mantine-color-${color}-light-color`: for text on light background
+    - `--mantine-color-${color}-outline`: for outlines
+    - `--mantine-color-${color}-outline-hover`: for outlines on hover
 
 ## Quick Migration Guide
 
@@ -232,6 +241,31 @@ const MyComponent = () => {
 };
 ```
 
+## Keep using mantine/core's clsx utility until we migrate to Mantine 8 fully
+
+```tsx
+import { clsx } from '@mantine/core';
+
+const MyComponent = () => {
+    return (
+        <div className={clsx('my-class', 'my-other-class')}>My Component</div>
+    );
+};
+```
+
+## Select/MultiSelect grouping has a different structure on Mantine 8
+
+```tsx
+<Select
+    label="Your favorite library"
+    placeholder="Pick value"
+    data={[
+        { group: 'Frontend', items: ['React', 'Angular'] },
+        { group: 'Backend', items: ['Express', 'Django'] },
+    ]}
+/>
+```
+
 ## Reusable Components
 
 ### Modals
@@ -245,6 +279,53 @@ const MyComponent = () => {
 
 - Use `Callout` from `components/common/Callout`
 - Variants: `danger`, `warning`, `info`
+
+### Polymorphic Clickable Containers
+
+Use these when you need a layout container that is also clickable — avoids the native `<button>` background/border reset problem.
+
+- **`PolymorphicGroupButton`** from `components/common/PolymorphicGroupButton` — a `Group` (flex row) that is polymorphic and sets `cursor: pointer`. Use for horizontal groups of elements that act as a single button.
+- **`PolymorphicPaperButton`** from `components/common/PolymorphicPaperButton` — a `Paper` (card surface) that is polymorphic and sets `cursor: pointer`. Use for card-like clickable surfaces.
+
+Both accept all props of their base component (`GroupProps` / `PaperProps`) plus a `component` prop for the underlying element.
+
+```tsx
+// ✅ Clickable row without native button style bleed
+<PolymorphicGroupButton component="div" gap="sm" onClick={handleClick}>
+    <MantineIcon icon={IconFolder} />
+    <Text>Label</Text>
+</PolymorphicGroupButton>
+
+// ✅ Clickable card surface
+<PolymorphicPaperButton component="div" p="md" onClick={handleClick}>
+    Card content
+</PolymorphicPaperButton>
+
+// ❌ Avoid - native <button> brings unwanted background/border in menus and panels
+<UnstyledButton>
+    <Group>...</Group>
+</UnstyledButton>
+```
+
+### EmptyStateLoader
+
+- Use `EmptyStateLoader` from `components/common/EmptyStateLoader` for **any** centered loading state: page-level guards, panels, tables, empty containers
+- Built on `SuboptimalState` (Mantine v8) — renders a spinner with an optional title, fully centered in its parent
+
+### TruncatedText
+
+- Use `TruncatedText` from `components/common/TruncatedText` whenever text may overflow a constrained width
+- Pass `maxWidth` (number or string) to control the truncation boundary
+- Automatically shows a tooltip with the full text **only when the text is actually truncated** (no tooltip spam for short names)
+- Defaults to `fz="sm"`; override via standard `Text` props
+
+```tsx
+// ✅ Good - truncates long names, tooltip only appears when needed
+<TruncatedText maxWidth={200}>{item.name}</TruncatedText>
+
+// ✅ Accepts any Text prop
+<TruncatedText maxWidth="100%" fw={500}>{space.name}</TruncatedText>
+```
 
 ## Mantine Documentation
 

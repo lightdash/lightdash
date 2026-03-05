@@ -1,9 +1,11 @@
 import {
+    Badge,
     Button,
     Card,
     Loader,
     Modal,
     MultiSelect,
+    NumberInput,
     Paper,
     PasswordInput,
     Pill,
@@ -106,6 +108,17 @@ export const getMantine8ThemeOverride = (
 
         components: {
             ...legacyComponentsTheme,
+            Badge: Badge.extend({
+                defaultProps: {
+                    radius: 'sm',
+                },
+                styles: {
+                    root: {
+                        textTransform: 'none',
+                        fontWeight: 400,
+                    },
+                },
+            }),
             Card: Card.extend({
                 styles: (theme, props) => ({
                     root: {
@@ -207,7 +220,7 @@ export const getMantine8ThemeOverride = (
                 },
                 styles: (theme, props) => ({
                     root: {
-                        borderColor: theme.colors.ldGray[2],
+                        borderColor: `var(--mantine-color-ldGray-2)`,
                         ...(props.variant === 'dotted' &&
                             paperDottedStyles(theme)),
                     },
@@ -233,6 +246,12 @@ export const getMantine8ThemeOverride = (
                     if (props.variant === 'subtle')
                         return subtleInputStyles(theme);
                     return {};
+                },
+            }),
+
+            NumberInput: NumberInput.extend({
+                defaultProps: {
+                    radius: 'md',
                 },
             }),
 

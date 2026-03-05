@@ -15,8 +15,7 @@ import {
     isTimeBasedDimension,
     type TableCalculation,
 } from '@lightdash/common';
-import { Menu } from '@mantine-8/core';
-import { ActionIcon, Box, Group, Text } from '@mantine/core';
+import { ActionIcon, Box, Group, Menu, Text } from '@mantine-8/core';
 import {
     IconChevronDown,
     IconFilter,
@@ -51,12 +50,14 @@ import QuickCalculationMenuOptions from './QuickCalculations';
 interface ContextMenuProps extends HeaderProps {
     onToggleCalculationEditModal: (value: boolean) => void;
     onToggleCalculationDeleteModal: (value: boolean) => void;
+    onQuickCalculationCreated: (tableCalculation: TableCalculation) => void;
 }
 
 const ContextMenu: FC<ContextMenuProps> = ({
     header,
     onToggleCalculationEditModal,
     onToggleCalculationDeleteModal,
+    onQuickCalculationCreated,
 }) => {
     const { addFilter } = useFilters();
     const { track } = useTracking();
@@ -141,8 +142,8 @@ const ContextMenu: FC<ContextMenuProps> = ({
                             }}
                         >
                             Filter by{' '}
-                            <Text span fw={500}>
-                                {getItemLabelWithoutTableName(item)}
+                            <Text span fz="sm">
+                                "{getItemLabelWithoutTableName(item)}"
                             </Text>
                         </Menu.Item>
 
@@ -176,7 +177,10 @@ const ContextMenu: FC<ContextMenuProps> = ({
                                 </>
                             )}
 
-                        <QuickCalculationMenuOptions item={item} />
+                        <QuickCalculationMenuOptions
+                            item={item}
+                            onCalculationCreated={onQuickCalculationCreated}
+                        />
                         <Menu.Divider />
                     </>
                 )}
@@ -335,6 +339,8 @@ const ContextMenu: FC<ContextMenuProps> = ({
 const ColumnHeaderContextMenu: FC<HeaderProps> = ({ header }) => {
     const [showUpdate, setShowUpdate] = useState(false);
     const [showDelete, setShowDelete] = useState(false);
+    const [quickCalcToEdit, setQuickCalcToEdit] =
+        useState<TableCalculation | null>(null);
 
     const meta = header.column.columnDef.meta as TableColumn['meta'];
     const item = meta?.item;
@@ -346,13 +352,14 @@ const ColumnHeaderContextMenu: FC<HeaderProps> = ({ header }) => {
                     e.stopPropagation();
                 }}
             >
-                <Group spacing="two" noWrap>
+                <Group gap="two" wrap="nowrap">
                     <Menu withinPortal withArrow shadow="md">
                         <Menu.Target>
                             <ActionIcon
                                 size="xs"
                                 variant="light"
                                 bg="transparent"
+                                color="ldGray.6"
                             >
                                 <MantineIcon icon={IconChevronDown} />
                             </ActionIcon>
@@ -363,6 +370,7 @@ const ColumnHeaderContextMenu: FC<HeaderProps> = ({ header }) => {
                                 header={header}
                                 onToggleCalculationEditModal={setShowUpdate}
                                 onToggleCalculationDeleteModal={setShowDelete}
+                                onQuickCalculationCreated={setQuickCalcToEdit}
                             />
                         </Menu.Dropdown>
                     </Menu>
@@ -380,6 +388,14 @@ const ColumnHeaderContextMenu: FC<HeaderProps> = ({ header }) => {
                     <DeleteTableCalculationModal
                         tableCalculation={item as TableCalculation}
                         onClose={() => setShowDelete(false)}
+                    />
+                )}
+
+                {quickCalcToEdit && (
+                    <UpdateTableCalculationModal
+                        opened
+                        tableCalculation={quickCalcToEdit}
+                        onClose={() => setQuickCalcToEdit(null)}
                     />
                 )}
             </div>

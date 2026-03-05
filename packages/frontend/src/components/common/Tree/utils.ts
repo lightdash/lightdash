@@ -4,28 +4,50 @@ import { type NestableItem } from './types';
 export const convertNestableListToTree = (
     items: NestableItem[],
 ): TreeNodeData[] => {
-    const buildTree = (
-        nodes: NestableItem[],
-        parentPath = '',
-    ): TreeNodeData[] => {
-        return nodes
-            .filter((item) => {
-                const pathParts = item.path.split('.');
-                const itemParentPath = pathParts.slice(0, -1).join('.');
-                return itemParentPath === parentPath;
-            })
-            .map((item) => {
-                const children = buildTree(nodes, item.path);
-                return {
-                    label: item.name,
-                    value: item.path,
-                    nodeProps: { uuid: item.uuid },
-                    ...(children.length > 0 ? { children } : {}),
-                };
-            });
-    };
+    const itemPaths = new Set(items.map((item) => item.path));
 
-    return buildTree(items);
+    // Build a map from path to tree node for O(1) lookups
+    const nodeMap = new Map<string, TreeNodeData>();
+    for (const item of items) {
+        nodeMap.set(item.path, {
+            label: item.name,
+            value: item.path,
+            nodeProps: { uuid: item.uuid },
+        });
+    }
+
+    const roots: TreeNodeData[] = [];
+
+    // Sort by path depth so parents are processed before children
+    const sorted = [...items].sort(
+        (a, b) => a.path.split('.').length - b.path.split('.').length,
+    );
+
+    for (const item of sorted) {
+        const node = nodeMap.get(item.path)!;
+
+        // Walk up path parts to find the nearest ancestor in the items set
+        const parts = item.path.split('.');
+        let parentNode: TreeNodeData | undefined;
+        for (let i = parts.length - 2; i >= 0; i--) {
+            const ancestorPath = parts.slice(0, i + 1).join('.');
+            if (itemPaths.has(ancestorPath)) {
+                parentNode = nodeMap.get(ancestorPath);
+                break;
+            }
+        }
+
+        if (parentNode) {
+            if (!parentNode.children) {
+                parentNode.children = [];
+            }
+            parentNode.children.push(node);
+        } else {
+            roots.push(node);
+        }
+    }
+
+    return roots;
 };
 
 export function getAllParentPaths(

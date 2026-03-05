@@ -1,4 +1,5 @@
 import { type WeekDay } from '../utils/timeFrames';
+import { type ProjectDefaults } from './lightdashProjectConfig';
 import { type ProjectGroupAccess } from './projectGroupAccess';
 
 export enum ProjectType {
@@ -87,6 +88,11 @@ export enum DatabricksAuthenticationType {
     PERSONAL_ACCESS_TOKEN = 'personal_access_token',
     OAUTH_M2M = 'oauth_m2m',
     OAUTH_U2M = 'oauth_u2m',
+}
+
+export enum AthenaAuthenticationType {
+    ACCESS_KEY = 'access_key',
+    IAM_ROLE = 'iam_role',
 }
 
 export type CreateDatabricksCredentials = {
@@ -186,8 +192,11 @@ export type CreateAthenaCredentials = {
     schema: string;
     s3StagingDir: string;
     s3DataDir?: string;
-    accessKeyId: string;
-    secretAccessKey: string;
+    authenticationType?: AthenaAuthenticationType;
+    accessKeyId?: string;
+    secretAccessKey?: string;
+    assumeRoleArn?: string;
+    assumeRoleExternalId?: string;
     workGroup?: string;
     threads?: number;
     numRetries?: number;
@@ -227,6 +236,7 @@ export enum SnowflakeAuthenticationType {
     PRIVATE_KEY = 'private_key',
     SSO = 'sso',
     EXTERNAL_BROWSER = 'external_browser',
+    NONE = 'none',
 }
 
 export type CreateSnowflakeCredentials = {
@@ -251,6 +261,7 @@ export type CreateSnowflakeCredentials = {
     startOfWeek?: WeekDay | null;
     quotedIdentifiersIgnoreCase?: boolean;
     disableTimestampConversion?: boolean; // Disable timestamp conversion to UTC - only disable if all timestamp values are already in UTC
+    timeoutSeconds?: number;
     override?: boolean;
     organizationWarehouseCredentialsUuid?: string;
 };
@@ -529,7 +540,9 @@ export const maybeOverrideDbtConnection = <T extends DbtProjectConfig>(
         ...(isGitProjectType(connection) && overrides.branch
             ? { branch: overrides.branch }
             : undefined),
-        ...(!isRemoteType(connection) && overrides.environment
+        ...(!isRemoteType(connection) &&
+        overrides.environment &&
+        overrides.environment.length > 0
             ? { environment: overrides.environment }
             : undefined),
     };
@@ -548,6 +561,8 @@ export type Project = {
     schedulerTimezone: string;
     createdByUserUuid: string | null;
     organizationWarehouseCredentialsUuid?: string;
+    hasDefaultUserSpaces: boolean;
+    projectDefaults?: ProjectDefaults;
 };
 
 export type ProjectSummary = Pick<

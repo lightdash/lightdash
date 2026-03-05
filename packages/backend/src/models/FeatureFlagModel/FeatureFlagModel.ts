@@ -42,10 +42,16 @@ export class FeatureFlagModel {
             [FeatureFlags.Maps]: this.getMapsEnabled.bind(this),
             [FeatureFlags.ShowExecutionTime]:
                 this.getShowExecutionTimeEnabled.bind(this),
-            [FeatureFlags.NestedSpacesPermissions]:
-                this.getNestedSpacesPermissionsEnabled.bind(this),
             [FeatureFlags.AdminChangeNotifications]:
                 this.getAdminChangeNotifications.bind(this),
+            [FeatureFlags.SavedMetricsTree]:
+                this.getSavedMetricsTreeEnabled.bind(this),
+            [FeatureFlags.DefaultUserSpaces]:
+                this.getDefaultUserSpacesEnabled.bind(this),
+            [FeatureFlags.EnableTableColumnCustomization]:
+                this.getTableColumnCustomizationEnabled.bind(this),
+            [FeatureFlags.GoogleChatEnabled]:
+                this.getGoogleChatEnabled.bind(this),
         };
     }
 
@@ -219,15 +225,6 @@ export class FeatureFlagModel {
         };
     }
 
-    private async getNestedSpacesPermissionsEnabled({
-        featureFlagId,
-    }: FeatureFlagLogicArgs) {
-        return {
-            id: featureFlagId,
-            enabled: this.lightdashConfig.nestedSpacesPermissions.enabled,
-        };
-    }
-
     private async getAdminChangeNotifications({
         user,
         featureFlagId,
@@ -247,6 +244,84 @@ export class FeatureFlagModel {
                       },
                   )
                 : false);
+        return {
+            id: featureFlagId,
+            enabled,
+        };
+    }
+
+    private async getSavedMetricsTreeEnabled({
+        user,
+        featureFlagId,
+    }: FeatureFlagLogicArgs) {
+        const enabled =
+            this.lightdashConfig.savedMetricsTree.enabled ??
+            (user
+                ? await isFeatureFlagEnabled(FeatureFlags.SavedMetricsTree, {
+                      userUuid: user.userUuid,
+                      organizationUuid: user.organizationUuid,
+                  })
+                : false);
+        return {
+            id: featureFlagId,
+            enabled,
+        };
+    }
+
+    private async getDefaultUserSpacesEnabled({
+        featureFlagId,
+    }: FeatureFlagLogicArgs) {
+        return {
+            id: featureFlagId,
+            enabled: this.lightdashConfig.defaultUserSpaces.enabled,
+        };
+    }
+
+    private async getGoogleChatEnabled({
+        user,
+        featureFlagId,
+    }: FeatureFlagLogicArgs) {
+        const enabled =
+            this.lightdashConfig.googleChat.enabled ||
+            (user
+                ? await isFeatureFlagEnabled(
+                      FeatureFlags.GoogleChatEnabled,
+                      {
+                          userUuid: user.userUuid,
+                          organizationUuid: user.organizationUuid,
+                      },
+                      {
+                          throwOnTimeout: false,
+                          timeoutMilliseconds: 500,
+                      },
+                  )
+                : false);
+        return {
+            id: featureFlagId,
+            enabled,
+        };
+    }
+
+    private async getTableColumnCustomizationEnabled({
+        user,
+        featureFlagId,
+    }: FeatureFlagLogicArgs) {
+        const enabled =
+            this.lightdashConfig.query.enableTableColumnCustomization ??
+            (user !== undefined
+                ? await isFeatureFlagEnabled(
+                      FeatureFlags.EnableTableColumnCustomization,
+                      {
+                          userUuid: user.userUuid,
+                          organizationUuid: user.organizationUuid,
+                      },
+                      {
+                          throwOnTimeout: false,
+                          timeoutMilliseconds: 500,
+                      },
+                  )
+                : false);
+
         return {
             id: featureFlagId,
             enabled,

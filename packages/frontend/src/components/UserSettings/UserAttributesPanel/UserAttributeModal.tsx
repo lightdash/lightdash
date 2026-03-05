@@ -11,8 +11,8 @@ import {
     Stack,
     Switch,
     Text,
-    TextInput,
     Textarea,
+    TextInput,
     Tooltip,
 } from '@mantine-8/core';
 import { useForm } from '@mantine/form';

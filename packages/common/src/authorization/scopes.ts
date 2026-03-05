@@ -1,9 +1,9 @@
 import flow from 'lodash/flow';
 import { ProjectType } from '../types/projects';
 import {
+    ScopeGroup,
     type Scope,
     type ScopeContext,
-    ScopeGroup,
     type ScopeName,
 } from '../types/scopes';
 import { SpaceMemberRole } from '../types/space';
@@ -11,7 +11,10 @@ import { SpaceMemberRole } from '../types/space';
 /** Context can have either/or organizationUuid or projectUuid. Applies the one we have. */
 const addUuidCondition = (
     context: ScopeContext,
-    modifiers?: { isPrivate: false } | { userUuid: string | boolean },
+    modifiers?:
+        | { inheritsFromOrgOrProject: true }
+        | { isPrivate: false }
+        | { userUuid: string | boolean },
 ) => {
     const projectOrOrg = context.organizationUuid
         ? { organizationUuid: context.organizationUuid }
@@ -44,7 +47,9 @@ const scopes: Scope[] = [
         isEnterprise: false,
         group: ScopeGroup.CONTENT,
         getConditions: (context) => [
+            // TODO: remove once we're confident that nobody is stuck on an old frontend version
             addUuidCondition(context, { isPrivate: false }),
+            addUuidCondition(context, { inheritsFromOrgOrProject: true }),
             addAccessCondition(context),
         ],
     },
@@ -72,7 +77,9 @@ const scopes: Scope[] = [
         isEnterprise: false,
         group: ScopeGroup.CONTENT,
         getConditions: (context) => [
+            // TODO: remove once we're confident that nobody is stuck on an old frontend version
             addUuidCondition(context, { isPrivate: false }),
+            addUuidCondition(context, { inheritsFromOrgOrProject: true }),
             addAccessCondition(context),
         ],
     },
@@ -100,7 +107,9 @@ const scopes: Scope[] = [
         isEnterprise: false,
         group: ScopeGroup.CONTENT,
         getConditions: (context) => [
+            // TODO: remove once we're confident that nobody is stuck on an old frontend version
             addUuidCondition(context, { isPrivate: false }),
+            addUuidCondition(context, { inheritsFromOrgOrProject: true }),
             addAccessCondition(context),
         ],
     },
@@ -124,7 +133,9 @@ const scopes: Scope[] = [
         isEnterprise: false,
         group: ScopeGroup.CONTENT,
         getConditions: (context) => [
+            // TODO: remove once we're confident that nobody is stuck on an old frontend version
             addUuidCondition(context, { isPrivate: false }),
+            addUuidCondition(context, { inheritsFromOrgOrProject: true }),
         ],
     },
     {
@@ -181,6 +192,14 @@ const scopes: Scope[] = [
     {
         name: 'manage:PinnedItems',
         description: 'Pin and unpin items',
+        isEnterprise: false,
+        group: ScopeGroup.CONTENT,
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'manage:DeletedContent',
+        description:
+            'Manage soft-deleted content (restore, permanently delete)',
         isEnterprise: false,
         group: ScopeGroup.CONTENT,
         getConditions: addDefaultUuidCondition,
@@ -293,6 +312,26 @@ const scopes: Scope[] = [
         isEnterprise: false,
         group: ScopeGroup.PROJECT_MANAGEMENT,
         getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'manage:DeployProject',
+        description: 'Deploy dbt projects via CLI',
+        isEnterprise: false,
+        group: ScopeGroup.PROJECT_MANAGEMENT,
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'manage:DeployProject@self',
+        description: 'Deploy to preview projects created by the user',
+        isEnterprise: false,
+        group: ScopeGroup.PROJECT_MANAGEMENT,
+        getConditions: (context) => [
+            {
+                projectUuid: context.projectUuid,
+                createdByUserUuid: context.userUuid || false,
+                type: ProjectType.PREVIEW,
+            },
+        ],
     },
     {
         name: 'manage:Validation',
@@ -429,6 +468,13 @@ const scopes: Scope[] = [
         getConditions: addDefaultUuidCondition,
     },
     {
+        name: 'manage:GitIntegration',
+        description: 'Manage Git integration settings and create repositories',
+        isEnterprise: false,
+        group: ScopeGroup.ORGANIZATION_MANAGEMENT,
+        getConditions: addDefaultUuidCondition,
+    },
+    {
         name: 'manage:OrganizationWarehouseCredentials',
         description: 'Manage organization warehouse credentials',
         isEnterprise: true,
@@ -521,6 +567,13 @@ const scopes: Scope[] = [
         name: 'manage:VirtualView',
         description: 'Create and manage virtual views',
         isEnterprise: false,
+        group: ScopeGroup.DATA,
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'manage:PreAggregation',
+        description: 'View and query pre-aggregates in explore',
+        isEnterprise: true,
         group: ScopeGroup.DATA,
         getConditions: addDefaultUuidCondition,
     },

@@ -37,9 +37,11 @@ import {
     OrganizationMemberRole,
     ParameterError,
     PasswordReset,
+    ProjectMemberRole,
     RegisterOrActivateUser,
     SessionUser,
     SnowflakeAuthenticationType,
+    SpaceMemberRole,
     UpdateUserArgs,
     UpsertUserWarehouseCredentials,
     UserAllowedOrganization,
@@ -64,6 +66,7 @@ import { OrganizationAllowedEmailDomainsModel } from '../models/OrganizationAllo
 import { OrganizationMemberProfileModel } from '../models/OrganizationMemberProfileModel';
 import { OrganizationModel } from '../models/OrganizationModel';
 import { PasswordResetLinkModel } from '../models/PasswordResetLinkModel';
+import { ProjectModel } from '../models/ProjectModel/ProjectModel';
 import { SessionModel } from '../models/SessionModel';
 import { UserModel } from '../models/UserModel';
 import { UserWarehouseCredentialsModel } from '../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
@@ -89,6 +92,7 @@ type UserServiceArguments = {
     organizationAllowedEmailDomainsModel: OrganizationAllowedEmailDomainsModel;
     userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
     warehouseAvailableTablesModel: WarehouseAvailableTablesModel;
+    projectModel: ProjectModel;
 };
 
 export class UserService extends BaseService {
@@ -124,6 +128,8 @@ export class UserService extends BaseService {
 
     private readonly warehouseAvailableTablesModel: WarehouseAvailableTablesModel;
 
+    private readonly projectModel: ProjectModel;
+
     private readonly emailOneTimePasscodeExpirySeconds = 60 * 15;
 
     private readonly emailOneTimePasscodeMaxAttempts = 5;
@@ -145,6 +151,7 @@ export class UserService extends BaseService {
         organizationAllowedEmailDomainsModel,
         userWarehouseCredentialsModel,
         warehouseAvailableTablesModel,
+        projectModel,
     }: UserServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -164,6 +171,7 @@ export class UserService extends BaseService {
             organizationAllowedEmailDomainsModel;
         this.userWarehouseCredentialsModel = userWarehouseCredentialsModel;
         this.warehouseAvailableTablesModel = warehouseAvailableTablesModel;
+        this.projectModel = projectModel;
     }
 
     private identifyUser(
@@ -285,6 +293,50 @@ export class UserService extends BaseService {
             activateUser,
         );
         await this.inviteLinkModel.deleteByCode(inviteLink.inviteCode);
+
+        // Apply default project memberships from allowed email domains config.
+        // Wrapped in try-catch because the user is already activated and the
+        // invite link is deleted — a failure here must not break activation.
+        try {
+            if (
+                user.organizationUuid &&
+                user.role === OrganizationMemberRole.MEMBER
+            ) {
+                const allowedEmailDomains =
+                    await this.organizationAllowedEmailDomainsModel.findAllowedEmailDomains(
+                        user.organizationUuid,
+                    );
+                if (allowedEmailDomains) {
+                    const emailDomain = getEmailDomain(userEmail);
+                    if (
+                        allowedEmailDomains.emailDomains.some(
+                            (domain) => domain.toLowerCase() === emailDomain,
+                        ) &&
+                        allowedEmailDomains.projects.length > 0
+                    ) {
+                        const projectMemberships =
+                            allowedEmailDomains.projects.reduce<
+                                Record<string, ProjectMemberRole>
+                            >(
+                                (acc, project) => ({
+                                    ...acc,
+                                    [project.projectUuid]: project.role,
+                                }),
+                                {},
+                            );
+                        await this.userModel.addProjectMemberships(
+                            user.userUuid,
+                            projectMemberships,
+                        );
+                    }
+                }
+            }
+        } catch (e) {
+            this.logger.warn(
+                `Failed to apply default project memberships for invited user ${user.userUuid}: ${e}`,
+            );
+        }
+
         this.identifyUser(user);
         this.analytics.track({
             event: 'user.created',
@@ -1521,8 +1573,78 @@ export class UserService extends BaseService {
                         passportUser.organization,
                     );
                 span.setAttribute('cacheHit', cacheHit);
+
                 return sessionUser;
             },
+        );
+    }
+
+    async onLogin(user: {
+        userUuid: string;
+        organizationUuid?: string;
+    }): Promise<void> {
+        if (!user.organizationUuid) return;
+
+        const sessionUser = await this.findSessionUser({
+            id: user.userUuid,
+            organization: user.organizationUuid,
+        });
+        await this.ensureDefaultUserSpaces(sessionUser);
+    }
+
+    private async ensureDefaultUserSpaces(
+        sessionUser: SessionUser,
+    ): Promise<void> {
+        if (!this.lightdashConfig.defaultUserSpaces.enabled) return;
+        if (!sessionUser.organizationUuid) return;
+
+        const projects =
+            await this.projectModel.getProjectsWithDefaultUserSpaces(
+                sessionUser.organizationUuid,
+            );
+
+        if (projects.length === 0) return;
+
+        await Promise.all(
+            projects.map(async (project) => {
+                if (
+                    sessionUser.ability.cannot(
+                        'manage',
+                        subject('SavedChart', {
+                            projectUuid: project.projectUuid,
+                            organizationUuid: sessionUser.organizationUuid,
+                            access: [
+                                {
+                                    userUuid: sessionUser.userUuid,
+                                    // We already know that we'll assign ADMIN permissions
+                                    // for the user in their default space
+                                    role: SpaceMemberRole.ADMIN,
+                                },
+                            ],
+                        }),
+                    ) ||
+                    sessionUser.ability.cannot(
+                        'manage',
+                        subject('Explore', {
+                            projectUuid: project.projectUuid,
+                            organizationUuid: sessionUser.organizationUuid,
+                        }),
+                    )
+                )
+                    return;
+
+                await this.projectModel.ensureDefaultUserSpace(
+                    project.projectId,
+                    project.parentSpaceUuid,
+                    project.parentPath,
+                    {
+                        userId: sessionUser.userId,
+                        userUuid: sessionUser.userUuid,
+                        firstName: sessionUser.firstName,
+                        lastName: sessionUser.lastName,
+                    },
+                );
+            }),
         );
     }
 
@@ -1729,6 +1851,18 @@ export class UserService extends BaseService {
         );
     }
 
+    async hasDatabricksOAuthCredentialForHost(
+        user: SessionUser,
+        serverHostName: string,
+    ): Promise<boolean> {
+        const credential =
+            await this.userWarehouseCredentialsModel.findDatabricksOauthU2mForHostWithSecrets(
+                user.userUuid,
+                serverHostName,
+            );
+        return credential !== undefined;
+    }
+
     async createBigqueryWarehouseCredentials(
         user: SessionUser,
         refreshToken: string,
@@ -1775,34 +1909,105 @@ export class UserService extends BaseService {
     async createDatabricksWarehouseCredentials(
         user: SessionUser,
         refreshToken: string,
+        options?: {
+            projectUuid?: string;
+            projectName?: string;
+            serverHostName?: string;
+            credentialsName?: string;
+            oauthClientId?: string;
+        },
     ) {
-        // Remove old Databricks credentials to prevent duplicates on re-authentication
-        await this.userWarehouseCredentialsModel.deleteAllByUserAndWarehouseType(
-            user.userUuid,
-            WarehouseTypes.DATABRICKS,
-        );
-
-        // Only store authentication fields - connection details (database, serverHostName, httpPath)
-        // come from the project configuration and shouldn't be stored in user credentials
+        const credentialsNameFromOptions = options?.credentialsName?.trim();
+        const projectName = options?.projectName?.trim();
+        const serverHostName = options?.serverHostName?.trim();
+        let credentialsName = 'Default';
+        if (credentialsNameFromOptions) {
+            credentialsName = credentialsNameFromOptions;
+        } else if (serverHostName) {
+            credentialsName = `Databricks (${serverHostName})`;
+        }
         const databricksCredentials: UpsertUserWarehouseCredentials = {
-            name: 'Default',
+            name: credentialsName,
             credentials: {
                 type: WarehouseTypes.DATABRICKS,
                 authenticationType: DatabricksAuthenticationType.OAUTH_U2M,
                 refreshToken,
+                serverHostName,
+                oauthClientId: options?.oauthClientId,
             },
         };
-        await this.createWarehouseCredentials(user, databricksCredentials);
+
+        if (options?.projectUuid) {
+            if (serverHostName) {
+                const matchingCredential =
+                    await this.userWarehouseCredentialsModel.findDatabricksOauthU2mForHostWithSecrets(
+                        user.userUuid,
+                        serverHostName,
+                        {
+                            projectUuid: options.projectUuid,
+                        },
+                    );
+                if (matchingCredential) {
+                    return this.updateWarehouseCredentials(
+                        user,
+                        matchingCredential.uuid,
+                        databricksCredentials,
+                    );
+                }
+            }
+
+            const existingCredentials =
+                await this.userWarehouseCredentialsModel.findForProject(
+                    options.projectUuid,
+                    user.userUuid,
+                    WarehouseTypes.DATABRICKS,
+                );
+            if (existingCredentials) {
+                return this.updateWarehouseCredentials(
+                    user,
+                    existingCredentials.uuid,
+                    databricksCredentials,
+                );
+            }
+
+            return this.createWarehouseCredentials(
+                user,
+                databricksCredentials,
+                options.projectUuid,
+            );
+        }
+
+        if (serverHostName) {
+            const existingCredentials =
+                await this.userWarehouseCredentialsModel.findDatabricksOauthU2mForHostWithSecrets(
+                    user.userUuid,
+                    serverHostName,
+                    {
+                        includeProjectScoped: false,
+                    },
+                );
+            if (existingCredentials) {
+                return this.updateWarehouseCredentials(
+                    user,
+                    existingCredentials.uuid,
+                    databricksCredentials,
+                );
+            }
+        }
+
+        return this.createWarehouseCredentials(user, databricksCredentials);
     }
 
     async createWarehouseCredentials(
         user: SessionUser,
         data: UpsertUserWarehouseCredentials,
+        projectUuid?: string,
     ) {
         const userWarehouseCredentialsUuid =
             await this.userWarehouseCredentialsModel.create(
                 user.userUuid,
                 data,
+                projectUuid,
             );
         this.analytics.track({
             userId: user.userUuid,
@@ -1983,7 +2188,7 @@ export class UserService extends BaseService {
                 (member) => member.role === 'admin',
             );
             if (adminUser) {
-                return await this.userModel.findSessionUserAndOrgByUuid(
+                return this.userModel.findSessionUserAndOrgByUuid(
                     adminUser.userUuid,
                     organizationUuid,
                 );

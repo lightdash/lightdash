@@ -3,11 +3,25 @@ import {
     FilterInteractivityValues,
     SEED_PROJECT,
 } from '@lightdash/common';
-import { updateEmbedConfigDashboards } from '../api/embedManagement.cy';
+
+const EMBED_API_PREFIX = `/api/v1/embed/${SEED_PROJECT.project_uuid}`;
+
+const updateEmbedConfigDashboards = (dashboardUuids: string[]) =>
+    cy.request({
+        url: `${EMBED_API_PREFIX}/config/dashboards`,
+        headers: { 'Content-type': 'application/json' },
+        method: 'PATCH',
+        body: {
+            dashboardUuids,
+            chartUuids: [],
+            allowAllDashboards: false,
+            allowAllCharts: false,
+        },
+    });
 
 const getEmbedUrl = (body: CreateEmbedJwt) =>
     cy.request({
-        url: `/api/v1/embed/${SEED_PROJECT.project_uuid}/get-embed-url`,
+        url: `${EMBED_API_PREFIX}/get-embed-url`,
         headers: { 'Content-type': 'application/json' },
         method: 'POST',
         body,

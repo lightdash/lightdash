@@ -1,5 +1,6 @@
 import moment from 'moment/moment';
-import { FilterOperator, UnitOfTime } from '../types/filter';
+import { SupportedDbtAdapter } from '../types/dbt';
+import { FilterOperator, UnitOfTime, type FilterRule } from '../types/filter';
 import { WeekDay } from '../utils/timeFrames';
 import {
     renderBooleanFilterSql,
@@ -9,7 +10,9 @@ import {
     renderStringFilterSql,
 } from './filtersCompiler';
 import {
+    adapterType,
     DimensionSqlMock,
+    disabledFilterMock,
     ExpectedInTheCurrentFilterSQL,
     ExpectedInTheCurrentWeekFilterSQLWithCustomStartOfWeek,
     ExpectedInTheNextCompleteFilterSQL,
@@ -17,6 +20,7 @@ import {
     ExpectedInTheNextFilterSQL,
     ExpectedInThePastCompleteWeekFilterSQLWithCustomStartOfWeek,
     ExpectedNumberFilterSQL,
+    filterInTheCurrentDayTimezoneMocks,
     InBetweenPastTwoYearsFilter,
     InBetweenPastTwoYearsFilterSQL,
     InBetweenPastTwoYearsTimestampFilterSQL,
@@ -51,6 +55,8 @@ import {
     NumberFilterBase,
     NumberFilterBaseWithMultiValues,
     NumberOperatorsWithMultipleValues,
+    stringFilterDimension,
+    stringFilterRuleMocks,
     TrinoExpectedInTheCurrentFilterSQL,
     TrinoExpectedInTheCurrentWeekFilterSQLWithCustomStartOfWeek,
     TrinoExpectedInTheNextCompleteFilterSQL,
@@ -71,11 +77,6 @@ import {
     TrinoInTheLast1MonthFilterSQL,
     TrinoInTheLast1WeekFilterSQL,
     TrinoInTheLast1YearFilterSQL,
-    adapterType,
-    disabledFilterMock,
-    filterInTheCurrentDayTimezoneMocks,
-    stringFilterDimension,
-    stringFilterRuleMocks,
 } from './filtersCompiler.mock';
 
 const formatTimestamp = (date: Date): string =>
@@ -842,6 +843,75 @@ describe('Filter SQL', () => {
         ).toBe(stringFilterRuleMocks.endsWithFilterWithNoValSQL);
     });
 
+    describe('case sensitivity hierarchy', () => {
+        const caseFilter: FilterRule = {
+            id: '1',
+            target: { fieldId: 'testField' },
+            operator: FilterOperator.EQUALS,
+            values: ['TestValue'],
+        };
+
+        const mockDimension = disabledFilterMock.field;
+
+        test('should be case sensitive by default', () => {
+            const sql = renderStringFilterSql(
+                'field_name',
+                caseFilter,
+                "'",
+                true, // case sensitive (default)
+            );
+            expect(sql).toBe(`(field_name) IN ('TestValue')`);
+        });
+
+        test('should be case insensitive when caseSensitive is false', () => {
+            const sql = renderStringFilterSql(
+                'field_name',
+                caseFilter,
+                "'",
+                false, // case insensitive
+            );
+            expect(sql).toBe(`(UPPER(field_name)) IN ('TESTVALUE')`);
+        });
+
+        test('field-level caseSensitive overrides explore-level', () => {
+            const fieldWithCaseSensitive = {
+                ...mockDimension,
+                caseSensitive: false, // field-level setting
+            };
+            const sql = renderFilterRuleSqlFromField(
+                caseFilter,
+                fieldWithCaseSensitive,
+                '"',
+                "'",
+                (str: string) => str,
+                WeekDay.MONDAY,
+                SupportedDbtAdapter.POSTGRES,
+                'UTC',
+                true, // explore-level setting (should be overridden)
+            );
+            expect(sql).toContain('UPPER');
+        });
+
+        test('explore-level caseSensitive is used when field has no override', () => {
+            const fieldWithoutCaseSensitive = {
+                ...mockDimension,
+                // No caseSensitive property
+            };
+            const sql = renderFilterRuleSqlFromField(
+                caseFilter,
+                fieldWithoutCaseSensitive,
+                '"',
+                "'",
+                (str: string) => str,
+                WeekDay.MONDAY,
+                SupportedDbtAdapter.POSTGRES,
+                'UTC',
+                false, // explore-level setting
+            );
+            expect(sql).toContain('UPPER');
+        });
+    });
+
     test('should return 1=1 if filter is disabled', () => {
         expect(
             renderFilterRuleSqlFromField(
@@ -855,6 +925,139 @@ describe('Filter SQL', () => {
                 disabledFilterMock.timezone,
             ),
         ).toBe('1=1');
+    });
+});
+
+describe('case sensitivity', () => {
+    test('should apply UPPER() when caseSensitive is false for EQUALS', () => {
+        const filter = {
+            ...stringFilterRuleMocks.equalsFilterWithSingleUnescapedValue,
+            values: ['Bob'],
+        };
+        expect(
+            renderStringFilterSql(
+                stringFilterDimension,
+                filter,
+                "'",
+                false, // caseSensitive = false
+            ),
+        ).toBe(`(UPPER(${stringFilterDimension})) IN ('BOB')`);
+    });
+
+    test('should not apply UPPER() when caseSensitive is true for EQUALS', () => {
+        const filter = {
+            ...stringFilterRuleMocks.equalsFilterWithSingleUnescapedValue,
+            values: ['Bob'],
+        };
+        expect(
+            renderStringFilterSql(
+                stringFilterDimension,
+                filter,
+                "'",
+                true, // caseSensitive = true (default)
+            ),
+        ).toBe(`(${stringFilterDimension}) IN ('Bob')`);
+    });
+
+    test('should apply UPPER() when caseSensitive is false for NOT_EQUALS', () => {
+        const filter = {
+            id: 'test',
+            target: { fieldId: 'test' },
+            operator: FilterOperator.NOT_EQUALS,
+            values: ['Bob'],
+        };
+        expect(
+            renderStringFilterSql(
+                stringFilterDimension,
+                filter,
+                "'",
+                false, // caseSensitive = false
+            ),
+        ).toBe(
+            `((UPPER(${stringFilterDimension})) NOT IN ('BOB') OR (${stringFilterDimension}) IS NULL)`,
+        );
+    });
+
+    test('should apply UPPER() when caseSensitive is false for STARTS_WITH', () => {
+        const filter = {
+            ...stringFilterRuleMocks.startsWithFilterWithSingleVal,
+            values: ['Bob'],
+        };
+        expect(
+            renderStringFilterSql(
+                stringFilterDimension,
+                filter,
+                "'",
+                false, // caseSensitive = false
+            ),
+        ).toBe(`UPPER(${stringFilterDimension}) LIKE 'BOB%'`);
+    });
+
+    test('should apply UPPER() when caseSensitive is false for ENDS_WITH', () => {
+        const filter = {
+            ...stringFilterRuleMocks.endsWithFilterWithSingleVal,
+            values: ['Bob'],
+        };
+        expect(
+            renderStringFilterSql(
+                stringFilterDimension,
+                filter,
+                "'",
+                false, // caseSensitive = false
+            ),
+        ).toBe(`UPPER(${stringFilterDimension}) LIKE '%BOB'`);
+    });
+
+    test('should respect field-level caseSensitive over explore-level', () => {
+        const field = {
+            ...disabledFilterMock.field,
+            caseSensitive: false, // field level setting
+        };
+        const filter = {
+            id: 'test',
+            target: { fieldId: 'test' },
+            operator: FilterOperator.EQUALS,
+            values: ['Bob'],
+        };
+        expect(
+            renderFilterRuleSqlFromField(
+                filter,
+                field,
+                disabledFilterMock.fieldQuoteChar,
+                disabledFilterMock.stringQuoteChar,
+                (v) => v,
+                disabledFilterMock.startOfWeek,
+                disabledFilterMock.adapterType,
+                disabledFilterMock.timezone,
+                true, // explore level setting (should be overridden)
+            ),
+        ).toBe(`(UPPER("payments".payment_method)) IN ('BOB')`);
+    });
+
+    test('should use explore-level caseSensitive when field-level is undefined', () => {
+        const field = {
+            ...disabledFilterMock.field,
+            // no caseSensitive defined at field level
+        };
+        const filter = {
+            id: 'test',
+            target: { fieldId: 'test' },
+            operator: FilterOperator.EQUALS,
+            values: ['Bob'],
+        };
+        expect(
+            renderFilterRuleSqlFromField(
+                filter,
+                field,
+                disabledFilterMock.fieldQuoteChar,
+                disabledFilterMock.stringQuoteChar,
+                (v) => v,
+                disabledFilterMock.startOfWeek,
+                disabledFilterMock.adapterType,
+                disabledFilterMock.timezone,
+                false, // explore level setting
+            ),
+        ).toBe(`(UPPER("payments".payment_method)) IN ('BOB')`);
     });
 });
 

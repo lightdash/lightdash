@@ -2,13 +2,13 @@ import { type DbtProjectType } from '@lightdash/common';
 import { Avatar, Flex, Stack, Text, TextInput, Title } from '@mantine/core';
 import { type FC } from 'react';
 import useApp from '../../providers/App/useApp';
-import DocumentationHelpButton from '../DocumentationHelpButton';
 import { SettingsGridCard } from '../common/Settings/SettingsCard';
+import DocumentationHelpButton from '../DocumentationHelpButton';
 import DbtSettingsForm from './DbtSettingsForm';
+import { useFormContext } from './formContext';
 import DbtLogo from './ProjectConnectFlow/Assets/dbt.svg';
 import { getWarehouseIcon } from './ProjectConnectFlow/utils';
 import WarehouseSettingsForm from './WarehouseSettingsForm';
-import { useFormContext } from './formContext';
 
 interface Props {
     showGeneralSettings: boolean;

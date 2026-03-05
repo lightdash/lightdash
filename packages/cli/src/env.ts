@@ -1,5 +1,4 @@
 import parseNodeVersion from 'parse-node-version';
-
 import packageJson from '../package.json';
 import { findDbtDefaultProfile } from './dbt/profile';
 

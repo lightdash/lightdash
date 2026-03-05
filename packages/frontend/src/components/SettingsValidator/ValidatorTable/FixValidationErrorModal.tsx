@@ -1,7 +1,7 @@
 import {
-    RenameType,
     assertUnreachable,
     isChartValidationError,
+    RenameType,
     type ValidationErrorChartResponse,
     type ValidationResponse,
 } from '@lightdash/common';

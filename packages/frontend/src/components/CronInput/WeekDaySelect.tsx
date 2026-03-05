@@ -1,4 +1,4 @@
-import { Select } from '@mantine/core';
+import { Select } from '@mantine-8/core';
 import React, { type FC } from 'react';
 
 type Option = {
@@ -47,7 +47,6 @@ const WeekDaySelect: FC<{
             data={Options}
             value={String(value)}
             disabled={disabled}
-            withinPortal
             w={140}
             onChange={(val) => {
                 onChange(Number(val));

@@ -4,14 +4,14 @@ import {
     type PromotionChanges,
 } from '@lightdash/common';
 import { Accordion, Button, Flex, Loader, Stack, Text } from '@mantine-8/core';
-import { useMemo, type FC } from 'react';
-
 import {
     IconChartAreaLine,
+    IconDatabase,
     IconFolder,
     IconLayoutDashboard,
     IconRocket,
 } from '@tabler/icons-react';
+import { useMemo, type FC } from 'react';
 import Callout from '../../../components/common/Callout';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal, {
@@ -32,7 +32,7 @@ type PromotionChange = {
 };
 
 const PromotionChangesAccordion: FC<{
-    type: 'spaces' | 'charts' | 'dashboards';
+    type: 'spaces' | 'charts' | 'dashboards' | 'sqlCharts';
     items: {
         created: PromotionChange[];
         updated: PromotionChange[];
@@ -141,6 +141,20 @@ export const PromotionConfirmDialog: FC<Props> = ({
                     (item) => item.action === PromotionAction.DELETE,
                 ),
             },
+            sqlCharts: {
+                total: (promotionChanges.sqlCharts ?? []).filter(
+                    (item) => item.action !== PromotionAction.NO_CHANGES,
+                ).length,
+                created: (promotionChanges.sqlCharts ?? []).filter(
+                    (item) => item.action === PromotionAction.CREATE,
+                ),
+                updated: (promotionChanges.sqlCharts ?? []).filter(
+                    (item) => item.action === PromotionAction.UPDATE,
+                ),
+                deleted: (promotionChanges.sqlCharts ?? []).filter(
+                    (item) => item.action === PromotionAction.DELETE,
+                ),
+            },
             dashboards: {
                 total: promotionChanges.dashboards.filter(
                     (item) => item.action !== PromotionAction.NO_CHANGES,
@@ -160,6 +174,7 @@ export const PromotionConfirmDialog: FC<Props> = ({
         const totalChangesNum =
             changes.spaces.total +
             changes.charts.total +
+            changes.sqlCharts.total +
             changes.dashboards.total;
         const withoutChangesNum =
             promotionChanges.spaces.filter(
@@ -169,6 +184,9 @@ export const PromotionConfirmDialog: FC<Props> = ({
                 (item) => item.action === PromotionAction.NO_CHANGES,
             ).length +
             promotionChanges.charts.filter(
+                (item) => item.action === PromotionAction.NO_CHANGES,
+            ).length +
+            (promotionChanges.sqlCharts ?? []).filter(
                 (item) => item.action === PromotionAction.NO_CHANGES,
             ).length;
 
@@ -264,6 +282,26 @@ export const PromotionConfirmDialog: FC<Props> = ({
                                 <PromotionChangesAccordion
                                     type="charts"
                                     items={groupedChanges.charts}
+                                />
+                            </>
+                        )}
+                        {groupedChanges.sqlCharts.total > 0 && (
+                            <>
+                                <Text fz="sm">
+                                    These changes will be applied:
+                                </Text>
+                                <Flex>
+                                    <MantineIcon
+                                        icon={IconDatabase}
+                                        color="cyan.7"
+                                    />{' '}
+                                    <Text ml={10} fw={600}>
+                                        SQL charts:{' '}
+                                    </Text>{' '}
+                                </Flex>
+                                <PromotionChangesAccordion
+                                    type="sqlCharts"
+                                    items={groupedChanges.sqlCharts}
                                 />
                             </>
                         )}

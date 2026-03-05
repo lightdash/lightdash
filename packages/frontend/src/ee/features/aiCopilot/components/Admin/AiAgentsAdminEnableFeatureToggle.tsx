@@ -24,11 +24,11 @@ export const AiAgentsAdminEnableFeatureToggle = ({ enabled }: Props) => {
     const { mutateAsync: updateAiOrganizationSettings, isLoading } =
         useUpdateAiOrganizationSettings();
 
-    const organizationSettingsQuery = useAiOrganizationSettings();
+    const aiOrganizationSettingsQuery = useAiOrganizationSettings();
 
     const isTrial =
-        organizationSettingsQuery.isSuccess &&
-        organizationSettingsQuery.data?.isTrial;
+        aiOrganizationSettingsQuery.isSuccess &&
+        aiOrganizationSettingsQuery.data.isTrial;
 
     return (
         <HoverCard>

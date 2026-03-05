@@ -1,8 +1,8 @@
 import {
+    assertUnreachable,
     CustomFormatType,
     MetricType,
     TableCalculationTemplateType,
-    assertUnreachable,
     type CustomFormat,
     type Metric,
     type TableCalculation,
@@ -24,6 +24,7 @@ import { generateTableCalculationTemplate } from './tableCalculationTemplateGene
 
 type Props = {
     item: Metric;
+    onCalculationCreated?: (tableCalculation: TableCalculation) => void;
 };
 
 // Use shared template labels from utilities
@@ -69,6 +70,8 @@ const isCalculationAvailable = (
         MetricType.COUNT,
         MetricType.COUNT_DISTINCT,
         MetricType.SUM,
+        MetricType.SUM_DISTINCT,
+        MetricType.AVERAGE_DISTINCT,
         // MIN and MAX can be of non-numeric types, like dates
     ];
     switch (templateType) {
@@ -90,7 +93,10 @@ const isCalculationAvailable = (
     }
 };
 
-const QuickCalculationMenuOptions: FC<Props> = ({ item }) => {
+const QuickCalculationMenuOptions: FC<Props> = ({
+    item,
+    onCalculationCreated,
+}) => {
     const dispatch = useExplorerDispatch();
     const { track } = useTracking();
 
@@ -130,12 +136,15 @@ const QuickCalculationMenuOptions: FC<Props> = ({ item }) => {
             orderWithoutTableCalculations,
         );
 
-        handleAddTableCalculation({
+        const tableCalculation: TableCalculation = {
             name: uniqueName,
             displayName: name,
             template,
             format: getFormatForQuickCalculation(templateType),
-        });
+        };
+
+        handleAddTableCalculation(tableCalculation);
+        onCalculationCreated?.(tableCalculation);
     };
 
     return (

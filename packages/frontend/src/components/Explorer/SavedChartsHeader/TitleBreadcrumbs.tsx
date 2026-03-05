@@ -1,4 +1,4 @@
-import { ActionIcon, Anchor, Group, Text, Tooltip } from '@mantine/core';
+import { ActionIcon, Anchor, Group, Text, Tooltip } from '@mantine-8/core';
 import { IconFolder } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link } from 'react-router';
@@ -32,7 +32,7 @@ export const TitleBreadCrumbs: FC<Props> = ({
         <>
             {spaceName && spaceUuid ? (
                 <>
-                    <Group spacing="xs">
+                    <Group gap="xs">
                         <Tooltip
                             maw={300}
                             multiline
@@ -41,7 +41,7 @@ export const TitleBreadCrumbs: FC<Props> = ({
                             label={
                                 <Text fz="xs">
                                     Space:{' '}
-                                    <Text span fw={500}>
+                                    <Text span fz="xs" fw="bold">
                                         {spaceName}
                                     </Text>
                                 </Text>
@@ -65,7 +65,7 @@ export const TitleBreadCrumbs: FC<Props> = ({
                                     c="ldGray.6"
                                     component={Link}
                                     to={`/projects/${projectUuid}/spaces/${spaceUuid}`}
-                                    sx={{
+                                    style={{
                                         maxWidth: `${MAX_WIDTH_TITLE_PX}px`,
                                         whiteSpace: 'nowrap',
                                         overflow: 'hidden',
@@ -91,7 +91,7 @@ export const TitleBreadCrumbs: FC<Props> = ({
                         label={
                             <Text fz="xs">
                                 Dashboard:{' '}
-                                <Text span fw={500}>
+                                <Text span fz="xs" fw="bold">
                                     {dashboardName}
                                 </Text>
                             </Text>
@@ -103,13 +103,9 @@ export const TitleBreadCrumbs: FC<Props> = ({
                             fz="md"
                             component={Link}
                             to={`/projects/${projectUuid}/dashboards/${dashboardUuid}`}
-                            sx={{
-                                maxWidth: `${MAX_WIDTH_TITLE_PX}px`,
-                                whiteSpace: 'nowrap',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                display: 'inline-block',
-                            }}
+                            truncate
+                            display="inline-block"
+                            maw={MAX_WIDTH_TITLE_PX}
                         >
                             {dashboardName}
                         </Anchor>

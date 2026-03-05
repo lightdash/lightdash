@@ -1,0 +1,56 @@
+.menuTargetWrapper {
+    position: relative;
+    display: inline-flex;
+}
+
+.zapIndicator {
+    position: absolute;
+    top: -3px;
+    right: -3px;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--mantine-color-body);
+    box-shadow: 0 0 0 1.5px var(--mantine-color-ldGray-3);
+    pointer-events: none;
+    animation: blink 1s ease-in-out infinite;
+}
+
+/* Settled: solid fill, no blink */
+.zapIndicator[data-settled] {
+    animation: none;
+    background: var(--mantine-color-dark-6);
+    box-shadow: none;
+}
+
+.zapIndicator[data-settled] svg {
+    color: var(--mantine-color-white) !important;
+}
+
+@keyframes blink {
+    0%,
+    100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.2;
+    }
+}
+
+:global([data-mantine-color-scheme='dark']) .zapIndicator {
+    background: var(--mantine-color-ldDark-6);
+    box-shadow: 0 0 0 1.5px var(--mantine-color-ldDark-3);
+}
+
+:global([data-mantine-color-scheme='dark']) .zapIndicator[data-settled] {
+    background: var(--mantine-color-ldGray-2);
+    box-shadow: none;
+}
+
+:global([data-mantine-color-scheme='dark']) .zapIndicator[data-settled] svg {
+    color: var(--mantine-color-ldDark-6) !important;
+}

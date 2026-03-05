@@ -1,6 +1,6 @@
 import {
-    DashboardTileTypes,
     assertUnreachable,
+    DashboardTileTypes,
     type Dashboard,
     type DashboardHeadingTileProperties,
     type DashboardLoomTileProperties,
@@ -21,8 +21,10 @@ import { getLoomId, markdownTileContentTransform } from './utils';
 type Tile = Dashboard['tiles'][number];
 type TileProperties = Tile['properties'];
 
-interface TileUpdateModalProps<T>
-    extends Pick<ModalProps, 'opened' | 'onClose' | 'className'> {
+interface TileUpdateModalProps<T> extends Pick<
+    ModalProps,
+    'opened' | 'onClose' | 'className'
+> {
     tile: T;
     onConfirm?: (tile: T) => void;
 }

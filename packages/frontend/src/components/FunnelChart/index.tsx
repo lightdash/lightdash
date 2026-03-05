@@ -9,10 +9,10 @@ import useEchartsFunnelConfig, {
 } from '../../hooks/echarts/useEchartsFunnelConfig';
 import { useLegendDoubleClickSelection } from '../../hooks/echarts/useLegendDoubleClickSelection';
 import { useContextMenuPermissions } from '../../hooks/useContextMenuPermissions';
-import EChartsReact from '../EChartsReactWrapper';
-import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
 import LoadingChart from '../common/LoadingChart';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
+import EChartsReact from '../EChartsReactWrapper';
+import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
 import FunnelChartContextMenu, {
     type FunnelChartContextMenuProps,
 } from './FunnelChartContextMenu';

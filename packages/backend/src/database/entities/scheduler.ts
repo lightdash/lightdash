@@ -2,9 +2,11 @@ import {
     AnyType,
     assertUnreachable,
     isEmailTarget,
+    isGoogleChatTarget,
     isMsTeamsTarget,
     isSlackTarget,
     SchedulerEmailTarget,
+    SchedulerGoogleChatTarget,
     SchedulerMsTeamsTarget,
     SchedulerSlackTarget,
 } from '@lightdash/common';
@@ -14,6 +16,8 @@ export const SchedulerTableName = 'scheduler';
 export const SchedulerSlackTargetTableName = 'scheduler_slack_target';
 export const SchedulerEmailTargetTableName = 'scheduler_email_target';
 export const SchedulerMsTeamsTargetTableName = 'scheduler_msteams_target';
+export const SchedulerGoogleChatTargetTableName =
+    'scheduler_google_chat_target';
 
 export const SchedulerLogTableName = 'scheduler_log';
 
@@ -38,6 +42,8 @@ export type SchedulerDb = {
     notification_frequency: string | null;
     selected_tabs: string[] | null;
     include_links: boolean;
+    deleted_at: Date | null;
+    deleted_by_user_uuid: string | null;
 };
 
 export type ChartSchedulerDb = SchedulerDb & {
@@ -63,6 +69,13 @@ export type SchedulerMsTeamsTargetDb = {
     scheduler_uuid: string;
     webhook: string;
 };
+export type SchedulerGoogleChatTargetDb = {
+    scheduler_google_chat_target_uuid: string;
+    created_at: Date;
+    updated_at: Date;
+    scheduler_uuid: string;
+    webhook: string;
+};
 
 export type SchedulerEmailTargetDb = {
     scheduler_email_target_uuid: string;
@@ -76,7 +89,7 @@ export type SchedulerTable = Knex.CompositeTableType<
     SchedulerDb,
     Omit<
         ChartSchedulerDb | DashboardSchedulerDB,
-        'scheduler_uuid' | 'created_at'
+        'scheduler_uuid' | 'created_at' | 'deleted_at' | 'deleted_by_user_uuid'
     >,
     | Pick<
           SchedulerDb,
@@ -98,6 +111,7 @@ export type SchedulerTable = Knex.CompositeTableType<
     | Pick<SchedulerDb, 'updated_at' | 'enabled'>
     | Pick<SchedulerDb, 'created_by' | 'updated_at'>
     | Pick<SchedulerDb, 'cron'>
+    | Pick<SchedulerDb, 'deleted_at' | 'deleted_by_user_uuid'>
 >;
 
 export type SchedulerSlackTargetTable = Knex.CompositeTableType<
@@ -113,6 +127,15 @@ export type SchedulerMsTeamsTargetTable = Knex.CompositeTableType<
         'scheduler_msteams_target_uuid' | 'created_at'
     >,
     Pick<SchedulerMsTeamsTargetDb, 'webhook' | 'updated_at'>
+>;
+
+export type SchedulerGoogleChatTargetTable = Knex.CompositeTableType<
+    SchedulerGoogleChatTargetDb,
+    Omit<
+        SchedulerGoogleChatTargetDb,
+        'scheduler_google_chat_target_uuid' | 'created_at'
+    >,
+    Pick<SchedulerGoogleChatTargetDb, 'webhook' | 'updated_at'>
 >;
 
 export type SchedulerEmailTargetTable = Knex.CompositeTableType<
@@ -143,15 +166,22 @@ export const getSchedulerTargetType = (
     target:
         | SchedulerSlackTarget
         | SchedulerEmailTarget
-        | SchedulerMsTeamsTarget,
+        | SchedulerMsTeamsTarget
+        | SchedulerGoogleChatTarget,
 ): {
     schedulerTargetId: string;
-    type: 'slack' | 'email' | 'msteams';
+    type: 'slack' | 'email' | 'msteams' | 'googlechat';
 } => {
     if (isSlackTarget(target)) {
         return {
             schedulerTargetId: target.schedulerSlackTargetUuid,
             type: 'slack',
+        };
+    }
+    if (isGoogleChatTarget(target)) {
+        return {
+            schedulerTargetId: target.schedulerGoogleChatTargetUuid,
+            type: 'googlechat',
         };
     }
     if (isMsTeamsTarget(target)) {

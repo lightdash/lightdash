@@ -182,6 +182,41 @@ describe('SnowflakeErrorParsing', () => {
         expect(result.message).toBe('Access denied for MY_TABLE in MY_SCHEMA');
     });
 
+    it('should extract schema name from Schema-level errors', () => {
+        process.env.SNOWFLAKE_UNAUTHORIZED_ERROR_MESSAGE =
+            "You don't have access to the {snowflakeTable} table. Please go to 'analytics_{snowflakeSchema}' in sailpoint and request access";
+
+        const error = {
+            message:
+                "SQL compilation error: Schema 'ANALYTICS_DB.RPT_VERIFICATION' does not exist or not authorized.",
+            code: 'COMPILATION',
+            data: { type: 'COMPILATION' },
+        };
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const result = warehouse.parseError(error as any);
+
+        expect(result.message).toBe(
+            "You don't have access to the RPT_VERIFICATION table. Please go to 'analytics_RPT_VERIFICATION' in sailpoint and request access",
+        );
+    });
+
+    it('should handle Schema errors with different formats', () => {
+        process.env.SNOWFLAKE_UNAUTHORIZED_ERROR_MESSAGE =
+            'Access denied for {snowflakeTable} in {snowflakeSchema}';
+
+        const error = {
+            message: "Schema 'DB.MY_SCHEMA' does not exist or not authorized.",
+            code: 'COMPILATION',
+            data: { type: 'COMPILATION' },
+        };
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const result = warehouse.parseError(error as any);
+
+        expect(result.message).toBe('Access denied for MY_SCHEMA in MY_SCHEMA');
+    });
+
     it('should handle errors without table information gracefully', () => {
         process.env.SNOWFLAKE_UNAUTHORIZED_ERROR_MESSAGE =
             "You don't have access to the {snowflakeTable} table. Please go to 'analytics_{snowflakeSchema}' in sailpoint and request access";

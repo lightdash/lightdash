@@ -1,0 +1,29 @@
+.editorPane {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+}
+
+.toolbar {
+    border-bottom: 1px solid var(--mantine-color-gray-3);
+    flex-shrink: 0;
+}
+
+:global([data-mantine-color-scheme='dark']) .toolbar {
+    border-bottom-color: var(--mantine-color-dark-4);
+}
+
+.editorContainer {
+    flex: 1;
+    min-height: 0;
+}
+
+.emptyState {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    gap: var(--mantine-spacing-md);
+}

@@ -2,6 +2,7 @@ import {
     AnyType,
     ApiCalculateTotalResponse,
     ApiErrorPayload,
+    ApiExportChartImageResponse,
     ApiGetChartHistoryResponse,
     ApiGetChartVersionResponse,
     ApiPromoteChartResponse,
@@ -460,6 +461,29 @@ export class SavedChartController extends BaseController {
             results: await this.services
                 .getSavedChartService()
                 .createScheduler(req.user!, chartUuid, req.body),
+        };
+    }
+
+    /**
+     * Export a saved chart as a PNG image
+     * @summary Export chart image
+     * @param chartUuid chartUuid for the chart to export
+     * @param req express request
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/export')
+    @OperationId('exportSavedChartImage')
+    async exportSavedChartImage(
+        @Path() chartUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiExportChartImageResponse> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getUnfurlService()
+                .exportChart(chartUuid, req.user!),
         };
     }
 }

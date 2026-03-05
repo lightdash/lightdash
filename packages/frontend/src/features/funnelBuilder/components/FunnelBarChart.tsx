@@ -1,6 +1,6 @@
 import { friendlyName } from '@lightdash/common';
 import { useMantineTheme } from '@mantine-8/core';
-import { type FC, useMemo } from 'react';
+import { useMemo, type FC } from 'react';
 import EChartsReact from '../../../components/EChartsReactWrapper';
 import { useAppSelector } from '../store';
 import { selectResultsSteps } from '../store/selectors';

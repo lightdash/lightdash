@@ -1,8 +1,6 @@
-import type { Meta, StoryObj } from '@storybook/react';
-import type { ReactNode } from 'react';
-
 import { Box, Button, Paper, SimpleGrid, Stack, Text } from '@mantine-8/core';
 import type { StackProps } from '@mantine/core';
+import type { Meta, StoryObj } from '@storybook/react';
 import {
     IconAlertCircle,
     IconCheck,
@@ -11,6 +9,7 @@ import {
     IconMoodSad,
     IconSearch,
 } from '@tabler/icons-react';
+import type { ReactNode } from 'react';
 import type { MantineIconProps } from '../components/common/MantineIcon';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 

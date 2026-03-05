@@ -23,9 +23,9 @@ import VisualizationCardOptions from '../VisualizationCardOptions';
 
 // Lazy load CustomVisConfig as it includes the heavy Monaco editor
 const CustomVisConfigTabsLazy = lazy(() =>
-    import(
-        '../../VisualizationConfigs/ChartConfigPanel/CustomVis/CustomVisConfig'
-    ).then((module) => ({ default: module.ConfigTabs })),
+    import('../../VisualizationConfigs/ChartConfigPanel/CustomVis/CustomVisConfig').then(
+        (module) => ({ default: module.ConfigTabs }),
+    ),
 );
 
 type Props = {

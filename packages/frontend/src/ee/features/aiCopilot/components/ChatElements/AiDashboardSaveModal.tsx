@@ -8,8 +8,8 @@ import {
     Button,
     LoadingOverlay,
     Stack,
-    TextInput,
     Textarea,
+    TextInput,
 } from '@mantine-8/core';
 import { useForm } from '@mantine/form';
 import { IconLayoutDashboard, IconPlus } from '@tabler/icons-react';

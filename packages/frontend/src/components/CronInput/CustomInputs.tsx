@@ -1,4 +1,4 @@
-import { TextInput } from '@mantine/core';
+import { TextInput } from '@mantine-8/core';
 import cronstrue from 'cronstrue';
 import { useMemo, type FC } from 'react';
 import { isInvalidCronExpression } from '../../utils/fieldValidators';

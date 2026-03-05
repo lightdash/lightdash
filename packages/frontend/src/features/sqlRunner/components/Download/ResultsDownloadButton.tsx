@@ -5,7 +5,7 @@ import {
 } from '@lightdash/common';
 import { ActionIcon, Popover, Tooltip } from '@mantine/core';
 import { IconDownload } from '@tabler/icons-react';
-import { type FC, useMemo } from 'react';
+import { useMemo, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import ExportResults from '../../../../components/ExportResults';
 

@@ -8,6 +8,7 @@ import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import InfiniteResourceTable from '../components/common/ResourceView/InfiniteResourceTable';
 import useCreateInAnySpaceAccess from '../hooks/user/useCreateInAnySpaceAccess';
 import useApp from '../providers/App/useApp';
+import { FavoritesProvider } from '../providers/Favorites/FavoritesProvider';
 
 const SavedQueries: FC = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
@@ -25,41 +26,43 @@ const SavedQueries: FC = () => {
     };
 
     return (
-        <Page
-            title="Saved charts"
-            withCenteredRoot
-            withCenteredContent
-            withXLargePaddedContent
-            withLargeContent
-        >
-            <Stack spacing="xxl" w="100%">
-                <Group position="apart">
-                    <PageBreadcrumbs
-                        items={[
-                            { title: 'Home', to: '/home' },
-                            { title: 'All saved charts', active: true },
-                        ]}
-                    />
-                    {!isDemo && userCanCreateCharts ? (
-                        <Button
-                            leftIcon={<IconPlus size={18} />}
-                            onClick={handleCreateChart}
-                        >
-                            Create chart
-                        </Button>
-                    ) : undefined}
-                </Group>
+        <FavoritesProvider projectUuid={projectUuid}>
+            <Page
+                title="Saved charts"
+                withCenteredRoot
+                withCenteredContent
+                withXLargePaddedContent
+                withLargeContent
+            >
+                <Stack spacing="xxl" w="100%">
+                    <Group position="apart">
+                        <PageBreadcrumbs
+                            items={[
+                                { title: 'Home', to: '/home' },
+                                { title: 'All saved charts', active: true },
+                            ]}
+                        />
+                        {!isDemo && userCanCreateCharts ? (
+                            <Button
+                                leftIcon={<IconPlus size={18} />}
+                                onClick={handleCreateChart}
+                            >
+                                Create chart
+                            </Button>
+                        ) : undefined}
+                    </Group>
 
-                {projectUuid ? (
-                    <InfiniteResourceTable
-                        filters={{
-                            projectUuid,
-                            contentTypes: [ContentType.CHART],
-                        }}
-                    />
-                ) : null}
-            </Stack>
-        </Page>
+                    {projectUuid ? (
+                        <InfiniteResourceTable
+                            filters={{
+                                projectUuid,
+                                contentTypes: [ContentType.CHART],
+                            }}
+                        />
+                    ) : null}
+                </Stack>
+            </Page>
+        </FavoritesProvider>
     );
 };
 

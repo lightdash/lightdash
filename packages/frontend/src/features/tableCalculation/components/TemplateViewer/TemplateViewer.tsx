@@ -1,12 +1,14 @@
 import {
     friendlyName,
     getFieldLabel,
+    isDimension,
     WindowFunctionType,
     type TableCalculationTemplate,
 } from '@lightdash/common';
-import { Badge, Group, Stack, Text } from '@mantine/core';
+import { Badge, Group, MultiSelect, Stack, Text } from '@mantine/core';
 import { useCallback, useMemo, type FC } from 'react';
 import { useColumns } from '../../../../hooks/useColumns';
+import { selectDimensions, useExplorerSelector } from '../../../explorer/store';
 import {
     formatTemplateType,
     getTemplateDescription,
@@ -14,11 +16,17 @@ import {
 
 interface TemplateViewerProps {
     template?: TableCalculationTemplate;
-    readOnly: true;
+    readOnly?: boolean;
+    onTemplateChange?: (template: TableCalculationTemplate) => void;
 }
 
-export const TemplateViewer: FC<TemplateViewerProps> = ({ template }) => {
+export const TemplateViewer: FC<TemplateViewerProps> = ({
+    template,
+    readOnly = true,
+    onTemplateChange,
+}) => {
     const columns = useColumns();
+    const activeDimensions = useExplorerSelector(selectDimensions);
 
     const columnsMap = useMemo(() => {
         return new Map(columns.map((c) => [c.id, c.meta?.item]));
@@ -81,6 +89,31 @@ export const TemplateViewer: FC<TemplateViewerProps> = ({ template }) => {
             .join(', ');
     }, [template, getLabel]);
 
+    const supportsPartitionBy = template && 'partitionBy' in template;
+
+    const dimensionOptions = useMemo(
+        () =>
+            activeDimensions
+                .filter((fieldId) => {
+                    const item = columnsMap.get(fieldId);
+                    return item && isDimension(item);
+                })
+                .map((fieldId) => ({
+                    value: fieldId,
+                    label: getLabel(fieldId),
+                })),
+        [activeDimensions, columnsMap, getLabel],
+    );
+
+    const handlePartitionByChange = useCallback(
+        (value: string[]) => {
+            if (template && supportsPartitionBy && onTemplateChange) {
+                onTemplateChange({ ...template, partitionBy: value });
+            }
+        },
+        [template, supportsPartitionBy, onTemplateChange],
+    );
+
     if (!template) {
         return (
             <Text c="dimmed" size="sm">
@@ -135,7 +168,23 @@ export const TemplateViewer: FC<TemplateViewerProps> = ({ template }) => {
                 </Group>
             )}
 
-            {partitionByText && (
+            {supportsPartitionBy && !readOnly && (
+                <Stack spacing="xs">
+                    <Text fw={600} size="sm">
+                        Partition By:
+                    </Text>
+                    <MultiSelect
+                        data={dimensionOptions}
+                        value={template.partitionBy ?? []}
+                        onChange={handlePartitionByChange}
+                        placeholder="No partitioning (all rows)"
+                        searchable
+                        clearable
+                    />
+                </Stack>
+            )}
+
+            {supportsPartitionBy && readOnly && partitionByText && (
                 <Group>
                     <Text fw={600} size="sm">
                         Partition By:

@@ -68,12 +68,12 @@ const AiPageLoading = () => (
 const AgentsWelcome = () => {
     const { projectUuid } = useParams();
     const canCreateAgent = useAiAgentPermission({ action: 'manage' });
-    const organizationSettingsQuery = useAiOrganizationSettings();
+    const aiOrganizationSettingsQuery = useAiOrganizationSettings();
 
     const isAiCopilotEnabledOrTrial =
-        (organizationSettingsQuery.isSuccess &&
-            organizationSettingsQuery.data?.isCopilotEnabled) ||
-        organizationSettingsQuery.data?.isTrial;
+        aiOrganizationSettingsQuery.isSuccess &&
+        (aiOrganizationSettingsQuery.data.isCopilotEnabled ||
+            aiOrganizationSettingsQuery.data.isTrial);
 
     const agentsQuery = useProjectAiAgents({
         projectUuid,
@@ -86,7 +86,7 @@ const AgentsWelcome = () => {
         enabled: isAiCopilotEnabledOrTrial,
     });
 
-    if (organizationSettingsQuery.isLoading) {
+    if (aiOrganizationSettingsQuery.isLoading) {
         return <AiPageLoading />;
     }
     if (!isAiCopilotEnabledOrTrial) {

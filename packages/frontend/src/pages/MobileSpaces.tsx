@@ -10,12 +10,12 @@ import { IconFolders, IconSearch, IconX } from '@tabler/icons-react';
 import Fuse from 'fuse.js';
 import { useMemo, useState, type FC } from 'react';
 import { useParams } from 'react-router';
-import ForbiddenPanel from '../components/ForbiddenPanel';
-import LoadingState from '../components/common/LoadingState';
+import EmptyStateLoader from '../components/common/EmptyStateLoader';
 import MantineIcon from '../components/common/MantineIcon';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import ResourceView from '../components/common/ResourceView';
 import { ResourceSortDirection } from '../components/common/ResourceView/types';
+import ForbiddenPanel from '../components/ForbiddenPanel';
 import { useProject } from '../hooks/useProject';
 import { useSpaceSummaries } from '../hooks/useSpaces';
 import useApp from '../providers/App/useApp';
@@ -32,7 +32,7 @@ const MobileSpaces: FC = () => {
         subject('Space', {
             organizationUuid: user.data?.organizationUuid,
             projectUuid,
-            isPrivate: false,
+            inheritsFromOrgOrProject: true,
         }),
     );
     const [search, setSearch] = useState<string>('');
@@ -60,7 +60,7 @@ const MobileSpaces: FC = () => {
     }
 
     if (isLoading && !userCannotViewSpace) {
-        return <LoadingState title="Loading spaces" />;
+        return <EmptyStateLoader my="xl" title="Loading spaces" />;
     }
 
     return (

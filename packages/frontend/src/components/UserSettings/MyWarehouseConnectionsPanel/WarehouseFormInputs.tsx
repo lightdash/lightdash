@@ -46,11 +46,19 @@ export const SnowflakeFormInput: FC<{ onClose: () => void }> = ({
     );
 };
 
-const DatabricksFormInput: FC<{ onClose: () => void }> = ({ onClose }) => {
+const DatabricksFormInput: FC<{
+    onClose: () => void;
+    projectUuid?: string;
+    projectName?: string;
+    credentialsName?: string;
+}> = ({ onClose, projectUuid, projectName, credentialsName }) => {
     const { mutate: openLoginPopup } = useDatabricksLoginPopup({
         onLogin: async () => {
             onClose();
         },
+        projectUuid,
+        projectName,
+        credentialsName,
     });
 
     // If this popup happens, it means we don't have warehouse credentials,
@@ -68,7 +76,17 @@ export const WarehouseFormInputs: FC<{
     disabled: boolean;
     form: UseFormReturnType<UpsertUserWarehouseCredentials>;
     onClose: () => void;
-}> = ({ form, disabled, onClose }) => {
+    projectUuid?: string;
+    projectName?: string;
+    databricksCredentialsName?: string;
+}> = ({
+    form,
+    disabled,
+    onClose,
+    projectUuid,
+    projectName,
+    databricksCredentialsName,
+}) => {
     switch (form.values.credentials.type) {
         case WarehouseTypes.SNOWFLAKE:
             return <SnowflakeFormInput onClose={onClose} />;
@@ -97,7 +115,14 @@ export const WarehouseFormInputs: FC<{
         case WarehouseTypes.BIGQUERY:
             return <BigQueryFormInput onClose={onClose} />;
         case WarehouseTypes.DATABRICKS:
-            return <DatabricksFormInput onClose={onClose} />;
+            return (
+                <DatabricksFormInput
+                    onClose={onClose}
+                    projectUuid={projectUuid}
+                    projectName={projectName}
+                    credentialsName={databricksCredentialsName}
+                />
+            );
         default:
             return null;
     }

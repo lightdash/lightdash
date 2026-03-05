@@ -1,0 +1,65 @@
+name: Regional Sales - Total & Row Total Demo
+description: Monthly revenue by region with total() and row_total() table calculations
+tableName: regional_sales
+updatedAt: "2026-03-02T17:21:30.633Z"
+metricQuery:
+  exploreName: regional_sales
+  dimensions:
+    - regional_sales_sale_date_month
+    - regional_sales_region
+  metrics:
+    - regional_sales_total_revenue
+  filters: {}
+  sorts:
+    - fieldId: regional_sales_sale_date_month
+      descending: true
+  limit: 500
+  metricOverrides: {}
+  dimensionOverrides: {}
+  tableCalculations:
+    - name: _of_grand_total
+      displayName: "% of Grand Total"
+      sql: ${regional_sales.total_revenue} / total(${regional_sales.total_revenue})
+      format:
+        type: percent
+        round: 1
+        separator: default
+      type: number
+    - name: _of_monthly_total
+      displayName: "% of Monthly Total"
+      sql: >-
+        ${regional_sales.total_revenue} /
+        row_total(${regional_sales.total_revenue})
+      format:
+        type: percent
+        round: 1
+        separator: default
+      type: number
+  additionalMetrics: []
+  customDimensions: []
+chartConfig:
+  type: table
+  config:
+    columns: {}
+    metricsAsRows: false
+    showSubtotals: false
+    hideRowNumbers: false
+    showTableNames: false
+    showResultsTotal: false
+    showRowCalculation: false
+    showColumnCalculation: false
+    conditionalFormattings: []
+pivotConfig:
+  columns:
+    - regional_sales_region
+slug: regional-sales-total-row-total-demo
+tableConfig:
+  columnOrder:
+    - regional_sales_sale_date_month
+    - regional_sales_region
+    - regional_sales_total_revenue
+    - _of_grand_total
+    - _of_monthly_total
+spaceSlug: jaffle-shop
+version: 1
+downloadedAt: "2026-03-02T18:27:27.203Z"

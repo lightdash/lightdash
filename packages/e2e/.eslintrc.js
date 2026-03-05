@@ -1,7 +1,6 @@
 module.exports = {
     parserOptions: {
         project: './tsconfig.json',
-        createDefaultProgram: true,
     },
     extends: [
         './../../.eslintrc.js',
@@ -11,4 +10,5 @@ module.exports = {
         'airbnb-typescript/base',
         'prettier',
     ],
+    rules: {},
 };

@@ -1,4 +1,5 @@
 import {
+    AthenaAuthenticationType,
     CreateAthenaCredentials,
     ParseError,
     WarehouseTypes,
@@ -15,8 +16,10 @@ export type AthenaTarget = {
     schema: string;
     s3_staging_dir: string;
     s3_data_dir?: string;
-    aws_access_key_id: string;
-    aws_secret_access_key: string;
+    aws_access_key_id?: string;
+    aws_secret_access_key?: string;
+    aws_assume_role_arn?: string;
+    aws_assume_role_external_id?: string;
     work_group?: string;
     threads?: number;
     num_retries?: number;
@@ -47,9 +50,19 @@ export const athenaSchema: JSONSchemaType<AthenaTarget> = {
         },
         aws_access_key_id: {
             type: 'string',
+            nullable: true,
         },
         aws_secret_access_key: {
             type: 'string',
+            nullable: true,
+        },
+        aws_assume_role_arn: {
+            type: 'string',
+            nullable: true,
+        },
+        aws_assume_role_external_id: {
+            type: 'string',
+            nullable: true,
         },
         work_group: {
             type: 'string',
@@ -64,15 +77,7 @@ export const athenaSchema: JSONSchemaType<AthenaTarget> = {
             nullable: true,
         },
     },
-    required: [
-        'type',
-        'region_name',
-        'database',
-        'schema',
-        's3_staging_dir',
-        'aws_access_key_id',
-        'aws_secret_access_key',
-    ],
+    required: ['type', 'region_name', 'database', 'schema', 's3_staging_dir'],
 };
 
 export const convertAthenaSchema = (
@@ -81,6 +86,9 @@ export const convertAthenaSchema = (
     const validate = ajv.compile<AthenaTarget>(athenaSchema);
 
     if (validate(target)) {
+        const hasAccessKeyCredentials =
+            !!target.aws_access_key_id && !!target.aws_secret_access_key;
+
         return {
             type: WarehouseTypes.ATHENA,
             region: target.region_name,
@@ -88,8 +96,16 @@ export const convertAthenaSchema = (
             schema: target.schema,
             s3StagingDir: target.s3_staging_dir,
             s3DataDir: target.s3_data_dir,
+            // CLI is intentionally permissive here: when keys are absent in a dbt
+            // profile, infer IAM role auth so local/CI runs can use AWS default
+            // credential resolution (for example OIDC/instance/task role).
+            authenticationType: hasAccessKeyCredentials
+                ? AthenaAuthenticationType.ACCESS_KEY
+                : AthenaAuthenticationType.IAM_ROLE,
             accessKeyId: target.aws_access_key_id,
             secretAccessKey: target.aws_secret_access_key,
+            assumeRoleArn: target.aws_assume_role_arn,
+            assumeRoleExternalId: target.aws_assume_role_external_id,
             workGroup: target.work_group,
             threads: target.threads,
             numRetries: target.num_retries,

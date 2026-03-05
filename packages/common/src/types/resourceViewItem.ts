@@ -14,6 +14,7 @@ export enum ResourceItemCategory {
     MOST_POPULAR = 'mostPopular',
     RECENTLY_UPDATED = 'recentlyUpdated',
     PINNED = 'pinned',
+    FAVORITES = 'favorites',
 }
 
 export type ResourceViewChartItem = {
@@ -70,11 +71,13 @@ export type ResourceViewSpaceItem = {
         | 'organizationUuid'
         | 'parentSpaceUuid'
         | 'path'
+        | 'inheritParentPermissions'
     > & {
         access: string[];
         accessListLength: number;
         dashboardCount: number;
         chartCount: number;
+        childSpaceCount: number;
     };
 };
 
@@ -131,11 +134,13 @@ export const spaceToResourceViewItem = (
     uuid: space.uuid,
     name: space.name,
     isPrivate: space.isPrivate,
+    inheritParentPermissions: space.inheritParentPermissions,
     pinnedListUuid: space.pinnedListUuid,
     pinnedListOrder: space.pinnedListOrder,
     accessListLength: space.access.length,
     dashboardCount: space.dashboardCount,
     chartCount: space.chartCount,
+    childSpaceCount: space.childSpaceCount,
     access: space.access,
     parentSpaceUuid: space.parentSpaceUuid,
     path: space.path,

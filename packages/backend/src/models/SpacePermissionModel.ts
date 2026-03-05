@@ -1,14 +1,19 @@
 import {
     DirectSpaceAccess,
     DirectSpaceAccessOrigin,
+    InvalidSpaceStateError,
+    NotFoundError,
     OrganizationSpaceAccess,
     ProjectSpaceAccess,
     ProjectSpaceAccessOrigin,
-    UserInfo,
+    SpaceAccessUserMetadata,
+    type SpaceGroup,
+    type SpaceInheritanceChain,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { EmailTableName } from '../database/entities/emails';
 import { GroupMembershipTableName } from '../database/entities/groupMemberships';
+import { GroupTableName } from '../database/entities/groups';
 import { OrganizationMembershipsTableName } from '../database/entities/organizationMemberships';
 import { OrganizationTableName } from '../database/entities/organizations';
 import { ProjectGroupAccessTableName } from '../database/entities/projectGroupAccess';
@@ -44,6 +49,7 @@ export class SpacePermissionModel {
                         .select({
                             userUuid: `${SpaceUserAccessTableName}.user_uuid`,
                             spaceUuid: `${SpaceUserAccessTableName}.space_uuid`,
+                            groupUuid: this.database.raw(`NULL`),
                             role: `${SpaceUserAccessTableName}.space_role`,
                             from: this.database.raw(
                                 `'${DirectSpaceAccessOrigin.USER_ACCESS}'`,
@@ -66,6 +72,7 @@ export class SpacePermissionModel {
                                 .select({
                                     userUuid: `${UserTableName}.user_uuid`,
                                     spaceUuid: `${SpaceGroupAccessTableName}.space_uuid`,
+                                    groupUuid: `${SpaceGroupAccessTableName}.group_uuid`,
                                     role: `${SpaceGroupAccessTableName}.space_role`,
                                     from: this.database.raw(
                                         `'${DirectSpaceAccessOrigin.GROUP_ACCESS}'`,
@@ -286,7 +293,7 @@ export class SpacePermissionModel {
         Record<
             string,
             {
-                isPrivate: boolean;
+                inheritParentPermissions: boolean;
                 projectUuid: string;
                 organizationUuid: string;
             }
@@ -303,7 +310,7 @@ export class SpacePermissionModel {
                 const rows = await this.database(SpaceTableName)
                     .select({
                         spaceUuid: `${SpaceTableName}.space_uuid`,
-                        isPrivate: `${SpaceTableName}.is_private`,
+                        inheritParentPermissions: `${SpaceTableName}.inherit_parent_permissions`,
                         projectUuid: `${ProjectTableName}.project_uuid`,
                         organizationUuid: `${OrganizationTableName}.organization_uuid`,
                     })
@@ -323,19 +330,175 @@ export class SpacePermissionModel {
                     Record<
                         string,
                         {
-                            isPrivate: boolean;
+                            inheritParentPermissions: boolean;
                             projectUuid: string;
                             organizationUuid: string;
                         }
                     >
                 >((acc, row) => {
                     acc[row.spaceUuid] = {
-                        isPrivate: row.isPrivate,
+                        inheritParentPermissions: row.inheritParentPermissions,
                         projectUuid: row.projectUuid,
                         organizationUuid: row.organizationUuid,
                     };
                     return acc;
                 }, {});
+            },
+        );
+    }
+
+    /**
+     * Fetches user metadata (firstName, lastName, email) for a list of user UUIDs.
+     * Used to enrich SpaceAccess[] into SpaceShare[] for the share modal UI.
+     */
+    async getUserMetadataByUuids(
+        userUuids: string[],
+    ): Promise<Record<string, SpaceAccessUserMetadata>> {
+        return wrapSentryTransaction(
+            'SpacePermissionModel.getUserMetadataByUuids',
+            { userUuidsCount: userUuids.length },
+            async () => {
+                if (userUuids.length === 0) return {};
+
+                const rows = await this.database(UserTableName)
+                    .innerJoin(
+                        EmailTableName,
+                        `${UserTableName}.user_id`,
+                        `${EmailTableName}.user_id`,
+                    )
+                    .where(`${EmailTableName}.is_primary`, true)
+                    .whereIn(`${UserTableName}.user_uuid`, userUuids)
+                    .select<(SpaceAccessUserMetadata & { userUuid: string })[]>(
+                        {
+                            userUuid: `${UserTableName}.user_uuid`,
+                            firstName: `${UserTableName}.first_name`,
+                            lastName: `${UserTableName}.last_name`,
+                            email: `${EmailTableName}.email`,
+                        },
+                    );
+
+                return Object.fromEntries(rows.map((r) => [r.userUuid, r]));
+            },
+        );
+    }
+
+    /**
+     * Gets the group access for a space.
+     * @param spaceUuid - The UUID of the space to get group access for
+     * @returns The group access entries for the space (or its root space)
+     */
+    async getGroupAccess(spaceUuid: string): Promise<SpaceGroup[]> {
+        return wrapSentryTransaction(
+            'SpacePermissionModel.getGroupAccess',
+            {},
+            async () => {
+                const access = await this.database
+                    .table(SpaceGroupAccessTableName)
+                    .select({
+                        groupUuid: `${SpaceGroupAccessTableName}.group_uuid`,
+                        spaceRole: `${SpaceGroupAccessTableName}.space_role`,
+                        groupName: `${GroupTableName}.name`,
+                    })
+                    .leftJoin(
+                        `${GroupTableName}`,
+                        `${GroupTableName}.group_uuid`,
+                        `${SpaceGroupAccessTableName}.group_uuid`,
+                    )
+                    .where('space_uuid', spaceUuid);
+                return access;
+            },
+        );
+    }
+
+    /**
+     * Gets the inheritance chain for an array of spaces, walking up from the space
+     * to the first ancestor with inherit_parent_permissions=false (or root).
+     *
+     * The chain is ordered leaf-to-root.
+     *
+     * @param spaceUuids - The UUIDs of the spaces to get chains for
+     * @returns A record of space UUIDs to their inheritance chains
+     */
+    async getInheritanceChains(
+        spaceUuids: string[],
+    ): Promise<Record<string, SpaceInheritanceChain>> {
+        return wrapSentryTransaction(
+            'SpacePermissionModel.getInheritanceChains',
+            { spaceUuidsCount: spaceUuids.length },
+            async () => {
+                if (spaceUuids.length === 0) return {};
+
+                const ancestorRows: {
+                    requested_space_uuid: string;
+                    space_uuid: string;
+                    name: string;
+                    inherit_parent_permissions: boolean;
+                    parent_space_uuid: string | null;
+                }[] = await this.database(`${SpaceTableName} as leaf`)
+                    .select({
+                        requested_space_uuid: 'leaf.space_uuid',
+                        space_uuid: 'ancestor.space_uuid',
+                        name: 'ancestor.name',
+                        inherit_parent_permissions:
+                            'ancestor.inherit_parent_permissions',
+                        parent_space_uuid: 'ancestor.parent_space_uuid',
+                    })
+                    .joinRaw(
+                        `JOIN ${SpaceTableName} ancestor ON ancestor.path @> leaf.path AND ancestor.project_id = leaf.project_id`,
+                    )
+                    .whereIn('leaf.space_uuid', spaceUuids)
+                    .orderBy('leaf.space_uuid')
+                    .orderByRaw('nlevel(ancestor.path) DESC');
+
+                // Group ancestor rows by requested space (order is preserved)
+                const ancestorsBySpace = new Map<string, typeof ancestorRows>();
+                for (const row of ancestorRows) {
+                    let list = ancestorsBySpace.get(row.requested_space_uuid);
+                    if (!list) {
+                        list = [];
+                        ancestorsBySpace.set(row.requested_space_uuid, list);
+                    }
+                    list.push(row);
+                }
+
+                const result: Record<string, SpaceInheritanceChain> = {};
+                for (const requestedUuid of spaceUuids) {
+                    const myAncestors =
+                        ancestorsBySpace.get(requestedUuid) ?? [];
+                    if (myAncestors.length === 0) {
+                        // Space not found in DB — skip silently (caller
+                        // will notice the missing key in the result map).
+                        // eslint-disable-next-line no-continue
+                        continue;
+                    }
+
+                    // Walk from leaf toward root, collecting chain items
+                    const chain: SpaceInheritanceChain['chain'] = [];
+                    let lastAncestor: (typeof myAncestors)[number] | undefined;
+
+                    for (const ancestor of myAncestors) {
+                        chain.push({
+                            spaceUuid: ancestor.space_uuid,
+                            spaceName: ancestor.name,
+                            inheritParentPermissions:
+                                ancestor.inherit_parent_permissions,
+                        });
+                        lastAncestor = ancestor;
+
+                        if (!ancestor.inherit_parent_permissions) {
+                            break;
+                        }
+                    }
+
+                    const inheritsFromOrgOrProject =
+                        lastAncestor !== undefined &&
+                        lastAncestor.parent_space_uuid === null &&
+                        lastAncestor.inherit_parent_permissions === true;
+
+                    result[requestedUuid] = { chain, inheritsFromOrgOrProject };
+                }
+
+                return result;
             },
         );
     }

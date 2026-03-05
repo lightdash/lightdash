@@ -1,9 +1,9 @@
 import {
+    AthenaAuthenticationType,
     BigqueryAuthenticationType,
     DatabricksAuthenticationType,
     WarehouseTypes,
 } from '@lightdash/common';
-
 import type {
     CreateAthenaCredentials,
     CreateBigqueryCredentials,
@@ -115,6 +115,7 @@ export const SnowflakeDefaultValues: CreateSnowflakeCredentials = {
     authenticationType: undefined,
     privateKey: '',
     privateKeyPass: '',
+    timeoutSeconds: 300,
 };
 
 export const TrinoDefaultValues: CreateTrinoCredentials = {
@@ -145,6 +146,7 @@ export const ClickhouseDefaultValues: CreateClickhouseCredentials = {
 
 export const AthenaDefaultValues: CreateAthenaCredentials = {
     type: WarehouseTypes.ATHENA,
+    authenticationType: AthenaAuthenticationType.ACCESS_KEY,
     region: '',
     database: 'AwsDataCatalog',
     schema: '',

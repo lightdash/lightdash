@@ -1,5 +1,4 @@
 import type { ResultsPaginationArgs } from '@lightdash/common';
-
 import { PaginationError } from '@lightdash/common';
 
 export function getNextAndPreviousPage(page: number, totalPageCount: number) {

@@ -9,6 +9,7 @@ import {
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 import type { MRT_SortingState } from 'mantine-react-table';
 import type { UserWithAbility } from '../../../hooks/user/useUser';
+import { SavedTreeEditMode } from '../types';
 
 type MetricsCatalogState = {
     modals: {
@@ -49,6 +50,8 @@ type MetricsCatalogState = {
         columnOrder: string[];
         columnVisibility: Record<string, boolean>;
     };
+    activeTreeUuid: string | null;
+    savedTreeEditMode: SavedTreeEditMode;
 };
 
 export function convertStateToTableColumnConfig(
@@ -132,6 +135,8 @@ const initialState: MetricsCatalogState = {
             [SpotlightTableColumns.OWNER]: false,
         },
     },
+    activeTreeUuid: null,
+    savedTreeEditMode: SavedTreeEditMode.VIEW,
 };
 
 export const metricsCatalogSlice = createSlice({
@@ -245,6 +250,15 @@ export const metricsCatalogSlice = createSlice({
             const formattedConfig = convertTableColumnConfigToState(config);
             state.columnConfig = formattedConfig;
         },
+        setActiveTreeUuid: (state, action: PayloadAction<string | null>) => {
+            state.activeTreeUuid = action.payload;
+        },
+        setSavedTreeEditMode: (
+            state,
+            action: PayloadAction<SavedTreeEditMode>,
+        ) => {
+            state.savedTreeEditMode = action.payload;
+        },
     },
 });
 
@@ -266,4 +280,6 @@ export const {
     setColumnOrder,
     setColumnVisibility,
     setColumnConfig,
+    setActiveTreeUuid,
+    setSavedTreeEditMode,
 } = metricsCatalogSlice.actions;

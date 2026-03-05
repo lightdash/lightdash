@@ -1,5 +1,4 @@
 import { type ParametersValuesMap, type PivotConfiguration } from '../..';
-
 import type { QueryExecutionContext } from '../analytics';
 import type { DownloadFileType } from '../downloadFile';
 import type { DashboardFilters, Filters } from '../filter';

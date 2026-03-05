@@ -30,9 +30,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     software-properties-common \
     unzip \
     git \
-    libcairo2-dev \
-    libpango1.0-dev \
-    librsvg2-dev \
+    # Required by node-canvas prebuilt binaries for font rendering in chart images
+    fontconfig \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -337,10 +336,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-venv \
     git \
     build-essential \
-    libcairo2-dev \
-    libpango1.0-dev \
-    librsvg2-dev \
+    # Required by node-canvas prebuilt binaries for font rendering in chart images
+    fontconfig \
     dumb-init \
+    # Optional: jemalloc allocator reduces native memory fragmentation vs glibc malloc.
+    # Dormant unless activated via LD_PRELOAD env var per customer.
+    libjemalloc2 \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 

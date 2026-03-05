@@ -83,6 +83,42 @@ test('Should prioritize new results S3 config over deprecated config when both a
     });
 });
 
+test('Should fall back to base S3 credentials for pre-aggregate results S3 config', () => {
+    process.env.S3_ACCESS_KEY = 'base_access_key';
+    process.env.S3_SECRET_KEY = 'base_secret_key';
+    process.env.PRE_AGGREGATE_RESULTS_S3_BUCKET = 'preagg_bucket';
+    process.env.PRE_AGGREGATE_RESULTS_S3_REGION = 'preagg_region';
+
+    const config = parseConfig();
+    expect(config.preAggregates.s3).toEqual({
+        endpoint: 'mock_endpoint',
+        bucket: 'preagg_bucket',
+        region: 'preagg_region',
+        accessKey: 'base_access_key',
+        secretKey: 'base_secret_key',
+        forcePathStyle: false,
+    });
+});
+
+test('Should use explicit pre-aggregate S3 credentials when set', () => {
+    process.env.S3_ACCESS_KEY = 'base_access_key';
+    process.env.S3_SECRET_KEY = 'base_secret_key';
+    process.env.PRE_AGGREGATE_RESULTS_S3_BUCKET = 'preagg_bucket';
+    process.env.PRE_AGGREGATE_RESULTS_S3_REGION = 'preagg_region';
+    process.env.PRE_AGGREGATE_RESULTS_S3_ACCESS_KEY = 'preagg_access_key';
+    process.env.PRE_AGGREGATE_RESULTS_S3_SECRET_KEY = 'preagg_secret_key';
+
+    const config = parseConfig();
+    expect(config.preAggregates.s3).toEqual({
+        endpoint: 'mock_endpoint',
+        bucket: 'preagg_bucket',
+        region: 'preagg_region',
+        accessKey: 'preagg_access_key',
+        secretKey: 'preagg_secret_key',
+        forcePathStyle: false,
+    });
+});
+
 test('Should parse rudder config from env', () => {
     const expected = {
         dataPlaneUrl: 'customurl',
@@ -558,6 +594,22 @@ describe('parseAndSanitizeSchedulerTasks', () => {
             parseConfig();
             expect(console.warn).not.toHaveBeenCalled();
         });
+    });
+});
+
+describe('scheduler poll interval', () => {
+    test('should default poll interval to 1000', () => {
+        const config = parseConfig();
+
+        expect(config.scheduler.pollInterval).toBe(1000);
+    });
+
+    test('should parse poll interval from environment variable', () => {
+        process.env.SCHEDULER_POLL_INTERVAL = '2500';
+
+        const config = parseConfig();
+
+        expect(config.scheduler.pollInterval).toBe(2500);
     });
 });
 

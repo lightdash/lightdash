@@ -4,10 +4,12 @@ import {
     convertLightdashModelsToDbtModels,
     DbtManifest,
     DbtManifestVersion,
+    DbtModelNode,
     Explore,
     ExploreError,
     getCompiledModels,
     getDbtManifestVersion,
+    getErrorMessage,
     getModelsFromManifest,
     getSchemaStructureFromDbtModels,
     isExploreError,
@@ -26,6 +28,7 @@ import { validateDbtModel } from '../dbt/validation';
 import GlobalState from '../globalState';
 import { readAndLoadLightdashProjectConfig } from '../lightdash-config';
 import { loadLightdashModels } from '../lightdash/loader';
+import { detectProjectType } from '../lightdash/projectType';
 import * as styles from '../styles';
 import { DbtCompileOptions, maybeCompileModelsAndJoins } from './dbt/compile';
 import { tryGetDbtVersion } from './dbt/getDbtVersion';
@@ -95,15 +98,72 @@ const getExploresFromLightdashYmlProject = async (
         warehouseSqlBuilder,
         lightdashProjectConfig,
         disableTimestampConversion,
-        process.env.PARTIAL_COMPILATION_ENABLED === 'true',
+        process.env.PARTIAL_COMPILATION_ENABLED !== 'false',
     );
 
     return validExplores;
 };
 
+/**
+ * When using --defer, non-selected models pulled in via joins
+ * have incorrect schema/relation_name (they point to the dev target
+ * instead of production). Return new models with production values
+ * from the state manifest.
+ */
+async function patchDeferredModels(
+    compiledModels: DbtModelNode[],
+    originallySelectedModelIds: string[],
+    state: string,
+): Promise<DbtModelNode[]> {
+    const statePath = path.resolve(state);
+    GlobalState.debug(`> Loading state manifest for defer from ${statePath}`);
+    try {
+        const stateManifest = await loadManifest({
+            targetDir: statePath,
+        });
+        const stateModels = getModelsFromManifest(stateManifest);
+        const stateModelMap = new Map(stateModels.map((m) => [m.unique_id, m]));
+
+        const patchedModels = compiledModels.map((model) => {
+            if (originallySelectedModelIds.includes(model.unique_id)) {
+                return model;
+            }
+            const stateModel = stateModelMap.get(model.unique_id);
+            if (!stateModel) {
+                return model;
+            }
+            GlobalState.debug(
+                `> Deferred model ${model.name}: using production schema ${stateModel.schema}`,
+            );
+            return {
+                ...model,
+                relation_name: stateModel.relation_name,
+                schema: stateModel.schema,
+                database: stateModel.database,
+            };
+        });
+
+        const patchedCount = patchedModels.filter(
+            (m, i) => m !== compiledModels[i],
+        ).length;
+        if (patchedCount > 0) {
+            GlobalState.debug(
+                `> Patched ${patchedCount} deferred model(s) with production schema`,
+            );
+        }
+        return patchedModels;
+    } catch (e) {
+        GlobalState.debug(
+            `> Warning: Could not load state manifest for defer patching: ${getErrorMessage(e)}`,
+        );
+        return compiledModels;
+    }
+}
+
 export const compile = async (options: CompileHandlerOptions) => {
     const dbtVersionResult = await tryGetDbtVersion();
     const executionId = uuidv4();
+    const startTime = Date.now();
 
     await LightdashAnalytics.track({
         event: 'compile.started',
@@ -156,7 +216,7 @@ export const compile = async (options: CompileHandlerOptions) => {
             targetPath: options.targetPath,
         });
 
-        const compiledModelIds: string[] | undefined =
+        const { compiledModelIds, originallySelectedModelIds } =
             await maybeCompileModelsAndJoins(
                 { targetDir: context.targetDir },
                 options,
@@ -169,12 +229,24 @@ export const compile = async (options: CompileHandlerOptions) => {
             compiledModelIds,
         );
 
+        // When using --defer, non-selected models pulled in via joins
+        // have incorrect schema/relation_name (they point to the dev target
+        // instead of production). Patch them from the state manifest.
+        const modelsForValidation =
+            options.defer && options.state && originallySelectedModelIds
+                ? await patchDeferredModels(
+                      compiledModels,
+                      originallySelectedModelIds,
+                      options.state,
+                  )
+                : compiledModels;
+
         const adapterType = manifest.metadata.adapter_type;
         const { valid: validModels, invalid: failedExplores } =
             await validateDbtModel(
                 adapterType,
                 manifestVersion,
-                compiledModels,
+                modelsForValidation,
             );
 
         if (failedExplores.length > 0) {
@@ -260,7 +332,7 @@ export const compile = async (options: CompileHandlerOptions) => {
             warehouseSqlBuilder,
             lightdashProjectConfig,
             options.disableTimestampConversion,
-            process.env.PARTIAL_COMPILATION_ENABLED === 'true',
+            process.env.PARTIAL_COMPILATION_ENABLED !== 'false',
         );
         console.error('');
 
@@ -281,7 +353,7 @@ export const compile = async (options: CompileHandlerOptions) => {
             messages = `: ${styles.error(e.errors.map((err) => err.message).join(', '))}`;
             errors += 1;
         } else if (
-            process.env.PARTIAL_COMPILATION_ENABLED === 'true' &&
+            process.env.PARTIAL_COMPILATION_ENABLED !== 'false' &&
             'warnings' in e &&
             e.warnings &&
             e.warnings.length > 0
@@ -299,7 +371,7 @@ export const compile = async (options: CompileHandlerOptions) => {
     console.error('');
 
     if (
-        process.env.PARTIAL_COMPILATION_ENABLED === 'true' &&
+        process.env.PARTIAL_COMPILATION_ENABLED !== 'false' &&
         partialSuccess > 0
     ) {
         console.error(
@@ -323,18 +395,32 @@ export const compile = async (options: CompileHandlerOptions) => {
             dbtVersion: dbtVersionResult.success
                 ? dbtVersionResult.version.verboseVersion
                 : undefined,
+            durationMs: Date.now() - startTime,
         },
     });
     return explores;
 };
+
 export const compileHandler = async (
     originalOptions: CompileHandlerOptions,
 ) => {
     const options = { ...originalOptions };
-    if (originalOptions.warehouseCredentials === false) {
-        options.skipDbtCompile = true;
-        options.skipWarehouseCatalog = true;
-    }
+
+    // Detect project type and configure options accordingly
+    const projectTypeConfig = await detectProjectType({
+        projectDir: options.projectDir,
+        userOptions: {
+            warehouseCredentials: options.warehouseCredentials,
+            skipDbtCompile: options.skipDbtCompile,
+            skipWarehouseCatalog: options.skipWarehouseCatalog,
+        },
+    });
+
+    // Apply project type configuration to options
+    options.warehouseCredentials = projectTypeConfig.warehouseCredentials;
+    options.skipDbtCompile = projectTypeConfig.skipDbtCompile;
+    options.skipWarehouseCatalog = projectTypeConfig.skipWarehouseCatalog;
+
     GlobalState.setVerbose(options.verbose);
     const explores = await compile(options);
     const errorsCount = explores.filter((e) => isExploreError(e)).length;

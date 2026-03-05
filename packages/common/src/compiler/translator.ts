@@ -1,12 +1,14 @@
 import merge from 'lodash/merge';
+import { parseDbtPreAggregates } from '../preAggregates/definition';
+import { generatePreAggregateExplores } from '../preAggregates/generatePreAggregateExplores';
 import {
-    SupportedDbtAdapter,
     buildModelGraph,
     convertColumnMetric,
     convertModelMetric,
     convertToAiHints,
     convertToGroups,
     isV9MetricRef,
+    SupportedDbtAdapter,
     type DbtColumnLightdashDimension,
     type DbtColumnMetadata,
     type DbtExploreLightdashAdditionalDimension,
@@ -27,11 +29,11 @@ import {
     type Table,
 } from '../types/explore';
 import {
+    defaultSql,
     DimensionType,
     FieldType,
-    MetricType,
-    defaultSql,
     friendlyName,
+    MetricType,
     parseMetricType,
     type Dimension,
     type Metric,
@@ -42,6 +44,7 @@ import {
     parseModelRequiredFilters,
 } from '../types/filterGrammar';
 import { type LightdashProjectConfig } from '../types/lightdashProjectConfig';
+import { type PreAggregateDef } from '../types/preAggregate';
 import { OrderFieldsByStrategy, type GroupType } from '../types/table';
 import { type TimeFrames } from '../types/timeFrames';
 import { type WarehouseSqlBuilder } from '../types/warehouse';
@@ -84,6 +87,8 @@ const convertTimezone = (
         case SupportedDbtAdapter.POSTGRES:
             // TIMESTAMP WITH TIME ZONE: stored as utc. returns in session tz. convert from session tz to target tz
             // TIMESTAMP WITHOUT TIME ZONE: no tz. assume default_source_tz. convert from default_source_tz to target_tz
+            return timestampSql;
+        case SupportedDbtAdapter.DUCKDB:
             return timestampSql;
         case SupportedDbtAdapter.DATABRICKS:
             return timestampSql;
@@ -191,6 +196,7 @@ const convertDimension = (
         round: meta.dimension?.round,
         compact: meta.dimension?.compact,
         requiredAttributes: meta.dimension?.required_attributes,
+        anyAttributes: meta.dimension?.any_attributes,
         colors: meta.dimension?.colors,
         ...(meta.dimension?.urls ? { urls: meta.dimension.urls } : {}),
         ...(meta.dimension?.image ? { image: meta.dimension.image } : {}),
@@ -206,6 +212,9 @@ const convertDimension = (
             : {}),
         ...(meta.dimension?.ai_hint
             ? { aiHint: convertToAiHints(meta.dimension.ai_hint) }
+            : {}),
+        ...(meta.dimension?.case_sensitive !== undefined
+            ? { caseSensitive: meta.dimension.case_sensitive }
             : {}),
         ...(meta.dimension?.spotlight?.filter_by === false ||
         meta.dimension?.spotlight?.segment_by === false
@@ -718,6 +727,7 @@ export const convertTable = (
                             metric,
                             tableLabel,
                             requiredAttributes: dimension.requiredAttributes, // TODO Join dimension required_attributes with metric required_attributes
+                            anyAttributes: dimension.anyAttributes, // TODO Join dimension any_attributes with metric any_attributes
                             spotlightConfig: {
                                 ...spotlightConfig,
                                 default_visibility:
@@ -850,6 +860,7 @@ export const convertTable = (
             defaultFilters: meta.default_filters,
         }),
         requiredAttributes: meta.required_attributes,
+        anyAttributes: meta.any_attributes,
         groupDetails,
         ...(meta.default_time_dimension
             ? {
@@ -1013,6 +1024,7 @@ export const convertExplores = async (
                 groupLabel: meta.group_label,
                 joins: meta?.joins || [],
                 description: meta.description,
+                caseSensitive: meta.case_sensitive,
                 tables: tableLookup,
             },
             ...(meta.explores
@@ -1062,6 +1074,7 @@ export const convertExplores = async (
                               // Inherit joins from base model if not specified in explore config
                               joins: exploreConfig.joins || meta?.joins || [],
                               description: exploreConfig.description,
+                              caseSensitive: exploreConfig.case_sensitive,
                               tables: {
                                   ...tableLookup,
                                   // Override the base table with required filters and explore-scoped dimensions
@@ -1087,10 +1100,37 @@ export const convertExplores = async (
                 : []),
         ];
 
+        let parsedPreAggregates: PreAggregateDef[] = [];
+        try {
+            parsedPreAggregates = parseDbtPreAggregates(
+                meta.pre_aggregates,
+                model.name,
+            );
+        } catch (error) {
+            const preAggregateErrors = exploresToCreate.map(
+                (exploreToCreate) =>
+                    ({
+                        name: exploreToCreate.name,
+                        label: exploreToCreate.label,
+                        groupLabel: exploreToCreate.groupLabel,
+                        errors: [
+                            {
+                                type: InlineErrorType.METADATA_PARSE_ERROR,
+                                message:
+                                    error instanceof Error
+                                        ? error.message
+                                        : `Could not parse pre-aggregates for model "${model.name}"`,
+                            },
+                        ],
+                    }) as ExploreError,
+            );
+            return [...acc, ...preAggregateErrors];
+        }
+
         // Multiple explores can be created from a single model. The base explore + additional explores
         // Properties created from `model` are the same across all explores. e.g. all explores will have the same base table & warehouse
         // Properties created from `exploreToCreate` are specific to each explore. e.g. each explore can have a different name, label & joins
-        const newExplores = exploresToCreate.map((exploreToCreate) => {
+        const compiledExplores = exploresToCreate.map((exploreToCreate) => {
             try {
                 return exploreCompiler.compileExplore({
                     name: exploreToCreate.name,
@@ -1098,6 +1138,7 @@ export const convertExplores = async (
                     tags: tags || [],
                     baseTable: model.name,
                     groupLabel: exploreToCreate.groupLabel,
+                    caseSensitive: exploreToCreate.caseSensitive,
                     joinedTables: exploreToCreate.joins.map((join) => ({
                         table: join.join,
                         sqlOn: join.sql_on,
@@ -1120,6 +1161,9 @@ export const convertExplores = async (
                     ...(meta.ai_hint
                         ? { aiHint: convertToAiHints(meta.ai_hint) }
                         : {}),
+                    ...(parsedPreAggregates.length > 0
+                        ? { preAggregates: parsedPreAggregates }
+                        : {}),
                     meta: {
                         ...meta,
                         // Override description for additional explores
@@ -1128,6 +1172,7 @@ export const convertExplores = async (
                             : {}),
                     },
                     projectParameters: lightdashProjectConfig.parameters,
+                    projectDefaults: lightdashProjectConfig.defaults,
                 });
             } catch (e: unknown) {
                 return {
@@ -1160,7 +1205,14 @@ export const convertExplores = async (
             }
         });
 
-        return [...acc, ...newExplores];
+        const exploresWithGeneratedPreAggregates = generatePreAggregateExplores(
+            {
+                compiledExplores,
+                parsedPreAggregates,
+            },
+        );
+
+        return [...acc, ...exploresWithGeneratedPreAggregates];
     }, []);
 
     return [...explores, ...exploreErrors];

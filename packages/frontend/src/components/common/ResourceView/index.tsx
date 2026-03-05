@@ -8,11 +8,9 @@ import {
     Text,
     Title,
     Tooltip,
-    useMantineTheme,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
-import { useTableTabStyles } from '../../../hooks/styles/useTableTabStyles';
 import MantineIcon from '../MantineIcon';
 import ResourceActionHandlers from './ResourceActionHandlers';
 import ResourceEmptyState from './ResourceEmptyState';
@@ -47,9 +45,6 @@ const ResourceView: FC<ResourceViewProps> = ({
     hasReorder = false,
     defaultActiveTab,
 }) => {
-    const theme = useMantineTheme();
-    const tableTabStyles = useTableTabStyles();
-
     const [action, setAction] = useState<ResourceViewItemActionState>({
         type: ResourceViewItemAction.CLOSE,
     });
@@ -108,26 +103,35 @@ const ResourceView: FC<ResourceViewProps> = ({
             ? (itemsByTabs.get(activeTabId) ?? [])
             : allItems;
 
+    const activeTab =
+        hasTabs && activeTabId
+            ? tabs.find((t) => t.id === activeTabId)
+            : undefined;
+    const effectiveHasReorder =
+        activeTab?.hasReorder !== undefined ? activeTab.hasReorder : hasReorder;
+
     return (
         <>
-            <Paper withBorder sx={{ overflow: 'hidden' }}>
+            <Paper withBorder>
                 {hasTabs || hasHeader ? (
                     <>
                         <Group>
                             {hasTabs ? (
                                 <Tabs
-                                    classNames={tableTabStyles.classes}
+                                    flex={1}
                                     value={activeTabId}
-                                    onTabChange={(t: string) =>
-                                        setActiveTabId(t)
+                                    onChange={(t) =>
+                                        setActiveTabId(t ?? undefined)
                                     }
                                 >
-                                    <Tabs.List>
+                                    <Tabs.List bd="none">
                                         {tabs.map((tab) => (
                                             <Tabs.Tab
                                                 key={tab.id}
-                                                icon={tab.icon}
+                                                leftSection={tab.icon}
                                                 value={tab.id}
+                                                h="4xl"
+                                                px="lg"
                                                 rightSection={
                                                     !!tab.infoTooltipText ? (
                                                         <Tooltip
@@ -142,7 +146,7 @@ const ResourceView: FC<ResourceViewProps> = ({
                                                                 icon={
                                                                     IconInfoCircle
                                                                 }
-                                                                color="ldGray.9"
+                                                                color="ldGray.6"
                                                             />
                                                         </Tooltip>
                                                     ) : null
@@ -150,7 +154,7 @@ const ResourceView: FC<ResourceViewProps> = ({
                                             >
                                                 {tab.name ? (
                                                     <Text
-                                                        color="ldGray.9"
+                                                        c="ldGray.9"
                                                         fz={15}
                                                         fw={500}
                                                     >
@@ -168,10 +172,8 @@ const ResourceView: FC<ResourceViewProps> = ({
                                     align="center"
                                     h={50}
                                     px="md"
-                                    spacing="xs"
-                                    sx={{
-                                        flexGrow: 1,
-                                    }}
+                                    gap="xs"
+                                    flex={1}
                                 >
                                     {headerProps?.title ? (
                                         <Title order={5} fw={600}>
@@ -187,8 +189,9 @@ const ResourceView: FC<ResourceViewProps> = ({
                                             disabled={!headerProps.description}
                                             position="right"
                                         >
-                                            <IconInfoCircle
-                                                color={theme.colors.ldGray[6]}
+                                            <MantineIcon
+                                                icon={IconInfoCircle}
+                                                color="ldGray.6"
                                                 size={18}
                                             />
                                         </Tooltip>
@@ -204,7 +207,13 @@ const ResourceView: FC<ResourceViewProps> = ({
                 ) : null}
 
                 {items.length === 0 ? (
-                    <ResourceEmptyState {...emptyStateProps} />
+                    <ResourceEmptyState
+                        {...emptyStateProps}
+                        {...(hasTabs && activeTabId
+                            ? tabs.find((t) => t.id === activeTabId)
+                                  ?.emptyStateProps
+                            : {})}
+                    />
                 ) : view === ResourceViewType.LIST ? (
                     <ResourceViewList
                         items={items}
@@ -219,7 +228,7 @@ const ResourceView: FC<ResourceViewProps> = ({
                         items={items}
                         groups={gridProps.groups}
                         onAction={handleAction}
-                        hasReorder={hasReorder}
+                        hasReorder={effectiveHasReorder}
                     />
                 ) : (
                     assertUnreachable(view, 'Unknown resource view type')

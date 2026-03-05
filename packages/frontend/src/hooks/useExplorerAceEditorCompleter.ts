@@ -1,21 +1,21 @@
-// organize-imports-ignore
-import { type Ace } from 'ace-builds';
-import 'react-ace'; // Note: we need this import before the langTools import
-import langTools from 'ace-builds/src-noconflict/ext-language_tools';
 import {
     convertAdditionalMetric,
-    type Field,
     getDimensions,
     getFieldRef,
     getItemId,
+    type Field,
     type Metric,
 } from '@lightdash/common';
+import 'react-ace'; // Note: we need this import before the langTools import
+// organize-imports-ignore
+import { type Ace } from 'ace-builds';
+import langTools from 'ace-builds/src-noconflict/ext-language_tools';
 import {
-    type Dispatch,
-    type SetStateAction,
     useEffect,
     useMemo,
     useState,
+    type Dispatch,
+    type SetStateAction,
 } from 'react';
 import {
     selectActiveFields,
@@ -69,6 +69,88 @@ const mapTableCalculationsToCompletions = (
         };
         return [...acc, technicalOption, friendlyOption];
     }, []);
+
+const TABLE_CALCULATION_FUNCTION_COMPLETIONS: Ace.Completion[] = [
+    {
+        caption: 'total(metric)',
+        value: 'total()',
+        meta: 'Aggregate',
+        score: 1000,
+    },
+    {
+        caption: 'row_total(metric)',
+        value: 'row_total()',
+        meta: 'Aggregate',
+        score: 1000,
+    },
+    { caption: 'row()', value: 'row()', meta: 'Row', score: 1000 },
+    {
+        caption: 'offset(column, n)',
+        value: 'offset()',
+        meta: 'Row',
+        score: 1000,
+    },
+    {
+        caption: 'index(column, rowIndex)',
+        value: 'index()',
+        meta: 'Row',
+        score: 1000,
+    },
+    {
+        caption: 'offset_list(column, start, count)',
+        value: 'offset_list()',
+        meta: 'Row',
+        score: 1000,
+    },
+    {
+        caption: 'lookup(value, lookupCol, resultCol)',
+        value: 'lookup()',
+        meta: 'Row',
+        score: 1000,
+    },
+    {
+        caption: 'list(value1, value2, ...)',
+        value: 'list()',
+        meta: 'Row',
+        score: 1000,
+    },
+    {
+        caption: 'pivot_column()',
+        value: 'pivot_column()',
+        meta: 'Pivot',
+        score: 1000,
+    },
+    {
+        caption: 'pivot_offset(column, n)',
+        value: 'pivot_offset()',
+        meta: 'Pivot',
+        score: 1000,
+    },
+    {
+        caption: 'pivot_index(column, index)',
+        value: 'pivot_index()',
+        meta: 'Pivot',
+        score: 1000,
+    },
+    {
+        caption: 'pivot_offset_list(column, start, count)',
+        value: 'pivot_offset_list()',
+        meta: 'Pivot',
+        score: 1000,
+    },
+    {
+        caption: 'pivot_row(column)',
+        value: 'pivot_row()',
+        meta: 'Pivot',
+        score: 1000,
+    },
+    {
+        caption: 'pivot_where(select, value)',
+        value: 'pivot_where()',
+        meta: 'Pivot',
+        score: 1000,
+    },
+];
 
 const mapCustomDimensionsToCompletions = (
     customDimensions: { id: string; name: string }[],
@@ -164,6 +246,7 @@ export const useTableCalculationAceEditorCompleter = (): {
             ...fields,
             ...tableCalculationCompletions,
             ...customDimensionCompletions,
+            ...TABLE_CALCULATION_FUNCTION_COMPLETIONS,
         ];
     }, [
         exploreData,

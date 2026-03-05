@@ -93,6 +93,10 @@
     }
 }
 
+.tabGridContainer {
+    position: relative;
+}
+
 .gridInteracting {
     user-select: none;
 }

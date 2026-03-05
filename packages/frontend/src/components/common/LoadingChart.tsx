@@ -1,7 +1,8 @@
 import { LOADING_CHART_CLASS } from '@lightdash/common';
+import { Box } from '@mantine-8/core';
 import { clsx } from '@mantine/core';
 import { type FC } from 'react';
-import SuboptimalState from './SuboptimalState/SuboptimalState';
+import EmptyStateLoader from './EmptyStateLoader';
 
 type LoadingChartProps = {
     className?: string;
@@ -16,12 +17,14 @@ type LoadingChartProps = {
  */
 const LoadingChart: FC<LoadingChartProps> = ({ className }) => {
     return (
-        <div
-            style={{ height: '100%', width: '100%', padding: '50px 0' }}
+        <Box
+            h="100%"
+            w="100%"
+            py="50px"
             className={clsx(LOADING_CHART_CLASS, className)}
         >
-            <SuboptimalState title="Loading chart" loading />
-        </div>
+            <EmptyStateLoader title="Loading chart" />
+        </Box>
     );
 };
 

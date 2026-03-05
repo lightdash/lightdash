@@ -3,6 +3,7 @@ import {
     ChartKind,
     ChartType,
     DashboardChartTile,
+    DashboardSqlChartTile,
     DashboardTileTypes,
     OrganizationMemberRole,
     PossibleAbilities,
@@ -10,7 +11,9 @@ import {
     SessionUser,
     Space,
     SpaceMemberRole,
+    SqlChart,
 } from '@lightdash/common';
+import type { SpaceAccessContextForCasl } from '../SpaceService/SpacePermissionService';
 import {
     PromotedChart,
     PromotedDashboard,
@@ -59,11 +62,11 @@ export const promotedSpace: PromotedChart['space'] = {
     name: 'Jaffle shop',
     isPrivate: false,
     inheritParentPermissions: true,
-    access: [],
     pinnedListUuid: null,
     pinnedListOrder: null,
     chartCount: 0,
     dashboardCount: 0,
+    childSpaceCount: 0,
     slug: 'jaffle-shop',
     parentSpaceUuid: null,
     path: 'jaffle_shop',
@@ -76,11 +79,11 @@ export const upstreamSpace: UpstreamChart['space'] = {
     name: 'Jaffle shop',
     isPrivate: false,
     inheritParentPermissions: true,
-    access: [],
     pinnedListUuid: null,
     pinnedListOrder: null,
     chartCount: 0,
     dashboardCount: 0,
+    childSpaceCount: 0,
     slug: 'jaffle-shop',
     path: 'jaffle_shop',
     parentSpaceUuid: null,
@@ -88,6 +91,7 @@ export const upstreamSpace: UpstreamChart['space'] = {
 
 export const upstreamFullSpace: Space = {
     ...upstreamSpace,
+    inheritsFromOrgOrProject: true,
     childSpaces: [],
     path: 'jaffle_shop',
     queries: [],
@@ -160,14 +164,14 @@ export const promotedChart: PromotedChart = {
     projectUuid: promotedProjectUuid,
     space: promotedSpace,
     spaces: [],
-    access: [],
+    spaceAccessContext: undefined,
 };
 
 export const missingUpstreamChart: UpstreamChart = {
     chart: undefined,
     projectUuid: upstreamProjectUuid,
     space: undefined,
-    access: [],
+    spaceAccessContext: undefined,
 };
 export const existingUpstreamChart: UpstreamChart = {
     chart: {
@@ -188,7 +192,7 @@ export const existingUpstreamChart: UpstreamChart = {
     },
     projectUuid: upstreamProjectUuid,
     space: upstreamSpace,
-    access: [],
+    spaceAccessContext: undefined,
 };
 
 const dashboardChartTile: DashboardChartTile = {
@@ -212,6 +216,7 @@ export const promotedDashboard: PromotedDashboard = {
         organizationUuid,
         projectUuid: promotedProjectUuid,
         dashboardVersionId: 4,
+        versionUuid: 'promoted-dashboard-version-uuid',
         uuid: 'promoted-dashboard-uuid',
         name: 'dashboard',
         description: '',
@@ -231,7 +236,7 @@ export const promotedDashboard: PromotedDashboard = {
     projectUuid: promotedProjectUuid,
     space: promotedSpace,
     spaces: [],
-    access: [],
+    spaceAccessContext: undefined,
 };
 export const existingUpstreamDashboard: UpstreamDashboard = {
     dashboard: {
@@ -242,13 +247,13 @@ export const existingUpstreamDashboard: UpstreamDashboard = {
     },
     projectUuid: upstreamProjectUuid,
     space: upstreamSpace,
-    access: [],
+    spaceAccessContext: undefined,
 };
 export const missingUpstreamDashboard: UpstreamDashboard = {
     dashboard: undefined,
     projectUuid: upstreamProjectUuid,
     space: undefined,
-    access: [],
+    spaceAccessContext: undefined,
 };
 
 export const promotedChartWithinDashboard: PromotedChart = {
@@ -266,6 +271,75 @@ export const dashboardChartWithinDashboardTile: DashboardChartTile = {
         title: 'chart within dashboard tile',
         savedChartUuid: promotedChartWithinDashboard.chart.uuid,
         belongsToDashboard: true,
+    },
+};
+
+export const promotedSqlChart = {
+    savedSqlUuid: 'promoted-sql-chart-uuid',
+    name: 'sql chart',
+    description: 'sql chart description',
+    slug: 'sql-chart',
+    sql: 'select 1 as one',
+    limit: 500,
+    config: {
+        type: 'table',
+        chartConfig: {},
+    } as unknown as SqlChart['config'],
+    chartKind: ChartKind.TABLE,
+    createdAt: new Date(),
+    createdBy: updatedByUser,
+    lastUpdatedAt: new Date(),
+    lastUpdatedBy: updatedByUser,
+    space: {
+        uuid: promotedSpace.uuid,
+        name: promotedSpace.name,
+        isPrivate: promotedSpace.isPrivate,
+    },
+    dashboard: null,
+    project: {
+        projectUuid: promotedProjectUuid,
+    },
+    organization: {
+        organizationUuid,
+    },
+    views: 0,
+    firstViewedAt: new Date(),
+    lastViewedAt: new Date(),
+};
+
+export const existingUpstreamSqlChart = {
+    ...promotedSqlChart,
+    savedSqlUuid: 'upstream-sql-chart-uuid',
+    project: {
+        projectUuid: upstreamProjectUuid,
+    },
+    space: {
+        uuid: upstreamSpace.uuid,
+        name: upstreamSpace.name,
+        isPrivate: upstreamSpace.isPrivate,
+    },
+};
+
+export const dashboardSqlChartTile: DashboardSqlChartTile = {
+    uuid: 'sql-tile-1234',
+    type: DashboardTileTypes.SQL_CHART,
+    x: 10,
+    y: 0,
+    h: 10,
+    w: 10,
+    tabUuid: undefined,
+    properties: {
+        title: 'sql chart tile',
+        savedSqlUuid: promotedSqlChart.savedSqlUuid,
+        chartName: promotedSqlChart.name,
+    },
+};
+
+export const promotedDashboardWithSqlTile = {
+    ...promotedDashboard,
+    dashboard: {
+        ...promotedDashboard.dashboard,
+        tiles: [...promotedDashboard.dashboard.tiles, dashboardSqlChartTile],
     },
 };
 

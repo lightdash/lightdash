@@ -46,10 +46,14 @@ export default function mockHealthResponse(
             maxLimit: 1000000,
             defaultLimit: 500,
             csvCellsLimit: 100,
+            retryQueryOnTransientErrors: true,
         },
         dashboard: {
             maxTilesPerTab: 50,
             maxTabsPerDashboard: 20,
+            versionHistory: {
+                daysLimit: 3,
+            },
         },
         pivotTable: {
             maxColumnLimit: 100,
@@ -103,6 +107,8 @@ export default function mockHealthResponse(
         },
         isServiceAccountEnabled: false,
         isOrganizationWarehouseCredentialsEnabled: false,
+        isAthenaWarehouseIamRoleAuthEnabled: false,
+        isSaveCredentialsFormEnabled: false,
         isCustomRolesEnabled: false,
         embedding: {
             enabled: false,
@@ -117,6 +123,13 @@ export default function mockHealthResponse(
             enabled: false,
         },
         funnelBuilder: {
+            enabled: false,
+        },
+        softDelete: {
+            enabled: false,
+            retentionDays: 30,
+        },
+        preAggregates: {
             enabled: false,
         },
         ...overrides,

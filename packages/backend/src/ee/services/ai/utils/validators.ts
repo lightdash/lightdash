@@ -272,6 +272,8 @@ function validateFilterRule(
                 (string: string) => string.replaceAll('\\', '\\\\'),
                 WeekDay.SUNDAY,
                 SupportedDbtAdapter.BIGQUERY,
+                'UTC',
+                true, // Default to case sensitive for validation
             );
         }
     } catch (e) {
@@ -775,6 +777,8 @@ const NUMERIC_METRIC_TYPES: MetricType[] = [
     MetricType.COUNT,
     MetricType.COUNT_DISTINCT,
     MetricType.SUM,
+    MetricType.SUM_DISTINCT,
+    MetricType.AVERAGE_DISTINCT,
     // MIN and MAX can be of non-numeric types, like dates
 ];
 

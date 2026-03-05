@@ -47,12 +47,11 @@ import {
     validateSelectedTabs,
     type RunQueryTags,
 } from '@lightdash/common';
+import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import archiver from 'archiver';
 import { stringify } from 'csv-stringify';
 import * as fs from 'fs';
 import * as fsPromise from 'fs/promises';
-
-import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import isNil from 'lodash/isNil';
 import moment from 'moment';
 import { nanoid } from 'nanoid';
@@ -71,8 +70,8 @@ import {
     parseAnalyticsLimit,
 } from '../../analytics/LightdashAnalytics';
 import * as Account from '../../auth/account';
-import { S3Client } from '../../clients/Aws/S3Client';
 import { AttachmentUrl } from '../../clients/EmailClient/EmailClient';
+import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
 import { S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
@@ -93,6 +92,7 @@ import {
 } from '../../utils/FileDownloadUtils/FileDownloadUtils';
 import { PivotQueryBuilder } from '../../utils/QueryBuilder/PivotQueryBuilder';
 import { BaseService } from '../BaseService';
+import { PersistentDownloadFileService } from '../PersistentDownloadFileService/PersistentDownloadFileService';
 import { PivotTableService } from '../PivotTableService/PivotTableService';
 import { ProjectService } from '../ProjectService/ProjectService';
 
@@ -100,7 +100,7 @@ type CsvServiceArguments = {
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
     projectService: ProjectService;
-    s3Client: S3Client;
+    fileStorageClient: FileStorageClient;
     savedChartModel: SavedChartModel;
     savedSqlModel: SavedSqlModel;
     dashboardModel: DashboardModel;
@@ -109,6 +109,7 @@ type CsvServiceArguments = {
     schedulerClient: SchedulerClient;
     projectModel: ProjectModel;
     pivotTableService: PivotTableService;
+    persistentDownloadFileService: PersistentDownloadFileService;
 };
 
 export const convertSqlToCsv = (
@@ -201,7 +202,7 @@ export class CsvService extends BaseService {
 
     projectService: ProjectService;
 
-    s3Client: S3Client;
+    fileStorageClient: FileStorageClient;
 
     savedChartModel: SavedChartModel;
 
@@ -219,12 +220,14 @@ export class CsvService extends BaseService {
 
     pivotTableService: PivotTableService;
 
+    persistentDownloadFileService: PersistentDownloadFileService;
+
     constructor({
         lightdashConfig,
         analytics,
         userModel,
         projectService,
-        s3Client,
+        fileStorageClient,
         savedChartModel,
         savedSqlModel,
         dashboardModel,
@@ -232,13 +235,14 @@ export class CsvService extends BaseService {
         schedulerClient,
         projectModel,
         pivotTableService,
+        persistentDownloadFileService,
     }: CsvServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
         this.analytics = analytics;
         this.userModel = userModel;
         this.projectService = projectService;
-        this.s3Client = s3Client;
+        this.fileStorageClient = fileStorageClient;
         this.savedChartModel = savedChartModel;
         this.savedSqlModel = savedSqlModel;
         this.dashboardModel = dashboardModel;
@@ -246,6 +250,7 @@ export class CsvService extends BaseService {
         this.schedulerClient = schedulerClient;
         this.projectModel = projectModel;
         this.pivotTableService = pivotTableService;
+        this.persistentDownloadFileService = persistentDownloadFileService;
     }
 
     static convertRowToCsv(
@@ -562,11 +567,15 @@ export class CsvService extends BaseService {
         fileName,
         projectUuid,
         truncated = false,
+        organizationUuid,
+        createdByUserUuid,
     }: {
         csvContent: string;
         fileName: string;
         projectUuid: string;
         truncated?: boolean;
+        organizationUuid: string;
+        createdByUserUuid: string | null;
     }): Promise<AttachmentUrl> {
         const fileId = CsvService.generateFileId(fileName, truncated);
         const filePath = `/tmp/${fileId}`;
@@ -576,8 +585,8 @@ export class CsvService extends BaseService {
         ]);
         await fsPromise.writeFile(filePath, csvWithBOM);
 
-        if (this.s3Client.isEnabled()) {
-            const s3Url = await this.s3Client.uploadCsv(csvContent, fileId);
+        if (this.fileStorageClient.isEnabled()) {
+            await this.fileStorageClient.uploadCsv(csvContent, fileId);
 
             // Delete local file in 10 minutes, we could still read from the local file to upload to google sheets
             setTimeout(
@@ -593,9 +602,17 @@ export class CsvService extends BaseService {
                 60 * 10 * 1000,
             );
 
+            const url =
+                await this.persistentDownloadFileService.createPersistentUrl({
+                    s3Key: fileId,
+                    fileType: DownloadFileType.CSV,
+                    organizationUuid,
+                    projectUuid,
+                    createdByUserUuid,
+                });
             return {
                 filename: fileName,
-                path: s3Url,
+                path: url,
                 localPath: filePath,
                 truncated,
             };
@@ -660,7 +677,7 @@ export class CsvService extends BaseService {
                   fileType: SchedulerFormat.CSV,
                   values: onlyRaw ? 'raw' : 'formatted',
                   limit: parseAnalyticsLimit(options?.limit),
-                  storage: this.s3Client.isEnabled() ? 's3' : 'local',
+                  storage: this.fileStorageClient.isEnabled() ? 's3' : 'local',
                   context: QueryExecutionContext.SCHEDULED_DELIVERY,
                   numColumns:
                       metricQuery.dimensions.length +
@@ -759,6 +776,8 @@ export class CsvService extends BaseService {
                 exploreId,
                 onlyRaw,
                 truncated,
+                organizationUuid: chart.organizationUuid,
+                createdByUserUuid: user.userUuid,
             });
 
             if (analyticProperties) {
@@ -808,6 +827,8 @@ export class CsvService extends BaseService {
             fileName: chart.name,
             projectUuid: chart.projectUuid,
             truncated,
+            organizationUuid: chart.organizationUuid,
+            createdByUserUuid: user.userUuid,
         });
     }
 
@@ -835,7 +856,7 @@ export class CsvService extends BaseService {
                   projectId: projectUuid,
                   fileType: SchedulerFormat.CSV,
                   values: 'raw',
-                  storage: this.s3Client.isEnabled() ? 's3' : 'local',
+                  storage: this.fileStorageClient.isEnabled() ? 's3' : 'local',
                   context: QueryExecutionContext.SCHEDULED_DELIVERY,
               }
             : undefined;
@@ -912,6 +933,8 @@ export class CsvService extends BaseService {
             csvContent,
             fileName: sqlChart.name,
             projectUuid,
+            organizationUuid: sqlChart.organization_uuid,
+            createdByUserUuid: user.userUuid,
         });
     }
 
@@ -1191,7 +1214,7 @@ export class CsvService extends BaseService {
             organizationId: user.organizationUuid,
             projectId: projectUuid,
             fileType: SchedulerFormat.CSV,
-            storage: this.s3Client.isEnabled() ? 's3' : 'local',
+            storage: this.fileStorageClient.isEnabled() ? 's3' : 'local',
         };
         try {
             const numberColumns =
@@ -1249,6 +1272,8 @@ export class CsvService extends BaseService {
                         truncated,
                         customLabels,
                         pivotDetails: null, // TODO: this is using old way of running queries + pivoting, therefore pivotDetails is not available
+                        organizationUuid: projectSummary.organizationUuid,
+                        createdByUserUuid: user.userUuid,
                     });
 
                 this.analytics.track({
@@ -1278,11 +1303,11 @@ export class CsvService extends BaseService {
             );
             const filePath = `/tmp/${fileId}`;
             let fileUrl;
-            if (this.s3Client.isEnabled()) {
+            if (this.fileStorageClient.isEnabled()) {
                 const csvContent = await fsPromise.readFile(filePath, {
                     encoding: 'utf-8',
                 });
-                fileUrl = await this.s3Client.uploadCsv(csvContent, fileId);
+                await this.fileStorageClient.uploadCsv(csvContent, fileId);
                 try {
                     await fsPromise.unlink(filePath);
                 } catch (error) {
@@ -1290,6 +1315,16 @@ export class CsvService extends BaseService {
                         `Error deleting local file ${filePath}: ${error}`,
                     );
                 }
+                fileUrl =
+                    await this.persistentDownloadFileService.createPersistentUrl(
+                        {
+                            s3Key: fileId,
+                            fileType: DownloadFileType.CSV,
+                            organizationUuid: projectSummary.organizationUuid,
+                            projectUuid,
+                            createdByUserUuid: user.userUuid ?? null,
+                        },
+                    );
             } else {
                 // Storing locally
                 const downloadFileId = nanoid(); // Creates a new nanoid for the download file because the jobId is already exposed
@@ -1330,13 +1365,13 @@ export class CsvService extends BaseService {
 
     /**
      * This method is used to schedule a CSV download for a dashboard.
-     * Method in scheduler: `runScheduledExportCsvDashboard`
      */
     async scheduleExportCsvDashboard(
         user: SessionUser,
         dashboardUuid: string,
         dashboardFilters: DashboardFilters,
-        dateZoomGranularity?: DateGranularity,
+        dateZoomGranularity: DateGranularity | undefined,
+        selectedTabs: string[] | null,
     ) {
         const dashboard =
             await this.dashboardModel.getByIdOrSlug(dashboardUuid);
@@ -1356,6 +1391,7 @@ export class CsvService extends BaseService {
             dashboardUuid,
             dashboardFilters,
             dateZoomGranularity,
+            selectedTabs,
             // TraceTaskBase
             organizationUuid: dashboard.organizationUuid,
             projectUuid: dashboard.projectUuid,
@@ -1368,109 +1404,5 @@ export class CsvService extends BaseService {
         );
 
         return { jobId };
-    }
-
-    /**
-     * This method is running on scheduler
-     * Method triggered by `scheduleExportCsvDashboard`
-     */
-    async runScheduledExportCsvDashboard({
-        dashboardUuid,
-        dashboardFilters,
-        dateZoomGranularity,
-        userUuid,
-        organizationUuid,
-    }: ExportCsvDashboardPayload) {
-        if (!this.s3Client.isEnabled()) {
-            throw new MissingConfigError('Cloud storage is not enabled');
-        }
-        const options: SchedulerCsvOptions = {
-            formatted: true,
-            limit: 'table',
-        };
-        const dashboard =
-            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
-
-        this.logger.info(`Exporting CSVs for dashboard ${dashboardUuid}`);
-        const user = await this.userModel.findSessionUserAndOrgByUuid(
-            userUuid,
-            organizationUuid,
-        );
-
-        const analyticProperties: DownloadCsv['properties'] = {
-            jobId: '', // not a job
-            userId: user.userUuid,
-            organizationId: user.organizationUuid,
-            projectId: dashboard.projectUuid,
-            fileType: SchedulerFormat.CSV,
-            values: options.formatted ? 'formatted' : 'raw',
-            limit: options.limit === 'table' ? 'results' : 'all',
-            context: 'dashboard csv zip',
-        };
-        this.analytics.track({
-            event: 'download_results.started',
-            userId: user.userUuid,
-            properties: {
-                ...analyticProperties,
-            },
-        });
-
-        const writeZipFile = async (files: AttachmentUrl[]) =>
-            new Promise<string>((resolve, reject) => {
-                const zipName = `/tmp/${nanoid()}.zip`;
-                const output = fs.createWriteStream(zipName);
-                const archive = archiver('zip', {
-                    zlib: { level: 9 }, // Sets the compression level.
-                });
-                output.on('close', () => {
-                    this.logger.info(
-                        `Generated .zip file of ${archive.pointer()} bytes`,
-                    );
-                    resolve(zipName);
-                });
-                archive.on('error', (err) => {
-                    reject(err);
-                });
-                files.forEach((file) => {
-                    archive.file(file.localPath, {
-                        name: `${file.filename}.csv`,
-                    });
-                });
-                archive.pipe(output);
-                void archive.finalize(); // This finalize doesn't wait for the files to be written
-            });
-
-        const csvFiles = await this.getCsvsForDashboard({
-            user,
-            dashboardUuid,
-            options,
-            overrideDashboardFilters: dashboardFilters,
-            dateZoomGranularity,
-            selectedTabs: null,
-        }).then((urls) => urls.filter((url) => url.path !== '#no-results'));
-
-        this.logger.info(
-            `Writing ${csvFiles.length} CSV files to zip file for dashboard ${dashboardUuid}`,
-        );
-        const zipFile = await writeZipFile(csvFiles);
-
-        this.analytics.track({
-            event: 'download_results.completed',
-            userId: user.userUuid,
-            properties: {
-                ...analyticProperties,
-                numCharts: csvFiles.length,
-            },
-        });
-        const zipFileName = `${sanitizeGenericFileName(
-            dashboard.name,
-        )}-${moment().format('YYYY-MM-DD-HH-mm-ss-SSSS')}.zip`;
-        this.logger.info(
-            `Uploading zip file to S3 for dashboard ${dashboardUuid}: ${zipFileName}`,
-        );
-        return this.s3Client.uploadZip(
-            fs.createReadStream(zipFile),
-            zipFileName,
-        );
     }
 }

@@ -1,29 +1,27 @@
 import {
     OrganizationMemberRole,
+    SpaceMemberRole,
     type OrganizationMemberProfile,
     type Space,
 } from '@lightdash/common';
 import {
-    Avatar,
     Badge,
     Button,
-    Center,
     Group,
     Loader,
     MultiSelect,
-    ScrollArea,
     Stack,
     Text,
-    Tooltip,
-    type ScrollAreaProps,
-    type SelectItem,
-} from '@mantine/core';
-import { useDebouncedValue } from '@mantine/hooks';
+    type ComboboxItem,
+    type ComboboxItemGroup,
+    type ComboboxLikeRenderOptionInput,
+} from '@mantine-8/core';
+import { useDebouncedValue } from '@mantine-8/hooks';
 import { IconUsers } from '@tabler/icons-react';
 import uniq from 'lodash/uniq';
 import uniqBy from 'lodash/uniqBy';
 import {
-    forwardRef,
+    useCallback,
     useEffect,
     useMemo,
     useRef,
@@ -37,10 +35,13 @@ import {
     useAddGroupSpaceShareMutation,
     useAddSpaceShareMutation,
 } from '../../../hooks/useSpaces';
+import { LightdashUserAvatar } from '../../Avatar';
 import MantineIcon from '../MantineIcon';
 import { DEFAULT_PAGE_SIZE } from '../Table/constants';
+import styles from './ShareSpaceAddUser.module.css';
+import { getAccessColor } from './ShareSpaceModalUtils';
 import { UserAccessOptions } from './ShareSpaceSelect';
-import { getInitials, getUserNameOrEmail } from './Utils';
+import { getUserNameOrEmail } from './Utils';
 
 interface ShareSpaceAddUserProps {
     space: Space;
@@ -53,11 +54,19 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
     projectUuid,
     disabled = false,
 }) => {
-    const [usersSelected, setUsersSelected] = useState<string[]>([]);
+    const [selectedItems, setSelectedItems] = useState<{
+        users: string[];
+        groups: string[];
+    }>({ users: [], groups: [] });
+    const selectedValues = useMemo(
+        () => [...selectedItems.users, ...selectedItems.groups],
+        [selectedItems],
+    );
     const [searchQuery, setSearchQuery] = useState<string>('');
     const [debouncedSearchQuery] = useDebouncedValue(searchQuery, 300);
     const { data: projectAccess } = useProjectAccess(projectUuid);
-    const selectScrollRef = useRef<HTMLDivElement>(null);
+    const viewportRef = useRef<HTMLDivElement>(null);
+
     const { mutateAsync: shareSpaceMutation } = useAddSpaceShareMutation(
         projectUuid,
         space.uuid,
@@ -108,9 +117,24 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
         );
     }, [infiniteOrganizationUsers?.pages]);
 
-    const groups = useMemo(
-        () => infiniteOrganizationGroups?.pages.map((p) => p.data).flat(),
-        [infiniteOrganizationGroups?.pages],
+    // Accumulate groups across searches so previously selected groups
+    // remain resolvable even when the search query changes.
+    const [allSearchedGroups, setAllSearchedGroups] = useState<
+        NonNullable<typeof infiniteOrganizationGroups>['pages'][number]['data']
+    >([]);
+    useEffect(() => {
+        const allPages =
+            infiniteOrganizationGroups?.pages.map((p) => p.data).flat() ?? [];
+
+        setAllSearchedGroups((previousState) =>
+            uniqBy([...previousState, ...allPages], 'uuid'),
+        );
+    }, [infiniteOrganizationGroups?.pages]);
+
+    // Set of all known group UUIDs for O(1) lookups
+    const groupUuidsSet = useMemo(
+        () => new Set(allSearchedGroups.map((g) => g.uuid)),
+        [allSearchedGroups],
     );
 
     const organizationUsers = useMemo(
@@ -130,230 +154,272 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
         return [...new Set([...projectUserUuids, ...orgUserUuids])];
     }, [organizationUsers, projectAccess]);
 
-    const UserItemComponent = useMemo(() => {
-        return forwardRef<HTMLDivElement, SelectItem>((props, ref) => {
-            if (props.group === 'Groups') {
-                return (
-                    <Group ref={ref} {...props} position={'apart'}>
-                        <Group>
-                            <Avatar size="md" radius="xl" color="blue">
-                                <MantineIcon icon={IconUsers} />
-                            </Avatar>
-                            <Stack spacing="two">
-                                <Text fw={500}>{props.label}</Text>
-                            </Stack>
-                        </Group>
-                    </Group>
-                );
-            }
-
-            const user = allSearchedOrganizationUsers.find(
-                (userAccess) => userAccess.userUuid === props.value,
-            );
-
-            if (!user) return null;
-
-            const spaceAccess = space.access.find(
-                (access) => access.userUuid === user.userUuid,
-            );
-            const currentSpaceRoleTitle = spaceAccess
-                ? (UserAccessOptions.find(
-                      (option) => option.value === spaceAccess.role,
-                  )?.title ?? 'No access')
-                : 'No access';
-
-            const spaceRoleInheritanceInfo = `Access inherited from their ${spaceAccess?.inheritedFrom} role`;
-
-            return (
-                <Group ref={ref} {...props} position={'apart'}>
-                    <Tooltip
-                        label={spaceRoleInheritanceInfo}
-                        position="top"
-                        disabled={spaceAccess === undefined}
-                    >
-                        <Group>
-                            <Avatar size="md" radius="xl" color="blue">
-                                {getInitials(
-                                    user.userUuid,
-                                    user.firstName,
-                                    user.lastName,
-                                    user.email,
-                                )}
-                            </Avatar>
-                            <Stack spacing="two">
-                                {user.firstName || user.lastName ? (
-                                    <>
-                                        <Text fw={500}>
-                                            {user.firstName} {user.lastName}
-                                        </Text>
-
-                                        <Text size={'xs'} color="dimmed">
-                                            {user.email}
-                                        </Text>
-                                    </>
-                                ) : (
-                                    <Text fw={500}>{user.email}</Text>
-                                )}
-                            </Stack>
-                        </Group>
-                    </Tooltip>
-
-                    <Badge size="xs" color="ldGray.6" radius="xs">
-                        {currentSpaceRoleTitle}
-                    </Badge>
-                </Group>
-            );
-        });
-    }, [allSearchedOrganizationUsers, space.access]);
+    const allUsersRef = useRef<Map<string, OrganizationMemberProfile>>(
+        new Map(),
+    );
 
     const data = useMemo(() => {
-        const userUuidsAndSelected = uniq([...userUuids, ...usersSelected]);
+        // Update user ref synchronously so renderOption has access in the same render cycle
+        for (const user of allSearchedOrganizationUsers) {
+            allUsersRef.current.set(user.userUuid, user);
+        }
 
-        const usersSet = userUuidsAndSelected.map(
-            (userUuid): SelectItem | null => {
+        const userUuidsAndSelected = uniq([
+            ...userUuids,
+            ...selectedItems.users,
+        ]);
+
+        const usersSet = userUuidsAndSelected
+            .map((userUuid): ComboboxItem | null => {
                 const user = allSearchedOrganizationUsers.find(
                     (a) => a.userUuid === userUuid,
                 );
 
                 if (!user) return null;
 
-                const hasDirectAccess = !!(space.access || []).find(
-                    (access) => access.userUuid === userUuid,
-                )?.hasDirectAccess;
+                const hasDirectAccess = (space.access || []).some(
+                    (access) =>
+                        access.userUuid === userUuid &&
+                        access.hasDirectAccess &&
+                        access.inheritedFrom !== 'parent_space',
+                );
 
                 if (hasDirectAccess) return null;
 
                 return {
                     value: userUuid,
-                    label: getUserNameOrEmail(
-                        user.userUuid,
-                        user.firstName,
-                        user.lastName,
-                        user.email,
-                    ),
-                    group: 'Users',
-                    email: user.email,
+                    label:
+                        getUserNameOrEmail(
+                            user.userUuid,
+                            user.firstName,
+                            user.lastName,
+                            user.email,
+                        ) ?? userUuid,
                 };
-            },
-        );
+            })
+            .filter((item): item is ComboboxItem => item !== null);
 
-        const groupsSet = groups
-            ?.filter(
+        const groupsFiltered =
+            allSearchedGroups.filter(
                 (group) =>
                     !space.groupsAccess.some(
                         (ga) => ga.groupUuid === group.uuid,
                     ),
-            )
-            .map((group): SelectItem | null => {
-                return {
-                    value: group.uuid,
-                    label: group.name,
-                    group: 'Groups',
-                };
-            });
+            ) ?? [];
 
-        return [...usersSet, ...(groupsSet ?? [])].filter(
-            (item): item is SelectItem => item !== null,
-        );
+        const groupItems: ComboboxItem[] = groupsFiltered.map((group) => ({
+            value: group.uuid,
+            label: group.name,
+        }));
+
+        const result: (ComboboxItem | ComboboxItemGroup)[] = [];
+
+        if (groupItems.length > 0) {
+            result.push({ group: 'Groups', items: groupItems });
+        }
+        if (usersSet.length > 0) {
+            result.push({ group: 'Users', items: usersSet });
+        }
+
+        return result;
     }, [
         userUuids,
-        usersSelected,
-        groups,
+        selectedItems.users,
+        allSearchedGroups,
         allSearchedOrganizationUsers,
         space.access,
         space.groupsAccess,
     ]);
 
-    useEffect(() => {
-        selectScrollRef.current?.scrollTo({
-            top: selectScrollRef.current?.scrollHeight,
-        });
-    }, [data]);
+    const isFetching = isUsersFetching || isGroupsFetching;
+
+    const handleScrollPositionChange = useCallback(
+        ({ y }: { x: number; y: number }) => {
+            if (!viewportRef.current || isFetching) return;
+
+            const { scrollHeight, clientHeight } = viewportRef.current;
+            if (scrollHeight <= clientHeight) return;
+            const isNearBottom = y >= scrollHeight - clientHeight - 50;
+
+            if (isNearBottom) {
+                if (hasUsersNextPage) {
+                    void fetchUsersNextPage();
+                }
+                if (hasGroupsNextPage) {
+                    void fetchGroupsNextPage();
+                }
+            }
+        },
+        [
+            fetchUsersNextPage,
+            fetchGroupsNextPage,
+            hasUsersNextPage,
+            hasGroupsNextPage,
+            isFetching,
+        ],
+    );
+
+    const renderOption = useCallback(
+        ({ option }: ComboboxLikeRenderOptionInput<ComboboxItem>) => {
+            if (groupUuidsSet.has(option.value)) {
+                return (
+                    <Group gap="sm" wrap="nowrap">
+                        <LightdashUserAvatar size="sm" radius="xl" color="blue">
+                            <MantineIcon icon={IconUsers} />
+                        </LightdashUserAvatar>
+                        <Text size="sm" fw={500}>
+                            {option.label}
+                        </Text>
+                    </Group>
+                );
+            }
+
+            const user = allUsersRef.current.get(option.value);
+            if (!user) return option.label;
+
+            const spaceAccess = space.access.find(
+                (access) => access.userUuid === user.userUuid,
+            );
+            const roleTitle = spaceAccess
+                ? (UserAccessOptions.find(
+                      (opt) => opt.value === spaceAccess.role,
+                  )?.title ?? spaceAccess.role)
+                : null;
+
+            const origin = spaceAccess
+                ? spaceAccess.inheritedFrom === 'parent_space'
+                    ? 'Parent'
+                    : spaceAccess.inheritedFrom === 'organization'
+                      ? 'Organization'
+                      : spaceAccess.inheritedFrom === 'project' ||
+                          spaceAccess.inheritedFrom === 'group'
+                        ? 'Project'
+                        : spaceAccess.inheritedFrom === 'space_group'
+                          ? 'Group'
+                          : 'Direct'
+                : null;
+
+            return (
+                <Group gap="sm" justify="space-between" wrap="nowrap" w="100%">
+                    <Group gap="sm" wrap="nowrap">
+                        <LightdashUserAvatar
+                            name={getUserNameOrEmail(
+                                user.userUuid,
+                                user.firstName,
+                                user.lastName,
+                                user.email,
+                            )}
+                            size="sm"
+                            radius="xl"
+                            color="blue"
+                        />
+                        <Stack gap={2}>
+                            {user.firstName || user.lastName ? (
+                                <>
+                                    <Text size="sm" fw={500}>
+                                        {user.firstName} {user.lastName}
+                                    </Text>
+                                    <Text size="xs" c="dimmed">
+                                        {user.email}
+                                    </Text>
+                                </>
+                            ) : (
+                                <Text size="sm" fw={500}>
+                                    {user.email}
+                                </Text>
+                            )}
+                        </Stack>
+                    </Group>
+
+                    {spaceAccess && roleTitle && (
+                        <Badge
+                            size="sm"
+                            variant="light"
+                            color={getAccessColor(spaceAccess.role).join('.')}
+                            radius="xl"
+                        >
+                            {origin} &middot; {roleTitle}
+                        </Badge>
+                    )}
+                </Group>
+            );
+        },
+        [space.access, groupUuidsSet],
+    );
+
+    const handleSelectionChange = useCallback(
+        (newValue: string[]) => {
+            setSelectedItems((prev) => {
+                const prevAll = new Set([...prev.users, ...prev.groups]);
+                const remaining = new Set(newValue);
+                const added = newValue.filter((uuid) => !prevAll.has(uuid));
+
+                return {
+                    users: [
+                        ...prev.users.filter((uuid) => remaining.has(uuid)),
+                        ...added.filter((uuid) => !groupUuidsSet.has(uuid)),
+                    ],
+                    groups: [
+                        ...prev.groups.filter((uuid) => remaining.has(uuid)),
+                        ...added.filter((uuid) => groupUuidsSet.has(uuid)),
+                    ],
+                };
+            });
+            setSearchQuery('');
+        },
+        [groupUuidsSet],
+    );
+
+    const handleShare = useCallback(async () => {
+        for (const uuid of selectedItems.groups) {
+            const role =
+                space.access.find((a) => a.userUuid === uuid)?.role ??
+                SpaceMemberRole.VIEWER;
+            await shareGroupSpaceMutation([uuid, role]);
+        }
+        for (const uuid of selectedItems.users) {
+            // Preserve inherited role so direct access isn't a downgrade
+            const role =
+                space.access.find((a) => a.userUuid === uuid)?.role ??
+                SpaceMemberRole.VIEWER;
+            await shareSpaceMutation([uuid, role]);
+        }
+        setSelectedItems({ users: [], groups: [] });
+    }, [
+        selectedItems,
+        space.access,
+        shareGroupSpaceMutation,
+        shareSpaceMutation,
+    ]);
 
     return (
         <Group>
             <MultiSelect
                 style={{ flex: 1 }}
-                withinPortal
+                classNames={{ option: styles.option }}
                 searchable
                 clearable
-                clearSearchOnChange
-                clearSearchOnBlur
-                placeholder="Select users to share this space with"
-                nothingFound="No users found"
+                placeholder="Select groups or users to share this space with"
+                nothingFoundMessage="No users found"
                 searchValue={searchQuery}
                 onSearchChange={setSearchQuery}
-                value={usersSelected}
-                onChange={setUsersSelected}
+                value={selectedValues}
+                onChange={handleSelectionChange}
                 data={data}
-                itemComponent={UserItemComponent}
+                renderOption={renderOption}
                 maxDropdownHeight={300}
                 disabled={disabled}
-                dropdownComponent={({ children, ...rest }: ScrollAreaProps) => (
-                    <ScrollArea {...rest} viewportRef={selectScrollRef}>
-                        {isUsersFetching || isGroupsFetching ? (
-                            <Center h={300}>
-                                <Loader size="md" />
-                            </Center>
-                        ) : (
-                            <>
-                                {children}
-                                {(hasUsersNextPage || hasGroupsNextPage) && (
-                                    <Button
-                                        size="xs"
-                                        variant="default"
-                                        fullWidth
-                                        onClick={async () => {
-                                            await Promise.all([
-                                                fetchGroupsNextPage(),
-                                                fetchUsersNextPage(),
-                                            ]);
-                                        }}
-                                        disabled={
-                                            disabled ||
-                                            isUsersFetching ||
-                                            isGroupsFetching
-                                        }
-                                        mt="xs"
-                                        sx={(theme) => ({
-                                            borderRadius: 0,
-                                            border: 0,
-                                            borderTop: `1px solid ${theme.colors.ldGray[2]}`,
-                                        })}
-                                    >
-                                        Load more
-                                    </Button>
-                                )}
-                            </>
-                        )}
-                    </ScrollArea>
-                )}
-                filter={(searchString, selected, item) => {
-                    return Boolean(
-                        item.group === 'Users' ||
-                            selected ||
-                            item.label
-                                ?.toLowerCase()
-                                .includes(searchString.toLowerCase()),
-                    );
+                rightSection={isFetching ? <Loader size="xs" /> : null}
+                scrollAreaProps={{
+                    viewportRef,
+                    onScrollPositionChange: handleScrollPositionChange,
                 }}
+                filter={({ options }) => options}
             />
 
             <Button
-                disabled={disabled || usersSelected.length === 0}
-                onClick={async () => {
-                    for (const uuid of usersSelected) {
-                        const selectedValue = data.find(
-                            (item) => item.value === uuid,
-                        );
-                        if (selectedValue?.group === 'Users') {
-                            await shareSpaceMutation([uuid, 'viewer']);
-                        } else {
-                            await shareGroupSpaceMutation([uuid, 'viewer']);
-                        }
-                    }
-                    setUsersSelected([]);
-                }}
+                disabled={disabled || selectedValues.length === 0}
+                onClick={handleShare}
             >
                 Share
             </Button>

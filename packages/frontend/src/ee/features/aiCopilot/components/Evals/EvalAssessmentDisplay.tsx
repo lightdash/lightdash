@@ -8,7 +8,7 @@ import {
     Text,
 } from '@mantine-8/core';
 import { IconCheck, IconClipboardList, IconX } from '@tabler/icons-react';
-import { type FC, useMemo } from 'react';
+import { useMemo, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useAiAgentEvaluationRunResults } from '../../hooks/useAiAgentEvaluations';
 import { ToolCallPaper } from '../ChatElements/ToolCalls/ToolCallPaper';

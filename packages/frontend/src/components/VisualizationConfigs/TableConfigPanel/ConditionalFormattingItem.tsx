@@ -1,8 +1,8 @@
 import {
+    assertUnreachable,
     ConditionalFormattingColorApplyTo,
     ConditionalFormattingComparisonType,
     ConditionalFormattingConfigType,
-    assertUnreachable,
     createConditionalFormattingConfigWithColorRange,
     createConditionalFormattingConfigWithSingleColor,
     createConditionalFormattingRuleWithCompareTarget,
@@ -20,8 +20,8 @@ import {
     type ConditionalFormattingConfig,
     type ConditionalFormattingConfigWithColorRange,
     type ConditionalFormattingWithFilterOperator,
-    type FilterOperator,
     type FilterableItem,
+    type FilterOperator,
 } from '@lightdash/common';
 import {
     Accordion,

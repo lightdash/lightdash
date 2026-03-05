@@ -10,8 +10,7 @@ import {
     type ResultValue,
     type TableCalculation,
 } from '@lightdash/common';
-import { Menu } from '@mantine-8/core';
-import { Text } from '@mantine/core';
+import { Menu, Text } from '@mantine-8/core';
 import { useClipboard } from '@mantine/hooks';
 import { IconCopy, IconEye, IconFilter, IconStack } from '@tabler/icons-react';
 import mapValues from 'lodash/mapValues';
@@ -23,10 +22,10 @@ import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
-import DrillDownMenuItem from '../../MetricQueryData/DrillDownMenuItem';
-import { useMetricQueryDataContext } from '../../MetricQueryData/useMetricQueryDataContext';
 import MantineIcon from '../../common/MantineIcon';
 import { type CellContextMenuProps } from '../../common/Table/types';
+import DrillDownMenuItem from '../../MetricQueryData/DrillDownMenuItem';
+import { useMetricQueryDataContext } from '../../MetricQueryData/useMetricQueryDataContext';
 import UrlMenuItems from './UrlMenuItems';
 
 const CellContextMenu: FC<
@@ -177,9 +176,11 @@ const CellContextMenu: FC<
                         leftSection={<MantineIcon icon={IconFilter} />}
                         onClick={handleFilterByValue}
                     >
-                        Filter by{' '}
-                        <Text span fw={500}>
-                            {value.formatted}
+                        <Text fz="sm">
+                            Filter by{' '}
+                            <Text span fz="sm" fw="bold">
+                                {value.formatted}
+                            </Text>
                         </Text>
                     </Menu.Item>
                 )}

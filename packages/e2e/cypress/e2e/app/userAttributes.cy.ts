@@ -67,6 +67,7 @@ describe('User attributes sql_filter', () => {
         cy.visit(`/generalSettings/userAttributes`);
 
         cy.contains('customer_id').parents('tr').find('button').first().click();
+        cy.findByText('Edit').click();
         cy.get('input[name="users.0.value"]').clear().type('30');
         cy.findByText('Update').click();
         cy.contains('Success', { timeout: 10000 });
@@ -158,6 +159,7 @@ describe('User attributes dimension required_attribute', () => {
         cy.visit(`/generalSettings/userAttributes`);
 
         cy.contains('is_admin').parents('tr').find('button').first().click();
+        cy.findByText('Edit').click();
         cy.get('input[name="users.0.value"]').clear().type('false');
         cy.findByText('Update').click();
         cy.contains('Success', { timeout: 10000 });

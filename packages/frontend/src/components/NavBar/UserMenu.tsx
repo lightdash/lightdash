@@ -5,8 +5,8 @@ import { type FC } from 'react';
 import { Link } from 'react-router';
 import useLogoutMutation from '../../hooks/user/useUserLogoutMutation';
 import useApp from '../../providers/App/useApp';
-import { UserAvatar } from '../UserAvatar';
 import MantineIcon from '../common/MantineIcon';
+import { UserAvatar } from '../UserAvatar';
 
 const UserMenu: FC = () => {
     const { user } = useApp();

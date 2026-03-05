@@ -38,7 +38,7 @@ export class OrganizationWarehouseCredentialsModel {
     }
 
     // eslint-disable-next-line class-methods-use-this
-    private stripSensitiveCredentials(
+    public static stripSensitiveCredentials(
         credentials: CreateWarehouseCredentials,
     ): WarehouseCredentials {
         const strippedCredentials: Record<string, unknown> = { ...credentials };
@@ -67,7 +67,10 @@ export class OrganizationWarehouseCredentialsModel {
             warehouseType: data.warehouse_type as WarehouseTypes,
             createdAt: data.created_at,
             createdByUserUuid: data.created_by_user_uuid,
-            credentials: this.stripSensitiveCredentials(fullCredentials),
+            credentials:
+                OrganizationWarehouseCredentialsModel.stripSensitiveCredentials(
+                    fullCredentials,
+                ),
         } as OrganizationWarehouseCredentials;
     }
 

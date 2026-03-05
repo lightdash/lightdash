@@ -1,6 +1,9 @@
-import { Alert, Box, Button, Stack, Text, TextInput } from '@mantine/core';
-import { IconArrowLeft, IconInfoCircle } from '@tabler/icons-react';
+import { Box, Button, Stack, TextInput } from '@mantine-8/core';
+import { IconArrowLeft } from '@tabler/icons-react';
+import { useEffect, type FC } from 'react';
 import MantineIcon from '../MantineIcon';
+import InheritanceToggleCards from '../ShareSpaceModal/InheritanceToggleCards';
+import { InheritanceType } from '../ShareSpaceModal/ShareSpaceModalUtils';
 
 type SpaceCreationFormProps = {
     spaceName: string;
@@ -8,43 +11,40 @@ type SpaceCreationFormProps = {
     onCancel: () => void;
     isLoading?: boolean;
     parentSpaceName?: string;
+    inheritanceValue?: InheritanceType;
+    onInheritanceChange?: (value: InheritanceType) => void;
 };
 
-const SpaceCreationForm = ({
+const SpaceCreationForm: FC<SpaceCreationFormProps> = ({
     spaceName,
     onSpaceNameChange,
     onCancel,
     isLoading,
     parentSpaceName,
-}: SpaceCreationFormProps) => {
+    inheritanceValue = InheritanceType.OWN_ONLY,
+    onInheritanceChange = () => {},
+}) => {
+    const isNestedSpace = !!parentSpaceName;
+
+    useEffect(() => {
+        onInheritanceChange(
+            isNestedSpace ? InheritanceType.INHERIT : InheritanceType.OWN_ONLY,
+        );
+    }, [isNestedSpace, onInheritanceChange]);
+
     return (
-        <Stack spacing="xs">
+        <Stack gap="xs">
             <Box>
                 <Button
                     variant="subtle"
-                    leftIcon={<MantineIcon icon={IconArrowLeft} />}
+                    leftSection={<MantineIcon icon={IconArrowLeft} />}
                     onClick={onCancel}
                     disabled={isLoading}
                     size="xs"
-                    compact
                 >
                     Back to Space selection
                 </Button>
             </Box>
-
-            <Text fz="sm" fw={500}>
-                You are creating a new space
-                {parentSpaceName ? (
-                    <>
-                        {' '}
-                        in{' '}
-                        <Text span fw={600}>
-                            "{parentSpaceName}"
-                        </Text>
-                    </>
-                ) : null}
-                .
-            </Text>
 
             <TextInput
                 label="Name"
@@ -53,24 +53,19 @@ const SpaceCreationForm = ({
                 disabled={isLoading}
                 value={spaceName}
                 onChange={(e) => onSpaceNameChange(e.target.value)}
+                description={
+                    isNestedSpace
+                        ? `New space in "${parentSpaceName}". This space will have the same access. You can change this later.`
+                        : undefined
+                }
             />
 
-            {parentSpaceName ? (
-                <Alert color="blue" icon={<IconInfoCircle size={16} />}>
-                    <Text fw={500} color="blue">
-                        Permissions will be inherited from{' '}
-                        <Text span fw={600}>
-                            "{parentSpaceName}"
-                        </Text>
-                    </Text>
-                </Alert>
-            ) : (
-                <Alert color="blue" icon={<IconInfoCircle size={16} />}>
-                    <Text fw={500} color="blue">
-                        This space will be private and not visible to other
-                        users. You can change this later.
-                    </Text>
-                </Alert>
+            {!isNestedSpace && (
+                <InheritanceToggleCards
+                    value={inheritanceValue}
+                    onChange={onInheritanceChange}
+                    disabled={isLoading}
+                />
             )}
         </Stack>
     );

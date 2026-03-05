@@ -14,7 +14,6 @@ import {
 } from '@lightdash/common';
 import { marked } from 'marked';
 import * as nodemailer from 'nodemailer';
-import hbs from 'nodemailer-express-handlebars';
 import Mail from 'nodemailer/lib/mailer';
 import SMTPConnection, {
     AuthenticationType,
@@ -60,11 +59,13 @@ export default class EmailClient {
 
     transporter: nodemailer.Transporter | undefined;
 
+    private initPromise: Promise<void> | undefined;
+
     constructor({ lightdashConfig }: EmailClientArguments) {
         this.lightdashConfig = lightdashConfig;
 
         if (this.lightdashConfig.smtp) {
-            this.createTransporter();
+            this.initPromise = this.createTransporter();
         }
     }
 
@@ -93,7 +94,7 @@ export default class EmailClient {
         };
     }
 
-    private createTransporter(): void {
+    private async createTransporter(): Promise<void> {
         if (!this.lightdashConfig.smtp) return;
 
         Logger.debug(`Create email transporter`);
@@ -148,6 +149,8 @@ export default class EmailClient {
             }
         });
 
+        // Dynamic import for ESM-only package
+        const { default: hbs } = await import('nodemailer-express-handlebars');
         this.transporter.use(
             'compile',
             hbs({
@@ -165,6 +168,9 @@ export default class EmailClient {
     private async sendEmail(
         options: Mail.Options & EmailTemplate,
     ): Promise<void> {
+        if (this.initPromise) {
+            await this.initPromise;
+        }
         if (this.transporter) {
             const maxRetries = 3;
             const baseDelay = 1000; // 1 second
@@ -257,7 +263,8 @@ export default class EmailClient {
 
         if (this.lightdashConfig.smtp) {
             Logger.debug('Recreating email transporter');
-            this.createTransporter();
+            this.initPromise = this.createTransporter();
+            await this.initPromise;
         }
     }
 
@@ -385,7 +392,7 @@ export default class EmailClient {
         recipient: string,
         schedulerName: string,
         schedulerUrl: string,
-        deliveryType: 'slack' | 'email' | 'msteams',
+        deliveryType: 'slack' | 'email' | 'msteams' | 'googlechat',
         failedTargets: { target: string; error?: string }[],
         totalTargets: number,
     ) {
@@ -544,6 +551,10 @@ export default class EmailClient {
                 host: this.lightdashConfig.siteUrl,
                 schedulerUrl,
                 expirationDays,
+                expirationDaysLabel:
+                    expirationDays !== undefined
+                        ? `${expirationDays} ${expirationDays === 1 ? 'day' : 'days'}`
+                        : undefined,
                 deliveryType,
                 includeLinks,
             },
@@ -603,6 +614,10 @@ export default class EmailClient {
                 host: this.lightdashConfig.siteUrl,
                 schedulerUrl,
                 expirationDays,
+                expirationDaysLabel:
+                    expirationDays !== undefined
+                        ? `${expirationDays} ${expirationDays === 1 ? 'day' : 'days'}`
+                        : undefined,
                 includeLinks,
                 hasAttachment: attachments && attachments.length > 0,
                 attachmentCount: attachments?.length || 0,
@@ -671,6 +686,10 @@ export default class EmailClient {
                 host: this.lightdashConfig.siteUrl,
                 schedulerUrl,
                 expirationDays,
+                expirationDaysLabel:
+                    expirationDays !== undefined
+                        ? `${expirationDays} ${expirationDays === 1 ? 'day' : 'days'}`
+                        : undefined,
                 includeLinks,
                 hasAttachments: emailAttachments && emailAttachments.length > 0,
                 attachmentCount: emailAttachments?.length || 0,
@@ -787,7 +806,7 @@ export default class EmailClient {
             payload.type === AdminNotificationType.CONNECTION_SETTINGS_CHANGE;
 
         return this.sendEmail({
-            to: recipients,
+            bcc: recipients,
             subject: `[Lightdash] ${
                 subjectMap[payload.type]
             } - ${projectContext}`,

@@ -8,7 +8,7 @@ export type BigqueryServiceAccountTarget = {
     type: 'bigquery';
     project: string;
     dataset: string;
-    threads: number;
+    threads?: number;
     method: 'service-account' | 'oauth';
     keyfile: string;
     priority?: 'interactive' | 'batch';
@@ -106,7 +106,7 @@ export type BigqueryServiceAccountJsonTarget = {
     method: 'service-account-json';
     project: string;
     dataset: string;
-    threads: number;
+    threads?: number;
     keyfile_json: object;
     priority?: 'interactive' | 'batch';
     retries?: number;

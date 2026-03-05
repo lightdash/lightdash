@@ -1,4 +1,4 @@
-import { Anchor, Avatar, Button } from '@mantine/core';
+import { Anchor, Avatar, Button } from '@mantine-8/core';
 import { IconChevronLeft, IconExclamationCircle } from '@tabler/icons-react';
 import { type FC } from 'react';
 import useTracking from '../../../providers/Tracking/useTracking';
@@ -22,7 +22,7 @@ const UnsupportedWarehouse: FC<UnsupportedWarehouseProps> = ({ onBack }) => {
                 variant="subtle"
                 size="sm"
                 top={-50}
-                leftIcon={<MantineIcon icon={IconChevronLeft} />}
+                leftSection={<MantineIcon icon={IconChevronLeft} />}
                 onClick={onBack}
             >
                 Back

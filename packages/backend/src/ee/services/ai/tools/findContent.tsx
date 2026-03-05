@@ -104,13 +104,8 @@ const renderDashboard = (dashboard: DashboardSearchResult, siteUrl: string) => (
             </lastupdatedby>
         )}
         <charts count={dashboard.charts.length}>
-            {dashboard.charts.map((chart) => (
-                <chart
-                    chartUuid={chart.uuid}
-                    chartType={chart.chartType}
-                    viewsCount={chart.viewsCount}
-                    href={`${siteUrl}/projects/${dashboard.projectUuid}/saved/${chart.uuid}/view#chart-link#chart-type-${chart.chartType}`}
-                >
+            {dashboard.charts.slice(0, 5).map((chart) => (
+                <chart chartUuid={chart.uuid} chartType={chart.chartType}>
                     <name>{chart.name}</name>
                     {chart.description && (
                         <description>{chart.description}</description>

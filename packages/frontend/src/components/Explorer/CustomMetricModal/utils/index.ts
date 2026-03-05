@@ -1,12 +1,12 @@
 import {
     CustomFormatType,
     DimensionType,
-    MetricType,
     friendlyName,
     isAdditionalMetric,
     isCustomBinDimension,
     isCustomDimension,
     isDimension,
+    MetricType,
     snakeCaseName,
     type AdditionalMetric,
     type CustomDimension,
@@ -14,8 +14,8 @@ import {
     type Dimension,
     type Explore,
     type FilterRule,
-    type MetricFilterRule,
     type getFilterableDimensionsFromItemsMap,
+    type MetricFilterRule,
 } from '@lightdash/common';
 import { type MetricFilterRuleWithFieldId } from '../FilterForm';
 

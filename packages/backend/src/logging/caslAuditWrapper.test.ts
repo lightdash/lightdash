@@ -4,8 +4,8 @@ import { CaslSubjectNames, OrganizationMemberRole } from '@lightdash/common';
 import { type AuditLogEvent } from './auditLog';
 import {
     CaslAuditWrapper,
-    type AuditLogger,
     type AuditableUser,
+    type AuditLogger,
 } from './caslAuditWrapper';
 
 // Test subjects

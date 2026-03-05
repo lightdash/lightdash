@@ -1,4 +1,4 @@
-import { Collapse } from '@mantine/core';
+import { Collapse } from '@mantine-8/core';
 import React, { type FC } from 'react';
 
 interface FormSectionProps {

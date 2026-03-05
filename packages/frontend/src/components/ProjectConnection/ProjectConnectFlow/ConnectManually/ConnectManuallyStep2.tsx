@@ -1,5 +1,5 @@
 import { type WarehouseTypes } from '@lightdash/common';
-import { Button, Stack } from '@mantine/core';
+import { Button, Stack } from '@mantine-8/core';
 import { IconChevronLeft } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { CreateProjectConnection } from '../..';
@@ -20,13 +20,12 @@ const ConnectManuallyStep2: FC<ConnectManuallyStep2Props> = ({
 }) => {
     return (
         <>
-            <Stack align="left">
+            <Stack align="flex-start">
                 <Button
                     variant="subtle"
                     size="sm"
-                    leftIcon={<MantineIcon icon={IconChevronLeft} />}
+                    leftSection={<MantineIcon icon={IconChevronLeft} />}
                     onClick={onBack}
-                    sx={{ alignSelf: 'flex-start' }}
                 >
                     Back
                 </Button>

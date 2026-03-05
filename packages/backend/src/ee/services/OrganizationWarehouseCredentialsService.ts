@@ -136,7 +136,7 @@ export class OrganizationWarehouseCredentialsService extends BaseService {
         return credentials;
     }
 
-    /* 
+    /*
     For SSO auth (like snowflake), we need to fetch the refresh token from the user model
     and store it in the organization warehouse credentials model.
     This is used to generate new access tokens on ProjectService.refreshCredentials

@@ -31,8 +31,11 @@ export enum FilterOperator {
 }
 
 export type BaseFilterRule<O = FilterOperator, V = unknown> = {
+    /** Unique identifier for the filter rule */
     id: string;
+    /** Filter operator */
     operator: O;
+    /** Values to filter by */
     values?: V[];
 };
 
@@ -83,6 +86,7 @@ export const getUnitsOfTimeGreaterOrEqual = (
 };
 
 export type FieldTarget = {
+    /** Field ID to filter on */
     fieldId: string;
 };
 
@@ -92,16 +96,24 @@ export interface FilterRule<
     V = AnyType,
     S = AnyType,
 > extends BaseFilterRule<O, V> {
+    /** Unique identifier for the filter */
     id: string;
+    /** Target field for the filter */
     target: T;
+    /** Additional settings for date/time filters */
     settings?: S;
+    /** Whether this filter is disabled */
     disabled?: boolean;
+    /** Whether this filter is required */
     required?: boolean;
 }
 
+/** Filter rule for metrics, targeting fields by reference */
 export interface MetricFilterRule extends FilterRule<
     FilterOperator,
-    { fieldRef: string }
+    {
+        /** Field reference to filter on (e.g., 'table_name.field_name') */ fieldRef: string;
+    }
 > {}
 
 type JoinModelRequiredFilterTarget = {
@@ -162,7 +174,9 @@ export type DashboardFilterRuleOverride = Omit<
 >;
 
 export type DateFilterSettings = {
+    /** Time unit for relative date filters */
     unitOfTime?: UnitOfTime;
+    /** For date filters, whether to include completed periods */
     completed?: boolean;
 };
 
@@ -180,21 +194,27 @@ export const isDateFilterRule = (
 export type FilterGroupItem = FilterGroup | FilterRule;
 
 export type OrFilterGroup = {
+    /** Unique identifier for the filter group */
     id: string;
+    /** Array of filters or nested groups combined with OR logic */
     or: Array<FilterGroupItem>;
 };
 
 export type AndFilterGroup = {
+    /** Unique identifier for the filter group */
     id: string;
+    /** Array of filters or nested groups combined with AND logic */
     and: Array<FilterGroupItem>;
 };
 
 export type FilterGroup = OrFilterGroup | AndFilterGroup;
 
 export type Filters = {
-    // Note: dimensions need to be in a separate filter group from metrics & table calculations
+    /** Dimension filter group */
     dimensions?: FilterGroup;
+    /** Metric filter group */
     metrics?: FilterGroup;
+    /** Table calculation filter group */
     tableCalculations?: FilterGroup;
 };
 

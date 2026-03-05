@@ -6,7 +6,6 @@ import {
     ChartType,
     DashboardTileTypes,
     DownloadFileType,
-    FeatureFlags,
     ForbiddenError,
     getErrorMessage,
     HealthState,
@@ -44,7 +43,7 @@ import fetch from 'node-fetch';
 import { PDFDocument } from 'pdf-lib';
 import playwright, { type ElementHandle } from 'playwright';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
-import { S3Client } from '../../clients/Aws/S3Client';
+import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
 import { SlackClient } from '../../clients/Slack/SlackClient';
 import {
     getUnfurlBlocks,
@@ -55,14 +54,13 @@ import { slackErrorHandler } from '../../errors';
 import Logger from '../../logging/logger';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { DownloadFileModel } from '../../models/DownloadFileModel';
-import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { ShareModel } from '../../models/ShareModel';
 import { SlackAuthenticationModel } from '../../models/SlackAuthenticationModel';
-import { SpaceModel } from '../../models/SpaceModel';
 import { getAuthenticationToken } from '../../routers/headlessBrowser';
 import { BaseService } from '../BaseService';
+import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 
 const RESPONSE_TIMEOUT_MS = 180000;
 const uuid = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
@@ -87,6 +85,7 @@ export enum ScreenshotContext {
     SCHEDULED_DELIVERY = 'scheduled_delivery',
     SLACK = 'slack',
     EXPORT_DASHBOARD = 'export_dashboard',
+    EXPORT_CHART = 'export_chart',
 }
 
 // Default values
@@ -153,15 +152,14 @@ type UnfurlServiceArguments = {
     lightdashConfig: LightdashConfig;
     dashboardModel: DashboardModel;
     savedChartModel: SavedChartModel;
-    spaceModel: SpaceModel;
     shareModel: ShareModel;
-    s3Client: S3Client;
+    fileStorageClient: FileStorageClient;
     slackClient: SlackClient;
     projectModel: ProjectModel;
     downloadFileModel: DownloadFileModel;
     analytics: LightdashAnalytics;
     slackAuthenticationModel: SlackAuthenticationModel;
-    featureFlagModel: FeatureFlagModel;
+    spacePermissionService: SpacePermissionService;
 };
 
 export class UnfurlService extends BaseService {
@@ -171,11 +169,9 @@ export class UnfurlService extends BaseService {
 
     savedChartModel: SavedChartModel;
 
-    spaceModel: SpaceModel;
-
     shareModel: ShareModel;
 
-    s3Client: S3Client;
+    fileStorageClient: FileStorageClient;
 
     slackClient: SlackClient;
 
@@ -187,35 +183,33 @@ export class UnfurlService extends BaseService {
 
     slackAuthenticationModel: SlackAuthenticationModel;
 
-    featureFlagModel: FeatureFlagModel;
+    spacePermissionService: SpacePermissionService;
 
     constructor({
         lightdashConfig,
         dashboardModel,
         savedChartModel,
-        spaceModel,
         shareModel,
-        s3Client,
+        fileStorageClient,
         projectModel,
         downloadFileModel,
         slackClient,
         analytics,
         slackAuthenticationModel,
-        featureFlagModel,
+        spacePermissionService,
     }: UnfurlServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
         this.dashboardModel = dashboardModel;
         this.savedChartModel = savedChartModel;
-        this.spaceModel = spaceModel;
         this.shareModel = shareModel;
-        this.s3Client = s3Client;
+        this.fileStorageClient = fileStorageClient;
         this.slackClient = slackClient;
         this.projectModel = projectModel;
         this.downloadFileModel = downloadFileModel;
         this.analytics = analytics;
         this.slackAuthenticationModel = slackAuthenticationModel;
-        this.featureFlagModel = featureFlagModel;
+        this.spacePermissionService = spacePermissionService;
     }
 
     async getTitleAndDescription(
@@ -355,8 +349,8 @@ export class UnfurlService extends BaseService {
 
         let source: string;
         let fileName: string;
-        if (this.s3Client.isEnabled()) {
-            const uploadPdfReturn = await this.s3Client.uploadPdf(
+        if (this.fileStorageClient.isEnabled()) {
+            const uploadPdfReturn = await this.fileStorageClient.uploadPdf(
                 Buffer.from(pdfBytes),
                 id,
             );
@@ -434,8 +428,11 @@ export class UnfurlService extends BaseService {
                 pdfFile = await this.createImagePdf(imageId, buffer);
             }
 
-            if (this.s3Client.isEnabled()) {
-                imageUrl = await this.s3Client.uploadImage(buffer, imageId);
+            if (this.fileStorageClient.isEnabled()) {
+                imageUrl = await this.fileStorageClient.uploadImage(
+                    buffer,
+                    imageId,
+                );
             } else {
                 // We will share the image saved by puppetteer on our lightdash enpdoint
                 const filePath = `/tmp/${imageId}.png`;
@@ -468,16 +465,11 @@ export class UnfurlService extends BaseService {
     ): Promise<string> {
         const dashboard =
             await this.dashboardModel.getByIdOrSlug(dashboardUuid);
-        const { isPrivate } = await this.spaceModel.get(dashboard.spaceUuid);
-        const nestedPermissionsFlag = await this.featureFlagModel.get({
-            user,
-            featureFlagId: FeatureFlags.NestedSpacesPermissions,
-        });
-        const access = await this.spaceModel.getUserSpaceAccess(
-            user.userUuid,
-            dashboard.spaceUuid,
-            { useInheritedAccess: nestedPermissionsFlag.enabled },
-        );
+        const { inheritsFromOrgOrProject, access } =
+            await this.spacePermissionService.getSpaceAccessContext(
+                user.userUuid,
+                dashboard.spaceUuid,
+            );
 
         validateSelectedTabs(selectedTabs, dashboard.tiles);
 
@@ -529,7 +521,7 @@ export class UnfurlService extends BaseService {
                 subject('Dashboard', {
                     organizationUuid,
                     projectUuid,
-                    isPrivate,
+                    inheritsFromOrgOrProject,
                     access,
                 }),
             )
@@ -558,6 +550,55 @@ export class UnfurlService extends BaseService {
             throw new Error('Unable to unfurl image');
         }
         this.logger.info(`Dashboard "${name}" exported successfully`);
+        return unfurlImage.imageUrl;
+    }
+
+    async exportChart(
+        chartUuidOrSlug: string,
+        user: SessionUser,
+    ): Promise<string> {
+        const chart = await this.savedChartModel.get(chartUuidOrSlug);
+        const { inheritsFromOrgOrProject, access } =
+            await this.spacePermissionService.getSpaceAccessContext(
+                user.userUuid,
+                chart.spaceUuid,
+            );
+
+        if (
+            user.ability.cannot(
+                'view',
+                subject('SavedChart', {
+                    organizationUuid: chart.organizationUuid,
+                    projectUuid: chart.projectUuid,
+                    inheritsFromOrgOrProject,
+                    access,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const minimalUrl = new URL(
+            `/minimal/projects/${chart.projectUuid}/saved/${chart.uuid}`,
+            this.lightdashConfig.headlessBrowser.internalLightdashHost,
+        ).href;
+
+        this.logger.info(
+            `Exporting chart "${chart.name}" with minimalUrl ${minimalUrl}`,
+        );
+
+        const unfurlImage = await this.unfurlImage({
+            url: minimalUrl,
+            lightdashPage: LightdashPage.CHART,
+            imageId: `chart-image_${snakeCaseName(chart.name)}_${useNanoid()}`,
+            authUserUuid: user.userUuid,
+            context: ScreenshotContext.EXPORT_CHART,
+            selectedTabs: null,
+        });
+        if (unfurlImage.imageUrl === undefined) {
+            throw new Error('Unable to export chart image');
+        }
+        this.logger.info(`Chart "${chart.name}" exported successfully`);
         return unfurlImage.imageUrl;
     }
 
@@ -1379,7 +1420,7 @@ export class UnfurlService extends BaseService {
 
         Logger.debug(`Got link_shared slack event ${event.message_ts}`);
 
-        event.links.map(async (l) => {
+        void event.links.map(async (l) => {
             const eventUserId = context.botUserId;
 
             try {

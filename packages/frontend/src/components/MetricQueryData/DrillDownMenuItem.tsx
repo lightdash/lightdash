@@ -4,8 +4,7 @@ import {
     isField,
     isMetric,
 } from '@lightdash/common';
-import { Menu } from '@mantine-8/core';
-import { Text } from '@mantine/core';
+import { Menu, Text } from '@mantine-8/core';
 import { IconArrowBarToDown } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
 import useTracking from '../../providers/Tracking/useTracking';
@@ -85,7 +84,7 @@ const DrillDownMenuItem: FC<DrillDownMenuItemProps> = ({
                 onClick={handleDrillInto}
             >
                 Drill into{' '}
-                <Text span fw={500}>
+                <Text span fz="sm" fw="bold">
                     {value}
                 </Text>
             </Menu.Item>

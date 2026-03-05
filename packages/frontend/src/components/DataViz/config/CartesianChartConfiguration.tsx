@@ -1,5 +1,5 @@
 import { ChartKind, type VizColumn } from '@lightdash/common';
-import { Stack, Tabs } from '@mantine/core';
+import { Stack, Tabs } from '@mantine-8/core';
 import { barChartConfigSlice } from '../store/barChartSlice';
 import { lineChartConfigSlice } from '../store/lineChartSlice';
 import { CartesianChartDisplayConfig } from './CartesianChartDisplayConfig';
@@ -25,7 +25,7 @@ export const CartesianChartConfig = ({
     }
 
     return (
-        <Stack spacing="xs" mb="lg">
+        <Stack gap="xs" mb="lg">
             <Tabs defaultValue="data" keepMounted>
                 <Tabs.List>
                     <Tabs.Tab value="data">Data</Tabs.Tab>

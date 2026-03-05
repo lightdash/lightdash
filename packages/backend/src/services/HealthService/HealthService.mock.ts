@@ -81,10 +81,14 @@ export const BaseResponse: HealthState = {
         maxLimit: 5000,
         maxPageSize: 2500,
         defaultLimit: 500,
+        retryQueryOnTransientErrors: true,
     },
     dashboard: {
         maxTilesPerTab: 50,
         maxTabsPerDashboard: 20,
+        versionHistory: {
+            daysLimit: 0,
+        },
     },
     rudder: {
         dataPlaneUrl: '',
@@ -106,6 +110,8 @@ export const BaseResponse: HealthState = {
     },
     isServiceAccountEnabled: false,
     isOrganizationWarehouseCredentialsEnabled: false,
+    isAthenaWarehouseIamRoleAuthEnabled: false,
+    isSaveCredentialsFormEnabled: false,
     isCustomRolesEnabled: false,
     embedding: { enabled: false, events: undefined },
     ai: {
@@ -117,6 +123,13 @@ export const BaseResponse: HealthState = {
         enabled: false,
     },
     funnelBuilder: {
+        enabled: false,
+    },
+    softDelete: {
+        enabled: false,
+        retentionDays: 30,
+    },
+    preAggregates: {
         enabled: false,
     },
 };

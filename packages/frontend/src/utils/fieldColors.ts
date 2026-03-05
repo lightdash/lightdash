@@ -1,10 +1,10 @@
 import {
-    type AdditionalMetric,
     isAdditionalMetric,
     isCustomDimension,
     isDimension,
     isMetric,
     isTableCalculation,
+    type AdditionalMetric,
     type Item,
 } from '@lightdash/common';
 import { LD_FIELD_COLORS, type LightdashFieldColors } from '../mantineTheme';

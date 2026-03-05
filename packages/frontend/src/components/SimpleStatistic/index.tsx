@@ -21,13 +21,13 @@ import {
 } from 'react';
 import { DEFAULT_ROW_HEIGHT } from '../../features/dashboardTabs/gridUtils';
 import { useContextMenuPermissions } from '../../hooks/useContextMenuPermissions';
-import { useResizeObserver } from '../../hooks/useResizeObserver';
 import { useAccount } from '../../hooks/user/useAccount';
+import { useResizeObserver } from '../../hooks/useResizeObserver';
+import LoadingChart from '../common/LoadingChart';
+import MantineIcon from '../common/MantineIcon';
 import { isBigNumberVisualizationConfig } from '../LightdashVisualization/types';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
 import { EmptyChart } from '../SimpleChart';
-import LoadingChart from '../common/LoadingChart';
-import MantineIcon from '../common/MantineIcon';
 import BigNumberContextMenu from './BigNumberContextMenu';
 import styles from './SimpleStatistic.module.css';
 
@@ -85,7 +85,6 @@ const BigNumberText: FC<
     return (
         <Text
             ref={ref}
-            c="foreground"
             ta="center"
             fw={500}
             {...textProps}
@@ -246,12 +245,13 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
 
     const {
         bigNumber,
+        bigNumberTextColor,
         showBigNumberLabel,
-        bigNumberLabel,
+        resolvedBigNumberLabel,
         defaultLabel,
         showComparison,
         comparisonTooltip,
-        comparisonLabel,
+        resolvedComparisonLabel,
         comparisonValue,
         comparisonDiff,
     } = visualizationConfig.chartConfig;
@@ -290,6 +290,8 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
                         fw={600}
                         isHeading
                         data-testid="big-number-value"
+                        style={{ '--big-number-color': bigNumberTextColor }}
+                        className={styles.bigNumberText}
                     >
                         {bigNumber}
                     </BigNumberText>
@@ -306,7 +308,9 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
                             data-testid="big-number-value"
                             style={{
                                 cursor: 'pointer',
+                                '--big-number-color': bigNumberTextColor,
                             }}
+                            className={styles.bigNumberText}
                         >
                             {bigNumber}
                         </BigNumberText>
@@ -323,10 +327,11 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
                 >
                     <Tooltip
                         withinPortal
-                        label={bigNumberLabel || defaultLabel}
+                        label={resolvedBigNumberLabel || defaultLabel}
                         disabled={
-                            !(bigNumberLabel || defaultLabel) ||
-                            (bigNumberLabel || defaultLabel || '').length < 40
+                            !(resolvedBigNumberLabel || defaultLabel) ||
+                            (resolvedBigNumberLabel || defaultLabel || '')
+                                .length < 40
                         }
                     >
                         <Text
@@ -340,7 +345,7 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
                                 lineHeight: '120%',
                             }}
                         >
-                            {bigNumberLabel || defaultLabel}
+                            {resolvedBigNumberLabel || defaultLabel}
                         </Text>
                     </Tooltip>
                 </Flex>
@@ -403,11 +408,11 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
                         </Group>
                     </Tooltip>
 
-                    {comparisonLabel && availableHeight > 70 ? (
+                    {resolvedComparisonLabel && availableHeight > 70 ? (
                         <Tooltip
                             withinPortal
-                            label={comparisonLabel}
-                            disabled={comparisonLabel.length < 30}
+                            label={resolvedComparisonLabel}
+                            disabled={resolvedComparisonLabel.length < 30}
                         >
                             <BigNumberText
                                 span
@@ -416,7 +421,7 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
                                 fw={400}
                                 lineClamp={1}
                             >
-                                {comparisonLabel}
+                                {resolvedComparisonLabel}
                             </BigNumberText>
                         </Tooltip>
                     ) : null}

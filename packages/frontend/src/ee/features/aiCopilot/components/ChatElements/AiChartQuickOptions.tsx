@@ -15,12 +15,13 @@ import {
     IconTableShortcut,
     IconTerminal2,
 } from '@tabler/icons-react';
-import { Fragment, useMemo } from 'react';
+import { Fragment, useCallback, useMemo } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
 import { SaveToSpaceOrDashboard } from '../../../../../components/common/modal/ChartCreateModal/SaveToSpaceOrDashboard';
 import { useVisualizationContext } from '../../../../../components/LightdashVisualization/useVisualizationContext';
+import { useCreateShareMutation } from '../../../../../hooks/useShare';
 import useApp from '../../../../../providers/App/useApp';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
@@ -115,7 +116,7 @@ export const AiChartQuickOptions = ({
     };
 
     const openInExploreUrl = useMemo(() => {
-        if (isDisabled) return '';
+        if (isDisabled) return undefined;
         return getOpenInExploreUrl({
             metricQuery,
             projectUuid,
@@ -132,7 +133,15 @@ export const AiChartQuickOptions = ({
         pivotDimensions,
     ]);
 
-    const onClickExplore = () => {
+    const { mutateAsync: createShareUrl } = useCreateShareMutation();
+
+    const handleExploreFromHere = useCallback(async () => {
+        if (!openInExploreUrl) return;
+        const shareUrl = await createShareUrl({
+            path: openInExploreUrl.pathname,
+            params: `?${openInExploreUrl.search}`,
+        });
+        window.open(`/share/${shareUrl.nanoid}`, '_blank');
         if (
             user?.data?.userUuid &&
             user?.data?.organizationUuid &&
@@ -153,7 +162,18 @@ export const AiChartQuickOptions = ({
                 },
             });
         }
-    };
+    }, [
+        openInExploreUrl,
+        createShareUrl,
+        user?.data?.userUuid,
+        user?.data?.organizationUuid,
+        projectUuid,
+        agentUuid,
+        metricQuery?.exploreName,
+        track,
+        message.threadUuid,
+        message.uuid,
+    ]);
 
     const handleVerifyToggle = () => {
         if (!artifactData) return;
@@ -190,6 +210,7 @@ export const AiChartQuickOptions = ({
                             ? 'Remove from verified answers'
                             : 'Add to verified answers'
                     }
+                    position="bottom"
                 >
                     <ActionIcon
                         size="xs"
@@ -239,12 +260,9 @@ export const AiChartQuickOptions = ({
                     )}
 
                     <Menu.Item
-                        component={Link}
-                        to={openInExploreUrl}
-                        target="_blank"
                         leftSection={<MantineIcon icon={IconExternalLink} />}
                         disabled={isDisabled}
-                        onClick={onClickExplore}
+                        onClick={handleExploreFromHere}
                     >
                         Explore from here
                     </Menu.Item>

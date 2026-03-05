@@ -1,6 +1,6 @@
 import {
-    type LightdashUserWithAbilityRules,
     OrganizationMemberRole,
+    type LightdashUserWithAbilityRules,
 } from '@lightdash/common';
 
 export function mockUserResponse(

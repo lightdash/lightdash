@@ -11,6 +11,7 @@ import {
     FrameBoundaryType,
     FrameType,
     generateSlug,
+    NumberSeparator,
     SEED_ORG_1_ADMIN,
     SEED_PROJECT,
     TableCalculationTemplateType,
@@ -538,6 +539,76 @@ async function createTableCalcTestCharts(
     );
     chartUuids.rawSql = chart7.uuid;
 
+    // Chart 8: total() and row_total() with pivot (TABLE)
+    const chart8 = await savedChartModel.create(
+        SEED_PROJECT.project_uuid,
+        SEED_ORG_1_ADMIN.user_uuid,
+        {
+            slug: generateSlug('[TC Test] Total and Row Total with Pivot'),
+            name: '[TC Test] Total and Row Total with Pivot',
+            description:
+                'Tests total() and row_total() aggregate table calculation functions with pivot on region',
+            tableName: 'regional_sales',
+            metricQuery: {
+                exploreName: 'regional_sales',
+                dimensions: [
+                    'regional_sales_sale_date_month',
+                    'regional_sales_region',
+                ],
+                metrics: ['regional_sales_total_revenue'],
+                filters: {},
+                sorts: [
+                    {
+                        fieldId: 'regional_sales_sale_date_month',
+                        descending: true,
+                    },
+                ],
+                limit: 500,
+                tableCalculations: [
+                    {
+                        name: '_of_grand_total',
+                        displayName: '% of Grand Total',
+                        sql: '${regional_sales.total_revenue} / total(${regional_sales.total_revenue})',
+                        format: {
+                            type: CustomFormatType.PERCENT,
+                            round: 1,
+                            separator: NumberSeparator.DEFAULT,
+                        },
+                    },
+                    {
+                        name: '_of_monthly_total',
+                        displayName: '% of Monthly Total',
+                        sql: '${regional_sales.total_revenue} / row_total(${regional_sales.total_revenue})',
+                        format: {
+                            type: CustomFormatType.PERCENT,
+                            round: 1,
+                            separator: NumberSeparator.DEFAULT,
+                        },
+                    },
+                ],
+            },
+            chartConfig: {
+                type: ChartType.TABLE,
+                config: undefined,
+            },
+            pivotConfig: {
+                columns: ['regional_sales_region'],
+            },
+            tableConfig: {
+                columnOrder: [
+                    'regional_sales_sale_date_month',
+                    'regional_sales_region',
+                    'regional_sales_total_revenue',
+                    '_of_grand_total',
+                    '_of_monthly_total',
+                ],
+            },
+            updatedByUser,
+            spaceUuid,
+        },
+    );
+    chartUuids.totalRowTotal = chart8.uuid;
+
     return chartUuids;
 }
 
@@ -563,6 +634,7 @@ async function createTableCalcTestsDashboard(
         'runningTotal',
         'windowFunction',
         'rawSql',
+        'totalRowTotal',
     ];
 
     const tiles: CreateDashboardChartTile[] = chartOrder.map(

@@ -12,6 +12,7 @@ import {
     type Source,
 } from './field';
 import { type LightdashProjectConfig } from './lightdashProjectConfig';
+import { type PreAggregateDef } from './preAggregate';
 import { type TableBase } from './table';
 
 export enum JoinRelationship {
@@ -57,6 +58,7 @@ export type CompiledTable = TableBase & {
 export enum ExploreType {
     VIRTUAL = 'virtual',
     DEFAULT = 'default',
+    PRE_AGGREGATE = 'pre_aggregate',
 }
 
 export enum InlineErrorType {
@@ -74,6 +76,11 @@ export type InlineError = {
     message: string;
 };
 
+export type PreAggregateSource = {
+    sourceExploreName: string;
+    preAggregateName: string;
+};
+
 export type Explore = {
     name: string; // Must be sql friendly (a-Z, 0-9, _)
     label: string; // Friendly name
@@ -89,6 +96,7 @@ export type Explore = {
     ymlPath?: string;
     sqlPath?: string;
     type?: ExploreType;
+    caseSensitive?: boolean; // When false, all string filters in this explore will be case insensitive. Default is true
     // Spotlight config for this explore
     spotlight?: {
         visibility: LightdashProjectConfig['spotlight']['default_visibility'];
@@ -97,6 +105,8 @@ export type Explore = {
     };
     aiHint?: string | string[];
     parameters?: LightdashProjectConfig['parameters'];
+    preAggregates?: PreAggregateDef[];
+    preAggregateSource?: PreAggregateSource;
     /**
      * Non-fatal warnings from partial compilation.
      * Present when some joins or fields failed to compile but the explore is still usable.
@@ -124,6 +134,7 @@ type SummaryExploreFields =
     | 'tags'
     | 'groupLabel'
     | 'type'
+    | 'preAggregateSource'
     | 'aiHint'
     | 'warnings';
 type SummaryExploreErrorFields =

@@ -5,6 +5,7 @@ import { lightdashConfig } from '../config/lightdashConfig';
 import Logger from '../logging/logger';
 import { McpContextModel } from '../models/McpContextModel';
 import { AsyncQueryService } from '../services/AsyncQueryService/AsyncQueryService';
+import { PreAggregationDuckDbClient } from '../services/AsyncQueryService/PreAggregationDuckDbClient';
 import { InstanceConfigurationService } from '../services/InstanceConfigurationService/InstanceConfigurationService';
 import { ProjectService } from '../services/ProjectService/ProjectService';
 import { RolesService } from '../services/RolesService/RolesService';
@@ -130,13 +131,14 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     aiAgentModel: models.getAiAgentModel(),
                     lightdashConfig: context.lightdashConfig,
                 }),
-            aiOrganizationSettingsService: ({ models }) =>
+            aiOrganizationSettingsService: ({ models, context }) =>
                 new AiOrganizationSettingsService({
                     aiOrganizationSettingsModel:
                         models.getAiOrganizationSettingsModel(),
                     organizationModel: models.getOrganizationModel(),
                     commercialFeatureFlagModel:
                         models.getFeatureFlagModel() as CommercialFeatureFlagModel,
+                    lightdashConfig: context.lightdashConfig,
                 }),
             scimService: ({ models, context }) =>
                 new ScimService({
@@ -177,7 +179,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     savedChartModel: models.getSavedChartModel(),
                     dashboardModel: models.getDashboardModel(),
                     spaceModel: models.getSpaceModel(),
-                    s3Client: clients.getS3Client(),
+                    fileStorageClient: clients.getFileStorageClient(),
                     organizationModel: models.getOrganizationModel(),
                     unfurlService: repository.getUnfurlService(),
                     projectService: repository.getProjectService(),
@@ -195,6 +197,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     lightdashConfig: context.lightdashConfig,
                     analytics: context.lightdashAnalytics,
                     projectModel: models.getProjectModel(),
+                    preAggregateModel: models.getPreAggregateModel(),
                     onboardingModel: models.getOnboardingModel(),
                     savedChartModel: models.getSavedChartModel(),
                     jobModel: models.getJobModel(),
@@ -212,7 +215,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     emailModel: models.getEmailModel(),
                     schedulerClient: clients.getSchedulerClient(),
                     downloadFileModel: models.getDownloadFileModel(),
-                    s3Client: clients.getS3Client(),
+                    fileStorageClient: clients.getFileStorageClient(),
                     groupsModel: models.getGroupsModel(),
                     tagsModel: models.getTagsModel(),
                     catalogModel: models.getCatalogModel(),
@@ -226,6 +229,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     projectCompileLogModel: models.getProjectCompileLogModel(),
                     adminNotificationService:
                         repository.getAdminNotificationService(),
+                    spacePermissionService:
+                        repository.getSpacePermissionService(),
                 }),
             instanceConfigurationService: ({
                 models,
@@ -261,6 +266,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     lightdashConfig: context.lightdashConfig,
                     analytics: context.lightdashAnalytics,
                     projectModel: models.getProjectModel(),
+                    preAggregateModel: models.getPreAggregateModel(),
                     onboardingModel: models.getOnboardingModel(),
                     savedChartModel: models.getSavedChartModel(),
                     jobModel: models.getJobModel(),
@@ -278,7 +284,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     emailModel: models.getEmailModel(),
                     schedulerClient: clients.getSchedulerClient(),
                     downloadFileModel: models.getDownloadFileModel(),
-                    s3Client: clients.getS3Client(),
+                    fileStorageClient: clients.getFileStorageClient(),
                     groupsModel: models.getGroupsModel(),
                     tagsModel: models.getTagsModel(),
                     catalogModel: models.getCatalogModel(),
@@ -286,10 +292,14 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     encryptionUtil: utils.getEncryptionUtil(),
                     userModel: models.getUserModel(),
                     queryHistoryModel: models.getQueryHistoryModel(),
+                    preAggregateDailyStatsModel:
+                        models.getPreAggregateDailyStatsModel(),
                     downloadAuditModel: models.getDownloadAuditModel(),
                     cacheService: repository.getCacheService(),
                     savedSqlModel: models.getSavedSqlModel(),
                     resultsStorageClient: clients.getResultsFileStorageClient(),
+                    preAggregateResultsStorageClient:
+                        clients.getPreAggregateResultsFileStorageClient(),
                     featureFlagModel: models.getFeatureFlagModel(),
                     projectParametersModel: models.getProjectParametersModel(),
                     organizationWarehouseCredentialsModel:
@@ -297,9 +307,18 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     pivotTableService: repository.getPivotTableService(),
                     prometheusMetrics,
                     permissionsService: repository.getPermissionsService(),
+                    persistentDownloadFileService:
+                        repository.getPersistentDownloadFileService(),
+                    preAggregationDuckDbClient: new PreAggregationDuckDbClient({
+                        lightdashConfig: context.lightdashConfig,
+                        preAggregateModel: models.getPreAggregateModel(),
+                        projectModel: models.getProjectModel(),
+                    }),
                     projectCompileLogModel: models.getProjectCompileLogModel(),
                     adminNotificationService:
                         repository.getAdminNotificationService(),
+                    spacePermissionService:
+                        repository.getSpacePermissionService(),
                 }),
             cacheService: ({ models, context, clients }) =>
                 new CommercialCacheService({
@@ -314,12 +333,15 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     asyncQueryService: repository.getAsyncQueryService(),
                     catalogService: repository.getCatalogService(),
                     projectService: repository.getProjectService(),
+                    shareService: repository.getShareService(),
                     userAttributesModel: models.getUserAttributesModel(),
                     searchModel: models.getSearchModel(),
                     spaceService: repository.getSpaceService(),
                     mcpContextModel: models.getMcpContextModel(),
                     projectModel: models.getProjectModel(),
                     featureFlagService: repository.getFeatureFlagService(),
+                    aiOrganizationSettingsService:
+                        repository.getAiOrganizationSettingsService(),
                 }),
             slackService: ({ repository, clients }) =>
                 new CommercialSlackService({
@@ -363,6 +385,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 csvService: context.serviceRepository.getCsvService(),
                 dashboardService:
                     context.serviceRepository.getDashboardService(),
+                deployService: context.serviceRepository.getDeployService(),
                 projectService: context.serviceRepository.getProjectService(),
                 schedulerService:
                     context.serviceRepository.getSchedulerService(),
@@ -371,18 +394,24 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 userService: context.serviceRepository.getUserService(),
                 emailClient: context.clients.getEmailClient(),
                 googleDriveClient: context.clients.getGoogleDriveClient(),
-                s3Client: context.clients.getS3Client(),
+                fileStorageClient: context.clients.getFileStorageClient(),
                 schedulerClient: context.clients.getSchedulerClient(),
                 aiAgentService: context.serviceRepository.getAiAgentService(),
                 catalogService: context.serviceRepository.getCatalogService(),
                 encryptionUtil: context.utils.getEncryptionUtil(),
                 msTeamsClient: context.clients.getMsTeamsClient(),
+                googleChatClient: context.clients.getGoogleChatClient(),
                 renameService: context.serviceRepository.getRenameService(),
                 asyncQueryService:
                     context.serviceRepository.getAsyncQueryService(),
                 embedService: context.serviceRepository.getEmbedService(),
                 featureFlagService:
                     context.serviceRepository.getFeatureFlagService(),
+                persistentDownloadFileService:
+                    context.serviceRepository.getPersistentDownloadFileService(),
+                preAggregateModel: context.models.getPreAggregateModel(),
+                preAggregateMaterializationService:
+                    context.serviceRepository.getPreAggregateMaterializationService(),
             }),
         clientProviders: {
             schedulerClient: ({ context, models }) =>

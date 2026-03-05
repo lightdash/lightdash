@@ -1,3 +1,4 @@
+import { subject } from '@casl/ability';
 import {
     Account,
     AnyType,
@@ -9,12 +10,9 @@ import {
     UnusedContent,
     UserActivity,
 } from '@lightdash/common';
-
-import { subject } from '@casl/ability';
 import { stringify } from 'csv-stringify/sync';
 import { nanoid } from 'nanoid';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
-import { S3Client } from '../../clients/Aws/S3Client';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { BaseService } from '../BaseService';
@@ -128,6 +126,8 @@ export class AnalyticsService extends BaseService {
             csvContent: csvBody,
             fileName,
             projectUuid,
+            organizationUuid,
+            createdByUserUuid: user.userUuid,
         });
         return upload.path;
     }

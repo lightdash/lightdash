@@ -54,6 +54,9 @@ type MapChartConfig = {
     setBackgroundColor: (color: string | undefined) => void;
     setNoDataColor: (color: string | undefined) => void;
     setDataLayerOpacity: (opacity: number | undefined) => void;
+    // Categorical color overrides (for string fields)
+    setColorOverride: (value: string, color: string) => void;
+    setColorOverrides: (overrides: Record<string, string>) => void;
     // Field configuration methods
     updateFieldConfig: (
         fieldId: string,
@@ -134,6 +137,9 @@ const useMapChartConfig = (
     const [dataLayerOpacity, setDataLayerOpacityState] = useState<
         number | undefined
     >(initialConfig?.dataLayerOpacity);
+    const [colorOverrides, setColorOverridesState] = useState<
+        Record<string, string>
+    >(initialConfig?.colorOverrides ?? {});
     const [fieldConfig, setFieldConfigState] = useState<
         Record<string, MapFieldConfig>
     >(initialConfig?.fieldConfig ?? {});
@@ -216,6 +222,7 @@ const useMapChartConfig = (
             backgroundColor,
             noDataColor,
             dataLayerOpacity,
+            colorOverrides,
             fieldConfig,
         };
     }, [
@@ -241,6 +248,7 @@ const useMapChartConfig = (
         backgroundColor,
         noDataColor,
         dataLayerOpacity,
+        colorOverrides,
         fieldConfig,
     ]);
 
@@ -301,6 +309,8 @@ const useMapChartConfig = (
 
     const setValueFieldId = useCallback((fieldId: string | undefined) => {
         setValueFieldIdState(fieldId);
+        // Clear categorical color overrides when the color field changes
+        setColorOverridesState({});
     }, []);
 
     const setColorRange = useCallback((colors: string[]) => {
@@ -403,6 +413,17 @@ const useMapChartConfig = (
         setDataLayerOpacityState(opacity);
     }, []);
 
+    const setColorOverride = useCallback((value: string, color: string) => {
+        setColorOverridesState((prev) => ({ ...prev, [value]: color }));
+    }, []);
+
+    const setColorOverrides = useCallback(
+        (overrides: Record<string, string>) => {
+            setColorOverridesState(overrides);
+        },
+        [],
+    );
+
     const updateFieldConfig = useCallback(
         (fieldId: string, config: Partial<MapFieldConfig>) => {
             setFieldConfigState((prev) => ({
@@ -459,6 +480,8 @@ const useMapChartConfig = (
         setBackgroundColor,
         setNoDataColor,
         setDataLayerOpacity,
+        setColorOverride,
+        setColorOverrides,
         updateFieldConfig,
         isFieldVisible,
         getFieldLabel,

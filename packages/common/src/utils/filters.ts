@@ -6,13 +6,13 @@ import { type AnyType } from '../types/any';
 import { DashboardTileTypes, type DashboardTile } from '../types/dashboard';
 import { type Explore } from '../types/explore';
 import {
-    DimensionType,
-    MetricType,
-    TableCalculationType,
     convertFieldRefToFieldId,
+    DimensionType,
     isCustomSqlDimension,
     isDimension,
     isTableCalculation,
+    MetricType,
+    TableCalculationType,
     type CompiledField,
     type CustomSqlDimension,
     type Dimension,
@@ -27,12 +27,12 @@ import {
 import {
     FilterOperator,
     FilterType,
-    UnitOfTime,
     isAndFilterGroup,
     isFilterGroup,
     isFilterRule,
     isFilterRuleDefinedForFieldId,
     isJoinModelRequiredFilter,
+    UnitOfTime,
     type AndFilterGroup,
     type DashboardFieldTarget,
     type DashboardFilterRule,
@@ -131,6 +131,8 @@ export const getFilterTypeFromItemType = (
         case MetricType.COUNT:
         case MetricType.COUNT_DISTINCT:
         case MetricType.SUM:
+        case MetricType.SUM_DISTINCT:
+        case MetricType.AVERAGE_DISTINCT:
         case MetricType.MIN:
         case MetricType.MAX:
         case MetricType.PERCENT_OF_PREVIOUS:
@@ -641,7 +643,10 @@ export const getFiltersFromGroup = (
                     ...accumulator.dimensions,
                     [getFilterGroupItemsPropertyName(flatFilterGroup)]: [
                         ...getItemsFromFilterGroup(accumulator.dimensions),
-                        filters.dimensions,
+                        // Preserve the original group ID so React can maintain
+                        // stable keys and avoid unmounting/remounting nested
+                        // FilterGroupForm components on every filter edit
+                        { ...filters.dimensions, id: item.id },
                     ],
                 } as FilterGroup;
             }
@@ -652,7 +657,7 @@ export const getFiltersFromGroup = (
                     ...accumulator.metrics,
                     [getFilterGroupItemsPropertyName(flatFilterGroup)]: [
                         ...getItemsFromFilterGroup(accumulator.metrics),
-                        filters.metrics,
+                        { ...filters.metrics, id: item.id },
                     ],
                 } as FilterGroup;
             }
@@ -665,7 +670,7 @@ export const getFiltersFromGroup = (
                         ...getItemsFromFilterGroup(
                             accumulator.tableCalculations,
                         ),
-                        filters.tableCalculations,
+                        { ...filters.tableCalculations, id: item.id },
                     ],
                 } as FilterGroup;
             }

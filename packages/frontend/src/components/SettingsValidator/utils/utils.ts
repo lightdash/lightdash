@@ -1,7 +1,7 @@
 import {
-    type ValidationResponse,
     isChartValidationError,
     isDashboardValidationError,
+    type ValidationResponse,
 } from '@lightdash/common';
 
 export const getLinkToResource = (

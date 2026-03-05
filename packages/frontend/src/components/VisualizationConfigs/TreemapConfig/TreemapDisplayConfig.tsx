@@ -1,4 +1,4 @@
-import { Group, NumberInput, Stack, Tooltip } from '@mantine/core';
+import { Group, NumberInput, Stack, Tooltip } from '@mantine-8/core';
 import { IconHelpCircle } from '@tabler/icons-react';
 import React from 'react';
 import MantineIcon from '../../common/MantineIcon';
@@ -17,8 +17,8 @@ export const Display: React.FC = () => {
     return (
         <Stack>
             <Config>
-                <Stack spacing="xs">
-                    <Group spacing="xs">
+                <Stack gap="xs">
+                    <Group gap="xs">
                         <Config.Heading>Minimum section size</Config.Heading>
                         <Tooltip
                             withinPortal={true}
@@ -36,18 +36,16 @@ export const Display: React.FC = () => {
                         </Tooltip>
                         <NumberInput
                             value={visibleMin}
-                            onChange={setVisibleMin}
+                            onChange={(value) => {
+                                if (typeof value === 'number')
+                                    setVisibleMin(value);
+                            }}
                             min={0}
                             step={500}
-                            formatter={(value) =>
-                                value ? `${value}px\u00B2` : ''
-                            }
-                            parser={(value) =>
-                                value.replace(/px\u00B2\s?$/, '')
-                            }
+                            suffix="px²"
                         />
                     </Group>
-                    <Group spacing="xs">
+                    <Group gap="xs">
                         <Config.Heading>Max leaf depth</Config.Heading>
                         <Tooltip
                             withinPortal={true}
@@ -65,7 +63,10 @@ export const Display: React.FC = () => {
                         </Tooltip>
                         <NumberInput
                             value={leafDepth}
-                            onChange={setLeafDepth}
+                            onChange={(value) => {
+                                if (typeof value === 'number')
+                                    setLeafDepth(value);
+                            }}
                             min={1}
                             placeholder="No limit"
                         />

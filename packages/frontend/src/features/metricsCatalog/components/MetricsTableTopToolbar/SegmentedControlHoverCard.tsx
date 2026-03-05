@@ -5,8 +5,9 @@ import {
     Stack,
     Text,
     type HoverCardProps,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import { useMemo, type FC, type PropsWithChildren } from 'react';
+import styles from './SegmentedControlHoverCard.module.css';
 
 type SegmentedControlHoverCardProps = PropsWithChildren<HoverCardProps> & {
     totalMetricsCount: number;
@@ -24,7 +25,7 @@ const SegmentedControlHoverCard: FC<SegmentedControlHoverCardProps> = ({
     const segmentedControlTooltipLabel = useMemo(() => {
         if (totalMetricsCount === 0 || !hasMetricsSelected) {
             return (
-                <Text size="xs" c="white">
+                <Text fz="xs" c="white">
                     There are no metrics to display in canvas mode.
                 </Text>
             );
@@ -32,7 +33,7 @@ const SegmentedControlHoverCard: FC<SegmentedControlHoverCardProps> = ({
 
         if (!isValidMetricsEdgeCount) {
             return (
-                <Text size="xs" c="white">
+                <Text fz="xs" c="white">
                     There are no connections between the selected metrics.
                 </Text>
             );
@@ -44,16 +45,16 @@ const SegmentedControlHoverCard: FC<SegmentedControlHoverCardProps> = ({
     return (
         <HoverCard
             {...props}
-            styles={{
-                arrow: { border: 'none' },
+            classNames={{
+                arrow: styles.arrow,
             }}
             shadow="heavy"
         >
             <HoverCard.Target>{children}</HoverCard.Target>
             <HoverCard.Dropdown bg="#0A0D12" maw={260}>
-                <Stack spacing="sm" w="100%">
-                    <Group spacing="xs">
-                        <Text fw={600} size={14} c="white">
+                <Stack gap="sm" w="100%">
+                    <Group gap="xs">
+                        <Text fw={600} fz={14} c="white">
                             Canvas mode
                         </Text>
                         <Badge
@@ -68,7 +69,7 @@ const SegmentedControlHoverCard: FC<SegmentedControlHoverCardProps> = ({
                             Alpha
                         </Badge>
                     </Group>
-                    <Text size="xs" c="white">
+                    <Text fz="xs" c="white">
                         Define & view Metric relationships & hierarchies.
                     </Text>
                     {segmentedControlTooltipLabel}

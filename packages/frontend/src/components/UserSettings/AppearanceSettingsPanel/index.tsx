@@ -7,8 +7,7 @@ import {
     Text,
     Title,
     Tooltip,
-    useMantineColorScheme,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import { IconInfoCircle, IconPlus } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
 import {
@@ -28,7 +27,6 @@ const AppearanceColorSettings: FC = () => {
     const { data: palettes = [], isLoading: isPalettesLoading } =
         useColorPalettes();
 
-    const { colorScheme } = useMantineColorScheme();
     const setActivePalette = useSetActiveColorPalette();
 
     const [isCreatePaletteModalOpen, setIsCreatePaletteModalOpen] =
@@ -46,26 +44,26 @@ const AppearanceColorSettings: FC = () => {
         health.appearance.overrideColorPalette.length > 0;
 
     return (
-        <Stack spacing="md">
-            <Group position="apart">
-                <Text size="sm" color="ldGray.6">
+        <Stack gap="md">
+            <Group justify="space-between">
+                <Text size="sm" c="ldGray.6">
                     Customize the color palettes used in your charts and
                     visualizations.
                 </Text>
 
                 <Button
-                    leftIcon={<MantineIcon icon={IconPlus} />}
+                    leftSection={<MantineIcon icon={IconPlus} />}
                     onClick={() => setIsCreatePaletteModalOpen(true)}
                     variant="default"
                     size="xs"
-                    sx={{ alignSelf: 'flex-end' }}
+                    style={{ alignSelf: 'flex-end' }}
                     disabled={hasColorPaletteOverride}
                 >
                     Add new palette
                 </Button>
             </Group>
 
-            <Stack spacing="xs">
+            <Stack gap="xs">
                 {isPalettesLoading || isHealthLoading ? (
                     <>
                         <Skeleton height={30} />
@@ -78,7 +76,6 @@ const AppearanceColorSettings: FC = () => {
                             health?.appearance.overrideColorPalette &&
                             organization?.organizationUuid && (
                                 <PaletteItem
-                                    theme={colorScheme}
                                     palette={{
                                         colorPaletteUuid: 'custom',
                                         createdAt: new Date(),
@@ -99,7 +96,6 @@ const AppearanceColorSettings: FC = () => {
                             )}
                         {palettes.map((palette) => (
                             <PaletteItem
-                                theme={colorScheme}
                                 key={palette.colorPaletteUuid}
                                 palette={palette}
                                 isActive={
@@ -129,8 +125,8 @@ const AppearanceColorSettings: FC = () => {
 
 const AppearanceSettingsPanel: FC = () => {
     return (
-        <Stack spacing="sm">
-            <Group spacing="xxs">
+        <Stack gap="sm">
+            <Group gap="xxs">
                 <Title order={5}>Appearance settings</Title>
                 <Tooltip
                     label="Click here to learn more about customizing the appearance of your project"
@@ -142,6 +138,8 @@ const AppearanceSettingsPanel: FC = () => {
                         target="_blank"
                         rel="noreferrer"
                         size="xs"
+                        color="gray"
+                        variant="subtle"
                     >
                         <MantineIcon icon={IconInfoCircle} />
                     </ActionIcon>

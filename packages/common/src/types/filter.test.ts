@@ -1,13 +1,13 @@
 import cloneDeep from 'lodash/cloneDeep';
 import {
-    type AndFilterGroup,
     compressDashboardFiltersToParam,
     convertDashboardFiltersParamToDashboardFilters,
-    type DashboardTileTarget,
-    type FilterGroup,
     FilterOperator,
     isFilterRuleDefinedForFieldId,
     removeFieldFromFilterGroup,
+    type AndFilterGroup,
+    type DashboardTileTarget,
+    type FilterGroup,
 } from './filter';
 
 describe('compress and uncompress dashboard filters', () => {

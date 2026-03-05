@@ -1,4 +1,4 @@
-import { Group, Text } from '@mantine/core';
+import { Group, Text } from '@mantine-8/core';
 import {
     DateTimePicker,
     type DateTimePickerProps,
@@ -6,16 +6,15 @@ import {
 } from '@mantine/dates';
 import dayjs from 'dayjs';
 import timezone from 'dayjs/plugin/timezone';
-
 import { type FC } from 'react';
+import styles from './FilterDateTimePicker.module.css';
 
 dayjs.extend(timezone);
 
-interface Props
-    extends Omit<
-        DateTimePickerProps,
-        'firstDayOfWeek' | 'getDayProps' | 'value' | 'onChange'
-    > {
+interface Props extends Omit<
+    DateTimePickerProps,
+    'firstDayOfWeek' | 'getDayProps' | 'value' | 'onChange'
+> {
     value: Date | null;
     onChange: (value: Date) => void;
     firstDayOfWeek: DayOfWeek;
@@ -32,7 +31,7 @@ const FilterDateTimePicker: FC<Props> = ({
     const displayFormat = 'YYYY-MM-DD HH:mm:ss';
 
     return (
-        <Group noWrap spacing="xs" align="start" w="100%">
+        <Group wrap="nowrap" gap="xs" align="start" w="100%">
             {/* // FIXME: until mantine 7.4: https://github.com/mantinedev/mantine/issues/5401#issuecomment-1874906064
             // @ts-ignore */}
             <DateTimePicker
@@ -50,18 +49,13 @@ const FilterDateTimePicker: FC<Props> = ({
                 }}
                 inputWrapperOrder={['input', 'description']}
                 description={
-                    <Text ml="two">
+                    <Text ml="two" fz="xs" c="dimmed">
                         UTC time: {value?.toUTCString().replace('GMT', '')}
                     </Text>
                 }
             />
             {showTimezone && (
-                <Text
-                    size="xs"
-                    color="dimmed"
-                    mt={7}
-                    sx={{ whiteSpace: 'nowrap' }}
-                >
+                <Text fz="xs" c="dimmed" mt={7} className={styles.noWrap}>
                     {dayjs.tz.guess()}
                 </Text>
             )}

@@ -33,6 +33,7 @@ import {
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
+import { useSourceCodeEditor } from '../../../features/sourceCodeEditor';
 import {
     DeleteVirtualViewModal,
     EditVirtualViewModal,
@@ -49,7 +50,6 @@ import PageBreadcrumbs from '../../common/PageBreadcrumbs';
 import ExploreTree from '../ExploreTree';
 import LoadingSkeleton from '../ExploreTree/LoadingSkeleton';
 import { ItemDetailProvider } from '../ExploreTree/TableTree/ItemDetailProvider';
-import ExploreYamlModal from '../ExploreYamlModal';
 import WarningsHoverCardContent from '../WarningsHoverCardContent';
 import { useIsGitProject } from '../WriteBackModal/hooks';
 import { VisualizationConfigPortalId } from './constants';
@@ -64,11 +64,11 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
     const [isEditVirtualViewOpen, setIsEditVirtualViewOpen] = useState(false);
     const [isDeleteVirtualViewOpen, setIsDeleteVirtualViewOpen] =
         useState(false);
-    const [isViewSourceOpen, setIsViewSourceOpen] = useState(false);
     const [, startTransition] = useTransition();
 
     const projectUuid = useProjectUuid();
     const isGitProject = useIsGitProject(projectUuid ?? '');
+    const { open: openSourceCodeEditor } = useSourceCodeEditor();
     const { data: editYamlInUiFlag } = useServerFeatureFlag(
         FeatureFlags.EditYamlInUi,
     );
@@ -158,8 +158,9 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
     }, []);
 
     const handleViewSourceCode = useCallback(() => {
-        setIsViewSourceOpen(true);
-    }, []);
+        if (!activeTableName) return;
+        openSourceCodeEditor({ explore: activeTableName });
+    }, [openSourceCodeEditor, activeTableName]);
 
     const breadcrumbs = useMemo(() => {
         if (!explore) return [];
@@ -340,14 +341,6 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                         onClose={() => setIsDeleteVirtualViewOpen(false)}
                         virtualViewName={activeTableName}
                         projectUuid={projectUuid}
-                    />
-                )}
-                {isViewSourceOpen && projectUuid && activeTableName && (
-                    <ExploreYamlModal
-                        opened={isViewSourceOpen}
-                        onClose={() => setIsViewSourceOpen(false)}
-                        projectUuid={projectUuid}
-                        exploreName={activeTableName}
                     />
                 )}
             </Stack>

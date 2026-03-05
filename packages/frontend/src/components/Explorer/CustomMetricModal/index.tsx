@@ -1,8 +1,6 @@
 import {
-    CustomFormatType,
-    MetricType,
-    NumberSeparator,
     canApplyFormattingToCustomMetric,
+    CustomFormatType,
     friendlyName,
     getFilterableDimensionsFromItemsMap,
     getItemId,
@@ -10,6 +8,8 @@ import {
     isAdditionalMetric,
     isCustomDimension,
     isDimension,
+    MetricType,
+    NumberSeparator,
     type AdditionalMetric,
     type CustomFormat,
     type Dimension,

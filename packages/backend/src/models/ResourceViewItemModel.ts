@@ -14,12 +14,8 @@ import {
 } from '../database/entities/pinnedList';
 import { ProjectTableName } from '../database/entities/projects';
 import { SavedChartsTableName } from '../database/entities/savedCharts';
-import {
-    SpaceTableName,
-    SpaceUserAccessTableName,
-} from '../database/entities/spaces';
+import { SpaceTableName } from '../database/entities/spaces';
 import { UserTableName } from '../database/entities/users';
-import { SpaceModel } from './SpaceModel';
 
 type ResourceViewItemModelArguments = {
     database: Knex;
@@ -38,38 +34,44 @@ const getCharts = async (
         .select({
             project_uuid: 'pinned_list.project_uuid',
             pinned_list_uuid: 'pinned_list.pinned_list_uuid',
-            space_uuid: 'spaces.space_uuid',
+            space_uuid: `${SpaceTableName}.space_uuid`,
             saved_chart_uuid: 'pinned_chart.saved_chart_uuid',
             updated_by_user_first_name: 'users.first_name',
             updated_by_user_last_name: 'users.last_name',
-            updated_by_user_uuid:
-                'saved_queries.last_version_updated_by_user_uuid',
+            updated_by_user_uuid: `${SavedChartsTableName}.last_version_updated_by_user_uuid`,
             order: 'pinned_chart.order',
-            chart_kind: `saved_queries.last_version_chart_kind`,
-            name: 'saved_queries.name',
-            description: 'saved_queries.description',
-            updated_at: 'saved_queries.last_version_updated_at',
-            views: 'saved_queries.views_count',
-            first_viewed_at: 'saved_queries.first_viewed_at',
-            slug: 'saved_queries.slug',
+            chart_kind: `${SavedChartsTableName}.last_version_chart_kind`,
+            name: `${SavedChartsTableName}.name`,
+            description: `${SavedChartsTableName}.description`,
+            updated_at: `${SavedChartsTableName}.last_version_updated_at`,
+            views: `${SavedChartsTableName}.views_count`,
+            first_viewed_at: `${SavedChartsTableName}.first_viewed_at`,
+            slug: `${SavedChartsTableName}.slug`,
         })
         .innerJoin(
             'pinned_chart',
             'pinned_list.pinned_list_uuid',
             'pinned_chart.pinned_list_uuid',
         )
+        .innerJoin(SavedChartsTableName, function nonDeletedChartJoin() {
+            this.on(
+                'pinned_chart.saved_chart_uuid',
+                '=',
+                `${SavedChartsTableName}.saved_query_uuid`,
+            ).andOnNull(`${SavedChartsTableName}.deleted_at`);
+        })
         .innerJoin(
-            'saved_queries',
-            'pinned_chart.saved_chart_uuid',
-            'saved_queries.saved_query_uuid',
+            SpaceTableName,
+            `${SavedChartsTableName}.space_id`,
+            `${SpaceTableName}.space_id`,
         )
-        .innerJoin('spaces', 'saved_queries.space_id', 'spaces.space_id')
         .leftJoin(
             'users',
-            'saved_queries.last_version_updated_by_user_uuid',
+            `${SavedChartsTableName}.last_version_updated_by_user_uuid`,
             'users.user_uuid',
         )
-        .whereIn('spaces.space_uuid', allowedSpaceUuids)
+        .whereIn(`${SpaceTableName}.space_uuid`, allowedSpaceUuids)
+        .whereNull(`${SpaceTableName}.deleted_at`)
         .andWhere('pinned_list.pinned_list_uuid', pinnedListUuid)
         .andWhere('pinned_list.project_uuid', projectUuid)
         .orderBy('pinned_chart.order', 'asc')) as Record<string, AnyType>[];
@@ -113,12 +115,18 @@ const getDashboards = async (
             'pinned_list.pinned_list_uuid',
             'pinned_dashboard.pinned_list_uuid',
         )
+        .innerJoin(DashboardsTableName, function nonDeletedDashboardJoin() {
+            this.on(
+                'pinned_dashboard.dashboard_uuid',
+                '=',
+                `${DashboardsTableName}.dashboard_uuid`,
+            ).andOnNull(`${DashboardsTableName}.deleted_at`);
+        })
         .innerJoin(
-            'dashboards',
-            'pinned_dashboard.dashboard_uuid',
-            'dashboards.dashboard_uuid',
+            SpaceTableName,
+            `${DashboardsTableName}.space_id`,
+            `${SpaceTableName}.space_id`,
         )
-        .innerJoin('spaces', 'dashboards.space_id', 'spaces.space_id')
         .innerJoin(
             knex('dashboard_versions')
                 .distinctOn('dashboard_id')
@@ -130,26 +138,27 @@ const getDashboards = async (
                     'updated_by_user_uuid',
                 )
                 .as('dv'),
-            'dashboards.dashboard_id',
+            `${DashboardsTableName}.dashboard_id`,
             'dv.dashboard_id',
         )
         .leftJoin('users', 'dv.updated_by_user_uuid', 'users.user_uuid')
-        .whereIn('spaces.space_uuid', allowedSpaceUuids)
+        .whereIn(`${SpaceTableName}.space_uuid`, allowedSpaceUuids)
+        .whereNull(`${SpaceTableName}.deleted_at`)
         .andWhere('pinned_list.pinned_list_uuid', pinnedListUuid)
         .andWhere('pinned_list.project_uuid', projectUuid)
         .select(
             'pinned_list.project_uuid',
             'pinned_list.pinned_list_uuid',
-            'spaces.space_uuid',
+            `${SpaceTableName}.space_uuid`,
             'pinned_dashboard.dashboard_uuid',
             'users.user_uuid as updated_by_user_uuid',
             'pinned_dashboard.order',
         )
         .max({
-            name: 'dashboards.name',
-            views: 'dashboards.views_count',
-            first_viewed_at: 'dashboards.first_viewed_at',
-            description: 'dashboards.description',
+            name: `${DashboardsTableName}.name`,
+            views: `${DashboardsTableName}.views_count`,
+            first_viewed_at: `${DashboardsTableName}.first_viewed_at`,
+            description: `${DashboardsTableName}.description`,
             updated_at: 'dv.updated_at',
             updated_by_user_first_name: 'users.first_name',
             updated_by_user_last_name: 'users.last_name',
@@ -180,11 +189,17 @@ const getDashboards = async (
     return items;
 };
 
+// Intermediate type returned by the model (without access data).
+// PinningService enriches these with access data from SpacePermissionService.
+export type ResourceViewSpaceItemBase = Omit<ResourceViewSpaceItem, 'data'> & {
+    data: Omit<ResourceViewSpaceItem['data'], 'access' | 'accessListLength'>;
+};
+
 const getAllSpaces = async (
     knex: Knex,
     projectUuid: string,
     pinnedListUuid: string,
-): Promise<ResourceViewSpaceItem[]> => {
+): Promise<ResourceViewSpaceItemBase[]> => {
     const spaces = await knex
         .with('space_counts', (qb) =>
             qb
@@ -196,18 +211,28 @@ const getAllSpaces = async (
                     chart_count: knex.countDistinct(
                         `${SavedChartsTableName}.saved_query_id`,
                     ),
+                    child_space_count: knex.raw(
+                        `(SELECT count(*) FROM ${SpaceTableName} cs WHERE cs.parent_space_uuid = ${SpaceTableName}.space_uuid AND cs.deleted_at IS NULL)`,
+                    ),
                 })
                 .from(SpaceTableName)
                 .leftJoin(
                     DashboardsTableName,
-                    `${DashboardsTableName}.space_id`,
-                    `${SpaceTableName}.space_id`,
+                    function nonDeletedDashboardJoin() {
+                        this.on(
+                            `${DashboardsTableName}.space_id`,
+                            '=',
+                            `${SpaceTableName}.space_id`,
+                        ).andOnNull(`${DashboardsTableName}.deleted_at`);
+                    },
                 )
-                .leftJoin(
-                    SavedChartsTableName,
-                    `${SavedChartsTableName}.space_id`,
-                    `${SpaceTableName}.space_id`,
-                )
+                .leftJoin(SavedChartsTableName, function nonDeletedChartJoin() {
+                    this.on(
+                        `${SavedChartsTableName}.space_id`,
+                        '=',
+                        `${SpaceTableName}.space_id`,
+                    ).andOnNull(`${SavedChartsTableName}.deleted_at`);
+                })
                 .whereIn(
                     `${SpaceTableName}.space_uuid`,
                     function getSpacesByPinnedListUuid() {
@@ -243,16 +268,6 @@ const getAllSpaces = async (
             `${SpaceTableName}.space_uuid`,
         )
         .leftJoin(
-            SpaceUserAccessTableName,
-            `${SpaceTableName}.space_uuid`,
-            `${SpaceUserAccessTableName}.space_uuid`,
-        )
-        .leftJoin(
-            UserTableName,
-            `${SpaceUserAccessTableName}.user_uuid`,
-            `${UserTableName}.user_uuid`,
-        )
-        .leftJoin(
             'space_counts as sc',
             'sc.space_id',
             `${SpaceTableName}.space_id`,
@@ -263,48 +278,22 @@ const getAllSpaces = async (
             pinned_list_uuid: `${PinnedListTableName}.pinned_list_uuid`,
             space_uuid: `${PinnedSpaceTableName}.space_uuid`,
             order: `${PinnedSpaceTableName}.order`,
-            name: knex.raw(`max(${SpaceTableName}.name)`),
-            is_private: knex.raw(SpaceModel.getRootSpaceIsPrivateQuery()),
-            access: knex.raw(SpaceModel.getRootSpaceAccessQuery(UserTableName)),
+            name: `${SpaceTableName}.name`,
+            is_private: `${SpaceTableName}.is_private`,
+            inherit_parent_permissions: `${SpaceTableName}.inherit_parent_permissions`,
             parent_space_uuid: `${SpaceTableName}.parent_space_uuid`,
             path: `${SpaceTableName}.path`,
-            access_list_length: knex.raw(`
-                CASE
-                    WHEN ${SpaceTableName}.parent_space_uuid IS NOT NULL THEN
-                        (SELECT COUNT(DISTINCT sua2.user_uuid)
-                         FROM ${SpaceUserAccessTableName} sua2
-                         JOIN ${SpaceTableName} root_space ON sua2.space_uuid = root_space.space_uuid
-                         WHERE root_space.path @> ${SpaceTableName}.path
-                         AND nlevel(root_space.path) = 1
-                         LIMIT 1)
-                    ELSE
-                        COUNT(DISTINCT ${SpaceUserAccessTableName}.user_uuid)
-                END
-            `),
             dashboard_count: knex.raw('COALESCE(sc.dashboard_count, 0)'),
             chart_count: knex.raw('COALESCE(sc.chart_count, 0)'),
+            child_space_count: knex.raw('COALESCE(sc.child_space_count, 0)'),
         })
-        .groupBy(
-            `${OrganizationTableName}.organization_uuid`,
-            `${PinnedListTableName}.project_uuid`,
-            `${PinnedListTableName}.pinned_list_uuid`,
-            `${PinnedSpaceTableName}.space_uuid`,
-            `${PinnedSpaceTableName}.order`,
-            `${SpaceTableName}.project_id`,
-            `${SpaceTableName}.parent_space_uuid`,
-            `${SpaceTableName}.path`,
-            `${SpaceTableName}.is_private`,
-            `${SpaceTableName}.space_id`,
-            'sc.dashboard_count',
-            'sc.chart_count',
-        )
         .where({
             [`${PinnedListTableName}.project_uuid`]: projectUuid,
             [`${PinnedListTableName}.pinned_list_uuid`]: pinnedListUuid,
         })
         .orderBy(`${PinnedSpaceTableName}.order`, 'asc');
 
-    return spaces.map<ResourceViewSpaceItem>((row) => ({
+    return spaces.map<ResourceViewSpaceItemBase>((row) => ({
         type: ResourceViewItemType.SPACE,
         data: {
             organizationUuid: row.organization_uuid,
@@ -314,10 +303,10 @@ const getAllSpaces = async (
             uuid: row.space_uuid,
             name: row.name,
             isPrivate: row.is_private,
-            accessListLength: Number(row.access_list_length),
+            inheritParentPermissions: row.inherit_parent_permissions,
             dashboardCount: Number(row.dashboard_count),
             chartCount: Number(row.chart_count),
-            access: row.access,
+            childSpaceCount: Number(row.child_space_count),
             parentSpaceUuid: row.parent_space_uuid,
             path: row.path,
         },
@@ -363,7 +352,7 @@ export class ResourceViewItemModel {
     async getAllSpacesByPinnedListUuid(
         projectUuid: string,
         pinnedListUuid: string,
-    ): Promise<ResourceViewSpaceItem[]> {
+    ): Promise<ResourceViewSpaceItemBase[]> {
         return getAllSpaces(this.database, projectUuid, pinnedListUuid);
     }
 }

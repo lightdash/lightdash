@@ -18,7 +18,7 @@ import {
 } from '@mantine-8/core';
 import { Prism } from '@mantine/prism';
 import { IconCode, IconTable } from '@tabler/icons-react';
-import { type FC, type ReactNode, useState } from 'react';
+import { useState, type FC, type ReactNode } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useMetric } from '../hooks/useMetricsCatalog';
 import { useCompileMetricTotalQuery } from '../hooks/useRunMetricExplorerQuery';

@@ -43,7 +43,7 @@ node ./packages/cli/dist/index.js login http://localhost:3000
 Lightdash compile
 
 ```
-node ./packages/cli/dist/index.js compile --project-dir ./examples/full-jaffle-shop-demo/dbt --profiles-dir ./examples/full-jaffle-shop-demo/profiles
+node ./packages/cli/dist/index.js deploy --project-dir ./examples/full-jaffle-shop-demo/dbt --profiles-dir ./examples/full-jaffle-shop-demo/profiles --use-batched-deploy
 ```
 
 Lightdash generate

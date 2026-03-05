@@ -3,7 +3,6 @@ import {
     type GitIntegrationConfiguration,
     type GitRepo,
 } from '@lightdash/common';
-
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';

@@ -1,9 +1,11 @@
 import {
     Account,
+    assertUnreachable,
     ForbiddenError,
     NotFoundError,
     QueryHistory,
     QueryHistoryStatus,
+    sleep,
 } from '@lightdash/common';
 import crypto from 'crypto';
 import { Knex } from 'knex';
@@ -234,6 +236,76 @@ export class QueryHistoryModel {
             columns: result.columns,
             originalColumns: result.original_columns,
         };
+    }
+
+    async getByQueryUuid(queryUuid: string): Promise<QueryHistory | undefined> {
+        const result = await this.database(QueryHistoryTableName)
+            .where('query_uuid', queryUuid)
+            .first<DbQueryHistory>();
+
+        return result ? convertDbQueryHistoryToQueryHistory(result) : undefined;
+    }
+
+    async pollForQueryCompletion({
+        queryUuid,
+        account,
+        projectUuid,
+        initialBackoffMs = 500,
+        maxBackoffMs = 2000,
+        timeoutMs = 5 * 60 * 1000,
+        throwOnCancelled = true,
+        throwOnError = true,
+    }: {
+        queryUuid: string;
+        account: Account;
+        projectUuid: string;
+        initialBackoffMs?: number;
+        maxBackoffMs?: number;
+        timeoutMs?: number;
+        throwOnCancelled?: boolean;
+        throwOnError?: boolean;
+    }): Promise<QueryHistory> {
+        const startTime = Date.now();
+        const getQueryHistory = () => this.get(queryUuid, projectUuid, account);
+
+        const poll = async (backoffMs: number): Promise<QueryHistory> => {
+            if (Date.now() - startTime > timeoutMs) {
+                throw new Error(`Query polling timed out after ${timeoutMs}ms`);
+            }
+
+            const queryHistory = await getQueryHistory();
+            if (!queryHistory) {
+                await sleep(backoffMs);
+                return poll(Math.min(backoffMs * 2, maxBackoffMs));
+            }
+
+            switch (queryHistory.status) {
+                case QueryHistoryStatus.CANCELLED:
+                    if (throwOnCancelled) {
+                        throw new Error('Query was cancelled');
+                    }
+                    return queryHistory;
+                case QueryHistoryStatus.ERROR:
+                    if (throwOnError) {
+                        throw new Error(
+                            queryHistory.error ?? 'Warehouse query failed',
+                        );
+                    }
+                    return queryHistory;
+                case QueryHistoryStatus.PENDING:
+                    await sleep(backoffMs);
+                    return poll(Math.min(backoffMs * 2, maxBackoffMs));
+                case QueryHistoryStatus.READY:
+                    return queryHistory;
+                default:
+                    return assertUnreachable(
+                        queryHistory.status,
+                        'Unknown query status',
+                    );
+            }
+        };
+
+        return poll(initialBackoffMs);
     }
 
     async cleanupBatch(

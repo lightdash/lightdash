@@ -5,7 +5,6 @@ import {
     type UserActivity,
 } from '@lightdash/common';
 import { useMutation, useQuery } from '@tanstack/react-query';
-
 import { lightdashApi } from '../../api';
 import useQueryError from '../useQueryError';
 

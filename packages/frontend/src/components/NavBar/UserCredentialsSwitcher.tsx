@@ -1,10 +1,4 @@
-import {
-    ActionIcon,
-    getDefaultZIndex,
-    MantineProvider,
-    Menu,
-    Text,
-} from '@mantine-8/core';
+import { ActionIcon, getDefaultZIndex, Menu, Text } from '@mantine-8/core';
 import { IconCheck, IconDatabaseCog, IconPlus } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
@@ -15,11 +9,11 @@ import {
     useProjectUserWarehouseCredentialsPreference,
     useProjectUserWarehouseCredentialsPreferenceMutation,
 } from '../../hooks/userWarehouseCredentials/useProjectUserWarehouseCredentialsPreference';
-import { useUserWarehouseCredentials } from '../../hooks/userWarehouseCredentials/useUserWarehouseCredentials';
+import { useProjectUserWarehouseCredentials } from '../../hooks/userWarehouseCredentials/useUserWarehouseCredentials';
 import useApp from '../../providers/App/useApp';
+import MantineIcon from '../common/MantineIcon';
 import { getWarehouseLabel } from '../ProjectConnection/ProjectConnectFlow/utils';
 import { CreateCredentialsModal } from '../UserSettings/MyWarehouseConnectionsPanel/CreateCredentialsModal';
-import MantineIcon from '../common/MantineIcon';
 
 const routesThatNeedWarehouseCredentials = [
     '/projects/:projectUuid/tables/:tableId',
@@ -38,16 +32,16 @@ const UserCredentialsSwitcher = () => {
         location,
     );
     const [isCreatingCredentials, setIsCreatingCredentials] = useState(false);
-    const {
-        isInitialLoading: isLoadingCredentials,
-        data: userWarehouseCredentials,
-    } = useUserWarehouseCredentials();
     const queryClient = useQueryClient();
 
     const { isLoading: isLoadingActiveProjectUuid, activeProjectUuid } =
         useActiveProjectUuid();
     const { data: activeProject, isInitialLoading: isLoadingActiveProject } =
         useProject(activeProjectUuid);
+    const {
+        isInitialLoading: isLoadingCredentials,
+        data: userWarehouseCredentials,
+    } = useProjectUserWarehouseCredentials(activeProjectUuid);
     const { data: preferredCredentials } =
         useProjectUserWarehouseCredentialsPreference(activeProjectUuid);
     const { mutate } = useProjectUserWarehouseCredentialsPreferenceMutation({
@@ -83,7 +77,17 @@ const UserCredentialsSwitcher = () => {
                             ?.requireUserCredentials
                     ) {
                         console.info('Triggering reauth modal for Snowflake');
-                        // Trigger the reauth modal
+                        setShowCreateModalOnPageLoad(true);
+                        setIsCreatingCredentials(true);
+                    }
+                    if (
+                        error?.error?.name === 'DatabricksTokenError' &&
+                        activeProject?.warehouseConnection?.type ===
+                            'databricks' &&
+                        activeProject?.warehouseConnection
+                            ?.requireUserCredentials
+                    ) {
+                        console.info('Triggering reauth modal for Databricks');
                         setShowCreateModalOnPageLoad(true);
                         setIsCreatingCredentials(true);
                     }
@@ -184,42 +188,42 @@ const UserCredentialsSwitcher = () => {
                 </Menu.Dropdown>
             </Menu>
             {isCreatingCredentials && (
-                <MantineProvider forceColorScheme="dark">
-                    <CreateCredentialsModal
-                        opened={isCreatingCredentials}
-                        title={
-                            showCreateModalOnPageLoad
-                                ? `Login to ${getWarehouseLabel(
-                                      activeProject.warehouseConnection?.type,
-                                  )}`
-                                : undefined
-                        }
-                        description={
-                            showCreateModalOnPageLoad ? (
-                                <Text>
-                                    The admin of your organization "
-                                    {user.data?.organizationName}" requires that
-                                    you login to{' '}
-                                    {getWarehouseLabel(
-                                        activeProject.warehouseConnection?.type,
-                                    )}{' '}
-                                    to continue.
-                                </Text>
-                            ) : undefined
-                        }
-                        nameValue={
-                            showCreateModalOnPageLoad ? 'Default' : undefined
-                        }
-                        warehouseType={activeProject.warehouseConnection?.type}
-                        onSuccess={(data) => {
-                            mutate({
-                                projectUuid: activeProjectUuid,
-                                userWarehouseCredentialsUuid: data.uuid,
-                            });
-                        }}
-                        onClose={() => setIsCreatingCredentials(false)}
-                    />
-                </MantineProvider>
+                <CreateCredentialsModal
+                    opened={isCreatingCredentials}
+                    title={
+                        showCreateModalOnPageLoad
+                            ? `Login to ${getWarehouseLabel(
+                                  activeProject.warehouseConnection?.type,
+                              )}`
+                            : undefined
+                    }
+                    description={
+                        showCreateModalOnPageLoad ? (
+                            <Text>
+                                The admin of your organization "
+                                {user.data?.organizationName}" requires that you
+                                login to{' '}
+                                {getWarehouseLabel(
+                                    activeProject.warehouseConnection?.type,
+                                )}{' '}
+                                to continue.
+                            </Text>
+                        ) : undefined
+                    }
+                    nameValue={
+                        showCreateModalOnPageLoad ? 'Default' : undefined
+                    }
+                    warehouseType={activeProject.warehouseConnection?.type}
+                    projectUuid={activeProjectUuid}
+                    projectName={activeProject.name}
+                    onSuccess={(data) => {
+                        mutate({
+                            projectUuid: activeProjectUuid,
+                            userWarehouseCredentialsUuid: data.uuid,
+                        });
+                    }}
+                    onClose={() => setIsCreatingCredentials(false)}
+                />
             )}
         </>
     );

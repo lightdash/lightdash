@@ -90,6 +90,10 @@ export const buildAccount = ({
         isRegisteredUser: () => userType === 'registered',
         isJwtUser: () => accountType === 'jwt',
         isAnonymousUser: () => userType === 'anonymous',
+        isServiceAccount: () => accountType === 'service-account',
+        isPatUser: () => accountType === 'pat',
+        isOauthUser: () => accountType === 'oauth',
+        isAuthenticated: () => true,
     }) as unknown as Account;
 
 export const validExplore: Explore = {
@@ -186,6 +190,18 @@ export const virtualExplore: Explore = {
     name: 'virtual_explore',
     label: 'Virtual Explore',
     type: ExploreType.VIRTUAL,
+    tags: [],
+};
+
+export const preAggregateExplore: Explore = {
+    ...validExplore,
+    name: '__preagg__valid_explore__rollup',
+    label: 'Pre-agg Explore',
+    type: ExploreType.PRE_AGGREGATE,
+    preAggregateSource: {
+        sourceExploreName: 'valid_explore',
+        preAggregateName: 'rollup',
+    },
     tags: [],
 };
 
@@ -320,6 +336,7 @@ export const projectWithSensitiveFields: Project = {
     },
     schedulerTimezone: 'UTC',
     createdByUserUuid: sessionAccount.user.id,
+    hasDefaultUserSpaces: false,
 };
 
 export const projectSummary: ProjectSummary = {
@@ -347,6 +364,7 @@ export const spacesWithSavedCharts: Space[] = [
         path: 'space',
         inheritParentPermissions: true,
         isPrivate: false,
+        inheritsFromOrgOrProject: true,
         uuid: 'uuid',
         pinnedListUuid: null,
         pinnedListOrder: null,
@@ -392,6 +410,7 @@ export const spacesWithNoSavedCharts: Space[] = [
         projectUuid,
         inheritParentPermissions: true,
         isPrivate: false,
+        inheritsFromOrgOrProject: true,
         dashboards: [],
         access: [],
         groupsAccess: [],
@@ -459,6 +478,8 @@ export const lightdashConfigWithNoSMTP: Pick<
         timezone: undefined,
         useSqlPivotResults: false,
         showExecutionTime: false,
+        enableTableColumnCustomization: undefined,
+        retryQueryOnTransientErrors: false,
     },
 };
 
@@ -575,6 +596,7 @@ export const exploreToSummaryWithAttributes = (
         schemaName: baseTable.schema,
         description: baseTable.description,
         type: explore.type,
+        preAggregateSource: explore.preAggregateSource,
         baseTableRequiredAttributes: baseTable.requiredAttributes,
         ...(explore.warnings ? { warnings: explore.warnings } : {}),
     };

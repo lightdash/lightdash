@@ -9,7 +9,7 @@ import * as fs from 'fs';
 import { Knex } from 'knex';
 import { nanoid } from 'nanoid';
 import { PassThrough } from 'stream';
-import { S3Client } from '../clients/Aws/S3Client';
+import { type FileStorageClient } from '../clients/FileStorage/FileStorageClient';
 import { DownloadFileTableName } from '../database/entities/downloadFile';
 import Logger from '../logging/logger';
 
@@ -57,12 +57,15 @@ export class DownloadFileModel {
     async streamResultsToCloudStorage(
         urlPrefix: string,
         callback: (writer: (data: ResultRow) => void) => Promise<void>,
-        s3Client?: S3Client,
+        fileStorageClient?: FileStorageClient,
     ): Promise<string> {
         const downloadFileId = nanoid();
         const passThrough = new PassThrough();
         const s3FileId = `${downloadFileId}.jsonl`;
-        const endUpload = await s3Client!.streamResults(passThrough, s3FileId);
+        const endUpload = await fileStorageClient!.streamResults(
+            passThrough,
+            s3FileId,
+        );
         try {
             const writer = (data: ResultRow) => {
                 passThrough.write(`${JSON.stringify(data)}\n`);
@@ -92,8 +95,8 @@ export class DownloadFileModel {
     }
 
     // TODO: consider removing in milestone #212
-    streamFunction(s3Client: S3Client) {
-        return s3Client.isEnabled()
+    streamFunction(fileStorageClient: FileStorageClient) {
+        return fileStorageClient.isEnabled()
             ? this.streamResultsToCloudStorage.bind(this)
             : this.streamResultsToLocalFile.bind(this);
     }

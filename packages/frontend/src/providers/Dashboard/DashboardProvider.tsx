@@ -58,7 +58,10 @@ import {
     useSavedDashboardFiltersOverrides,
 } from '../../hooks/useSavedDashboardFiltersOverrides';
 import DashboardContext from './context';
-import { type SqlChartTileMetadata } from './types';
+import {
+    type SqlChartTileMetadata,
+    type TilePreAggregateStatus,
+} from './types';
 
 const emptyFilters: DashboardFilters = {
     dimensions: [],
@@ -93,13 +96,16 @@ const DashboardProvider: React.FC<
     const navigate = useNavigate();
     const { showToastWarning } = useToaster();
 
-    const { dashboardUuid, tabUuid } = useParams<{
+    const { dashboardUuid, tabUuid, mode } = useParams<{
         dashboardUuid: string;
         tabUuid?: string;
+        mode?: string;
     }>() as {
         dashboardUuid: string;
         tabUuid?: string;
+        mode?: string;
     };
+    const isEditMode = mode === 'edit';
 
     const {
         mutateAsync: versionRefresh,
@@ -178,6 +184,9 @@ const DashboardProvider: React.FC<
     const [haveFiltersChanged, setHaveFiltersChanged] =
         useState<boolean>(false);
     const [resultsCacheTimes, setResultsCacheTimes] = useState<Date[]>([]);
+    const [preAggregateStatuses, setPreAggregateStatuses] = useState<
+        Record<string, TilePreAggregateStatus>
+    >({});
     const [invalidateCache, setInvalidateCache] = useState<boolean>(
         defaultInvalidateCache === true,
     );
@@ -234,6 +243,23 @@ const DashboardProvider: React.FC<
     const [havePinnedParametersChanged, setHavePinnedParametersChanged] =
         useState<boolean>(false);
 
+    // Date zoom granularities state
+    const allGranularities = useMemo(() => Object.values(DateGranularity), []);
+
+    const [dateZoomGranularities, setDateZoomGranularitiesState] =
+        useState<DateGranularity[]>(allGranularities);
+    const [
+        haveDateZoomGranularitiesChanged,
+        setHaveDateZoomGranularitiesChanged,
+    ] = useState<boolean>(false);
+
+    const [defaultDateZoomGranularity, setDefaultDateZoomGranularityState] =
+        useState<DateGranularity | undefined>(undefined);
+    const [
+        hasDefaultDateZoomGranularityChanged,
+        setHasDefaultDateZoomGranularityChanged,
+    ] = useState<boolean>(false);
+
     // Set parameters to saved parameters when they are loaded
     useEffect(() => {
         if (savedParameters) {
@@ -250,6 +276,28 @@ const DashboardProvider: React.FC<
             setPinnedParametersState([]);
         }
     }, [dashboard?.config?.pinnedParameters, dashboard?.config]);
+
+    // Sync date zoom granularities from dashboard config
+    useEffect(() => {
+        if (dashboard?.config?.dateZoomGranularities !== undefined) {
+            setDateZoomGranularitiesState(
+                dashboard.config.dateZoomGranularities,
+            );
+        } else {
+            setDateZoomGranularitiesState(allGranularities);
+        }
+    }, [dashboard?.config?.dateZoomGranularities, allGranularities]);
+
+    // Sync default date zoom granularity from dashboard config
+    useEffect(() => {
+        if (dashboard?.config?.defaultDateZoomGranularity !== undefined) {
+            setDefaultDateZoomGranularityState(
+                dashboard.config.defaultDateZoomGranularity,
+            );
+        } else {
+            setDefaultDateZoomGranularityState(undefined);
+        }
+    }, [dashboard?.config?.defaultDateZoomGranularity]);
 
     // Set active tab when dashboard and tabs are loaded
     useEffect(() => {
@@ -331,6 +379,22 @@ const DashboardProvider: React.FC<
         });
         setHavePinnedParametersChanged(true);
     }, []);
+
+    const setDateZoomGranularities = useCallback(
+        (granularities: DateGranularity[]) => {
+            setDateZoomGranularitiesState(granularities);
+            setHaveDateZoomGranularitiesChanged(true);
+        },
+        [],
+    );
+
+    const setDefaultDateZoomGranularity = useCallback(
+        (granularity: DateGranularity | undefined) => {
+            setDefaultDateZoomGranularityState(granularity);
+            setHasDefaultDateZoomGranularityChanged(true);
+        },
+        [],
+    );
 
     const parameterValues = useMemo(() => {
         return Object.entries(parameters).reduce((acc, [key, parameter]) => {
@@ -810,6 +874,51 @@ const DashboardProvider: React.FC<
         }
     });
 
+    // Apply default date zoom granularity when dashboard loads (if no URL override).
+    // Uses a ref for `search` so URL changes don't re-trigger this effect —
+    // it should only fire when the configured default changes (initial load + after saves).
+    const searchRef = useRef(search);
+    searchRef.current = search;
+    useEffect(() => {
+        if (isEditMode) return;
+        if (
+            dashboard?.config?.defaultDateZoomGranularity &&
+            !dashboard?.config?.isDateZoomDisabled
+        ) {
+            const searchParams = new URLSearchParams(searchRef.current);
+            const dateZoomParam = searchParams.get('dateZoom');
+            // Only apply default if no URL override is present
+            if (!dateZoomParam) {
+                setDateZoomGranularity(
+                    dashboard.config.defaultDateZoomGranularity,
+                );
+            }
+        }
+    }, [
+        dashboard?.config?.defaultDateZoomGranularity,
+        dashboard?.config?.isDateZoomDisabled,
+        isEditMode,
+        setDateZoomGranularity,
+    ]);
+
+    // Reset dateZoomGranularity if it's not in the allowed list
+    useEffect(() => {
+        if (
+            dateZoomGranularity &&
+            dateZoomGranularities.length > 0 &&
+            !dateZoomGranularities.includes(dateZoomGranularity)
+        ) {
+            setDateZoomGranularity(
+                dashboard?.config?.defaultDateZoomGranularity ?? undefined,
+            );
+        }
+    }, [
+        dateZoomGranularities,
+        dateZoomGranularity,
+        dashboard?.config?.defaultDateZoomGranularity,
+        setDateZoomGranularity,
+    ]);
+
     const {
         isInitialLoading: isLoadingDashboardFilters,
         isFetching: isFetchingDashboardFilters,
@@ -970,7 +1079,7 @@ const DashboardProvider: React.FC<
             item: DashboardFilterRule,
             index: number,
             isTemporary: boolean,
-            isEditMode: boolean,
+            isInEditMode: boolean,
         ) => {
             const setFunction = isTemporary
                 ? setDashboardTemporaryFilters
@@ -984,7 +1093,7 @@ const DashboardProvider: React.FC<
 
             setFunction((previousFilters) => {
                 if (!isTemporary) {
-                    if (isEditMode) {
+                    if (isInEditMode) {
                         removeSavedFilterOverride(item);
                     } else {
                         const isReverted =
@@ -1085,6 +1194,8 @@ const DashboardProvider: React.FC<
 
     const clearCacheAndFetch = useCallback(() => {
         setResultsCacheTimes([]);
+        setPreAggregateStatuses({});
+        setLoadedTiles(new Set());
 
         // Causes results refetch
         setInvalidateCache(true);
@@ -1183,6 +1294,36 @@ const DashboardProvider: React.FC<
         }, {});
     }, [dashboardTiles]);
 
+    const tileTabsById = useMemo(() => {
+        if (!dashboardTiles) return {};
+        return dashboardTiles.reduce<Record<string, string | undefined>>(
+            (acc, tile) => {
+                acc[tile.uuid] = tile.tabUuid;
+                return acc;
+            },
+            {},
+        );
+    }, [dashboardTiles]);
+
+    const addPreAggregateStatus = useCallback(
+        (tileUuid: string, cacheMetadata?: CacheMetadata) => {
+            const preAggregate = cacheMetadata?.preAggregate ?? null;
+            setPreAggregateStatuses((prev) => ({
+                ...prev,
+                [tileUuid]: {
+                    tileUuid,
+                    tileName: tileNamesById[tileUuid] ?? tileUuid,
+                    hit: preAggregate?.hit ?? false,
+                    preAggregateName: preAggregate?.name ?? null,
+                    reason: preAggregate?.reason ?? null,
+                    hasPreAggregateMetadata: preAggregate !== null,
+                    tabUuid: tileTabsById[tileUuid],
+                },
+            }));
+        },
+        [tileNamesById, tileTabsById],
+    );
+
     const value = {
         projectUuid,
         isDashboardLoading,
@@ -1255,8 +1396,18 @@ const DashboardProvider: React.FC<
         toggleParameterPin,
         havePinnedParametersChanged,
         setHavePinnedParametersChanged,
+        dateZoomGranularities,
+        setDateZoomGranularities,
+        haveDateZoomGranularitiesChanged,
+        setHaveDateZoomGranularitiesChanged,
+        defaultDateZoomGranularity,
+        setDefaultDateZoomGranularity,
+        hasDefaultDateZoomGranularityChanged,
+        setHasDefaultDateZoomGranularityChanged,
         addParameterDefinitions,
         tileNamesById,
+        preAggregateStatuses,
+        addPreAggregateStatus,
         refreshDashboardVersion,
         isRefreshingDashboardVersion,
         markTileScreenshotReady,

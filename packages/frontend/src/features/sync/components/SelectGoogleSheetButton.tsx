@@ -16,6 +16,7 @@ import useDrivePicker from 'react-google-drive-picker';
 import { GSheetsIcon } from '../../../components/common/GSheetsIcon';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { PolymorphicGroupButton } from '../../../components/common/PolymorphicGroupButton';
+import TruncatedText from '../../../components/common/TruncatedText';
 import { useGdriveAccessToken } from '../../../hooks/gdrive/useGdrive';
 import useHealth from '../../../hooks/health/useHealth';
 import classes from './SelectGoogleSheetButton.module.css';
@@ -84,11 +85,11 @@ export const SelectGoogleSheetButton: FC = () => {
                 className={`${classes.sheetSelector} ${classes.sheetSelectorFilled}`}
             >
                 <Group gap="sm" wrap="nowrap" justify="space-between" w="100%">
-                    <Group gap="xs" wrap="nowrap">
+                    <Group gap="xs" wrap="nowrap" miw={0}>
                         <MantineIcon icon={GSheetsIcon} size={16} />
-                        <Text size="sm" fw={500}>
+                        <TruncatedText maxWidth="auto">
                             {googleDriveName}
-                        </Text>
+                        </TruncatedText>
                         <Tooltip
                             withinPortal
                             label={googleDriveId}

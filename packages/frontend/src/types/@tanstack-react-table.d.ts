@@ -4,8 +4,8 @@ import {
     type VizColumnsConfig,
 } from '@lightdash/common';
 import { type MouseEventHandler } from 'react';
-import { type ColumnStatsMap } from '../components/DataViz/utils/columnStats';
 import { type Sort } from '../components/common/Table/types';
+import { type ColumnStatsMap } from '../components/DataViz/utils/columnStats';
 
 declare module '@tanstack/react-table' {
     interface ColumnMeta {
@@ -13,6 +13,7 @@ declare module '@tanstack/react-table' {
         width?: number;
         draggable?: boolean;
         item?: ItemsMap[string];
+        labelOverride?: string;
         pivotReference?: PivotReference;
         bgColor?: string;
         sort?: Sort;

@@ -16,7 +16,7 @@ export type RedshiftTarget = {
     dbname?: string;
     database?: string;
     schema: string;
-    threads: number;
+    threads?: number;
     pass?: string;
     password?: string;
     keepalives_idle?: number;

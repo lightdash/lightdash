@@ -2,9 +2,9 @@ import {
     Button,
     Group,
     Kbd,
+    rgba,
     Text,
     Tooltip,
-    rgba,
     type MantineSize,
 } from '@mantine-8/core';
 import { useHotkeys, useOs } from '@mantine-8/hooks';
@@ -21,8 +21,8 @@ import useHealth from '../hooks/health/useHealth';
 import { useExplorerQuery } from '../hooks/useExplorerQuery';
 import useTracking from '../providers/Tracking/useTracking';
 import { EventName } from '../types/Events';
-import RunQuerySettings from './RunQuerySettings';
 import MantineIcon from './common/MantineIcon';
+import RunQuerySettings from './RunQuerySettings';
 
 export const RefreshButton: FC<{ size?: MantineSize }> = memo(({ size }) => {
     const [, startTransition] = useTransition();

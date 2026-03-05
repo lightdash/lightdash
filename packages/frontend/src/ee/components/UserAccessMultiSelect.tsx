@@ -1,8 +1,8 @@
 import {
+    getHighestProjectRole,
     ProjectMemberRole,
     ProjectMemberRoleLabels,
     ProjectRoleOrder,
-    getHighestProjectRole,
 } from '@lightdash/common';
 import {
     Badge,

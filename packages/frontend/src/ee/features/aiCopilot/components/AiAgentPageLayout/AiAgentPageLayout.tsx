@@ -27,8 +27,8 @@ import {
     useAiAgentStoreSelector,
 } from '../../store/hooks';
 import { AiArtifactPanel } from '../ChatElements/AiArtifactPanel';
-import { SidebarButton } from './SidebarButton';
 import styles from './aiAgentPageLayout.module.css';
+import { SidebarButton } from './SidebarButton';
 
 interface Props extends PropsWithChildren {
     Sidebar?: React.ReactNode;

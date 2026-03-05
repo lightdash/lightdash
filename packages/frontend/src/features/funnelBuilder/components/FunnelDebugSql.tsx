@@ -1,6 +1,6 @@
 import { Code, Collapse, Group, Text, UnstyledButton } from '@mantine-8/core';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
-import { type FC, useState } from 'react';
+import { useState, type FC } from 'react';
 import { useAppSelector } from '../store';
 import { selectResults } from '../store/funnelBuilderSlice';
 

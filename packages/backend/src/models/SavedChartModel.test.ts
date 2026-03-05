@@ -1,3 +1,4 @@
+import { AnyType, deepEqual } from '@lightdash/common';
 import knex from 'knex';
 import {
     FunctionQueryMatcher,
@@ -6,8 +7,6 @@ import {
     RawQuery,
     Tracker,
 } from 'knex-mock-client';
-
-import { AnyType, deepEqual } from '@lightdash/common';
 import { lightdashConfigMock } from '../config/lightdashConfig.mock';
 import { SavedChartsTableName } from '../database/entities/savedCharts';
 import { SavedChartModel } from './SavedChartModel';

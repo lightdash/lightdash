@@ -53,6 +53,7 @@ type VisualizationContext = {
     containerWidth?: number;
     containerHeight?: number;
     isDashboard?: boolean;
+    isEditMode?: boolean;
     // Touch device detection for tooltip positioning
     isTouchDevice: boolean;
 };

@@ -15,6 +15,7 @@ import {
 import { DashboardsTableName } from '../database/entities/dashboards';
 import { ProjectTableName } from '../database/entities/projects';
 import { SavedChartsTableName } from '../database/entities/savedCharts';
+import { SavedSqlTableName } from '../database/entities/savedSql';
 import { SpaceTableName } from '../database/entities/spaces';
 import { UserTableName } from '../database/entities/users';
 import {
@@ -108,7 +109,7 @@ export class AnalyticsModel {
                 chart_uuid: chartUuid,
                 user_uuid: userUuid,
             }); */
-            await trx(`saved_sql`)
+            await trx(SavedSqlTableName)
                 .update({
                     views_count: trx.raw(
                         'views_count + 1',
@@ -289,11 +290,13 @@ export class AnalyticsModel {
                     `${SpaceTableName}.name as space_name`,
                 )
                 .from(AnalyticsChartViewsTableName)
-                .leftJoin(
-                    SavedChartsTableName,
-                    `${SavedChartsTableName}.saved_query_uuid`,
-                    `${AnalyticsChartViewsTableName}.chart_uuid`,
-                )
+                .leftJoin(SavedChartsTableName, function nonDeletedChartJoin() {
+                    this.on(
+                        `${SavedChartsTableName}.saved_query_uuid`,
+                        '=',
+                        `${AnalyticsChartViewsTableName}.chart_uuid`,
+                    ).andOnNull(`${SavedChartsTableName}.deleted_at`);
+                })
                 .leftJoin(
                     UserTableName,
                     `${UserTableName}.user_uuid`,
@@ -309,7 +312,8 @@ export class AnalyticsModel {
                     `${ProjectTableName}.project_id`,
                     `${SpaceTableName}.project_id`,
                 )
-                .where(`${ProjectTableName}.project_uuid`, projectUuid);
+                .where(`${ProjectTableName}.project_uuid`, projectUuid)
+                .whereNull(`${SpaceTableName}.deleted_at`);
 
             const dashboardViews = trx
                 .select<RawViewType[]>(
@@ -345,7 +349,8 @@ export class AnalyticsModel {
                     `${ProjectTableName}.project_id`,
                     `${SpaceTableName}.project_id`,
                 )
-                .where(`${ProjectTableName}.project_uuid`, projectUuid);
+                .where(`${ProjectTableName}.project_uuid`, projectUuid)
+                .whereNull(`${SpaceTableName}.deleted_at`);
 
             return chartViews
                 .union(dashboardViews)

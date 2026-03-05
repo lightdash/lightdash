@@ -1,8 +1,8 @@
 import { DownloadFileType, getErrorMessage } from '@lightdash/common';
 import { Readable, Writable } from 'stream';
 import Logger from '../../logging/logger';
+import { type FileStorageClient } from '../FileStorage/FileStorageClient';
 import { S3ResultsFileStorageClient } from '../ResultsFileStorageClients/S3ResultsFileStorageClient';
-import { S3Client } from './S3Client';
 import getContentTypeFromFileType from './getContentTypeFromFileType';
 
 /**
@@ -33,13 +33,13 @@ export async function transformAndExportResults(
     ) => Promise<{ truncated: boolean }>,
     clients: {
         resultsStorageClient: S3ResultsFileStorageClient;
-        exportsStorageClient: S3Client;
+        exportsStorageClient: FileStorageClient;
     },
     options?: {
         fileType: DownloadFileType;
         attachmentDownloadName?: string;
     },
-): Promise<{ fileUrl: string; truncated: boolean }> {
+): Promise<{ fileUrl: string; truncated: boolean; s3Key: string }> {
     const { resultsStorageClient, exportsStorageClient } = clients;
 
     // Infer content type from file type
@@ -57,14 +57,13 @@ export async function transformAndExportResults(
             await resultsStorageClient.getDownloadStream(sourceFileName);
 
         // Create upload stream to exports bucket
-        const { writeStream, close } =
-            exportsStorageClient.createResultsExportUploadStream(
-                destFileName,
-                {
-                    contentType,
-                },
-                options?.attachmentDownloadName,
-            );
+        const { writeStream, close } = exportsStorageClient.createUploadStream(
+            destFileName,
+            {
+                contentType,
+            },
+            options?.attachmentDownloadName,
+        );
 
         // Process the stream transformation
         const { truncated } = await streamProcessor(resultsStream, writeStream);
@@ -72,7 +71,6 @@ export async function transformAndExportResults(
         // Close the upload stream and wait for completion
         await close();
 
-        // Get the signed URL for the exported file
         const fileUrl = await exportsStorageClient.getFileUrl(destFileName);
 
         Logger.debug(
@@ -82,6 +80,7 @@ export async function transformAndExportResults(
         return {
             fileUrl,
             truncated,
+            s3Key: destFileName,
         };
     } catch (error) {
         Logger.error(

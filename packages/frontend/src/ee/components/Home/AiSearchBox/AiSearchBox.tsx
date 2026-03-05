@@ -45,10 +45,10 @@ const AiSearchBoxInner: FC<Props> = ({ projectUuid }) => {
         projectUuid,
         redirectOnUnauthorized: false,
     });
-    const organizationSettingsQuery = useAiOrganizationSettings();
+    const aiOrganizationSettingsQuery = useAiOrganizationSettings();
     const isTrial =
-        organizationSettingsQuery.isSuccess &&
-        organizationSettingsQuery.data?.isTrial;
+        aiOrganizationSettingsQuery.isSuccess &&
+        aiOrganizationSettingsQuery.data.isTrial;
     const {
         data: userAgentPreferences,
         isLoading: isLoadingUserAgentPreferences,

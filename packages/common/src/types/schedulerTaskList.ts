@@ -15,7 +15,10 @@ import {
     type EmailBatchNotificationPayload,
     type EmailNotificationPayload,
     type ExportCsvDashboardPayload,
+    type GoogleChatBatchNotificationPayload,
+    type GoogleChatNotificationPayload,
     type GsheetsNotificationPayload,
+    type MaterializePreAggregatePayload,
     type MsTeamsBatchNotificationPayload,
     type MsTeamsNotificationPayload,
     type ReplaceCustomFieldsPayload,
@@ -45,10 +48,12 @@ export const SCHEDULER_TASKS = {
     SEND_SLACK_NOTIFICATION: 'sendSlackNotification',
     SEND_EMAIL_NOTIFICATION: 'sendEmailNotification',
     SEND_MSTEAMS_NOTIFICATION: 'sendMsTeamsNotification',
+    SEND_GOOGLE_CHAT_NOTIFICATION: 'sendGoogleChatNotification',
     // Batch notification tasks - one job per delivery type
     SEND_SLACK_BATCH_NOTIFICATION: 'sendSlackBatchNotification',
     SEND_EMAIL_BATCH_NOTIFICATION: 'sendEmailBatchNotification',
     SEND_MSTEAMS_BATCH_NOTIFICATION: 'sendMsTeamsBatchNotification',
+    SEND_GOOGLE_CHAT_BATCH_NOTIFICATION: 'sendGoogleChatBatchNotification',
     UPLOAD_GSHEETS: 'uploadGsheets',
     DOWNLOAD_CSV: 'downloadCsv',
     UPLOAD_GSHEET_FROM_QUERY: 'uploadGsheetFromQuery',
@@ -63,11 +68,13 @@ export const SCHEDULER_TASKS = {
     GENERATE_DAILY_JOBS: 'generateDailyJobs',
     EXPORT_CSV_DASHBOARD: 'exportCsvDashboard',
     RENAME_RESOURCES: 'renameResources',
+    MATERIALIZE_PRE_AGGREGATE: 'materializePreAggregate',
     CLEAN_QUERY_HISTORY: 'cleanQueryHistory',
     DOWNLOAD_ASYNC_QUERY_RESULTS: 'downloadAsyncQueryResults',
     SYNC_SLACK_CHANNELS: 'syncSlackChannels',
     GENERATE_SLACK_CHANNEL_SYNC_JOBS: 'generateSlackChannelSyncJobs',
     CHECK_FOR_STUCK_JOBS: 'checkForStuckJobs',
+    CLEAN_DEPLOY_SESSIONS: 'cleanDeploySessions',
     ...EE_SCHEDULER_TASKS,
 } as const;
 
@@ -81,10 +88,12 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.SEND_SLACK_NOTIFICATION]: SlackNotificationPayload;
     [SCHEDULER_TASKS.SEND_EMAIL_NOTIFICATION]: EmailNotificationPayload;
     [SCHEDULER_TASKS.SEND_MSTEAMS_NOTIFICATION]: MsTeamsNotificationPayload;
+    [SCHEDULER_TASKS.SEND_GOOGLE_CHAT_NOTIFICATION]: GoogleChatNotificationPayload;
     // Batch notification tasks
     [SCHEDULER_TASKS.SEND_SLACK_BATCH_NOTIFICATION]: SlackBatchNotificationPayload;
     [SCHEDULER_TASKS.SEND_EMAIL_BATCH_NOTIFICATION]: EmailBatchNotificationPayload;
     [SCHEDULER_TASKS.SEND_MSTEAMS_BATCH_NOTIFICATION]: MsTeamsBatchNotificationPayload;
+    [SCHEDULER_TASKS.SEND_GOOGLE_CHAT_BATCH_NOTIFICATION]: GoogleChatBatchNotificationPayload;
     [SCHEDULER_TASKS.UPLOAD_GSHEETS]: GsheetsNotificationPayload;
     [SCHEDULER_TASKS.DOWNLOAD_CSV]: DownloadCsvPayload;
     [SCHEDULER_TASKS.UPLOAD_GSHEET_FROM_QUERY]: UploadMetricGsheetPayload;
@@ -100,11 +109,13 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.EXPORT_CSV_DASHBOARD]: ExportCsvDashboardPayload;
     [SCHEDULER_TASKS.SLACK_AI_PROMPT]: SlackPromptJobPayload;
     [SCHEDULER_TASKS.RENAME_RESOURCES]: RenameResourcesPayload;
+    [SCHEDULER_TASKS.MATERIALIZE_PRE_AGGREGATE]: MaterializePreAggregatePayload;
     [SCHEDULER_TASKS.CLEAN_QUERY_HISTORY]: TraceTaskBase;
     [SCHEDULER_TASKS.DOWNLOAD_ASYNC_QUERY_RESULTS]: DownloadAsyncQueryResultsPayload;
     [SCHEDULER_TASKS.SYNC_SLACK_CHANNELS]: SyncSlackChannelsPayload;
     [SCHEDULER_TASKS.GENERATE_SLACK_CHANNEL_SYNC_JOBS]: TraceTaskBase;
     [SCHEDULER_TASKS.CHECK_FOR_STUCK_JOBS]: TraceTaskBase;
+    [SCHEDULER_TASKS.CLEAN_DEPLOY_SESSIONS]: TraceTaskBase;
     [SCHEDULER_TASKS.AI_AGENT_EVAL_RESULT]: AiAgentEvalRunJobPayload;
     [SCHEDULER_TASKS.EMBED_ARTIFACT_VERSION]: EmbedArtifactVersionJobPayload;
     [SCHEDULER_TASKS.GENERATE_ARTIFACT_QUESTION]: GenerateArtifactQuestionJobPayload;

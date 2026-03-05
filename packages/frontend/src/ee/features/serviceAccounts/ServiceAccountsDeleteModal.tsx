@@ -1,6 +1,5 @@
-import { type FC } from 'react';
-
 import { type ServiceAccount } from '@lightdash/common';
+import { type FC } from 'react';
 import MantineModal from '../../../components/common/MantineModal';
 
 type Props = {

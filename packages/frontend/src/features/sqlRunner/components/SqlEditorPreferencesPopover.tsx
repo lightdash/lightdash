@@ -8,11 +8,11 @@ import {
     Text,
 } from '@mantine/core';
 import { IconCodeCircle } from '@tabler/icons-react';
-import { type FC, useState } from 'react';
+import { useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import {
-    type SqlEditorPreferences,
     useSqlEditorPreferences,
+    type SqlEditorPreferences,
 } from '../hooks/useSqlEditorPreferences';
 import { useAppSelector } from '../store/hooks';
 

@@ -9,12 +9,12 @@ import {
 } from '@lightdash/common';
 import { Badge, Group, Tabs, Text } from '@mantine-8/core';
 import { type FC } from 'react';
+import { useSchedulerFormContext } from './schedulerFormContext';
 import { SchedulerFormCustomizationTab } from './SchedulerFormCustomizationTab';
 import { SchedulerFormFiltersTab } from './SchedulerFormFiltersTab';
 import { SchedulerFormParametersTab } from './SchedulerFormParametersTab';
 import { SchedulerFormPreviewTab } from './SchedulerFormPreviewTab';
 import { SchedulerFormSetupTab } from './SchedulerFormSetupTab';
-import { useSchedulerFormContext } from './schedulerFormContext';
 
 type Props = {
     savedSchedulerData?: SchedulerAndTargets;

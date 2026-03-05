@@ -23,7 +23,7 @@ export interface AccessWarningParams {
     userGroupAccesses?: UserGroupAccess[] | null;
 }
 
-/* 
+/*
   The accessWarning shows alerts when role conflicts or inheritance may cause permission issues:
 
   1. No Warning: If user has no organization role OR no project role → return
@@ -72,13 +72,13 @@ export const getAccessWarning = ({
                         systemRolesOrder.indexOf(typedProjectRole)
                 ) {
                     return (
-                        <Text fw={300}>
+                        <Text fw={300} fz="sm">
                             User inherits role{' '}
-                            <Text fw={600} span>
+                            <Text fw={600} span fz="sm">
                                 {bestGroup.roleName}
                             </Text>{' '}
                             from group{' '}
-                            <Text fw={600} span>
+                            <Text fw={600} span fz="sm">
                                 {bestGroup.group.name}
                             </Text>
                             .
@@ -93,9 +93,9 @@ export const getAccessWarning = ({
                 systemRolesOrder.indexOf(typedProjectRole)
             ) {
                 return (
-                    <Text fw={300}>
+                    <Text fw={300} fz="sm">
                         User inherits higher role{' '}
-                        <Text fw={600} span>
+                        <Text fw={600} span fz="sm">
                             {organizationRole}
                         </Text>{' '}
                         from organization.

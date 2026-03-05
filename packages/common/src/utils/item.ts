@@ -2,8 +2,6 @@ import { ParameterError } from '../types/errors';
 import { type Explore } from '../types/explore';
 import {
     DimensionType,
-    MetricType,
-    TableCalculationType,
     isCustomBinDimension,
     isCustomDimension,
     isCustomSqlDimension,
@@ -11,6 +9,8 @@ import {
     isField,
     isMetric,
     isTableCalculation,
+    MetricType,
+    TableCalculationType,
     type CompiledDimension,
     type CustomDimension,
     type CustomSqlDimension,
@@ -38,6 +38,8 @@ export const isNumericType = (
         MetricType.COUNT,
         MetricType.COUNT_DISTINCT,
         MetricType.SUM,
+        MetricType.SUM_DISTINCT,
+        MetricType.AVERAGE_DISTINCT,
         MetricType.MIN,
         MetricType.MAX,
         MetricType.PERCENT_OF_PREVIOUS,

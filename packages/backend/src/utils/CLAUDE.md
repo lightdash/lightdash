@@ -17,7 +17,11 @@ const encrypted = encryption.encrypt('sensitive data');
 const decrypted = encryption.decrypt(encrypted);
 
 // Generate unique slugs
-const slug = await generateUniqueSlug(trx, 'saved_queries', 'My Chart Name');
+const slug = await generateUniqueSlug(
+    trx,
+    SavedChartsTableName,
+    'My Chart Name',
+);
 
 // Adjust cron expressions for timezone
 const adjustedCron = getAdjustedCronByOffset('0 9 * * *', 120); // +2 hours
@@ -37,7 +41,7 @@ await database('organizations').update({ jwt_secret: encryptedSecret });
 const chartSlug = await generateUniqueSlugScopedToProject(
     trx,
     projectUuid,
-    'saved_queries',
+    SavedChartsTableName,
     'Weekly Sales Report',
 );
 

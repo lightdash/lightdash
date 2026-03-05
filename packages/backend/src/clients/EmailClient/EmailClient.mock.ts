@@ -23,6 +23,8 @@ export const lightdashConfigWithNoSMTP: Pick<
         timezone: undefined,
         useSqlPivotResults: false,
         showExecutionTime: false,
+        enableTableColumnCustomization: undefined,
+        retryQueryOnTransientErrors: false,
     },
 };
 
@@ -59,6 +61,8 @@ export const lightdashConfigWithBasicSMTP: Pick<
         timezone: undefined,
         useSqlPivotResults: false,
         showExecutionTime: false,
+        enableTableColumnCustomization: undefined,
+        retryQueryOnTransientErrors: false,
     },
 };
 
@@ -83,6 +87,8 @@ export const lightdashConfigWithOauth2SMTP: Pick<
         timezone: undefined,
         useSqlPivotResults: false,
         showExecutionTime: false,
+        enableTableColumnCustomization: undefined,
+        retryQueryOnTransientErrors: false,
     },
 };
 
@@ -103,6 +109,8 @@ export const lightdashConfigWithSecurePortSMTP: Pick<
         timezone: undefined,
         useSqlPivotResults: false,
         showExecutionTime: false,
+        enableTableColumnCustomization: undefined,
+        retryQueryOnTransientErrors: false,
     },
 };
 

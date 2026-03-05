@@ -1,0 +1,16 @@
+{
+    "metrics": [
+        {
+            "eventName": "user.logged_in",
+            "metricName": "lightdash_user_login_total",
+            "help": "Total number of user login events",
+            "labelNames": ["loginProvider"]
+        },
+        {
+            "eventName": "query.executed",
+            "metricName": "lightdash_query_executed_total",
+            "help": "Total number of query executions",
+            "labelNames": ["context", "projectId"]
+        }
+    ]
+}

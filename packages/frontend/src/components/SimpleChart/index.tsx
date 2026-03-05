@@ -186,12 +186,18 @@ const SimpleChart: FC<SimpleChartProps> = memo(
 
         const opts = useMemo<Opts>(() => ({ renderer: 'svg' }), []);
 
+        // Track whether we're currently in item-tooltip mode to avoid
+        // redundant setOption calls that cause flickering in mixed charts.
+        const isItemTooltipActive = useRef(false);
+        const mouseOverTimer = useRef<
+            ReturnType<typeof setTimeout> | undefined
+        >(undefined);
+
         const handleOnMouseOver = useCallback(
             (params: any) => {
                 const eCharts = chartRef.current?.getEchartsInstance();
 
                 if (eCharts) {
-                    // TODO: move to own util function
                     let setTooltipItemTrigger = true;
                     // Tooltip trigger 'item' does not work when symbol is not shown; reference: https://github.com/apache/echarts/issues/14563
                     const series = eCharts.getOption().series;
@@ -213,37 +219,83 @@ const SimpleChart: FC<SimpleChartProps> = memo(
                         setTooltipItemTrigger &&
                         eChartsOptions?.tooltip.formatter
                     ) {
-                        eCharts.setOption(
-                            {
-                                tooltip: {
-                                    trigger: 'item',
-                                    formatter: (param: any) => {
-                                        // item param are slightly different to axis params, and they don't contain the axisValueLabel
-                                        // so we need to generate it here (and wrap it in an array) and then reuse the formatter used
-                                        // on `useEchartsCartesianConfig` to generate the tooltip
-                                        if (eChartsOptions.tooltip.formatter) {
-                                            // When using tuple mode (array values) for stacked bars
-                                            // param.value is an array like ["Dr. Wilson", 3]
-                                            // param.name contains the category header
-                                            if (Array.isArray(param.value)) {
-                                                return (
-                                                    eChartsOptions.tooltip
-                                                        .formatter as any
-                                                )([
-                                                    {
-                                                        ...param,
-                                                        axisValueLabel:
-                                                            param.name,
-                                                    },
-                                                ]);
-                                            }
+                        // Clear any pending mouseOut reset to prevent race conditions
+                        // when moving between series elements quickly
+                        if (mouseOverTimer.current) {
+                            clearTimeout(mouseOverTimer.current);
+                            mouseOverTimer.current = undefined;
+                        }
 
-                                            // When using primitive values (non-object)
+                        if (!isItemTooltipActive.current) {
+                            isItemTooltipActive.current = true;
+                            eCharts.setOption(
+                                {
+                                    tooltip: {
+                                        trigger: 'item',
+                                        formatter: (param: any) => {
+                                            // item param are slightly different to axis params, and they don't contain the axisValueLabel
+                                            // so we need to generate it here (and wrap it in an array) and then reuse the formatter used
+                                            // on `useEchartsCartesianConfig` to generate the tooltip
                                             if (
-                                                typeof param.value !==
-                                                    'object' ||
-                                                param.value === null
+                                                eChartsOptions.tooltip.formatter
                                             ) {
+                                                // When using tuple mode (array values) for stacked bars
+                                                // param.value is an array like ["Dr. Wilson", 3]
+                                                // param.name contains the category header
+                                                if (
+                                                    Array.isArray(param.value)
+                                                ) {
+                                                    return (
+                                                        eChartsOptions.tooltip
+                                                            .formatter as any
+                                                    )([
+                                                        {
+                                                            ...param,
+                                                            axisValueLabel:
+                                                                param.name,
+                                                        },
+                                                    ]);
+                                                }
+
+                                                // When using primitive values (non-object)
+                                                if (
+                                                    typeof param.value !==
+                                                        'object' ||
+                                                    param.value === null
+                                                ) {
+                                                    return (
+                                                        eChartsOptions.tooltip
+                                                            .formatter as any
+                                                    )([
+                                                        {
+                                                            ...param,
+                                                            axisValueLabel:
+                                                                param.name,
+                                                        },
+                                                    ]);
+                                                }
+
+                                                // When using dataset mode with object values (100% stacked)
+                                                // param.value is an object with dimension keys
+                                                const dim =
+                                                    param.encode?.x?.[0] !==
+                                                    undefined
+                                                        ? param.dimensionNames[
+                                                              param.encode?.x[0]
+                                                          ]
+                                                        : '';
+
+                                                const axisValue =
+                                                    param.value[dim];
+                                                const formattedValue = itemsMap
+                                                    ? getFormattedValue(
+                                                          axisValue,
+                                                          dim,
+                                                          itemsMap,
+                                                          true,
+                                                      )
+                                                    : axisValue;
+
                                                 return (
                                                     eChartsOptions.tooltip
                                                         .formatter as any
@@ -251,52 +303,17 @@ const SimpleChart: FC<SimpleChartProps> = memo(
                                                     {
                                                         ...param,
                                                         axisValueLabel:
-                                                            param.name,
+                                                            formattedValue,
                                                     },
                                                 ]);
                                             }
-
-                                            // When using dataset mode with object values (100% stacked)
-                                            // param.value is an object with dimension keys
-                                            const dim =
-                                                param.encode?.x?.[0] !==
-                                                undefined
-                                                    ? param.dimensionNames[
-                                                          param.encode?.x[0]
-                                                      ]
-                                                    : '';
-
-                                            const axisValue = param.value[dim];
-                                            const formattedValue = itemsMap
-                                                ? getFormattedValue(
-                                                      axisValue,
-                                                      dim,
-                                                      itemsMap,
-                                                      true,
-                                                  )
-                                                : axisValue;
-
-                                            return (
-                                                eChartsOptions.tooltip
-                                                    .formatter as any
-                                            )([
-                                                {
-                                                    ...param,
-                                                    axisValueLabel:
-                                                        formattedValue,
-                                                },
-                                            ]);
-                                        }
+                                        },
                                     },
                                 },
-                                // Re-enable emphasis on mouse over
-                                emphasis: {
-                                    disabled: false,
-                                },
-                            },
-                            false,
-                            true, // lazy update
-                        );
+                                false,
+                                true, // lazy update
+                            );
+                        }
                     }
                     // Wait for tooltip to change from `axis` to `item` and keep hovered on item highlighted
                     setTimeout(() => {
@@ -311,21 +328,24 @@ const SimpleChart: FC<SimpleChartProps> = memo(
         );
 
         const handleOnMouseOut = useCallback(() => {
-            const eCharts = chartRef.current?.getEchartsInstance();
-
-            if (eCharts) {
-                eCharts.setOption(
-                    {
-                        tooltip: eChartsOptions?.tooltip,
-                        // Disable emphasis on mouse out - this is helpful when moving outside the chart too quickly when immediately before  the mouse was over a highlighted series. This resets the emphasis state.
-                        emphasis: {
-                            disabled: true,
-                        },
-                    },
-                    false,
-                    true, // lazy update
-                );
+            // Debounce the reset to prevent rapid axis<->item tooltip flicker
+            // when moving between adjacent series elements in mixed charts
+            if (mouseOverTimer.current) {
+                clearTimeout(mouseOverTimer.current);
             }
+            mouseOverTimer.current = setTimeout(() => {
+                const eCharts = chartRef.current?.getEchartsInstance();
+                if (eCharts) {
+                    isItemTooltipActive.current = false;
+                    eCharts.setOption(
+                        {
+                            tooltip: eChartsOptions?.tooltip,
+                        },
+                        false,
+                        true, // lazy update
+                    );
+                }
+            }, 50);
         }, [chartRef, eChartsOptions?.tooltip]);
 
         if (resultsData?.error) return <EmptyChart />;

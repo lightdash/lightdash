@@ -33,8 +33,7 @@ export type TagInputStylesNames =
           | 'dropdown'
       >;
 export interface TagInputProps
-    extends DefaultProps<TagInputStylesNames>,
-        Omit<BaseSelectProps, 'style'> {
+    extends DefaultProps<TagInputStylesNames>, Omit<BaseSelectProps, 'style'> {
     /** Input size */
     size?: MantineSize;
 

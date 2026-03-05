@@ -20,6 +20,11 @@ jest.mock('nodemailer', () => ({
     })),
 }));
 
+jest.mock('nodemailer-express-handlebars', () => ({
+    __esModule: true,
+    default: jest.fn(() => jest.fn()),
+}));
+
 // Mock the SMTPError interface to allow for code property
 class MockNodeMailerSmtpError
     extends Error

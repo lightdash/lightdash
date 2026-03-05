@@ -19,16 +19,15 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconHelpCircle } from '@tabler/icons-react';
-import { isTreemapVisualizationConfig } from '../../LightdashVisualization/types';
-import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import FieldSelect from '../../common/FieldSelect';
 import MantineIcon from '../../common/MantineIcon';
+import { isTreemapVisualizationConfig } from '../../LightdashVisualization/types';
+import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import ColorSelector from '../ColorSelector';
 import { Config } from '../common/Config';
-import { DraggablePortalHandler } from './DraggablePortalHandler';
-
 import { GrabIcon } from '../common/GrabIcon';
 import classes from './DndList.module.css';
+import { DraggablePortalHandler } from './DraggablePortalHandler';
 
 export const Layout: React.FC = () => {
     const { visualizationConfig, itemsMap } = useVisualizationContext();

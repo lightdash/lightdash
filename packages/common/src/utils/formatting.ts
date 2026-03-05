@@ -12,18 +12,18 @@ import {
     CompactConfigMap,
     CustomFormatType,
     DimensionType,
+    findCompactConfig,
     Format,
     IECByteCompacts,
-    MetricType,
-    NumberSeparator,
-    TableCalculationType,
-    findCompactConfig,
     isCustomSqlDimension,
     isDimension,
     isField,
     isFormat,
     isMetric,
     isTableCalculation,
+    MetricType,
+    NumberSeparator,
+    TableCalculationType,
     type CompactOrAlias,
     type CustomDimension,
     type CustomFormat,
@@ -171,6 +171,15 @@ export function getLocalTimeDisplay(
     const tzString = showTimezone ? `(${dayjs.tz.guess()})` : '';
     return `${moment(value).format(`YYYY-MM-DD HH:mm`)} ${tzString}`;
 }
+
+export const formatDateWithPattern = (
+    value: string | number,
+    pattern: string,
+): string => {
+    const m = moment(value).utc();
+    if (!m.isValid()) return String(value);
+    return m.format(pattern);
+};
 
 export const parseDate = (
     str: string,

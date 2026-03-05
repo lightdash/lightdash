@@ -26,11 +26,10 @@ import { useParams } from 'react-router';
 import FieldIcon from '../../../../../components/common/Filters/FieldIcon';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { ItemDetailPreview } from '../../../../../components/Explorer/ExploreTree/TableTree/ItemDetailPreview';
+import { SingleItemModalContent } from '../../../../../components/Explorer/WriteBackModal';
 import useApp from '../../../../../providers/App/useApp';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
-
-import { SingleItemModalContent } from '../../../../../components/Explorer/WriteBackModal';
 import { getFieldColors } from '../../../../../utils/fieldColors';
 import classes from './AgentVisualizationMetricsAndDimensions.module.css';
 

@@ -28,6 +28,7 @@ import {
     IconArrowsSort,
     IconArrowUp,
     IconChartBar,
+    IconFolder,
     IconFolderSymlink,
     IconLayoutDashboard,
     IconSearch,
@@ -225,7 +226,7 @@ const InfiniteResourceTable = ({
                 if (!isResourceViewSpaceItem(row.original)) return null;
                 const {
                     original: {
-                        data: { dashboardCount, chartCount },
+                        data: { dashboardCount, chartCount, childSpaceCount },
                     },
                 } = row;
                 return (
@@ -239,6 +240,11 @@ const InfiniteResourceTable = ({
                             Icon={IconChartBar}
                             count={chartCount}
                             name="Charts"
+                        />
+                        <AttributeCount
+                            Icon={IconFolder}
+                            count={childSpaceCount}
+                            name="Spaces"
                         />
                     </Group>
                 );
@@ -317,7 +323,7 @@ const InfiniteResourceTable = ({
 
                 const space = spaces.find((s) => s.uuid === item.data.uuid);
                 if (!space) return false;
-                return !space.isPrivate || space.userAccess?.hasDirectAccess;
+                return !space.isPrivate || !!space.userAccess;
             });
     }, [data, userCanManageProject, spaces, selectedAdminContentType]);
 
@@ -521,12 +527,12 @@ const InfiniteResourceTable = ({
                         opacity: 0,
                     },
                     '&:hover': {
-                        td: {
-                            backgroundColor: isSelected
-                                ? theme.colors.blue[1]
-                                : theme.colors.ldGray[0],
-                            transition: `background-color ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
-                        },
+                        td: isSelected
+                            ? {}
+                            : {
+                                  backgroundColor: theme.colors.ldGray[0],
+                                  transition: `background-color ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
+                              },
 
                         'td:first-of-type > div > .explore-button-container': {
                             visibility: 'visible',

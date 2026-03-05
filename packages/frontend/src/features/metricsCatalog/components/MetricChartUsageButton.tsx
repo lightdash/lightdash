@@ -1,11 +1,12 @@
 import { type CatalogField } from '@lightdash/common';
-import { Button, Text, Tooltip } from '@mantine/core';
+import { Button, Text, Tooltip } from '@mantine-8/core';
 import { type MRT_Row } from 'mantine-react-table';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { BarChart } from '../../../svgs/metricsCatalog';
 import { EventName } from '../../../types/Events';
 import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
 import { setActiveMetric } from '../store/metricsCatalogSlice';
+import styles from './MetricChartUsageButton.module.css';
 
 export const MetricChartUsageButton = ({
     row,
@@ -59,28 +60,16 @@ export const MetricChartUsageButton = ({
             }
         >
             <Button
-                size="xs"
-                compact
+                size="compact-xs"
                 variant="subtle"
                 disabled={!hasChartsUsage}
                 onClick={handleChartUsageClick}
-                leftIcon={<BarChart />}
+                leftSection={<BarChart />}
                 opacity={hasChartsUsage ? 1 : 0.8}
                 fz="sm"
                 c="ldGray.7"
                 fw={500}
-                sx={{
-                    '&[data-disabled]': {
-                        backgroundColor: 'transparent',
-                        fontWeight: 400,
-                        color: `var(--mantine-color-ldDark-7)`,
-                    },
-                }}
-                styles={(theme) => ({
-                    leftIcon: {
-                        marginRight: theme.spacing.xxs,
-                    },
-                })}
+                className={styles.button}
             >
                 {row.original.chartUsage}
             </Button>

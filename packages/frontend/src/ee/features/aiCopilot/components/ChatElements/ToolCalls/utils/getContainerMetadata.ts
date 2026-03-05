@@ -61,6 +61,7 @@ export const getContainerMetadata = (
             'findContent',
             'findDashboards',
             'findCharts',
+            'getDashboardCharts',
         ].includes(tc.toolName),
     );
 

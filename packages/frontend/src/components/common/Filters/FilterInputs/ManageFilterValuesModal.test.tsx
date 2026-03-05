@@ -123,4 +123,40 @@ describe('ManageFilterValuesModal', () => {
             'value "with" quotes',
         ]);
     });
+
+    it('filters CSV values through validateValue when provided', async () => {
+        const user = userEvent.setup();
+        const onChange = vi.fn();
+        const onClose = vi.fn();
+        const isNumber = (v: string) => /^-?\d+(\.\d+)?$/.test(v);
+
+        renderWithProviders(
+            <ManageFilterValuesModal
+                opened
+                onClose={onClose}
+                values={[]}
+                onChange={onChange}
+                validateValue={isNumber}
+            />,
+        );
+
+        const csvContent = 'value\n10\nabc\n20.5\nhello\n-3';
+        const file = new File([csvContent], 'test.csv', {
+            type: 'text/csv',
+        });
+        // JSDOM File doesn't support .text(), so polyfill it
+        file.text = () => Promise.resolve(csvContent);
+
+        // Mantine FileButton renders hidden file inputs with our aria-label
+        const fileInputs = screen.getAllByLabelText('Import CSV file');
+        await user.upload(fileInputs[0], file);
+
+        // Only numeric values should appear: 10, 20.5, -3
+        expect(await screen.findByText('3 values')).toBeInTheDocument();
+
+        // Select all imported values, then apply
+        await user.click(screen.getByLabelText('Select all shown'));
+        await user.click(screen.getByRole('button', { name: 'Apply' }));
+        expect(onChange).toHaveBeenCalledWith(['10', '20.5', '-3']);
+    });
 });

@@ -6,14 +6,15 @@ import {
     toolFindDashboardsArgsSchema,
     toolFindExploresArgsSchemaV3,
     toolFindFieldsArgsSchema,
+    toolGetDashboardChartsArgsSchema,
     toolImproveContextArgsSchema,
-    type ToolName,
     toolProposeChangeArgsSchema,
     toolRunQueryArgsSchema,
     toolSearchFieldValuesArgsSchema,
     toolTableVizArgsSchema,
     toolTimeSeriesArgsSchema,
     toolVerticalBarArgsSchema,
+    type ToolName,
 } from '@lightdash/common';
 import { generateObject } from 'ai';
 import { JSONDiff } from 'autoevals';
@@ -30,6 +31,7 @@ const TOOL_NAME_TO_DB_TOOL_NAME = {
     findContent: 'find_content',
     findDashboards: 'find_dashboards',
     findCharts: 'find_charts',
+    getDashboardCharts: 'get_dashboard_charts',
     generateTableVizConfig: 'table',
     generateTimeSeriesVizConfig: 'time_series_chart',
     generateBarVizConfig: 'vertical_bar_chart',
@@ -52,6 +54,7 @@ const TOOL_SCHEMAS = {
     findContent: toolFindContentArgsSchema,
     findDashboards: toolFindDashboardsArgsSchema,
     findCharts: toolFindChartsArgsSchema,
+    getDashboardCharts: toolGetDashboardChartsArgsSchema,
     improveContext: toolImproveContextArgsSchema,
     proposeChange: toolProposeChangeArgsSchema,
     runQuery: toolRunQueryArgsSchema,

@@ -104,7 +104,7 @@ export const createStandardTestCases = () => [
         resource: {
             organizationUuid: 'org-uuid-test',
             projectUuid: 'test-project-uuid',
-            isPrivate: false,
+            inheritsFromOrgOrProject: true,
         },
     },
     {
@@ -113,7 +113,7 @@ export const createStandardTestCases = () => [
         resource: {
             organizationUuid: 'org-uuid-test',
             projectUuid: 'test-project-uuid',
-            isPrivate: false,
+            inheritsFromOrgOrProject: true,
         },
     },
     {
@@ -122,7 +122,7 @@ export const createStandardTestCases = () => [
         resource: {
             organizationUuid: 'org-uuid-test',
             projectUuid: 'test-project-uuid',
-            isPrivate: false,
+            inheritsFromOrgOrProject: true,
         },
     },
     {
@@ -158,7 +158,7 @@ export const createStandardTestCases = () => [
         resource: {
             organizationUuid: 'org-uuid-test',
             projectUuid: 'test-project-uuid',
-            isPrivate: false,
+            inheritsFromOrgOrProject: true,
         },
     },
     {

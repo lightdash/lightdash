@@ -2,10 +2,10 @@ import cloneDeep from 'lodash/cloneDeep';
 import { DimensionType } from './field';
 import {
     applyDimensionOverrides,
+    FilterOperator,
     type DashboardFilterRule,
     type DashboardFilters,
     type DashboardTileTarget,
-    FilterOperator,
 } from './filter';
 
 describe('applyDimensionOverrides', () => {

@@ -42,6 +42,8 @@ import {
 } from '../../hooks/useServerOrClientFeatureFlag';
 import { type EChartsReact } from '../EChartsReactWrapper';
 import { type EchartsSeriesClickEvent } from '../SimpleChart';
+import Context from './context';
+import { type useVisualizationContext } from './useVisualizationContext';
 import VisualizationBigNumberConfig from './VisualizationBigNumberConfig';
 import VisualizationCartesianConfig from './VisualizationConfigCartesian';
 import VisualizationConfigFunnel from './VisualizationConfigFunnel';
@@ -51,8 +53,6 @@ import VisualizationPieConfig from './VisualizationConfigPie';
 import VisualizationTableConfig from './VisualizationConfigTable';
 import VisualizationTreemapConfig from './VisualizationConfigTreemap';
 import VisualizationCustomConfig from './VisualizationCustomConfig';
-import Context from './context';
-import { type useVisualizationContext } from './useVisualizationContext';
 
 export type VisualizationProviderProps = {
     minimal?: boolean;
@@ -85,6 +85,7 @@ export type VisualizationProviderProps = {
     containerWidth?: number;
     containerHeight?: number;
     isDashboard?: boolean;
+    isEditMode?: boolean;
     dateZoom?: DateZoom;
 };
 
@@ -116,6 +117,7 @@ const VisualizationProvider: FC<
     containerWidth,
     containerHeight,
     isDashboard,
+    isEditMode,
     dateZoom,
 }) => {
     const itemsMap = useMemo(() => {
@@ -359,6 +361,7 @@ const VisualizationProvider: FC<
         containerWidth,
         containerHeight,
         isDashboard,
+        isEditMode,
         isTouchDevice,
     };
 
@@ -437,6 +440,7 @@ const VisualizationProvider: FC<
                     onChartConfigChange={handleChartConfigChange}
                     tableCalculationsMetadata={tableCalculationsMetadata}
                     parameters={parameters}
+                    dateZoom={dateZoom}
                 >
                     {({ visualizationConfig }) => (
                         <Context.Provider

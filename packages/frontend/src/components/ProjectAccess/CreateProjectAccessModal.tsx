@@ -16,8 +16,8 @@ import {
     PageName,
     PageType,
 } from '../../types/Events';
-import InviteSuccess from '../UserSettings/UsersAndGroupsPanel/InviteSuccess';
 import MantineModal from '../common/MantineModal';
+import InviteSuccess from '../UserSettings/UsersAndGroupsPanel/InviteSuccess';
 
 interface Props {
     projectUuid: string;

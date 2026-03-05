@@ -1,8 +1,8 @@
 import { type MetricQuery } from '../../../../../../types/metricQuery';
 import {
     ChartType,
-    type FunnelChartConfig,
     FunnelChartDataInput,
+    type FunnelChartConfig,
 } from '../../../../../../types/savedCharts';
 import { type ToolRunQueryArgsTransformed } from '../../../../schemas';
 

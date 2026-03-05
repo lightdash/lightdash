@@ -26,11 +26,11 @@ import useDashboardFiltersForTile from '../../hooks/dashboard/useDashboardFilter
 import useSearchParams from '../../hooks/useSearchParams';
 import useApp from '../../providers/App/useApp';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
-import ChartView from '../DataViz/visualizations/ChartView';
-import { Table } from '../DataViz/visualizations/Table';
 import LinkMenuItem from '../common/LinkMenuItem';
 import MantineIcon from '../common/MantineIcon';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
+import ChartView from '../DataViz/visualizations/ChartView';
+import { Table } from '../DataViz/visualizations/Table';
 import ExportDataModal from './ExportDataModal';
 import TileBase from './TileBase';
 

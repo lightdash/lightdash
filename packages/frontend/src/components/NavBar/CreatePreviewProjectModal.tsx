@@ -372,7 +372,7 @@ const CreatePreviewModal: FC<Props> = ({ isOpened, onClose }) => {
             name: previewName,
             dbtConnectionOverrides: {
                 branch: selectedBranch ?? undefined,
-                environment,
+                environment: environment.length > 0 ? environment : undefined,
                 manifest: finalManifest,
             },
             warehouseConnectionOverrides: { schema },

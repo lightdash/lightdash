@@ -685,9 +685,13 @@ export const pivotQueryResults = ({
                     }
                     const keys = row
                         .slice(0, colIndex + 1)
-                        .reduce<
-                            string[]
-                        >((acc, l) => (l.type === 'value' ? [...acc, String(l.value.raw)] : acc), []);
+                        .reduce<string[]>(
+                            (acc, l) =>
+                                l.type === 'value'
+                                    ? [...acc, String(l.value.raw)]
+                                    : acc,
+                            [],
+                        );
                     const cellWithSpan: PivotData['headerValues'][number][number] =
                         {
                             ...cell,

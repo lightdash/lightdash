@@ -187,6 +187,7 @@ describe('email validation', () => {
         'user@sub.domain.com',
         'user@domain.info',
         'user123@domain.org',
+        "o'brien@company.com",
     ])('valid email: %s', (email) => {
         expect(isValidEmailAddress(email)).toBe(true);
     });

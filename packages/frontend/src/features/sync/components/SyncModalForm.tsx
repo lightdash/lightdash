@@ -10,12 +10,13 @@ import {
 } from '@mantine-8/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
-import { CronInternalInputs } from '../../../components/CronInput';
 import MantineIcon from '../../../components/common/MantineIcon';
 import TimeZonePicker from '../../../components/common/TimeZonePicker';
+import { CronInternalInputs } from '../../../components/CronInput';
 import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
 import { useProject } from '../../../hooks/useProject';
 import { SelectGoogleSheetButton } from './SelectGoogleSheetButton';
+import classes from './SyncModalForm.module.css';
 import {
     useSyncModalFormContext,
     type SyncModalFormValues,
@@ -41,7 +42,11 @@ export const SyncModalForm: FC<Props> = ({ id, onSubmit }) => {
     const form = useSyncModalFormContext();
 
     return (
-        <form id={id} onSubmit={form.onSubmit(onSubmit)}>
+        <form
+            id={id}
+            onSubmit={form.onSubmit(onSubmit)}
+            className={classes.form}
+        >
             <Stack>
                 <TextInput
                     label="Name the Sync"

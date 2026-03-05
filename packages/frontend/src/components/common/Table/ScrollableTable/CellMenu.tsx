@@ -1,6 +1,5 @@
 import { type ResultRow } from '@lightdash/common';
-import { Menu, type MenuProps } from '@mantine-8/core';
-import { Portal } from '@mantine/core';
+import { Menu, Portal, type MenuProps } from '@mantine-8/core';
 import { type Cell } from '@tanstack/react-table';
 import { type FC } from 'react';
 import { usePreventScroll } from '../../../../hooks/useBlockScroll';

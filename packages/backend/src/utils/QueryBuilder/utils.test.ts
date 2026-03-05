@@ -273,7 +273,6 @@ describe('with custom dimensions', () => {
                 customDimensions: undefined,
                 userAttributes: {},
                 intrinsicUserAttributes: {},
-                sorts: [],
             }),
         ).toStrictEqual(undefined);
     });
@@ -302,7 +301,6 @@ describe('with custom dimensions', () => {
                     ),
                 userAttributes: {},
                 intrinsicUserAttributes: {},
-                sorts: [],
             }),
         ).toStrictEqual({
             ctes: [
@@ -323,6 +321,13 @@ WHEN "table1".dim1 >= age_range_cte.min_id + age_range_cte.bin_width * 1 AND "ta
 ELSE CONCAT(age_range_cte.min_id + age_range_cte.bin_width * 2, ' - ', age_range_cte.max_id)
                     END
                     AS \`age_range\``,
+                age_range_order: `CASE
+                        WHEN "table1".dim1 IS NULL THEN 3
+WHEN "table1".dim1 >= age_range_cte.min_id + age_range_cte.bin_width * 0 AND "table1".dim1 < age_range_cte.min_id + age_range_cte.bin_width * 1 THEN 0
+WHEN "table1".dim1 >= age_range_cte.min_id + age_range_cte.bin_width * 1 AND "table1".dim1 < age_range_cte.min_id + age_range_cte.bin_width * 2 THEN 1
+ELSE 2
+                        END
+                        AS \`age_range_order\``,
             },
             tables: ['table1'],
         });
@@ -347,7 +352,6 @@ ELSE CONCAT(age_range_cte.min_id + age_range_cte.bin_width * 2, ' - ', age_range
                 ],
                 userAttributes: {},
                 intrinsicUserAttributes: {},
-                sorts: [],
             }),
         ).toStrictEqual({
             ctes: [
@@ -378,12 +382,6 @@ ELSE CONCAT(age_range_cte.min_id + age_range_cte.bin_width * 2, ' - ', age_range
                     ),
                 userAttributes: {},
                 intrinsicUserAttributes: {},
-                sorts: [
-                    {
-                        fieldId: 'age_range',
-                        descending: true,
-                    },
-                ],
             }),
         ).toStrictEqual({
             ctes: [

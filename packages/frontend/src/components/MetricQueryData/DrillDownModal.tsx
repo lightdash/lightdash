@@ -233,7 +233,7 @@ export const DrillDownModal: FC = () => {
             }
         >
             <FieldSelect
-                withinPortal
+                comboboxProps={{ withinPortal: true }}
                 disabled={dimensionsAvailable.length === 0}
                 item={selectedDimension}
                 items={dimensionsAvailable}

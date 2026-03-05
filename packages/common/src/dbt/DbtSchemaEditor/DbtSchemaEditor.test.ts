@@ -69,6 +69,67 @@ describe('DbtSchemaEditor', () => {
     });
 });
 
+describe('case-insensitive column matching', () => {
+    const MIXED_CASE_SCHEMA = `version: 2
+models:
+  - name: my_model
+    columns:
+      - name: appclassid
+        description: My existing description
+        tests:
+          - not_null
+      - name: userid
+        description: User ID column`;
+
+    it('should find columns with case-insensitive name matching', () => {
+        const editor = new DbtSchemaEditor(MIXED_CASE_SCHEMA);
+        // Exact case
+        expect(editor.findColumnByName('my_model', 'appclassid')).toBeDefined();
+        // Different case
+        expect(editor.findColumnByName('my_model', 'appClassId')).toBeDefined();
+        expect(editor.findColumnByName('my_model', 'APPCLASSID')).toBeDefined();
+        // Non-existent
+        expect(
+            editor.findColumnByName('my_model', 'nonexistent'),
+        ).toBeUndefined();
+    });
+
+    it('should update columns found by case-insensitive matching', () => {
+        const editor = new DbtSchemaEditor(MIXED_CASE_SCHEMA);
+        // Update using different case than what's in YAML
+        editor.updateColumn({
+            modelName: 'my_model',
+            columnName: 'AppClassId',
+            properties: {
+                description: 'Updated description',
+            },
+        });
+        const columns = editor.getModelColumns('my_model');
+        const col = columns?.find((c) => c.name.toLowerCase() === 'appclassid');
+        expect(col?.description).toBe('Updated description');
+        // Original name should be preserved in YAML
+        expect(col?.name).toBe('appclassid');
+    });
+
+    it('should prevent adding duplicate columns with different case', () => {
+        const editor = new DbtSchemaEditor(MIXED_CASE_SCHEMA);
+        expect(() =>
+            editor.addColumn('my_model', {
+                name: 'AppClassId',
+                description: '',
+            }),
+        ).toThrow('already exists');
+    });
+
+    it('should remove columns with case-insensitive matching', () => {
+        const editor = new DbtSchemaEditor(MIXED_CASE_SCHEMA);
+        editor.removeColumns('my_model', ['AppClassId']);
+        const columns = editor.getModelColumns('my_model');
+        expect(columns?.length).toBe(1);
+        expect(columns?.[0].name).toBe('userid');
+    });
+});
+
 describe('dbt v1.10+ compatibility', () => {
     it('should add custom metrics under config.meta for dbt v1.10', () => {
         const editor = new DbtSchemaEditor(

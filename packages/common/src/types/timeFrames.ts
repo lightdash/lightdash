@@ -45,6 +45,16 @@ export const dateGranularityToTimeFrameMap: Record<
     [DateGranularity.YEAR]: TimeFrames.YEAR,
 };
 
+export const timeFrameToDateGranularityMap: Partial<
+    Record<TimeFrames, DateGranularity>
+> = {
+    [TimeFrames.DAY]: DateGranularity.DAY,
+    [TimeFrames.WEEK]: DateGranularity.WEEK,
+    [TimeFrames.MONTH]: DateGranularity.MONTH,
+    [TimeFrames.QUARTER]: DateGranularity.QUARTER,
+    [TimeFrames.YEAR]: DateGranularity.YEAR,
+};
+
 export type DefaultTimeDimension = {
     field: string;
     interval: TimeFrames;

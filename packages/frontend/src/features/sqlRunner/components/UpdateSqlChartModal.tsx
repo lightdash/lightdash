@@ -1,5 +1,5 @@
 import type { Space, SpaceSummary, SqlChart } from '@lightdash/common';
-import { Button, Stack, TextInput, Textarea } from '@mantine-8/core';
+import { Button, Stack, Textarea, TextInput } from '@mantine-8/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { IconChartBar, IconPlus } from '@tabler/icons-react';
 import { useEffect, useMemo, type FC } from 'react';

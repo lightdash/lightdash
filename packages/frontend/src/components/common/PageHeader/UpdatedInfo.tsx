@@ -1,5 +1,5 @@
 import { type SessionUser } from '@lightdash/common';
-import { type MantineSize, Text } from '@mantine-8/core';
+import { Text, type MantineSize } from '@mantine-8/core';
 import { type FC } from 'react';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
 

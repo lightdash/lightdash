@@ -17,6 +17,23 @@
                 ]
             }
         },
+        "AnyAttributes": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": {
+                "oneOf": [
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "type": "string"
+                    }
+                ]
+            }
+        },
         "Compact": {
             "type": "string",
             "enum": [
@@ -168,7 +185,9 @@
                     "$ref": "#/definitions/Format"
                 },
                 "group_label": {
-                    "type": "string"
+                    "type": "string",
+                    "deprecated": true,
+                    "description": "Deprecated: use groups instead"
                 },
                 "urls": {
                     "$ref": "#/definitions/Urls"
@@ -181,6 +200,9 @@
                 },
                 "required_attributes": {
                     "$ref": "#/definitions/RequiredAttributes"
+                },
+                "any_attributes": {
+                    "$ref": "#/definitions/AnyAttributes"
                 }
             }
         },
@@ -214,7 +236,9 @@
                     "$ref": "#/definitions/Format"
                 },
                 "group_label": {
-                    "type": "string"
+                    "type": "string",
+                    "deprecated": true,
+                    "description": "Deprecated: use groups instead"
                 },
                 "urls": {
                     "$ref": "#/definitions/Urls"
@@ -227,6 +251,9 @@
                 },
                 "required_attributes": {
                     "$ref": "#/definitions/RequiredAttributes"
+                },
+                "any_attributes": {
+                    "$ref": "#/definitions/AnyAttributes"
                 }
             }
         },
@@ -246,6 +273,8 @@
                         "count",
                         "count_distinct",
                         "sum",
+                        "sum_distinct",
+                        "average_distinct",
                         "min",
                         "max",
                         "number",
@@ -276,7 +305,9 @@
                     "$ref": "#/definitions/Format"
                 },
                 "group_label": {
-                    "type": "string"
+                    "type": "string",
+                    "deprecated": true,
+                    "description": "Deprecated: use groups instead"
                 },
                 "urls": {
                     "$ref": "#/definitions/Urls"
@@ -295,6 +326,19 @@
                 },
                 "percentile": {
                     "type": "number"
+                },
+                "distinct_keys": {
+                    "oneOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    ]
                 },
                 "tags": {
                     "$ref": "#/definitions/Tags"
@@ -402,6 +446,9 @@
                 },
                 "required_attributes": {
                     "$ref": "#/definitions/RequiredAttributes"
+                },
+                "any_attributes": {
+                    "$ref": "#/definitions/AnyAttributes"
                 }
             },
             "default": {}

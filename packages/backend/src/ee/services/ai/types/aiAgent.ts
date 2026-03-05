@@ -7,7 +7,9 @@ import {
     FindContentFn,
     FindExploresFn,
     FindFieldFn,
+    GetDashboardChartsFn,
     GetExploreCompilerFn,
+    GetExploreFn,
     GetPromptFn,
     ListExploresFn,
     RunAsyncQueryFn,
@@ -37,8 +39,7 @@ export type AiAgentArgs = AnyAiModel & {
 
     findExploresFieldSearchSize: number;
     findFieldsPageSize: number;
-    findDashboardsPageSize: number;
-    findChartsPageSize: number;
+    getDashboardChartsPageSize: number;
     maxQueryLimit: number;
     siteUrl: string;
     canManageAgent: boolean;
@@ -58,8 +59,10 @@ export type PerformanceMetrics = {
 export type AiAgentDependencies = {
     listExplores: ListExploresFn;
     findContent: FindContentFn;
+    getDashboardCharts: GetDashboardChartsFn;
     findExplores: FindExploresFn;
     findFields: FindFieldFn;
+    getExplore: GetExploreFn;
     getExploreCompiler: GetExploreCompilerFn;
     runAsyncQuery: RunAsyncQueryFn;
     getPrompt: GetPromptFn;

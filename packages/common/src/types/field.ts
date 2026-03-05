@@ -67,14 +67,14 @@ export enum NumberSeparator {
 }
 type CompactConfig = {
     compact: Compact;
-    alias: Array<typeof CompactAlias[number]>;
+    alias: Array<(typeof CompactAlias)[number]>;
     orderOfMagnitude: number;
     convertFn: (value: number) => number;
     label: string;
     suffix: string;
 };
 
-export type CompactOrAlias = Compact | typeof CompactAlias[number];
+export type CompactOrAlias = Compact | (typeof CompactAlias)[number];
 
 export const CompactConfigMap: Record<Compact, CompactConfig> = {
     [Compact.THOUSANDS]: {
@@ -208,8 +208,10 @@ export enum BinType {
 }
 
 export type BinRange = {
-    from: number | undefined; // first range has from undefined
-    to: number | undefined; // last range has to undefined
+    /** Start value for this bin range (undefined for the first range) */
+    from: number | undefined;
+    /** End value for this bin range (undefined for the last range) */
+    to: number | undefined;
 };
 
 export enum CustomDimensionType {
@@ -218,24 +220,35 @@ export enum CustomDimensionType {
 }
 
 export interface BaseCustomDimension {
+    /** Unique identifier for the custom dimension */
     id: string;
+    /** Display name for the custom dimension */
     name: string;
+    /** Table this custom dimension belongs to */
     table: string;
+    /** Type of custom dimension (bin or sql) */
     type: CustomDimensionType;
 }
 
 export interface CustomBinDimension extends BaseCustomDimension {
     type: CustomDimensionType.BIN;
-    dimensionId: FieldId; // Parent dimension id
+    /** Field ID of the parent dimension to bin */
+    dimensionId: FieldId;
+    /** Binning strategy to use */
     binType: BinType;
+    /** Number of bins (for fixed_number bin type) */
     binNumber?: number;
+    /** Width of each bin (for fixed_width bin type) */
     binWidth?: number;
+    /** Custom bin ranges (for custom_range bin type) */
     customRange?: BinRange[];
 }
 
 export interface CustomSqlDimension extends BaseCustomDimension {
     type: CustomDimensionType.SQL;
+    /** SQL expression for the custom dimension */
     sql: string;
+    /** Data type of the dimension result */
     dimensionType: DimensionType;
 }
 
@@ -281,14 +294,23 @@ export type ItemsMap = Record<
 export type Item = ItemsMap[string];
 
 export interface CustomFormat {
+    /** Format type */
     type: CustomFormatType;
+    /** Number of decimal places */
     round?: number | undefined;
+    /** Number separator style */
     separator?: NumberSeparator;
-    currency?: typeof currencies[number] | undefined;
+    /** Currency code (e.g., USD, GBP, EUR) */
+    currency?: (typeof currencies)[number] | undefined;
+    /** Compact format for large numbers (K, M, B, T) or byte units */
     compact?: CompactOrAlias | undefined;
+    /** Prefix to prepend to formatted values */
     prefix?: string | undefined;
+    /** Suffix to append to formatted values */
     suffix?: string | undefined;
+    /** Time interval for date formatting */
     timeInterval?: TimeFrames;
+    /** Custom format string */
     custom?: string | undefined;
 }
 
@@ -354,13 +376,18 @@ export enum FrameBoundaryType {
 }
 
 export type FrameBoundary = {
+    /** Boundary type */
     type: FrameBoundaryType;
-    offset?: number; // Required for PRECEDING/FOLLOWING with numeric offset
+    /** Offset for PRECEDING/FOLLOWING */
+    offset?: number;
 };
 
 export type FrameClause = {
+    /** Type of frame (ROWS or RANGE) */
     frameType: FrameType;
-    start?: FrameBoundary; // Optional for single boundary syntax
+    /** Start boundary of the frame */
+    start?: FrameBoundary;
+    /** End boundary of the frame */
     end: FrameBoundary;
 };
 
@@ -375,57 +402,85 @@ export enum TableCalculationTemplateType {
 
 export type TableCalculationTemplate =
     | {
+          /** Type of template calculation */
           type: TableCalculationTemplateType.PERCENT_CHANGE_FROM_PREVIOUS;
+          /** Field ID to apply the template to */
           fieldId: string;
+          /** Fields to order by for window functions */
           orderBy: {
               fieldId: string;
               order: 'asc' | 'desc' | null;
           }[];
-      }
-    | {
-          type: TableCalculationTemplateType.PERCENT_OF_PREVIOUS_VALUE;
-          fieldId: string;
-          orderBy: {
-              fieldId: string;
-              order: 'asc' | 'desc' | null;
-          }[];
-      }
-    | {
-          type: TableCalculationTemplateType.PERCENT_OF_COLUMN_TOTAL;
-          fieldId: string;
           partitionBy?: string[];
       }
     | {
-          type: TableCalculationTemplateType.RANK_IN_COLUMN;
+          /** Type of template calculation */
+          type: TableCalculationTemplateType.PERCENT_OF_PREVIOUS_VALUE;
+          /** Field ID to apply the template to */
           fieldId: string;
-      }
-    | {
-          type: TableCalculationTemplateType.RUNNING_TOTAL;
-          fieldId: string;
-      }
-    | {
-          type: TableCalculationTemplateType.WINDOW_FUNCTION;
-          windowFunction: WindowFunctionType;
-          fieldId: string | null;
+          /** Fields to order by for window functions */
           orderBy: {
               fieldId: string;
               order: 'asc' | 'desc' | null;
           }[];
+          partitionBy?: string[];
+      }
+    | {
+          /** Type of template calculation */
+          type: TableCalculationTemplateType.PERCENT_OF_COLUMN_TOTAL;
+          /** Field ID to apply the template to */
+          fieldId: string;
+          /** Fields to partition by */
+          partitionBy?: string[];
+      }
+    | {
+          /** Type of template calculation */
+          type: TableCalculationTemplateType.RANK_IN_COLUMN;
+          /** Field ID to apply the template to */
+          fieldId: string;
+      }
+    | {
+          /** Type of template calculation */
+          type: TableCalculationTemplateType.RUNNING_TOTAL;
+          /** Field ID to apply the template to */
+          fieldId: string;
+      }
+    | {
+          /** Type of template calculation */
+          type: TableCalculationTemplateType.WINDOW_FUNCTION;
+          /** Window function type */
+          windowFunction: WindowFunctionType;
+          /** Field ID to apply the template to */
+          fieldId: string | null;
+          /** Fields to order by for window functions */
+          orderBy: {
+              fieldId: string;
+              order: 'asc' | 'desc' | null;
+          }[];
+          /** Fields to partition by for window functions */
           partitionBy: string[];
+          /** Frame clause for window functions */
           frame?: FrameClause;
       };
 
 export type TableCalculation = {
+    /** Display order index */
     index?: number;
+    /** Internal name of the table calculation */
     name: string;
-    displayName: string; // This is a unique property of the table calculation
+    /** Display name shown in the UI */
+    displayName: string;
+    /** Formatting options for the calculation */
     format?: CustomFormat;
+    /** Data type of the calculation result */
     type?: TableCalculationType;
 } & (
     | {
+          /** SQL expression for the calculation (can reference fields with ${table.field}) */
           sql: string;
       }
     | {
+          /** Template-based calculation (alternative to sql) */
           template: TableCalculationTemplate;
       }
 );
@@ -560,6 +615,7 @@ export interface Dimension extends Field {
      */
     group?: string;
     requiredAttributes?: Record<string, string | string[]>;
+    anyAttributes?: Record<string, string | string[]>;
     timeInterval?: TimeFrames;
     timeIntervalBaseDimensionName?: string;
     isAdditionalDimension?: boolean;
@@ -567,6 +623,7 @@ export interface Dimension extends Field {
     isIntervalBase?: boolean;
     aiHint?: string | string[];
     formatOptions?: CustomFormat;
+    caseSensitive?: boolean; // When false, string filters on this dimension will be case insensitive. Default is true
     image?: {
         url: string;
         width?: number;
@@ -594,11 +651,14 @@ type CompiledProperties = {
         string,
         Record<string, string | string[]>
     >;
+    tablesAnyAttributes?: Record<string, Record<string, string | string[]>>;
     /**
      * When partial compilation mode is enabled, fields that fail to compile
      * will have this property set instead of causing the entire explore to fail.
      */
     compilationError?: FieldCompilationError;
+    compiledValueSql?: string; // raw value expression before aggregation (for sum_distinct CTE)
+    compiledDistinctKeys?: string[]; // compiled SQL for distinct keys (sum_distinct only)
 };
 export type CompiledDimension = Dimension & CompiledProperties;
 export type CompiledMetric = Metric & CompiledProperties;
@@ -645,6 +705,8 @@ export enum MetricType {
     COUNT = 'count',
     COUNT_DISTINCT = 'count_distinct',
     SUM = 'sum',
+    SUM_DISTINCT = 'sum_distinct',
+    AVERAGE_DISTINCT = 'average_distinct',
     MIN = 'min',
     MAX = 'max',
     PERCENT_OF_PREVIOUS = 'percent_of_previous',
@@ -687,6 +749,10 @@ export const parseMetricType = (metricType: string): MetricType => {
             return MetricType.COUNT_DISTINCT;
         case 'sum':
             return MetricType.SUM;
+        case 'sum_distinct':
+            return MetricType.SUM_DISTINCT;
+        case 'average_distinct':
+            return MetricType.AVERAGE_DISTINCT;
         case 'min':
             return MetricType.MIN;
         case 'max':
@@ -754,9 +820,11 @@ export interface Metric extends Field {
     showUnderlyingValues?: string[];
     filters?: MetricFilterRule[];
     percentile?: number;
+    distinctKeys?: string[]; // dimension references for sum_distinct deduplication key
     formatOptions?: CustomFormat;
     dimensionReference?: string; // field id of the dimension this metric is based on
     requiredAttributes?: Record<string, string | string[]>; // Required attributes for the dimension this metric is based on
+    anyAttributes?: Record<string, string | string[]>; // Any of these attributes must match (OR logic)
     defaultTimeDimension?: DefaultTimeDimension; // Default time dimension for the metric when the user has not specified a time dimension
     spotlight?: {
         visibility: LightdashProjectConfig['spotlight']['default_visibility'];

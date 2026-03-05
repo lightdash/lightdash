@@ -1,7 +1,7 @@
 import { Stack } from '@mantine/core';
-import { type FC } from 'react';
-import { Navigate, Outlet, useParams, type RouteObject } from 'react-router';
+import { Navigate, Outlet, type RouteObject } from 'react-router';
 import AppRoute from './components/AppRoute';
+import ProjectLayout from './components/common/ProjectLayout';
 import ForbiddenPanel from './components/ForbiddenPanel';
 import JobDetailsDrawer from './components/JobDetailsDrawer';
 import NavBar from './components/NavBar';
@@ -15,6 +15,7 @@ import ChartHistory from './pages/ChartHistory';
 import CreateProject from './pages/CreateProject';
 import CreateProjectSettings from './pages/CreateProjectSettings';
 import Dashboard from './pages/Dashboard';
+import DashboardHistory from './pages/DashboardHistory';
 import Explorer from './pages/Explorer';
 import Home from './pages/Home';
 import Invite from './pages/Invite';
@@ -33,6 +34,7 @@ import SavedExplorer from './pages/SavedExplorer';
 import SavedQueries from './pages/SavedQueries';
 import Settings from './pages/Settings';
 import ShareRedirect from './pages/ShareRedirect';
+import SourceCodeEditorRedirect from './pages/SourceCodeEditorRedirect';
 import Space from './pages/Space';
 import Spaces from './pages/Spaces';
 import SqlRunner from './pages/SqlRunner';
@@ -42,19 +44,6 @@ import VerifyEmailPage from './pages/VerifyEmail';
 import ViewSqlChart from './pages/ViewSqlChart';
 import { TrackPage } from './providers/Tracking/TrackingProvider';
 import { PageName } from './types/Events';
-
-const DashboardPageWrapper: FC = () => {
-    const { dashboardUuid } = useParams<{ dashboardUuid: string }>();
-
-    return (
-        <>
-            <NavBar isFixed={false} />
-            <TrackPage name={PageName.DASHBOARD}>
-                <Dashboard key={dashboardUuid} />
-            </TrackPage>
-        </>
-    );
-};
 
 const FALLBACK_ROUTE: RouteObject = {
     path: '*',
@@ -150,27 +139,19 @@ const MINIMAL_ROUTES: RouteObject[] = [
 
 const CHART_ROUTES: RouteObject[] = [
     {
-        path: '/projects/:projectUuid/saved',
+        path: 'saved',
         element: (
-            <>
-                <NavBar />
-                <TrackPage name={PageName.SAVED_QUERIES}>
-                    <SavedQueries />
-                </TrackPage>
-            </>
+            <TrackPage name={PageName.SAVED_QUERIES}>
+                <SavedQueries />
+            </TrackPage>
         ),
     },
     {
-        path: '/projects/:projectUuid/saved/:savedQueryUuid',
-        element: (
-            <>
-                <NavBar />
-                <Outlet />
-            </>
-        ),
+        path: 'saved/:savedQueryUuid',
+        element: <Outlet />,
         children: [
             {
-                path: '/projects/:projectUuid/saved/:savedQueryUuid/history',
+                path: 'history',
                 element: (
                     <TrackPage name={PageName.CHART_HISTORY}>
                         <ChartHistory />
@@ -178,7 +159,8 @@ const CHART_ROUTES: RouteObject[] = [
                 ),
             },
             {
-                path: '/projects/:projectUuid/saved/:savedQueryUuid/:mode?',
+                path: ':mode?',
+                index: false,
                 element: (
                     <TrackPage name={PageName.SAVED_QUERY_EXPLORER}>
                         <SavedExplorer />
@@ -189,28 +171,48 @@ const CHART_ROUTES: RouteObject[] = [
     },
 ];
 
-const DASHBOARD_ROUTES: RouteObject[] = [
+// Dashboard list route (uses ProjectLayout's fixed NavBar)
+const DASHBOARD_LIST_ROUTES: RouteObject[] = [
     {
-        path: '/projects/:projectUuid/dashboards',
+        path: 'dashboards',
         element: (
-            <>
-                <NavBar />
-                <TrackPage name={PageName.SAVED_DASHBOARDS}>
-                    <SavedDashboards />
-                </TrackPage>
-            </>
+            <TrackPage name={PageName.SAVED_DASHBOARDS}>
+                <SavedDashboards />
+            </TrackPage>
         ),
     },
     {
-        path: '/projects/:projectUuid/dashboards/:dashboardUuid',
+        path: 'dashboards/:dashboardUuid/history',
+        element: (
+            <TrackPage name={PageName.DASHBOARD_HISTORY}>
+                <DashboardHistory />
+            </TrackPage>
+        ),
+    },
+];
+
+// Dashboard view routes (use handle.navBarFixed=false for non-fixed NavBar)
+const DASHBOARD_VIEW_ROUTES: RouteObject[] = [
+    {
+        path: 'dashboards/:dashboardUuid',
+        handle: { navBarFixed: false },
         children: [
             {
-                path: '/projects/:projectUuid/dashboards/:dashboardUuid/:mode?',
-                element: <DashboardPageWrapper />,
+                path: ':mode?',
+                index: false,
+                element: (
+                    <TrackPage name={PageName.DASHBOARD}>
+                        <Dashboard />
+                    </TrackPage>
+                ),
             },
             {
-                path: '/projects/:projectUuid/dashboards/:dashboardUuid/:mode/tabs/:tabUuid?',
-                element: <DashboardPageWrapper />,
+                path: ':mode/tabs/:tabUuid?',
+                element: (
+                    <TrackPage name={PageName.DASHBOARD}>
+                        <Dashboard />
+                    </TrackPage>
+                ),
             },
         ],
     },
@@ -218,119 +220,145 @@ const DASHBOARD_ROUTES: RouteObject[] = [
 
 const SQL_RUNNER_ROUTES: RouteObject[] = [
     {
-        path: '/projects/:projectUuid/sqlRunner',
-        // Support old share links. Redirects to new route.
-        element: <LegacySqlRunner />,
-    },
-    {
-        path: '/projects/:projectUuid/sql-runner',
-        element: (
-            <>
-                <NavBar />
-                <Outlet />
-            </>
-        ),
+        path: 'sql-runner',
+        element: <Outlet />,
         children: [
             {
-                path: '/projects/:projectUuid/sql-runner',
+                index: true,
                 element: <SqlRunner />,
             },
             {
-                path: '/projects/:projectUuid/sql-runner/:slug',
+                path: ':slug',
                 element: <ViewSqlChart />,
             },
             {
-                path: '/projects/:projectUuid/sql-runner:slug/edit',
+                path: ':slug/edit',
                 element: <SqlRunner isEditMode />,
             },
         ],
     },
 ];
 
+const SOURCE_CODE_ROUTES: RouteObject[] = [
+    {
+        // Redirect old source-code route to project home with editor drawer open
+        path: 'source-code',
+        element: <SourceCodeEditorRedirect />,
+    },
+];
+
 const TABLES_ROUTES: RouteObject[] = [
     {
-        path: '/projects/:projectUuid/tables',
+        path: 'tables',
         element: (
-            <>
-                <NavBar />
-                <TrackPage name={PageName.EXPLORE_TABLES}>
-                    <Explorer />
-                </TrackPage>
-            </>
+            <TrackPage name={PageName.EXPLORE_TABLES}>
+                <Explorer />
+            </TrackPage>
         ),
     },
     {
-        path: '/projects/:projectUuid/tables/:tableId',
+        path: 'tables/:tableId',
         element: (
-            <>
-                <NavBar />
-                <TrackPage name={PageName.EXPLORER}>
-                    <Explorer />
-                </TrackPage>
-            </>
+            <TrackPage name={PageName.EXPLORER}>
+                <Explorer />
+            </TrackPage>
         ),
     },
 ];
 
 const SPACES_ROUTES: RouteObject[] = [
     {
-        path: '/projects/:projectUuid/spaces',
+        path: 'spaces',
         element: (
-            <>
-                <NavBar />
-                <TrackPage name={PageName.SPACES}>
-                    <Spaces />
-                </TrackPage>
-            </>
+            <TrackPage name={PageName.SPACES}>
+                <Spaces />
+            </TrackPage>
         ),
     },
     {
-        path: '/projects/:projectUuid/spaces/:spaceUuid',
+        path: 'spaces/:spaceUuid',
         element: (
-            <>
-                <NavBar />
-                <TrackPage name={PageName.SPACE}>
-                    <Space />
-                </TrackPage>
-            </>
+            <TrackPage name={PageName.SPACE}>
+                <Space />
+            </TrackPage>
         ),
     },
 ];
 
 const METRICS_ROUTES: RouteObject[] = [
     {
-        path: '/projects/:projectUuid/metrics',
+        path: 'metrics',
         element: (
-            <>
-                <NavBar />
-                <TrackPage name={PageName.METRICS_CATALOG}>
-                    <MetricsCatalog />
-                </TrackPage>
-            </>
+            <TrackPage name={PageName.METRICS_CATALOG}>
+                <MetricsCatalog />
+            </TrackPage>
         ),
     },
     {
-        path: '/projects/:projectUuid/metrics/peek/:tableName/:metricName',
+        path: 'metrics/peek/:tableName/:metricName',
         element: (
-            <>
-                <NavBar />
-                <TrackPage name={PageName.METRICS_CATALOG}>
-                    <MetricsCatalog />
-                </TrackPage>
-            </>
+            <TrackPage name={PageName.METRICS_CATALOG}>
+                <MetricsCatalog />
+            </TrackPage>
         ),
     },
     {
-        path: '/projects/:projectUuid/metrics/canvas',
+        path: 'metrics/canvas',
         element: (
-            <>
-                <NavBar />
-                <TrackPage name={PageName.METRICS_CATALOG}>
-                    <MetricsCatalog
-                        metricCatalogView={MetricCatalogView.CANVAS}
-                    />
-                </TrackPage>
-            </>
+            <TrackPage name={PageName.METRICS_CATALOG}>
+                <MetricsCatalog metricCatalogView={MetricCatalogView.CANVAS} />
+            </TrackPage>
+        ),
+    },
+    {
+        path: 'metrics/canvas/:treeSlug',
+        element: (
+            <TrackPage name={PageName.METRICS_CATALOG}>
+                <MetricsCatalog metricCatalogView={MetricCatalogView.CANVAS} />
+            </TrackPage>
+        ),
+    },
+];
+
+// Routes that use ProjectLayout (fixed NavBar + SourceCodeDrawer)
+const PROJECT_LAYOUT_ROUTES: RouteObject[] = [
+    ...TABLES_ROUTES,
+    ...SQL_RUNNER_ROUTES,
+    ...SOURCE_CODE_ROUTES,
+    ...CHART_ROUTES,
+    ...DASHBOARD_LIST_ROUTES,
+    ...SPACES_ROUTES,
+    ...METRICS_ROUTES,
+    {
+        path: 'home',
+        element: (
+            <TrackPage name={PageName.HOME}>
+                <Home />
+            </TrackPage>
+        ),
+    },
+    {
+        path: 'user-activity',
+        element: (
+            <TrackPage name={PageName.USER_ACTIVITY}>
+                <UserActivity />
+            </TrackPage>
+        ),
+    },
+    {
+        path: 'unused-content',
+        element: (
+            <TrackPage name={PageName.USER_ACTIVITY}>
+                <UnusedContent />
+            </TrackPage>
+        ),
+    },
+    {
+        path: 'funnel-builder',
+        element: (
+            <TrackPage name={PageName.FUNNEL_BUILDER}>
+                <FunnelBuilder />
+            </TrackPage>
         ),
     },
 ];
@@ -356,55 +384,18 @@ const APP_ROUTES: RouteObject[] = [
                     </ProjectRoute>
                 ),
                 children: [
-                    ...TABLES_ROUTES,
-                    ...SQL_RUNNER_ROUTES,
-                    ...CHART_ROUTES,
-                    ...DASHBOARD_ROUTES,
-                    ...SPACES_ROUTES,
-                    ...METRICS_ROUTES,
+                    // Legacy sqlRunner redirect (no layout needed)
                     {
-                        path: '/projects/:projectUuid/home',
-                        element: (
-                            <>
-                                <NavBar />
-                                <TrackPage name={PageName.HOME}>
-                                    <Home />
-                                </TrackPage>
-                            </>
-                        ),
+                        path: 'sqlRunner',
+                        element: <LegacySqlRunner />,
                     },
+                    // All project routes share ProjectLayout (NavBar + SourceCodeDrawer)
                     {
-                        path: '/projects/:projectUuid/user-activity',
-                        element: (
-                            <>
-                                <NavBar />
-                                <TrackPage name={PageName.USER_ACTIVITY}>
-                                    <UserActivity />
-                                </TrackPage>
-                            </>
-                        ),
-                    },
-                    {
-                        path: '/projects/:projectUuid/unused-content',
-                        element: (
-                            <>
-                                <NavBar />
-                                <TrackPage name={PageName.USER_ACTIVITY}>
-                                    <UnusedContent />
-                                </TrackPage>
-                            </>
-                        ),
-                    },
-                    {
-                        path: '/projects/:projectUuid/funnel-builder',
-                        element: (
-                            <>
-                                <NavBar />
-                                <TrackPage name={PageName.FUNNEL_BUILDER}>
-                                    <FunnelBuilder />
-                                </TrackPage>
-                            </>
-                        ),
+                        element: <ProjectLayout />,
+                        children: [
+                            ...PROJECT_LAYOUT_ROUTES,
+                            ...DASHBOARD_VIEW_ROUTES,
+                        ],
                     },
                 ],
             },

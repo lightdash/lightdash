@@ -40,13 +40,23 @@ const applyOrganizationMemberStaticAbilities: Record<
     },
     viewer(member, { can }) {
         applyOrganizationMemberStaticAbilities.member(member, { can });
+        // TODO: remove once we're confident that nobody is stuck on an old frontend version
         can('view', 'Dashboard', {
+            organizationUuid: member.organizationUuid,
+            isPrivate: false,
+        });
+        can('view', 'Dashboard', {
+            organizationUuid: member.organizationUuid,
+            inheritsFromOrgOrProject: true,
+        });
+        // TODO: remove once we're confident that nobody is stuck on an old frontend version
+        can('view', 'SavedChart', {
             organizationUuid: member.organizationUuid,
             isPrivate: false,
         });
         can('view', 'SavedChart', {
             organizationUuid: member.organizationUuid,
-            isPrivate: false,
+            inheritsFromOrgOrProject: true,
         });
         can('view', 'Dashboard', {
             organizationUuid: member.organizationUuid,
@@ -60,9 +70,14 @@ const applyOrganizationMemberStaticAbilities: Record<
                 $elemMatch: { userUuid: member.userUuid },
             },
         });
+        // TODO: remove once we're confident that nobody is stuck on an old frontend version
         can('view', 'Space', {
             organizationUuid: member.organizationUuid,
             isPrivate: false,
+        });
+        can('view', 'Space', {
+            organizationUuid: member.organizationUuid,
+            inheritsFromOrgOrProject: true,
         });
         can('view', 'Space', {
             organizationUuid: member.organizationUuid,
@@ -194,9 +209,14 @@ const applyOrganizationMemberStaticAbilities: Record<
         applyOrganizationMemberStaticAbilities.interactive_viewer(member, {
             can,
         });
+        // TODO: remove once we're confident that nobody is stuck on an old frontend version
         can('manage', 'Space', {
             organizationUuid: member.organizationUuid,
             isPrivate: false,
+        });
+        can('manage', 'Space', {
+            organizationUuid: member.organizationUuid,
+            inheritsFromOrgOrProject: true,
         });
         can('create', 'Space', {
             organizationUuid: member.organizationUuid,
@@ -223,6 +243,9 @@ const applyOrganizationMemberStaticAbilities: Record<
     },
     developer(member, { can }) {
         applyOrganizationMemberStaticAbilities.editor(member, { can });
+        can('manage', 'PreAggregation', {
+            organizationUuid: member.organizationUuid,
+        });
         can('manage', 'VirtualView', {
             organizationUuid: member.organizationUuid,
         });
@@ -269,6 +292,11 @@ const applyOrganizationMemberStaticAbilities: Record<
         can('update', 'Project', {
             organizationUuid: member.organizationUuid,
         });
+        can('manage', 'DeployProject', {
+            organizationUuid: member.organizationUuid,
+            type: ProjectType.PREVIEW,
+            createdByUserUuid: member.userUuid,
+        });
         can('delete', 'Project', {
             organizationUuid: member.organizationUuid,
             type: ProjectType.PREVIEW,
@@ -305,6 +333,7 @@ const applyOrganizationMemberStaticAbilities: Record<
             organizationUuid: member.organizationUuid,
             type: { $in: [ProjectType.DEFAULT, ProjectType.PREVIEW] },
         });
+
         can('delete', 'Project', {
             organizationUuid: member.organizationUuid,
         });
@@ -339,6 +368,15 @@ const applyOrganizationMemberStaticAbilities: Record<
             organizationUuid: member.organizationUuid,
         });
         can('manage', 'ScheduledDeliveries', {
+            organizationUuid: member.organizationUuid,
+        });
+        can('manage', 'DeletedContent', {
+            organizationUuid: member.organizationUuid,
+        });
+        can('manage', 'GitIntegration', {
+            organizationUuid: member.organizationUuid,
+        });
+        can('manage', 'DeployProject', {
             organizationUuid: member.organizationUuid,
         });
     },

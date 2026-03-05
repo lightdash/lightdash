@@ -5,7 +5,6 @@ import {
     type TableCalcsSchema,
     type TableCalculation,
 } from '@lightdash/common';
-
 import { mockUsersOrdersExplore } from './validationExplore.mock';
 import { validateSelectedFieldsExistence } from './validators';
 
@@ -127,6 +126,7 @@ describe('validateSelectedFieldsExistence', () => {
                     displayName: 'Percent Change',
                     fieldId: 'users_total_users',
                     orderBy: [],
+                    partitionBy: null,
                 },
             ];
 

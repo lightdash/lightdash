@@ -1,4 +1,4 @@
-import { Center, Text } from '@mantine/core';
+import { Center, Text } from '@mantine-8/core';
 import { memo, type FC } from 'react';
 import type { EmptyStateItem } from './types';
 

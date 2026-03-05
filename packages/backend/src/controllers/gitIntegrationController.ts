@@ -171,6 +171,35 @@ export class GitIntegrationController extends BaseController {
     }
 
     /**
+     * Get the file path for an explore's YAML file (without fetching content)
+     * @summary Get explore file path
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Get('/explores/{exploreName}/file-path')
+    @OperationId('GetGitFilePathForExplore')
+    async getFilePathForExplore(
+        @Path() projectUuid: string,
+        @Path() exploreName: string,
+        @Request() req: express.Request,
+    ): Promise<{ status: 'ok'; results: { filePath: string } }> {
+        if (!lightdashConfig.editYamlInUi.enabled) {
+            throw new ForbiddenError('Edit YAML in UI feature is not enabled');
+        }
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getGitIntegrationService()
+                .getFilePathForExplore(req.user!, projectUuid, exploreName),
+        };
+    }
+
+    /**
      * Create a pull request with arbitrary file changes
      * @summary Create file PR
      */

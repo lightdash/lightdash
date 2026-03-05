@@ -47,6 +47,7 @@ export const getAggregatedField = (
         case SupportedDbtAdapter.REDSHIFT:
         case SupportedDbtAdapter.TRINO:
         case SupportedDbtAdapter.ATHENA:
+        case SupportedDbtAdapter.DUCKDB:
             const aggregationFunction =
                 aggregation === VizAggregationOptions.ANY
                     ? 'ANY_VALUE'

@@ -2,9 +2,9 @@ import assertUnreachable from '../utils/assertUnreachable';
 import { getItemType } from '../utils/item';
 import {
     DimensionType,
-    type Item,
     MetricType,
     TableCalculationType,
+    type Item,
 } from './field';
 
 export type ResultValue = {
@@ -38,6 +38,8 @@ export function convertItemTypeToDimensionType(item: Item): DimensionType {
         case MetricType.COUNT:
         case MetricType.COUNT_DISTINCT:
         case MetricType.SUM:
+        case MetricType.SUM_DISTINCT:
+        case MetricType.AVERAGE_DISTINCT:
         case MetricType.MIN:
         case MetricType.MAX:
         case MetricType.PERCENT_OF_PREVIOUS:

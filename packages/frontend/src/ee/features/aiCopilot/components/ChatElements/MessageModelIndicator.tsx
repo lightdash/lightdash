@@ -1,5 +1,5 @@
 import { Badge } from '@mantine-8/core';
-import { type FC, useMemo } from 'react';
+import { useMemo, type FC } from 'react';
 import { useModelOptions } from '../../hooks/useModelOptions';
 
 interface Props {

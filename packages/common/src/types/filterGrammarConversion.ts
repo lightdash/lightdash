@@ -3,8 +3,8 @@ import { type DbtColumnLightdashMetric } from './dbt';
 import { NotImplementedError, ParameterError } from './errors';
 import {
     FilterOperator,
-    UnitOfTime,
     isDateFilterRule,
+    UnitOfTime,
     type DateFilterSettings,
     type MetricFilterRule,
 } from './filter';

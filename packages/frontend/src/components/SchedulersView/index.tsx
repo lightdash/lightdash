@@ -9,7 +9,7 @@ import {
 } from '@mantine-8/core';
 import { IconClock, IconRefresh, IconSend } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { type FC, useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState, type FC } from 'react';
 import { useSearchParams } from 'react-router';
 import { useGetSlack, useSlackChannels } from '../../hooks/slack/useSlack';
 import useToaster from '../../hooks/toaster/useToaster';

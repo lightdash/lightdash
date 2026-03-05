@@ -79,7 +79,7 @@ export type CatalogField = Pick<
     Field,
     'name' | 'label' | 'fieldType' | 'tableLabel' | 'description'
 > &
-    Pick<Dimension, 'requiredAttributes'> & {
+    Pick<Dimension, 'requiredAttributes' | 'anyAttributes'> & {
         catalogSearchUuid: string;
         type: CatalogType.Field;
         basicType: 'string' | 'number' | 'date' | 'timestamp' | 'boolean';
@@ -99,7 +99,12 @@ export type CatalogField = Pick<
 
 export type CatalogTable = Pick<
     TableBase,
-    'name' | 'label' | 'groupLabel' | 'description' | 'requiredAttributes'
+    | 'name'
+    | 'label'
+    | 'groupLabel'
+    | 'description'
+    | 'requiredAttributes'
+    | 'anyAttributes'
 > & {
     catalogSearchUuid: string;
     errors?: InlineError[]; // For explore errors
@@ -121,7 +126,17 @@ export type CatalogMetricsTreeNode = Pick<
     'catalogSearchUuid' | 'name' | 'tableName'
 >;
 
-export type CatalogMetricsTreeEdgeSource = 'ui' | 'yaml';
+export type MetricsTreeSource = 'ui' | 'yaml';
+
+export type PrevMetricsTreeNode = {
+    metricsTreeUuid: string;
+    name: string;
+    tableName: string;
+    xPosition: number | null;
+    yPosition: number | null;
+    source: MetricsTreeSource;
+    createdAt: Date;
+};
 
 export type CatalogMetricsTreeEdge = {
     source: CatalogMetricsTreeNode;
@@ -129,7 +144,128 @@ export type CatalogMetricsTreeEdge = {
     createdAt: Date;
     createdByUserUuid: string | null;
     projectUuid: string;
-    createdFrom: CatalogMetricsTreeEdgeSource;
+    createdFrom: MetricsTreeSource;
+};
+
+// --- Saved Metrics Trees ---
+
+export type MetricsTreeLockInfo = {
+    lockedByUserUuid: string;
+    lockedByUserName: string;
+    acquiredAt: Date;
+};
+
+export type MetricsTree = {
+    metricsTreeUuid: string;
+    projectUuid: string;
+    slug: string;
+    name: string;
+    description: string | null;
+    source: MetricsTreeSource;
+    createdByUserUuid: string | null;
+    updatedByUserUuid: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+    generation: number;
+};
+
+export type MetricsTreeSummary = MetricsTree & {
+    nodeCount: number;
+    lock: MetricsTreeLockInfo | null;
+};
+
+export type MetricsTreeNodePosition = {
+    catalogSearchUuid: string;
+    xPosition: number | null;
+    yPosition: number | null;
+};
+
+export type MetricsTreeNode = MetricsTreeNodePosition & {
+    name: string;
+    tableName: string;
+    source: MetricsTreeSource;
+};
+
+export type MetricsTreeWithDetails = MetricsTree & {
+    nodes: MetricsTreeNode[];
+    edges: CatalogMetricsTreeEdge[];
+    lock: MetricsTreeLockInfo | null;
+};
+
+// --- Saved Metrics Trees API Types ---
+
+export type ApiCreateMetricsTreePayload = {
+    name: string;
+    slug?: string;
+    description?: string;
+    source?: MetricsTreeSource;
+    nodes: Array<{
+        catalogSearchUuid: string;
+        xPosition?: number;
+        yPosition?: number;
+    }>;
+    edges: Array<{
+        sourceCatalogSearchUuid: string;
+        targetCatalogSearchUuid: string;
+    }>;
+};
+
+export type ApiUpdateMetricsTreePayload = {
+    name?: string;
+    description?: string;
+    /** The generation the client was editing. Used for conflict detection. */
+    expectedGeneration: number;
+    nodes: Array<{
+        catalogSearchUuid: string;
+        xPosition?: number;
+        yPosition?: number;
+    }>;
+    edges: Array<{
+        sourceCatalogSearchUuid: string;
+        targetCatalogSearchUuid: string;
+    }>;
+};
+
+export type ApiAddMetricsTreeNodesPayload = {
+    nodes: Array<{
+        catalogSearchUuid: string;
+        xPosition?: number;
+        yPosition?: number;
+    }>;
+};
+
+export type ApiUpdateMetricsTreeNodePositionsPayload = {
+    positions: MetricsTreeNodePosition[];
+};
+
+export type ApiGetMetricsTreesResponse = {
+    status: 'ok';
+    results: KnexPaginatedData<MetricsTreeSummary[]>;
+};
+
+export type ApiGetMetricsTreeResponse = {
+    status: 'ok';
+    results: MetricsTreeWithDetails;
+};
+
+export type ApiCreateMetricsTreeResponse = {
+    status: 'ok';
+    results: MetricsTree;
+};
+
+export type ApiUpdateMetricsTreeResponse = {
+    status: 'ok';
+    results: MetricsTreeWithDetails;
+};
+
+export type ApiMetricsTreeLockResponse = {
+    status: 'ok';
+    results: MetricsTreeLockInfo;
+};
+
+export type ApiGetUnassignedMetricsResponse = {
+    status: 'ok';
+    results: CatalogMetricsTreeNode[];
 };
 
 export type ApiCatalogResults = CatalogItem[];
@@ -223,6 +359,8 @@ export const getBasicType = (field: CompiledDimension | CompiledMetric) => {
         case MetricType.COUNT:
         case MetricType.COUNT_DISTINCT:
         case MetricType.SUM:
+        case MetricType.SUM_DISTINCT:
+        case MetricType.AVERAGE_DISTINCT:
         case MetricType.MIN:
         case MetricType.MAX:
         case MetricType.PERCENT_OF_PREVIOUS:
@@ -278,6 +416,7 @@ export type SchedulerIndexCatalogJobPayload = TraceTaskBase & {
     prevCatalogItemsWithTags: CatalogItemWithTagUuids[];
     prevCatalogItemsWithIcons: CatalogItemsWithIcons[];
     prevMetricTreeEdges: CatalogMetricsTreeEdge[];
+    prevMetricsTreeNodes: PrevMetricsTreeNode[];
 };
 
 export type ChartFieldUpdates = {

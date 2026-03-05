@@ -1,4 +1,5 @@
 import {
+    BinType,
     CompiledMetricQuery,
     CompileError,
     CustomDimensionType,
@@ -556,6 +557,82 @@ test('Should compile PERCENT_OF_COLUMN_TOTAL template without partitionBy', () =
     );
 });
 
+test('Should compile PERCENT_CHANGE_FROM_PREVIOUS template with partitionBy', () => {
+    const metricQueryWithPartitionBy = {
+        ...METRIC_QUERY_VALID_REFERENCES,
+        dimensions: ['table1_dim_1', 'table3_dim_3'],
+        tableCalculations: [
+            {
+                name: 'pct_change_by_category',
+                displayName: 'Pct Change by Category',
+                template: {
+                    type: TableCalculationTemplateType.PERCENT_CHANGE_FROM_PREVIOUS,
+                    fieldId: 'table_3_metric_1',
+                    orderBy: [
+                        { fieldId: 'table3_dim_3', order: 'asc' as const },
+                    ],
+                    partitionBy: ['table1_dim_1'],
+                },
+            } as TableCalculation,
+        ],
+    };
+
+    const result = compileMetricQuery({
+        explore: EXPLORE,
+        metricQuery: metricQueryWithPartitionBy,
+        warehouseSqlBuilder: warehouseClientMock,
+        availableParameters: [],
+    });
+
+    const pctChange = result.compiledTableCalculations.find(
+        (c) => c.name === 'pct_change_by_category',
+    );
+
+    expect(pctChange?.compiledSql).toBe(
+        '(CAST("table_3_metric_1" AS FLOAT) / CAST(NULLIF(LAG("table_3_metric_1") OVER(PARTITION BY "table1_dim_1" ORDER BY "table3_dim_3" ASC ), 0) AS FLOAT)) - 1',
+    );
+
+    expect(pctChange?.dependsOn).toEqual([]);
+});
+
+test('Should compile PERCENT_CHANGE_FROM_PREVIOUS template with multiple partitionBy fields', () => {
+    const metricQueryWithMultiplePartitions = {
+        ...METRIC_QUERY_VALID_REFERENCES,
+        dimensions: ['table1_dim_1', 'table_2_dim_2', 'table3_dim_3'],
+        tableCalculations: [
+            {
+                name: 'pct_change_multi_partition',
+                displayName: 'Pct Change Multi Partition',
+                template: {
+                    type: TableCalculationTemplateType.PERCENT_CHANGE_FROM_PREVIOUS,
+                    fieldId: 'table_3_metric_1',
+                    orderBy: [
+                        { fieldId: 'table3_dim_3', order: 'asc' as const },
+                    ],
+                    partitionBy: ['table1_dim_1', 'table_2_dim_2'],
+                },
+            } as TableCalculation,
+        ],
+    };
+
+    const result = compileMetricQuery({
+        explore: EXPLORE,
+        metricQuery: metricQueryWithMultiplePartitions,
+        warehouseSqlBuilder: warehouseClientMock,
+        availableParameters: [],
+    });
+
+    const pctChange = result.compiledTableCalculations.find(
+        (c) => c.name === 'pct_change_multi_partition',
+    );
+
+    expect(pctChange?.compiledSql).toBe(
+        '(CAST("table_3_metric_1" AS FLOAT) / CAST(NULLIF(LAG("table_3_metric_1") OVER(PARTITION BY "table1_dim_1", "table_2_dim_2" ORDER BY "table3_dim_3" ASC ), 0) AS FLOAT)) - 1',
+    );
+
+    expect(pctChange?.dependsOn).toEqual([]);
+});
+
 test('Should compile WINDOW_FUNCTION template with ROW_NUMBER', () => {
     const metricQueryWithRowNumber = {
         ...METRIC_QUERY_VALID_REFERENCES,
@@ -885,4 +962,65 @@ test('Should compile WINDOW_FUNCTION template with RANGE frame type', () => {
     expect(rangeSum?.compiledSql).toBe(
         'SUM("table_3_metric_1") OVER (ORDER BY "table1_dim_1" ASC RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)',
     );
+});
+
+test('Should compile template table calculations using _order for custom bin dimensions', () => {
+    const metricQueryWithCustomBin = {
+        ...METRIC_QUERY_VALID_REFERENCES,
+        dimensions: ['table1_dim_1', 'age_range'],
+        sorts: [{ fieldId: 'age_range', descending: false }],
+        customDimensions: [
+            {
+                id: 'age_range',
+                name: 'Age range',
+                type: CustomDimensionType.BIN as const,
+                dimensionId: 'table1_dim_1',
+                table: 'table1',
+                binType: BinType.FIXED_WIDTH,
+                binWidth: 10,
+            },
+        ],
+        tableCalculations: [
+            {
+                name: 'running_total_over_bins',
+                displayName: 'Running total over bins',
+                template: {
+                    type: TableCalculationTemplateType.RUNNING_TOTAL,
+                    fieldId: 'table_3_metric_1',
+                },
+            } as TableCalculation,
+            {
+                name: 'row_number_over_bins',
+                displayName: 'Row number over bins',
+                template: {
+                    type: TableCalculationTemplateType.WINDOW_FUNCTION,
+                    windowFunction: WindowFunctionType.ROW_NUMBER,
+                    fieldId: null,
+                    orderBy: [{ fieldId: 'age_range', order: 'asc' }],
+                    partitionBy: [],
+                },
+            } as TableCalculation,
+        ],
+    };
+
+    const result = compileMetricQuery({
+        explore: EXPLORE,
+        metricQuery: metricQueryWithCustomBin,
+        warehouseSqlBuilder: warehouseClientMock,
+        availableParameters: [],
+    });
+
+    expect(
+        result.compiledTableCalculations.find(
+            (c) => c.name === 'running_total_over_bins',
+        )?.compiledSql,
+    ).toBe(
+        'SUM("table_3_metric_1") OVER (ORDER BY "age_range_order" ASC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)',
+    );
+
+    expect(
+        result.compiledTableCalculations.find(
+            (c) => c.name === 'row_number_over_bins',
+        )?.compiledSql,
+    ).toBe('ROW_NUMBER() OVER (ORDER BY "age_range_order" ASC)');
 });

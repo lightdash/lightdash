@@ -3,9 +3,9 @@ import { ActionIcon, Box, Group, TextInput, Tooltip } from '@mantine/core';
 import { useDebouncedState } from '@mantine/hooks';
 import { IconEye, IconEyeOff } from '@tabler/icons-react';
 import { useEffect, useState, type FC } from 'react';
+import MantineIcon from '../../common/MantineIcon';
 import { isMapVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
-import MantineIcon from '../../common/MantineIcon';
 
 type MapFieldConfigurationInputProps = {
     fieldId: string;

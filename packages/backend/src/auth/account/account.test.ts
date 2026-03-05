@@ -7,7 +7,6 @@ import {
     SessionUser,
     UserAccessControls,
 } from '@lightdash/common';
-
 // Import the functions we want to test
 import { fromJwt, fromSession } from './account';
 

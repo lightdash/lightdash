@@ -1,4 +1,4 @@
-import { Box, Button, Flex, Stack, TextInput, Textarea } from '@mantine-8/core';
+import { Box, Button, Flex, Stack, Textarea, TextInput } from '@mantine-8/core';
 import { useForm } from '@mantine/form';
 import { type FC } from 'react';
 import { Link } from 'react-router';

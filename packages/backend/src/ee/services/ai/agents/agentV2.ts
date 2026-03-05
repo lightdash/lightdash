@@ -15,6 +15,7 @@ import { getFindContent } from '../tools/findContent';
 import { getFindExplores } from '../tools/findExplores';
 import { getFindFields } from '../tools/findFields';
 import { getGenerateDashboardV2 } from '../tools/generateDashboardV2';
+import { getGetDashboardCharts } from '../tools/getDashboardCharts';
 import { getImproveContext } from '../tools/improveContext';
 import { getProposeChange } from '../tools/proposeChange';
 import { getRunQuery } from '../tools/runQuery';
@@ -81,6 +82,7 @@ const getAgentTools = (
     });
 
     const findFields = getFindFields({
+        getExplore: dependencies.getExplore,
         findFields: dependencies.findFields,
         updateProgress: dependencies.updateProgress,
         pageSize: args.findFieldsPageSize,
@@ -89,6 +91,12 @@ const getAgentTools = (
     const findContent = getFindContent({
         findContent: dependencies.findContent,
         siteUrl: args.siteUrl,
+    });
+
+    const getDashboardCharts = getGetDashboardCharts({
+        getDashboardCharts: dependencies.getDashboardCharts,
+        siteUrl: args.siteUrl,
+        pageSize: args.getDashboardChartsPageSize,
     });
 
     const runQuery = getRunQuery({
@@ -120,6 +128,7 @@ const getAgentTools = (
 
     const tools = {
         findContent,
+        getDashboardCharts,
         findExplores,
         findFields,
         runQuery,

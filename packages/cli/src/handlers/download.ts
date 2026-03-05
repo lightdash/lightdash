@@ -3,7 +3,9 @@
 import {
     ApiChartAsCodeListResponse,
     ApiChartAsCodeUpsertResponse,
+    ApiChartValidationResponse,
     ApiDashboardAsCodeListResponse,
+    ApiDashboardValidationResponse,
     ApiSqlChartAsCodeListResponse,
     assertUnreachable,
     AuthorizationError,
@@ -20,12 +22,14 @@ import {
 import { Dirent, promises as fs } from 'fs';
 import * as yaml from 'js-yaml';
 import groupBy from 'lodash/groupBy';
+import pLimit from 'p-limit';
 import * as path from 'path';
 import { LightdashAnalytics } from '../analytics/analytics';
 import { getConfig } from '../config';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
 import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
+import { logSelectedProject, selectProject } from './selectProject';
 
 export type DownloadHandlerOptions = {
     verbose: boolean;
@@ -39,6 +43,8 @@ export type DownloadHandlerOptions = {
     public: boolean;
     includeCharts: boolean;
     nested: boolean; // Use nested folder structure (projectName/spaceSlug/charts|dashboards)
+    validate?: boolean; // Validate charts and dashboards after upload
+    concurrency: number;
 };
 
 type FolderScheme = 'flat' | 'nested';
@@ -469,8 +475,6 @@ export const downloadHandler = async (
     options: DownloadHandlerOptions,
 ): Promise<void> => {
     GlobalState.setVerbose(options.verbose);
-    const spinner = GlobalState.startSpinner(`Downloading charts`);
-    spinner.start(`Downloading content from project`);
 
     await checkLightdashVersion();
 
@@ -481,21 +485,19 @@ export const downloadHandler = async (
         );
     }
 
-    const projectId = options.project || config.context.project;
-    if (!projectId) {
+    const projectSelection = await selectProject(config, options.project);
+    if (!projectSelection) {
         throw new Error(
             'No project selected. Run lightdash config set-project',
         );
     }
+    const projectId = projectSelection.projectUuid;
 
     // Log current project info
-    if (options.project) {
-        console.error(
-            `\n${styles.success('Downloading from project:')} ${projectId}\n`,
-        );
-    } else {
-        GlobalState.logProjectInfo(config);
-    }
+    logSelectedProject(projectSelection, config, 'Downloading from');
+
+    const spinner = GlobalState.startSpinner(`Downloading charts`);
+    spinner.start(`Downloading content from project`);
 
     // Fetch project details to get project name for folder structure
     const project = await lightdashApi<Project>({
@@ -696,12 +698,165 @@ const logUploadChanges = (changes: Record<string, number>) => {
     Object.entries(changes).forEach(([key, value]) => {
         console.info(`Total ${key}: ${value} `);
     });
+
+    const totalSkipped = Object.entries(changes)
+        .filter(([key]) => key.includes('skipped'))
+        .reduce((sum, [, value]) => sum + value, 0);
+    const totalUpserted = Object.entries(changes)
+        .filter(([key]) => !key.includes('skipped'))
+        .reduce((sum, [, value]) => sum + value, 0);
+
+    if (totalSkipped > 0 && totalUpserted === 0) {
+        console.warn(
+            styles.warning(
+                `\nAll content was skipped (no local changes detected). Use --force to upload all content, e.g. when uploading to a new project.`,
+            ),
+        );
+    }
 };
 
 // SQL charts have 'sql' field instead of 'tableName'/'metricQuery'
 const isSqlChart = (
     item: ChartAsCode | DashboardAsCode | SqlChartAsCode,
 ): item is SqlChartAsCode => 'sql' in item && !('tableName' in item);
+
+const upsertSingleItem = async <T extends ChartAsCode | DashboardAsCode>(
+    item: T & { needsUpdating: boolean },
+    type: 'charts' | 'dashboards',
+    projectId: string,
+    changes: Record<string, number>,
+    force: boolean,
+    config: { user?: { userUuid?: string; organizationUuid?: string } },
+    skipSpaceCreate?: boolean,
+    publicSpaceCreate?: boolean,
+    validate?: boolean,
+): Promise<void> => {
+    try {
+        if (!force && !item.needsUpdating) {
+            GlobalState.debug(
+                `Skipping ${type} "${item.slug}" with no local changes`,
+            );
+            changes[`${type} skipped`] = (changes[`${type} skipped`] ?? 0) + 1;
+            return;
+        }
+        GlobalState.debug(`Upserting ${type} ${item.slug}`);
+
+        // SQL charts use a different endpoint
+        const isSqlChartItem = type === 'charts' && isSqlChart(item);
+        const endpoint = isSqlChartItem
+            ? `/api/v1/projects/${projectId}/sqlCharts/${item.slug}/code`
+            : `/api/v1/projects/${projectId}/${type}/${item.slug}/code`;
+
+        const upsertData = await lightdashApi<
+            ApiChartAsCodeUpsertResponse['results']
+        >({
+            method: 'POST',
+            url: endpoint,
+            body: JSON.stringify({
+                ...item,
+                skipSpaceCreate,
+                publicSpaceCreate,
+                force,
+            }),
+        });
+
+        GlobalState.debug(
+            `${type} "${item.name}": ${upsertData[type]?.[0].action}`,
+        );
+
+        // Merge storeUploadChanges result into changes in-place
+        const updatedChanges = storeUploadChanges(changes, upsertData);
+        Object.keys(updatedChanges).forEach((key) => {
+            changes[key] = updatedChanges[key];
+        });
+
+        // Run validation if requested
+        if (validate && !isSqlChartItem) {
+            const contentUuid =
+                type === 'charts'
+                    ? upsertData.charts?.[0]?.data?.uuid
+                    : upsertData.dashboards?.[0]?.data?.uuid;
+
+            if (contentUuid) {
+                try {
+                    const validationEndpoint =
+                        type === 'charts'
+                            ? `/api/v1/projects/${projectId}/validate/chart/${contentUuid}`
+                            : `/api/v1/projects/${projectId}/validate/dashboard/${contentUuid}`;
+
+                    const validationResult = await lightdashApi<
+                        | ApiChartValidationResponse['results']
+                        | ApiDashboardValidationResponse['results']
+                    >({
+                        method: 'POST',
+                        url: validationEndpoint,
+                        body: JSON.stringify({}),
+                    });
+
+                    if (
+                        validationResult.errors &&
+                        validationResult.errors.length > 0
+                    ) {
+                        GlobalState.log(
+                            styles.warning(
+                                `Validation found ${validationResult.errors.length} issue(s) in ${type.slice(0, -1)} "${item.name}"`,
+                            ),
+                        );
+                        validationResult.errors.forEach((error) => {
+                            GlobalState.log(
+                                styles.warning(`  - ${error.error}`),
+                            );
+                        });
+                    } else {
+                        GlobalState.log(
+                            styles.success(
+                                `✓ No validation issues in ${type.slice(0, -1)} "${item.name}"`,
+                            ),
+                        );
+                    }
+                } catch (validationError) {
+                    GlobalState.debug(
+                        `Validation failed for ${type.slice(0, -1)} "${item.name}": ${getErrorMessage(validationError)}`,
+                    );
+                }
+            }
+        }
+    } catch (error: unknown) {
+        if (
+            error instanceof LightdashError &&
+            error.name === 'NotFoundError' &&
+            skipSpaceCreate
+        ) {
+            GlobalState.log(
+                styles.warning(
+                    `Skipping ${type} "${item.slug}" because space "${item.spaceSlug}" does not exist and --skip-space-create is true`,
+                ),
+            );
+            changes[`${type} skipped`] = (changes[`${type} skipped`] ?? 0) + 1;
+        } else {
+            changes[`${type} with errors`] =
+                (changes[`${type} with errors`] ?? 0) + 1;
+            GlobalState.log(
+                styles.error(
+                    `Error upserting ${type}:\n\t"${item.name}" (slug: "${
+                        item.slug
+                    }")\n\t${getErrorMessage(error)}`,
+                ),
+            );
+
+            await LightdashAnalytics.track({
+                event: 'download.error',
+                properties: {
+                    userId: config.user?.userUuid,
+                    organizationId: config.user?.organizationUuid,
+                    projectId,
+                    type,
+                    error: getErrorMessage(error),
+                },
+            });
+        }
+    }
+};
 
 /**
  *
@@ -716,19 +871,21 @@ const upsertResources = async <T extends ChartAsCode | DashboardAsCode>(
     customPath?: string,
     skipSpaceCreate?: boolean,
     publicSpaceCreate?: boolean,
+    validate?: boolean,
+    concurrency: number = 1,
 ): Promise<{ changes: Record<string, number>; total: number }> => {
     const config = await getConfig();
 
     const items = await readCodeFiles<T>(type, customPath);
 
-    console.info(`Found ${items.length} ${type} files`);
+    GlobalState.log(`Found ${items.length} ${type} files`);
 
     const hasFilter = slugs.length > 0;
     const filteredItems = hasFilter
         ? items.filter((item) => slugs.includes(item.slug))
         : items;
     if (hasFilter) {
-        console.info(
+        GlobalState.log(
             `Filtered ${filteredItems.length} ${type} with slugs: ${slugs.join(
                 ', ',
             )}`,
@@ -737,91 +894,92 @@ const upsertResources = async <T extends ChartAsCode | DashboardAsCode>(
             (slug) => !items.find((item) => item.slug === slug),
         );
         missingItems.forEach((slug) => {
-            console.warn(styles.warning(`No ${type} with slug: "${slug}"`));
+            GlobalState.log(styles.warning(`No ${type} with slug: "${slug}"`));
         });
     }
 
-    for (const item of filteredItems) {
-        // If a chart fails to update, we keep updating the rest
-        try {
-            if (!force && !item.needsUpdating) {
-                if (hasFilter) {
-                    console.warn(
-                        styles.warning(
-                            `Skipping ${type} "${item.slug}" with no local changes`,
-                        ),
-                    );
-                }
-                GlobalState.debug(
-                    `Skipping ${type} "${item.slug}" with no local changes`,
-                );
-                changes[`${type} skipped`] =
-                    (changes[`${type} skipped`] ?? 0) + 1;
-                // eslint-disable-next-line no-continue
-                continue;
-            }
-            GlobalState.debug(`Upserting ${type} ${item.slug}`);
-
-            // SQL charts use a different endpoint
-            const isSqlChartItem = type === 'charts' && isSqlChart(item);
-            const endpoint = isSqlChartItem
-                ? `/api/v1/projects/${projectId}/sqlCharts/${item.slug}/code`
-                : `/api/v1/projects/${projectId}/${type}/${item.slug}/code`;
-
-            const upsertData = await lightdashApi<
-                ApiChartAsCodeUpsertResponse['results']
-            >({
-                method: 'POST',
-                url: endpoint,
-                body: JSON.stringify({
-                    ...item,
-                    skipSpaceCreate,
-                    publicSpaceCreate,
-                }),
-            });
-
-            GlobalState.debug(
-                `${type} "${item.name}": ${upsertData[type]?.[0].action}`,
+    if (concurrency <= 1) {
+        // Sequential path — preserves original behavior exactly
+        for (const item of filteredItems) {
+            // eslint-disable-next-line no-await-in-loop
+            await upsertSingleItem(
+                item,
+                type,
+                projectId,
+                changes,
+                force,
+                config,
+                skipSpaceCreate,
+                publicSpaceCreate,
+                validate,
             );
-
-            changes = storeUploadChanges(changes, upsertData);
-        } catch (error: unknown) {
-            if (
-                error instanceof LightdashError &&
-                error.name === 'NotFoundError' &&
-                skipSpaceCreate
-            ) {
-                console.warn(
-                    styles.warning(
-                        `Skipping ${type} "${item.slug}" because space "${item.spaceSlug}" does not exist and --skip-space-create is true`,
-                    ),
-                );
-                changes[`${type} skipped`] =
-                    (changes[`${type} skipped`] ?? 0) + 1;
-            } else {
-                changes[`${type} with errors`] =
-                    (changes[`${type} with errors`] ?? 0) + 1;
-                console.error(
-                    styles.error(
-                        `Error upserting ${type}:\n\t"${item.name}" (slug: "${
-                            item.slug
-                        }")\n\t${getErrorMessage(error)}`,
-                    ),
-                );
-
-                await LightdashAnalytics.track({
-                    event: 'download.error',
-                    properties: {
-                        userId: config.user?.userUuid,
-                        organizationId: config.user?.organizationUuid,
-                        projectId,
-                        type,
-                        error: getErrorMessage(error),
-                    },
-                });
-            }
         }
+    } else {
+        // Two-phase parallel path
+        // Phase 1: Seed spaces by uploading the first item per unique spaceSlug sequentially
+        // This avoids the backend race condition in getOrCreateSpace()
+        type ItemWithUpdate = T & { needsUpdating: boolean };
+        const grouped = groupBy(
+            filteredItems,
+            (item: ItemWithUpdate) => item.spaceSlug,
+        ) as Record<string, ItemWithUpdate[]>;
+        const seedItems = new Set<T & { needsUpdating: boolean }>();
+        const remainingItems: Array<T & { needsUpdating: boolean }> = [];
+
+        Object.values(grouped).forEach((spaceItems: ItemWithUpdate[]) => {
+            // Pick the first item that will actually trigger an API call
+            // (and thus create the space). If force is true, any item works.
+            const seedIndex = force
+                ? 0
+                : spaceItems.findIndex((i) => i.needsUpdating);
+            if (seedIndex >= 0) {
+                seedItems.add(spaceItems[seedIndex]);
+                remainingItems.push(
+                    ...spaceItems.filter((_, idx) => idx !== seedIndex),
+                );
+            } else {
+                // No items need updating — all will be skipped, no space needed
+                remainingItems.push(...spaceItems);
+            }
+        });
+
+        // Phase 1: Sequential space seeding
+        for (const item of seedItems) {
+            // eslint-disable-next-line no-await-in-loop
+            await upsertSingleItem(
+                item,
+                type,
+                projectId,
+                changes,
+                force,
+                config,
+                skipSpaceCreate,
+                publicSpaceCreate,
+                validate,
+            );
+        }
+
+        // Phase 2: Parallel bulk upload of remaining items
+        const limit = pLimit(concurrency);
+        await Promise.all(
+            remainingItems.map((item) =>
+                limit(async () => {
+                    await upsertSingleItem(
+                        item,
+                        type,
+                        projectId,
+                        changes,
+                        force,
+                        config,
+                        skipSpaceCreate,
+                        publicSpaceCreate,
+                        validate,
+                    );
+                }),
+            ),
+        );
     }
+
     return { changes, total: filteredItems.length };
 };
 
@@ -869,21 +1027,16 @@ export const uploadHandler = async (
         );
     }
 
-    const projectId = options.project || config.context.project;
-    if (!projectId) {
+    const projectSelection = await selectProject(config, options.project);
+    if (!projectSelection) {
         throw new Error(
             'No project selected. Run lightdash config set-project',
         );
     }
+    const projectId = projectSelection.projectUuid;
 
     // Log current project info
-    if (options.project) {
-        console.error(
-            `\n${styles.success('Uploading to project:')} ${projectId}\n`,
-        );
-    } else {
-        GlobalState.logProjectInfo(config);
-    }
+    logSelectedProject(projectSelection, config, 'Uploading to');
 
     let changes: Record<string, number> = {};
     // For analytics
@@ -919,8 +1072,21 @@ export const uploadHandler = async (
               )
             : options.charts;
 
+        const concurrency = Math.min(
+            Math.max(1, parseInt(String(options.concurrency), 10) || 1),
+            1000,
+        );
+
+        if (parseInt(String(options.concurrency), 10) > 1000) {
+            GlobalState.log(
+                styles.warning(
+                    `Concurrency limit exceeded. Using maximum of 1000 instead of ${options.concurrency}`,
+                ),
+            );
+        }
+
         if (hasFilters && chartSlugs.length === 0) {
-            console.info(
+            GlobalState.log(
                 styles.warning(`No charts filters provided, skipping`),
             );
         } else {
@@ -934,13 +1100,15 @@ export const uploadHandler = async (
                     options.path,
                     options.skipSpaceCreate,
                     options.public,
+                    options.validate,
+                    concurrency,
                 );
             changes = chartChanges;
             chartTotal = total;
         }
 
         if (hasFilters && options.dashboards.length === 0) {
-            console.info(
+            GlobalState.log(
                 styles.warning(`No dashboard filters provided, skipping`),
             );
         } else {
@@ -954,6 +1122,8 @@ export const uploadHandler = async (
                     options.path,
                     options.skipSpaceCreate,
                     options.public,
+                    options.validate,
+                    concurrency,
                 );
             changes = dashboardChanges;
             dashboardTotal = total;
@@ -974,7 +1144,7 @@ export const uploadHandler = async (
 
         logUploadChanges(changes);
     } catch (error) {
-        console.error(
+        GlobalState.log(
             styles.error(`\nError downloading: ${getErrorMessage(error)}`),
         );
         await LightdashAnalytics.track({

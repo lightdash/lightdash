@@ -1,11 +1,11 @@
 // Mock schema file with comments, different multi-line strings, different types of quotes, different types of arrays
 import {
     BinType,
-    type CustomBinDimension,
     CustomDimensionType,
-    type CustomSqlDimension,
     DimensionType,
     MetricType,
+    type CustomBinDimension,
+    type CustomSqlDimension,
 } from '../../types/field';
 import { type AdditionalMetric } from '../../types/metricQuery';
 

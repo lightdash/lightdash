@@ -1,7 +1,7 @@
 import { FUNNEL_DATE_PRESETS, type FunnelDatePreset } from '@lightdash/common';
 import { Group, SegmentedControl } from '@mantine-8/core';
 import { DatePickerInput } from '@mantine/dates';
-import { type FC, useCallback } from 'react';
+import { useCallback, type FC } from 'react';
 import { useAppDispatch, useAppSelector } from '../store';
 import {
     selectCustomDateRange,

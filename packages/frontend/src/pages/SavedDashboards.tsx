@@ -3,14 +3,15 @@ import { Button, Group, Stack } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import LoadingState from '../components/common/LoadingState';
+import EmptyStateLoader from '../components/common/EmptyStateLoader';
+import DashboardCreateModal from '../components/common/modal/DashboardCreateModal';
 import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import InfiniteResourceTable from '../components/common/ResourceView/InfiniteResourceTable';
-import DashboardCreateModal from '../components/common/modal/DashboardCreateModal';
 import { useDashboards } from '../hooks/dashboard/useDashboards';
 import useCreateInAnySpaceAccess from '../hooks/user/useCreateInAnySpaceAccess';
 import useApp from '../providers/App/useApp';
+import { FavoritesProvider } from '../providers/Favorites/FavoritesProvider';
 
 const SavedDashboards = () => {
     const navigate = useNavigate();
@@ -33,7 +34,7 @@ const SavedDashboards = () => {
     }
 
     if (isInitialLoading) {
-        return <LoadingState title="Loading dashboards" />;
+        return <EmptyStateLoader my="xl" title="Loading dashboards" />;
     }
 
     const handleCreateDashboard = () => {
@@ -41,55 +42,57 @@ const SavedDashboards = () => {
     };
 
     return (
-        <Page
-            title="Dashboards"
-            withCenteredRoot
-            withCenteredContent
-            withXLargePaddedContent
-            withLargeContent
-        >
-            <Stack spacing="xxl" w="100%">
-                <Group position="apart">
-                    <PageBreadcrumbs
-                        items={[
-                            { title: 'Home', to: '/home' },
-                            { title: 'All dashboards', active: true },
-                        ]}
+        <FavoritesProvider projectUuid={projectUuid}>
+            <Page
+                title="Dashboards"
+                withCenteredRoot
+                withCenteredContent
+                withXLargePaddedContent
+                withLargeContent
+            >
+                <Stack spacing="xxl" w="100%">
+                    <Group position="apart">
+                        <PageBreadcrumbs
+                            items={[
+                                { title: 'Home', to: '/home' },
+                                { title: 'All dashboards', active: true },
+                            ]}
+                        />
+
+                        {dashboards.length > 0 &&
+                            userCanCreateDashboards &&
+                            !isDemo && (
+                                <Button
+                                    leftIcon={<IconPlus size={18} />}
+                                    onClick={handleCreateDashboard}
+                                >
+                                    Create dashboard
+                                </Button>
+                            )}
+                    </Group>
+
+                    <InfiniteResourceTable
+                        filters={{
+                            projectUuid,
+                            contentTypes: [ContentType.DASHBOARD],
+                        }}
                     />
+                </Stack>
 
-                    {dashboards.length > 0 &&
-                        userCanCreateDashboards &&
-                        !isDemo && (
-                            <Button
-                                leftIcon={<IconPlus size={18} />}
-                                onClick={handleCreateDashboard}
-                            >
-                                Create dashboard
-                            </Button>
-                        )}
-                </Group>
+                <DashboardCreateModal
+                    projectUuid={projectUuid}
+                    opened={isCreateDashboardOpen}
+                    onClose={() => setIsCreateDashboardOpen(false)}
+                    onConfirm={(dashboard) => {
+                        void navigate(
+                            `/projects/${projectUuid}/dashboards/${dashboard.uuid}/edit`,
+                        );
 
-                <InfiniteResourceTable
-                    filters={{
-                        projectUuid,
-                        contentTypes: [ContentType.DASHBOARD],
+                        setIsCreateDashboardOpen(false);
                     }}
                 />
-            </Stack>
-
-            <DashboardCreateModal
-                projectUuid={projectUuid}
-                opened={isCreateDashboardOpen}
-                onClose={() => setIsCreateDashboardOpen(false)}
-                onConfirm={(dashboard) => {
-                    void navigate(
-                        `/projects/${projectUuid}/dashboards/${dashboard.uuid}/edit`,
-                    );
-
-                    setIsCreateDashboardOpen(false);
-                }}
-            />
-        </Page>
+            </Page>
+        </FavoritesProvider>
     );
 };
 

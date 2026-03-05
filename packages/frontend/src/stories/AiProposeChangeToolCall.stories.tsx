@@ -3,8 +3,8 @@ import '@mantine-8/core/styles.css';
 import type { Meta, StoryObj } from '@storybook/react';
 import { MemoryRouter } from 'react-router';
 import { AiProposeChangeToolCall } from '../ee/features/aiCopilot/components/ChatElements/ToolCalls/AiProposeChangeToolCall';
-import Mantine8Provider from '../providers/Mantine8Provider';
 import ReactQueryProvider from '../providers/__mocks__/ReactQueryProvider';
+import Mantine8Provider from '../providers/Mantine8Provider';
 
 const meta: Meta<typeof AiProposeChangeToolCall> = {
     decorators: [

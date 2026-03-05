@@ -46,10 +46,9 @@ import {
     PasswordLoginTableName,
 } from '../database/entities/passwordLogins';
 import { DbPersonalAccessToken } from '../database/entities/personalAccessTokens';
-import {
-    RolesTableName,
-    ScopedRolesTableName,
-} from '../database/entities/roles';
+import { ProjectMembershipsTableName } from '../database/entities/projectMemberships';
+import { ProjectTableName } from '../database/entities/projects';
+import { ScopedRolesTableName } from '../database/entities/roles';
 import {
     DbUser,
     DbUserIn,
@@ -196,9 +195,12 @@ export class UserModel {
                 `${UserTableName}.user_id`,
                 `${OpenIdIdentitiesTableName}.user_id`,
             )
-            .select<
-                { user_uuid: string; has_authentication: false }[]
-            >(`${UserTableName}.user_uuid`, trx.raw(`CASE WHEN COALESCE(password_logins.user_id, openid_identities.user_id, null) IS NOT NULL THEN TRUE ELSE FALSE END as has_authentication`))
+            .select<{ user_uuid: string; has_authentication: false }[]>(
+                `${UserTableName}.user_uuid`,
+                trx.raw(
+                    `CASE WHEN COALESCE(password_logins.user_id, openid_identities.user_id, null) IS NOT NULL THEN TRUE ELSE FALSE END as has_authentication`,
+                ),
+            )
             .distinctOn(`user_uuid`)
             .whereIn(`${UserTableName}.user_uuid`, filters.userUuids);
     }
@@ -301,9 +303,11 @@ export class UserModel {
                     .where('user_uuid', userUuid)
                     .select('user_id'),
             )
-            .select<
-                DbOrganization[]
-            >('organizations.organization_uuid', 'organizations.created_at', 'organizations.organization_name');
+            .select<DbOrganization[]>(
+                'organizations.organization_uuid',
+                'organizations.created_at',
+                'organizations.organization_name',
+            );
 
         return organizations.map((organization) => ({
             organizationUuid: organization.organization_uuid,
@@ -355,9 +359,10 @@ export class UserModel {
                 'password_logins.user_id',
             )
             .where('email', email)
-            .select<
-                (DbUserDetails & { password_hash: string })[]
-            >('*', 'organizations.created_at as organization_created_at');
+            .select<(DbUserDetails & { password_hash: string })[]>(
+                '*',
+                'organizations.created_at as organization_created_at',
+            );
         if (user === undefined) {
             throw new NotFoundError(
                 `No user found with email ${email} and password`,
@@ -402,9 +407,10 @@ export class UserModel {
                 'password_logins.user_id',
             )
             .where('users.user_uuid', userUuid)
-            .select<
-                (DbUserDetails & { password_hash: string })[]
-            >('*', 'organizations.created_at as organization_created_at');
+            .select<(DbUserDetails & { password_hash: string })[]>(
+                '*',
+                'organizations.created_at as organization_created_at',
+            );
         if (user === undefined) {
             throw new NotFoundError(`No user found with uuid ${userUuid}`);
         }
@@ -494,9 +500,9 @@ export class UserModel {
     > {
         const projectMemberships = await this.database('project_memberships')
             .leftJoin(
-                'projects',
+                ProjectTableName,
                 'project_memberships.project_id',
-                'projects.project_id',
+                `${ProjectTableName}.project_id`,
             )
             .leftJoin('users', 'project_memberships.user_id', 'users.user_id')
             .select('*')
@@ -627,9 +633,10 @@ export class UserModel {
             )
             .where('openid_identities.issuer', issuer)
             .andWhere('openid_identities.subject', subject)
-            .select<
-                DbUserDetails[]
-            >('*', 'organizations.created_at as organization_created_at');
+            .select<DbUserDetails[]>(
+                '*',
+                'organizations.created_at as organization_created_at',
+            );
         if (user === undefined) {
             return user;
         }
@@ -1006,6 +1013,39 @@ export class UserModel {
             await Promise.all(projectMemberships);
         });
         return this.getUserDetailsByUuid(userUuid);
+    }
+
+    async addProjectMemberships(
+        userUuid: string,
+        projects: { [projectUuid: string]: ProjectMemberRole },
+    ): Promise<void> {
+        const [user] = await this.database(UserTableName)
+            .where('user_uuid', userUuid)
+            .select('user_id');
+        if (!user) {
+            throw new NotFoundError('Cannot find user');
+        }
+
+        const projectMemberships = Object.entries(projects).map(
+            async ([projectUuid, projectRole]) => {
+                const [project] = await this.database(ProjectTableName)
+                    .select('project_id')
+                    .where('project_uuid', projectUuid);
+
+                if (project) {
+                    await this.database(ProjectMembershipsTableName)
+                        .insert({
+                            project_id: project.project_id,
+                            role: projectRole,
+                            user_id: user.user_id,
+                        })
+                        .onConflict(['project_id', 'user_id'])
+                        .ignore();
+                }
+            },
+        );
+
+        await Promise.all(projectMemberships);
     }
 
     async getRefreshToken(

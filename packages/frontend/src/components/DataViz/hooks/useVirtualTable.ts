@@ -11,6 +11,7 @@ import {
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useCallback, useMemo, useRef } from 'react';
 import { getValueCell } from '../../../hooks/useColumns';
+import { useResizeObserver } from '../../../hooks/useResizeObserver';
 import { ROW_HEIGHT_PX } from '../../common/Table/constants';
 
 // This just makes a virtual table from rows and columns. It's very similar to useTableDataModel.
@@ -23,6 +24,19 @@ export const useVirtualTable = ({
     rows: RawResultRow[];
     config?: VizColumnsConfig;
 }) => {
+    const [setResizeRef, containerRect] = useResizeObserver<HTMLDivElement>();
+    const scrollElementRef = useRef<HTMLDivElement | null>(null);
+
+    const tableWrapperRef = useCallback(
+        (el: HTMLDivElement | null) => {
+            scrollElementRef.current = el;
+            setResizeRef(el);
+        },
+        [setResizeRef],
+    );
+
+    const containerWidth = containerRect.width;
+
     const tanstackColumns: ColumnDef<RawResultRow, any>[] = useMemo(() => {
         return columnNames.map((columnName) => ({
             id: columnName,
@@ -43,10 +57,8 @@ export const useVirtualTable = ({
 
     const getRowHeight = useCallback(() => ROW_HEIGHT_PX, []);
 
-    const tableWrapperRef = useRef<HTMLDivElement>(null);
-
     const virtualizer = useVirtualizer({
-        getScrollElement: () => tableWrapperRef.current,
+        getScrollElement: () => scrollElementRef.current,
         count: rows.length,
         estimateSize: () => getRowHeight(),
         overscan: 25,
@@ -83,5 +95,6 @@ export const useVirtualTable = ({
         getTableData,
         paddingTop,
         paddingBottom,
+        containerWidth,
     };
 };

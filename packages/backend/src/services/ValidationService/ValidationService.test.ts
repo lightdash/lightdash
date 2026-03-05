@@ -13,6 +13,7 @@ import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { ValidationModel } from '../../models/ValidationModel/ValidationModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
+import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { ValidationService } from './ValidationService';
 import {
     additionalExplore,
@@ -49,10 +50,6 @@ const validationModel = {
 const dashboardModel = {
     findDashboardsForValidation: jest.fn(async () => [dashboardForValidation]),
 };
-const featureFlagModel = {
-    get: jest.fn(async () => ({ id: 'test', enabled: false })),
-};
-
 describe('validation', () => {
     const validationService = new ValidationService({
         analytics: analyticsMock,
@@ -63,7 +60,8 @@ describe('validation', () => {
         lightdashConfig: config,
         spaceModel: {} as SpaceModel,
         schedulerClient: {} as SchedulerClient,
-        featureFlagModel: featureFlagModel as unknown as FeatureFlagModel,
+        spacePermissionService: {} as SpacePermissionService,
+        featureFlagModel: {} as FeatureFlagModel,
     });
 
     afterEach(() => {
@@ -182,13 +180,14 @@ describe('validation', () => {
     it('Should show unselected table errors on joins', async () => {
         (
             projectModel.findExploresFromCache as jest.Mock
-        ).mockImplementationOnce(async () => [
-            exploreError,
-            {
+        ).mockImplementationOnce(async () => ({
+            valid_explore: exploreError,
+            joined_explore: {
                 name: 'joined_explore',
                 joinedTables: [{ table: 'valid_explore' }],
+                tables: {}, // Add tables property to avoid undefined error
             },
-        ]);
+        }));
 
         (
             projectModel.getTablesConfiguration as jest.Mock
@@ -222,10 +221,10 @@ describe('validation', () => {
     it('Should validate only tables in project', async () => {
         (
             projectModel.findExploresFromCache as jest.Mock
-        ).mockImplementationOnce(async () => [
-            exploreError,
-            exploreWithoutDimension,
-        ]);
+        ).mockImplementationOnce(async () => ({
+            valid_explore: exploreError,
+            explore_without_dimension: exploreWithoutDimension,
+        }));
 
         const errors = await validationService.generateValidation(
             'projectUuid',

@@ -1,6 +1,6 @@
 import { getItemId, isDateItem, isDimension } from '@lightdash/common';
 import { type VegaFieldType } from '../types/types';
-import { type TemplateType, getTemplateByType } from './vegaTemplates';
+import { getTemplateByType, type TemplateType } from './vegaTemplates';
 
 export const generateVegaTemplate = (
     templateType: TemplateType,

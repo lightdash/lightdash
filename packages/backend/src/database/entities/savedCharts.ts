@@ -61,6 +61,8 @@ export type SavedChartTable = Knex.CompositeTableType<
             | 'slug'
             | 'views_count'
             | 'first_viewed_at'
+            | 'deleted_at'
+            | 'deleted_by_user_uuid'
         >
     >
 >;
@@ -80,6 +82,8 @@ export type DbSavedChart = {
     slug: string;
     views_count: number;
     first_viewed_at: Date | null;
+    deleted_at: Date | null;
+    deleted_by_user_uuid: string | null;
 };
 
 export type DbSavedChartVersion = {
@@ -229,6 +233,7 @@ export type DbSavedChartAdditionalMetric = {
     compact?: CompactOrAlias;
     format?: string;
     percentile?: number;
+    distinct_keys?: string | null; // JSONB array of dimension references
     saved_queries_version_id: number;
     filters: MetricFilterRule[] | null; // JSONB
     base_dimension_name: string | null;
@@ -276,6 +281,7 @@ export type DBFilteredAdditionalMetrics = Pick<
             | 'compact'
             | 'format'
             | 'percentile'
+            | 'distinct_keys'
             | 'filters'
             | 'base_dimension_name'
             | 'format_options'

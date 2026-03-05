@@ -1,6 +1,5 @@
 import {
     CustomFormatType,
-    NumberSeparator,
     getCustomFormat,
     getEffectiveItemType,
     getItemId,
@@ -8,6 +7,7 @@ import {
     hasFormatting,
     isDimension,
     isMetric,
+    NumberSeparator,
     type CustomFormat,
     type Dimension,
     type Metric,

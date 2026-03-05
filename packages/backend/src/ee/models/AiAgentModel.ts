@@ -26,6 +26,7 @@ import {
     AiResultType,
     AiThread,
     AiWebAppPrompt,
+    AlreadyExistsError,
     ApiAppendEvaluationRequest,
     ApiCreateAiAgent,
     ApiCreateEvaluationRequest,
@@ -59,6 +60,7 @@ import { AiAgentReasoningTableName } from '../../database/entities/aiAgentReason
 import { DbEmail, EmailTableName } from '../../database/entities/emails';
 import { DbProject, ProjectTableName } from '../../database/entities/projects';
 import { DbUser, UserTableName } from '../../database/entities/users';
+import { isUniqueConstraintViolation } from '../../database/errors';
 import KnexPaginate from '../../database/pagination';
 import Logger from '../../logging/logger';
 import { wrapSentryTransaction } from '../../utils';
@@ -503,21 +505,32 @@ export class AiAgentModel {
                 args.integrations?.map(async (integration) => {
                     switch (integration.type) {
                         case 'slack':
-                            const [baseIntegration] = await trx(
-                                AiAgentIntegrationTableName,
-                            )
-                                .insert({
-                                    ai_agent_uuid: agent.ai_agent_uuid,
-                                    integration_type: integration.type,
-                                })
-                                .returning('*');
+                            try {
+                                const [baseIntegration] = await trx(
+                                    AiAgentIntegrationTableName,
+                                )
+                                    .insert({
+                                        ai_agent_uuid: agent.ai_agent_uuid,
+                                        integration_type: integration.type,
+                                    })
+                                    .returning('*');
 
-                            await trx(AiAgentSlackIntegrationTableName).insert({
-                                ai_agent_integration_uuid:
-                                    baseIntegration.ai_agent_integration_uuid,
-                                organization_uuid: agent.organization_uuid,
-                                slack_channel_id: integration.channelId,
-                            });
+                                await trx(
+                                    AiAgentSlackIntegrationTableName,
+                                ).insert({
+                                    ai_agent_integration_uuid:
+                                        baseIntegration.ai_agent_integration_uuid,
+                                    organization_uuid: agent.organization_uuid,
+                                    slack_channel_id: integration.channelId,
+                                });
+                            } catch (error) {
+                                if (isUniqueConstraintViolation(error)) {
+                                    throw new AlreadyExistsError(
+                                        'This Slack channel is already assigned to another AI agent',
+                                    );
+                                }
+                                throw error;
+                            }
 
                             return {
                                 type: integration.type,
@@ -651,21 +664,32 @@ export class AiAgentModel {
                 args.integrations?.map(async (integration) => {
                     switch (integration.type) {
                         case 'slack':
-                            const [baseIntegration] = await trx(
-                                AiAgentIntegrationTableName,
-                            )
-                                .insert({
-                                    ai_agent_uuid: agent.ai_agent_uuid,
-                                    integration_type: integration.type,
-                                })
-                                .returning('*');
+                            try {
+                                const [baseIntegration] = await trx(
+                                    AiAgentIntegrationTableName,
+                                )
+                                    .insert({
+                                        ai_agent_uuid: agent.ai_agent_uuid,
+                                        integration_type: integration.type,
+                                    })
+                                    .returning('*');
 
-                            await trx(AiAgentSlackIntegrationTableName).insert({
-                                ai_agent_integration_uuid:
-                                    baseIntegration.ai_agent_integration_uuid,
-                                organization_uuid: agent.organization_uuid,
-                                slack_channel_id: integration.channelId,
-                            });
+                                await trx(
+                                    AiAgentSlackIntegrationTableName,
+                                ).insert({
+                                    ai_agent_integration_uuid:
+                                        baseIntegration.ai_agent_integration_uuid,
+                                    organization_uuid: agent.organization_uuid,
+                                    slack_channel_id: integration.channelId,
+                                });
+                            } catch (error) {
+                                if (isUniqueConstraintViolation(error)) {
+                                    throw new AlreadyExistsError(
+                                        'This Slack channel is already assigned to another AI agent',
+                                    );
+                                }
+                                throw error;
+                            }
 
                             return {
                                 type: integration.type,
@@ -1914,7 +1938,11 @@ export class AiAgentModel {
                     'ai_artifact_version_uuid' | 'chart_config'
                 > &
                     Pick<DbAiArtifact, 'artifact_type'>)[]
-            >(`${AiArtifactVersionsTableName}.ai_artifact_version_uuid`, `${AiArtifactVersionsTableName}.chart_config`, `${AiArtifactsTableName}.artifact_type`)
+            >(
+                `${AiArtifactVersionsTableName}.ai_artifact_version_uuid`,
+                `${AiArtifactVersionsTableName}.chart_config`,
+                `${AiArtifactsTableName}.artifact_type`,
+            )
             .whereIn(
                 `${AiArtifactVersionsTableName}.ai_artifact_version_uuid`,
                 artifactVersionUuids,
@@ -2936,9 +2964,15 @@ export class AiAgentModel {
         promptUuid: string,
     ): Promise<AiAgentToolResult[]> {
         const rows = await this.database(AiAgentToolResultTableName)
-            .select<
-                DbAiAgentToolResult[]
-            >('ai_agent_tool_result_uuid', 'ai_prompt_uuid', 'tool_call_id', 'tool_name', 'result', 'metadata', 'created_at')
+            .select<DbAiAgentToolResult[]>(
+                'ai_agent_tool_result_uuid',
+                'ai_prompt_uuid',
+                'tool_call_id',
+                'tool_name',
+                'result',
+                'metadata',
+                'created_at',
+            )
             .where('ai_prompt_uuid', promptUuid)
             .orderBy('created_at', 'asc');
 

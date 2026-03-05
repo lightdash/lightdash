@@ -1,7 +1,7 @@
 import { type MetricQuery } from '../../../../../../types/metricQuery';
 import {
-    type PieChartConfig,
     ChartType,
+    type PieChartConfig,
 } from '../../../../../../types/savedCharts';
 import { type ToolRunQueryArgsTransformed } from '../../../../schemas';
 

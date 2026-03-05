@@ -1,16 +1,16 @@
-import { Alert, Anchor, Stack, Text } from '@mantine/core';
+import { Alert, Anchor, Stack, Text } from '@mantine-8/core';
 import { IconExclamationCircle } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';
 
-const DbtManifestForm: FC<{}> = ({}) => {
+const DbtManifestForm: FC = () => {
     return (
         <Stack>
             <Alert
                 color="orange"
                 icon={<MantineIcon icon={IconExclamationCircle} size="lg" />}
             >
-                <Text color="orange">
+                <Text c="orange">
                     This project was created from a manifest.json file. If you
                     want to keep Lightdash in sync with your dbt project, you
                     need to either{' '}

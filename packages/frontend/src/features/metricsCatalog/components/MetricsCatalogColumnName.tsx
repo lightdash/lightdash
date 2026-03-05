@@ -3,11 +3,11 @@ import {
     ActionIcon,
     Box,
     Button,
+    getDefaultZIndex,
     Group,
     Highlight,
     Paper,
     Portal,
-    getDefaultZIndex,
 } from '@mantine/core';
 import { useClickOutside } from '@mantine/hooks';
 import { IconTrash } from '@tabler/icons-react';
@@ -25,7 +25,6 @@ import { EventName } from '../../../types/Events';
 import { useAppSelector } from '../../sqlRunner/store/hooks';
 import { useUpdateCatalogItemIcon } from '../hooks/useCatalogItemIcon';
 import { MetricDetailPopover } from './MetricDetailPopover';
-
 import '../../../styles/emoji-picker-react.css';
 
 const PICKER_HEIGHT = 300;

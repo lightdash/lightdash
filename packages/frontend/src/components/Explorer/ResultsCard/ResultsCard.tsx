@@ -1,11 +1,5 @@
 import { subject } from '@casl/ability';
-import {
-    ActionIcon,
-    Group,
-    Popover,
-    SegmentedControl,
-    Tooltip,
-} from '@mantine/core';
+import { ActionIcon, Group, Popover, SegmentedControl } from '@mantine/core';
 import { IconShare2 } from '@tabler/icons-react';
 import {
     memo,
@@ -34,14 +28,14 @@ import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
 import { ExplorerSection } from '../../../providers/Explorer/types';
 import AddTableCalculationButton from '../../AddTableCalculationButton';
-import ExportSelector from '../../ExportSelector';
-import SortButton from '../../SortButton';
 import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
 import {
     COLLAPSABLE_CARD_ACTION_ICON_PROPS,
     COLLAPSABLE_CARD_POPOVER_PROPS,
 } from '../../common/CollapsableCard/constants';
 import MantineIcon from '../../common/MantineIcon';
+import ExportSelector from '../../ExportSelector';
+import SortButton from '../../SortButton';
 import { ExplorerResults } from './ExplorerResults';
 import { ResultsViewMode } from './types';
 import { useGroupedResultsAvailability } from './useGroupedResultsAvailability';
@@ -63,28 +57,10 @@ const ResultsCard: FC = memo(() => {
     const columnOrder = useExplorerSelector(selectColumnOrder);
 
     // Check if grouped view is available
-    const {
-        isSqlPivotEnabled,
-        isGroupedDisabled,
-        isTableViz,
-        hasPivotColumns,
-        hasNoResults,
-        exceedsColumnLimit,
-        maxColumnLimit,
-    } = useGroupedResultsAvailability();
+    const { isSqlPivotEnabled, isGroupedDisabled } =
+        useGroupedResultsAvailability();
     const isGroupedView =
         viewMode === ResultsViewMode.GROUPED && !isGroupedDisabled;
-
-    // Tooltip message when grouped results is disabled
-    const groupedDisabledTooltip = isTableViz
-        ? 'See table visualization above'
-        : hasNoResults
-          ? 'No results to group'
-          : exceedsColumnLimit
-            ? `Exceeds ${maxColumnLimit} column limit`
-            : !hasPivotColumns
-              ? 'No grouped or pivoted data'
-              : undefined;
 
     // Reset to results view when grouped becomes unavailable
     useEffect(() => {
@@ -158,32 +134,24 @@ const ResultsCard: FC = memo(() => {
                 resultsIsOpen &&
                 tableName && (
                     <Group spacing="xs" noWrap>
-                        {isSqlPivotEnabled && (
-                            <Tooltip
-                                label={groupedDisabledTooltip}
-                                disabled={!isGroupedDisabled}
-                                position="top"
-                                withinPortal
-                            >
-                                <SegmentedControl
-                                    size="xs"
-                                    data={[
-                                        {
-                                            label: 'Results',
-                                            value: ResultsViewMode.RESULTS,
-                                        },
-                                        {
-                                            label: 'Chart results',
-                                            value: ResultsViewMode.GROUPED,
-                                            disabled: isGroupedDisabled,
-                                        },
-                                    ]}
-                                    value={viewMode}
-                                    onChange={(value) =>
-                                        setViewMode(value as ResultsViewMode)
-                                    }
-                                />
-                            </Tooltip>
+                        {isSqlPivotEnabled && !isGroupedDisabled && (
+                            <SegmentedControl
+                                size="xs"
+                                data={[
+                                    {
+                                        label: 'Results',
+                                        value: ResultsViewMode.RESULTS,
+                                    },
+                                    {
+                                        label: 'Chart results',
+                                        value: ResultsViewMode.GROUPED,
+                                    },
+                                ]}
+                                value={viewMode}
+                                onChange={(value) =>
+                                    setViewMode(value as ResultsViewMode)
+                                }
+                            />
                         )}
 
                         {/* Hide AddColumnButton when in grouped view */}

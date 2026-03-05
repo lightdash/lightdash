@@ -1,4 +1,4 @@
-import { type ApiErrorDetail, LightdashMode } from '@lightdash/common';
+import { LightdashMode, type ApiErrorDetail } from '@lightdash/common';
 import {
     ActionIcon,
     Anchor,

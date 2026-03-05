@@ -1,6 +1,6 @@
 import {
-    FilterInteractivityValues,
     assertUnreachable,
+    FilterInteractivityValues,
     getFilterInteractivityValue,
     getItemId,
     isDashboardChartTileType,
@@ -16,8 +16,8 @@ import {
     Text,
 } from '@mantine-8/core';
 import { useCallback, useMemo } from 'react';
-import { type FieldsWithSuggestions } from '../../../../components/Explorer/FiltersCard/useFieldsWithSuggestions';
 import { getConditionalRuleLabelFromItem } from '../../../../components/common/Filters/FilterInputs/utils';
+import { type FieldsWithSuggestions } from '../../../../components/Explorer/FiltersCard/useFieldsWithSuggestions';
 import {
     useDashboardQuery,
     useDashboardsAvailableFilters,

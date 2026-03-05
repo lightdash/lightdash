@@ -4,7 +4,7 @@ import {
     PieChartValueLabels,
     type PieChartValueLabel,
 } from '@lightdash/common';
-import { Checkbox, Group, SegmentedControl } from '@mantine/core';
+import { Checkbox, Group, SegmentedControl } from '@mantine-8/core';
 import { type FC } from 'react';
 import { Config } from '../common/Config';
 
@@ -36,7 +36,7 @@ export const ValueOptions: FC<ValueOptionsProps> = ({
     onToggleShowPercentage,
 }) => (
     <>
-        <Group spacing="xs" noWrap>
+        <Group gap="xs" wrap="nowrap">
             <Config.Label>Value position</Config.Label>
             <SegmentedControl
                 value={isValueLabelOverriden ? 'mixed' : valueLabel}
@@ -48,14 +48,14 @@ export const ValueOptions: FC<ValueOptionsProps> = ({
                     label,
                     disabled: value === 'mixed',
                 }))}
-                onChange={(newValueLabel: PieChartValueLabel) => {
-                    onValueLabelChange(newValueLabel);
+                onChange={(value: string) => {
+                    onValueLabelChange(value as PieChartValueLabel);
                 }}
             />
         </Group>
 
         {valueLabel !== 'hidden' && (
-            <Group spacing="xs">
+            <Group gap="xs">
                 <Checkbox
                     indeterminate={isShowValueOverriden}
                     checked={showValue}

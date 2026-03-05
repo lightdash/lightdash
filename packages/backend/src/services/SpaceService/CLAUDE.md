@@ -52,6 +52,10 @@ const accessible = await spacePermissionService.getAccessibleSpaceUuids(
 - **Not yet wired up**: This service is registered in `ServiceRepository` but not consumed by
   any controller or other service yet. It's the intended replacement for inline permission
   checks that use `SpaceModel._getSpaceAccess`.
+- **`isPrivate` is derived from the inheritance chain**: The `isPrivate` boolean passed to
+  `resolveSpaceAccess` will be replaced by `inheritsFromOrgOrProject` (inverted), computed by
+  `SpacePermissionModel.getInheritanceChain()`. See
+  @packages/common/src/authorization/space/CLAUDE.md for the full mental model and mapping.
 
 **Why the old approach (`SpaceModel`) was bad:**
 

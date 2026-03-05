@@ -1,11 +1,9 @@
 import { Button, Group, Stack, Title } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconUsersGroup } from '@tabler/icons-react';
-
+import { useState } from 'react';
 import { EmptyState } from '../../../components/common/EmptyState';
 import MantineIcon from '../../../components/common/MantineIcon';
-
-import { useState } from 'react';
 import { ServiceAccountsCreateModal } from './ServiceAccountsCreateModal';
 import { ServiceAccountsTable } from './ServiceAccountsTable';
 import { useServiceAccounts } from './useServiceAccounts';

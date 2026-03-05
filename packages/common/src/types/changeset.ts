@@ -48,6 +48,15 @@ export const ChangeBaseSchema = z
                                     ),
                                 )
                                 .optional(),
+                            tablesAnyAttributes: z
+                                .record(
+                                    z.string(),
+                                    z.record(
+                                        z.string(),
+                                        z.string().or(z.array(z.string())),
+                                    ),
+                                )
+                                .optional(),
                         }),
                     }),
                 ]),

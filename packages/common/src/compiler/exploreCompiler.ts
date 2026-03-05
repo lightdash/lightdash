@@ -14,6 +14,7 @@ import {
     isCustomBinDimension,
     isNonAggregateMetric,
     isPostCalculationMetric,
+    MetricType,
     type CompiledCustomDimension,
     type CompiledCustomSqlDimension,
     type CompiledDimension,
@@ -25,6 +26,7 @@ import {
     type Metric,
 } from '../types/field';
 import { type LightdashProjectConfig } from '../types/lightdashProjectConfig';
+import { type PreAggregateDef } from '../types/preAggregate';
 import {
     dateGranularityToTimeFrameMap,
     type DateGranularity,
@@ -141,6 +143,9 @@ export type UncompiledExplore = {
     meta: DbtRawModelNode['meta'];
     databricksCompute?: string;
     projectParameters?: LightdashProjectConfig['parameters'];
+    preAggregates?: PreAggregateDef[];
+    caseSensitive?: boolean;
+    projectDefaults?: LightdashProjectConfig['defaults'];
 };
 
 const getReferencedTable = (
@@ -197,6 +202,9 @@ export class ExploreCompiler {
         databricksCompute,
         aiHint,
         projectParameters,
+        preAggregates,
+        caseSensitive,
+        projectDefaults,
     }: UncompiledExplore): Explore {
         // Check that base table exists (always required)
         if (!tables[baseTable]) {
@@ -497,6 +505,14 @@ export class ExploreCompiler {
             ymlPath,
             sqlPath,
             databricksCompute,
+            // Use explore-level caseSensitive if set, otherwise fall back to project defaults
+            ...(caseSensitive !== undefined ||
+            projectDefaults?.case_sensitive !== undefined
+                ? {
+                      caseSensitive:
+                          caseSensitive ?? projectDefaults?.case_sensitive,
+                  }
+                : {}),
             ...(aiHint ? { aiHint } : {}),
             ...getSpotlightConfigurationForResource({
                 visibility: spotlightVisibility,
@@ -505,6 +521,9 @@ export class ExploreCompiler {
             }),
             ...(meta.parameters && Object.keys(meta.parameters).length > 0
                 ? { parameters: meta.parameters }
+                : {}),
+            ...(preAggregates && preAggregates.length > 0
+                ? { preAggregates }
                 : {}),
             ...(exploreWarnings.length > 0
                 ? { warnings: exploreWarnings }
@@ -730,6 +749,18 @@ export class ExploreCompiler {
             },
             {},
         );
+        const tablesAnyAttributes = Array.from(
+            compiledMetric.tablesReferences,
+        ).reduce<Record<string, Record<string, string | string[]>>>(
+            (acc, tableReference) => {
+                const table = tables[tableReference] as Table | undefined;
+                if (table?.anyAttributes) {
+                    acc[tableReference] = table.anyAttributes;
+                }
+                return acc;
+            },
+            {},
+        );
 
         const compiledSql = compiledMetric.sql;
 
@@ -753,7 +784,16 @@ export class ExploreCompiler {
             ...(Object.keys(tablesRequiredAttributes).length
                 ? { tablesRequiredAttributes }
                 : {}),
+            ...(Object.keys(tablesAnyAttributes).length
+                ? { tablesAnyAttributes }
+                : {}),
             ...(parameterReferences.length > 0 ? { parameterReferences } : {}),
+            ...(compiledMetric.valueSql !== undefined
+                ? { compiledValueSql: compiledMetric.valueSql }
+                : {}),
+            ...(compiledMetric.compiledDistinctKeys
+                ? { compiledDistinctKeys: compiledMetric.compiledDistinctKeys }
+                : {}),
         };
     }
 
@@ -761,7 +801,12 @@ export class ExploreCompiler {
         metric: Metric,
         tables: Record<string, Table>,
         availableParameters: string[],
-    ): { sql: string; tablesReferences: Set<string> } {
+    ): {
+        sql: string;
+        tablesReferences: Set<string>;
+        valueSql?: string;
+        compiledDistinctKeys?: string[];
+    } {
         // Metric might have references to other dimensions
         if (!tables[metric.table]) {
             throw new CompileError(
@@ -955,12 +1000,46 @@ export class ExploreCompiler {
                 ' AND ',
             )}) THEN (${renderedSql}) ELSE NULL END`;
         }
+        if (
+            metric.type === MetricType.SUM_DISTINCT ||
+            metric.type === MetricType.AVERAGE_DISTINCT
+        ) {
+            if (!metric.distinctKeys || metric.distinctKeys.length === 0) {
+                throw new CompileError(
+                    `Metric "${metric.name}" of type "${metric.type}" requires a "distinct_keys" property`,
+                    {},
+                );
+            }
+            const compiledKeys = metric.distinctKeys.map((keyRef) => {
+                const compiled = this.compileDimensionReference(
+                    keyRef,
+                    tables,
+                    metric.table,
+                    { fieldType: 'metric', fieldName: metric.name },
+                );
+                tablesReferences = new Set([
+                    ...tablesReferences,
+                    ...compiled.tablesReferences,
+                ]);
+                return compiled.sql;
+            });
+            // CTE-based dedup is handled by MetricQueryBuilder; store metadata here
+            const fallbackAgg =
+                metric.type === MetricType.AVERAGE_DISTINCT ? 'AVG' : 'SUM';
+            return {
+                sql: `${fallbackAgg}(${renderedSql})`, // fallback compiledSql
+                tablesReferences,
+                valueSql: renderedSql,
+                compiledDistinctKeys: compiledKeys,
+            };
+        }
+
         const compiledSql = this.warehouseClient.getMetricSql(
             renderedSql,
             metric,
         );
 
-        return { sql: compiledSql, tablesReferences };
+        return { sql: compiledSql, tablesReferences, valueSql: renderedSql };
     }
 
     compileDimension(
@@ -976,6 +1055,18 @@ export class ExploreCompiler {
                 const table = tables[tableReference] as Table | undefined;
                 if (table?.requiredAttributes) {
                     acc[tableReference] = table.requiredAttributes;
+                }
+                return acc;
+            },
+            {},
+        );
+        const tablesAnyAttributes = Array.from(
+            compiledDimension.tablesReferences,
+        ).reduce<Record<string, Record<string, string | string[]>>>(
+            (acc, tableReference) => {
+                const table = tables[tableReference] as Table | undefined;
+                if (table?.anyAttributes) {
+                    acc[tableReference] = table.anyAttributes;
                 }
                 return acc;
             },
@@ -1002,6 +1093,9 @@ export class ExploreCompiler {
             tablesReferences: Array.from(compiledDimension.tablesReferences),
             ...(Object.keys(tablesRequiredAttributes).length
                 ? { tablesRequiredAttributes }
+                : {}),
+            ...(Object.keys(tablesAnyAttributes).length
+                ? { tablesAnyAttributes }
                 : {}),
             ...(parameterReferences.length > 0 ? { parameterReferences } : {}),
         };
@@ -1278,6 +1372,11 @@ export const createDimensionWithGranularity = (
         {
             ...baseTimeDimension,
             name: dimensionName,
+            // Base dimensions (isIntervalBase) don't have timeIntervalBaseDimensionName set,
+            // but the zoomed dimension needs it for field identification (e.g., granularity labels)
+            timeIntervalBaseDimensionName:
+                baseTimeDimension.timeIntervalBaseDimensionName ??
+                baseTimeDimension.name,
             type: timeFrameConfigs[newTimeInterval].getDimensionType(
                 baseTimeDimension.type,
             ),

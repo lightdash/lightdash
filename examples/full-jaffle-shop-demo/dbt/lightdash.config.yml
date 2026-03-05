@@ -85,3 +85,15 @@ parameters:
     description: "The first date in comparing who's moved from segment to segment"
     default: '2025-08-06'
     type: date
+  date_granularity:
+    label: "Date Granularity"
+    description: "Dynamic date granularity for Liquid template demo"
+    default: "Day"
+    options:
+      - "Day"
+      - "Week"
+      - "Month"
+      - "Quarter"
+      - "Year"
+defaults:
+  case_sensitive: true

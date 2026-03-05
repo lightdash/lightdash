@@ -1,4 +1,4 @@
-import { Stack } from '@mantine/core';
+import { Stack } from '@mantine-8/core';
 import { type FC } from 'react';
 import Page from '../components/common/Page/Page';
 import LoginLanding from '../features/users/components/LoginLanding';

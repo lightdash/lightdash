@@ -17,12 +17,11 @@ import {
 import { IconUsers } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useParams } from 'react-router';
-import EChartsReact from '../components/EChartsReactWrapper';
-
 import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
+import EChartsReact from '../components/EChartsReactWrapper';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import {
     useDownloadUserActivityCsv,

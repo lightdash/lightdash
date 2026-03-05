@@ -1,5 +1,4 @@
 import { isField, isMetric, isTableCalculation } from '@lightdash/common';
-
 import type {
     CustomDimension,
     Dimension,
@@ -11,7 +10,6 @@ import type {
     TableCalculationMetadata,
     TreemapChart,
 } from '@lightdash/common';
-
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useCalculateSubtotals } from './useCalculateSubtotals';
 import { type InfiniteQueryResults } from './useQueryResults';

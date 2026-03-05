@@ -195,10 +195,8 @@ describe('FilterStringAutoComplete', () => {
                 screen.getByDisplayValue('600 values selected'),
             ).toBeInTheDocument();
 
-            // Should show "Manage values" button
-            expect(
-                screen.getByRole('button', { name: 'Manage values' }),
-            ).toBeInTheDocument();
+            // Should not render individual value pills
+            expect(screen.queryByText('value_0')).not.toBeInTheDocument();
         });
     });
 
@@ -229,7 +227,7 @@ describe('FilterStringAutoComplete', () => {
             });
         });
 
-        it('opens modal from summary mode manage values button', async () => {
+        it('opens modal from summary mode by clicking the input', async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
             // Use > 500 values to trigger summary mode
             const values = createValues(600);
@@ -245,11 +243,11 @@ describe('FilterStringAutoComplete', () => {
                 />,
             );
 
-            // In summary mode, there's a visible "Manage values" button
-            const manageButton = screen.getByRole('button', {
-                name: 'Manage values',
-            });
-            await user.click(manageButton);
+            // In summary mode, clicking the input opens the modal
+            const summaryInput = screen.getByDisplayValue(
+                '600 values selected',
+            );
+            await user.click(summaryInput);
 
             // Modal should open
             await waitFor(() => {

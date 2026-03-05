@@ -1,0 +1,84 @@
+version: 2
+models:
+  - name: regional_sales
+    description: |
+      Sales transactions by region and product category.
+      Used for demonstrating total() and row_total() table calculations.
+    columns:
+      - name: sale_id
+        description: Unique sale identifier
+        tests:
+          - unique
+          - not_null
+        meta:
+          dimension:
+            type: number
+            hidden: true
+
+      - name: sale_date
+        description: Date of the sale
+        meta:
+          dimension:
+            type: date
+
+      - name: region
+        description: Geographic region (North America, Europe, Asia Pacific)
+        meta:
+          dimension:
+            type: string
+
+      - name: product_category
+        description: Product category (Electronics, Clothing)
+        meta:
+          dimension:
+            type: string
+
+      - name: units_sold
+        description: Number of units sold
+        tests:
+          - not_null
+        meta:
+          dimension:
+            type: number
+            hidden: true
+          metrics:
+            total_units:
+              type: sum
+              label: Total Units
+            avg_units_per_sale:
+              type: average
+              label: Avg Units per Sale
+              round: 0
+
+      - name: revenue
+        description: Sale revenue in USD
+        tests:
+          - not_null
+        meta:
+          dimension:
+            type: number
+            format: usd
+            hidden: true
+          metrics:
+            total_revenue:
+              type: sum
+              format: usd
+              round: 0
+              label: Total Revenue
+              description: Sum of regional sales revenue
+            avg_revenue:
+              type: average
+              format: usd
+              round: 0
+              label: Avg Revenue per Sale
+
+      - name: customer_id
+        description: Customer identifier
+        meta:
+          dimension:
+            type: number
+            hidden: true
+          metrics:
+            unique_customers:
+              type: count_distinct
+              label: Unique Customers

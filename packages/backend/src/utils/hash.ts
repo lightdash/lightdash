@@ -12,7 +12,7 @@ export async function hash(s: string): Promise<string> {
     return bcrypt.hash(s, salt);
 }
 
-/* 
+/*
 @deprecated use hash instead to hash new tokens
 This is the old hash function that was used to hash the personal access tokens.
 It was replaced with bcrypt to improve security

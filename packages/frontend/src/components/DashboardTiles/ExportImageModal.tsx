@@ -1,8 +1,8 @@
 import { IconPhoto } from '@tabler/icons-react';
-import { type FC, type RefObject, useCallback } from 'react';
-import { type EChartsReact } from '../EChartsReactWrapper';
+import { useCallback, type FC, type RefObject } from 'react';
 import ChartDownloadOptions from '../common/ChartDownload/ChartDownloadOptions';
 import MantineModal from '../common/MantineModal';
+import { type EChartsReact } from '../EChartsReactWrapper';
 
 interface ExportImageModalProps {
     echartRef: RefObject<EChartsReact | null> | undefined;

@@ -7,6 +7,7 @@ import {
     type Dashboard,
     type DashboardAvailableFilters,
     type DashboardFilters,
+    type DashboardHistory,
     type DashboardTile,
     type DateGranularity,
     type SavedChartsInfoForDashboardAvailableFilters,
@@ -22,7 +23,9 @@ import {
 import { useNavigate, useParams } from 'react-router';
 import { lightdashApi } from '../../api';
 import { pollJobStatus } from '../../features/scheduler/hooks/useScheduler';
+import useApp from '../../providers/App/useApp';
 import useToaster from '../toaster/useToaster';
+import { invalidateContent } from '../useContent';
 import useQueryError from '../useQueryError';
 import useDashboardStorage from './useDashboardStorage';
 
@@ -247,11 +250,12 @@ const exportCsvDashboard = async (
     id: string,
     filters: DashboardFilters,
     dateZoomGranularity: DateGranularity | undefined,
+    selectedTabs: string[] | null,
 ) =>
     lightdashApi<ApiJobScheduledResponse['results']>({
         url: `/dashboards/${id}/exportCsv`,
         method: 'POST',
-        body: JSON.stringify({ filters, dateZoomGranularity }),
+        body: JSON.stringify({ filters, dateZoomGranularity, selectedTabs }),
     });
 
 export const useExportCsvDashboard = () => {
@@ -260,6 +264,7 @@ export const useExportCsvDashboard = () => {
         showToastError,
         showToastApiError,
         showToastInfo,
+        showToastWarning,
     } = useToaster();
 
     return useMutation<
@@ -269,6 +274,7 @@ export const useExportCsvDashboard = () => {
             dashboard: Dashboard;
             filters: DashboardFilters;
             dateZoomGranularity: DateGranularity | undefined;
+            selectedTabs: string[] | null;
         }
     >(
         (data) =>
@@ -276,6 +282,7 @@ export const useExportCsvDashboard = () => {
                 data.dashboard.uuid,
                 data.filters,
                 data.dateZoomGranularity,
+                data.selectedTabs,
             ),
         {
             mutationKey: ['export_csv_dashboard'],
@@ -303,10 +310,23 @@ export const useExportCsvDashboard = () => {
                             document.body.appendChild(link);
                             link.click();
                             link.remove(); // Remove the link from the DOM
-                            showToastSuccess({
-                                key: 'dashboard_export_toast',
-                                title: `Success! ${data.dashboard.name} was exported.`,
-                            });
+
+                            const numFailures = Number(
+                                details.numFailures ?? 0,
+                            );
+                            if (numFailures > 0) {
+                                showToastWarning({
+                                    key: 'dashboard_export_toast',
+                                    title: `${data.dashboard.name} was exported with ${numFailures} failed chart(s).`,
+                                    subtitle:
+                                        'Some charts could not be exported. The download contains only the successful ones.',
+                                });
+                            } else {
+                                showToastSuccess({
+                                    key: 'dashboard_export_toast',
+                                    title: `Success! ${data.dashboard.name} was exported.`,
+                                });
+                            }
                         } else {
                             showToastError({
                                 key: 'dashboard_export_toast',
@@ -573,22 +593,31 @@ export const useDuplicateDashboardMutation = (
 
 export const useDashboardDeleteMutation = () => {
     const queryClient = useQueryClient();
+    const navigate = useNavigate();
+    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const { health } = useApp();
+    const isSoftDeleteEnabled = health.data?.softDelete.enabled ?? false;
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<null, ApiError, string>(deleteDashboard, {
         onSuccess: async () => {
-            await queryClient.invalidateQueries(['dashboards']);
-            await queryClient.invalidateQueries(['space']);
-
+            await invalidateContent(queryClient, projectUuid!);
             await queryClient.invalidateQueries([
                 'dashboards-containing-chart',
             ]);
-            await queryClient.invalidateQueries(['pinned_items']);
-            await queryClient.invalidateQueries([
-                'most-popular-and-recently-updated',
-            ]);
-            await queryClient.invalidateQueries(['content']);
+            await queryClient.invalidateQueries(['deletedContent']);
             showToastSuccess({
                 title: `Deleted! Dashboard was deleted.`,
+                action:
+                    isSoftDeleteEnabled && projectUuid
+                        ? {
+                              children: 'Go to recently deleted',
+                              icon: IconArrowRight,
+                              onClick: () =>
+                                  navigate(
+                                      `/generalSettings/projectManagement/${projectUuid}/recentlyDeleted`,
+                                  ),
+                          }
+                        : undefined,
             });
         },
         onError: ({ error }) => {
@@ -598,6 +627,68 @@ export const useDashboardDeleteMutation = () => {
             });
         },
     });
+};
+
+const getDashboardHistory = async (
+    dashboardUuid: string,
+): Promise<DashboardHistory> =>
+    lightdashApi<DashboardHistory>({
+        url: `/dashboards/${dashboardUuid}/history`,
+        method: 'GET',
+        body: undefined,
+    });
+
+export const useDashboardHistory = (dashboardUuid: string | undefined) =>
+    useQuery<DashboardHistory, ApiError>({
+        queryKey: ['dashboard_history', dashboardUuid],
+        queryFn: () => getDashboardHistory(dashboardUuid!),
+        enabled: dashboardUuid !== undefined,
+        retry: false,
+    });
+
+const rollbackDashboard = async (
+    dashboardUuid: string,
+    versionUuid: string,
+): Promise<null> =>
+    lightdashApi<null>({
+        url: `/dashboards/${dashboardUuid}/rollback/${versionUuid}`,
+        method: 'POST',
+        body: undefined,
+    });
+
+export const useDashboardVersionRollbackMutation = (
+    dashboardUuid: string | undefined,
+) => {
+    const queryClient = useQueryClient();
+    const { showToastSuccess, showToastApiError } = useToaster();
+    return useMutation<null, ApiError, string>(
+        (versionUuid: string) =>
+            dashboardUuid && versionUuid
+                ? rollbackDashboard(dashboardUuid, versionUuid)
+                : Promise.reject(),
+        {
+            mutationKey: ['dashboard_version_rollback'],
+            onSuccess: async () => {
+                await queryClient.invalidateQueries([
+                    'saved_dashboard_query',
+                    dashboardUuid,
+                ]);
+                await queryClient.invalidateQueries([
+                    'dashboard_history',
+                    dashboardUuid,
+                ]);
+                showToastSuccess({
+                    title: `Success! Dashboard was reverted.`,
+                });
+            },
+            onError: ({ error }) => {
+                showToastApiError({
+                    title: `Failed to revert dashboard`,
+                    apiError: error,
+                });
+            },
+        },
+    );
 };
 
 export const appendNewTilesToBottom = <T extends Pick<DashboardTile, 'y'>>(

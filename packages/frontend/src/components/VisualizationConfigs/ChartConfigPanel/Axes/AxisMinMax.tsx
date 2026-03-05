@@ -1,4 +1,4 @@
-import { Group, Switch, TextInput } from '@mantine/core';
+import { Group, Switch, TextInput } from '@mantine-8/core';
 import { useCallback, type FC } from 'react';
 import { useToggle } from 'react-use';
 import useTracking from '../../../../providers/Tracking/useTracking';
@@ -26,7 +26,7 @@ export const AxisMinMax: FC<Props> = ({ label, min, max, setMin, setMax }) => {
     }, [isAuto, setMin, setMax]);
 
     return (
-        <Group noWrap spacing="xs">
+        <Group wrap="nowrap" gap="xs">
             <Switch
                 label={isAuto && label}
                 checked={isAuto}
@@ -43,7 +43,7 @@ export const AxisMinMax: FC<Props> = ({ label, min, max, setMin, setMax }) => {
                 }}
             />
             {!isAuto && (
-                <Group noWrap spacing="xs">
+                <Group wrap="nowrap" gap="xs">
                     <Config.Label>Min</Config.Label>
                     <TextInput
                         placeholder="Min"

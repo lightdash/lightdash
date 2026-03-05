@@ -1,8 +1,8 @@
 import {
-    type Explore,
     getFields,
     ReadinessScore,
     ScorerContext,
+    type Explore,
 } from '@lightdash/common';
 import { type LanguageModel } from 'ai';
 import clamp from 'lodash/clamp';

@@ -28,6 +28,10 @@ export enum TableCalculationFunctionType {
     PIVOT_OFFSET_LIST = 'pivot_offset_list',
     PIVOT_ROW = 'pivot_row',
     PIVOT_WHERE = 'pivot_where',
+
+    // Aggregate functions (reference column/row totals)
+    TOTAL = 'total',
+    ROW_TOTAL = 'row_total',
 }
 
 // ============================================================================
@@ -61,6 +65,15 @@ export const PIVOT_FUNCTIONS = [
     TableCalculationFunctionType.PIVOT_WHERE,
 ] as const;
 
+/**
+ * Aggregate functions - reference column or row totals
+ * Pre-processed in MetricQueryBuilder before function compilation.
+ */
+export const AGGREGATE_FUNCTIONS = [
+    TableCalculationFunctionType.TOTAL,
+    TableCalculationFunctionType.ROW_TOTAL,
+] as const;
+
 // ============================================================================
 // Function Call Types
 // ============================================================================
@@ -90,7 +103,7 @@ export interface IndexFunctionCall extends BaseFunctionCall {
 export interface OffsetFunctionCall extends BaseFunctionCall {
     type: TableCalculationFunctionType.OFFSET;
     column: string; // The column to offset
-    rowOffset: number; // Number of rows to offset (negative = previous, positive = next)
+    rowOffset: string; // Number of rows to offset (negative = previous, positive = next) or expression
 }
 
 export interface OffsetListFunctionCall extends BaseFunctionCall {
@@ -151,6 +164,19 @@ export interface PivotWhereFunctionCall extends BaseFunctionCall {
 }
 
 /**
+ * Aggregate function call types
+ */
+export interface TotalFunctionCall extends BaseFunctionCall {
+    type: TableCalculationFunctionType.TOTAL;
+    expression: string; // The metric field reference to total
+}
+
+export interface RowTotalFunctionCall extends BaseFunctionCall {
+    type: TableCalculationFunctionType.ROW_TOTAL;
+    expression: string; // The metric field reference to row-total
+}
+
+/**
  * Union type for all function calls
  */
 export type TableCalculationFunctionCall =
@@ -167,7 +193,10 @@ export type TableCalculationFunctionCall =
     | PivotOffsetFunctionCall
     | PivotOffsetListFunctionCall
     | PivotRowFunctionCall
-    | PivotWhereFunctionCall;
+    | PivotWhereFunctionCall
+    // Aggregate functions
+    | TotalFunctionCall
+    | RowTotalFunctionCall;
 
 // ============================================================================
 // Parser Functions
@@ -182,17 +211,48 @@ export function parseTableCalculationFunctions(
     const functions: TableCalculationFunctionCall[] = [];
     let match;
 
-    // Parse pivot_offset function calls
-    const pivotOffsetRegex =
-        /pivot_offset\s*\(\s*([^,()]+(?:\([^)]*\))?[^,()]*)\s*,\s*(-?\d+)\s*\)/gi;
+    // Parse pivot_offset function calls with proper nested parentheses handling
+    const pivotOffsetRegex = /pivot_offset\s*\(/gi;
     match = pivotOffsetRegex.exec(sql);
     while (match !== null) {
-        functions.push({
-            type: TableCalculationFunctionType.PIVOT_OFFSET,
-            expression: match[1].trim(),
-            columnOffset: parseInt(match[2], 10),
-            rawSql: match[0],
-        });
+        const startIdx = match.index;
+        const argsStart = match.index + match[0].length;
+
+        // Find the matching closing parenthesis
+        let parenCount = 1;
+        let endIdx = -1;
+        let commaIdx = -1;
+
+        for (let i = argsStart; i < sql.length; i += 1) {
+            if (sql[i] === '(') {
+                parenCount += 1;
+            } else if (sql[i] === ')') {
+                parenCount -= 1;
+                if (parenCount === 0) {
+                    endIdx = i;
+                    break;
+                }
+            } else if (sql[i] === ',' && parenCount === 1 && commaIdx === -1) {
+                // Found the comma separating the two arguments at the top level
+                commaIdx = i;
+            }
+        }
+
+        if (endIdx !== -1 && commaIdx !== -1) {
+            const expression = sql.slice(argsStart, commaIdx).trim();
+            const offsetStr = sql.slice(commaIdx + 1, endIdx).trim();
+            const columnOffset = parseInt(offsetStr, 10);
+
+            if (!Number.isNaN(columnOffset)) {
+                functions.push({
+                    type: TableCalculationFunctionType.PIVOT_OFFSET,
+                    expression,
+                    columnOffset,
+                    rawSql: sql.slice(startIdx, endIdx + 1),
+                });
+            }
+        }
+
         match = pivotOffsetRegex.exec(sql);
     }
 
@@ -207,17 +267,48 @@ export function parseTableCalculationFunctions(
         match = pivotColumnRegex.exec(sql);
     }
 
-    // Parse pivot_index function calls
-    const pivotIndexRegex =
-        /pivot_index\s*\(\s*([^,()]+(?:\([^)]*\))?[^,()]*)\s*,\s*(\d+)\s*\)/gi;
+    // Parse pivot_index function calls with proper nested parentheses handling
+    const pivotIndexRegex = /pivot_index\s*\(/gi;
     match = pivotIndexRegex.exec(sql);
     while (match !== null) {
-        functions.push({
-            type: TableCalculationFunctionType.PIVOT_INDEX,
-            expression: match[1].trim(),
-            pivotIndex: parseInt(match[2], 10),
-            rawSql: match[0],
-        });
+        const startIdx = match.index;
+        const argsStart = match.index + match[0].length;
+
+        // Find the matching closing parenthesis
+        let parenCount = 1;
+        let endIdx = -1;
+        let commaIdx = -1;
+
+        for (let i = argsStart; i < sql.length; i += 1) {
+            if (sql[i] === '(') {
+                parenCount += 1;
+            } else if (sql[i] === ')') {
+                parenCount -= 1;
+                if (parenCount === 0) {
+                    endIdx = i;
+                    break;
+                }
+            } else if (sql[i] === ',' && parenCount === 1 && commaIdx === -1) {
+                // Found the comma separating the two arguments at the top level
+                commaIdx = i;
+            }
+        }
+
+        if (endIdx !== -1 && commaIdx !== -1) {
+            const expression = sql.slice(argsStart, commaIdx).trim();
+            const indexStr = sql.slice(commaIdx + 1, endIdx).trim();
+            const pivotIndex = parseInt(indexStr, 10);
+
+            if (!Number.isNaN(pivotIndex)) {
+                functions.push({
+                    type: TableCalculationFunctionType.PIVOT_INDEX,
+                    expression,
+                    pivotIndex,
+                    rawSql: sql.slice(startIdx, endIdx + 1),
+                });
+            }
+        }
+
         match = pivotIndexRegex.exec(sql);
     }
 
@@ -290,6 +381,76 @@ export function parseTableCalculationFunctions(
         match = pivotRowRegex.exec(sql);
     }
 
+    // Parse row_total function calls (before total to avoid partial match)
+    // NOTE: This uses balanced-paren matching (not quote-based field extraction) because it
+    // identifies function types in expressions, not field IDs. For the quote-based field ID
+    // extraction used in CTE generation, see extractTotalReferences() and buildTotalFieldRegex().
+    const rowTotalStartRegex = /\brow_total\s*\(/gi;
+    let rowTotalMatch = rowTotalStartRegex.exec(sql);
+    while (rowTotalMatch !== null) {
+        const argsStart = rowTotalMatch.index + rowTotalMatch[0].length;
+        let parenCount = 1;
+        let endIdx = -1;
+
+        for (let i = argsStart; i < sql.length; i += 1) {
+            if (sql[i] === '(') {
+                parenCount += 1;
+            } else if (sql[i] === ')') {
+                parenCount -= 1;
+                if (parenCount === 0) {
+                    endIdx = i;
+                    break;
+                }
+            }
+        }
+
+        if (endIdx !== -1) {
+            const expression = sql.slice(argsStart, endIdx).trim();
+            functions.push({
+                type: TableCalculationFunctionType.ROW_TOTAL,
+                expression,
+                rawSql: sql.slice(rowTotalMatch.index, endIdx + 1),
+            });
+        }
+        rowTotalMatch = rowTotalStartRegex.exec(sql);
+    }
+
+    // Parse total function calls (uses \b to avoid matching row_total)
+    const totalStartRegex = /\btotal\s*\(/gi;
+    let totalMatch = totalStartRegex.exec(sql);
+    while (totalMatch !== null) {
+        // Skip if this is actually row_total
+        const startIdx = totalMatch.index;
+        const beforeMatch = sql.slice(Math.max(0, startIdx - 4), startIdx);
+        if (!beforeMatch.endsWith('row_')) {
+            const argsStart = startIdx + totalMatch[0].length;
+            let parenCount = 1;
+            let endIdx = -1;
+
+            for (let i = argsStart; i < sql.length; i += 1) {
+                if (sql[i] === '(') {
+                    parenCount += 1;
+                } else if (sql[i] === ')') {
+                    parenCount -= 1;
+                    if (parenCount === 0) {
+                        endIdx = i;
+                        break;
+                    }
+                }
+            }
+
+            if (endIdx !== -1) {
+                const expression = sql.slice(argsStart, endIdx).trim();
+                functions.push({
+                    type: TableCalculationFunctionType.TOTAL,
+                    expression,
+                    rawSql: sql.slice(startIdx, endIdx + 1),
+                });
+            }
+        }
+        totalMatch = totalStartRegex.exec(sql);
+    }
+
     // Parse row function calls
     const rowRegex = /row\s*\(\s*\)/gi;
     match = rowRegex.exec(sql);
@@ -301,19 +462,46 @@ export function parseTableCalculationFunctions(
         match = rowRegex.exec(sql);
     }
 
-    // Parse offset function calls (but not pivot_offset)
-    const offsetRegex = /\boffset\s*\(\s*([^,()]+)\s*,\s*(-?\d+)\s*\)/gi;
+    // Parse offset function calls
+    // The \b word boundary ensures we don't match pivot_offset
+    const offsetRegex = /\boffset\(/gi;
     match = offsetRegex.exec(sql);
     while (match !== null) {
-        // Skip if this is actually a pivot_offset
         const startIdx = match.index;
-        const beforeMatch = sql.slice(Math.max(0, startIdx - 6), startIdx);
-        if (!beforeMatch.endsWith('pivot_')) {
+
+        // Parse the function arguments properly, handling nested parentheses
+        let parenDepth = 1;
+        let i = startIdx + match[0].length;
+        const argStart = i;
+        let firstArgEnd = -1;
+        let secondArgStart = -1;
+
+        while (i < sql.length && parenDepth > 0) {
+            if (sql[i] === '(') {
+                parenDepth += 1;
+            } else if (sql[i] === ')') {
+                parenDepth -= 1;
+            } else if (
+                sql[i] === ',' &&
+                parenDepth === 1 &&
+                firstArgEnd === -1
+            ) {
+                firstArgEnd = i;
+                secondArgStart = i + 1;
+            }
+            i += 1;
+        }
+
+        if (firstArgEnd !== -1 && parenDepth === 0) {
+            const column = sql.slice(argStart, firstArgEnd).trim();
+            const rowOffset = sql.slice(secondArgStart, i - 1).trim();
+            const rawSql = sql.slice(startIdx, i);
+
             functions.push({
                 type: TableCalculationFunctionType.OFFSET,
-                column: match[1].trim(),
-                rowOffset: parseInt(match[2], 10),
-                rawSql: match[0],
+                column,
+                rowOffset,
+                rawSql,
             });
         }
         match = offsetRegex.exec(sql);
@@ -479,6 +667,108 @@ export function hasRowFunctions(
     functions: TableCalculationFunctionCall[],
 ): boolean {
     return functions.some((f) => isRowFunction(f.type));
+}
+
+/**
+ * Checks if the given function type is an aggregate function (total/row_total).
+ */
+export function isAggregateFunction(
+    type: TableCalculationFunctionType,
+): boolean {
+    return (
+        AGGREGATE_FUNCTIONS as readonly TableCalculationFunctionType[]
+    ).includes(type);
+}
+
+/**
+ * Checks if any of the parsed functions are aggregate functions (total/row_total).
+ */
+export function hasAggregateFunctions(
+    functions: TableCalculationFunctionCall[],
+): boolean {
+    return functions.some((f) => isAggregateFunction(f.type));
+}
+
+/**
+ * Builds regexes for matching total("field") and row_total("field") in compiled SQL.
+ * Used by both extractTotalReferences (detection) and MetricQueryBuilder.replaceTotalReferences (rewriting)
+ * to ensure consistent matching logic.
+ *
+ * @param quoteChar - Warehouse-specific quote char (e.g. `"` for Postgres, `` ` `` for BigQuery).
+ *                    When omitted, matches any of `"`, `'`, or `` ` `` (used for detection where
+ *                    the warehouse dialect isn't relevant).
+ */
+export function buildTotalFieldRegex(quoteChar?: string): {
+    totalRegex: RegExp;
+    rowTotalRegex: RegExp;
+} {
+    const q = quoteChar
+        ? quoteChar.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+        : `"'\``;
+    const fieldGroup = `[^${q}]+`;
+    return {
+        totalRegex: new RegExp(
+            `\\btotal\\s*\\(\\s*[${q}](${fieldGroup})[${q}]\\s*\\)`,
+            'gi',
+        ),
+        rowTotalRegex: new RegExp(
+            `\\brow_total\\s*\\(\\s*[${q}](${fieldGroup})[${q}]\\s*\\)`,
+            'gi',
+        ),
+    };
+}
+
+/**
+ * Extracts field IDs referenced by total() and row_total() calls in compiled table calculations.
+ * Scans compiledSql for patterns like total("field_id") and row_total("field_id").
+ *
+ * NOTE: This extracts field IDs from compiled SQL (for CTE generation), which is a different
+ * concern from parseTableCalculationFunctions() which identifies function *types* in expressions
+ * (for compilation). They are intentionally separate parsers.
+ */
+export function extractTotalReferences(
+    compiledTableCalcs: {
+        compiledSql: string;
+    }[],
+): {
+    totalFields: string[];
+    rowTotalFields: string[];
+} {
+    const totalFields = new Set<string>();
+    const rowTotalFields = new Set<string>();
+
+    const { totalRegex, rowTotalRegex } = buildTotalFieldRegex();
+
+    for (const tc of compiledTableCalcs) {
+        let m;
+        // Extract row_total references
+        rowTotalRegex.lastIndex = 0;
+        m = rowTotalRegex.exec(tc.compiledSql);
+        while (m !== null) {
+            rowTotalFields.add(m[1]);
+            m = rowTotalRegex.exec(tc.compiledSql);
+        }
+
+        // Extract total references (skip row_total matches)
+        totalRegex.lastIndex = 0;
+        m = totalRegex.exec(tc.compiledSql);
+        while (m !== null) {
+            const startIdx = m.index;
+            const before = tc.compiledSql.slice(
+                Math.max(0, startIdx - 4),
+                startIdx,
+            );
+            if (!before.endsWith('row_')) {
+                totalFields.add(m[1]);
+            }
+            m = totalRegex.exec(tc.compiledSql);
+        }
+    }
+
+    return {
+        totalFields: [...totalFields],
+        rowTotalFields: [...rowTotalFields],
+    };
 }
 
 // ============================================================================
@@ -777,16 +1067,25 @@ export class TableCalculationFunctionCompiler {
 
     private static compileOffset(
         column: string,
-        rowOffset: number,
+        rowOffset: string,
         orderByClause?: string,
     ): string {
-        if (rowOffset === 0) {
-            return column;
+        // Try to parse the offset as a number
+        const offsetNum = parseInt(rowOffset, 10);
+
+        if (!Number.isNaN(offsetNum)) {
+            // It's a valid number, use the original logic
+            if (offsetNum === 0) {
+                return column;
+            }
+            const windowFunction = offsetNum < 0 ? 'LAG' : 'LEAD';
+            const offsetValue = Math.abs(offsetNum);
+            return `${windowFunction}(${column}, ${offsetValue}) ${TableCalculationFunctionCompiler.buildOrderByWindow(orderByClause)}`;
         }
 
-        const windowFunction = rowOffset < 0 ? 'LAG' : 'LEAD';
-        const offsetValue = Math.abs(rowOffset);
-        return `${windowFunction}(${column}, ${offsetValue}) ${TableCalculationFunctionCompiler.buildOrderByWindow(orderByClause)}`;
+        // Not a number - it's an expression, assume negative offset (LAG)
+        // Most dynamic offsets are for period-over-period comparisons (looking backwards)
+        return `LAG(${column}, ${rowOffset}) ${TableCalculationFunctionCompiler.buildOrderByWindow(orderByClause)}`;
     }
 
     private static compileIndex(

@@ -1,4 +1,4 @@
-import { ActionIcon, HoverCard, Tooltip } from '@mantine-8/core';
+import { ActionIcon, HoverCard } from '@mantine-8/core';
 import { Prism } from '@mantine/prism';
 import { IconEye } from '@tabler/icons-react';
 import { memo, type FC } from 'react';
@@ -19,11 +19,9 @@ export const ViewSqlButton: FC<ViewSqlButtonProps> = memo(({ sql }) => {
             withinPortal
         >
             <HoverCard.Target>
-                <Tooltip label="View SQL">
-                    <ActionIcon size="sm" variant="subtle" color="ldGray.9">
-                        <MantineIcon icon={IconEye} />
-                    </ActionIcon>
-                </Tooltip>
+                <ActionIcon size="sm" variant="subtle" color="ldGray.9">
+                    <MantineIcon icon={IconEye} />
+                </ActionIcon>
             </HoverCard.Target>
             <HoverCard.Dropdown p={0} maw={500}>
                 <Prism

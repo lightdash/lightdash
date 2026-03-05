@@ -1,4 +1,4 @@
-/* 
+/*
 Service accounts
 */
 import { ServiceAccount, ServiceAccountScope } from '@lightdash/common';

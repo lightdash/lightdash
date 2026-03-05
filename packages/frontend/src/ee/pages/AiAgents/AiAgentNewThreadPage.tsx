@@ -10,7 +10,7 @@ import {
     Title,
 } from '@mantine-8/core';
 import { IconInfoCircle } from '@tabler/icons-react';
-import { type FC, useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { useOutletContext, useParams } from 'react-router';
 import { LightdashUserAvatar } from '../../../components/Avatar';
 import MantineIcon from '../../../components/common/MantineIcon';

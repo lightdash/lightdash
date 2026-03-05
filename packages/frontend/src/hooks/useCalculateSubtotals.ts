@@ -193,8 +193,8 @@ export const useCalculateSubtotals = ({
                     Boolean(embedToken && metricQuery && explore) ||
                     Boolean(
                         metricQuery &&
-                            explore &&
-                            (metricQuery.metrics.length ?? 0) > 0,
+                        explore &&
+                        (metricQuery.metrics.length ?? 0) > 0,
                     )),
             onError: (result: ApiError) =>
                 console.error(

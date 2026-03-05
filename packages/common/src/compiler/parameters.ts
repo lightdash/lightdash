@@ -10,7 +10,8 @@ import type { LightdashProjectParameter } from '../types/lightdashProjectConfig'
 export const parameterRegex =
     /\$\{(?:lightdash|ld)\.parameters\.(\w+(?:\.\w+)?)\}/g;
 
-// Regex for extracting parameter references - works with format strings and ternary expressions
+// Regex for extracting parameter references - works with format strings, ternary expressions,
+// and Liquid template blocks like {% if ld.parameters.grain == "day" %}
 const parameterReferencePattern =
     /(?:lightdash|ld)\.parameters\.(\w+(?:\.\w+)?)/g;
 
@@ -53,14 +54,24 @@ export const getParameterReferencesFromSqlAndFormat = (
 ): string[] => {
     const sqlParameterReferences = getParameterReferences(compiledSql);
 
+    // Also extract parameter references from Liquid template blocks
+    // e.g., {% if ld.parameters.grain == "day" %}
+    const liquidParameterReferences = compiledSql.includes('{%')
+        ? getParameterReferences(compiledSql, parameterReferencePattern)
+        : [];
+
     const formatParameterReferences =
         format && typeof format === 'string'
             ? getParameterReferences(format, parameterReferencePattern)
             : [];
 
-    // Combine and deduplicate parameter references from both sources
+    // Combine and deduplicate parameter references from all sources
     return Array.from(
-        new Set([...sqlParameterReferences, ...formatParameterReferences]),
+        new Set([
+            ...sqlParameterReferences,
+            ...liquidParameterReferences,
+            ...formatParameterReferences,
+        ]),
     );
 };
 

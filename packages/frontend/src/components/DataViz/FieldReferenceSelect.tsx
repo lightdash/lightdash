@@ -1,6 +1,7 @@
 import { type DimensionType } from '@lightdash/common';
-import { Select, type SelectProps } from '@mantine/core';
+import { Select, type SelectProps } from '@mantine-8/core';
 import { type FC } from 'react';
+import styles from './FieldReferenceSelect.module.css';
 import { TableFieldIcon } from './Icons';
 
 type Props = SelectProps & {
@@ -12,29 +13,11 @@ export const FieldReferenceSelect: FC<Props> = ({ fieldType, ...props }) => {
         <Select
             radius="md"
             {...props}
-            icon={<TableFieldIcon fieldType={fieldType} />}
-            styles={(theme) => ({
-                input: {
-                    height: '32px',
-                    fontWeight: 500,
-                    borderColor: theme.colors.ldGray[2],
-                    borderRadius: theme.radius.md,
-                    boxShadow: '0px 1px 2px 0px rgba(228, 229, 231, 0.24)',
-                },
-                item: {
-                    '&[data-selected="true"]': {
-                        color: theme.colors.ldGray[7],
-                        fontWeight: 500,
-                        backgroundColor: theme.colors.ldGray[2],
-                    },
-                    '&[data-selected="true"]:hover': {
-                        backgroundColor: theme.colors.ldGray[3],
-                    },
-                    '&:hover': {
-                        backgroundColor: theme.colors.ldGray[1],
-                    },
-                },
-            })}
+            leftSection={<TableFieldIcon fieldType={fieldType} />}
+            classNames={{
+                input: styles.input,
+                option: styles.option,
+            }}
             rightSectionWidth="min-content"
         />
     );

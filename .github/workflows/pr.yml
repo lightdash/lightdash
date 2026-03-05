@@ -38,14 +38,20 @@ jobs:
           cache-dependency-path: "pnpm-lock.yaml"
       - name: Install packages
         run: pnpm install --frozen-lockfile --prefer-offline
-      - name: Run quality checks and build in parallel
+      - name: Build
+        run: pnpm build
+      - name: Run quality checks in parallel
         run: |
-          pnpm lint &
-          pnpm format &
-          pnpm -F frontend unused-exports &
-          pnpm typecheck &
-          pnpm build &
-          wait
+          pnpm lint & pid_lint=$!
+          pnpm format & pid_format=$!
+          pnpm -F frontend unused-exports & pid_unused=$!
+          pnpm typecheck & pid_typecheck=$!
+          fail=0
+          wait $pid_lint || fail=1
+          wait $pid_format || fail=1
+          wait $pid_unused || fail=1
+          wait $pid_typecheck || fail=1
+          exit $fail
       - name: Run unit tests
         run: pnpm test
 
@@ -98,7 +104,7 @@ jobs:
                 name: 'Backend API Tests',
                 selected: ${{ needs.files-changed.outputs.backend }},
                 trigger: 'test-backend',
-                description: 'Runs Cypress API tests'
+                description: 'Runs Vitest API tests'
               },
               {
                 name: 'Timezone Tests',
@@ -255,7 +261,7 @@ jobs:
   build-cypress-e2e-image:
     runs-on: depot-ubuntu-24.04-4
     needs: files-changed
-    if: needs.files-changed.outputs.frontend == 'true' || needs.files-changed.outputs.timezone == 'true' || needs.files-changed.outputs.backend == 'true'
+    if: needs.files-changed.outputs.frontend == 'true' || needs.files-changed.outputs.timezone == 'true'
     name: Build E2E Image
     steps:
       - name: Checkout
@@ -279,56 +285,49 @@ jobs:
 
   api-tests:
     if: needs.files-changed.outputs.backend == 'true'
-    timeout-minutes: 30
+    timeout-minutes: 10
     runs-on: depot-ubuntu-24.04-4
-    needs: [preview, files-changed, build-cypress-e2e-image]
-    container:
-      image: ghcr.io/lightdash/lightdash-cypress-e2e:latest
-      options: --user 1001
-    strategy:
-      fail-fast: false
-      matrix:
-        containers: [1, 2, 3, 4, 5]
-    name: "E2E: API (${{ matrix.containers }}/${{ strategy.job-total }})"
+    needs: [preview, files-changed]
+    name: "E2E: API (Vitest)"
     env:
       NODE_OPTIONS: "--max-old-space-size=8192"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Setup Node, PNPM, and Cypress
-        uses: ./.github/workflows/_setup_node_pnpm_cypress
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+          cache-dependency-path: "pnpm-lock.yaml"
+      - name: Install packages
+        run: pnpm install --frozen-lockfile --prefer-offline
       - name: Build packages/common module
         run: pnpm common-build
-      - name: create-json
+      - name: Create BigQuery credentials file
         id: create-json
         uses: jsdaniell/create-json@v1.2.2
         with:
           name: "credentials.json"
           json: ${{ secrets.GCP_CREDENTIALS }}
           dir: "./packages/e2e/cypress/fixtures/"
-      - name: Run Cypress
-        uses: cypress-io/github-action@v6
-        with:
-          install: false
-          working-directory: packages/e2e
-          config: "baseUrl=https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev,specPattern=cypress/e2e/api/**/*.cy.{js,jsx,ts,tsx},video=false"
+      - name: Run API tests
+        run: pnpm -F api-tests test:api
         env:
-          SPLIT: ${{ strategy.job-total }}
-          SPLIT_INDEX: ${{ strategy.job-index }}
-          CYPRESS_PGHOST: ${{ secrets.PGHOST }}
-          CYPRESS_PGPASSWORD: ${{ secrets.PGPASSWORD }}
-          CYPRESS_DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
-          CYPRESS_DATABRICKS_PATH: ${{ secrets.DATABRICKS_PATH }}
-          CYPRESS_DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
-          CYPRESS_SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
-          CYPRESS_SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
-          CYPRESS_SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
-          CYPRESS_TRINO_HOST: ${{ secrets.TRINO_HOST }}
-          CYPRESS_TRINO_PORT: ${{ secrets.TRINO_PORT }}
-          CYPRESS_TRINO_USER: ${{ secrets.TRINO_USER }}
-          CYPRESS_TRINO_PASSWORD: ${{ secrets.TRINO_PASSWORD }}
+          SITE_URL: https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev
+          PGHOST: ${{ secrets.PGHOST }}
+          PGPASSWORD: ${{ secrets.PGPASSWORD }}
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_PATH: ${{ secrets.DATABRICKS_PATH }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+          SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
+          SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
+          TRINO_HOST: ${{ secrets.TRINO_HOST }}
+          TRINO_PORT: ${{ secrets.TRINO_PORT }}
+          TRINO_USER: ${{ secrets.TRINO_USER }}
+          TRINO_PASSWORD: ${{ secrets.TRINO_PASSWORD }}
           TZ: "UTC"
-          CYPRESS_TZ: "UTC"
 
   app-tests:
     if: needs.files-changed.outputs.frontend == 'true'
@@ -447,7 +446,7 @@ jobs:
     timeout-minutes: 30
     runs-on: depot-ubuntu-24.04-4
     needs: [preview, files-changed]
-    name: "CLI: API"
+    name: "CLI: Without dbt"
     env:
       NODE_OPTIONS: "--max-old-space-size=8192"
     steps:
@@ -471,7 +470,7 @@ jobs:
         with:
           install: false
           working-directory: packages/e2e
-          spec: cypress/cli/api
+          spec: cypress/cli/api,cypress/cli/yaml-only
           config: "baseUrl=https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev"
 
   # CLI tests with dbt

@@ -4,15 +4,22 @@ import {
     isResourceViewSpaceItem,
     type ResourceViewItem,
 } from '@lightdash/common';
-import { Anchor, Box, Group, Stack, Table, Text, Tooltip } from '@mantine/core';
 import {
-    IconAlertTriangleFilled,
+    Anchor,
+    Box,
+    Group,
+    Stack,
+    Table,
+    Text,
+    Tooltip,
+} from '@mantine-8/core';
+import {
+    IconAlertTriangle,
     IconChevronDown,
     IconChevronUp,
 } from '@tabler/icons-react';
 import React, { useMemo, useState, type FC } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import { useTableStyles } from '../../../../hooks/styles/useTableStyles';
 import { useSpaceSummaries } from '../../../../hooks/useSpaces';
 import { useValidationUserAbility } from '../../../../hooks/validation/useValidation';
 import { ResourceIcon, ResourceIndicator } from '../../ResourceIcon';
@@ -29,6 +36,7 @@ import {
 } from '../types';
 import ResourceActionMenu from './../ResourceActionMenu';
 import ResourceLastEdited from './../ResourceLastEdited';
+import classes from './ResourceViewList.module.css';
 
 type ColumnName = 'name' | 'space' | 'updatedAt' | 'actions';
 
@@ -76,8 +84,6 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
     defaultSort,
     onAction,
 }) => {
-    const { classes } = useTableStyles();
-
     const navigate = useNavigate();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { data: spaces = [] } = useSpaceSummaries(projectUuid);
@@ -124,24 +130,18 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                     return (
                         <Anchor
                             component={Link}
-                            sx={{
-                                color: 'unset',
-                                ':hover': {
-                                    color: 'unset',
-                                    textDecoration: 'none',
-                                },
-                            }}
+                            className={classes.anchor}
                             to={getResourceUrl(projectUuid, item)}
                             onClick={(e: React.MouseEvent<HTMLAnchorElement>) =>
                                 e.stopPropagation()
                             }
                         >
-                            <Group noWrap>
+                            <Group wrap="nowrap">
                                 {canBelongToSpace &&
                                 item.data.validationErrors?.length ? (
                                     <ResourceIndicator
                                         iconProps={{
-                                            icon: IconAlertTriangleFilled,
+                                            icon: IconAlertTriangle,
                                             color: 'red',
                                         }}
                                         tooltipProps={{
@@ -164,7 +164,8 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                                                             pathname: `/generalSettings/projectManagement/${projectUuid}/validator`,
                                                             search: `?validationId=${item.data.validationErrors[0].validationId}`,
                                                         }}
-                                                        color="blue.4"
+                                                        c="blue.4"
+                                                        fz="xs"
                                                     >
                                                         here
                                                     </Anchor>
@@ -189,12 +190,13 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                                     <ResourceIcon item={item} />
                                 )}
 
-                                <Stack spacing={2}>
-                                    <Group spacing="xs" noWrap>
+                                <Stack gap={2}>
+                                    <Group gap="xs" wrap="nowrap">
                                         <Text
                                             fw={600}
+                                            fz="sm"
                                             lineClamp={1}
-                                            sx={{ overflowWrap: 'anywhere' }}
+                                            className={classes.itemName}
                                         >
                                             {item.data.name}
                                         </Text>
@@ -228,7 +230,7 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                                             )}
                                     </Group>
                                     {canBelongToSpace && (
-                                        <Text fz={12} color="ldGray.6">
+                                        <Text fz="xs" c="ldGray.6">
                                             {getResourceTypeName(item)} •{' '}
                                             <Tooltip
                                                 position="top-start"
@@ -279,13 +281,13 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
 
                     return space ? (
                         <Anchor
-                            color="ldGray.7"
+                            c="ldGray.7"
                             component={Link}
                             to={`/projects/${projectUuid}/spaces/${space.uuid}`}
                             onClick={(e: React.MouseEvent<HTMLAnchorElement>) =>
                                 e.stopPropagation()
                             }
-                            fz={12}
+                            fz="xs"
                             fw={500}
                         >
                             {space.name}
@@ -415,27 +417,19 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
     }, [items, columnSorts, columns]);
 
     return (
-        <Table className={classes.root} highlightOnHover>
-            <thead>
-                <tr>
+        <Table className={classes.table} highlightOnHover>
+            <Table.Thead>
+                <Table.Tr>
                     {visibleColumns.map((column) => {
                         const columnSort = columnSorts.get(column.id) || null;
 
                         return (
-                            <Box
-                                component="th"
+                            <Table.Th
                                 key={column.id}
-                                style={column?.meta?.style}
-                                sx={
+                                w={column?.meta?.style?.width}
+                                className={
                                     column.enableSorting
-                                        ? (theme) => ({
-                                              cursor: 'pointer',
-                                              userSelect: 'none',
-                                              '&:hover': {
-                                                  backgroundColor:
-                                                      theme.colors.ldGray[1],
-                                              },
-                                          })
+                                        ? classes.sortableHeader
                                         : undefined
                                 }
                                 onClick={() =>
@@ -447,7 +441,7 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                                         : undefined
                                 }
                             >
-                                <Group spacing={2}>
+                                <Group gap={2}>
                                     {column?.label}
 
                                     {enableSorting && columnSort
@@ -459,15 +453,15 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                                           }[columnSort]
                                         : null}
                                 </Group>
-                            </Box>
+                            </Table.Th>
                         );
                     })}
-                </tr>
-            </thead>
+                </Table.Tr>
+            </Table.Thead>
 
-            <tbody>
+            <Table.Tbody>
                 {sortedResourceItems.map((item) => (
-                    <tr
+                    <Table.Tr
                         key={item.data.uuid}
                         onClick={() =>
                             projectUuid &&
@@ -477,11 +471,13 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                         onMouseLeave={() => setHoveredItem(undefined)}
                     >
                         {visibleColumns.map((column) => (
-                            <td key={column.id}>{column.cell(item)}</td>
+                            <Table.Td key={column.id}>
+                                {column.cell(item)}
+                            </Table.Td>
                         ))}
-                    </tr>
+                    </Table.Tr>
                 ))}
-            </tbody>
+            </Table.Tbody>
         </Table>
     );
 };

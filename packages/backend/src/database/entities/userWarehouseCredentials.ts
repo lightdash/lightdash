@@ -9,6 +9,7 @@ export type DbUserWarehouseCredentials = {
     user_uuid: string;
     warehouse_type: WarehouseType;
     encrypted_credentials: Buffer;
+    project_uuid: string | null;
 };
 export const UserWarehouseCredentialsTableName = 'user_warehouse_credentials';
 export type UserWarehouseCredentialsTable = Knex.CompositeTableType<
@@ -19,7 +20,11 @@ export type UserWarehouseCredentialsTable = Knex.CompositeTableType<
 
 type Create = Pick<
     DbUserWarehouseCredentials,
-    'name' | 'user_uuid' | 'warehouse_type' | 'encrypted_credentials'
+    | 'name'
+    | 'user_uuid'
+    | 'warehouse_type'
+    | 'encrypted_credentials'
+    | 'project_uuid'
 >;
 type Update = Pick<
     DbUserWarehouseCredentials,

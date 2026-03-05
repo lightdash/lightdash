@@ -69,7 +69,7 @@ describe('scopeAbilityBuilder', () => {
                 subject('Dashboard', {
                     organizationUuid: 'org-123',
                     projectUuid: 'project-123',
-                    isPrivate: false,
+                    inheritsFromOrgOrProject: true,
                 }),
             ),
         ).toBe(true);
@@ -81,7 +81,7 @@ describe('scopeAbilityBuilder', () => {
                 subject('Dashboard', {
                     organizationUuid: 'org-123',
                     projectUuid: 'project-123',
-                    isPrivate: true,
+                    inheritsFromOrgOrProject: false,
                 }),
             ),
         ).toBe(false);
@@ -422,7 +422,7 @@ describe('scopeAbilityBuilder', () => {
                 subject('Dashboard', {
                     organizationUuid: 'org-123',
                     projectUuid: 'project-789',
-                    isPrivate: false,
+                    inheritsFromOrgOrProject: true,
                 }),
             ),
         ).toBe(true);
@@ -549,7 +549,7 @@ describe('scopeAbilityBuilder', () => {
                     subject('Space', {
                         organizationUuid: 'org-123',
                         projectUuid: 'project-123',
-                        isPrivate: false,
+                        inheritsFromOrgOrProject: true,
                     }),
                 ),
             ).toBe(true);
@@ -797,7 +797,7 @@ describe('scopeAbilityBuilder', () => {
                     subject('Dashboard', {
                         organizationUuid: 'org-123',
                         projectUuid: 'project-123',
-                        isPrivate: false,
+                        inheritsFromOrgOrProject: true,
                     }),
                 ),
             ).toBe(true);
@@ -808,7 +808,7 @@ describe('scopeAbilityBuilder', () => {
                     subject('Dashboard', {
                         organizationUuid: 'org-123',
                         projectUuid: 'project-123',
-                        isPrivate: true,
+                        inheritsFromOrgOrProject: false,
                     }),
                 ),
             ).toBe(false);
@@ -825,11 +825,11 @@ describe('scopeAbilityBuilder', () => {
             );
             const ability = builder.build();
 
-            // We have 3 valid rules, 2 for dashboard and 1 for project, dropping the invalid scope
-            expect(ability.rules.length).toBe(3);
+            // We have 4 valid rules, 3 for dashboard (isPrivate, inheritsFromOrgOrProject, access) and 1 for project, dropping the invalid scope
+            expect(ability.rules.length).toBe(4);
             expect(
                 ability.rules.filter((r) => r.subject === 'Dashboard'),
-            ).toHaveLength(2);
+            ).toHaveLength(3);
             expect(
                 ability.rules.find((r) => r.subject === 'Project'),
             ).toBeDefined();
@@ -858,7 +858,7 @@ describe('scopeAbilityBuilder', () => {
                     'view',
                     subject('Dashboard', {
                         organizationUuid: 'different-org',
-                        isPrivate: false,
+                        inheritsFromOrgOrProject: true,
                     }),
                 ),
             ).toBe(false);
@@ -879,7 +879,7 @@ describe('scopeAbilityBuilder', () => {
                     'view',
                     subject('Space', {
                         organizationUuid: 'different-org',
-                        isPrivate: false,
+                        inheritsFromOrgOrProject: true,
                     }),
                 ),
             ).toBe(false);
@@ -903,7 +903,7 @@ describe('scopeAbilityBuilder', () => {
                     subject('SavedChart', {
                         organizationUuid: 'org-123',
                         projectUuid: 'different-project',
-                        isPrivate: false,
+                        inheritsFromOrgOrProject: true,
                     }),
                 ),
             ).toBe(false);
@@ -933,7 +933,7 @@ describe('scopeAbilityBuilder', () => {
                     'view',
                     subject('Dashboard', {
                         organizationUuid: 'org-123',
-                        isPrivate: true,
+                        inheritsFromOrgOrProject: false,
                         access: [
                             {
                                 userUuid: 'user-456',
@@ -950,7 +950,7 @@ describe('scopeAbilityBuilder', () => {
                     'view',
                     subject('Dashboard', {
                         organizationUuid: 'org-123',
-                        isPrivate: true,
+                        inheritsFromOrgOrProject: false,
                         access: [],
                     }),
                 ),
@@ -962,7 +962,7 @@ describe('scopeAbilityBuilder', () => {
                     'view',
                     subject('Dashboard', {
                         organizationUuid: 'org-123',
-                        isPrivate: true,
+                        inheritsFromOrgOrProject: false,
                         access: [
                             {
                                 userUuid: 'other-user',
@@ -1088,7 +1088,7 @@ describe('scopeAbilityBuilder', () => {
                     'manage',
                     subject('Space', {
                         organizationUuid: 'org-123',
-                        isPrivate: true,
+                        inheritsFromOrgOrProject: false,
                         access: [
                             {
                                 userUuid: 'user-456',
@@ -1105,7 +1105,7 @@ describe('scopeAbilityBuilder', () => {
                     'manage',
                     subject('Space', {
                         organizationUuid: 'org-123',
-                        isPrivate: true,
+                        inheritsFromOrgOrProject: false,
                         access: [
                             {
                                 userUuid: 'user-456',

@@ -17,11 +17,11 @@ import { useMutation } from '@tanstack/react-query';
 import { useEffect, type FC } from 'react';
 import { useLocation } from 'react-router';
 import { lightdashApi } from '../api';
+import Page from '../components/common/Page/Page';
+import { ThirdPartySignInButton } from '../components/common/ThirdPartySignInButton';
 import LightdashLogo from '../components/LightdashLogo/LightdashLogo';
 import PageSpinner from '../components/PageSpinner';
 import CreateUserForm from '../components/RegisterForms/CreateUserForm';
-import Page from '../components/common/Page/Page';
-import { ThirdPartySignInButton } from '../components/common/ThirdPartySignInButton';
 import useToaster from '../hooks/toaster/useToaster';
 import { useFlashMessages } from '../hooks/useFlashMessages';
 import useApp from '../providers/App/useApp';
@@ -138,6 +138,8 @@ const Register: FC = () => {
                     <Anchor
                         href="https://www.lightdash.com/privacy-policy"
                         target="_blank"
+                        fz="sm"
+                        fw={500}
                     >
                         Privacy Policy
                     </Anchor>{' '}
@@ -145,6 +147,8 @@ const Register: FC = () => {
                     <Anchor
                         href="https://www.lightdash.com/terms-of-service"
                         target="_blank"
+                        fz="sm"
+                        fw={500}
                     >
                         Terms of Service.
                     </Anchor>

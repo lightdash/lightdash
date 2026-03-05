@@ -2,17 +2,22 @@ import {
     type ApiError,
     type CreateSpace,
     type Space,
+    type SpaceDeleteImpact,
     type SpaceSummary,
     type UpdateSpace,
 } from '@lightdash/common';
+import { IconArrowRight } from '@tabler/icons-react';
 import {
     useMutation,
     useQuery,
     useQueryClient,
     type UseQueryOptions,
 } from '@tanstack/react-query';
+import { useNavigate } from 'react-router';
 import { lightdashApi } from '../api';
+import useApp from '../providers/App/useApp';
 import useToaster from './toaster/useToaster';
+import { invalidateContent } from './useContent';
 import { useAccount } from './user/useAccount';
 
 const getSpaceSummaries = async (projectUuid: string) => {
@@ -74,6 +79,23 @@ export const useSpace = (
         ...useQueryOptions,
     });
 
+const getSpaceDeleteImpact = async (projectUuid: string, spaceUuid: string) =>
+    lightdashApi<SpaceDeleteImpact>({
+        url: `/projects/${projectUuid}/spaces/${spaceUuid}/delete-impact`,
+        method: 'GET',
+        body: undefined,
+    });
+
+export const useSpaceDeleteImpact = (
+    projectUuid: string | undefined,
+    spaceUuid: string | undefined,
+) =>
+    useQuery<SpaceDeleteImpact, ApiError>({
+        queryKey: ['space', projectUuid, spaceUuid, 'delete-impact'],
+        queryFn: () => getSpaceDeleteImpact(projectUuid!, spaceUuid!),
+        enabled: !!projectUuid && !!spaceUuid,
+    });
+
 const deleteQuery = async (projectUuid: string, spaceUuid: string) =>
     lightdashApi<null>({
         url: `/projects/${projectUuid}/spaces/${spaceUuid}`,
@@ -84,21 +106,29 @@ const deleteQuery = async (projectUuid: string, spaceUuid: string) =>
 export const useSpaceDeleteMutation = (projectUuid: string) => {
     const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
+    const navigate = useNavigate();
+    const { health } = useApp();
+    const isSoftDeleteEnabled = health.data?.softDelete.enabled ?? false;
 
     return useMutation<null, ApiError, string>(
         (spaceUuid) => deleteQuery(projectUuid, spaceUuid),
         {
             mutationKey: ['space_delete', projectUuid],
             onSuccess: async () => {
-                await queryClient.invalidateQueries([
-                    'projects',
-                    projectUuid,
-                    'spaces',
-                ]);
-                await queryClient.invalidateQueries(['pinned_items']);
-                await queryClient.refetchQueries(['content']);
+                await invalidateContent(queryClient, projectUuid);
+                await queryClient.invalidateQueries(['deletedContent']);
                 showToastSuccess({
                     title: `Success! Space was deleted.`,
+                    action: isSoftDeleteEnabled
+                        ? {
+                              children: 'Go to recently deleted',
+                              icon: IconArrowRight,
+                              onClick: () =>
+                                  navigate(
+                                      `/generalSettings/projectManagement/${projectUuid}/recentlyDeleted`,
+                                  ),
+                          }
+                        : undefined,
                 });
             },
             onError: ({ error }) => {

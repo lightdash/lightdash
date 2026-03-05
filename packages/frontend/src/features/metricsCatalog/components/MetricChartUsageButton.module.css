@@ -1,0 +1,9 @@
+.button[data-disabled] {
+    background-color: transparent;
+    font-weight: 400;
+    color: var(--mantine-color-ldDark-7);
+}
+
+.button :global(.mantine-Button-section) {
+    margin-right: var(--mantine-spacing-xxs);
+}

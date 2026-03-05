@@ -1,8 +1,16 @@
+import { FeatureFlags } from '@lightdash/common';
 import { Stack } from '@mantine-8/core';
 import { useMemo, type FC } from 'react';
 import { Navigate, useParams, useRoutes, type RouteObject } from 'react-router';
+import { DocumentTitle } from '../components/common/DocumentTitle';
+import ErrorState from '../components/common/ErrorState';
+import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
+import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import CompilationHistory from '../components/CompilationHistory';
 import { DataOps } from '../components/DataOps';
+import { DefaultUserSpaces } from '../components/DefaultUserSpaces';
+import PreAggregateAudit from '../components/PreAggregateAudit';
+import PreAggregateMaterializations from '../components/PreAggregateMaterializations';
 import ProjectUserAccess from '../components/ProjectAccess';
 import { UpdateProjectConnection } from '../components/ProjectConnection';
 import ProjectParameters from '../components/ProjectParameters';
@@ -10,20 +18,26 @@ import ProjectTablesConfiguration from '../components/ProjectTablesConfiguration
 import SettingsScheduler from '../components/SettingsScheduler';
 import SettingsUsageAnalytics from '../components/SettingsUsageAnalytics';
 import { SettingsValidator } from '../components/SettingsValidator';
-import { DocumentTitle } from '../components/common/DocumentTitle';
-import ErrorState from '../components/common/ErrorState';
-import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
-import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import SettingsEmbed from '../ee/features/embed/SettingsEmbed';
 import { ProjectChangesets } from '../features/changesets/components/ProjectChangesets';
+import RecentlyDeletedPage from '../features/recentlyDeleted/components/RecentlyDeletedPage';
 import { useProject } from '../hooks/useProject';
+import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
+import useApp from '../providers/App/useApp';
 
 const ProjectSettings: FC = () => {
     const { projectUuid } = useParams<{
         projectUuid: string;
     }>();
 
+    const { health } = useApp();
     const { isInitialLoading, data: project, error } = useProject(projectUuid);
+
+    const isSoftDeleteEnabled = health.data?.softDelete?.enabled ?? false;
+    const { data: defaultUserSpacesFlag } = useServerFeatureFlag(
+        FeatureFlags.DefaultUserSpaces,
+    );
+    const isDefaultUserSpacesEnabled = defaultUserSpacesFlag?.enabled ?? false;
 
     const routes = useMemo<RouteObject[]>(() => {
         if (!projectUuid) {
@@ -64,6 +78,26 @@ const ProjectSettings: FC = () => {
                 path: `/dataOps`,
                 element: <DataOps projectUuid={projectUuid} />,
             },
+            ...(isDefaultUserSpacesEnabled
+                ? [
+                      {
+                          path: `/defaultUserSpaces`,
+                          element: (
+                              <DefaultUserSpaces projectUuid={projectUuid} />
+                          ),
+                      },
+                  ]
+                : []),
+            ...(isSoftDeleteEnabled
+                ? [
+                      {
+                          path: `/recentlyDeleted`,
+                          element: (
+                              <RecentlyDeletedPage projectUuid={projectUuid} />
+                          ),
+                      },
+                  ]
+                : []),
             {
                 path: `/parameters`,
                 element: <ProjectParameters projectUuid={projectUuid} />,
@@ -71,6 +105,34 @@ const ProjectSettings: FC = () => {
             {
                 path: `/compilationHistory`,
                 element: <CompilationHistory projectUuid={projectUuid} />,
+            },
+            {
+                path: `/preAggregates`,
+                children: [
+                    {
+                        index: true,
+                        element: (
+                            <Navigate
+                                to={`/generalSettings/projectManagement/${projectUuid}/preAggregates/audit`}
+                                replace
+                            />
+                        ),
+                    },
+                    {
+                        path: `materializations`,
+                        element: (
+                            <PreAggregateMaterializations
+                                projectUuid={projectUuid}
+                            />
+                        ),
+                    },
+                    {
+                        path: `audit`,
+                        element: (
+                            <PreAggregateAudit projectUuid={projectUuid} />
+                        ),
+                    },
+                ],
             },
             {
                 path: '*',
@@ -81,7 +143,7 @@ const ProjectSettings: FC = () => {
                 element: <SettingsEmbed projectUuid={projectUuid} />,
             },
         ];
-    }, [projectUuid]);
+    }, [projectUuid, isSoftDeleteEnabled, isDefaultUserSpacesEnabled]);
     const routesElements = useRoutes(routes);
 
     if (error) {

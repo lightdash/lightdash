@@ -1,0 +1,31 @@
+.sortableAnchor {
+    display: block;
+    color: unset;
+    touch-action: manipulation;
+    will-change: transform;
+    transition:
+        opacity 180ms cubic-bezier(0.22, 1, 0.36, 1),
+        filter 180ms cubic-bezier(0.22, 1, 0.36, 1),
+        transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
+
+    &:hover {
+        color: unset;
+        text-decoration: unset;
+    }
+}
+
+.dragging {
+    opacity: 0.45;
+    filter: drop-shadow(0 8px 18px rgb(20 25 35 / 22%));
+}
+
+.sortingSibling {
+    transform: scale(0.992);
+    filter: brightness(0.98);
+}
+
+.dragOverlay {
+    pointer-events: none;
+    opacity: 0.98;
+    filter: drop-shadow(0 16px 26px rgb(20 25 35 / 28%));
+}

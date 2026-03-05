@@ -13,8 +13,8 @@ import { appendNewTilesToBottom } from '../../hooks/dashboard/useDashboard';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import MantineIcon from '../common/MantineIcon';
-import TileBase from './TileBase/index';
 import styles from './DashboardMarkdownTile.module.css';
+import TileBase from './TileBase/index';
 
 export type Props = Pick<
     React.ComponentProps<typeof TileBase>,

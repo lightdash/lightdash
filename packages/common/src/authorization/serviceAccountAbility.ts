@@ -1,5 +1,4 @@
 import { type AbilityBuilder } from '@casl/ability';
-
 import { ServiceAccountScope } from '../ee/serviceAccounts/types';
 import { ProjectType } from '../types/projects';
 import { type MemberAbility } from './types';
@@ -27,13 +26,23 @@ const applyServiceAccountStaticAbilities: Record<
             organizationUuid,
         });
 
+        // TODO: remove once we're confident that nobody is stuck on an old frontend version
         can('view', 'Dashboard', {
+            organizationUuid,
+            isPrivate: false,
+        });
+        can('view', 'Dashboard', {
+            organizationUuid,
+            inheritsFromOrgOrProject: true,
+        });
+        // TODO: remove once we're confident that nobody is stuck on an old frontend version
+        can('view', 'SavedChart', {
             organizationUuid,
             isPrivate: false,
         });
         can('view', 'SavedChart', {
             organizationUuid,
-            isPrivate: false,
+            inheritsFromOrgOrProject: true,
         });
         can('view', 'Dashboard', {
             organizationUuid,
@@ -48,9 +57,14 @@ const applyServiceAccountStaticAbilities: Record<
                 $elemMatch: { userUuid: userUuid },
             }, */
         });
+        // TODO: remove once we're confident that nobody is stuck on an old frontend version
         can('view', 'Space', {
             organizationUuid,
             isPrivate: false,
+        });
+        can('view', 'Space', {
+            organizationUuid,
+            inheritsFromOrgOrProject: true,
         });
         can('view', 'Space', {
             organizationUuid,
@@ -180,9 +194,14 @@ const applyServiceAccountStaticAbilities: Record<
             organizationUuid,
             builder: { can },
         });
+        // TODO: remove once we're confident that nobody is stuck on an old frontend version
         can('manage', 'Space', {
             organizationUuid,
             isPrivate: false,
+        });
+        can('manage', 'Space', {
+            organizationUuid,
+            inheritsFromOrgOrProject: true,
         });
         can('create', 'Space', {
             organizationUuid,
@@ -214,6 +233,9 @@ const applyServiceAccountStaticAbilities: Record<
         applyServiceAccountStaticAbilities[ServiceAccountScope.ORG_EDIT]({
             organizationUuid,
             builder: { can },
+        });
+        can('manage', 'PreAggregation', {
+            organizationUuid,
         });
         can('manage', 'VirtualView', {
             organizationUuid,
@@ -251,6 +273,9 @@ const applyServiceAccountStaticAbilities: Record<
         can('create', 'Project', {
             organizationUuid,
             type: ProjectType.PREVIEW,
+        });
+        can('manage', 'DeployProject', {
+            organizationUuid,
         });
         can('update', 'Project', {
             organizationUuid,

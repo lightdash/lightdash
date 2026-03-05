@@ -8,6 +8,7 @@ import { CommentModel } from './CommentModel/CommentModel';
 import { ContentModel } from './ContentModel/ContentModel';
 import { DashboardModel } from './DashboardModel/DashboardModel';
 import { PersonalAccessTokenModel } from './DashboardModel/PersonalAccessTokenModel';
+import { DeploySessionModel } from './DeploySessionModel';
 import { DownloadAuditModel } from './DownloadAuditModel';
 import { DownloadFileModel } from './DownloadFileModel';
 import { EmailModel } from './EmailModel';
@@ -28,7 +29,10 @@ import { OrganizationMemberProfileModel } from './OrganizationMemberProfileModel
 import { OrganizationModel } from './OrganizationModel';
 import { OrganizationWarehouseCredentialsModel } from './OrganizationWarehouseCredentialsModel';
 import { PasswordResetLinkModel } from './PasswordResetLinkModel';
+import { PersistentDownloadFileModel } from './PersistentDownloadFileModel';
 import { PinnedListModel } from './PinnedListModel';
+import { PreAggregateDailyStatsModel } from './PreAggregateDailyStatsModel';
+import { PreAggregateModel } from './PreAggregateModel';
 import { ProjectCompileLogModel } from './ProjectCompileLogModel';
 import { ProjectModel } from './ProjectModel/ProjectModel';
 import { ProjectParametersModel } from './ProjectParametersModel';
@@ -49,6 +53,7 @@ import { SpotlightTableConfigModel } from './SpotlightTableConfigModel';
 import { SshKeyPairModel } from './SshKeyPairModel';
 import { TagsModel } from './TagsModel';
 import { UserAttributesModel } from './UserAttributesModel';
+import { UserFavoritesModel } from './UserFavoritesModel';
 import { UserModel } from './UserModel';
 import { UserWarehouseCredentialsModel } from './UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { ValidationModel } from './ValidationModel/ValidationModel';
@@ -62,8 +67,10 @@ export type ModelManifest = {
     analyticsModel: AnalyticsModel;
     commentModel: CommentModel;
     dashboardModel: DashboardModel;
+    deploySessionModel: DeploySessionModel;
     downloadFileModel: DownloadFileModel;
     downloadAuditModel: DownloadAuditModel;
+    persistentDownloadFileModel: PersistentDownloadFileModel;
     emailModel: EmailModel;
     githubAppInstallationsModel: GithubAppInstallationsModel;
     gitlabAppInstallationsModel: GitlabAppInstallationsModel;
@@ -98,6 +105,7 @@ export type ModelManifest = {
     spacePermissionModel: SpacePermissionModel;
     sshKeyPairModel: SshKeyPairModel;
     userAttributesModel: UserAttributesModel;
+    userFavoritesModel: UserFavoritesModel;
     userModel: UserModel;
     userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
     warehouseAvailableTablesModel: WarehouseAvailableTablesModel;
@@ -109,6 +117,8 @@ export type ModelManifest = {
     featureFlagModel: FeatureFlagModel;
     spotlightTableConfigModel: SpotlightTableConfigModel;
     queryHistoryModel: QueryHistoryModel;
+    preAggregateModel: PreAggregateModel;
+    preAggregateDailyStatsModel: PreAggregateDailyStatsModel;
     projectParametersModel: ProjectParametersModel;
     changesetModel: ChangesetModel;
     /** An implementation signature for these models are not available at this stage */
@@ -230,7 +240,18 @@ export class ModelRepository
     public getDashboardModel(): DashboardModel {
         return this.getModel(
             'dashboardModel',
-            () => new DashboardModel({ database: this.database }),
+            () =>
+                new DashboardModel({
+                    database: this.database,
+                    lightdashConfig: this.lightdashConfig,
+                }),
+        );
+    }
+
+    public getDeploySessionModel(): DeploySessionModel {
+        return this.getModel(
+            'deploySessionModel',
+            () => new DeploySessionModel(this.database),
         );
     }
 
@@ -245,6 +266,16 @@ export class ModelRepository
         return this.getModel(
             'downloadAuditModel',
             () => new DownloadAuditModel({ database: this.database }),
+        );
+    }
+
+    public getPersistentDownloadFileModel(): PersistentDownloadFileModel {
+        return this.getModel(
+            'persistentDownloadFileModel',
+            () =>
+                new PersistentDownloadFileModel({
+                    database: this.database,
+                }),
         );
     }
 
@@ -523,6 +554,13 @@ export class ModelRepository
         );
     }
 
+    public getUserFavoritesModel(): UserFavoritesModel {
+        return this.getModel(
+            'userFavoritesModel',
+            () => new UserFavoritesModel({ database: this.database }),
+        );
+    }
+
     public getUserModel(): UserModel {
         return this.getModel(
             'userModel',
@@ -644,6 +682,26 @@ export class ModelRepository
         return this.getModel(
             'queryHistoryModel',
             () => new QueryHistoryModel({ database: this.database }),
+        );
+    }
+
+    public getPreAggregateDailyStatsModel(): PreAggregateDailyStatsModel {
+        return this.getModel(
+            'preAggregateDailyStatsModel',
+            () =>
+                new PreAggregateDailyStatsModel({
+                    database: this.database,
+                }),
+        );
+    }
+
+    public getPreAggregateModel(): PreAggregateModel {
+        return this.getModel(
+            'preAggregateModel',
+            () =>
+                new PreAggregateModel({
+                    database: this.database,
+                }),
         );
     }
 

@@ -1,7 +1,7 @@
 import {
     Button,
-    type ButtonFactory,
     polymorphicFactory,
+    type ButtonFactory,
 } from '@mantine-8/core';
 import styles from './sidebarButton.module.css';
 

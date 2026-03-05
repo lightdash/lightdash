@@ -1,10 +1,10 @@
 import { type CreateSavedChartVersion } from '@lightdash/common';
 import { Button, Tooltip } from '@mantine-8/core';
 import { IconExternalLink } from '@tabler/icons-react';
-import { useMemo, type FC } from 'react';
-import { Link } from 'react-router';
+import { useCallback, useMemo, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../../../hooks/useExplorerRoute';
+import { useCreateShareMutation } from '../../../../hooks/useShare';
 
 type Props = {
     projectUuid: string | undefined;
@@ -26,6 +26,18 @@ export const ExploreFromHereButton: FC<Props> = ({
         );
     }, [projectUuid, unsavedChartVersion]);
 
+    const { mutateAsync: createShareUrl, isLoading: isCreatingShareUrl } =
+        useCreateShareMutation();
+
+    const handleExploreFromHere = useCallback(async () => {
+        if (!openInExploreUrl) return;
+        const shareUrl = await createShareUrl({
+            path: openInExploreUrl.pathname,
+            params: `?${openInExploreUrl.search}`,
+        });
+        window.open(`/share/${shareUrl.nanoid}`, '_blank');
+    }, [createShareUrl, openInExploreUrl]);
+
     const isEnabled = Boolean(openInExploreUrl && canExplore);
 
     return (
@@ -34,32 +46,17 @@ export const ExploreFromHereButton: FC<Props> = ({
             position="bottom"
             disabled={!isEnabled}
         >
-            {isEnabled ? (
-                <Button
-                    component={Link}
-                    to={openInExploreUrl!}
-                    target="_blank"
-                    rel="noreferrer"
-                    variant="default"
-                    size="xs"
-                    radius="md"
-                    leftSection={<MantineIcon icon={IconExternalLink} />}
-                >
-                    Explore from here
-                </Button>
-            ) : (
-                <Button
-                    component="button"
-                    type="button"
-                    variant="default"
-                    size="xs"
-                    radius="md"
-                    leftSection={<MantineIcon icon={IconExternalLink} />}
-                    disabled
-                >
-                    Explore from here
-                </Button>
-            )}
+            <Button
+                variant="default"
+                size="xs"
+                radius="md"
+                leftSection={<MantineIcon icon={IconExternalLink} />}
+                disabled={!isEnabled}
+                loading={isCreatingShareUrl}
+                onClick={handleExploreFromHere}
+            >
+                Explore from here
+            </Button>
         </Tooltip>
     );
 };

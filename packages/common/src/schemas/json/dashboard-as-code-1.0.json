@@ -5,16 +5,7 @@
     "description": "Schema for defining Lightdash dashboards in YAML format for version control",
     "type": "object",
     "additionalProperties": false,
-    "required": [
-        "name",
-        "slug",
-        "spaceSlug",
-        "version",
-        "tiles",
-        "filters",
-        "tabs",
-        "updatedAt"
-    ],
+    "required": ["name", "slug", "spaceSlug", "version", "tiles", "tabs"],
     "properties": {
         "version": {
             "type": "number",
@@ -99,7 +90,10 @@
                         "maximum": 36
                     },
                     "tabUuid": {
-                        "type": ["string", "null"],
+                        "oneOf": [
+                            { "type": "string", "format": "uuid" },
+                            { "type": "null" }
+                        ],
                         "description": "UUID of the tab this tile belongs to, or null for default tab"
                     },
                     "properties": {
@@ -247,6 +241,7 @@
                 "properties": {
                     "uuid": {
                         "type": "string",
+                        "format": "uuid",
                         "description": "Unique identifier for the tab"
                     },
                     "name": {
@@ -266,7 +261,6 @@
             "type": "object",
             "description": "Dashboard-level filters that can be applied across all tiles",
             "additionalProperties": false,
-            "required": ["dimensions", "metrics", "tableCalculations"],
             "properties": {
                 "dimensions": {
                     "type": "array",

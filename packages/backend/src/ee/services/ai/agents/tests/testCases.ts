@@ -1,5 +1,4 @@
 import { AiAgent, CatalogType } from '@lightdash/common';
-import moment from 'moment';
 import { CatalogSearchContext } from '../../../../../models/CatalogModel/CatalogModel';
 import {
     getServices,
@@ -54,32 +53,27 @@ export const testCases: TestCase[] = [
     },
     {
         name: 'should use the correct explore and metric when question is specific',
-        prompt: 'What is our total order revenue?',
-        expectedAnswer: 'Replies with total amount of revenue 3,053.87',
+        prompt: 'What is our total order revenue in 2024?',
+        expectedAnswer: 'Replies with total amount of revenue 1,189.60',
         expectedToolOutcome: [
             `Explore: payments`,
             `Metric: total revenue`,
+            `Filter: order date year 2024`,
         ].join('\n'),
     },
     {
         name: 'should use a base table, and add a filter from a joined table',
         // IMPORTANT: This test case is crucial because it tests the ability of the agent to use filters from joined tables (uses payments explore but filters on orders table).
-        prompt: 'Revenue from the last 3 months for the "credit_card" and "coupon" payment methods, displayed as a bar chart.',
+        prompt: 'Revenue in Q3 2024 for the "credit_card" and "coupon" payment methods, displayed as a bar chart.',
         expectedAnswer: [
             `The response included the following information:`,
             `explore: payments`,
             `metrics: total revenue`,
-            `breakdown by dimension: payment method, but also states there is no data in the last 3 months`,
+            `breakdown by dimension: payment method, with revenue data for credit_card and coupon in Q3 2024`,
         ].join('\n'),
         expectedToolOutcome: [
-            `runQuery tool args should have filters: Order date from last 3 months or from ${moment()
-                .subtract(3, 'months')
-                .format('YYYY-MM-DD')} to ${moment()
-                .subtract(1, 'months')
-                .format(
-                    'YYYY-MM-DD',
-                )} and Payment method (credit_card, coupon)`,
-            'Should use a date filter (from orders explore) for the last 3 months',
+            `runQuery tool args should have filters: Order date in Q3 2024 (July-September 2024) and Payment method (credit_card, coupon)`,
+            'Should use a date filter (from orders explore) for Q3 2024',
             'Should use filter for filtering the payment method',
             'Default visualization should be a bar chart',
         ].join('\n'),
@@ -87,16 +81,12 @@ export const testCases: TestCase[] = [
     {
         // IMPORTANT: This test case is crucial because it tests the ability of the agent to use filters from joined tables (uses payments explore but filters on customers table).
         name: 'should use a field from a base table, but add a filter from another joined table',
-        prompt: 'payments from credit cards that were from customers created in the last 5 years',
+        prompt: 'payments from credit cards that were from customers created between 2023-01-01 and 2024-12-31',
         expectedAnswer:
-            'Replies with payments from credit cards that were from customers created in the last 5 years',
+            'Replies with payments from credit cards that were from customers created between 2023 and 2024',
         expectedToolOutcome: [
-            `runQuery tool args should have filters: Customer creation date from last 5 years or from ${moment()
-                .subtract(5, 'years')
-                .format('YYYY-MM-DD')} to ${moment().format(
-                'YYYY-MM-DD',
-            )} and Payment method (credit_card)`,
-            'Should use a date filter (from customers explore) for the last 5 years',
+            `runQuery tool args should have filters: Customer creation date between 2023-01-01 and 2024-12-31 and Payment method (credit_card)`,
+            'Should use a date filter (from customers explore) for the date range',
             'Should use filter for filtering the payment method',
             'Default visualization could be a table or a bar chart',
         ].join('\n'),
@@ -162,9 +152,9 @@ export const testCases: TestCase[] = [
     },
     // Custom metrics
     {
-        prompt: 'Give me an average amount per payment method',
+        prompt: 'Give me an average amount per payment method for 2024',
         expectedAnswer: [
-            `Response contains average amount for each payment method`,
+            `Response contains average amount for each payment method in 2024`,
         ].join('\n'),
         expectedToolOutcome: [
             `The response created a custom metric for average amount`,
@@ -172,9 +162,9 @@ export const testCases: TestCase[] = [
         ].join('\n'),
     },
     {
-        prompt: 'Give me an average amount per payment method, sorted ascending, filter out averages less than 5',
+        prompt: 'Give me an average amount per payment method for 2024, sorted ascending, filter out averages less than 5',
         expectedAnswer:
-            'Response contains average amount for each payment method',
+            'Response contains average amount for each payment method in 2024',
         expectedToolOutcome: [
             `The response created a custom metric for average amount`,
             `The custom metric is used as a metric in the query and chart configs`,
@@ -183,9 +173,9 @@ export const testCases: TestCase[] = [
         ].join('\n'),
     },
     {
-        prompt: "what's the total order shipping cost by month, how does it change MoM?",
+        prompt: "what's the total order shipping cost by month in 2024, how does it change MoM?",
         expectedAnswer: [
-            `Response contains total order shipping cost by month and MoM change`,
+            `Response contains total order shipping cost by month in 2024 and MoM change`,
         ].join('\n'),
         expectedToolOutcome: [
             `The response created:`,
@@ -197,16 +187,16 @@ export const testCases: TestCase[] = [
     },
     {
         name: 'should use explicit date filter for time windows instead of limit+sort',
-        prompt: 'Show me total order amount over the last 12 months, only completed and placed orders',
+        prompt: 'Show me total order amount by month in 2024, only completed and placed orders',
         expectedAnswer: [
-            `Response contains total order amount by month`,
+            `Response contains total order amount by month in 2024`,
             `explore: orders`,
             `dimension: order date month`,
             `metric: total order amount`,
-            `filter: order date from last 12 months and status in (completed, placed)`,
+            `filter: order date in 2024 and status in (completed, placed)`,
         ].join('\n'),
         expectedToolOutcome: [
-            `The response used an explicit date filter with operator "inThePast", value 12, unitOfTime "months" (or equivalent)`,
+            `The response used an explicit date filter for 2024 (e.g. between 2024-01-01 and 2024-12-31, or year equals 2024, or similar)`,
             `The response did NOT rely on limit property combined with sort to approximate the time window`,
             `The response added a dimension filter for status with values ["completed", "placed"]`,
             `Both filters are combined in the filters object (date AND status)`,
@@ -214,17 +204,17 @@ export const testCases: TestCase[] = [
     },
     {
         name: 'should combine explicit date filter with dimension filters and custom metrics',
-        prompt: 'Average shipping cost per order by week for standard and express shipping methods over the last year ',
+        prompt: 'Average shipping cost per order by week for standard and express shipping methods in 2024',
         expectedAnswer: [
-            `Response contains average shipping cost per order by week`,
+            `Response contains average shipping cost per order by week in 2024`,
             `explore: orders`,
             `dimension: order date week, shipping method`,
             `custom metric: average shipping cost per order`,
-            `filters: order date from last year AND shipping method in (standard, express)`,
+            `filters: order date in 2024 AND shipping method in (standard, express)`,
         ].join('\n'),
         expectedToolOutcome: [
             `The response created a custom metric for average shipping cost per order`,
-            `The response used explicit date filter with operator "inThePast", value 1, unitOfTime "years" (or equivalent)`,
+            `The response used explicit date filter for 2024 (e.g. between 2024-01-01 and 2024-12-31, or year equals 2024, or similar)`,
             `The response added a dimension filter for shipping method with values ["standard", "express"]`,
             `Both filters are combined in the filters object (date AND shipping method)`,
             `The response did NOT use limit+sort to approximate the time window`,

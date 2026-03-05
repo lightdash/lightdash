@@ -7,8 +7,10 @@ import {
     QueryExecutionState,
     StartQueryExecutionCommand,
 } from '@aws-sdk/client-athena';
+import { fromTemporaryCredentials } from '@aws-sdk/credential-providers';
 import {
     AnyType,
+    AthenaAuthenticationType,
     CreateAthenaCredentials,
     DimensionType,
     getErrorMessage,
@@ -162,17 +164,46 @@ export class AthenaWarehouseClient extends WarehouseBaseClient<CreateAthenaCrede
         super(credentials, new AthenaSqlBuilder(credentials.startOfWeek));
 
         try {
+            const authenticationType =
+                credentials.authenticationType ??
+                AthenaAuthenticationType.ACCESS_KEY;
+
+            const hasAccessKeyCredentials =
+                !!credentials.accessKeyId && !!credentials.secretAccessKey;
+
+            if (
+                authenticationType === AthenaAuthenticationType.ACCESS_KEY &&
+                !hasAccessKeyCredentials
+            ) {
+                throw new WarehouseConnectionError(
+                    'Athena access key authentication requires accessKeyId and secretAccessKey',
+                );
+            }
+
             const clientConfig: ConstructorParameters<typeof AthenaClient>[0] =
                 {
                     region: credentials.region,
                 };
 
             // Configure authentication with access key credentials
-            if (credentials.accessKeyId && credentials.secretAccessKey) {
+            if (authenticationType === AthenaAuthenticationType.ACCESS_KEY) {
                 clientConfig.credentials = {
-                    accessKeyId: credentials.accessKeyId,
-                    secretAccessKey: credentials.secretAccessKey,
+                    accessKeyId: credentials.accessKeyId!,
+                    secretAccessKey: credentials.secretAccessKey!,
                 };
+            }
+
+            // Wrap with assume role if configured
+            if (credentials.assumeRoleArn) {
+                clientConfig.credentials = fromTemporaryCredentials({
+                    masterCredentials: clientConfig.credentials,
+                    params: {
+                        RoleArn: credentials.assumeRoleArn,
+                        RoleSessionName: 'lightdash-athena-session',
+                        ExternalId:
+                            credentials.assumeRoleExternalId || undefined,
+                    },
+                });
             }
 
             this.client = new AthenaClient(clientConfig);

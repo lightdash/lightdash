@@ -1,6 +1,7 @@
 import {
     AnyType,
     assertUnreachable,
+    AthenaAuthenticationType,
     BigqueryAuthenticationType,
     CreateWarehouseCredentials,
     ParameterError,
@@ -243,6 +244,22 @@ const credentialsTarget = (
                 },
             };
         case WarehouseTypes.ATHENA:
+            const athenaAuthenticationType =
+                credentials.authenticationType ??
+                AthenaAuthenticationType.ACCESS_KEY;
+
+            const { accessKeyId, secretAccessKey } = credentials;
+
+            if (
+                athenaAuthenticationType ===
+                    AthenaAuthenticationType.ACCESS_KEY &&
+                (!accessKeyId || !secretAccessKey)
+            ) {
+                throw new ParameterError(
+                    'Athena access key authentication requires accessKeyId and secretAccessKey',
+                );
+            }
+
             return {
                 target: {
                     type: WarehouseTypes.ATHENA,
@@ -254,13 +271,26 @@ const credentialsTarget = (
                     work_group: credentials.workGroup || undefined,
                     threads: credentials.threads || DEFAULT_THREADS,
                     num_retries: credentials.numRetries || undefined,
-                    aws_access_key_id: envVarReference('accessKeyId'),
-                    aws_secret_access_key: envVarReference('secretAccessKey'),
+                    aws_assume_role_arn: credentials.assumeRoleArn || undefined,
+                    aws_assume_role_external_id:
+                        credentials.assumeRoleExternalId || undefined,
+                    ...(athenaAuthenticationType ===
+                    AthenaAuthenticationType.ACCESS_KEY
+                        ? {
+                              aws_access_key_id: envVarReference('accessKeyId'),
+                              aws_secret_access_key:
+                                  envVarReference('secretAccessKey'),
+                          }
+                        : {}),
                 },
-                environment: {
-                    [envVar('accessKeyId')]: credentials.accessKeyId,
-                    [envVar('secretAccessKey')]: credentials.secretAccessKey,
-                },
+                environment:
+                    athenaAuthenticationType ===
+                    AthenaAuthenticationType.ACCESS_KEY
+                        ? {
+                              [envVar('accessKeyId')]: accessKeyId!,
+                              [envVar('secretAccessKey')]: secretAccessKey!,
+                          }
+                        : {},
             };
         default:
             const { type } = credentials;

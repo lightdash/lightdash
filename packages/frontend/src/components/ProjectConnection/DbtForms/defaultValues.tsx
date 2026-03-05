@@ -1,4 +1,6 @@
 import {
+    DbtProjectType,
+    DefaultSupportedDbtVersion,
     type DbtAzureDevOpsProjectConfig,
     type DbtBitBucketProjectConfig,
     type DbtCloudIDEProjectConfig,
@@ -6,8 +8,6 @@ import {
     type DbtGitlabProjectConfig,
     type DbtLocalProjectConfig,
     type DbtNoneProjectConfig,
-    DbtProjectType,
-    DefaultSupportedDbtVersion,
 } from '@lightdash/common';
 import { type DbtManifestProjectConfig } from '@lightdash/common/src';
 

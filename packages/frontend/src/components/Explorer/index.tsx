@@ -1,6 +1,6 @@
 import { subject } from '@casl/ability';
 import { getAvailableParametersFromTables } from '@lightdash/common';
-import { Stack } from '@mantine/core';
+import { Stack } from '@mantine-8/core';
 import { memo, useEffect, useMemo, useRef, useState, type FC } from 'react';
 import {
     explorerActions,
@@ -183,7 +183,7 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
                 queryUuid={queryUuid}
                 parameters={parameters}
             >
-                <Stack sx={{ flexGrow: 1 }}>
+                <Stack style={{ flexGrow: 1 }}>
                     {!hideHeader &&
                         (isEditMode ? (
                             <ExplorerHeader />

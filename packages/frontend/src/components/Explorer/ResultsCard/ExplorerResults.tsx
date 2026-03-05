@@ -1,8 +1,6 @@
 import { getItemLabel, getItemMap, isField } from '@lightdash/common';
-import { Box, Loader, Text } from '@mantine/core';
+import { Box, Loader, Text } from '@mantine-8/core';
 import { memo, useCallback, useMemo, useState, type FC } from 'react';
-import { ResultsViewMode } from './types';
-
 import {
     explorerActions,
     selectAdditionalMetrics,
@@ -36,6 +34,7 @@ import {
     MissingRequiredParameters,
     NoTableSelected,
 } from './ExplorerResultsNonIdealStates';
+import { ResultsViewMode } from './types';
 import { useGroupedResultsAvailability } from './useGroupedResultsAvailability';
 import { usePivotTableData } from './usePivotTableData';
 
@@ -280,7 +279,7 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
             dimensions.length <= 0 ? (
                 <>
                     Pick one or more{' '}
-                    <Text span color="blue.9">
+                    <Text span c="blue.9" fz="sm" fw="bold">
                         dimensions
                     </Text>{' '}
                     to split your selected metric by.
@@ -288,7 +287,7 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
             ) : metrics.length <= 0 ? (
                 <>
                     Pick a{' '}
-                    <Text span color="yellow.9">
+                    <Text span c="yellow.9" fz="sm" fw="bold">
                         metric
                     </Text>{' '}
                     to make calculations across your selected dimensions.

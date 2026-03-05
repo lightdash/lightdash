@@ -1,3 +1,7 @@
+.bigNumberText {
+    color: var(--big-number-color, var(--mantine-color-foreground-0));
+}
+
 .trendPill {
     display: inline-flex;
     align-items: center;
