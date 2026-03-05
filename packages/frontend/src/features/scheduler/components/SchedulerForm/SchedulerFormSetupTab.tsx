@@ -1,4 +1,5 @@
 import {
+    FeatureFlags,
     formatMinutesOffset,
     getItemId,
     getTzMinutesOffset,
@@ -53,6 +54,7 @@ import useHealth from '../../../../hooks/health/useHealth';
 import { useGetSlack } from '../../../../hooks/slack/useSlack';
 import { useActiveProjectUuid } from '../../../../hooks/useActiveProject';
 import { useProject } from '../../../../hooks/useProject';
+import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
 import SlackSvg from '../../../../svgs/slack.svg?react';
 import { Limit, SlackStates, Values } from '../types';
 import { useSchedulerFormContext } from './schedulerFormContext';
@@ -89,6 +91,10 @@ export const SchedulerFormSetupTab: FC<Props> = ({
     const { activeProjectUuid } = useActiveProjectUuid();
     const { data: project } = useProject(activeProjectUuid);
     const health = useHealth();
+    const { data: googleChatFlag } = useServerFeatureFlag(
+        FeatureFlags.GoogleChatEnabled,
+    );
+    const isGoogleChatEnabled = googleChatFlag?.enabled === true;
     const { data: slackInstallation, isInitialLoading } = useGetSlack();
     const organizationHasSlack = !!slackInstallation?.organizationUuid;
 
@@ -608,7 +614,7 @@ export const SchedulerFormSetupTab: FC<Props> = ({
                         gap="xs"
                         mb={
                             health.data?.hasMicrosoftTeams ||
-                            health.data?.hasGoogleChat
+                            isGoogleChatEnabled
                                 ? '0'
                                 : 'sm'
                         }
@@ -664,7 +670,7 @@ export const SchedulerFormSetupTab: FC<Props> = ({
                             }}
                         />
                     )}
-                    {health.data?.hasGoogleChat && (
+                    {isGoogleChatEnabled && (
                         <SchedulerFormGoogleChatInput
                             googleChatTargets={form.values.googleChatTargets}
                             onChange={(val: string[]) => {
