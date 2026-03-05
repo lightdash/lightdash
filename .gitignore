@@ -114,6 +114,9 @@ http-client.private.env.json
 # turbo
 .turbo
 
+# janix
+.janix
+
 # HAR replay
 scripts/har-replay-server.ts
 *.har
