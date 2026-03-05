@@ -243,6 +243,9 @@ const applyOrganizationMemberStaticAbilities: Record<
     },
     developer(member, { can }) {
         applyOrganizationMemberStaticAbilities.editor(member, { can });
+        can('manage', 'PreAggregation', {
+            organizationUuid: member.organizationUuid,
+        });
         can('manage', 'VirtualView', {
             organizationUuid: member.organizationUuid,
         });

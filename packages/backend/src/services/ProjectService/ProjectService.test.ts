@@ -1,3 +1,4 @@
+import { Ability } from '@casl/ability';
 import {
     defineUserAbility,
     FilterOperator,
@@ -6,6 +7,7 @@ import {
     OrganizationMemberRole,
     ParameterError,
     SessionUser,
+    type PossibleAbilities,
     WarehouseTypes,
 } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
@@ -64,6 +66,7 @@ import {
     job,
     lightdashConfigWithNoSMTP,
     metricQueryMock,
+    preAggregateExplore,
     projectSummary,
     projectWithSensitiveFields,
     resultsWith1Row,
@@ -190,6 +193,19 @@ const account = buildAccount({
     accountType: 'session',
     userType: 'registered',
 });
+const developerAccount = {
+    ...account,
+    user: {
+        ...account.user,
+        ability: new Ability<PossibleAbilities>([
+            { subject: 'Project', action: ['update', 'view'] },
+            { subject: 'Job', action: ['view'] },
+            { subject: 'SqlRunner', action: ['manage'] },
+            { subject: 'Explore', action: ['manage'] },
+            { subject: 'PreAggregation', action: ['manage'] },
+        ]),
+    },
+} as typeof account;
 
 describe('ProjectService', () => {
     const { projectUuid } = defaultProject;
@@ -649,6 +665,68 @@ describe('ProjectService', () => {
             expect(result[0].type).toEqual('virtual');
         });
 
+        test('should include pre-aggregate explores for developer users when requested', async () => {
+            const serviceWithPreAggregatesEnabled = getMockedProjectService({
+                ...lightdashConfigMock,
+                preAggregates: {
+                    ...lightdashConfigMock.preAggregates,
+                    enabled: true,
+                },
+            });
+            const exploresWithPreAggregates = [
+                ...allExplores,
+                preAggregateExplore,
+            ];
+            (
+                projectModel.getAllExploreSummaries as jest.Mock
+            ).mockImplementationOnce(async () =>
+                exploresWithPreAggregates.map(exploreToSummaryWithAttributes),
+            );
+
+            const result = await serviceWithPreAggregatesEnabled.getAllExploresSummary(
+                developerAccount,
+                projectUuid,
+                true,
+                true,
+                true,
+            );
+
+            expect(result.map((explore) => explore.name)).toContain(
+                preAggregateExplore.name,
+            );
+        });
+
+        test('should exclude pre-aggregate explores for non-developer users even when requested', async () => {
+            const serviceWithPreAggregatesEnabled = getMockedProjectService({
+                ...lightdashConfigMock,
+                preAggregates: {
+                    ...lightdashConfigMock.preAggregates,
+                    enabled: true,
+                },
+            });
+            const exploresWithPreAggregates = [
+                ...allExplores,
+                preAggregateExplore,
+            ];
+            (
+                projectModel.getAllExploreSummaries as jest.Mock
+            ).mockImplementationOnce(async () =>
+                exploresWithPreAggregates.map(exploreToSummaryWithAttributes),
+            );
+
+            const result = await serviceWithPreAggregatesEnabled.getAllExploresSummary(
+                account,
+                projectUuid,
+                true,
+                true,
+                true,
+            );
+
+            expect(result.map((explore) => explore.name)).not.toContain(
+                preAggregateExplore.name,
+            );
+        });
+
         test('should exclude explores when user does not have required attributes', async () => {
             const exploresWithRequiredAttrs = [
                 validExplore,
@@ -712,6 +790,52 @@ describe('ProjectService', () => {
             expect(result.map((e) => e.name)).toContain('valid_explore');
             expect(result.map((e) => e.name)).toContain(
                 'explore_with_required_attributes',
+            );
+        });
+    });
+
+    describe('getExplore', () => {
+        test('should allow developer users to get a pre-aggregate explore', async () => {
+            const serviceWithPreAggregatesEnabled = getMockedProjectService({
+                ...lightdashConfigMock,
+                preAggregates: {
+                    ...lightdashConfigMock.preAggregates,
+                    enabled: true,
+                },
+            });
+            (
+                projectModel.findExploresFromCache as jest.Mock
+            ).mockImplementationOnce(async () => [preAggregateExplore]);
+
+            const result = await serviceWithPreAggregatesEnabled.getExplore(
+                developerAccount,
+                projectUuid,
+                preAggregateExplore.name,
+            );
+
+            expect(result.name).toEqual(preAggregateExplore.name);
+        });
+
+        test('should not allow non-developer users to get a pre-aggregate explore', async () => {
+            const serviceWithPreAggregatesEnabled = getMockedProjectService({
+                ...lightdashConfigMock,
+                preAggregates: {
+                    ...lightdashConfigMock.preAggregates,
+                    enabled: true,
+                },
+            });
+            (
+                projectModel.findExploresFromCache as jest.Mock
+            ).mockImplementationOnce(async () => [preAggregateExplore]);
+
+            await expect(
+                serviceWithPreAggregatesEnabled.getExplore(
+                    account,
+                    projectUuid,
+                    preAggregateExplore.name,
+                ),
+            ).rejects.toThrow(
+                `Explore "${preAggregateExplore.name}" does not exist.`,
             );
         });
     });
