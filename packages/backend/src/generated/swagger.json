@@ -3565,7 +3565,12 @@
                 "type": "string"
             },
             "BinType": {
-                "enum": ["fixed_number", "fixed_width", "custom_range"],
+                "enum": [
+                    "fixed_number",
+                    "fixed_width",
+                    "custom_range",
+                    "custom_group"
+                ],
                 "type": "string"
             },
             "BinRange": {
@@ -3581,6 +3586,23 @@
                         "description": "Start value for this bin range (undefined for the first range)"
                     }
                 },
+                "type": "object"
+            },
+            "BinGroup": {
+                "properties": {
+                    "values": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "Values that belong to this group (e.g. [\"US\", \"CA\", \"MX\"])"
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "Display name for this group (e.g. \"North America\")"
+                    }
+                },
+                "required": ["values", "name"],
                 "type": "object"
             },
             "CustomDimensionType": {
@@ -3629,6 +3651,13 @@
                         },
                         "type": "array",
                         "description": "Custom bin ranges (for custom_range bin type)"
+                    },
+                    "customGroups": {
+                        "items": {
+                            "$ref": "#/components/schemas/BinGroup"
+                        },
+                        "type": "array",
+                        "description": "Custom groups mapping values to group names (for custom_group bin type)"
                     }
                 },
                 "required": [
@@ -12684,48 +12713,10 @@
                 "type": "object",
                 "additionalProperties": true
             },
-            "ImpersonationInfo": {
-                "properties": {
-                    "adminUserUuid": {
-                        "type": "string"
-                    },
-                    "adminName": {
-                        "type": "string"
-                    },
-                    "impersonatedUserUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "adminUserUuid",
-                    "adminName",
-                    "impersonatedUserUuid"
-                ],
-                "type": "object",
-                "additionalProperties": true
-            },
             "ApiGetAuthenticatedUserResponse": {
                 "properties": {
                     "results": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/LightdashUser"
-                            },
-                            {
-                                "properties": {
-                                    "impersonation": {
-                                        "allOf": [
-                                            {
-                                                "$ref": "#/components/schemas/ImpersonationInfo"
-                                            }
-                                        ],
-                                        "nullable": true
-                                    }
-                                },
-                                "required": ["impersonation"],
-                                "type": "object"
-                            }
-                        ]
+                        "$ref": "#/components/schemas/LightdashUser"
                     },
                     "status": {
                         "type": "string",
@@ -17007,35 +16998,6 @@
                 ],
                 "type": "object"
             },
-            "SchedulerGoogleChatTarget": {
-                "properties": {
-                    "googleChatWebhook": {
-                        "type": "string"
-                    },
-                    "schedulerUuid": {
-                        "type": "string"
-                    },
-                    "updatedAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "createdAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "schedulerGoogleChatTargetUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "googleChatWebhook",
-                    "schedulerUuid",
-                    "updatedAt",
-                    "createdAt",
-                    "schedulerGoogleChatTargetUuid"
-                ],
-                "type": "object"
-            },
             "SchedulerJobStatus": {
                 "enum": ["scheduled", "started", "completed", "error"],
                 "type": "string"
@@ -17189,9 +17151,6 @@
                                         },
                                         {
                                             "$ref": "#/components/schemas/SchedulerMsTeamsTarget"
-                                        },
-                                        {
-                                            "$ref": "#/components/schemas/SchedulerGoogleChatTarget"
                                         }
                                     ]
                                 },
@@ -17214,11 +17173,9 @@
                     "sendSlackNotification",
                     "sendEmailNotification",
                     "sendMsTeamsNotification",
-                    "sendGoogleChatNotification",
                     "sendSlackBatchNotification",
                     "sendEmailBatchNotification",
                     "sendMsTeamsBatchNotification",
-                    "sendGoogleChatBatchNotification",
                     "uploadGsheets",
                     "downloadCsv",
                     "uploadGsheetFromQuery",
@@ -17273,7 +17230,7 @@
             },
             "SchedulerTargetType": {
                 "type": "string",
-                "enum": ["email", "slack", "gsheets", "msteams", "googlechat"]
+                "enum": ["email", "slack", "gsheets", "msteams"]
             },
             "PartialFailureType.DASHBOARD_CHART": {
                 "enum": ["dashboard_chart"],
@@ -20118,22 +20075,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "dashboard": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ApiDashboardAsCodeListResponse": {
@@ -22527,47 +22484,6 @@
                     }
                 },
                 "required": ["parameterReferences", "query"],
-                "type": "object"
-            },
-            "ApiStartImpersonationResponse": {
-                "properties": {
-                    "results": {
-                        "type": "number",
-                        "enum": [null],
-                        "nullable": true
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "ApiStartImpersonationRequest": {
-                "properties": {
-                    "targetUserUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": ["targetUserUuid"],
-                "type": "object"
-            },
-            "ApiStopImpersonationResponse": {
-                "properties": {
-                    "results": {
-                        "type": "number",
-                        "enum": [null],
-                        "nullable": true
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
                 "type": "object"
             },
             "ApiGroupResponse": {
@@ -27772,7 +27688,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2579.0",
+        "version": "0.2575.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -33549,7 +33465,7 @@
                         }
                     },
                     {
-                        "description": "filter by destination types (comma-separated: email, slack, msteams, googlechat)",
+                        "description": "filter by destination types (comma-separated: email, slack, msteams)",
                         "in": "query",
                         "name": "destinations",
                         "required": false,
@@ -33676,7 +33592,7 @@
                         }
                     },
                     {
-                        "description": "filter by destination types (comma-separated: email, slack, msteams, googlechat)",
+                        "description": "filter by destination types (comma-separated: email, slack, msteams)",
                         "in": "query",
                         "name": "destinations",
                         "required": false,
@@ -33856,7 +33772,7 @@
                         }
                     },
                     {
-                        "description": "filter by destination types (comma-separated: email, slack, msteams, googlechat)",
+                        "description": "filter by destination types (comma-separated: email, slack, msteams)",
                         "in": "query",
                         "name": "destinations",
                         "required": false,
@@ -34001,7 +33917,7 @@
                         }
                     },
                     {
-                        "description": "filter by destination types (comma-separated: email, slack, msteams, googlechat)",
+                        "description": "filter by destination types (comma-separated: email, slack, msteams)",
                         "in": "query",
                         "name": "destinations",
                         "required": false,
@@ -37559,9 +37475,9 @@
                 ]
             }
         },
-        "/api/v1/projects/{projectUuid}/pre-aggregates/definitions/{preAggregateDefinitionName}/refresh": {
+        "/api/v1/projects/{projectUuid}/pre-aggregates/{preAggExploreName}/refresh": {
             "post": {
-                "operationId": "refreshProjectPreAggregateByDefinitionName",
+                "operationId": "refreshProjectPreAggregateByName",
                 "responses": {
                     "200": {
                         "description": "Success",
@@ -37584,8 +37500,8 @@
                         }
                     }
                 },
-                "description": "Refresh a single pre-aggregate by its definition name",
-                "summary": "Refresh pre-aggregate by definition name",
+                "description": "Refresh a single pre-aggregate explore in a project",
+                "summary": "Refresh project pre-aggregate by name",
                 "tags": ["Projects"],
                 "security": [],
                 "parameters": [
@@ -37599,7 +37515,7 @@
                     },
                     {
                         "in": "path",
-                        "name": "preAggregateDefinitionName",
+                        "name": "preAggExploreName",
                         "required": true,
                         "schema": {
                             "type": "string"
@@ -39176,80 +39092,6 @@
                         }
                     }
                 }
-            }
-        },
-        "/api/v1/impersonation/start": {
-            "post": {
-                "operationId": "StartImpersonation",
-                "responses": {
-                    "200": {
-                        "description": "Ok",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiStartImpersonationResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Start impersonating a user",
-                "summary": "Start impersonation",
-                "tags": ["Impersonation"],
-                "security": [],
-                "parameters": [],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/ApiStartImpersonationRequest"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/impersonation/stop": {
-            "post": {
-                "operationId": "StopImpersonation",
-                "responses": {
-                    "200": {
-                        "description": "Ok",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiStopImpersonationResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Stop impersonating a user",
-                "summary": "Stop impersonation",
-                "tags": ["Impersonation"],
-                "security": [],
-                "parameters": []
             }
         },
         "/api/v1/groups/{groupUuid}": {
