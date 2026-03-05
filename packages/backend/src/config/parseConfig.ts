@@ -910,6 +910,16 @@ export type LightdashConfig = {
         cacheStateTimeSeconds: number;
         s3?: Omit<S3Config, 'expirationTime'>;
     };
+    asyncQuery: {
+        nats: {
+            enabled: boolean;
+            url: string;
+            customerId?: string;
+            warehouseStreamName: string;
+            preAggregateStreamName: string;
+            workerConcurrency: number;
+        };
+    };
     slack?: SlackConfig;
     scheduler: {
         enabled: boolean;
@@ -1376,9 +1386,28 @@ export const parseConfig = (): LightdashConfig => {
     const preAggregatesEnabled =
         licenseKey !== null && process.env.PRE_AGGREGATES_ENABLED === 'true';
     const preAggregatesS3 = parsePreAggregateResultsS3Config();
+    const asyncQueryNatsEnabled =
+        process.env.ASYNC_QUERY_NATS_ENABLED === 'true';
+    const asyncQueryNatsCustomerId = process.env.ASYNC_QUERY_NATS_CUSTOMER_ID;
+    const asyncQueryNatsWorkerConcurrency =
+        getIntegerFromEnvironmentVariable(
+            'ASYNC_QUERY_NATS_WORKER_CONCURRENCY',
+        ) ?? 1;
 
     if (preAggregatesEnabled && !preAggregatesS3) {
         throw new ParseError('Pre-aggregates require S3 configuration', {});
+    }
+    if (asyncQueryNatsEnabled && !asyncQueryNatsCustomerId) {
+        throw new ParseError(
+            'ASYNC_QUERY_NATS_CUSTOMER_ID is required when ASYNC_QUERY_NATS_ENABLED=true',
+            {},
+        );
+    }
+    if (asyncQueryNatsWorkerConcurrency <= 0) {
+        throw new ParseError(
+            'ASYNC_QUERY_NATS_WORKER_CONCURRENCY must be greater than 0',
+            {},
+        );
     }
 
     return {
@@ -1741,6 +1770,22 @@ export const parseConfig = (): LightdashConfig => {
                 10,
             ),
             s3: parseResultsS3Config(),
+        },
+        asyncQuery: {
+            nats: {
+                enabled: asyncQueryNatsEnabled,
+                url:
+                    process.env.ASYNC_QUERY_NATS_URL ||
+                    'nats://localhost:4222',
+                customerId: asyncQueryNatsCustomerId,
+                warehouseStreamName:
+                    process.env.ASYNC_QUERY_NATS_WAREHOUSE_STREAM_NAME ||
+                    'WAREHOUSE_QUERY_JOBS',
+                preAggregateStreamName:
+                    process.env.ASYNC_QUERY_NATS_PRE_AGGREGATE_STREAM_NAME ||
+                    'PRE_AGGREGATE_QUERY_JOBS',
+                workerConcurrency: asyncQueryNatsWorkerConcurrency,
+            },
         },
         slack: {
             signingSecret: process.env.SLACK_SIGNING_SECRET,
