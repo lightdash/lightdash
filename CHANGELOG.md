@@ -1,3 +1,10 @@
+# [0.2578.0](https://github.com/lightdash/lightdash/compare/0.2577.0...0.2578.0) (2026-03-05)
+
+
+### Features
+
+* add selectedTabs parameter to dashboard CSV export ([#20890](https://github.com/lightdash/lightdash/issues/20890)) ([a632363](https://github.com/lightdash/lightdash/commit/a632363a3ed881875aaaae03df507d9b860184ae))
+
 # [0.2577.0](https://github.com/lightdash/lightdash/compare/0.2576.0...0.2577.0) (2026-03-05)
 
 
