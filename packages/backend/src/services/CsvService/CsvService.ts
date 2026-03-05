@@ -1370,7 +1370,8 @@ export class CsvService extends BaseService {
         user: SessionUser,
         dashboardUuid: string,
         dashboardFilters: DashboardFilters,
-        dateZoomGranularity?: DateGranularity,
+        dateZoomGranularity: DateGranularity | undefined,
+        selectedTabs: string[] | null,
     ) {
         const dashboard =
             await this.dashboardModel.getByIdOrSlug(dashboardUuid);
@@ -1390,6 +1391,7 @@ export class CsvService extends BaseService {
             dashboardUuid,
             dashboardFilters,
             dateZoomGranularity,
+            selectedTabs,
             // TraceTaskBase
             organizationUuid: dashboard.organizationUuid,
             projectUuid: dashboard.projectUuid,

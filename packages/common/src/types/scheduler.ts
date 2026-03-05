@@ -670,6 +670,7 @@ export type ExportCsvDashboardPayload = TraceTaskBase & {
     dashboardUuid: string;
     dashboardFilters: DashboardFilters;
     dateZoomGranularity?: DateGranularity;
+    selectedTabs: string[] | null;
 };
 
 export type DownloadAsyncQueryResultsPayload = TraceTaskBase & {
