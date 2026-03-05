@@ -136,8 +136,8 @@ Dashboard-level filters that apply across visualizations:
 - `column` - list of column name path segments (primary filter column listed first for linked filters)
 - `oper` - comparison operator in lowercase symbol form (`in`, `not in`, `between`, `=<`, `!=`, `<=`, `>=`, `>`, `<`)
 - `values` - filter values
-- `is_mandatory` - whether filter is required
-- `excluded_visualizations` - viz IDs excluded from this filter (for selective filters)
+- `is_mandatory` - whether filter is required → maps to Lightdash `required: true`
+- `excluded_visualizations` - viz IDs excluded from this filter → maps to Lightdash `tileTargets` with `false` for excluded tile slugs
 
 ## Translation to Lightdash Dashboard
 
@@ -179,10 +179,22 @@ tiles:
       title: "Note Title"
       content: "Markdown content here"
 
+  # Heading tiles use text property (not title/content)
+  - type: heading
+    uuid: null
+    tileSlug: null
+    x: 0
+    y: 9
+    w: 36
+    h: 1
+    properties:
+      text: "Section Heading"
+
 filters:
   dimensions:
     # Required fields: `operator` and `target` (with `fieldId` and `tableName`)
-    # Optional fields: `id` (auto-generated), `values`, `label`, `settings`, `tileTargets`
+    # Optional fields: `id` (auto-generated), `values`, `label`, `settings`, `tileTargets`,
+    #   `disabled`, `required`, `singleValue`
     - target:
         fieldId: column_name
         tableName: model_name
@@ -191,6 +203,9 @@ filters:
         - "value1"
         - "value2"
       label: null              # Optional — use null or a display label string
+      required: true           # From ThoughtSpot is_mandatory
+      tileTargets:             # From ThoughtSpot excluded_visualizations
+        excluded-chart-slug: false    # Exclude this tile from the filter
   metrics: []
   tableCalculations: []
 ```

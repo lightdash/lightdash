@@ -365,6 +365,9 @@ chartConfig:
   type: pie
   config:
     isDonut: false
+    groupFieldIds:
+      - dim_products_category
+    metricId: fact_sales_total_revenue
 
 tableConfig:
   columnOrder:

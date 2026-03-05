@@ -113,7 +113,7 @@ See [TML Liveboard Reference](./resources/tml-liveboard-reference.md) for the fu
 | `STACKED_COLUMN` | `cartesian` (stacked bar) | `type: bar` with `layout.stack: true` |
 | `STACKED_BAR` | `cartesian` (stacked horizontal bar) | `type: bar`, `flipAxes: true`, `stack: true` |
 | `STACKED_AREA` | `cartesian` (stacked area) | `type: area` with `layout.stack: true` |
-| `PIE` | `pie` | Use `config.isDonut: false` |
+| `PIE` | `pie` | Use `config.isDonut: false`, include `groupFieldIds` and `metricId` |
 | `SCATTER` | `cartesian` (scatter) | Set series `type: scatter` |
 | `BUBBLE` | `cartesian` (scatter) | Use scatter with size encoding |
 | `GEO_AREA` | `map` | Use Lightdash map chart type |
@@ -165,7 +165,8 @@ ThoughtSpot Liveboards often include headline tiles (single-number KPIs). These 
 chartConfig:
   type: big_number
   config:
-    selectedField: fact_sales_total_revenue
+    selectedField: fact_sales_total_revenue   # Optional — field to display
+    label: "Total Revenue"                    # Optional — custom label
 ```
 
 ## Filter Operator Mapping
@@ -279,9 +280,12 @@ Answer TML may include a `client_state` or `client_state_v2` field containing a 
 6. **Liveboard filters vs chart filters**: ThoughtSpot Liveboard filters apply across visualizations. In Lightdash, dashboard filters target specific fields - map the `column` reference to the correct `fieldId` and `tableName`.
 7. **Formula metrics need model-level `meta`**: ThoughtSpot formulas that combine multiple columns (e.g., `revenue / units_sold`) should become model-level `meta.metrics` with custom SQL, NOT column-level metrics on a fake column name.
 8. **Chart filter structure**: Chart-level `metricQuery.filters` uses `FilterGroup` objects (`{and: [...]}` or `{or: [...]}`) NOT flat arrays. Dashboard filters use flat arrays of `DashboardFilterRule`.
-9. **Dashboard filter fields**: In dashboard as-code, dimension filters require `operator` and `target` (with `fieldId` and `tableName`). The `id` field is optional (auto-generated). `label`, `values`, `settings`, and `tileTargets` are all optional.
+9. **Dashboard filter fields**: In dashboard as-code, dimension filters require `operator` and `target` (with `fieldId` and `tableName`). The `id` field is optional (auto-generated). `label`, `values`, `settings`, `tileTargets`, `disabled`, `required`, and `singleValue` are all optional.
 10. **Pinboard vs Liveboard key**: Older ThoughtSpot exports use `pinboard:` instead of `liveboard:` — handle both.
 11. **Headline visualizations**: ThoughtSpot headlines are NOT a chart type — they are Liveboard visualizations with `display_headline_column` set. Map to `big_number` chart type.
+12. **`is_mandatory` filter mapping**: ThoughtSpot `is_mandatory: true` on a filter maps to Lightdash `required: true` on the dashboard filter rule.
+13. **`excluded_visualizations` mapping**: ThoughtSpot `excluded_visualizations` on a Liveboard filter maps to Lightdash `tileTargets`. Set excluded tiles to `false` in the `tileTargets` object (keyed by tile slug). Example: `tileTargets: { "excluded-chart-slug": false }`.
+14. **Pie chart config**: Lightdash pie chart `config` has many optional fields beyond `isDonut`. The fields `groupFieldIds` (dimension field IDs) and `metricId` (metric field ID) help Lightdash render the pie correctly — include them when translating.
 
 ## Known Gaps
 
@@ -305,3 +309,8 @@ These ThoughtSpot features cannot be automatically translated and require manual
 | ThoughtSpot `index_type` / `index_priority` | Not applicable | These are ThoughtSpot search index settings with no Lightdash equivalent — drop during translation |
 | ThoughtSpot `spotiq_preference` | Not applicable | SpotIQ is ThoughtSpot-specific — drop during translation |
 | ThoughtSpot `is_attribution_dimension` / `is_additive` | Not applicable | These are ThoughtSpot-specific column properties — drop during translation |
+| Pie chart detailed config (`groupFieldIds`, `metricId`, value labels) | Partial | Lightdash pie charts support `groupFieldIds`, `metricId`, `valueLabel`, `showValue`, `showPercentage`, `showLegend`, `legendPosition`, `groupColorOverrides`, `groupLabelOverrides`, `groupSortOverrides`. Only `isDonut` is shown in examples — include `groupFieldIds` and `metricId` for proper rendering |
+| Cartesian chart `metadata` (series colors) | Not documented | Lightdash cartesian charts support a `metadata` field for per-series colors. ThoughtSpot `client_state` color settings could map here but the structure is not documented in this skill |
+| Dashboard filter `tileTargets` structure | Partial | Keyed by tile slug; value is `false` (exclude tile) or `{fieldId, tableName}` (map to different field). Maps from ThoughtSpot `excluded_visualizations` |
+| Dashboard filter `disabled`, `singleValue` fields | Not mapped | Lightdash supports `disabled` and `singleValue` on dashboard filters but ThoughtSpot TML has no direct equivalent |
+| Big number chart additional config | Partial | Lightdash `big_number` supports `label`, `style` (compact notation), `showComparison`, `comparisonField`, `comparisonFormat`, `flipColors`, `conditionalFormattings` — only `selectedField` is shown in examples |
