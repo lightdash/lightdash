@@ -212,6 +212,7 @@ export const lightdashConfigMock: LightdashConfig = {
         useSqlPivotResults: false,
         showExecutionTime: false,
         enableTableColumnCustomization: undefined,
+        retryQueryOnTransientErrors: true,
     },
     ai: {
         copilot: {

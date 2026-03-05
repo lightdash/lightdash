@@ -475,6 +475,7 @@ export const lightdashConfigWithNoSMTP: Pick<
         useSqlPivotResults: false,
         showExecutionTime: false,
         enableTableColumnCustomization: undefined,
+        retryQueryOnTransientErrors: false,
     },
 };
 
