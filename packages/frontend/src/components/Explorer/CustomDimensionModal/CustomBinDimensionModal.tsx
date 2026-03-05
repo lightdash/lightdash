@@ -284,7 +284,9 @@ export const CustomBinDimensionModal: FC<{
     const hasEmptyGroups =
         form.values.binType === BinType.CUSTOM_GROUP &&
         form.values.binConfig.customGroups.some(
-            (group) => group.values.length === 0,
+            (group) =>
+                group.values.length === 0 ||
+                group.values.some((v) => v.trim() === ''),
         );
 
     return (
