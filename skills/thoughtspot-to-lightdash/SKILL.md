@@ -305,6 +305,31 @@ lightdash upload --charts <chart-slug>
 lightdash upload --dashboards <dashboard-slug>
 ```
 
+### Report Limitations
+
+After generating all files, **always** provide the user with a summary of anything that could not be fully translated. Track limitations as you go and present them at the end. Include:
+
+- **Charts converted to tables** — list which charts were originally a different type (e.g., Sankey, Heatmap, Candlestick) and were converted to table views because Lightdash doesn't support that chart type
+- **Dropped features** — any ThoughtSpot-specific features that were skipped (e.g., `lesson_plans`, `spotiq_preference`, `index_priority`)
+- **Formulas requiring manual work** — metrics using `group_aggregate`, LOD functions, or complex ThoughtSpot formulas that couldn't be directly translated
+- **Parameters hardcoded** — any ThoughtSpot parameters that were replaced with static default values
+- **Partial translations** — anything translated with best-effort mapping that the user should verify (e.g., geo charts, search query-based views)
+
+Example output:
+
+```
+## Translation Summary
+
+✅ Translated: 8 charts, 1 dashboard, 3 models
+⚠️ Limitations:
+  - "sales-by-region" was a Sankey chart → converted to table (Lightdash doesn't support Sankey)
+  - "pipeline-heatmap" was a Heatmap → converted to table
+  - Metric "rolling_avg_revenue" uses group_aggregate → needs manual SQL rewrite
+  - Parameter "date_range" hardcoded to "last 12 months" → consider replacing with a dashboard filter
+```
+
+Do not skip this step. The user needs to know what requires manual attention.
+
 ## Known Gaps
 
 These ThoughtSpot features cannot be automatically translated and require manual handling:
