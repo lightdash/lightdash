@@ -2155,8 +2155,21 @@
                 "required": ["hasDirectAccess", "role", "userUuid"],
                 "type": "object"
             },
+            "DateGranularity": {
+                "enum": ["Day", "Week", "Month", "Quarter", "Year"],
+                "type": "string"
+            },
             "DashboardConfig": {
                 "properties": {
+                    "defaultDateZoomGranularity": {
+                        "$ref": "#/components/schemas/DateGranularity"
+                    },
+                    "dateZoomGranularities": {
+                        "items": {
+                            "$ref": "#/components/schemas/DateGranularity"
+                        },
+                        "type": "array"
+                    },
                     "pinnedParameters": {
                         "items": {
                             "type": "string"
@@ -2204,6 +2217,9 @@
                         },
                         "type": "array",
                         "nullable": true
+                    },
+                    "inheritsFromOrgOrProject": {
+                        "type": "boolean"
                     },
                     "isPrivate": {
                         "type": "boolean",
@@ -2291,6 +2307,7 @@
                 "required": [
                     "slug",
                     "access",
+                    "inheritsFromOrgOrProject",
                     "isPrivate",
                     "tabs",
                     "pinnedListOrder",
@@ -5470,6 +5487,9 @@
                         },
                         "type": "array"
                     },
+                    "inheritsFromOrgOrProject": {
+                        "type": "boolean"
+                    },
                     "isPrivate": {
                         "type": "boolean"
                     },
@@ -5575,6 +5595,7 @@
                 "required": [
                     "slug",
                     "access",
+                    "inheritsFromOrgOrProject",
                     "isPrivate",
                     "colorPalette",
                     "dashboardName",
@@ -7107,10 +7128,6 @@
                 },
                 "required": ["results", "status"],
                 "type": "object"
-            },
-            "DateGranularity": {
-                "enum": ["Day", "Week", "Month", "Quarter", "Year"],
-                "type": "string"
             },
             "ApiExecuteAsyncQueryResultsCommon": {
                 "properties": {
@@ -8936,6 +8953,19 @@
                                                         "type": "string",
                                                         "enum": ["error"],
                                                         "nullable": false
+                                                    }
+                                                },
+                                                "required": ["status"],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "error",
+                                                            "success"
+                                                        ]
                                                     }
                                                 },
                                                 "required": ["status"],
@@ -15074,7 +15104,7 @@
             "PromotedSpace": {
                 "$ref": "#/components/schemas/SpaceSummaryBase"
             },
-            "Pick_Dashboard.Exclude_keyofDashboard.isPrivate-or-access__": {
+            "Pick_Dashboard.Exclude_keyofDashboard.isPrivate-or-inheritsFromOrgOrProject-or-access__": {
                 "properties": {
                     "description": {
                         "type": "string"
@@ -15203,12 +15233,12 @@
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
-            "Omit_Dashboard.isPrivate-or-access_": {
-                "$ref": "#/components/schemas/Pick_Dashboard.Exclude_keyofDashboard.isPrivate-or-access__",
+            "Omit_Dashboard.isPrivate-or-inheritsFromOrgOrProject-or-access_": {
+                "$ref": "#/components/schemas/Pick_Dashboard.Exclude_keyofDashboard.isPrivate-or-inheritsFromOrgOrProject-or-access__",
                 "description": "Construct a type with the properties of T except for those in type K."
             },
             "DashboardDAO": {
-                "$ref": "#/components/schemas/Omit_Dashboard.isPrivate-or-access_"
+                "$ref": "#/components/schemas/Omit_Dashboard.isPrivate-or-inheritsFromOrgOrProject-or-access_"
             },
             "PromotedDashboard": {
                 "allOf": [
@@ -15229,7 +15259,7 @@
                     }
                 ]
             },
-            "Pick_SavedChart.Exclude_keyofSavedChart.isPrivate-or-access__": {
+            "Pick_SavedChart.Exclude_keyofSavedChart.isPrivate-or-inheritsFromOrgOrProject-or-access__": {
                 "properties": {
                     "description": {
                         "type": "string",
@@ -15374,12 +15404,12 @@
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
-            "Omit_SavedChart.isPrivate-or-access_": {
-                "$ref": "#/components/schemas/Pick_SavedChart.Exclude_keyofSavedChart.isPrivate-or-access__",
+            "Omit_SavedChart.isPrivate-or-inheritsFromOrgOrProject-or-access_": {
+                "$ref": "#/components/schemas/Pick_SavedChart.Exclude_keyofSavedChart.isPrivate-or-inheritsFromOrgOrProject-or-access__",
                 "description": "Construct a type with the properties of T except for those in type K."
             },
             "SavedChartDAO": {
-                "$ref": "#/components/schemas/Omit_SavedChart.isPrivate-or-access_"
+                "$ref": "#/components/schemas/Omit_SavedChart.isPrivate-or-inheritsFromOrgOrProject-or-access_"
             },
             "PromotedChart": {
                 "allOf": [
@@ -16078,6 +16108,9 @@
                         },
                         "type": "array"
                     },
+                    "inheritsFromOrgOrProject": {
+                        "type": "boolean"
+                    },
                     "isPrivate": {
                         "type": "boolean"
                     },
@@ -16104,6 +16137,7 @@
                     "dashboards",
                     "projectUuid",
                     "queries",
+                    "inheritsFromOrgOrProject",
                     "isPrivate",
                     "name",
                     "uuid",
@@ -26269,6 +26303,9 @@
                     "sourceExploreName": {
                         "type": "string"
                     },
+                    "preAggExploreName": {
+                        "type": "string"
+                    },
                     "preAggregateName": {
                         "type": "string"
                     },
@@ -26285,6 +26322,7 @@
                     "metrics",
                     "dimensions",
                     "sourceExploreName",
+                    "preAggExploreName",
                     "preAggregateName",
                     "preAggregateDefinitionUuid"
                 ],
@@ -27609,7 +27647,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2561.0",
+        "version": "0.2569.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -37396,9 +37434,9 @@
                 ]
             }
         },
-        "/api/v1/projects/{projectUuid}/pre-aggregates/{preAggExploreName}/refresh": {
+        "/api/v1/projects/{projectUuid}/pre-aggregates/definitions/{preAggregateDefinitionName}/refresh": {
             "post": {
-                "operationId": "refreshProjectPreAggregateByName",
+                "operationId": "refreshProjectPreAggregateByDefinitionName",
                 "responses": {
                     "200": {
                         "description": "Success",
@@ -37421,8 +37459,8 @@
                         }
                     }
                 },
-                "description": "Refresh a single pre-aggregate explore in a project",
-                "summary": "Refresh project pre-aggregate by name",
+                "description": "Refresh a single pre-aggregate by its definition name",
+                "summary": "Refresh pre-aggregate by definition name",
                 "tags": ["Projects"],
                 "security": [],
                 "parameters": [
@@ -37436,7 +37474,7 @@
                     },
                     {
                         "in": "path",
-                        "name": "preAggExploreName",
+                        "name": "preAggregateDefinitionName",
                         "required": true,
                         "schema": {
                             "type": "string"

@@ -4902,10 +4902,10 @@ export class ProjectService extends BaseService {
         };
     }
 
-    async refreshPreAggregateByName(
+    async refreshPreAggregateByDefinitionName(
         user: SessionUser,
         projectUuid: string,
-        preAggExploreName: string,
+        preAggregateDefinitionName: string,
     ): Promise<{ jobIds: string[] }> {
         const { organizationUuid } = await this.assertCanRefreshPreAggregates(
             user,
@@ -4913,20 +4913,22 @@ export class ProjectService extends BaseService {
         );
 
         const preAggregateDefinition =
-            await this.preAggregateModel.getPreAggregateDefinitionByName({
-                projectUuid,
-                preAggExploreName,
-            });
+            await this.preAggregateModel.getPreAggregateDefinitionByDefinitionName(
+                {
+                    projectUuid,
+                    preAggregateDefinitionName,
+                },
+            );
 
         if (!preAggregateDefinition) {
             throw new NotFoundError(
-                `Pre-aggregate explore "${preAggExploreName}" not found`,
+                `Pre-aggregate definition "${preAggregateDefinitionName}" not found`,
             );
         }
 
         if (!preAggregateDefinition.materializationMetricQuery) {
             throw new ParameterError(
-                `Pre-aggregate explore "${preAggExploreName}" cannot be materialized: ${
+                `Pre-aggregate definition "${preAggregateDefinitionName}" cannot be materialized: ${
                     preAggregateDefinition.materializationQueryError ||
                     'materialization query is missing'
                 }`,

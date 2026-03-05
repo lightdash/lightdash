@@ -113,7 +113,7 @@ const projectModel = {
 const preAggregateModel = {
     upsertPreAggregateDefinitions: jest.fn(),
     getPreAggregateDefinitionsForProject: jest.fn(async () => []),
-    getPreAggregateDefinitionByName: jest.fn(async () => undefined),
+    getPreAggregateDefinitionByDefinitionName: jest.fn(async () => undefined),
 };
 const onboardingModel = {
     getByOrganizationUuid: jest.fn(async () => ({
@@ -1238,9 +1238,9 @@ describe('ProjectService', () => {
             );
         });
 
-        test('refreshPreAggregateByName throws actionable error when definition is invalid', async () => {
+        test('refreshPreAggregateByDefinitionName throws actionable error when definition is invalid', async () => {
             (
-                preAggregateModel.getPreAggregateDefinitionByName as jest.Mock
+                preAggregateModel.getPreAggregateDefinitionByDefinitionName as jest.Mock
             ).mockResolvedValue({
                 preAggregateDefinitionUuid: 'def-invalid',
                 projectUuid,
@@ -1260,13 +1260,13 @@ describe('ProjectService', () => {
             });
 
             await expect(
-                service.refreshPreAggregateByName(
+                service.refreshPreAggregateByDefinitionName(
                     adminUser,
                     projectUuid,
-                    'orders__invalid',
+                    'invalid',
                 ),
             ).rejects.toThrowError(
-                'Pre-aggregate explore "orders__invalid" cannot be materialized: Unknown metric "orders.count"',
+                'Pre-aggregate definition "invalid" cannot be materialized: Unknown metric "orders.count"',
             );
         });
     });
