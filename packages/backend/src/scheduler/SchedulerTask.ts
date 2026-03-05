@@ -3861,7 +3861,7 @@ export default class SchedulerTask {
                     },
                 });
 
-                return { url };
+                return { url, numFailures: failedCount };
             },
         );
     }
