@@ -295,7 +295,7 @@ name: "Revenue by State"
 slug: revenue-by-state
 spaceSlug: sales
 tableName: fact_sales
-description: null
+description: ""
 updatedAt: "2026-03-04T20:00:00.000Z"
 downloadedAt: "2026-03-04T20:00:00.000Z"
 dashboardSlug: null
@@ -343,7 +343,7 @@ name: "Top Categories by Revenue"
 slug: top-categories-by-revenue
 spaceSlug: sales
 tableName: fact_sales
-description: null
+description: ""
 updatedAt: "2026-03-04T20:00:00.000Z"
 downloadedAt: "2026-03-04T20:00:00.000Z"
 dashboardSlug: null
@@ -390,23 +390,21 @@ tabs: []
 
 tiles:
   - type: saved_chart
-    uuid: null
-    tileSlug: null
     x: 0
     y: 0
     w: 18
     h: 9
+    tabUuid: null
     properties:
       chartSlug: revenue-by-state
       title: "Revenue by State"
       hideTitle: false
   - type: saved_chart
-    uuid: null
-    tileSlug: null
     x: 18
     y: 0
     w: 18
     h: 9
+    tabUuid: null
     properties:
       chartSlug: top-categories-by-revenue
       title: "Top Categories by Revenue"
@@ -443,4 +441,4 @@ filters:
 
 8. **Chart filters**: Chart-level `metricQuery.filters` uses `FilterGroup` format (`{and: [...]}` or `{or: [...]}`) not flat arrays. Use empty object `{}` when no filters.
 
-9. **Dashboard tiles**: Each tile needs `uuid: null` and `tileSlug: null` for new tiles created via chart-as-code.
+9. **Dashboard tiles**: For new tiles, omit `uuid` and `tileSlug` (auto-generated). Include `tabUuid: null` for the default tab.

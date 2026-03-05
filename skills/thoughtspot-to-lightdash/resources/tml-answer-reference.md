@@ -199,6 +199,7 @@ metricQuery:
   #     and:
   #       - target:
   #           fieldId: model_name_status
+  #           tableName: model_name
   #         operator: equals
   #         values:
   #           - "Active"

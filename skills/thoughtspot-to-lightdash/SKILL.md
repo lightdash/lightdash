@@ -129,7 +129,7 @@ See [TML Liveboard Reference](./resources/tml-liveboard-reference.md) for the fu
 | `FUNNEL` | `funnel` | |
 | `TREEMAP` | `treemap` | |
 | `WATERFALL` | `cartesian` (bar) | Approximate with stacked bar |
-| `PIVOT_TABLE` | `table` | Use `pivotConfig.columns` in chart YAML to specify pivot columns |
+| `PIVOT_TABLE` | `table` | Set `pivotConfig.columns` at chart root level AND `metricQuery.pivotDimensions` |
 | `SANKEY` | `table` | No Lightdash equivalent — convert to table |
 | `SPIDER_WEB` | `table` | No Lightdash equivalent — convert to table |
 | `CANDLESTICK` | `table` | No Lightdash equivalent — convert to table |
@@ -244,11 +244,12 @@ your-project/
 - Slug pattern: lowercase alphanumeric and hyphens only (`^[a-z0-9-]+$`)
 - Every chart and dashboard YAML needs `version: 1`
 - **Required chart fields:** `version`, `name`, `slug`, `spaceSlug`, `tableName`, `metricQuery`, `chartConfig`
+- **Required metricQuery fields:** `exploreName`, `dimensions`, `metrics`, `filters`, `sorts`, `limit`, `tableCalculations` — use `filters: {}` for no filters, `tableCalculations: []` for none
 - **Required dashboard fields:** `version`, `name`, `slug`, `spaceSlug`, `tiles`, `tabs`
 - **Optional chart fields:** `description`, `updatedAt`, `downloadedAt`, `dashboardSlug`, `tableConfig`, `pivotConfig`, `parameters`
 - **Optional dashboard fields:** `description`, `updatedAt`, `downloadedAt`, `filters`
 - Dashboard tiles reference charts by `chartSlug` matching the chart file's `slug` field
-- Dashboard tiles require: `type`, `x`, `y`, `w`, `h`. Optional: `uuid` (set to `null` for new tiles), `tileSlug`, `tabUuid`
+- Dashboard tiles require: `type`, `x`, `y`, `w`, `h`. Optional: `uuid` (omit for new tiles — auto-generated), `tileSlug` (omit for new tiles), `tabUuid` (set to `null` for default tab)
 - Dashboard tile types: `saved_chart`, `sql_chart`, `markdown`, `loom`, `heading`
 
 ## Complete Translation Example
@@ -286,6 +287,8 @@ Answer TML may include a `client_state` or `client_state_v2` field containing a 
 12. **`is_mandatory` filter mapping**: ThoughtSpot `is_mandatory: true` on a filter maps to Lightdash `required: true` on the dashboard filter rule.
 13. **`excluded_visualizations` mapping**: ThoughtSpot `excluded_visualizations` on a Liveboard filter maps to Lightdash `tileTargets`. Set excluded tiles to `false` in the `tileTargets` object (keyed by tile slug). Example: `tileTargets: { "excluded-chart-slug": false }`.
 14. **Pie chart config**: Lightdash pie chart `config` has many optional fields beyond `isDonut`. The fields `groupFieldIds` (dimension field IDs) and `metricId` (metric field ID) help Lightdash render the pie correctly — include them when translating.
+15. **`metricQuery.filters` is required**: Even when there are no filters, you must include `filters: {}` in the metricQuery. Omitting it entirely will fail schema validation. Similarly, `tableCalculations: []` is required even when empty.
+16. **Tile `uuid` and `tileSlug`**: For new tiles, **omit** `uuid` and `tileSlug` entirely (don't set to `null`). They are auto-generated. Only include `tabUuid: null` when explicitly assigning to the default tab.
 
 ## Known Gaps
 
@@ -313,4 +316,6 @@ These ThoughtSpot features cannot be automatically translated and require manual
 | Cartesian chart `metadata` (series colors) | Not documented | Lightdash cartesian charts support a `metadata` field for per-series colors. ThoughtSpot `client_state` color settings could map here but the structure is not documented in this skill |
 | Dashboard filter `tileTargets` structure | Partial | Keyed by tile slug; value is `false` (exclude tile) or `{fieldId, tableName}` (map to different field). Maps from ThoughtSpot `excluded_visualizations` |
 | Dashboard filter `disabled`, `singleValue` fields | Not mapped | Lightdash supports `disabled` and `singleValue` on dashboard filters but ThoughtSpot TML has no direct equivalent |
-| Big number chart additional config | Partial | Lightdash `big_number` supports `label`, `style` (compact notation), `showComparison`, `comparisonField`, `comparisonFormat`, `flipColors`, `conditionalFormattings` — only `selectedField` is shown in examples |
+| Big number chart additional config | Partial | Lightdash `big_number` supports `selectedField`, `label`, `style`, `showBigNumberLabel`, `showTableNamesInLabel`, `showComparison`, `comparisonField`, `comparisonFormat`, `comparisonLabel`, `flipColors`, `conditionalFormattings` — only `selectedField` and `label` are shown in examples |
+| Heading tile `showDivider` | Not documented | Lightdash heading tiles support `showDivider?: boolean` — not mapped from ThoughtSpot TML |
+| `pivotConfig` and `pivotDimensions` | Partial | PIVOT_TABLE charts need both `pivotConfig.columns` (chart root) and `metricQuery.pivotDimensions` (array of field IDs to pivot on). No example provided |

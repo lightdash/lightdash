@@ -155,13 +155,13 @@ tabs: []                     # Array of {uuid, name, order} objects, or empty
 
 tiles:
   # Each visualization becomes a saved_chart tile
+  # Omit uuid and tileSlug for new tiles — they are auto-generated
   - type: saved_chart
-    uuid: null               # Set to null for new tiles
-    tileSlug: null            # Optional tile slug
     x: 0                     # Scale from ThoughtSpot grid
     y: 0
     w: 12                    # Lightdash uses 36-column grid
     h: 6
+    tabUuid: null            # null = default tab
     properties:
       chartSlug: chart-title-slugified
       title: "Chart Title"
@@ -169,24 +169,22 @@ tiles:
 
   # Note/text tiles use markdown type
   - type: markdown
-    uuid: null
-    tileSlug: null
     x: 0
     y: 6
     w: 12
     h: 3
+    tabUuid: null
     properties:
       title: "Note Title"
       content: "Markdown content here"
 
   # Heading tiles use text property (not title/content)
   - type: heading
-    uuid: null
-    tileSlug: null
     x: 0
     y: 9
     w: 36
     h: 1
+    tabUuid: null
     properties:
       text: "Section Heading"
 
