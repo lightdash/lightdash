@@ -56,6 +56,7 @@ import { useProject } from '../../../../hooks/useProject';
 import SlackSvg from '../../../../svgs/slack.svg?react';
 import { Limit, SlackStates, Values } from '../types';
 import { useSchedulerFormContext } from './schedulerFormContext';
+import { SchedulerFormGoogleChatInput } from './SchedulerFormGoogleChatInput';
 import { SchedulerFormMicrosoftTeamsInput } from './SchedulerFormMicrosoftTeamsInput';
 import { SchedulerFormSlackError } from './SchedulerFormSlackError';
 
@@ -605,7 +606,12 @@ export const SchedulerFormSetupTab: FC<Props> = ({
                     </Group>
                     <Stack
                         gap="xs"
-                        mb={health.data?.hasMicrosoftTeams ? '0' : 'sm'}
+                        mb={
+                            health.data?.hasMicrosoftTeams ||
+                            health.data?.hasGoogleChat
+                                ? '0'
+                                : 'sm'
+                        }
                     >
                         <Group wrap="nowrap" align="flex-start">
                             <Box pt="xxs">
@@ -655,6 +661,14 @@ export const SchedulerFormSetupTab: FC<Props> = ({
                             msTeamTargets={form.values.msTeamsTargets}
                             onChange={(val: string[]) => {
                                 form.setFieldValue('msTeamsTargets', val);
+                            }}
+                        />
+                    )}
+                    {health.data?.hasGoogleChat && (
+                        <SchedulerFormGoogleChatInput
+                            googleChatTargets={form.values.googleChatTargets}
+                            onChange={(val: string[]) => {
+                                form.setFieldValue('googleChatTargets', val);
                             }}
                         />
                     )}

@@ -193,6 +193,7 @@ export class HealthService extends BaseService {
                     : undefined,
             },
             hasMicrosoftTeams: this.lightdashConfig.microsoftTeams.enabled,
+            hasGoogleChat: this.lightdashConfig.googleChat.enabled,
             isServiceAccountEnabled:
                 this.lightdashConfig.serviceAccount.enabled,
             isOrganizationWarehouseCredentialsEnabled:

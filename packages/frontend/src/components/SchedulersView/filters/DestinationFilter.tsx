@@ -23,6 +23,7 @@ const DESTINATION_LABELS: Record<DestinationType, string> = {
     slack: 'Slack',
     email: 'Email',
     msteams: 'MS Teams',
+    googlechat: 'Google Chat',
 };
 
 const DestinationFilter: FC<DestinationFilterProps> = ({
@@ -44,6 +45,9 @@ const DestinationFilter: FC<DestinationFilterProps> = ({
         }
         if (health.data?.hasMicrosoftTeams) {
             destinations.push('msteams');
+        }
+        if (health.data?.hasGoogleChat) {
+            destinations.push('googlechat');
         }
         return destinations;
     }, [health.data, organizationHasSlack]);

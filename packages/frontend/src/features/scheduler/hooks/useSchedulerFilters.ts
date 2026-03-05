@@ -2,7 +2,7 @@ import { type SchedulerFormat } from '@lightdash/common';
 import { useCallback, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
 
-export type DestinationType = 'slack' | 'email' | 'msteams';
+export type DestinationType = 'slack' | 'email' | 'msteams' | 'googlechat';
 
 export type SchedulerFilters = {
     search?: string;

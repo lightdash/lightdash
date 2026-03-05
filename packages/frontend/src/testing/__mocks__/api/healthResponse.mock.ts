@@ -101,6 +101,7 @@ export default function mockHealthResponse(
         hasGitlab: false,
         hasCacheAutocompleResults: false,
         hasMicrosoftTeams: false,
+        hasGoogleChat: false,
         appearance: {
             overrideColorPalette: undefined,
             overrideColorPaletteName: undefined,
