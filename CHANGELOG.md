@@ -1,3 +1,12 @@
+# [0.2577.0](https://github.com/lightdash/lightdash/compare/0.2576.0...0.2577.0) (2026-03-05)
+
+
+### Features
+
+* add failure count to dashboard CSV export with warning toast ([#20889](https://github.com/lightdash/lightdash/issues/20889)) ([12b8f09](https://github.com/lightdash/lightdash/commit/12b8f09dd55358af69174473513597d4c4856b10))
+* add Google Chat integration for scheduled deliveries (frontend) ([#20886](https://github.com/lightdash/lightdash/issues/20886)) ([9b6d5eb](https://github.com/lightdash/lightdash/commit/9b6d5eb26a74283bc6b8dcb81efc226bae724626)), closes [#18267](https://github.com/lightdash/lightdash/issues/18267)
+* implement dashboard CSV zip export with async query service ([#20879](https://github.com/lightdash/lightdash/issues/20879)) ([edc44ae](https://github.com/lightdash/lightdash/commit/edc44aea4a0ebf6261039d9b527c9cf86dcd8e33))
+
 # [0.2576.0](https://github.com/lightdash/lightdash/compare/0.2575.0...0.2576.0) (2026-03-05)
 
 
