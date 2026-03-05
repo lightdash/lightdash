@@ -656,7 +656,7 @@ export class CsvService extends BaseService {
         jobId?: string;
         tileUuid?: string;
         dashboardFilters?: DashboardFilters;
-        dateZoomGranularity?: DateGranularity;
+        dateZoomGranularity?: DateGranularity | string;
         invalidateCache?: boolean;
         schedulerParameters?: ParametersValuesMap;
     }): Promise<AttachmentUrl> {
@@ -957,7 +957,7 @@ export class CsvService extends BaseService {
         schedulerFilters?: DashboardFilterRule[];
         selectedTabs: string[] | null;
         overrideDashboardFilters?: DashboardFilters;
-        dateZoomGranularity?: DateGranularity;
+        dateZoomGranularity?: DateGranularity | string;
         invalidateCache?: boolean;
         schedulerParameters?: ParametersValuesMap;
     }): Promise<AttachmentUrl[]> {
@@ -1370,8 +1370,8 @@ export class CsvService extends BaseService {
         user: SessionUser,
         dashboardUuid: string,
         dashboardFilters: DashboardFilters,
-        dateZoomGranularity: DateGranularity | undefined,
         selectedTabs: string[] | null,
+        dateZoomGranularity?: DateGranularity | string,
     ) {
         const dashboard =
             await this.dashboardModel.getByIdOrSlug(dashboardUuid);
