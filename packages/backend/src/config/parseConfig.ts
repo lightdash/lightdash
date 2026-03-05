@@ -997,6 +997,9 @@ export type LightdashConfig = {
     microsoftTeams: {
         enabled: boolean;
     };
+    googleChat: {
+        enabled: boolean;
+    };
     googleCloudPlatform: {
         projectId?: string;
     };
@@ -1934,6 +1937,9 @@ export const parseConfig = (): LightdashConfig => {
         },
         microsoftTeams: {
             enabled: process.env.MICROSOFT_TEAMS_ENABLED === 'true',
+        },
+        googleChat: {
+            enabled: process.env.GOOGLE_CHAT_ENABLED === 'true',
         },
         googleCloudPlatform: {
             projectId: process.env.GOOGLE_CLOUD_PROJECT_ID,

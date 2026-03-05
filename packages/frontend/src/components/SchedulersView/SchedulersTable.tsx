@@ -1,6 +1,7 @@
 import {
     assertUnreachable,
     getHumanReadableCronExpression,
+    isEmailTarget,
     isMsTeamsTarget,
     isSchedulerGsheetsOptions,
     isSlackTarget,
@@ -590,9 +591,10 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                         );
                     } else if (isMsTeamsTarget(t)) {
                         return msTeamsTargets.push(t.webhook);
-                    } else {
+                    } else if (isEmailTarget(t)) {
                         return emails.push(t.recipient);
                     }
+                    return undefined;
                 });
 
                 return (

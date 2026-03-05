@@ -428,6 +428,20 @@ export class MsTeamsError extends LightdashError {
     }
 }
 
+export class GoogleChatError extends LightdashError {
+    constructor(
+        message: string = 'Google Chat API error occurred',
+        data: { [key: string]: AnyType } = {},
+    ) {
+        super({
+            message,
+            name: 'GoogleChatError',
+            statusCode: 400,
+            data,
+        });
+    }
+}
+
 export class UnexpectedGoogleSheetsError extends LightdashError {
     constructor(
         message = 'Unexpected error in Google sheets client',

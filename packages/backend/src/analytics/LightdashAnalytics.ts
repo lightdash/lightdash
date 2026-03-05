@@ -1014,7 +1014,7 @@ export type SchedulerUpsertEvent = BaseTrack & {
         format: SchedulerFormat;
         targets: Array<{
             schedulerTargetId: string;
-            type: 'slack' | 'email' | 'msteams';
+            type: 'slack' | 'email' | 'msteams' | 'googlechat';
         }>;
         timeZone: string | undefined;
         includeLinks: boolean;
@@ -1095,7 +1095,7 @@ export type SchedulerNotificationJobEvent = BaseTrack & {
         schedulerTargetId?: string;
         groupId: string | undefined;
         resourceType?: 'dashboard' | 'chart';
-        type: 'slack' | 'email' | 'gsheets' | 'msteams';
+        type: 'slack' | 'email' | 'gsheets' | 'msteams' | 'googlechat';
         format?: SchedulerFormat;
         withPdf?: boolean;
         sendNow: boolean;

@@ -146,6 +146,7 @@ export type SchedulerAndTargets = Scheduler & {
         | SchedulerSlackTarget
         | SchedulerEmailTarget
         | SchedulerMsTeamsTarget
+        | SchedulerGoogleChatTarget
     )[];
     latestRun?: SchedulerRun | null;
 };
@@ -164,6 +165,13 @@ export type SchedulerMsTeamsTarget = {
     schedulerUuid: string;
     webhook: string;
 };
+export type SchedulerGoogleChatTarget = {
+    schedulerGoogleChatTargetUuid: string;
+    createdAt: Date;
+    updatedAt: Date;
+    schedulerUuid: string;
+    googleChatWebhook: string;
+};
 export type SchedulerEmailTarget = {
     schedulerEmailTargetUuid: string;
     createdAt: Date;
@@ -175,12 +183,14 @@ export type SchedulerEmailTarget = {
 export type CreateSchedulerTarget =
     | Pick<SchedulerSlackTarget, 'channel'>
     | Pick<SchedulerMsTeamsTarget, 'webhook'>
+    | Pick<SchedulerGoogleChatTarget, 'googleChatWebhook'>
     | Pick<SchedulerEmailTarget, 'recipient'>;
 
 export const getSchedulerTargetUuid = (
     target:
         | SchedulerSlackTarget
         | SchedulerMsTeamsTarget
+        | SchedulerGoogleChatTarget
         | SchedulerEmailTarget
         | CreateSchedulerTarget,
 ): string | undefined => {
@@ -189,6 +199,9 @@ export const getSchedulerTargetUuid = (
     }
     if ('schedulerMsTeamsTargetUuid' in target) {
         return target.schedulerMsTeamsTargetUuid;
+    }
+    if ('schedulerGoogleChatTargetUuid' in target) {
+        return target.schedulerGoogleChatTargetUuid;
     }
     if ('schedulerEmailTargetUuid' in target) {
         return target.schedulerEmailTargetUuid;
@@ -204,6 +217,11 @@ export type UpdateSchedulerSlackTarget = Pick<
 export type UpdateSchedulerMsTeamsTarget = Pick<
     SchedulerMsTeamsTarget,
     'schedulerMsTeamsTargetUuid' | 'webhook'
+>;
+
+export type UpdateSchedulerGoogleChatTarget = Pick<
+    SchedulerGoogleChatTarget,
+    'schedulerGoogleChatTargetUuid' | 'googleChatWebhook'
 >;
 
 export type UpdateSchedulerEmailTarget = Pick<
@@ -249,6 +267,7 @@ export type UpdateSchedulerAndTargets = Pick<
             | CreateSchedulerTarget
             | UpdateSchedulerSlackTarget
             | UpdateSchedulerEmailTarget
+            | UpdateSchedulerGoogleChatTarget
         >;
     };
 
@@ -266,6 +285,15 @@ export const isUpdateSchedulerMsTeamsTarget = (
     data: CreateSchedulerTarget | UpdateSchedulerSlackTarget,
 ): data is UpdateSchedulerMsTeamsTarget =>
     'schedulerMsTeamsTargetUuid' in data && !!data.schedulerMsTeamsTargetUuid;
+
+export const isUpdateSchedulerGoogleChatTarget = (
+    data:
+        | CreateSchedulerTarget
+        | UpdateSchedulerSlackTarget
+        | UpdateSchedulerGoogleChatTarget,
+): data is UpdateSchedulerGoogleChatTarget =>
+    'schedulerGoogleChatTargetUuid' in data &&
+    !!data.schedulerGoogleChatTargetUuid;
 
 export const isUpdateSchedulerEmailTarget = (
     data: CreateSchedulerTarget | UpdateSchedulerEmailTarget,
@@ -290,36 +318,58 @@ export const isSlackTarget = (
     target:
         | SchedulerSlackTarget
         | SchedulerEmailTarget
-        | SchedulerMsTeamsTarget,
+        | SchedulerMsTeamsTarget
+        | SchedulerGoogleChatTarget,
 ): target is SchedulerSlackTarget => 'channel' in target;
 
 export const isMsTeamsTarget = (
     target:
         | SchedulerSlackTarget
         | SchedulerEmailTarget
-        | SchedulerMsTeamsTarget,
+        | SchedulerMsTeamsTarget
+        | SchedulerGoogleChatTarget,
 ): target is SchedulerMsTeamsTarget => 'webhook' in target;
+
+export const isGoogleChatTarget = (
+    target:
+        | SchedulerSlackTarget
+        | SchedulerEmailTarget
+        | SchedulerMsTeamsTarget
+        | SchedulerGoogleChatTarget,
+): target is SchedulerGoogleChatTarget => 'googleChatWebhook' in target;
 
 export const isEmailTarget = (
     target:
         | SchedulerSlackTarget
         | SchedulerEmailTarget
-        | SchedulerMsTeamsTarget,
+        | SchedulerMsTeamsTarget
+        | SchedulerGoogleChatTarget,
 ): target is SchedulerEmailTarget => 'recipient' in target;
 
 export const isCreateSchedulerSlackTarget = (
     target:
         | Pick<SchedulerSlackTarget, 'channel'>
         | Pick<SchedulerEmailTarget, 'recipient'>
-        | Pick<SchedulerMsTeamsTarget, 'webhook'>,
+        | Pick<SchedulerMsTeamsTarget, 'webhook'>
+        | Pick<SchedulerGoogleChatTarget, 'googleChatWebhook'>,
 ): target is Pick<SchedulerSlackTarget, 'channel'> => 'channel' in target;
 
 export const isCreateSchedulerMsTeamsTarget = (
     target:
         | Pick<SchedulerSlackTarget, 'channel'>
         | Pick<SchedulerEmailTarget, 'recipient'>
-        | Pick<SchedulerMsTeamsTarget, 'webhook'>,
+        | Pick<SchedulerMsTeamsTarget, 'webhook'>
+        | Pick<SchedulerGoogleChatTarget, 'googleChatWebhook'>,
 ): target is Pick<SchedulerMsTeamsTarget, 'webhook'> => 'webhook' in target;
+
+export const isCreateSchedulerGoogleChatTarget = (
+    target:
+        | Pick<SchedulerSlackTarget, 'channel'>
+        | Pick<SchedulerEmailTarget, 'recipient'>
+        | Pick<SchedulerMsTeamsTarget, 'webhook'>
+        | Pick<SchedulerGoogleChatTarget, 'googleChatWebhook'>,
+): target is Pick<SchedulerGoogleChatTarget, 'googleChatWebhook'> =>
+    'googleChatWebhook' in target;
 
 export const isSchedulerCsvOptions = (
     options:
@@ -508,6 +558,18 @@ export type MsTeamsBatchNotificationPayload = TraceTaskBase &
         scheduler: SchedulerAndTargets;
     };
 
+export type GoogleChatNotificationPayload = TraceTaskBase &
+    NotificationPayloadBase & {
+        schedulerGoogleChatTargetUuid?: string;
+        googleChatWebhook: string;
+    };
+
+export type GoogleChatBatchNotificationPayload = TraceTaskBase &
+    Omit<NotificationPayloadBase, 'scheduler'> & {
+        targets: SchedulerGoogleChatTarget[];
+        scheduler: SchedulerAndTargets;
+    };
+
 // Result tracking for batch deliveries
 export type DeliveryResult = {
     target: string; // channel ID, email, or webhook URL
@@ -517,7 +579,7 @@ export type DeliveryResult = {
 };
 
 export type BatchDeliveryResult = {
-    type: 'slack' | 'email' | 'msteams';
+    type: 'slack' | 'email' | 'msteams' | 'googlechat';
     total: number;
     succeeded: number;
     failed: number;

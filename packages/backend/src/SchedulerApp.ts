@@ -1,10 +1,10 @@
 import { createTerminus } from '@godaddy/terminus';
 import * as Sentry from '@sentry/node';
+import { EventEmitter } from 'events';
 import express from 'express';
 import http from 'http';
 import knex, { Knex } from 'knex';
 import refresh from 'passport-oauth2-refresh';
-import { EventEmitter } from 'events';
 import { LightdashAnalytics } from './analytics/LightdashAnalytics';
 import {
     ClientProviderMap,
@@ -70,6 +70,7 @@ const schedulerWorkerFactory = (context: {
         catalogService: context.serviceRepository.getCatalogService(),
         encryptionUtil: context.utils.getEncryptionUtil(),
         msTeamsClient: context.clients.getMsTeamsClient(),
+        googleChatClient: context.clients.getGoogleChatClient(),
         renameService: context.serviceRepository.getRenameService(),
         asyncQueryService: context.serviceRepository.getAsyncQueryService(),
         featureFlagService: context.serviceRepository.getFeatureFlagService(),
