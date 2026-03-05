@@ -148,7 +148,7 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
         );
 
     const { data: spaces, isInitialLoading: isLoadingSpaces } =
-        useSpaceSummaries(projectUuid, true, {
+        useSpaceSummaries(projectUuid, {
             staleTime: 0,
             enabled: isOpen, // Only fetch when modal is open
             onSuccess: (data) => {
@@ -230,7 +230,7 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                 if (isCreatingNewSpace) {
                     const newSpace = await createSpace({
                         name: spaceName,
-                        isPrivate: false,
+                        inheritParentPermissions: true,
                         access: [],
                     });
                     spaceUuid = newSpace.uuid;

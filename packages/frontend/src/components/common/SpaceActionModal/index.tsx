@@ -94,17 +94,9 @@ const SpaceModal: FC<ActionModalProps> = ({
             if (actionType === ActionType.CREATE) {
                 onSubmitForm?.({
                     ...values,
-                    ...(isNestedSpace
-                        ? {
-                              inheritParentPermissions: true,
-                              isPrivate: false,
-                          }
-                        : {
-                              inheritParentPermissions:
-                                  inheritanceValue === InheritanceType.INHERIT,
-                              isPrivate:
-                                  inheritanceValue === InheritanceType.OWN_ONLY,
-                          }),
+                    inheritParentPermissions: isNestedSpace
+                        ? true
+                        : inheritanceValue === InheritanceType.INHERIT,
                 });
             } else {
                 onSubmitForm?.(values);
@@ -226,7 +218,6 @@ const SpaceActionModal: FC<
         if (actionType === ActionType.CREATE) {
             const result = await createMutation({
                 name: state.name,
-                isPrivate: state.isPrivate,
                 access: state.access?.map((access) => ({
                     userUuid: access.userUuid,
                     role: access.role,
@@ -243,7 +234,7 @@ const SpaceActionModal: FC<
             const result = await updateMutation({
                 name: state.name,
                 ...(!parentSpaceUuid && {
-                    isPrivate: state.isPrivate,
+                    inheritParentPermissions: state.inheritParentPermissions,
                 }),
             });
             onSubmitForm?.(result);

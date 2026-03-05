@@ -54,7 +54,6 @@ const TransferItemsModal = <R extends ResourceViewItem, T extends Array<R>>({
     // Fetch spaces only when the modal is opened
     const { data: spaces = [], isLoading: isLoadingSpaces } = useSpaceSummaries(
         projectUuid,
-        true,
         { enabled: opened },
     );
 

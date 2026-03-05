@@ -141,7 +141,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
         data: spaces,
         isLoading: isLoadingSpaces,
         isSuccess: isSpacesSuccess,
-    } = useSpaceSummaries(projectUuid, true, {
+    } = useSpaceSummaries(projectUuid, {
         select: (data) =>
             data.filter((space) =>
                 // Only get spaces that the user can create charts to
@@ -315,7 +315,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
             if (saveDestination === SaveDestination.Space) {
                 let newSpace = values.newSpaceName
                     ? await handleCreateNewSpace({
-                          isPrivate: true,
+                          inheritParentPermissions: false,
                       })
                     : undefined;
 

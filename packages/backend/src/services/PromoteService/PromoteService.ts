@@ -1452,8 +1452,7 @@ export class PromoteService extends BaseService {
 
                 const space = await this.spaceModel.createSpace(
                     {
-                        isPrivate: data.isPrivate,
-                        inheritParentPermissions: !data.isPrivate,
+                        inheritParentPermissions: data.inheritParentPermissions,
                         name: data.name,
                         parentSpaceUuid,
                     },
@@ -1465,7 +1464,7 @@ export class PromoteService extends BaseService {
                 );
                 parentSpaceUuid = space.uuid;
 
-                if (data.isPrivate) {
+                if (!data.inheritParentPermissions) {
                     const [ctx, groupsAccess] = await Promise.all([
                         this.spacePermissionService.getAllSpaceAccessContext(
                             data.uuid,
