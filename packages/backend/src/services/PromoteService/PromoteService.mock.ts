@@ -359,5 +359,6 @@ export const promotedDashboardWithNewPrivateSpace = {
         ...promotedDashboard.space,
         name: 'Private space',
         isPrivate: true,
+        inheritParentPermissions: false,
     },
 };

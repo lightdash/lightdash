@@ -109,7 +109,7 @@ export const AiDashboardSaveModal: FC<Props> = ({
         data: spaces,
         isInitialLoading: isLoadingSpaces,
         isSuccess: isSpacesSuccess,
-    } = useSpaceSummaries(projectUuid, true, {
+    } = useSpaceSummaries(projectUuid, {
         staleTime: 0,
         select: (data) =>
             data.filter((space) =>
@@ -193,7 +193,7 @@ export const AiDashboardSaveModal: FC<Props> = ({
                 if (values.newSpaceName) {
                     const newSpace = await spaceManagement.handleCreateNewSpace(
                         {
-                            isPrivate: false,
+                            inheritParentPermissions: true,
                         },
                     );
                     targetSpaceUuid = newSpace?.uuid || values.spaceUuid;

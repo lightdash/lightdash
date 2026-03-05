@@ -96,7 +96,7 @@ export const SaveSqlChartModal: FC<Props> = ({ opened, onClose }) => {
         data: spaces = [],
         isLoading: isLoadingSpace,
         isSuccess: isSuccessSpace,
-    } = useSpaceSummaries(projectUuid, true);
+    } = useSpaceSummaries(projectUuid);
 
     const spaceManagement = useSpaceManagement({
         projectUuid,
@@ -131,7 +131,7 @@ export const SaveSqlChartModal: FC<Props> = ({ opened, onClose }) => {
         }
         let newSpace = form.values.newSpaceName
             ? await handleCreateNewSpace({
-                  isPrivate: true,
+                  inheritParentPermissions: false,
               })
             : undefined;
         const spaceUuid =

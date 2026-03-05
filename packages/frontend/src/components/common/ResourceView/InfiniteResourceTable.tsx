@@ -108,7 +108,6 @@ const InfiniteResourceTable = ({
     const navigate = useNavigate();
     const { data: spaces = defaultSpaces } = useSpaceSummaries(
         filters.projectUuid,
-        true,
     );
     const { user } = useApp();
 
@@ -323,7 +322,7 @@ const InfiniteResourceTable = ({
 
                 const space = spaces.find((s) => s.uuid === item.data.uuid);
                 if (!space) return false;
-                return !space.isPrivate || !!space.userAccess;
+                return space.inheritParentPermissions || !!space.userAccess;
             });
     }, [data, userCanManageProject, spaces, selectedAdminContentType]);
 

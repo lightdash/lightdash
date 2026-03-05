@@ -147,7 +147,7 @@ export const spaceContentConfiguration: ContentConfiguration<SpaceContentRow> =
                         ),
                         'parentSpaceUuid', ${SpaceTableName}.parent_space_uuid,
                         'path', ${SpaceTableName}.path,
-                        'isPrivate', ${SpaceTableName}.is_private,
+                        'isPrivate', NOT ${SpaceTableName}.inherit_parent_permissions,
                         'inheritParentPermissions', ${SpaceTableName}.inherit_parent_permissions,
                         'pinnedListOrder', ${PinnedSpaceTableName}.order
                         ${

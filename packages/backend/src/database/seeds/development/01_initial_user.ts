@@ -241,7 +241,6 @@ export async function seed(knex: Knex): Promise<void> {
     const [{ space_uuid: spaceUuid }] = await knex('spaces')
         .insert({
             ...SEED_SPACE,
-            is_private: false,
             project_id: projectId,
             slug: spaceSlug,
             parent_space_uuid: null,
