@@ -3687,7 +3687,9 @@ export default class SchedulerTask {
                 const limit = pLimit(5);
 
                 const isInSelectedTab = (tile: { tabUuid?: string }) =>
-                    !selectedTabs || selectedTabs.includes(tile.tabUuid ?? '');
+                    !selectedTabs ||
+                    !tile.tabUuid ||
+                    selectedTabs.includes(tile.tabUuid);
 
                 const chartTilePromises = dashboard.tiles
                     .filter(isDashboardChartTileType)

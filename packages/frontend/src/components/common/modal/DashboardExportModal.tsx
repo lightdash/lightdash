@@ -266,7 +266,7 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
                                     maw={400}
                                     variant="xs"
                                     multiline
-                                    label="Select all tabs to include all tabs in the export. If you don't select this option, only selected tabs will be included."
+                                    label="When unchecked, choose specific tabs to include in the export."
                                 >
                                     <MantineIcon
                                         icon={IconHelpCircle}

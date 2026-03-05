@@ -157,6 +157,13 @@ dashboardRouter.post(
     isAuthenticated,
     async (req, res, next) => {
         try {
+            const { selectedTabs } = req.body;
+            const validatedSelectedTabs =
+                Array.isArray(selectedTabs) &&
+                selectedTabs.every((t: unknown) => typeof t === 'string')
+                    ? (selectedTabs as string[])
+                    : null;
+
             const results = await req.services
                 .getCsvService()
                 .scheduleExportCsvDashboard(
@@ -164,7 +171,7 @@ dashboardRouter.post(
                     req.params.dashboardUuid,
                     req.body.filters,
                     req.body.dateZoomGranularity,
-                    req.body.selectedTabs ?? null,
+                    validatedSelectedTabs,
                 );
 
             res.json({
