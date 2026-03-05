@@ -1,3 +1,10 @@
+## [0.2569.1](https://github.com/lightdash/lightdash/compare/0.2569.0...0.2569.1) (2026-03-05)
+
+
+### Bug Fixes
+
+* ensure Snowflake connections are properly destroyed after async queries ([#20850](https://github.com/lightdash/lightdash/issues/20850)) ([3c6091d](https://github.com/lightdash/lightdash/commit/3c6091d9ec93c6b92e4c90dd3ffbff6b749dceac))
+
 # [0.2569.0](https://github.com/lightdash/lightdash/compare/0.2568.0...0.2569.0) (2026-03-04)
 
 
