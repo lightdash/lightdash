@@ -146,7 +146,7 @@ export const getFormValuesFromScheduler = (
             slackTargets.push(target.channel);
         } else if (isCreateSchedulerMsTeamsTarget(target)) {
             msTeamsTargets.push(target.webhook);
-        } else {
+        } else if ('recipient' in target) {
             emailTargets.push(target.recipient);
         }
     });
