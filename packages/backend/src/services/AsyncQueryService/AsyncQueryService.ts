@@ -98,6 +98,7 @@ import { createInterface } from 'readline';
 import { Readable, Writable } from 'stream';
 import { v4 as uuidv4 } from 'uuid';
 import { DownloadCsv } from '../../analytics/LightdashAnalytics';
+import type { IAsyncQuerySchedulerClient } from '../../clients/AsyncQuerySchedulerClient';
 import { transformAndExportResults } from '../../clients/Aws/transformAndExportResults';
 import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
 import { S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
@@ -197,6 +198,7 @@ type AsyncQueryServiceArguments = ProjectServiceArguments & {
     pivotTableService: PivotTableService;
     prometheusMetrics?: PrometheusMetrics;
     schedulerClient: SchedulerClient;
+    asyncQuerySchedulerClient: IAsyncQuerySchedulerClient;
     permissionsService: PermissionsService;
     persistentDownloadFileService: PersistentDownloadFileService;
     preAggregationDuckDbClient: PreAggregationDuckDbClient;
@@ -224,6 +226,8 @@ export class AsyncQueryService extends ProjectService {
 
     schedulerClient: SchedulerClient;
 
+    asyncQuerySchedulerClient: IAsyncQuerySchedulerClient;
+
     permissionsService: PermissionsService;
 
     persistentDownloadFileService: PersistentDownloadFileService;
@@ -245,6 +249,7 @@ export class AsyncQueryService extends ProjectService {
         this.pivotTableService = args.pivotTableService;
         this.prometheusMetrics = args.prometheusMetrics;
         this.schedulerClient = args.schedulerClient;
+        this.asyncQuerySchedulerClient = args.asyncQuerySchedulerClient;
         this.permissionsService = args.permissionsService;
         this.persistentDownloadFileService = args.persistentDownloadFileService;
         this.preAggregationDuckDbClient = args.preAggregationDuckDbClient;
@@ -2316,7 +2321,58 @@ export class AsyncQueryService extends ProjectService {
                         originalColumns,
                     };
 
-                    if (
+                    const useNatsForWarehouseQueries =
+                        this.lightdashConfig.asyncQuery.nats.enabled &&
+                        executionPlan.target === 'warehouse';
+
+                    if (useNatsForWarehouseQueries) {
+                        this.logger.info(
+                            `Enqueueing query ${queryHistoryUuid} on NATS JetStream`,
+                        );
+
+                        try {
+                            const { jobId } =
+                                await this.asyncQuerySchedulerClient.enqueueWarehouseQuery(
+                                    {
+                                        organizationUuid,
+                                        ...warehouseArgs,
+                                    },
+                                );
+
+                            this.logger.info(
+                                `Enqueued query ${queryHistoryUuid} on NATS with job ${jobId}`,
+                            );
+                        } catch (e) {
+                            const errorMessage = getErrorMessage(e);
+                            this.logger.error(
+                                `Failed to enqueue async query ${queryHistoryUuid} on NATS`,
+                                e,
+                            );
+
+                            await this.queryHistoryModel.update(
+                                queryHistoryUuid,
+                                projectUuid,
+                                {
+                                    status: QueryHistoryStatus.ERROR,
+                                    error: `Failed to enqueue warehouse query: ${errorMessage}`,
+                                },
+                                account,
+                            );
+
+                            this.prometheusMetrics?.incrementQueryStatus(
+                                QueryHistoryStatus.ERROR,
+                                warehouseCredentialsType,
+                                queryTags.query_context,
+                            );
+
+                            return {
+                                queryUuid: queryHistoryUuid,
+                                cacheMetadata: {
+                                    cacheHit: false,
+                                },
+                            } satisfies ExecuteAsyncQueryReturn;
+                        }
+                    } else if (
                         await this.isWorkerAsyncQueryExecutionEnabled(
                             executionPlan.target,
                             account,

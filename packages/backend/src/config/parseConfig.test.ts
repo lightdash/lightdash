@@ -636,6 +636,61 @@ describe('scheduler async query worker gates', () => {
     });
 });
 
+describe('async query NATS config', () => {
+    test('should parse defaults correctly', () => {
+        const config = parseConfig();
+
+        expect(config.asyncQuery.nats).toEqual({
+            enabled: false,
+            url: 'nats://localhost:4222',
+            customerId: undefined,
+            warehouseStreamName: 'WAREHOUSE_QUERY_JOBS',
+            preAggregateStreamName: 'PRE_AGGREGATE_QUERY_JOBS',
+            workerConcurrency: 1,
+        });
+    });
+
+    test('should throw when enabled and customer id is missing', () => {
+        process.env.ASYNC_QUERY_NATS_ENABLED = 'true';
+
+        expect(() => parseConfig()).toThrowError(ParseError);
+        expect(() => parseConfig()).toThrowError(
+            'ASYNC_QUERY_NATS_CUSTOMER_ID is required when ASYNC_QUERY_NATS_ENABLED=true',
+        );
+    });
+
+    test('should parse valid enabled config', () => {
+        process.env.ASYNC_QUERY_NATS_ENABLED = 'true';
+        process.env.ASYNC_QUERY_NATS_URL = 'nats://nats.example.com:4222';
+        process.env.ASYNC_QUERY_NATS_CUSTOMER_ID = 'customer-a';
+        process.env.ASYNC_QUERY_NATS_WAREHOUSE_STREAM_NAME =
+            'WAREHOUSE_QUERY_JOBS_CUSTOM';
+        process.env.ASYNC_QUERY_NATS_PRE_AGGREGATE_STREAM_NAME =
+            'PRE_AGGREGATE_QUERY_JOBS_CUSTOM';
+        process.env.ASYNC_QUERY_NATS_WORKER_CONCURRENCY = '50';
+
+        const config = parseConfig();
+
+        expect(config.asyncQuery.nats).toEqual({
+            enabled: true,
+            url: 'nats://nats.example.com:4222',
+            customerId: 'customer-a',
+            warehouseStreamName: 'WAREHOUSE_QUERY_JOBS_CUSTOM',
+            preAggregateStreamName: 'PRE_AGGREGATE_QUERY_JOBS_CUSTOM',
+            workerConcurrency: 50,
+        });
+    });
+
+    test('should throw when worker concurrency is invalid', () => {
+        process.env.ASYNC_QUERY_NATS_WORKER_CONCURRENCY = '0';
+
+        expect(() => parseConfig()).toThrowError(ParseError);
+        expect(() => parseConfig()).toThrowError(
+            'ASYNC_QUERY_NATS_WORKER_CONCURRENCY must be greater than 0',
+        );
+    });
+});
+
 test('should set useSqlPivotResults only when the environment variable is set', () => {
     const undefinedConfig = parseConfig();
     expect(undefinedConfig.query.useSqlPivotResults).toBeUndefined();
