@@ -8,7 +8,10 @@ import {
     type CompiledMetric,
 } from '../types/field';
 import { TimeFrames } from '../types/timeFrames';
-import { buildPreAggregateExplore } from './buildPreAggregateExplore';
+import {
+    buildPreAggregateExplore,
+    PRE_AGGREGATE_MATERIALIZED_TABLE_PLACEHOLDER,
+} from './buildPreAggregateExplore';
 
 const makeDimension = ({
     name,
@@ -198,7 +201,7 @@ describe('buildPreAggregateExplore', () => {
         expect(result.joinedTables).toEqual([]);
         expect(result.preAggregates).toEqual([]);
         expect(result.tables.orders.sqlTable).toBe(
-            sourceExplore().tables.orders.sqlTable,
+            PRE_AGGREGATE_MATERIALIZED_TABLE_PLACEHOLDER,
         );
     });
 
