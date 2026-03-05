@@ -290,6 +290,21 @@ Answer TML may include a `client_state` or `client_state_v2` field containing a 
 15. **`metricQuery.filters` is required**: Even when there are no filters, you must include `filters: {}` in the metricQuery. Omitting it entirely will fail schema validation. Similarly, `tableCalculations: []` is required even when empty.
 16. **Tile `uuid` and `tileSlug`**: For new tiles, **omit** `uuid` and `tileSlug` entirely (don't set to `null`). They are auto-generated. Only include `tabUuid: null` when explicitly assigning to the default tab.
 
+## After Translation
+
+Once all YAML files are generated, validate them locally:
+
+```bash
+lightdash lint
+```
+
+Fix any errors before proceeding. Do **not** upload automatically — let the user review the generated files and upload when ready:
+
+```bash
+lightdash upload --charts <chart-slug>
+lightdash upload --dashboards <dashboard-slug>
+```
+
 ## Known Gaps
 
 These ThoughtSpot features cannot be automatically translated and require manual handling:
