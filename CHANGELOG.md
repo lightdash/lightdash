@@ -1,3 +1,16 @@
+# [0.2575.0](https://github.com/lightdash/lightdash/compare/0.2574.0...0.2575.0) (2026-03-05)
+
+
+### Bug Fixes
+
+* allow apostrophes in email validation ([#20875](https://github.com/lightdash/lightdash/issues/20875)) ([9896f7a](https://github.com/lightdash/lightdash/commit/9896f7ad7a7da17dd9f2d2c476209b9ab896c8a6)), closes [#20874](https://github.com/lightdash/lightdash/issues/20874)
+* skip pre_agg parsing for empty string values ([#20876](https://github.com/lightdash/lightdash/issues/20876)) ([1487b8c](https://github.com/lightdash/lightdash/commit/1487b8cb349be3c3a75e4448f51c447541d0afe9))
+
+
+### Features
+
+* enable partial compilation by default ([#20864](https://github.com/lightdash/lightdash/issues/20864)) ([dbe2a1f](https://github.com/lightdash/lightdash/commit/dbe2a1fd5c503c62949acaa7800c0f3a387abffb))
+
 # [0.2574.0](https://github.com/lightdash/lightdash/compare/0.2573.1...0.2574.0) (2026-03-05)
 
 
