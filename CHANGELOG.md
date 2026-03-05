@@ -1,3 +1,10 @@
+# [0.2570.0](https://github.com/lightdash/lightdash/compare/0.2569.1...0.2570.0) (2026-03-05)
+
+
+### Features
+
+* add Liquid template support for dynamic SQL dimensions ([#20843](https://github.com/lightdash/lightdash/issues/20843)) ([ce2de9f](https://github.com/lightdash/lightdash/commit/ce2de9f4eeba9214df23dfc92abca461b53094de))
+
 ## [0.2569.1](https://github.com/lightdash/lightdash/compare/0.2569.0...0.2569.1) (2026-03-05)
 
 
