@@ -400,6 +400,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 catalogService: context.serviceRepository.getCatalogService(),
                 encryptionUtil: context.utils.getEncryptionUtil(),
                 msTeamsClient: context.clients.getMsTeamsClient(),
+                googleChatClient: context.clients.getGoogleChatClient(),
                 renameService: context.serviceRepository.getRenameService(),
                 asyncQueryService:
                     context.serviceRepository.getAsyncQueryService(),

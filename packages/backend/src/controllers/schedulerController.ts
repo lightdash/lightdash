@@ -46,7 +46,13 @@ import {
 import { BaseController } from './baseController';
 
 // Valid destination types (whitelist for parseWhitelistedList)
-const VALID_DESTINATIONS = ['email', 'slack', 'msteams', 'gsheets'] as const;
+const VALID_DESTINATIONS = [
+    'email',
+    'slack',
+    'msteams',
+    'gsheets',
+    'googlechat',
+] as const;
 
 @Route('/api/v1/schedulers')
 @Response<ApiErrorPayload>('default', 'Error')
@@ -62,7 +68,7 @@ export class SchedulerController extends BaseController {
      * @param searchQuery search query to filter logs by scheduler name
      * @param statuses filter by log statuses (comma-separated)
      * @param createdByUserUuids filter by creator user UUIDs (comma-separated)
-     * @param destinations filter by destination types (comma-separated: email, slack, msteams)
+     * @param destinations filter by destination types (comma-separated: email, slack, msteams, googlechat)
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
@@ -125,7 +131,7 @@ export class SchedulerController extends BaseController {
      * @param schedulerUuids filter by specific scheduler UUIDs (comma-separated)
      * @param statuses filter by run statuses (comma-separated: completed, partial_failure, failed, running, scheduled)
      * @param createdByUserUuids filter by creator user UUIDs (comma-separated)
-     * @param destinations filter by destination types (comma-separated: email, slack, msteams)
+     * @param destinations filter by destination types (comma-separated: email, slack, msteams, googlechat)
      * @param resourceType filter by resource type (chart or dashboard)
      * @param resourceUuids filter by resource UUIDs (comma-separated)
      */
@@ -230,7 +236,7 @@ export class SchedulerController extends BaseController {
      * @param formats filter by scheduler formats (comma-separated)
      * @param resourceType filter by resource type (chart or dashboard)
      * @param resourceUuids filter by resource UUIDs (comma-separated)
-     * @param destinations filter by destination types (comma-separated: email, slack, msteams)
+     * @param destinations filter by destination types (comma-separated: email, slack, msteams, googlechat)
      * @param includeLatestRun include latest run information for each scheduler
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
@@ -306,7 +312,7 @@ export class SchedulerController extends BaseController {
      * @param formats filter by scheduler formats (comma-separated)
      * @param resourceType filter by resource type (chart or dashboard)
      * @param resourceUuids filter by resource UUIDs (comma-separated)
-     * @param destinations filter by destination types (comma-separated: email, slack, msteams)
+     * @param destinations filter by destination types (comma-separated: email, slack, msteams, googlechat)
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')

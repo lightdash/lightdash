@@ -280,6 +280,9 @@ export const lightdashConfigMock: LightdashConfig = {
     microsoftTeams: {
         enabled: false,
     },
+    googleChat: {
+        enabled: false,
+    },
     serviceAccount: {
         enabled: false,
     },

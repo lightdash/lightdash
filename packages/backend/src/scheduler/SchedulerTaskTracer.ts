@@ -34,6 +34,11 @@ const getTagsForTask: {
         'user.uuid': payload.userUuid,
         'project.uuid': payload.projectUuid,
     }),
+    [SCHEDULER_TASKS.SEND_GOOGLE_CHAT_NOTIFICATION]: (payload) => ({
+        'organization.uuid': payload.organizationUuid,
+        'user.uuid': payload.userUuid,
+        'project.uuid': payload.projectUuid,
+    }),
     [SCHEDULER_TASKS.SEND_EMAIL_NOTIFICATION]: (payload) => ({
         'organization.uuid': payload.organizationUuid,
         'user.uuid': payload.userUuid,
@@ -52,6 +57,11 @@ const getTagsForTask: {
         'project.uuid': payload.projectUuid,
     }),
     [SCHEDULER_TASKS.SEND_MSTEAMS_BATCH_NOTIFICATION]: (payload) => ({
+        'organization.uuid': payload.organizationUuid,
+        'user.uuid': payload.userUuid,
+        'project.uuid': payload.projectUuid,
+    }),
+    [SCHEDULER_TASKS.SEND_GOOGLE_CHAT_BATCH_NOTIFICATION]: (payload) => ({
         'organization.uuid': payload.organizationUuid,
         'user.uuid': payload.userUuid,
         'project.uuid': payload.projectUuid,

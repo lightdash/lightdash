@@ -6,6 +6,7 @@ import { S3Client } from './Aws/S3Client';
 import EmailClient from './EmailClient/EmailClient';
 import { type FileStorageClient } from './FileStorage/FileStorageClient';
 import { GoogleDriveClient } from './Google/GoogleDriveClient';
+import { GoogleChatClient } from './GoogleChat/GoogleChatClient';
 import { MicrosoftTeamsClient } from './MicrosoftTeams/MicrosoftTeamsClient';
 import { S3ResultsFileStorageClient } from './ResultsFileStorageClients/S3ResultsFileStorageClient';
 import { SlackClient } from './Slack/SlackClient';
@@ -22,6 +23,7 @@ export interface ClientManifest {
     fileStorageClient: FileStorageClient;
     schedulerClient: SchedulerClient;
     slackClient: SlackClient;
+    googleChatClient: GoogleChatClient;
     msTeamsClient: MicrosoftTeamsClient;
     preAggregateResultsFileStorageClient: S3ResultsFileStorageClient;
     resultsFileStorageClient: S3ResultsFileStorageClient;
@@ -200,6 +202,16 @@ export class ClientRepository
                 new S3ResultsFileStorageClient({
                     lightdashConfig: this.context.lightdashConfig,
                     s3Config: this.context.lightdashConfig.preAggregates.s3,
+                }),
+        );
+    }
+
+    public getGoogleChatClient(): GoogleChatClient {
+        return this.getClient(
+            'googleChatClient',
+            () =>
+                new GoogleChatClient({
+                    lightdashConfig: this.context.lightdashConfig,
                 }),
         );
     }

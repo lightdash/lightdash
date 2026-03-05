@@ -32,6 +32,7 @@ import {
     GsheetsNotificationPayload,
     isChartValidationError,
     isCreateScheduler,
+    isCreateSchedulerGoogleChatTarget,
     isCreateSchedulerMsTeamsTarget,
     isCreateSchedulerSlackTarget,
     isDashboardChartTileType,
@@ -90,6 +91,8 @@ import {
     type DeliveryResult,
     type DownloadAsyncQueryResultsPayload,
     type EmailBatchNotificationPayload,
+    type GoogleChatBatchNotificationPayload,
+    type GoogleChatNotificationPayload,
     type MaterializePreAggregatePayload,
     type MetricQuery,
     type MsTeamsBatchNotificationPayload,
@@ -111,6 +114,7 @@ import * as Account from '../auth/account';
 import EmailClient from '../clients/EmailClient/EmailClient';
 import { type FileStorageClient } from '../clients/FileStorage/FileStorageClient';
 import { GoogleDriveClient } from '../clients/Google/GoogleDriveClient';
+import { GoogleChatClient } from '../clients/GoogleChat/GoogleChatClient';
 import { MicrosoftTeamsClient } from '../clients/MicrosoftTeams/MicrosoftTeamsClient';
 import { SlackClient } from '../clients/Slack/SlackClient';
 import {
@@ -168,6 +172,7 @@ export type SchedulerTaskArguments = {
     catalogService: CatalogService;
     encryptionUtil: EncryptionUtil;
     msTeamsClient: MicrosoftTeamsClient;
+    googleChatClient: GoogleChatClient;
     renameService: RenameService;
     asyncQueryService: AsyncQueryService;
     featureFlagService: FeatureFlagService;
@@ -213,6 +218,8 @@ export default class SchedulerTask {
 
     protected readonly msTeamsClient: MicrosoftTeamsClient;
 
+    protected readonly googleChatClient: GoogleChatClient;
+
     private readonly renameService: RenameService;
 
     protected readonly asyncQueryService: AsyncQueryService;
@@ -244,6 +251,7 @@ export default class SchedulerTask {
         this.catalogService = args.catalogService;
         this.encryptionUtil = args.encryptionUtil;
         this.msTeamsClient = args.msTeamsClient;
+        this.googleChatClient = args.googleChatClient;
         this.renameService = args.renameService;
         this.asyncQueryService = args.asyncQueryService;
         this.featureFlagService = args.featureFlagService;
@@ -3096,6 +3104,13 @@ export default class SchedulerTask {
                     targetType: 'msteams',
                 };
             }
+            if (isCreateSchedulerGoogleChatTarget(target)) {
+                return {
+                    task: SCHEDULER_TASKS.SEND_GOOGLE_CHAT_NOTIFICATION,
+                    target: target.googleChatWebhook,
+                    targetType: 'googlechat',
+                };
+            }
             return {
                 task: SCHEDULER_TASKS.SEND_EMAIL_NOTIFICATION,
                 target: target.recipient,
@@ -3314,18 +3329,22 @@ export default class SchedulerTask {
                 const hasEmail = targets.some(
                     (t) =>
                         !isCreateSchedulerSlackTarget(t) &&
-                        !isCreateSchedulerMsTeamsTarget(t),
+                        !isCreateSchedulerMsTeamsTarget(t) &&
+                        !isCreateSchedulerGoogleChatTarget(t),
                 );
                 const hasSlack = targets.some(isCreateSchedulerSlackTarget);
                 const hasMsTeams = targets.some(isCreateSchedulerMsTeamsTarget);
+                const hasGoogleChat = targets.some(
+                    isCreateSchedulerGoogleChatTarget,
+                );
 
                 const expirationToChannels = new Map<
                     number,
-                    Set<'email' | 'slack' | 'msteams'>
+                    Set<'email' | 'slack' | 'msteams' | 'googlechat'>
                 >();
                 const addToMap = (
                     expiration: number,
-                    channel: 'email' | 'slack' | 'msteams',
+                    channel: 'email' | 'slack' | 'msteams' | 'googlechat',
                 ) => {
                     const existing = expirationToChannels.get(expiration);
                     if (existing) {
@@ -3340,6 +3359,7 @@ export default class SchedulerTask {
                 if (hasEmail) addToMap(emailExpiration, 'email');
                 if (hasSlack) addToMap(slackExpiration, 'slack');
                 if (hasMsTeams) addToMap(msTeamsExpiration, 'msteams');
+                if (hasGoogleChat) addToMap(expirationSeconds, 'googlechat');
 
                 const pageByChannel = await Array.from(
                     expirationToChannels.entries(),
@@ -3365,7 +3385,8 @@ export default class SchedulerTask {
                 page =
                     pageByChannel.email ??
                     pageByChannel.slack ??
-                    pageByChannel.msteams;
+                    pageByChannel.msteams ??
+                    pageByChannel.googlechat;
             }
 
             const scheduledJobs =
@@ -4393,6 +4414,450 @@ export default class SchedulerTask {
                 jobGroup: notification.jobGroup,
                 scheduledTime,
                 targetType: 'msteams',
+                status: SchedulerJobStatus.COMPLETED,
+                details: {
+                    projectUuid: notification.projectUuid,
+                    organizationUuid: notification.organizationUuid,
+                    createdByUserUuid: notification.userUuid,
+                    partialFailure: true,
+                    batchResult,
+                },
+            });
+            await this.sendDeliveryFailureNotification(
+                scheduler,
+                batchResult,
+                notification.projectUuid,
+            );
+        }
+
+        return batchResult;
+    }
+
+    protected async sendGoogleChatNotification(
+        jobId: string,
+        notification: GoogleChatNotificationPayload,
+    ) {
+        const {
+            schedulerUuid,
+            schedulerGoogleChatTargetUuid,
+            googleChatWebhook,
+            scheduledTime,
+            scheduler,
+        } = notification;
+        this.analytics.track({
+            event: 'scheduler_notification_job.started',
+            anonymousId: LightdashAnalytics.anonymousId,
+            userId: notification.userUuid,
+            properties: {
+                jobId,
+                organizationId: notification.organizationUuid,
+                projectId: notification.projectUuid,
+                schedulerId: schedulerUuid,
+                schedulerTargetId: schedulerGoogleChatTargetUuid,
+                groupId: notification.jobGroup,
+                type: 'googlechat',
+                sendNow: schedulerUuid === undefined,
+                isThresholdAlert: scheduler.thresholds !== undefined,
+            },
+        });
+
+        try {
+            if (!this.lightdashConfig.googleChat.enabled) {
+                throw new MissingConfigError('Google Chat is not configured');
+            }
+
+            const {
+                format,
+                savedChartUuid,
+                dashboardUuid,
+                name,
+                cron,
+                timezone,
+                thresholds,
+                includeLinks,
+            } = scheduler;
+
+            await this.schedulerService.logSchedulerJob({
+                task: SCHEDULER_TASKS.SEND_GOOGLE_CHAT_NOTIFICATION,
+                schedulerUuid,
+                jobId,
+                jobGroup: notification.jobGroup,
+                scheduledTime,
+                target: googleChatWebhook,
+                targetType: 'googlechat',
+                status: SchedulerJobStatus.STARTED,
+                details: {
+                    projectUuid: notification.projectUuid,
+                    organizationUuid: notification.organizationUuid,
+                    createdByUserUuid: notification.userUuid,
+                },
+            });
+
+            // Backwards compatibility for old scheduled deliveries
+            const notificationPageData =
+                notification.page ??
+                (await this.getNotificationPageData(
+                    scheduler,
+                    jobId,
+                    this.lightdashConfig.persistentDownloadUrls
+                        .expirationSeconds,
+                ));
+
+            const {
+                url,
+                details,
+                pageType,
+                organizationUuid,
+                imageUrl,
+                csvUrl,
+                csvUrls,
+                pdfFile,
+                failures,
+            } = notificationPageData;
+
+            const schedulerType =
+                thresholds !== undefined && thresholds.length > 0
+                    ? 'data alert'
+                    : 'scheduled delivery';
+            const schedulerFooter = includeLinks
+                ? `[${schedulerType}](${url})`
+                : schedulerType;
+
+            const defaultSchedulerTimezone =
+                await this.schedulerService.getSchedulerDefaultTimezone(
+                    schedulerUuid,
+                );
+
+            const footer = `This is a ${schedulerFooter} ${getHumanReadableCronExpression(
+                cron,
+                timezone || defaultSchedulerTimezone,
+            )} from Lightdash.`;
+            const getBlocksArgs = {
+                title: name,
+                name: details.name,
+                description: details.description,
+                message: scheduler.message,
+                ctaUrl: url,
+                footer,
+            };
+
+            if (thresholds !== undefined && thresholds.length > 0) {
+                // We assume the threshold is possitive , so we don't need to get results here
+                if (savedChartUuid) {
+                    if (imageUrl)
+                        await this.googleChatClient.postImageWithWebhook({
+                            webhookUrl: googleChatWebhook,
+                            ...getBlocksArgs,
+                            image: imageUrl,
+                            thresholds,
+                        });
+                } else {
+                    throw new Error('No chart found');
+                }
+            } else if (format === SchedulerFormat.IMAGE) {
+                if (imageUrl)
+                    await this.googleChatClient.postImageWithWebhook({
+                        webhookUrl: googleChatWebhook,
+                        ...getBlocksArgs,
+                        image: imageUrl,
+                        pdfUrl: pdfFile?.source,
+                    });
+            } else if (format === SchedulerFormat.CSV) {
+                if (savedChartUuid) {
+                    if (csvUrl === undefined) {
+                        throw new UnexpectedServerError('Missing CSV URL');
+                    }
+                    await this.googleChatClient.postCsvWithWebhook({
+                        webhookUrl: googleChatWebhook,
+                        ...getBlocksArgs,
+                        csvUrl,
+                    });
+                } else if (dashboardUuid) {
+                    if (csvUrls === undefined) {
+                        throw new UnexpectedServerError('Missing CSV URLS');
+                    }
+                    await this.googleChatClient.postCsvsWithWebhook({
+                        webhookUrl: googleChatWebhook,
+                        ...getBlocksArgs,
+                        csvUrls,
+                        failures,
+                    });
+                } else {
+                    throw new UnexpectedServerError('Not implemented');
+                }
+            }
+            this.analytics.track({
+                event: 'scheduler_notification_job.completed',
+                anonymousId: LightdashAnalytics.anonymousId,
+                userId: notification.userUuid,
+                properties: {
+                    jobId,
+                    organizationId: notification.organizationUuid,
+                    projectId: notification.projectUuid,
+                    schedulerId: schedulerUuid,
+                    schedulerTargetId: schedulerGoogleChatTargetUuid,
+                    groupId: notification.jobGroup,
+                    type: 'googlechat',
+                    format,
+                    resourceType:
+                        pageType === LightdashPage.CHART
+                            ? 'chart'
+                            : 'dashboard',
+                    sendNow: schedulerUuid === undefined,
+                    isThresholdAlert: scheduler.thresholds !== undefined,
+                },
+            });
+            await this.schedulerService.logSchedulerJob({
+                task: SCHEDULER_TASKS.SEND_GOOGLE_CHAT_NOTIFICATION,
+                schedulerUuid,
+                jobId,
+                jobGroup: notification.jobGroup,
+
+                scheduledTime,
+                target: googleChatWebhook,
+                targetType: 'googlechat',
+                status: SchedulerJobStatus.COMPLETED,
+                details: {
+                    projectUuid: notification.projectUuid,
+                    organizationUuid: notification.organizationUuid,
+                    createdByUserUuid: notification.userUuid,
+                },
+            });
+        } catch (e) {
+            this.analytics.track({
+                event: 'scheduler_notification_job.failed',
+                anonymousId: LightdashAnalytics.anonymousId,
+                userId: notification.userUuid,
+                properties: {
+                    error: `${e}`,
+                    jobId,
+                    organizationId: notification.organizationUuid,
+                    projectId: notification.projectUuid,
+                    schedulerId: schedulerUuid,
+                    schedulerTargetId: schedulerGoogleChatTargetUuid,
+                    groupId: notification.jobGroup,
+                    type: 'googlechat',
+                    sendNow: schedulerUuid === undefined,
+                    isThresholdAlert: scheduler.thresholds !== undefined,
+                },
+            });
+
+            await this.schedulerService.logSchedulerJob({
+                task: SCHEDULER_TASKS.SEND_GOOGLE_CHAT_NOTIFICATION,
+                schedulerUuid,
+                jobId,
+                jobGroup: notification.jobGroup,
+
+                scheduledTime,
+                targetType: 'googlechat',
+                status: SchedulerJobStatus.ERROR,
+                details: {
+                    error: getErrorMessage(e),
+                    projectUuid: notification.projectUuid,
+                    organizationUuid: notification.organizationUuid,
+                    createdByUserUuid: notification.userUuid,
+                },
+            });
+
+            throw e; // Cascade error to it can be retried by graphile
+        }
+    }
+
+    protected async sendGoogleChatBatchNotification(
+        jobId: string,
+        notification: GoogleChatBatchNotificationPayload,
+    ): Promise<BatchDeliveryResult> {
+        const { schedulerUuid, targets, scheduledTime, scheduler, page } =
+            notification;
+
+        const results: DeliveryResult[] = [];
+
+        this.analytics.track({
+            event: 'scheduler_notification_job.started',
+            anonymousId: LightdashAnalytics.anonymousId,
+            userId: notification.userUuid,
+            properties: {
+                jobId,
+                organizationId: notification.organizationUuid,
+                projectId: notification.projectUuid,
+                schedulerId: schedulerUuid,
+                groupId: notification.jobGroup,
+                type: 'googlechat',
+                targetCount: targets.length,
+                sendNow: false,
+                isThresholdAlert: scheduler.thresholds !== undefined,
+            },
+        });
+
+        await this.schedulerService.logSchedulerJob({
+            task: SCHEDULER_TASKS.SEND_GOOGLE_CHAT_BATCH_NOTIFICATION,
+            schedulerUuid,
+            jobId,
+            jobGroup: notification.jobGroup,
+            scheduledTime,
+            targetType: 'googlechat',
+            status: SchedulerJobStatus.STARTED,
+            details: {
+                projectUuid: notification.projectUuid,
+                organizationUuid: notification.organizationUuid,
+                createdByUserUuid: notification.userUuid,
+                targetCount: targets.length,
+            },
+        });
+
+        // Process all targets in parallel, catching errors per-target
+        const settledResults = await Promise.allSettled(
+            targets.map(async (target) => {
+                const singleTargetPayload: GoogleChatNotificationPayload = {
+                    ...notification,
+                    schedulerGoogleChatTargetUuid:
+                        target.schedulerGoogleChatTargetUuid,
+                    googleChatWebhook: target.googleChatWebhook,
+                };
+                await this.sendGoogleChatNotification(
+                    jobId,
+                    singleTargetPayload,
+                );
+                return target;
+            }),
+        );
+
+        // Collect results from settled promises
+        settledResults.forEach((result, index) => {
+            const target = targets[index];
+            if (result.status === 'fulfilled') {
+                results.push({
+                    target: target.googleChatWebhook,
+                    targetUuid: target.schedulerGoogleChatTargetUuid,
+                    success: true,
+                });
+            } else {
+                results.push({
+                    target: target.googleChatWebhook,
+                    targetUuid: target.schedulerGoogleChatTargetUuid,
+                    success: false,
+                    error: getErrorMessage(result.reason),
+                });
+            }
+        });
+
+        // Determine overall status
+        const succeeded = results.filter((r) => r.success).length;
+        const failed = results.filter((r) => !r.success).length;
+
+        const batchResult: BatchDeliveryResult = {
+            type: 'googlechat',
+            total: targets.length,
+            succeeded,
+            failed,
+            results,
+        };
+
+        if (failed === 0) {
+            // All succeeded
+            this.analytics.track({
+                event: 'scheduler_notification_job.completed',
+                anonymousId: LightdashAnalytics.anonymousId,
+                userId: notification.userUuid,
+                properties: {
+                    jobId,
+                    organizationId: notification.organizationUuid,
+                    projectId: notification.projectUuid,
+                    schedulerId: schedulerUuid,
+                    groupId: notification.jobGroup,
+                    type: 'googlechat',
+                    targetCount: targets.length,
+                    succeeded,
+                    failed,
+                    sendNow: false,
+                    isThresholdAlert: scheduler.thresholds !== undefined,
+                },
+            });
+            await this.schedulerService.logSchedulerJob({
+                task: SCHEDULER_TASKS.SEND_GOOGLE_CHAT_BATCH_NOTIFICATION,
+                schedulerUuid,
+                jobId,
+                jobGroup: notification.jobGroup,
+                scheduledTime,
+                targetType: 'googlechat',
+                status: SchedulerJobStatus.COMPLETED,
+                details: {
+                    projectUuid: notification.projectUuid,
+                    organizationUuid: notification.organizationUuid,
+                    createdByUserUuid: notification.userUuid,
+                    batchResult,
+                },
+            });
+        } else if (succeeded === 0) {
+            // All failed - total failure
+            this.analytics.track({
+                event: 'scheduler_notification_job.failed',
+                anonymousId: LightdashAnalytics.anonymousId,
+                userId: notification.userUuid,
+                properties: {
+                    jobId,
+                    organizationId: notification.organizationUuid,
+                    projectId: notification.projectUuid,
+                    schedulerId: schedulerUuid,
+                    groupId: notification.jobGroup,
+                    type: 'googlechat',
+                    targetCount: targets.length,
+                    succeeded,
+                    failed,
+                    sendNow: false,
+                    isThresholdAlert: scheduler.thresholds !== undefined,
+                    error: 'All Google Chat deliveries failed',
+                },
+            });
+            await this.schedulerService.logSchedulerJob({
+                task: SCHEDULER_TASKS.SEND_GOOGLE_CHAT_BATCH_NOTIFICATION,
+                schedulerUuid,
+                jobId,
+                jobGroup: notification.jobGroup,
+                scheduledTime,
+                targetType: 'googlechat',
+                status: SchedulerJobStatus.ERROR,
+                details: {
+                    projectUuid: notification.projectUuid,
+                    organizationUuid: notification.organizationUuid,
+                    createdByUserUuid: notification.userUuid,
+                    error: 'All Google Chat deliveries failed',
+                    batchResult,
+                },
+            });
+            await this.sendDeliveryFailureNotification(
+                scheduler,
+                batchResult,
+                notification.projectUuid,
+            );
+        } else {
+            // Partial failure - some succeeded, some failed
+            this.analytics.track({
+                event: 'scheduler_notification_job.completed',
+                anonymousId: LightdashAnalytics.anonymousId,
+                userId: notification.userUuid,
+                properties: {
+                    jobId,
+                    organizationId: notification.organizationUuid,
+                    projectId: notification.projectUuid,
+                    schedulerId: schedulerUuid,
+                    groupId: notification.jobGroup,
+                    type: 'googlechat',
+                    targetCount: targets.length,
+                    succeeded,
+                    failed,
+                    partialFailure: true,
+                    sendNow: false,
+                    isThresholdAlert: scheduler.thresholds !== undefined,
+                },
+            });
+            await this.schedulerService.logSchedulerJob({
+                task: SCHEDULER_TASKS.SEND_GOOGLE_CHAT_BATCH_NOTIFICATION,
+                schedulerUuid,
+                jobId,
+                jobGroup: notification.jobGroup,
+                scheduledTime,
+                targetType: 'googlechat',
                 status: SchedulerJobStatus.COMPLETED,
                 details: {
                     projectUuid: notification.projectUuid,

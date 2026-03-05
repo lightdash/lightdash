@@ -8,7 +8,12 @@ import {
 } from './scheduler';
 import { type SchedulerTaskName } from './schedulerTaskList';
 
-export type SchedulerTargetType = 'email' | 'slack' | 'gsheets' | 'msteams';
+export type SchedulerTargetType =
+    | 'email'
+    | 'slack'
+    | 'gsheets'
+    | 'msteams'
+    | 'googlechat';
 
 // Partial failure types for different scenarios
 export enum PartialFailureType {

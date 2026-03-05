@@ -338,6 +338,44 @@ export class SchedulerWorker extends SchedulerTask {
                     },
                 );
             },
+            [SCHEDULER_TASKS.SEND_GOOGLE_CHAT_NOTIFICATION]: async (
+                payload,
+                helpers,
+            ) => {
+                await tryJobOrTimeout(
+                    SchedulerClient.processJob(
+                        SCHEDULER_TASKS.SEND_GOOGLE_CHAT_NOTIFICATION,
+                        helpers.job.id,
+                        helpers.job.run_at,
+                        payload,
+                        async () => {
+                            await this.sendGoogleChatNotification(
+                                helpers.job.id,
+                                payload,
+                            );
+                        },
+                    ),
+                    helpers.job,
+                    this.lightdashConfig.scheduler.jobTimeout,
+                    async (job, e) => {
+                        await this.schedulerService.logSchedulerJob({
+                            task: SCHEDULER_TASKS.SEND_GOOGLE_CHAT_NOTIFICATION,
+                            schedulerUuid: payload.schedulerUuid,
+                            jobId: job.id,
+                            scheduledTime: job.run_at,
+                            jobGroup: payload.jobGroup,
+                            targetType: 'googlechat',
+                            status: SchedulerJobStatus.ERROR,
+                            details: {
+                                error: getErrorMessage(e),
+                                projectUuid: payload.projectUuid,
+                                organizationUuid: payload.organizationUuid,
+                                createdByUserUuid: payload.userUuid,
+                            },
+                        });
+                    },
+                );
+            },
             [SCHEDULER_TASKS.SEND_EMAIL_NOTIFICATION]: async (
                 payload,
                 helpers,
@@ -480,6 +518,44 @@ export class SchedulerWorker extends SchedulerTask {
                             scheduledTime: job.run_at,
                             jobGroup: payload.jobGroup,
                             targetType: 'msteams',
+                            status: SchedulerJobStatus.ERROR,
+                            details: {
+                                error: getErrorMessage(e),
+                                projectUuid: payload.projectUuid,
+                                organizationUuid: payload.organizationUuid,
+                                createdByUserUuid: payload.userUuid,
+                            },
+                        });
+                    },
+                );
+            },
+            [SCHEDULER_TASKS.SEND_GOOGLE_CHAT_BATCH_NOTIFICATION]: async (
+                payload,
+                helpers,
+            ) => {
+                await tryJobOrTimeout(
+                    SchedulerClient.processJob(
+                        SCHEDULER_TASKS.SEND_GOOGLE_CHAT_BATCH_NOTIFICATION,
+                        helpers.job.id,
+                        helpers.job.run_at,
+                        payload,
+                        async () => {
+                            await this.sendGoogleChatBatchNotification(
+                                helpers.job.id,
+                                payload,
+                            );
+                        },
+                    ),
+                    helpers.job,
+                    this.lightdashConfig.scheduler.jobTimeout,
+                    async (job, e) => {
+                        await this.schedulerService.logSchedulerJob({
+                            task: SCHEDULER_TASKS.SEND_GOOGLE_CHAT_BATCH_NOTIFICATION,
+                            schedulerUuid: payload.schedulerUuid,
+                            jobId: job.id,
+                            scheduledTime: job.run_at,
+                            jobGroup: payload.jobGroup,
+                            targetType: 'googlechat',
                             status: SchedulerJobStatus.ERROR,
                             details: {
                                 error: getErrorMessage(e),
