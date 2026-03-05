@@ -1,3 +1,11 @@
+## [0.2578.1](https://github.com/lightdash/lightdash/compare/0.2578.0...0.2578.1) (2026-03-05)
+
+
+### Bug Fixes
+
+* import all eslint / oxc format issues ([#20877](https://github.com/lightdash/lightdash/issues/20877)) ([d7b179d](https://github.com/lightdash/lightdash/commit/d7b179dcd9b29b9b1a4a437a9c70236b532a806a))
+* improve CI parallel job error handling ([#20873](https://github.com/lightdash/lightdash/issues/20873)) ([46f7f90](https://github.com/lightdash/lightdash/commit/46f7f905e320d26d8f887721eccfa751d1f2c39f))
+
 # [0.2578.0](https://github.com/lightdash/lightdash/compare/0.2577.0...0.2578.0) (2026-03-05)
 
 
