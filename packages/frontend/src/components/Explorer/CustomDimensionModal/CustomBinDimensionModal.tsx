@@ -23,6 +23,7 @@ import {
     Stack,
     Text,
     TextInput,
+    Tooltip,
 } from '@mantine-8/core';
 import { useForm, zodResolver } from '@mantine/form';
 import {
@@ -125,7 +126,9 @@ export const CustomBinDimensionModal: FC<{
             customGroups: z.array(
                 z.object({
                     name: z.string().min(1),
-                    values: z.array(z.string().min(1)).min(1),
+                    values: z
+                        .array(z.string().min(1))
+                        .min(1, 'Each group must have at least one value'),
                 }),
             ),
         }),
@@ -278,6 +281,12 @@ export const CustomBinDimensionModal: FC<{
         form.reset();
     };
 
+    const hasEmptyGroups =
+        form.values.binType === BinType.CUSTOM_GROUP &&
+        form.values.binConfig.customGroups.some(
+            (group) => group.values.length === 0,
+        );
+
     return (
         <MantineModal
             size="lg"
@@ -288,9 +297,18 @@ export const CustomBinDimensionModal: FC<{
             } Custom Dimension - ${baseDimensionLabel}`}
             icon={IconLayoutDashboard}
             actions={
-                <Button type="submit" form="custom-bin-dimension-form">
-                    {isEditing ? 'Save changes' : 'Create'}
-                </Button>
+                <Tooltip
+                    label="Each group must have at least one value"
+                    disabled={!hasEmptyGroups}
+                >
+                    <Button
+                        type="submit"
+                        form="custom-bin-dimension-form"
+                        disabled={hasEmptyGroups}
+                    >
+                        {isEditing ? 'Save changes' : 'Create'}
+                    </Button>
+                </Tooltip>
             }
         >
             <form id="custom-bin-dimension-form" onSubmit={handleOnSubmit}>
