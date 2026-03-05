@@ -7,8 +7,8 @@ import {
     OrganizationMemberRole,
     ParameterError,
     SessionUser,
-    type PossibleAbilities,
     WarehouseTypes,
+    type PossibleAbilities,
 } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { S3CacheClient } from '../../clients/Aws/S3CacheClient';
@@ -683,13 +683,14 @@ describe('ProjectService', () => {
                 exploresWithPreAggregates.map(exploreToSummaryWithAttributes),
             );
 
-            const result = await serviceWithPreAggregatesEnabled.getAllExploresSummary(
-                developerAccount,
-                projectUuid,
-                true,
-                true,
-                true,
-            );
+            const result =
+                await serviceWithPreAggregatesEnabled.getAllExploresSummary(
+                    developerAccount,
+                    projectUuid,
+                    true,
+                    true,
+                    true,
+                );
 
             expect(result.map((explore) => explore.name)).toContain(
                 preAggregateExplore.name,
@@ -714,13 +715,14 @@ describe('ProjectService', () => {
                 exploresWithPreAggregates.map(exploreToSummaryWithAttributes),
             );
 
-            const result = await serviceWithPreAggregatesEnabled.getAllExploresSummary(
-                account,
-                projectUuid,
-                true,
-                true,
-                true,
-            );
+            const result =
+                await serviceWithPreAggregatesEnabled.getAllExploresSummary(
+                    account,
+                    projectUuid,
+                    true,
+                    true,
+                    true,
+                );
 
             expect(result.map((explore) => explore.name)).not.toContain(
                 preAggregateExplore.name,

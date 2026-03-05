@@ -53,6 +53,7 @@ import {
 } from '../../../features/promotion/hooks/usePromoteDashboard';
 import { DashboardSchedulersModal } from '../../../features/scheduler';
 import { getSchedulerUuidFromUrlParams } from '../../../features/scheduler/utils';
+import useDashboardPerformanceWarning from '../../../hooks/dashboard/useDashboardPerformanceWarning';
 import { useFavoriteMutation } from '../../../hooks/favorites/useFavoriteMutation';
 import { useFavorites } from '../../../hooks/favorites/useFavorites';
 import { useDashboardPinningMutation } from '../../../hooks/pinning/useDashboardPinningMutation';
@@ -62,7 +63,6 @@ import useApp from '../../../providers/App/useApp';
 import { type TilePreAggregateStatus } from '../../../providers/Dashboard/types';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
-import useDashboardPerformanceWarning from '../../../hooks/dashboard/useDashboardPerformanceWarning';
 import AddTileButton from '../../DashboardTiles/AddTileButton';
 import MantineIcon from '../MantineIcon';
 import DashboardUpdateModal from '../modal/DashboardUpdateModal';
@@ -351,7 +351,6 @@ const DashboardHeader = ({
                         />
                     </Popover.Dropdown>
                 </Popover>
-
 
                 {isEditMode && userCanManageDashboard && (
                     <ActionIcon

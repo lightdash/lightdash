@@ -2353,8 +2353,7 @@ export class MetricQueryBuilder {
                 // Outer CTE: aggregate with CASE WHEN on ROW_NUMBER
                 let outerAgg: string;
                 if (metric.type === MetricType.AVERAGE_DISTINCT) {
-                    const floatType =
-                        warehouseSqlBuilder.getFloatingType();
+                    const floatType = warehouseSqlBuilder.getFloatingType();
                     outerAgg = `CAST(SUM(CASE WHEN __dd_rn = 1 THEN __dd_val ELSE NULL END) AS ${floatType}) / CAST(NULLIF(COUNT(CASE WHEN __dd_rn = 1 THEN __dd_val END), 0) AS ${floatType})`;
                 } else {
                     outerAgg = `SUM(CASE WHEN __dd_rn = 1 THEN __dd_val ELSE NULL END)`;
