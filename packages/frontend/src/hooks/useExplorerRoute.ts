@@ -112,16 +112,23 @@ export const getExplorerUrlFromCreateSavedChartVersion = (
     };
 };
 
-export const useDateZoomGranularitySearch = (): DateGranularity | undefined => {
+export const useDateZoomGranularitySearch = ():
+    | DateGranularity
+    | string
+    | undefined => {
     const { search } = useLocation();
 
     const searchParams = new URLSearchParams(search);
     const dateZoomParam = searchParams.get('dateZoom');
-    const dateZoom = Object.values(DateGranularity).find(
+    if (!dateZoomParam) return undefined;
+
+    const standardMatch = Object.values(DateGranularity).find(
         (granularity) =>
-            granularity.toLowerCase() === dateZoomParam?.toLowerCase(),
+            granularity.toLowerCase() === dateZoomParam.toLowerCase(),
     );
-    return dateZoom;
+    // Return standard match if found, otherwise use the param directly
+    // (supports custom granularity keys like "slt_week")
+    return standardMatch ?? dateZoomParam;
 };
 
 // To handle older url params where exploreName wasn't required

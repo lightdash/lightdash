@@ -16,11 +16,12 @@ import {
     IconPinFilled,
     IconX,
 } from '@tabler/icons-react';
-import { useCallback, useEffect, useState, type FC } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
+import { getGranularityLabel, standardGranularityValues } from '../utils';
 import styles from './DateZoom.module.css';
 
 type Props = {
@@ -52,14 +53,31 @@ export const DateZoom: FC<Props> = ({ isEditMode }) => {
     const setDefaultDateZoomGranularity = useDashboardContext(
         (c) => c.setDefaultDateZoomGranularity,
     );
+    const availableCustomGranularities = useDashboardContext(
+        (c) => c.availableCustomGranularities,
+    );
     const { track } = useTracking();
 
     useEffect(() => {
         if (isEditMode) setDateZoomGranularity(undefined);
     }, [isEditMode, setDateZoomGranularity]);
 
+    // Build the full list of available granularities: standard + any custom ones
+    // discovered from explores or already in the enabled list.
+    const allAvailableGranularities = useMemo(() => {
+        const standard = Object.values(DateGranularity) as string[];
+        const enabledCustom = dateZoomGranularities.filter(
+            (g) => !standardGranularityValues.has(g),
+        );
+        const allCustom = new Set([
+            ...enabledCustom,
+            ...availableCustomGranularities,
+        ]);
+        return [...standard, ...allCustom];
+    }, [dateZoomGranularities, availableCustomGranularities]);
+
     const handleToggleGranularity = useCallback(
-        (granularity: DateGranularity) => {
+        (granularity: DateGranularity | string) => {
             const isEnabled = dateZoomGranularities.includes(granularity);
             if (isEnabled && dateZoomGranularities.length <= 1) {
                 return; // Must keep at least one granularity
@@ -71,10 +89,14 @@ export const DateZoom: FC<Props> = ({ isEditMode }) => {
             } else {
                 enabledSet.add(granularity);
             }
-            // Maintain canonical enum order
-            const newGranularities = Object.values(DateGranularity).filter(
-                (g) => enabledSet.has(g),
+            // Maintain canonical order: standard granularities first, then custom
+            const standard = Object.values(DateGranularity).filter(
+                (g): g is DateGranularity => enabledSet.has(g),
             );
+            const custom = [...enabledSet].filter(
+                (g) => !standardGranularityValues.has(g),
+            );
+            const newGranularities = [...standard, ...custom];
 
             setDateZoomGranularities(newGranularities);
 
@@ -95,7 +117,7 @@ export const DateZoom: FC<Props> = ({ isEditMode }) => {
     );
 
     const handleSetDefault = useCallback(
-        (granularity: DateGranularity) => {
+        (granularity: DateGranularity | string) => {
             setDefaultDateZoomGranularity(
                 defaultDateZoomGranularity === granularity
                     ? undefined
@@ -167,7 +189,7 @@ export const DateZoom: FC<Props> = ({ isEditMode }) => {
                             <>
                                 :{' '}
                                 <Text fz="inherit" fw={500} ml="xxs">
-                                    {dateZoomGranularity}
+                                    {getGranularityLabel(dateZoomGranularity)}
                                 </Text>
                             </>
                         ) : null}
@@ -178,7 +200,7 @@ export const DateZoom: FC<Props> = ({ isEditMode }) => {
                 {isEditMode ? (
                     <>
                         <Menu.Label>Granularities</Menu.Label>
-                        {Object.values(DateGranularity).map((granularity) => {
+                        {allAvailableGranularities.map((granularity) => {
                             const isEnabled =
                                 dateZoomGranularities.includes(granularity);
                             const isDefault =
@@ -247,7 +269,7 @@ export const DateZoom: FC<Props> = ({ isEditMode }) => {
                                         handleToggleGranularity(granularity)
                                     }
                                 >
-                                    {granularity}
+                                    {getGranularityLabel(granularity)}
                                 </Menu.Item>
                             );
                         })}
@@ -309,7 +331,7 @@ export const DateZoom: FC<Props> = ({ isEditMode }) => {
                                     ) : null
                                 }
                             >
-                                {granularity}
+                                {getGranularityLabel(granularity)}
                             </Menu.Item>
                         ))}
                     </>
