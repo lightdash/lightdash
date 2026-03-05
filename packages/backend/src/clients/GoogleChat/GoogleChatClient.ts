@@ -84,6 +84,9 @@ export class GoogleChatClient {
                 image: {
                     imageUrl: image,
                     altText: name,
+                    onClick: {
+                        openLink: { url: image },
+                    },
                 },
             },
         ];
