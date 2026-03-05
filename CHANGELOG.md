@@ -1,3 +1,17 @@
+# [0.2574.0](https://github.com/lightdash/lightdash/compare/0.2573.1...0.2574.0) (2026-03-05)
+
+
+### Bug Fixes
+
+* don't show original explore table name in pre-aggregation compiled queries ([#20862](https://github.com/lightdash/lightdash/issues/20862)) ([b647c84](https://github.com/lightdash/lightdash/commit/b647c84804c5ef7379f5ad5b200be2a9ccb2e8af))
+
+
+### Features
+
+* premissions for viewing a pre-aggregate ([#20844](https://github.com/lightdash/lightdash/issues/20844)) ([de4e3d7](https://github.com/lightdash/lightdash/commit/de4e3d7501111a12c551038d9f900dfcc4f2defe))
+* show pre-aggregates in the explorer sidebar ([#20838](https://github.com/lightdash/lightdash/issues/20838)) ([c9b56d1](https://github.com/lightdash/lightdash/commit/c9b56d10d43664ef8562e2d273657d9f5cd2ed67))
+* way to query the materialized pre-aggregate directly ([#20830](https://github.com/lightdash/lightdash/issues/20830)) ([1e108ea](https://github.com/lightdash/lightdash/commit/1e108eaf9e2dec6043ef641c5f32172c22c9255e))
+
 ## [0.2573.1](https://github.com/lightdash/lightdash/compare/0.2573.0...0.2573.1) (2026-03-05)
 
 
