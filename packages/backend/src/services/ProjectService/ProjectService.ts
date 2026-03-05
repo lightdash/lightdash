@@ -138,6 +138,7 @@ import {
     SqlRunnerPayload,
     SqlRunnerPivotQueryPayload,
     SummaryExplore,
+    SupportedDbtAdapter,
     TablesConfiguration,
     TableSelectionType,
     UnexpectedServerError,
@@ -158,6 +159,7 @@ import {
     WarehouseTablesCatalog,
     WarehouseTableSchema,
     WarehouseTypes,
+    type ApiCompiledPreAggregateQueryResults,
     type ApiCreateProjectResults,
     type CalculateSubtotalsFromQuery,
     type CreateDatabricksCredentials,
@@ -246,6 +248,10 @@ import { SubtotalsCalculator } from '../../utils/SubtotalsCalculator';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
 import { BaseService } from '../BaseService';
 import { buildMaterializationMetricQuery } from '../PreAggregateMaterializationService/buildMaterializationMetricQuery';
+import {
+    getDuckdbPreAggregateSqlTable,
+    getPreAggregateDuckdbLocator,
+} from '../PreAggregateMaterializationService/getDuckdbPreAggregateSqlTable';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import {
     doesExploreMatchRequiredAttributes,
@@ -3072,6 +3078,136 @@ export class ProjectService extends BaseService {
                 compilationErrors: compiledQuery.compilationErrors,
             }),
             // Include pivot query if pivot configuration was provided
+            ...(pivotQuery && { pivotQuery }),
+        };
+    }
+
+    async compilePreAggregateQuery(args: {
+        account: Account;
+        body: MetricQuery & {
+            parameters?: ParametersValuesMap;
+            pivotConfiguration?: PivotConfiguration;
+        };
+        projectUuid: string;
+        exploreName: string;
+        preAggregateName: string;
+    }): Promise<ApiCompiledPreAggregateQueryResults> {
+        const {
+            account,
+            body: { parameters, pivotConfiguration, ...metricQuery },
+            projectUuid,
+            exploreName,
+            preAggregateName,
+        } = args;
+
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+
+        if (
+            account.user.ability.cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const preAggExploreName = getPreAggregateExploreName(
+            exploreName,
+            preAggregateName,
+        );
+
+        const activeMaterialization =
+            await this.preAggregateModel.getActiveMaterialization(
+                projectUuid,
+                preAggExploreName,
+            );
+
+        if (!activeMaterialization) {
+            return {
+                available: false,
+                reason: 'no_active_materialization',
+            };
+        }
+
+        const preAggExplore = await this.projectModel.getExploreFromCache(
+            projectUuid,
+            preAggExploreName,
+        );
+
+        if (isExploreError(preAggExplore)) {
+            return {
+                available: false,
+                reason: 'pre_aggregate_explore_error',
+            };
+        }
+
+        const locator = getPreAggregateDuckdbLocator({
+            uri: activeMaterialization.materializationUri,
+            format: 'jsonl',
+        });
+        const sqlTable = getDuckdbPreAggregateSqlTable(
+            locator,
+            activeMaterialization.columns,
+        );
+
+        const patchedExplore = {
+            ...preAggExplore,
+            tables: Object.fromEntries(
+                Object.entries(preAggExplore.tables).map(
+                    ([tableName, table]) => [tableName, { ...table, sqlTable }],
+                ),
+            ),
+        };
+
+        const warehouseCredentials =
+            await this.projectModel.getWarehouseCredentialsForProject(
+                projectUuid,
+            );
+
+        const warehouseSqlBuilder = warehouseSqlBuilderFromType(
+            SupportedDbtAdapter.DUCKDB,
+            warehouseCredentials.startOfWeek,
+        );
+
+        const { userAttributes, intrinsicUserAttributes } =
+            await this.getUserAttributes({ account });
+
+        const availableParameterDefinitions = await this.getAvailableParameters(
+            projectUuid,
+            preAggExplore,
+        );
+
+        const compiledQuery = await ProjectService._compileQuery({
+            metricQuery,
+            explore: patchedExplore,
+            warehouseSqlBuilder,
+            intrinsicUserAttributes,
+            userAttributes,
+            timezone: this.lightdashConfig.query.timezone || 'UTC',
+            parameters,
+            availableParameterDefinitions,
+            pivotConfiguration,
+            continueOnError: true,
+        });
+
+        let pivotQuery: string | undefined;
+        if (pivotConfiguration) {
+            const pivotQueryBuilder = new PivotQueryBuilder(
+                compiledQuery.query,
+                pivotConfiguration,
+                warehouseSqlBuilder,
+                metricQuery.limit,
+                compiledQuery.fields,
+            );
+            pivotQuery = pivotQueryBuilder.toSql({
+                columnLimit: this.lightdashConfig.pivotTable.maxColumnLimit,
+            });
+        }
+
+        return {
+            available: true,
+            query: compiledQuery.query,
             ...(pivotQuery && { pivotQuery }),
         };
     }

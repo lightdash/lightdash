@@ -22,6 +22,7 @@ export type CommonAsyncQueryArgs = {
     account: Account;
     projectUuid: string;
     invalidateCache?: boolean;
+    usePreAggregateCache?: boolean;
     context: QueryExecutionContext;
     parameters?: ParametersValuesMap;
 };

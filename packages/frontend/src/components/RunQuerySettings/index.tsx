@@ -12,6 +12,12 @@ import { memo, useEffect, useState, type FC } from 'react';
 import MantineIcon from '../common/MantineIcon';
 import AutoFetchResultsSwitch from './AutoFetchResultsSwitch';
 import LimitInput from './LimitInput';
+import PreAggregateCacheSwitch from './PreAggregateSqlSwitch';
+
+export type PreAggregateStatus = {
+    color: 'green' | 'yellow' | 'gray';
+    tooltip: string;
+} | null;
 
 export type Props = {
     size?: MantineSize;
@@ -20,6 +26,8 @@ export type Props = {
     limit: number;
     onLimitChange: (value: number) => void;
     showAutoFetchSetting?: boolean;
+    showPreAggregateSetting?: boolean;
+    preAggregateStatus?: PreAggregateStatus;
     targetProps?: ButtonProps;
 };
 
@@ -31,6 +39,7 @@ const RunQuerySettings: FC<Props> = memo(
         limit,
         onLimitChange,
         showAutoFetchSetting = false,
+        showPreAggregateSetting = false,
         targetProps,
     }) => {
         const [opened, { open, close }] = useDisclosure(false);
@@ -93,6 +102,12 @@ const RunQuerySettings: FC<Props> = memo(
                                 onBlur: handleLimitBlur,
                             }}
                         />
+                        {showPreAggregateSetting && (
+                            <>
+                                <Divider />
+                                <PreAggregateCacheSwitch size={size} />
+                            </>
+                        )}
                     </Stack>
                 </Popover.Dropdown>
             </Popover>

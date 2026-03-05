@@ -1,6 +1,11 @@
 import { FeatureFlags, type FieldId } from '@lightdash/common';
+import { useLocalStorage } from '@mantine-8/hooks';
 import { useCallback, useMemo } from 'react';
 import { useParams } from 'react-router';
+import {
+    PRE_AGGREGATE_CACHE_ENABLED_DEFAULT,
+    PRE_AGGREGATE_CACHE_ENABLED_KEY,
+} from '../components/RunQuerySettings/defaults';
 import useEmbed from '../ee/providers/Embed/useEmbed';
 import {
     explorerActions,
@@ -91,6 +96,11 @@ export const useExplorerQueryManager = () => {
         FeatureFlags.UseSqlPivotResults,
     );
 
+    const [preAggCacheEnabled] = useLocalStorage({
+        key: PRE_AGGREGATE_CACHE_ENABLED_KEY,
+        defaultValue: PRE_AGGREGATE_CACHE_ENABLED_DEFAULT,
+    });
+
     // Compute active fields and query validity
     const activeFields = useMemo<Set<FieldId>>(() => {
         return new Set([
@@ -165,6 +175,7 @@ export const useExplorerQueryManager = () => {
             dateZoomGranularity,
             minimal,
             savedChart: chartConfigForQuery,
+            usePreAggregateCache: preAggCacheEnabled,
         });
 
         if (mainQueryArgs) {
@@ -183,6 +194,7 @@ export const useExplorerQueryManager = () => {
         dateZoomGranularity,
         minimal,
         chartConfigForQuery,
+        preAggCacheEnabled,
         dispatch,
     ]);
 

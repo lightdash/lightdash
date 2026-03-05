@@ -7,6 +7,7 @@ import {
     ApiSuccessEmpty,
     MetricQuery,
     PivotConfig,
+    type ApiCompiledPreAggregateQueryResults,
     type ParametersValuesMap,
     type PivotConfiguration,
 } from '@lightdash/common';
@@ -154,6 +155,47 @@ export class ExploreController extends BaseController {
                 parameterReferences,
                 ...(pivotQuery && { pivotQuery }),
             },
+        };
+    }
+
+    /**
+     * Compile a metric query using the pre-aggregate DuckDB path
+     * @summary Compile pre-aggregate query
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('{exploreId}/compilePreAggregateQuery')
+    @OperationId('CompilePreAggregateQuery')
+    async CompilePreAggregateQuery(
+        @Path() exploreId: string,
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+        @Body()
+        body: MetricQuery & {
+            parameters?: ParametersValuesMap;
+            pivotConfiguration?: PivotConfiguration;
+            preAggregateName: string;
+        },
+    ): Promise<{
+        status: 'ok';
+        results: ApiCompiledPreAggregateQueryResults;
+    }> {
+        this.setStatus(200);
+
+        const { preAggregateName, ...compileBody } = body;
+        const results = await this.services
+            .getProjectService()
+            .compilePreAggregateQuery({
+                account: req.account!,
+                body: compileBody,
+                projectUuid,
+                exploreName: exploreId,
+                preAggregateName,
+            });
+
+        return {
+            status: 'ok',
+            results,
         };
     }
 
