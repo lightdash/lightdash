@@ -3,31 +3,17 @@ import {
     assertUnreachable,
     friendlyName,
     GoogleChatError,
-    MissingConfigError,
     operatorActionValue,
     PartialFailureType,
     ThresholdOptions,
     type PartialFailure,
 } from '@lightdash/common';
-import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import { AttachmentUrl } from '../EmailClient/EmailClient';
 
-type GoogleChatClientArguments = {
-    lightdashConfig: LightdashConfig;
-};
-
+/* eslint-disable class-methods-use-this */
 export class GoogleChatClient {
-    lightdashConfig: LightdashConfig;
-
-    constructor({ lightdashConfig }: GoogleChatClientArguments) {
-        this.lightdashConfig = lightdashConfig;
-    }
-
     private async sendWebhook(webhookUrl: string, payload: AnyType) {
-        if (!this.lightdashConfig.googleChat.enabled) {
-            throw new MissingConfigError('Google Chat is not enabled');
-        }
         const response = await fetch(webhookUrl, {
             method: 'POST',
             headers: {
@@ -41,7 +27,7 @@ export class GoogleChatClient {
             Logger.error(
                 `Google Chat webhook returned an error: ${response.status} ${responseText}`,
             );
-            Logger.info(
+            Logger.debug(
                 `Google Chat webhook payload ${JSON.stringify(
                     payload,
                     null,
@@ -74,9 +60,6 @@ export class GoogleChatClient {
         pdfUrl?: string;
         thresholds?: ThresholdOptions[];
     }): Promise<void> {
-        if (!this.lightdashConfig.googleChat.enabled) {
-            throw new MissingConfigError('Google Chat is not enabled');
-        }
         Logger.info('Sending image to Google Chat via webhook');
 
         const widgets: AnyType[] = [
@@ -84,6 +67,9 @@ export class GoogleChatClient {
                 image: {
                     imageUrl: image,
                     altText: name,
+                    onClick: {
+                        openLink: { url: image },
+                    },
                 },
             },
         ];
@@ -106,7 +92,7 @@ export class GoogleChatClient {
                             threshold.operator,
                             threshold.value,
                             '<b>',
-                        ).replace('<b>', '</b>')}`,
+                        ).replace(/<b>([^<]*)<b>/, '<b>$1</b>')}`,
                 )
                 .join('\n');
 
@@ -180,9 +166,6 @@ export class GoogleChatClient {
         csvUrl: AttachmentUrl;
         footer: string;
     }): Promise<void> {
-        if (!this.lightdashConfig.googleChat.enabled) {
-            throw new MissingConfigError('Google Chat is not enabled');
-        }
         Logger.info('Sending chart CSV to Google Chat via webhook');
 
         const widgets: AnyType[] = [];
@@ -257,9 +240,6 @@ export class GoogleChatClient {
         footer: string;
         failures?: PartialFailure[];
     }): Promise<void> {
-        if (!this.lightdashConfig.googleChat.enabled) {
-            throw new MissingConfigError('Google Chat is not enabled');
-        }
         Logger.info('Sending dashboard CSVs to Google Chat via webhook');
 
         const widgets: AnyType[] = [];

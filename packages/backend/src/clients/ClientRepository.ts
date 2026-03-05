@@ -207,13 +207,7 @@ export class ClientRepository
     }
 
     public getGoogleChatClient(): GoogleChatClient {
-        return this.getClient(
-            'googleChatClient',
-            () =>
-                new GoogleChatClient({
-                    lightdashConfig: this.context.lightdashConfig,
-                }),
-        );
+        return this.getClient('googleChatClient', () => new GoogleChatClient());
     }
 
     public getMsTeamsClient(): MicrosoftTeamsClient {

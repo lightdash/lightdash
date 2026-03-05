@@ -86,6 +86,11 @@ export enum FeatureFlags {
      * Enable table column customization (resize, header wrap, tooltips)
      */
     EnableTableColumnCustomization = 'enable-table-column-customization',
+
+    /**
+     * Enable Google Chat as a scheduled delivery destination
+     */
+    GoogleChatEnabled = 'google-chat-enabled',
 }
 
 export type FeatureFlag = {

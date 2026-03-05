@@ -50,6 +50,8 @@ export class FeatureFlagModel {
                 this.getDefaultUserSpacesEnabled.bind(this),
             [FeatureFlags.EnableTableColumnCustomization]:
                 this.getTableColumnCustomizationEnabled.bind(this),
+            [FeatureFlags.GoogleChatEnabled]:
+                this.getGoogleChatEnabled.bind(this),
         };
     }
 
@@ -272,6 +274,31 @@ export class FeatureFlagModel {
         return {
             id: featureFlagId,
             enabled: this.lightdashConfig.defaultUserSpaces.enabled,
+        };
+    }
+
+    private async getGoogleChatEnabled({
+        user,
+        featureFlagId,
+    }: FeatureFlagLogicArgs) {
+        const enabled =
+            this.lightdashConfig.googleChat.enabled ||
+            (user
+                ? await isFeatureFlagEnabled(
+                      FeatureFlags.GoogleChatEnabled,
+                      {
+                          userUuid: user.userUuid,
+                          organizationUuid: user.organizationUuid,
+                      },
+                      {
+                          throwOnTimeout: false,
+                          timeoutMilliseconds: 500,
+                      },
+                  )
+                : false);
+        return {
+            id: featureFlagId,
+            enabled,
         };
     }
 

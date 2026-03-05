@@ -1,4 +1,5 @@
 import {
+    isCreateSchedulerGoogleChatTarget,
     isCreateSchedulerMsTeamsTarget,
     isDashboardScheduler,
     isSchedulerCsvOptions,
@@ -36,6 +37,7 @@ export interface SchedulerFormValues {
     emailTargets: string[];
     slackTargets: string[];
     msTeamsTargets: string[];
+    googleChatTargets: string[];
     filters?: DashboardFilterRule[];
     parameters?: ParametersValuesMap;
     customViewportWidth?: number;
@@ -70,6 +72,7 @@ export const DEFAULT_VALUES: SchedulerFormValues = {
     emailTargets: [],
     slackTargets: [],
     msTeamsTargets: [],
+    googleChatTargets: [],
     filters: [],
     parameters: undefined,
     customViewportWidth: undefined,
@@ -140,10 +143,13 @@ export const getFormValuesFromScheduler = (
     const emailTargets: string[] = [];
     const slackTargets: string[] = [];
     const msTeamsTargets: string[] = [];
+    const googleChatTargets: string[] = [];
 
     schedulerData.targets.forEach((target) => {
         if (isSlackTarget(target)) {
             slackTargets.push(target.channel);
+        } else if (isCreateSchedulerGoogleChatTarget(target)) {
+            googleChatTargets.push(target.googleChatWebhook);
         } else if (isCreateSchedulerMsTeamsTarget(target)) {
             msTeamsTargets.push(target.webhook);
         } else if ('recipient' in target) {
@@ -161,6 +167,7 @@ export const getFormValuesFromScheduler = (
         emailTargets: emailTargets,
         slackTargets: slackTargets,
         msTeamsTargets: msTeamsTargets,
+        googleChatTargets: googleChatTargets,
         ...(isDashboardScheduler(schedulerData) && {
             filters: schedulerData.filters,
             parameters: schedulerData.parameters,
@@ -212,11 +219,17 @@ export const transformFormValues = (
             webhook: webhook,
         }),
     );
+    const googleChatTargets = (values.googleChatTargets || []).map(
+        (googleChatWebhook: string) => ({
+            googleChatWebhook,
+        }),
+    );
 
     const targets: CreateSchedulerTarget[] = [
         ...emailTargets,
         ...slackTargets,
         ...msTeamsTargets,
+        ...googleChatTargets,
     ];
 
     return {

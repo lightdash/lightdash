@@ -202,6 +202,13 @@ export const formatTaskName = (task: string, targetCount?: number): string => {
               })`
             : 'MS Teams Notifications';
     }
+    if (taskLower.includes('googlechatbatch')) {
+        return targetCount
+            ? `Google Chat (${targetCount} ${
+                  targetCount === 1 ? 'target' : 'targets'
+              })`
+            : 'Google Chat Notifications';
+    }
 
     // Convert camelCase to Title Case with spaces
     // e.g., "sendSlackNotification" → "Send Slack Notification"
