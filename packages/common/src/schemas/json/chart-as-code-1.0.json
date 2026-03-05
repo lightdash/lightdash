@@ -1780,6 +1780,13 @@
                     "format": "double",
                     "type": "number"
                 },
+                "colors": {
+                    "description": "Chart-level color palette. Overrides the organization color palette for this chart.",
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": "array"
+                },
                 "grid": {
                     "$ref": "#/$defs/EchartsGrid",
                     "description": "Grid (chart area) configuration"
@@ -1946,6 +1953,13 @@
                 },
                 "metrics": {
                     "description": "List of metric field IDs to include",
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": "array"
+                },
+                "pivotDimensions": {
+                    "description": "Dimension field IDs used as pivot columns (from chart's pivotConfig.columns).\nUsed by row_total() to determine non-pivot dimensions for GROUP BY.",
                     "items": {
                         "type": "string"
                     },
