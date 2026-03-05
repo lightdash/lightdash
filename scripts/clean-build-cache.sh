@@ -3,6 +3,9 @@
 # Remove tsbuildinfo files
 rm -rf packages/*/tsconfig*.tsbuildinfo
 
+# Remove turbo cache
+rm -rf .turbo
+
 # Remove build/dist and next build cache
 rm -rf packages/*/build
 rm -rf packages/*/dist
