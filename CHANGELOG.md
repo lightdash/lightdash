@@ -1,3 +1,10 @@
+# [0.2573.0](https://github.com/lightdash/lightdash/compare/0.2572.2...0.2573.0) (2026-03-05)
+
+
+### Features
+
+* add average_distinct metric type ([#20832](https://github.com/lightdash/lightdash/issues/20832)) ([5753e55](https://github.com/lightdash/lightdash/commit/5753e55075665d2989532e3ad87e1d754bbc3e65))
+
 ## [0.2572.2](https://github.com/lightdash/lightdash/compare/0.2572.1...0.2572.2) (2026-03-05)
 
 
