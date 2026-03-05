@@ -160,6 +160,7 @@ dashboardRouter.post(
             const { selectedTabs } = req.body;
             const validatedSelectedTabs =
                 Array.isArray(selectedTabs) &&
+                selectedTabs.length > 0 &&
                 selectedTabs.every((t: unknown) => typeof t === 'string')
                     ? (selectedTabs as string[])
                     : null;
