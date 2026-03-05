@@ -506,8 +506,12 @@ export class ExploreCompiler {
             sqlPath,
             databricksCompute,
             // Use explore-level caseSensitive if set, otherwise fall back to project defaults
-            ...(caseSensitive !== undefined || projectDefaults?.case_sensitive !== undefined
-                ? { caseSensitive: caseSensitive ?? projectDefaults?.case_sensitive }
+            ...(caseSensitive !== undefined ||
+            projectDefaults?.case_sensitive !== undefined
+                ? {
+                      caseSensitive:
+                          caseSensitive ?? projectDefaults?.case_sensitive,
+                  }
                 : {}),
             ...(aiHint ? { aiHint } : {}),
             ...getSpotlightConfigurationForResource({
@@ -1363,6 +1367,11 @@ export const createDimensionWithGranularity = (
         {
             ...baseTimeDimension,
             name: dimensionName,
+            // Base dimensions (isIntervalBase) don't have timeIntervalBaseDimensionName set,
+            // but the zoomed dimension needs it for field identification (e.g., granularity labels)
+            timeIntervalBaseDimensionName:
+                baseTimeDimension.timeIntervalBaseDimensionName ??
+                baseTimeDimension.name,
             type: timeFrameConfigs[newTimeInterval].getDimensionType(
                 baseTimeDimension.type,
             ),

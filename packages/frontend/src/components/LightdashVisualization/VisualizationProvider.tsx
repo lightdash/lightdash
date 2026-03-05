@@ -440,6 +440,7 @@ const VisualizationProvider: FC<
                     onChartConfigChange={handleChartConfigChange}
                     tableCalculationsMetadata={tableCalculationsMetadata}
                     parameters={parameters}
+                    dateZoom={dateZoom}
                 >
                     {({ visualizationConfig }) => (
                         <Context.Provider

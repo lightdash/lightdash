@@ -13,14 +13,20 @@ import {
     hasFormatOptions,
     hasValidFormatExpression,
     isConditionalFormattingConfigWithSingleColor,
+    isDimension,
     isField,
     isMetric,
     isNumericItem,
     isTableCalculation,
+    isTimeBasedDimension,
+    resolveGranularityInLabel,
+    timeFrameToDateGranularityMap,
     valueIsNaN,
     type BigNumber,
     type CompactOrAlias,
     type ConditionalFormattingConfig,
+    type DateZoom,
+    type GranularityMap,
     type ItemsMap,
     type ParametersValuesMap,
     type TableCalculationMetadata,
@@ -125,6 +131,7 @@ const useBigNumberConfig = (
     itemsMap: ItemsMap | undefined,
     tableCalculationsMetadata?: TableCalculationMetadata[],
     parameters?: ParametersValuesMap,
+    dateZoom?: DateZoom,
 ) => {
     const availableFieldsIds = useMemo(() => {
         const itemsSortedByType = Object.values(itemsMap || {}).sort((a, b) => {
@@ -418,6 +425,38 @@ const useBigNumberConfig = (
         }
     }, [comparisonValue, comparisonDiff, comparisonField]);
 
+    const granularityMap = useMemo((): GranularityMap => {
+        if (!itemsMap) return {};
+        const map: GranularityMap = {};
+        for (const field of Object.values(itemsMap)) {
+            if (
+                isDimension(field) &&
+                isTimeBasedDimension(field) &&
+                field.timeInterval &&
+                field.timeIntervalBaseDimensionName
+            ) {
+                const granularity =
+                    dateZoom?.granularity ??
+                    timeFrameToDateGranularityMap[field.timeInterval];
+                if (granularity) {
+                    const baseId = `${field.table}_${field.timeIntervalBaseDimensionName}`;
+                    map[baseId] = granularity;
+                }
+            }
+        }
+        return map;
+    }, [dateZoom?.granularity, itemsMap]);
+
+    const resolvedBigNumberLabel = useMemo(
+        () => resolveGranularityInLabel(bigNumberLabel, granularityMap),
+        [bigNumberLabel, granularityMap],
+    );
+
+    const resolvedComparisonLabel = useMemo(
+        () => resolveGranularityInLabel(comparisonLabel, granularityMap),
+        [comparisonLabel, granularityMap],
+    );
+
     const bigNumberTextColor = useMemo(() => {
         if (!conditionalFormattings.length || !item || !selectedField)
             return undefined;
@@ -480,6 +519,7 @@ const useBigNumberConfig = (
     return {
         bigNumber,
         bigNumberLabel,
+        resolvedBigNumberLabel,
         defaultLabel: label,
         setBigNumberLabel,
         validConfig,
@@ -503,6 +543,7 @@ const useBigNumberConfig = (
         setFlipColors,
         comparisonTooltip,
         comparisonLabel,
+        resolvedComparisonLabel,
         setComparisonLabel,
         showTableNamesInLabel,
         setShowTableNamesInLabel,
@@ -511,6 +552,7 @@ const useBigNumberConfig = (
         bigNumberTextColor,
         comparisonField,
         setComparisonField,
+        granularityFields: Object.keys(granularityMap),
     };
 };
 

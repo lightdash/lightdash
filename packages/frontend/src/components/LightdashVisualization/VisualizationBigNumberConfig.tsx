@@ -11,6 +11,7 @@ const VisualizationBigNumberConfig: FC<VisualizationBigNumberConfigProps> = ({
     children,
     tableCalculationsMetadata,
     parameters,
+    dateZoom,
 }) => {
     const bigNumberConfig = useBigNumberConfig(
         initialChartConfig,
@@ -18,6 +19,7 @@ const VisualizationBigNumberConfig: FC<VisualizationBigNumberConfigProps> = ({
         itemsMap,
         tableCalculationsMetadata,
         parameters,
+        dateZoom,
     );
 
     useEffect(() => {
