@@ -857,7 +857,7 @@ describe('Filter SQL', () => {
             const sql = renderStringFilterSql(
                 'field_name',
                 caseFilter,
-                '\'',
+                "'",
                 true, // case sensitive (default)
             );
             expect(sql).toBe(`(field_name) IN ('TestValue')`);
@@ -867,7 +867,7 @@ describe('Filter SQL', () => {
             const sql = renderStringFilterSql(
                 'field_name',
                 caseFilter,
-                '\'',
+                "'",
                 false, // case insensitive
             );
             expect(sql).toBe(`(UPPER(field_name)) IN ('TESTVALUE')`);
@@ -882,7 +882,7 @@ describe('Filter SQL', () => {
                 caseFilter,
                 fieldWithCaseSensitive,
                 '"',
-                '\'',
+                "'",
                 (str: string) => str,
                 WeekDay.MONDAY,
                 SupportedDbtAdapter.POSTGRES,
@@ -901,7 +901,7 @@ describe('Filter SQL', () => {
                 caseFilter,
                 fieldWithoutCaseSensitive,
                 '"',
-                '\'',
+                "'",
                 (str: string) => str,
                 WeekDay.MONDAY,
                 SupportedDbtAdapter.POSTGRES,

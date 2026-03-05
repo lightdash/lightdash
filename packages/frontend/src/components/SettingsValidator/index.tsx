@@ -1,8 +1,8 @@
 import {
     isChartValidationError,
     ValidationErrorType,
-    ValidationSourceType,
     type ValidationErrorChartResponse,
+    type ValidationSourceType,
 } from '@lightdash/common';
 import { Button, Group, Loader, Paper, Text } from '@mantine-8/core';
 import { useDebouncedValue } from '@mantine/hooks';

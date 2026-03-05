@@ -64,6 +64,7 @@ module.exports = {
                 'src/scheduler/**/*.ts',
                 'src/config/**/*.ts',
                 'src/projectAdapters/**/*.ts',
+                'src/prometheus/**/*.ts',
             ],
             rules: {
                 '@typescript-eslint/no-unsafe-member-access': 'off',

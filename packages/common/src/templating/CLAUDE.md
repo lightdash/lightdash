@@ -18,42 +18,42 @@ Use `{% %}` Liquid tags with `ld.parameters.<name>` or `lightdash.parameters.<na
 
 ```yaml
 dimension:
-  type: string
-  sql: >
-    {% raw %}{% if ld.parameters.date_granularity == 'Day' %} ${TABLE}.date
-    {% elsif ld.parameters.date_granularity == 'Week' %} DATE_TRUNC('week', ${TABLE}.date)
-    {% elsif ld.parameters.date_granularity == 'Month' %} DATE_TRUNC('month', ${TABLE}.date)
-    {% else %} ${TABLE}.date
-    {% endif %}{% endraw %}
+    type: string
+    sql: >
+        {% raw %}{% if ld.parameters.date_granularity == 'Day' %} ${TABLE}.date
+        {% elsif ld.parameters.date_granularity == 'Week' %} DATE_TRUNC('week', ${TABLE}.date)
+        {% elsif ld.parameters.date_granularity == 'Month' %} DATE_TRUNC('month', ${TABLE}.date)
+        {% else %} ${TABLE}.date
+        {% endif %}{% endraw %}
 ```
 
 ### case/when (cleaner for many values)
 
 ```yaml
 dimension:
-  type: string
-  sql: >
-    {% raw %}{% case ld.parameters.date_granularity %}
-    {% when 'Day' %} ${TABLE}.date
-    {% when 'Week' %} DATE_TRUNC('week', ${TABLE}.date)
-    {% when 'Month' %} DATE_TRUNC('month', ${TABLE}.date)
-    {% else %} ${TABLE}.date
-    {% endcase %}{% endraw %}
+    type: string
+    sql: >
+        {% raw %}{% case ld.parameters.date_granularity %}
+        {% when 'Day' %} ${TABLE}.date
+        {% when 'Week' %} DATE_TRUNC('week', ${TABLE}.date)
+        {% when 'Month' %} DATE_TRUNC('month', ${TABLE}.date)
+        {% else %} ${TABLE}.date
+        {% endcase %}{% endraw %}
 ```
 
 ### Column switching (metrics)
 
 ```yaml
 dimension:
-  hidden: true
-  type: number
-  sql: >
-    {% raw %}{% if ld.parameters.metric_type == 'count' %} 1
-    {% else %} ${TABLE}.event_id
-    {% endif %}{% endraw %}
+    hidden: true
+    type: number
+    sql: >
+        {% raw %}{% if ld.parameters.metric_type == 'count' %} 1
+        {% else %} ${TABLE}.event_id
+        {% endif %}{% endraw %}
 metrics:
-  dynamic_total:
-    type: sum
+    dynamic_total:
+        type: sum
 ```
 
 ## Why `{% raw %}` Is Needed

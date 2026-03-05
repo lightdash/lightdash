@@ -22,9 +22,7 @@ export async function up(knex: Knex): Promise<void> {
 
     // Partial index for fast queries on non-deleted items
     // We DROP first to clean up any invalid indexes left by a previous failed attempt.
-    await knex.raw(
-        `DROP INDEX CONCURRENTLY IF EXISTS idx_spaces_not_deleted`,
-    );
+    await knex.raw(`DROP INDEX CONCURRENTLY IF EXISTS idx_spaces_not_deleted`);
     await knex.raw(`
         CREATE INDEX CONCURRENTLY idx_spaces_not_deleted
         ON ${SpacesTableName} (space_uuid)
@@ -32,9 +30,7 @@ export async function up(knex: Knex): Promise<void> {
     `);
 
     // Partial index for fast queries on deleted items (Recently Deleted page)
-    await knex.raw(
-        `DROP INDEX CONCURRENTLY IF EXISTS idx_spaces_deleted`,
-    );
+    await knex.raw(`DROP INDEX CONCURRENTLY IF EXISTS idx_spaces_deleted`);
     await knex.raw(`
         CREATE INDEX CONCURRENTLY idx_spaces_deleted
         ON ${SpacesTableName} (space_uuid)
@@ -44,9 +40,7 @@ export async function up(knex: Knex): Promise<void> {
 
 export async function down(knex: Knex): Promise<void> {
     await knex.raw('DROP INDEX CONCURRENTLY IF EXISTS idx_spaces_deleted');
-    await knex.raw(
-        'DROP INDEX CONCURRENTLY IF EXISTS idx_spaces_not_deleted',
-    );
+    await knex.raw('DROP INDEX CONCURRENTLY IF EXISTS idx_spaces_not_deleted');
     const hasColumn = await knex.schema.hasColumn(
         SpacesTableName,
         'deleted_at',
