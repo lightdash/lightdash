@@ -3730,85 +3730,94 @@ export default class SchedulerTask {
 
                 // Fetch CSVs from presigned URLs and zip them
                 const zipPath = `/tmp/${nanoid()}.zip`;
-                const zipWriteStream = fsSync.createWriteStream(zipPath);
-                const archive = archiver('zip', {
-                    zlib: { level: 9 },
-                });
+                let zipFileName: string;
+                try {
+                    const zipWriteStream = fsSync.createWriteStream(zipPath);
+                    const archive = archiver('zip', {
+                        zlib: { level: 9 },
+                    });
 
-                const zipDone = new Promise<void>((resolve, reject) => {
-                    zipWriteStream.on('close', resolve);
-                    zipWriteStream.on('error', reject);
-                    archive.on('error', reject);
-                });
-                archive.pipe(zipWriteStream);
+                    const zipDone = new Promise<void>((resolve, reject) => {
+                        zipWriteStream.on('close', resolve);
+                        zipWriteStream.on('error', reject);
+                        archive.on('error', reject);
+                    });
+                    archive.pipe(zipWriteStream);
 
-                // Fetch all CSVs from presigned URLs in parallel
-                const csvStreams = await Promise.all(
-                    successfulResults.map(async (r) => {
-                        const csvResponse = await fetch(r.value.fileUrl);
-                        if (!csvResponse.ok || !csvResponse.body) {
-                            Logger.warn(
-                                `Failed to fetch CSV for ${r.value.chartName} from presigned URL`,
-                            );
-                            return null;
+                    // Fetch all CSVs from presigned URLs in parallel
+                    const csvStreams = await Promise.all(
+                        successfulResults.map(async (r) => {
+                            const csvResponse = await fetch(r.value.fileUrl);
+                            if (!csvResponse.ok || !csvResponse.body) {
+                                Logger.warn(
+                                    `Failed to fetch CSV for ${r.value.chartName} from presigned URL`,
+                                );
+                                return null;
+                            }
+                            return {
+                                filename: r.value.filename,
+                                stream: Readable.fromWeb(
+                                    csvResponse.body as Parameters<
+                                        typeof Readable.fromWeb
+                                    >[0],
+                                ),
+                            };
+                        }),
+                    );
+
+                    const usedNames = new Set<string>();
+                    const deduplicateName = (baseName: string): string => {
+                        let name = sanitizeGenericFileName(baseName);
+                        if (usedNames.has(name)) {
+                            let suffix = 2;
+                            while (usedNames.has(`${name}_${suffix}`))
+                                suffix += 1;
+                            name = `${name}_${suffix}`;
                         }
-                        return {
-                            filename: r.value.filename,
-                            stream: Readable.fromWeb(
-                                csvResponse.body as Parameters<
-                                    typeof Readable.fromWeb
-                                >[0],
-                            ),
-                        };
-                    }),
-                );
+                        usedNames.add(name);
+                        return name;
+                    };
 
-                const usedNames = new Set<string>();
-                const deduplicateName = (baseName: string): string => {
-                    let name = sanitizeGenericFileName(baseName);
-                    if (usedNames.has(name)) {
-                        let suffix = 2;
-                        while (usedNames.has(`${name}_${suffix}`)) suffix += 1;
-                        name = `${name}_${suffix}`;
-                    }
-                    usedNames.add(name);
-                    return name;
-                };
-
-                csvStreams
-                    .filter(
+                    const validCsvStreams = csvStreams.filter(
                         (
                             s,
                         ): s is {
                             filename: string;
                             stream: Readable;
                         } => s !== null,
-                    )
-                    .forEach((s) => {
+                    );
+
+                    if (validCsvStreams.length === 0) {
+                        throw new UnexpectedServerError(
+                            'All CSV downloads failed — no files to include in zip',
+                        );
+                    }
+
+                    validCsvStreams.forEach((s) => {
                         const name = deduplicateName(s.filename);
                         archive.append(s.stream, {
                             name: `${name}.csv`,
                         });
                     });
 
-                await archive.finalize();
-                await zipDone;
+                    await archive.finalize();
+                    await zipDone;
 
-                Logger.info(
-                    `Generated zip of ${successfulResults.length} CSVs for dashboard ${dashboardUuid}`,
-                );
+                    Logger.info(
+                        `Generated zip of ${successfulResults.length} CSVs for dashboard ${dashboardUuid}`,
+                    );
 
-                const zipFileName = `${sanitizeGenericFileName(
-                    dashboard.name,
-                )}-${new Date().toISOString().replace(/[:.]/g, '-')}.zip`;
+                    zipFileName = `${sanitizeGenericFileName(
+                        dashboard.name,
+                    )}-${new Date().toISOString().replace(/[:.]/g, '-')}.zip`;
 
-                await this.fileStorageClient.uploadZip(
-                    fsSync.createReadStream(zipPath),
-                    zipFileName,
-                );
-
-                // Clean up temp zip
-                await fs.unlink(zipPath).catch(() => {});
+                    await this.fileStorageClient.uploadZip(
+                        fsSync.createReadStream(zipPath),
+                        zipFileName,
+                    );
+                } finally {
+                    await fs.unlink(zipPath).catch(() => {});
+                }
 
                 const url =
                     await this.persistentDownloadFileService.createPersistentUrl(
