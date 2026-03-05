@@ -377,9 +377,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
                                     label="Assign a unique color to each bar based on its dimension value"
                                 >
                                     <Checkbox
-                                        checked={Boolean(
-                                            series.colorByValue,
-                                        )}
+                                        checked={Boolean(series.colorByValue)}
                                         label="Color by value"
                                         onChange={() => {
                                             updateSingleSeries({

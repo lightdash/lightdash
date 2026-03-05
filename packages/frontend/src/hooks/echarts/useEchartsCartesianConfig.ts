@@ -2459,8 +2459,7 @@ const useEchartsCartesianConfig = (
                 // Apply bar styling for bar charts
                 if (serie.type === CartesianSeriesType.BAR) {
                     const isNonStacked =
-                        !serie.stack ||
-                        getValidStack(serie) === undefined;
+                        !serie.stack || getValidStack(serie) === undefined;
                     const shouldColorByValue =
                         serie.colorByValue &&
                         isNonStacked &&
@@ -2479,9 +2478,7 @@ const useEchartsCartesianConfig = (
                                 // When colorByValue is enabled, each bar
                                 // gets a unique color from the palette
                                 ...(shouldColorByValue && {
-                                    color: (params: {
-                                        dataIndex: number;
-                                    }) =>
+                                    color: (params: { dataIndex: number }) =>
                                         colorPalette[
                                             params.dataIndex %
                                                 colorPalette.length
