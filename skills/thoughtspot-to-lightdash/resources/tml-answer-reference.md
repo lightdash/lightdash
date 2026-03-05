@@ -40,7 +40,8 @@ answer:
       expr: "sum([table_path::column])"
       properties:
         column_type: MEASURE       # MEASURE or ATTRIBUTE
-        aggregation: SUM
+        aggregation: SUM           # SUM, COUNT, AVERAGE, MAX, MIN, COUNT_DISTINCT, NONE, STD_DEVIATION, VARIANCE
+        data_type: DOUBLE          # BOOL, VARCHAR, DOUBLE, FLOAT, INT, BIGINT, DATE, DATETIME, TIMESTAMP, TIME
       was_auto_generated: false
 
   # ThoughtSpot search query (defines what columns are queried)
@@ -48,14 +49,16 @@ answer:
 
   # Result columns
   answer_columns:
-    - name: City
+    - id: City                     # Column identifier
+      name: City
       custom_name: "City Name"     # Optional display override
       format:                      # Optional formatting
         category: NUMBER
         numberFormatConfig:
           decimals: 2
           toSeparateThousands: true
-    - name: Total Quantity Purchased
+    - id: Total Quantity Purchased
+      name: Total Quantity Purchased
       sort_info:
         category: CUSTOM_ORDER     # or DEFAULT
 
@@ -78,9 +81,13 @@ answer:
       - column_id: Total Quantity Purchased
     axis_configs:
       - x:
-        - City
+          - column_id: City
         "y":
-        - Total Quantity Purchased
+          - column_id: Total Quantity Purchased
+        color:                     # Optional: columns for color encoding
+          - column_id: Category
+    locked: false                  # Whether chart config is locked
+    client_state: "<json_string>"  # Optional: detailed visual config
 
   # Display mode
   display_mode: CHART_MODE         # CHART_MODE or TABLE_MODE
@@ -174,10 +181,15 @@ metricQuery:
     - model_name_state
   metrics:
     - model_name_total_quantity_purchased
-  filters:
-    dimensions: []
-    metrics: []
-    tableCalculations: []
+  filters: {}                           # Empty filters — use FilterGroup format if needed:
+  # filters:                            # Example with filters:
+  #   dimensions:
+  #     and:
+  #       - target:
+  #           fieldId: model_name_status
+  #         operator: equals
+  #         values:
+  #           - "Active"
   sorts:
     - fieldId: model_name_total_quantity_purchased
       descending: true
@@ -228,7 +240,7 @@ From the ThoughtSpot Answer:
 
 ## Chart Type Enum Values
 
-ThoughtSpot chart types found in TML:
+ThoughtSpot chart types found in TML (per official docs):
 - `COLUMN` - vertical bar chart
 - `BAR` - horizontal bar chart
 - `LINE` - line chart
@@ -237,17 +249,29 @@ ThoughtSpot chart types found in TML:
 - `STACKED_BAR` - stacked horizontal bar
 - `STACKED_AREA` - stacked area chart
 - `PIE` - pie chart
-- `DONUT` - donut chart
 - `SCATTER` - scatter plot
 - `BUBBLE` - bubble chart
 - `GEO_AREA` - geographic area/choropleth map
 - `GEO_BUBBLE` - geographic bubble map
+- `GEO_HEATMAP` - geographic heatmap
+- `GEO_EARTH_BAR` - 3D earth bar chart
+- `GEO_EARTH_AREA` - 3D earth area chart
+- `GEO_EARTH_GRAPH` - 3D earth graph
+- `GEO_EARTH_BUBBLE` - 3D earth bubble chart
+- `GEO_EARTH_HEATMAP` - 3D earth heatmap
 - `TABLE` - data table
-- `KPI` / `HEADLINE` - single number KPI
+- `GRID_TABLE` - grid table
 - `FUNNEL` - funnel chart
 - `TREEMAP` - treemap
-- `GAUGE` - gauge chart
 - `WATERFALL` - waterfall chart
+- `HEATMAP` - heatmap
 - `PIVOT_TABLE` - pivot table
 - `SANKEY` - sankey diagram
+- `SPIDER_WEB` - spider/radar chart
+- `WHISKER_SCATTER` - box plot / whisker scatter
 - `CANDLESTICK` - candlestick chart
+- `LINE_COLUMN` - mixed line + column chart
+- `LINE_STACKED_COLUMN` - mixed line + stacked column chart
+- `PARETO` - pareto chart
+
+> **Note:** `DONUT`, `GAUGE`, `KPI`, and `HEADLINE` are NOT chart type enum values. Donut is a PIE chart configuration. Headlines/KPIs are Liveboard visualizations with `display_headline_column` set (no `chart` section).

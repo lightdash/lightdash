@@ -113,9 +113,9 @@ answer:
       - column_id: Total Revenue
     axis_configs:
       - x:
-        - State
+          - column_id: State
         "y":
-        - Total Revenue
+          - column_id: Total Revenue
   display_mode: CHART_MODE
 ```
 
@@ -163,9 +163,9 @@ liveboard:
             - column_id: Total Revenue
           axis_configs:
             - x:
-              - State
+                - column_id: State
               "y":
-              - Total Revenue
+                - column_id: Total Revenue
         display_mode: CHART_MODE
       viz_guid: viz-guid-1
     - id: Viz_2
@@ -187,7 +187,7 @@ liveboard:
   filters:
     - column:
         - State
-      oper: IN
+      oper: "in"
       values:
         - "California"
         - "New York"
@@ -306,10 +306,7 @@ metricQuery:
     - dim_stores_state
   metrics:
     - fact_sales_total_revenue
-  filters:
-    dimensions: []
-    metrics: []
-    tableCalculations: []
+  filters: {}
   sorts:
     - fieldId: fact_sales_total_revenue
       descending: true
@@ -357,10 +354,7 @@ metricQuery:
     - dim_products_category
   metrics:
     - fact_sales_total_revenue
-  filters:
-    dimensions: []
-    metrics: []
-    tableCalculations: []
+  filters: {}
   sorts:
     - fieldId: fact_sales_total_revenue
       descending: true
@@ -369,7 +363,8 @@ metricQuery:
 
 chartConfig:
   type: pie
-  config: {}
+  config:
+    isDonut: false
 
 tableConfig:
   columnOrder:
@@ -392,6 +387,8 @@ tabs: []
 
 tiles:
   - type: saved_chart
+    uuid: null
+    tileSlug: null
     x: 0
     y: 0
     w: 18
@@ -401,6 +398,8 @@ tiles:
       title: "Revenue by State"
       hideTitle: false
   - type: saved_chart
+    uuid: null
+    tileSlug: null
     x: 18
     y: 0
     w: 18
@@ -412,14 +411,14 @@ tiles:
 
 filters:
   dimensions:
-    - id: "filter-state-1"
-      target:
+    - target:
         fieldId: dim_stores_state
         tableName: fact_sales
       operator: equals
       values:
         - "California"
         - "New York"
+      label: null
   metrics: []
   tableCalculations: []
 ```
@@ -432,10 +431,14 @@ filters:
 
 3. **Formula translation**: ThoughtSpot's `[sales_1::revenue] / [sales_1::units_sold]` became a model-level SQL metric: `SUM(${TABLE}.revenue) / NULLIF(SUM(${TABLE}.units_sold), 0)`. Note: this is defined under model-level `meta.metrics` (not on a column) because it combines multiple columns. Added `SUM()` aggregation wrappers and `NULLIF` to avoid division by zero.
 
-4. **Filter translation**: ThoughtSpot `oper: IN` with multiple values → Lightdash `operator: equals` with multiple values (Lightdash `equals` with an array acts as IN).
+4. **Filter translation**: ThoughtSpot `oper: "in"` with multiple values → Lightdash `operator: equals` with multiple values (Lightdash `equals` with an array acts as IN). Note: dashboard dimension filters omit `id` (auto-generated) but require `label: null`.
 
 5. **Chart type**: ThoughtSpot `COLUMN` → Lightdash `cartesian` with `series[].type: bar`.
 
 6. **Limit from search query**: ThoughtSpot `top 10` in search query → Lightdash `metricQuery.limit: 10`.
 
-7. **downloadedAt**: Every chart and dashboard file needs this timestamp or upload will fail.
+7. **downloadedAt**: Every chart and dashboard file should include this timestamp. It defaults to the current time if omitted.
+
+8. **Chart filters**: Chart-level `metricQuery.filters` uses `FilterGroup` format (`{and: [...]}` or `{or: [...]}`) not flat arrays. Use empty object `{}` when no filters.
+
+9. **Dashboard tiles**: Each tile needs `uuid: null` and `tileSlug: null` for new tiles created via chart-as-code.

@@ -23,7 +23,7 @@ worksheet:
     - name: join_products
       source: fact_retapp_sales
       destination: dim_retapp_products
-      type: INNER                    # INNER, LEFT_OUTER, RIGHT_OUTER, FULL_OUTER
+      type: INNER                    # INNER, LEFT_OUTER, RIGHT_OUTER, OUTER
       is_one_to_one: false
     - name: join_stores
       source: fact_retapp_sales
@@ -99,11 +99,11 @@ worksheet:
         column_type: MEASURE
         aggregation: SUM
 
-  # Worksheet-level filters
+  # Worksheet-level filters (use lowercase symbol operators)
   filters:
     - column:
         - "Status"
-      oper: EQ
+      oper: "="                      # =, !=, <, <=, >, >=, in, not in, between
       values:
         - "Active"
 
@@ -115,13 +115,11 @@ worksheet:
   # Joins defined via joins_with (newer TML format)
   joins_with:
     - name: "Join to Products"
-      source:
-        name: fact_retapp_sales
       destination:
         name: dim_retapp_products
       on: "[fact_retapp_sales::product_id] = [dim_retapp_products::id]"
       type: LEFT_OUTER
-      cardinality: MANY_TO_ONE
+      cardinality: MANY_TO_ONE       # MANY_TO_ONE, ONE_TO_ONE, ONE_TO_MANY
 ```
 
 ## Key Fields
@@ -135,16 +133,20 @@ Each column definition includes:
 - `description` - optional description
 - `properties`:
   - `column_type` - `ATTRIBUTE` (dimension) or `MEASURE` (metric)
-  - `aggregation` - for measures: `SUM`, `COUNT`, `COUNT_DISTINCT`, `AVG`, `MIN`, `MAX`
+  - `aggregation` - for measures: `SUM`, `COUNT`, `COUNT_DISTINCT`, `AVERAGE`, `MIN`, `MAX`, `NONE`, `STD_DEVIATION`, `VARIANCE`
   - `index_type` - `DONT_INDEX` means hidden/internal
   - `synonyms` - alternative names for search
   - `is_hidden` - whether column is hidden from users
+  - `is_attribution_dimension` - boolean, for attribution analysis
+  - `is_additive` - boolean, whether measure is additive
   - `format_pattern` - display format string
-  - `currency_type` - currency formatting with `iso_code`
-  - `geo_config` - geographic data type configuration
-  - `calendar` - custom calendar configuration
-  - `data_type` - explicit data type override
+  - `currency_type` - currency formatting with `iso_code`, `is_browser: true`, or `column: <name>`
+  - `geo_config` - geographic data type configuration (latitude, longitude, country, region_name, custom_file_guid)
+  - `calendar` - custom calendar configuration (`default` or `<calendar_name>`)
+  - `data_type` - explicit data type override (`BOOL`, `VARCHAR`, `DOUBLE`, `FLOAT`, `INT`, `BIGINT`, `DATE`, `DATETIME`, `TIMESTAMP`, `TIME`)
   - `is_mandatory` - required filter
+  - `index_priority` - numeric (1-10), search index priority
+  - `spotiq_preference` - `EXCLUDE` to exclude from SpotIQ analysis
 
 ### `formulas`
 
@@ -156,10 +158,10 @@ Calculated fields using ThoughtSpot formula syntax:
 ### `joins` vs `joins_with`
 
 Two formats exist:
-- **`joins`** (older): Simple source/destination/type — does NOT include the join condition
-- **`joins_with`** (newer): Includes full Identity objects with `on` clause and cardinality
+- **`joins`** (older): Simple source/destination/type — may include the `on` clause
+- **`joins_with`** (newer): Includes destination Identity object with `on` clause and cardinality (`MANY_TO_ONE`, `ONE_TO_ONE`, `ONE_TO_MANY`). Note: `joins_with` does NOT have a `source` field — the source is implied from the worksheet's base table.
 
-**Prefer `joins_with` when available** — it provides the `on` clause which maps directly to Lightdash's `sql_on`. When only `joins` is present, you'll need to infer or ask for the join condition since ThoughtSpot's older format doesn't include it.
+**Prefer `joins_with` when available** — it provides the `on` clause which maps directly to Lightdash's `sql_on`. When only `joins` is present without an `on` clause, you'll need to infer or ask for the join condition.
 
 ### `table_paths`
 
@@ -283,7 +285,7 @@ metrics:
 | `INNER` | `inner` |
 | `LEFT_OUTER` | `left` |
 | `RIGHT_OUTER` | `right` |
-| `FULL_OUTER` | `full` |
+| `OUTER` | `full` |
 
 ## Column ID Parsing
 
