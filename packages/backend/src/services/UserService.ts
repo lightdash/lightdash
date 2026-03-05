@@ -1689,6 +1689,7 @@ export class UserService extends BaseService {
                 'impersonate',
                 subject('User', {
                     organizationUuid: requestUser.organizationUuid,
+                    isActive: requestUser.isActive,
                 }),
             )
         ) {
