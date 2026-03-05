@@ -4,11 +4,11 @@ A ThoughtSpot Liveboard (formerly Pinboard) is a dashboard containing multiple v
 
 ## TML Structure
 
-> **Note:** Older ThoughtSpot exports use `pinboard:` as the top-level key instead of `liveboard:`. The structure is identical. Handle both by checking for either key.
+> **Note:** ThoughtSpot TML exports historically use `pinboard:` as the top-level key (even after the product rename to "Liveboard"). Some newer ThoughtSpot Cloud versions may export with `liveboard:` instead. The structure is identical. Handle both by checking for either key.
 
 ```yaml
 guid: <uuid>
-liveboard:                                # Or `pinboard:` in older exports
+pinboard:                                 # Or `liveboard:` in newer exports
   name: "Dashboard Name"
   description: "Optional description"
 
@@ -66,7 +66,7 @@ liveboard:                                # Or `pinboard:` in older exports
   filters:
     - column:
         - "Column Name"
-      oper: "in"                         # =, !=, <, <=, >=, >, in, not in, between, =<
+      oper: "in"                         # in, not in, between, =<, !=, <=, >=, >, <
       values:
         - "value1"
         - "value2"
@@ -134,7 +134,7 @@ Grid-based layout where each tile has:
 
 Dashboard-level filters that apply across visualizations:
 - `column` - list of column name path segments (primary filter column listed first for linked filters)
-- `oper` - comparison operator in lowercase symbol form (`=`, `!=`, `<`, `<=`, `>=`, `>`, `in`, `not in`, `between`, `=<`)
+- `oper` - comparison operator in lowercase symbol form (`in`, `not in`, `between`, `=<`, `!=`, `<=`, `>=`, `>`, `<`)
 - `values` - filter values
 - `is_mandatory` - whether filter is required
 - `excluded_visualizations` - viz IDs excluded from this filter (for selective filters)
@@ -181,7 +181,8 @@ tiles:
 
 filters:
   dimensions:
-    # Note: `id` is omitted in dashboard as-code (auto-generated)
+    # Required fields: `operator` and `target` (with `fieldId` and `tableName`)
+    # Optional fields: `id` (auto-generated), `values`, `label`, `settings`, `tileTargets`
     - target:
         fieldId: column_name
         tableName: model_name
@@ -189,7 +190,7 @@ filters:
       values:
         - "value1"
         - "value2"
-      label: null              # Required field — use null or a display label string
+      label: null              # Optional — use null or a display label string
   metrics: []
   tableCalculations: []
 ```

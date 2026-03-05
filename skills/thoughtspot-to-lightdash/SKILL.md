@@ -20,9 +20,9 @@ ThoughtSpot exports metadata as TML (ThoughtSpot Modeling Language) YAML files. 
 | **Table** (`.table.tml`) | dbt model / source reference | Used for column mapping |
 | **View** (`.view.tml`) | Model YAML (derived) | `models/<model>.yml` |
 
-> **Note: Worksheet vs Model TML** — ThoughtSpot is deprecating Worksheets in favor of **Models** (v2 schema). Model TML uses `model:` as the top-level key instead of `worksheet:`, and `model_columns:` instead of `worksheet_columns:`, but the structure is otherwise identical. Newer ThoughtSpot exports will produce `.model.tml` files. This skill handles both formats — apply the same translation rules regardless of which you receive.
+> **Note: Worksheet vs Model TML** — ThoughtSpot is deprecating Worksheets in favor of **Models** (v2 schema). Model TML uses `model:` as the top-level key instead of `worksheet:`, `model_tables:` instead of `tables:`, and `columns:` instead of `worksheet_columns:`. Model TML also uses a different join structure within `model_tables` (inline `joins` with `with:`, `on:`, `cardinality:`) instead of the top-level `joins`/`joins_with` sections. Newer ThoughtSpot exports will produce `.model.tml` files. This skill handles both formats — see the [Worksheet Reference](./resources/tml-worksheet-reference.md) for details on both structures.
 
-> **Note: Liveboard vs Pinboard TML** — Older ThoughtSpot exports use `pinboard:` as the top-level key instead of `liveboard:`. The structure is identical. Handle both by checking for either key.
+> **Note: Liveboard vs Pinboard TML** — ThoughtSpot TML exports use `pinboard:` as the top-level key (the original name). Some newer ThoughtSpot versions may also export with `liveboard:` as the top-level key. The structure is identical. Handle both by checking for either key.
 
 ## Before You Start
 
@@ -124,12 +124,12 @@ See [TML Liveboard Reference](./resources/tml-liveboard-reference.md) for the fu
 | `GEO_EARTH_GRAPH` | `table` | No direct equivalent — convert to table |
 | `GEO_EARTH_BUBBLE` | `table` | No direct equivalent — convert to table |
 | `GEO_EARTH_HEATMAP` | `table` | No direct equivalent — convert to table |
-| `TABLE` | `table` | |
+| `TABLE` | `table` | Direct mapping |
 | `GRID_TABLE` | `table` | Treat same as TABLE |
 | `FUNNEL` | `funnel` | |
 | `TREEMAP` | `treemap` | |
 | `WATERFALL` | `cartesian` (bar) | Approximate with stacked bar |
-| `PIVOT_TABLE` | `table` | Use pivot configuration |
+| `PIVOT_TABLE` | `table` | Use `pivotConfig.columns` in chart YAML to specify pivot columns |
 | `SANKEY` | `table` | No Lightdash equivalent — convert to table |
 | `SPIDER_WEB` | `table` | No Lightdash equivalent — convert to table |
 | `CANDLESTICK` | `table` | No Lightdash equivalent — convert to table |
@@ -138,6 +138,8 @@ See [TML Liveboard Reference](./resources/tml-liveboard-reference.md) for the fu
 | `LINE_STACKED_COLUMN` | `cartesian` | Mixed chart — use stacked bar + line series |
 | `HEATMAP` | `table` | No Lightdash equivalent — convert to table |
 | `PARETO` | `cartesian` | Use bar + line series as approximation |
+
+> **Lightdash chart types:** `cartesian`, `table`, `big_number`, `pie`, `funnel`, `treemap`, `gauge`, `map`, `custom`. The `gauge` type can be used for single-metric displays similar to ThoughtSpot KPI gauges. The `custom` type is for custom visualizations and is generally not used in translation.
 
 > **Note on missing chart types**: ThoughtSpot's chart type enum does NOT include `DONUT`, `GAUGE`, `KPI`, or `HEADLINE` as chart types. Donut is a pie chart configuration, not a separate type. Headlines/KPIs appear in Liveboards as visualizations with `display_headline_column` set (no `chart` section) — see "Headline / KPI Visualizations" below.
 
@@ -168,45 +170,39 @@ chartConfig:
 
 ## Filter Operator Mapping
 
-ThoughtSpot TML filter `oper` values use **lowercase symbol form** in worksheet/liveboard filters (`=`, `!=`, `in`, `not in`, `between`, `<`, `>`, `<=`, `>=`). Handle these:
+ThoughtSpot TML filter `oper` values use **lowercase symbol form** in worksheet/model/liveboard filters. The official ThoughtSpot documentation lists these operators: `in`, `not in`, `between`, `=<`, `!=`, `<=`, `>=`, `>`, `<`.
 
-| ThoughtSpot `oper` | Lightdash `operator` |
-|-------------------|---------------------|
-| `=` | `equals` |
-| `!=` | `notEquals` |
-| `<` | `lessThan` |
-| `<=` | `lessThanOrEqual` |
-| `>` | `greaterThan` |
-| `>=` | `greaterThanOrEqual` |
-| `=<` | `lessThanOrEqual` (legacy form, treat same as `<=`) |
-| `in` | `equals` (with multiple values) |
-| `not in` | `notEquals` (with multiple values) |
-| `contains` | `include` |
-| `not contains` | `doesNotInclude` |
-| `begins with` | `startsWith` |
-| `ends with` | `endsWith` |
-| `is null` | `isNull` |
-| `is not null` | `notNull` |
-| `between` | `inBetween` |
+| ThoughtSpot `oper` | Lightdash `operator` | Notes |
+|-------------------|---------------------|-------|
+| `!=` | `notEquals` | |
+| `<` | `lessThan` | |
+| `<=` | `lessThanOrEqual` | |
+| `>` | `greaterThan` | |
+| `>=` | `greaterThanOrEqual` | |
+| `=<` | `lessThanOrEqual` | Legacy form of `<=` |
+| `in` | `equals` | Lightdash `equals` with an array acts as IN |
+| `not in` | `notEquals` | With multiple values |
+| `between` | `inBetween` | |
 
-> **Note:** The official ThoughtSpot docs list these operators in lowercase symbol form. If you encounter uppercase enum forms (e.g., `EQ`, `NE`, `IN`) in older exports, map them using the same logic.
+> **Note:** The ThoughtSpot docs do not list `=` (equals) as a TML filter operator — single-value equality uses `in` with one value. If you encounter `=` in an export, map it to `equals`. Similarly, string operators like `contains`, `begins with`, `ends with`, `is null`, `is not null` are ThoughtSpot **search query** keywords, not TML filter `oper` values. If you encounter them in TML (e.g., from custom exports), map them as: `contains` → `include`, `not contains` → `doesNotInclude`, `begins with` → `startsWith`, `ends with` → `endsWith`, `is null` → `isNull`, `is not null` → `notNull`.
+
+> **Lightdash additional operators:** Lightdash also supports date-specific operators not used in TML: `inThePast`, `notInThePast`, `inTheNext`, `inTheCurrent`, `notInTheCurrent`, `notInBetween`. These may be useful when translating ThoughtSpot date filters with search query keywords like `last 30 days`.
 
 ## Column Type Mapping
 
 | ThoughtSpot `column_type` | Lightdash Usage |
 |--------------------------|----------------|
 | `ATTRIBUTE` | → `dimension` |
-| `MEASURE` | → `metric` |
+| `MEASURE` (default) | → `metric` |
 
 | ThoughtSpot `aggregation` | Lightdash `metric.type` |
 |--------------------------|------------------------|
 | `SUM` | `sum` |
 | `COUNT` | `count` |
 | `COUNT_DISTINCT` | `count_distinct` |
-| `AVG` / `AVERAGE` | `average` |
+| `AVERAGE` | `average` |
 | `MIN` | `min` |
 | `MAX` | `max` |
-| `UNIQUE_COUNT` | `count_distinct` |
 | `NONE` | No aggregation — treat as a dimension or use `type: number` SQL metric |
 | `STD_DEVIATION` | Use `type: sql` metric with `STDDEV(${TABLE}.column)` |
 | `VARIANCE` | Use `type: sql` metric with `VARIANCE(${TABLE}.column)` |
@@ -246,9 +242,13 @@ your-project/
 - Slugs use hyphens, not underscores: `my-chart-name` not `my_chart_name`
 - Slug pattern: lowercase alphanumeric and hyphens only (`^[a-z0-9-]+$`)
 - Every chart and dashboard YAML needs `version: 1`
-- Include `downloadedAt` and `updatedAt` timestamps (ISO 8601 format, use current time). They default to current time if omitted, but including them is good practice.
+- **Required chart fields:** `version`, `name`, `slug`, `spaceSlug`, `tableName`, `metricQuery`, `chartConfig`
+- **Required dashboard fields:** `version`, `name`, `slug`, `spaceSlug`, `tiles`, `tabs`
+- **Optional chart fields:** `description`, `updatedAt`, `downloadedAt`, `dashboardSlug`, `tableConfig`, `pivotConfig`, `parameters`
+- **Optional dashboard fields:** `description`, `updatedAt`, `downloadedAt`, `filters`
 - Dashboard tiles reference charts by `chartSlug` matching the chart file's `slug` field
-- Dashboard tiles also need `tileSlug` (optional identifier) and `uuid` (set to `null` for new tiles)
+- Dashboard tiles require: `type`, `x`, `y`, `w`, `h`. Optional: `uuid` (set to `null` for new tiles), `tileSlug`, `tabUuid`
+- Dashboard tile types: `saved_chart`, `sql_chart`, `markdown`, `loom`, `heading`
 
 ## Complete Translation Example
 
@@ -279,7 +279,7 @@ Answer TML may include a `client_state` or `client_state_v2` field containing a 
 6. **Liveboard filters vs chart filters**: ThoughtSpot Liveboard filters apply across visualizations. In Lightdash, dashboard filters target specific fields - map the `column` reference to the correct `fieldId` and `tableName`.
 7. **Formula metrics need model-level `meta`**: ThoughtSpot formulas that combine multiple columns (e.g., `revenue / units_sold`) should become model-level `meta.metrics` with custom SQL, NOT column-level metrics on a fake column name.
 8. **Chart filter structure**: Chart-level `metricQuery.filters` uses `FilterGroup` objects (`{and: [...]}` or `{or: [...]}`) NOT flat arrays. Dashboard filters use flat arrays of `DashboardFilterRule`.
-9. **Dashboard filter IDs**: In dashboard as-code, dimension filter IDs are auto-generated — do NOT include an `id` field. But DO include `label: null` (required field).
+9. **Dashboard filter fields**: In dashboard as-code, dimension filters require `operator` and `target` (with `fieldId` and `tableName`). The `id` field is optional (auto-generated). `label`, `values`, `settings`, and `tileTargets` are all optional.
 10. **Pinboard vs Liveboard key**: Older ThoughtSpot exports use `pinboard:` instead of `liveboard:` — handle both.
 11. **Headline visualizations**: ThoughtSpot headlines are NOT a chart type — they are Liveboard visualizations with `display_headline_column` set. Map to `big_number` chart type.
 
@@ -300,3 +300,8 @@ These ThoughtSpot features cannot be automatically translated and require manual
 | View TML (`search_query` based) | Partial | The `search_query` must be interpreted and converted to SQL or Lightdash metric definitions |
 | SQL View TML | Partial | `sql_query` can map to Lightdash `sql_from` but column definitions need manual mapping |
 | R/Python-powered visualizations | Not exportable | ThoughtSpot does not support TML export for R/Python visualizations |
+| ThoughtSpot `lesson_plans` (Search Assist Coach) | Not supported | No Lightdash equivalent — drop during translation |
+| ThoughtSpot `range_config` / `list_config` parameters | Not supported | Lightdash does not have parameter types with range/list constraints — use dashboard filters as a workaround |
+| ThoughtSpot `index_type` / `index_priority` | Not applicable | These are ThoughtSpot search index settings with no Lightdash equivalent — drop during translation |
+| ThoughtSpot `spotiq_preference` | Not applicable | SpotIQ is ThoughtSpot-specific — drop during translation |
+| ThoughtSpot `is_attribution_dimension` / `is_additive` | Not applicable | These are ThoughtSpot-specific column properties — drop during translation |

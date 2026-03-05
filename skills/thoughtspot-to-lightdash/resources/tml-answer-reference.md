@@ -21,7 +21,7 @@ answer:
     - name: join_name
       source: source_table
       destination: dest_table
-      type: INNER              # INNER, LEFT_OUTER, RIGHT_OUTER, FULL_OUTER
+      type: INNER              # INNER, LEFT_OUTER, RIGHT_OUTER, OUTER
       is_one_to_one: false
       on: "[source.col] = [dest.col]"
 
@@ -154,12 +154,24 @@ Visualization configuration:
 - `axis_configs` - which columns go on x vs y axis
 - Additional config in `client_state_v2` (JSON string with colors, labels, etc.)
 
+### `table`
+
+Table visualization configuration:
+- `table_columns` - column specifications with `column_id`, `show_headline` (boolean), `headline_aggregation`
+  - `headline_aggregation` values: `COUNT`, `COUNT_DISTINCT`, `SUM`, `MIN`, `MAX`, `AVERAGE`, `TABLE_AGGR`
+- `ordered_column_ids` - display sequence of columns
+- `client_state` - JSON string for advanced configuration
+
 ### `formulas`
 
 Calculated fields with ThoughtSpot expression syntax:
+- `id` - optional identifier (defaults to "Untitled Formula")
+- `name` - formula display name
 - `expr` - the formula expression using `[table_path::column]` references
 - `properties.column_type` - MEASURE or ATTRIBUTE
 - `properties.aggregation` - aggregation type if MEASURE
+- `properties.data_type` - explicit data type (`BOOL`, `VARCHAR`, `DOUBLE`, `FLOAT`, `INT`, `BIGINT`, `DATE`, `DATETIME`, `TIMESTAMP`, `TIME`)
+- `was_auto_generated` - boolean indicating if formula was auto-generated
 
 ## Translation to Lightdash Chart
 
@@ -175,7 +187,7 @@ updatedAt: "2026-03-04T00:00:00.000Z"
 downloadedAt: "2026-03-04T00:00:00.000Z"
 
 metricQuery:
-  exploreName: model_name
+  exploreName: model_name               # Required — same as tableName
   dimensions:
     - model_name_city                    # tableName_dimensionName format
     - model_name_state
@@ -190,6 +202,7 @@ metricQuery:
   #         operator: equals
   #         values:
   #           - "Active"
+  #         id: filter-1                # Optional in chart-as-code
   sorts:
     - fieldId: model_name_total_quantity_purchased
       descending: true

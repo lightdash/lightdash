@@ -2,7 +2,7 @@
 
 A ThoughtSpot Worksheet (or Model in v2 schema) defines the semantic layer - joins between tables, calculated columns, and column metadata (attributes vs measures). This maps to the Lightdash model YAML where you define dimensions, metrics, and joins.
 
-> **Worksheet vs Model**: ThoughtSpot is deprecating Worksheets in favor of **Models** (v2 schema). Model TML files use `model:` as the top-level key instead of `worksheet:`, and `model_columns:` instead of `worksheet_columns:`. The structure is otherwise identical. Apply the same translation rules to both.
+> **Worksheet vs Model**: ThoughtSpot is deprecating Worksheets in favor of **Models** (v2 schema). Model TML files use `model:` as the top-level key instead of `worksheet:`, `model_tables:` instead of `tables:`, and `columns:` instead of `worksheet_columns:`. Model TML also uses a **different join structure** — joins are defined inline within each `model_tables` entry using `with:`, `on:`, and `cardinality:` instead of top-level `joins`/`joins_with` sections. See the "Model TML Structure" section below for details.
 
 ## TML Structure
 
@@ -103,7 +103,7 @@ worksheet:
   filters:
     - column:
         - "Status"
-      oper: "="                      # =, !=, <, <=, >, >=, in, not in, between
+      oper: "in"                     # in, not in, between, =<, !=, <=, >=, >, <
       values:
         - "Active"
 
@@ -115,12 +115,82 @@ worksheet:
   # Joins defined via joins_with (newer TML format)
   joins_with:
     - name: "Join to Products"
+      description: "Optional join description"
       destination:
         name: dim_retapp_products
       on: "[fact_retapp_sales::product_id] = [dim_retapp_products::id]"
       type: LEFT_OUTER
-      cardinality: MANY_TO_ONE       # MANY_TO_ONE, ONE_TO_ONE, ONE_TO_MANY
+      is_one_to_one: false           # boolean — true for 1:1, false for 1:many or many:1
 ```
+
+## Model TML Structure
+
+Model TML uses a different structure from Worksheet TML. Key differences:
+
+```yaml
+guid: <uuid>
+model:
+  name: "Model Name"
+  description: "Optional description"
+
+  # Source tables — note: `model_tables` not `tables`
+  model_tables:
+    - name: dim_products
+      # Joins are INLINE within each table entry (not top-level)
+      joins:
+        - with: fact_sales              # `with` not `destination`
+          on: "[dim_products::id] = [fact_sales::product_id]"
+          type: LEFT_OUTER
+          cardinality: MANY_TO_ONE      # MANY_TO_ONE, ONE_TO_ONE, ONE_TO_MANY
+    - name: fact_sales
+
+  formulas:
+    - name: "Revenue per Unit"
+      expr: "[fact_sales::revenue] / [fact_sales::units_sold]"
+      id: formula_1
+
+  filters:
+    - column: "Status"
+      oper: "in"
+      values:
+        - "Active"
+
+  # Columns — note: `columns` not `worksheet_columns` or `model_columns`
+  columns:
+    - name: Product Name
+      column_id: dim_products::product_name    # Note: no table_path alias, uses table name directly
+      properties:
+        column_type: ATTRIBUTE
+    - name: Revenue
+      column_id: fact_sales::revenue
+      properties:
+        column_type: MEASURE
+        aggregation: SUM
+
+  properties:
+    is_bypass_rls: false
+    join_progressive: true
+
+  parameters:
+    - id: param_1
+      name: "Date Range"
+      data_type: DATE
+      default_value: "2024-01-01"
+      range_config:
+        range_min: "2020-01-01"
+        range_max: "2030-01-01"
+        include_min: true
+        include_max: true
+```
+
+**Key differences from Worksheet TML:**
+- Top-level key: `model:` instead of `worksheet:`
+- Tables section: `model_tables:` instead of `tables:`
+- Columns section: `columns:` instead of `worksheet_columns:`
+- No `table_paths` section — Model TML uses table names directly in `column_id` (e.g., `fact_sales::revenue` not `sales_1::revenue`)
+- Joins are defined **inline** within each `model_tables` entry using `with:` (destination), `on:`, `type:`, and `cardinality:` — not as top-level `joins` or `joins_with` sections
+
+**Translation impact:** When processing Model TML, parse the inline `joins` within `model_tables` to build Lightdash join definitions. The `column_id` values reference table names directly (no table_path alias lookup needed).
 
 ## Key Fields
 
@@ -157,11 +227,13 @@ Calculated fields using ThoughtSpot formula syntax:
 
 ### `joins` vs `joins_with`
 
-Two formats exist:
-- **`joins`** (older): Simple source/destination/type — may include the `on` clause
-- **`joins_with`** (newer): Includes destination Identity object with `on` clause and cardinality (`MANY_TO_ONE`, `ONE_TO_ONE`, `ONE_TO_MANY`). Note: `joins_with` does NOT have a `source` field — the source is implied from the worksheet's base table.
+Two formats exist for Worksheet TML (Model TML uses a third format — see "Model TML Structure" above):
+- **`joins`** (older): Simple source/destination/type — may include the `on` clause and `is_one_to_one`
+- **`joins_with`** (newer): Includes `destination` (with `name` and optional `fqn`), `on` clause, `type`, and `is_one_to_one`. Note: `joins_with` does NOT have a `source` field — the source is implied from the worksheet's base table.
 
 **Prefer `joins_with` when available** — it provides the `on` clause which maps directly to Lightdash's `sql_on`. When only `joins` is present without an `on` clause, you'll need to infer or ask for the join condition.
+
+> **Note:** The `cardinality` field (`MANY_TO_ONE`, `ONE_TO_ONE`, `ONE_TO_MANY`) appears in Model TML inline joins, not in Worksheet `joins_with`. Worksheet TML uses `is_one_to_one` (boolean) instead.
 
 ### `table_paths`
 
@@ -286,6 +358,18 @@ metrics:
 | `LEFT_OUTER` | `left` |
 | `RIGHT_OUTER` | `right` |
 | `OUTER` | `full` |
+
+### `parameters`
+
+Worksheets/Models can define parameters (dynamic runtime values):
+- `id` - parameter identifier
+- `name` - display name
+- `data_type` - `VARCHAR`, `DOUBLE`, `INT`, `BIGINT`, `DATE`, `DATETIME`, `BOOL`
+- `default_value` - default parameter value
+- `range_config` - for numeric/date parameters: `range_min`, `range_max`, `include_min`, `include_max`
+- `list_config` - for list parameters: `list_choice` values and `display_name` mappings
+
+> **Note:** ThoughtSpot parameters have no direct Lightdash equivalent. During translation, hardcode the `default_value` or suggest using Lightdash dashboard filters as a workaround.
 
 ## Column ID Parsing
 

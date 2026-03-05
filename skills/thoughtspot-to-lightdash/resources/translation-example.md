@@ -418,7 +418,6 @@ filters:
       values:
         - "California"
         - "New York"
-      label: null
   metrics: []
   tableCalculations: []
 ```
@@ -431,7 +430,7 @@ filters:
 
 3. **Formula translation**: ThoughtSpot's `[sales_1::revenue] / [sales_1::units_sold]` became a model-level SQL metric: `SUM(${TABLE}.revenue) / NULLIF(SUM(${TABLE}.units_sold), 0)`. Note: this is defined under model-level `meta.metrics` (not on a column) because it combines multiple columns. Added `SUM()` aggregation wrappers and `NULLIF` to avoid division by zero.
 
-4. **Filter translation**: ThoughtSpot `oper: "in"` with multiple values → Lightdash `operator: equals` with multiple values (Lightdash `equals` with an array acts as IN). Note: dashboard dimension filters omit `id` (auto-generated) but require `label: null`.
+4. **Filter translation**: ThoughtSpot `oper: "in"` with multiple values → Lightdash `operator: equals` with multiple values (Lightdash `equals` with an array acts as IN). Note: dashboard dimension filters require `operator` and `target`; `id` is auto-generated, `label` is optional.
 
 5. **Chart type**: ThoughtSpot `COLUMN` → Lightdash `cartesian` with `series[].type: bar`.
 
