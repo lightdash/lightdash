@@ -3,7 +3,6 @@ import {
     AbilityAction,
     BulkActionable,
     CreateSpace,
-    FeatureFlags,
     ForbiddenError,
     getHighestSpaceRole,
     NotFoundError,
@@ -20,7 +19,6 @@ import {
 import { Knex } from 'knex';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
-import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SpaceModel } from '../../models/SpaceModel';
@@ -39,7 +37,6 @@ type SpaceServiceArguments = {
     projectModel: ProjectModel;
     spaceModel: SpaceModel;
     pinnedListModel: PinnedListModel;
-    featureFlagModel: FeatureFlagModel;
     spacePermissionService: SpacePermissionService;
     savedChartService: SavedChartService;
     dashboardService: DashboardService;
@@ -85,8 +82,6 @@ export class SpaceService
 
     private readonly pinnedListModel: PinnedListModel;
 
-    private readonly featureFlagModel: FeatureFlagModel;
-
     private readonly spacePermissionService: SpacePermissionService;
 
     private readonly savedChartService: SavedChartService;
@@ -100,7 +95,6 @@ export class SpaceService
         this.projectModel = args.projectModel;
         this.spaceModel = args.spaceModel;
         this.pinnedListModel = args.pinnedListModel;
-        this.featureFlagModel = args.featureFlagModel;
         this.spacePermissionService = args.spacePermissionService;
         this.savedChartService = args.savedChartService;
         this.dashboardService = args.dashboardService;
@@ -291,12 +285,6 @@ export class SpaceService
 
         const space = await this.spaceModel.getSpaceSummary(spaceUuid);
 
-        // TODO: legacy nested space check. How do we migrate this?
-        const isNested = !(await this.spaceModel.isRootSpace(spaceUuid));
-        if (isNested && 'isPrivate' in updateSpace) {
-            throw new ForbiddenError(`Can't change privacy for a nested space`);
-        }
-
         // you can either set isPrivate or inheritParentPermissions while we temporarily
         // support both. Keeping the other property in sync in the meantime.
         let { isPrivate, inheritParentPermissions } = updateSpace;
@@ -312,12 +300,7 @@ export class SpaceService
             space.inheritParentPermissions === true &&
             inheritParentPermissions === false;
 
-        const { enabled: nestedSpacesEnabled } =
-            await this.featureFlagModel.get({
-                featureFlagId: FeatureFlags.NestedSpacesPermissions,
-            });
-
-        if (turnInheritOff && nestedSpacesEnabled) {
+        if (turnInheritOff) {
             const ctx = await this.spacePermissionService.getSpaceAccessContext(
                 user.userUuid,
                 spaceUuid,
@@ -369,6 +352,8 @@ export class SpaceService
         const directAccessCount = updatedSpace.access.filter(
             (a) => a.hasDirectAccess,
         ).length;
+
+        const isNested = !!space.parentSpaceUuid;
 
         this.analytics.track({
             event: 'space.updated',
@@ -731,25 +716,6 @@ export class SpaceService
         await this.spaceModel.permanentDelete(spaceUuid);
     }
 
-    private async assertSpacePermissionChangeAllowed(
-        spaceUuid: string,
-        type: 'user' | 'group',
-    ): Promise<void> {
-        const isRootSpace = await this.spaceModel.isRootSpace(spaceUuid);
-
-        // Root spaces are always allowed to change access
-        if (isRootSpace) return;
-
-        const flag = await this.featureFlagModel.get({
-            featureFlagId: FeatureFlags.NestedSpacesPermissions,
-        });
-        if (!flag.enabled) {
-            throw new ForbiddenError(
-                `Can't change ${type} access to a nested space`,
-            );
-        }
-    }
-
     async addSpaceUserAccess(
         user: SessionUser,
         spaceUuid: string,
@@ -761,8 +727,6 @@ export class SpaceService
         ) {
             throw new ForbiddenError();
         }
-
-        await this.assertSpacePermissionChangeAllowed(spaceUuid, 'user');
 
         await this.spaceModel.addSpaceAccess(
             spaceUuid,
@@ -782,8 +746,6 @@ export class SpaceService
             throw new ForbiddenError();
         }
 
-        await this.assertSpacePermissionChangeAllowed(spaceUuid, 'user');
-
         await this.spaceModel.removeSpaceAccess(spaceUuid, shareWithUserUuid);
     }
 
@@ -798,8 +760,6 @@ export class SpaceService
         ) {
             throw new ForbiddenError();
         }
-
-        await this.assertSpacePermissionChangeAllowed(spaceUuid, 'group');
 
         await this.spaceModel.addSpaceGroupAccess(
             spaceUuid,
@@ -818,8 +778,6 @@ export class SpaceService
         ) {
             throw new ForbiddenError();
         }
-
-        await this.assertSpacePermissionChangeAllowed(spaceUuid, 'group');
 
         await this.spaceModel.removeSpaceGroupAccess(
             spaceUuid,

@@ -34,25 +34,23 @@ import {
 import chunk from 'lodash/chunk';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
-import useToaster from '../../../../hooks/toaster/useToaster';
-import useSearchParams from '../../../../hooks/useSearchParams';
+import useToaster from '../../../hooks/toaster/useToaster';
+import useSearchParams from '../../../hooks/useSearchParams';
 import {
     useAddGroupSpaceShareMutation,
     useAddSpaceShareMutation,
     useDeleteSpaceGroupAccessMutation,
     useDeleteSpaceShareMutation,
-} from '../../../../hooks/useSpaces';
-import useApp from '../../../../providers/App/useApp';
-import Callout from '../../Callout';
-import MantineIcon from '../../MantineIcon';
-import MantineModal from '../../MantineModal';
-import PaginateControl from '../../PaginateControl';
-import { DEFAULT_PAGE_SIZE } from '../../Table/constants';
-import type { ShareSpaceProps } from '../index';
-import { ShareSpaceAddUser } from '../ShareSpaceAddUser';
-import { UserAccessAction, UserAccessOptions } from '../ShareSpaceSelect';
-import { getInitials, getUserNameOrEmail } from '../Utils';
-import classes from './ShareSpaceModal.module.css';
+} from '../../../hooks/useSpaces';
+import useApp from '../../../providers/App/useApp';
+import Callout from '../Callout';
+import MantineIcon from '../MantineIcon';
+import MantineModal from '../MantineModal';
+import PaginateControl from '../PaginateControl';
+import { DEFAULT_PAGE_SIZE } from '../Table/constants';
+import type { ShareSpaceProps } from './index';
+import { ShareSpaceAddUser } from './ShareSpaceAddUser';
+import classes from './ShareSpaceModalContent.module.css';
 import {
     AccessModelToggle,
     GroupsAccessList,
@@ -64,6 +62,8 @@ import {
     useSpaceAccessByType,
     type SortOrder,
 } from './ShareSpaceModalUtils';
+import { UserAccessAction, UserAccessOptions } from './ShareSpaceSelect';
+import { getInitials, getUserNameOrEmail } from './Utils';
 
 type AuditUser = SpaceShare & {
     origin: string;
@@ -191,7 +191,7 @@ const UserAccessAuditList: FC<UserAccessAuditListProps> = ({
     );
 };
 
-const ShareSpaceModalV2A: FC<ShareSpaceProps> = ({
+const ShareSpaceModalContent: FC<ShareSpaceProps> = ({
     space,
     projectUuid,
     opened: externalOpened,
@@ -670,4 +670,4 @@ const ShareSpaceModalV2A: FC<ShareSpaceProps> = ({
     );
 };
 
-export default ShareSpaceModalV2A;
+export default ShareSpaceModalContent;

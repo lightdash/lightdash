@@ -42,8 +42,6 @@ export class FeatureFlagModel {
             [FeatureFlags.Maps]: this.getMapsEnabled.bind(this),
             [FeatureFlags.ShowExecutionTime]:
                 this.getShowExecutionTimeEnabled.bind(this),
-            [FeatureFlags.NestedSpacesPermissions]:
-                this.getNestedSpacesPermissionsEnabled.bind(this),
             [FeatureFlags.AdminChangeNotifications]:
                 this.getAdminChangeNotifications.bind(this),
             [FeatureFlags.SavedMetricsTree]:
@@ -222,15 +220,6 @@ export class FeatureFlagModel {
         return {
             id: featureFlagId,
             enabled,
-        };
-    }
-
-    private async getNestedSpacesPermissionsEnabled({
-        featureFlagId,
-    }: FeatureFlagLogicArgs) {
-        return {
-            id: featureFlagId,
-            enabled: this.lightdashConfig.nestedSpacesPermissions.enabled,
         };
     }
 

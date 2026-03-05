@@ -815,7 +815,6 @@ export class ServiceRepository
             'spacePermissionService',
             () =>
                 new SpacePermissionService(
-                    this.models.getFeatureFlagModel(),
                     this.models.getSpaceModel(),
                     this.models.getSpacePermissionModel(),
                 ),
@@ -832,7 +831,6 @@ export class ServiceRepository
                     projectModel: this.models.getProjectModel(),
                     spaceModel: this.models.getSpaceModel(),
                     pinnedListModel: this.models.getPinnedListModel(),
-                    featureFlagModel: this.models.getFeatureFlagModel(),
                     spacePermissionService: this.getSpacePermissionService(),
                     savedChartService: this.getSavedChartService(),
                     dashboardService: this.getDashboardService(),

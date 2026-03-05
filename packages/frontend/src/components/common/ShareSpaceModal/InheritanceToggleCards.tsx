@@ -1,7 +1,7 @@
 import { Group, Paper, Stack, Text } from '@mantine-8/core';
 import { IconLock, IconUsersGroup } from '@tabler/icons-react';
 import { type FC } from 'react';
-import MantineIcon from '../../MantineIcon';
+import MantineIcon from '../MantineIcon';
 import {
     InheritanceType,
     NestedInheritanceOptions,

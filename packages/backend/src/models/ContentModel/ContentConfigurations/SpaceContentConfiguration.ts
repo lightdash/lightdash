@@ -9,7 +9,6 @@ import { SavedSqlTableName } from '../../../database/entities/savedSql';
 import { SchedulerTableName } from '../../../database/entities/scheduler';
 import { SpaceTableName } from '../../../database/entities/spaces';
 import { UserTableName } from '../../../database/entities/users';
-import { getRootSpaceIsPrivateQuery } from '../../SpacePermissionModel';
 import {
     ContentConfiguration,
     ContentFilters,
@@ -148,7 +147,7 @@ export const spaceContentConfiguration: ContentConfiguration<SpaceContentRow> =
                         ),
                         'parentSpaceUuid', ${SpaceTableName}.parent_space_uuid,
                         'path', ${SpaceTableName}.path,
-                        'isPrivate', (${getRootSpaceIsPrivateQuery()}),
+                        'isPrivate', ${SpaceTableName}.is_private,
                         'inheritParentPermissions', ${SpaceTableName}.inherit_parent_permissions,
                         'pinnedListOrder', ${PinnedSpaceTableName}.order
                         ${
