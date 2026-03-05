@@ -925,11 +925,11 @@ importers:
         specifier: ^4.36.1
         version: 4.36.1(@tanstack/react-query@4.36.1(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       '@tanstack/react-table':
-        specifier: ^8.15.3
-        version: 8.20.5(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+        specifier: ^8.21.3
+        version: 8.21.3(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       '@tanstack/react-virtual':
-        specifier: ^3.10.7
-        version: 3.10.7(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+        specifier: ^3.13.19
+        version: 3.13.19(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       '@tiptap/extension-link':
         specifier: ^2.2.4
         version: 2.2.4(@tiptap/core@2.2.4(@tiptap/pm@2.2.4))(@tiptap/pm@2.2.4)
@@ -6129,8 +6129,8 @@ packages:
       react: '>=16'
       react-dom: '>=16'
 
-  '@tanstack/react-table@8.20.5':
-    resolution: {integrity: sha512-WEHopKw3znbUZ61s9i0+i9g8drmDo6asTWbrQh8Us63DAk/M0FkmIqERew6P71HI75ksZ2Pxyuf4vvKh9rAkiA==}
+  '@tanstack/react-table@8.21.3':
+    resolution: {integrity: sha512-5nNMTSETP4ykGegmVkhjcS8tTLW6Vl4axfEGQN3v0zdHYbK4UfoqfPChclTrJ4EoK9QynqAu9oUf8VEmrpZ5Ww==}
     engines: {node: '>=12'}
     peerDependencies:
       react: '>=16.8'
@@ -6141,25 +6141,25 @@ packages:
     peerDependencies:
       react: ^16.8.0 || ^17.0.0 || ^18.0.0
 
-  '@tanstack/react-virtual@3.10.7':
-    resolution: {integrity: sha512-yeP+M0G8D+15ZFPivpuQ5hoM4Fa/PzERBx8P8EGcfEsXX3JOb9G9UUrqc47ZXAxvK+YqzM9T5qlJUYUFOwCZJw==}
+  '@tanstack/react-virtual@3.13.19':
+    resolution: {integrity: sha512-KzwmU1IbE0IvCZSm6OXkS+kRdrgW2c2P3Ho3NC+zZXWK6oObv/L+lcV/2VuJ+snVESRlMJ+w/fg4WXI/JzoNGQ==}
     peerDependencies:
-      react: ^16.8.0 || ^17.0.0 || ^18.0.0
-      react-dom: ^16.8.0 || ^17.0.0 || ^18.0.0
+      react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+      react-dom: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
 
   '@tanstack/table-core@8.10.6':
     resolution: {integrity: sha512-9t8brthhAmCBIjzk7fCDa/kPKoLQTtA31l9Ir76jYxciTlHU61r/6gYm69XF9cbg9n88gVL5y7rNpeJ2dc1AFA==}
     engines: {node: '>=12'}
 
-  '@tanstack/table-core@8.20.5':
-    resolution: {integrity: sha512-P9dF7XbibHph2PFRz8gfBKEXEY/HJPOhym8CHmjF8y3q5mWpKx9xtZapXQUWCgkqvsK0R46Azuz+VaxD4Xl+Tg==}
+  '@tanstack/table-core@8.21.3':
+    resolution: {integrity: sha512-ldZXEhOBb8Is7xLs01fR3YEc3DERiz5silj8tnGkFZytt1abEvl/GhUmCE0PMLaMPTa3Jk4HbKmRlHmu+gCftg==}
     engines: {node: '>=12'}
 
   '@tanstack/virtual-core@3.0.0-beta.63':
     resolution: {integrity: sha512-KhhfRYSoQpl0y+2axEw+PJZd/e/9p87PDpPompxcXnweNpt9ZHCT/HuNx7MKM9PVY/xzg9xJSWxwnSCrO+d6PQ==}
 
-  '@tanstack/virtual-core@3.10.7':
-    resolution: {integrity: sha512-ND5dfsU0n9F4gROzwNNDJmg6y8n9pI8YWxtgbfJ5UcNn7Hx+MxEXtXcQ189tS7sh8pmCObgz2qSiyRKTZxT4dg==}
+  '@tanstack/virtual-core@3.13.19':
+    resolution: {integrity: sha512-/BMP7kNhzKOd7wnDeB8NrIRNLwkf5AhCYCvtfZV2GXWbBieFm/el0n6LOAXlTi6ZwHICSNnQcIxRCWHrLzDY+g==}
 
   '@techteamer/ocsp@1.0.1':
     resolution: {integrity: sha512-q4pW5wAC6Pc3JI8UePwE37CkLQ5gDGZMgjSX4MEEm4D4Di59auDQ8UNIDzC4gRnPNmmcwjpPxozq8p5pjiOmOw==}
@@ -22316,9 +22316,9 @@ snapshots:
       react: 19.2.0
       react-dom: 19.2.0(react@19.2.0)
 
-  '@tanstack/react-table@8.20.5(react-dom@19.2.0(react@19.2.0))(react@19.2.0)':
+  '@tanstack/react-table@8.21.3(react-dom@19.2.0(react@19.2.0))(react@19.2.0)':
     dependencies:
-      '@tanstack/table-core': 8.20.5
+      '@tanstack/table-core': 8.21.3
       react: 19.2.0
       react-dom: 19.2.0(react@19.2.0)
 
@@ -22327,19 +22327,19 @@ snapshots:
       '@tanstack/virtual-core': 3.0.0-beta.63
       react: 19.2.0
 
-  '@tanstack/react-virtual@3.10.7(react-dom@19.2.0(react@19.2.0))(react@19.2.0)':
+  '@tanstack/react-virtual@3.13.19(react-dom@19.2.0(react@19.2.0))(react@19.2.0)':
     dependencies:
-      '@tanstack/virtual-core': 3.10.7
+      '@tanstack/virtual-core': 3.13.19
       react: 19.2.0
       react-dom: 19.2.0(react@19.2.0)
 
   '@tanstack/table-core@8.10.6': {}
 
-  '@tanstack/table-core@8.20.5': {}
+  '@tanstack/table-core@8.21.3': {}
 
   '@tanstack/virtual-core@3.0.0-beta.63': {}
 
-  '@tanstack/virtual-core@3.10.7': {}
+  '@tanstack/virtual-core@3.13.19': {}
 
   '@techteamer/ocsp@1.0.1':
     dependencies:
