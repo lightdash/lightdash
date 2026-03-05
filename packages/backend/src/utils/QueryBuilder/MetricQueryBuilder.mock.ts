@@ -683,7 +683,7 @@ export const METRIC_QUERY_JOIN_CHAIN_SQL = `SELECT "table5".dim1               A
                                                      LEFT OUTER JOIN "db"."schema"."table5" AS "table5"
                                                                      ON ("table5".col) = ("table4".col)
 
-                                            GROUP BY 1 LIMIT 5`;
+                                            GROUP BY 1 ORDER BY "table5_metric1" DESC LIMIT 5`;
 
 export const METRIC_QUERY_ALL_JOIN_TYPES_CHAIN_SQL = `SELECT "table5".dim1               AS "table5_dim1",
                                                              MAX("table5".number_column) AS "table5_metric1"
@@ -697,7 +697,7 @@ export const METRIC_QUERY_ALL_JOIN_TYPES_CHAIN_SQL = `SELECT "table5".dim1      
                                                                RIGHT OUTER JOIN "db"."schema"."table5" AS "table5"
                                                                                 ON ("table5".col) = ("table4".col)
 
-                                                      GROUP BY 1 LIMIT 5`;
+                                                      GROUP BY 1 ORDER BY "table5_metric1" DESC LIMIT 5`;
 
 export const METRIC_QUERY: CompiledMetricQuery = {
     exploreName: 'table1',
@@ -794,7 +794,7 @@ export const METRIC_QUERY_WITH_TABLE_REFERENCE_SQL = `SELECT "table1".dim1 + "ta
                                                                LEFT OUTER JOIN "db"."schema"."table2" AS "table2"
                                                                                ON ("table1".shared) = ("table2".shared)
 
-                                                      GROUP BY 1 LIMIT 10`;
+                                                      GROUP BY 1 ORDER BY "table1_with_reference" LIMIT 10`;
 
 export const METRIC_QUERY_WITH_FILTER: CompiledMetricQuery = {
     exploreName: 'table1',
@@ -1371,7 +1371,7 @@ export const METRIC_QUERY_WITH_METRIC_DISABLED_FILTER_THAT_REFERENCES_JOINED_TAB
                                                                                               FROM metrics
                                                                                               WHERE ((
                                                                                                   1=1
-                                                                                                  )) LIMIT 10`;
+                                                                                                  )) ORDER BY "table1_metric_that_references_dim_from_table2" DESC LIMIT 10`;
 
 export const METRIC_QUERY_WITH_METRIC_FILTER_AND_ONE_DISABLED_SQL = `SELECT "table1".dim1 AS "table1_dim1"
                                                                      FROM "db"."schema"."table1" AS "table1"
@@ -2145,7 +2145,7 @@ export const EXPECTED_SQL_WITH_CROSS_TABLE_METRICS = `WITH cte_keys_customers AS
       cte_unaffected."orders_total_order_amount" / cte_metrics_customers."customers_total_customers" AS "orders_revenue_per_customer"
     FROM cte_unaffected
     CROSS JOIN cte_metrics_customers
-    LIMIT 100`;
+    ORDER BY "orders_revenue_per_customer" DESC LIMIT 100`;
 
 // --- Date zoom + filter test data ---
 
