@@ -2793,6 +2793,9 @@
                     "timeIntervalBaseDimensionName": {
                         "type": "string"
                     },
+                    "customTimeInterval": {
+                        "type": "string"
+                    },
                     "isAdditionalDimension": {
                         "type": "boolean"
                     },
@@ -6141,6 +6144,9 @@
                     "timeIntervalBaseDimensionName": {
                         "type": "string"
                     },
+                    "customTimeInterval": {
+                        "type": "string"
+                    },
                     "isAdditionalDimension": {
                         "type": "boolean"
                     },
@@ -9164,19 +9170,6 @@
                                                         "type": "string",
                                                         "enum": ["error"],
                                                         "nullable": false
-                                                    }
-                                                },
-                                                "required": ["status"],
-                                                "type": "object"
-                                            },
-                                            {
-                                                "properties": {
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": [
-                                                            "success",
-                                                            "error"
-                                                        ]
                                                     }
                                                 },
                                                 "required": ["status"],

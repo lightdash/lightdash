@@ -52,11 +52,18 @@ export type ProjectDefaults = {
     // number_format?: string;
 };
 
+export type CustomGranularity = {
+    label: string;
+    sql: string;
+    type?: 'date' | 'timestamp' | 'string';
+};
+
 export type LightdashProjectConfig = {
     spotlight: SpotlightConfig;
     parameters?: Record<string, LightdashProjectParameter>; // keys must be ^[a-zA-Z0-9_-]+$
     warehouse?: WarehouseConfig; // Required for Lightdash-only projects (no dbt)
     defaults?: ProjectDefaults; // Project-wide defaults for various settings
+    custom_granularities?: Record<string, CustomGranularity>;
 };
 
 export const DEFAULT_SPOTLIGHT_CONFIG: SpotlightConfig = {
