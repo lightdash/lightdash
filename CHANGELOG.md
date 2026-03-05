@@ -1,3 +1,10 @@
+## [0.2573.1](https://github.com/lightdash/lightdash/compare/0.2573.0...0.2573.1) (2026-03-05)
+
+
+### Bug Fixes
+
+* stabilize virtualized table scrolling ([#20867](https://github.com/lightdash/lightdash/issues/20867)) ([f10c21e](https://github.com/lightdash/lightdash/commit/f10c21ec1213854e4400fd5f513d109af0a10b33))
+
 # [0.2573.0](https://github.com/lightdash/lightdash/compare/0.2572.2...0.2573.0) (2026-03-05)
 
 
