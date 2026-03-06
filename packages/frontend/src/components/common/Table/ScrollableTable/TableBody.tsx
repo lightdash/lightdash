@@ -179,7 +179,14 @@ const TableRow: FC<TableRowProps> = ({
                         className={meta?.className}
                         index={index}
                         cell={cell}
-                        isNumericItem={isNumericItem(meta?.item)}
+                        isNumericItem={
+                            isNumericItem(meta?.item) &&
+                            !(
+                                meta?.item &&
+                                'richText' in meta.item &&
+                                meta.item.richText
+                            )
+                        }
                         hasData={!!meta?.item}
                         cellContextMenu={
                             suppressContextMenu ? undefined : cellContextMenu

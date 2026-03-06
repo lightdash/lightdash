@@ -221,6 +221,7 @@ export type DbtColumnLightdashDimension = {
         height?: number;
         fit?: string;
     };
+    richText?: string;
     spotlight?: {
         filter_by?: boolean;
         segment_by?: boolean;
@@ -263,6 +264,7 @@ export type DbtColumnLightdashMetric = {
     };
     drivers?: string[]; // metrics that drive this metric (same-table: 'name', cross-table: 'table.name')
     ai_hint?: string | string[];
+    richText?: string;
 } & DbtLightdashFieldTags;
 
 export type DbtModelLightdashMetric = DbtColumnLightdashMetric &
@@ -647,6 +649,7 @@ export const convertModelMetric = ({
         }),
         ...(metric.drivers ? { drivers: metric.drivers } : {}),
         ...(metric.ai_hint ? { aiHint: convertToAiHints(metric.ai_hint) } : {}),
+        ...(metric.richText ? { richText: metric.richText } : {}),
     };
 };
 
