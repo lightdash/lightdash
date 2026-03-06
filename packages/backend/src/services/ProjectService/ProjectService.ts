@@ -214,6 +214,7 @@ import { measureTime } from '../../logging/measureTime';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { ContentModel } from '../../models/ContentModel/ContentModel';
+import { ContentVerificationModel } from '../../models/ContentVerificationModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { DownloadFileModel } from '../../models/DownloadFileModel';
 import { EmailModel } from '../../models/EmailModel';
@@ -298,6 +299,7 @@ export type ProjectServiceArguments = {
     adminNotificationService: AdminNotificationService;
     spacePermissionService: SpacePermissionService;
     natsClient?: INatsClient;
+    contentVerificationModel?: ContentVerificationModel;
 };
 
 export class ProjectService extends BaseService {
@@ -367,6 +369,8 @@ export class ProjectService extends BaseService {
 
     spacePermissionService: SpacePermissionService;
 
+    contentVerificationModel: ContentVerificationModel | undefined;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -400,6 +404,7 @@ export class ProjectService extends BaseService {
         organizationWarehouseCredentialsModel,
         adminNotificationService,
         spacePermissionService,
+        contentVerificationModel,
     }: ProjectServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -436,6 +441,7 @@ export class ProjectService extends BaseService {
             organizationWarehouseCredentialsModel;
         this.adminNotificationService = adminNotificationService;
         this.spacePermissionService = spacePermissionService;
+        this.contentVerificationModel = contentVerificationModel;
     }
 
     static getMetricQueryExecutionProperties({
@@ -6243,6 +6249,77 @@ export class ProjectService extends BaseService {
                     this.spaceModel.MOST_POPULAR_OR_RECENTLY_UPDATED_LIMIT,
                 ),
         };
+    }
+
+    async getVerifiedContentForHomepage(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<(DashboardBasicDetails | SpaceQuery)[]> {
+        if (!this.contentVerificationModel) {
+            return [];
+        }
+
+        const projectSummary = await this.projectModel.getSummary(projectUuid);
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', {
+                    organizationUuid: projectSummary.organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        // Get verified content UUIDs
+        const verifiedItems =
+            await this.contentVerificationModel.getAllForProject(projectUuid);
+
+        if (verifiedItems.length === 0) return [];
+
+        const verifiedChartUuids = new Set(
+            verifiedItems
+                .filter((item) => item.contentType === ContentType.CHART)
+                .map((item) => item.contentUuid),
+        );
+        const verifiedDashboardUuids = new Set(
+            verifiedItems
+                .filter((item) => item.contentType === ContentType.DASHBOARD)
+                .map((item) => item.contentUuid),
+        );
+
+        // Get accessible spaces for user
+        const spaces = await this.spaceModel.find({ projectUuid });
+        const allowedSpaceUuids =
+            await this.spacePermissionService.getAccessibleSpaceUuids(
+                'view',
+                user,
+                spaces.map((s) => s.uuid),
+            );
+
+        // Fetch full chart and dashboard details (same shape as most-popular)
+        const [charts, sqlCharts, dashboards] = await Promise.all([
+            verifiedChartUuids.size > 0
+                ? this.spaceModel.getSpaceQueries(allowedSpaceUuids)
+                : Promise.resolve([]),
+            verifiedChartUuids.size > 0
+                ? this.spaceModel.getSpaceSqlCharts(allowedSpaceUuids)
+                : Promise.resolve([]),
+            verifiedDashboardUuids.size > 0
+                ? this.spaceModel.getSpaceDashboards(allowedSpaceUuids)
+                : Promise.resolve([]),
+        ]);
+
+        // Filter to only verified items
+        const verifiedCharts = [...charts, ...sqlCharts].filter((chart) =>
+            verifiedChartUuids.has(chart.uuid),
+        );
+        const verifiedDashboards = dashboards.filter((dashboard) =>
+            verifiedDashboardUuids.has(dashboard.uuid),
+        );
+
+        return [...verifiedCharts, ...verifiedDashboards];
     }
 
     async getSpaces(

@@ -236,6 +236,27 @@ projectRouter.get(
     },
 );
 
+projectRouter.get(
+    '/verified-content-homepage',
+    allowApiKeyAuthentication,
+    isAuthenticated,
+    async (req, res, next) => {
+        req.services
+            .getProjectService()
+            .getVerifiedContentForHomepage(
+                req.user!,
+                getObjectValue(req.params, 'projectUuid'),
+            )
+            .then((results) => {
+                res.json({
+                    status: 'ok',
+                    results,
+                });
+            })
+            .catch(next);
+    },
+);
+
 projectRouter.patch(
     '/spaces/:spaceUuid/pinning',
     allowApiKeyAuthentication,
