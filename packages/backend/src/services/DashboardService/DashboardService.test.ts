@@ -75,7 +75,7 @@ const spaceContexts = {
     [space.space_uuid]: {
         organizationUuid: space.organization_uuid,
         projectUuid: publicSpace.projectUuid,
-        isPrivate: space.is_private,
+        isPrivate: !space.inherit_parent_permissions,
         inheritsFromOrgOrProject: space.inherit_parent_permissions,
         access: [],
     },
