@@ -4,7 +4,6 @@ export type DbSpace = {
     space_id: number;
     space_uuid: string;
     name: string;
-    is_private: boolean;
     created_at: Date;
     project_id: number;
     organization_uuid: string;
