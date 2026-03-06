@@ -64,6 +64,7 @@ import {
     useUnverifyDashboardMutation,
     useVerifyDashboardMutation,
 } from '../../../hooks/useContentVerification';
+import { useContentVerificationEnabled } from '../../../hooks/useContentVerificationEnabled';
 import { useProject } from '../../../hooks/useProject';
 import { useClientFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
@@ -294,6 +295,8 @@ const DashboardHeader = ({
         }),
     );
 
+    const isContentVerificationEnabled = useContentVerificationEnabled();
+
     const canManageContentVerification =
         user.data?.ability?.can(
             'manage',
@@ -342,7 +345,7 @@ const DashboardHeader = ({
             <Group gap="xs" flex={1} wrap="nowrap">
                 <Title order={6}>{dashboard.name}</Title>
 
-                {isDashboardVerified && (
+                {isContentVerificationEnabled && isDashboardVerified && (
                     <Tooltip
                         label={
                             dashboard?.verification?.verifiedBy
@@ -859,7 +862,8 @@ const DashboardHeader = ({
                                     </Menu.Item>
                                 )}
 
-                                {canManageContentVerification &&
+                                {isContentVerificationEnabled &&
+                                    canManageContentVerification &&
                                     dashboardUuid && (
                                         <Menu.Item
                                             leftSection={

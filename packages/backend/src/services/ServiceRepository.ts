@@ -363,6 +363,7 @@ export class ServiceRepository
                     spacePermissionService: this.getSpacePermissionService(),
                     contentVerificationModel:
                         this.models.getContentVerificationModel(),
+                    featureFlagService: this.getFeatureFlagService(),
                 }),
         );
     }

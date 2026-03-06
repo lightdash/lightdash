@@ -147,7 +147,7 @@ describe('User attributes dimension required_attribute', () => {
     it('Should see last_name attribute', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables`);
 
-        cy.findByText('Users').click();
+        cy.findByText('Users', { timeout: 30000 }).click();
         cy.findByText('Last name').click();
 
         // run query

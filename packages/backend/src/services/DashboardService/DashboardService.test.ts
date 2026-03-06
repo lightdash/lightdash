@@ -20,6 +20,7 @@ import { SavedChartModel } from '../../models/SavedChartModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
+import { FeatureFlagService } from '../FeatureFlag/FeatureFlagService';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
 import type { SchedulerService } from '../SchedulerService/SchedulerService';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
@@ -133,6 +134,7 @@ describe('DashboardService', () => {
         spacePermissionService:
             spacePermissionService as unknown as SpacePermissionService,
         contentVerificationModel: {} as ContentVerificationModel,
+        featureFlagService: {} as FeatureFlagService,
     });
     afterEach(() => {
         jest.clearAllMocks();
