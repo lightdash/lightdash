@@ -98,6 +98,11 @@ export enum FeatureFlags {
      * Enable custom group bins for string dimensions
      */
     CustomGroupBins = 'custom-group-bins',
+
+    /**
+     * Enable auto-cleanup of preview projects (expiration tracking, cron deletion, visibility filtering)
+     */
+    PreviewAutoCleanup = 'preview-auto-cleanup',
 }
 
 export type FeatureFlag = {
