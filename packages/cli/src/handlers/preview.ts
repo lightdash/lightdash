@@ -40,6 +40,7 @@ type PreviewHandlerOptions = DbtCompileOptions & {
     useBatchedDeploy?: boolean;
     batchSize?: string;
     parallelBatches?: string;
+    expiresIn?: string;
 };
 
 type StopPreviewHandlerOptions = {
@@ -243,6 +244,9 @@ export const previewHandler = async (
                     : undefined,
             copyContent: !options.skipCopyContent && upstreamProjectValid,
             warehouseCredentials: projectTypeConfig.warehouseCredentials,
+            expiresIn: options.expiresIn
+                ? parseInt(options.expiresIn, 10)
+                : undefined,
         });
 
         project = results?.project;
@@ -496,6 +500,9 @@ export const startPreviewHandler = async (
             upstreamProjectUuid: config.context?.project,
             copyContent: !options.skipCopyContent,
             warehouseCredentials: projectTypeConfig.warehouseCredentials,
+            expiresIn: options.expiresIn
+                ? parseInt(options.expiresIn, 10)
+                : undefined,
         });
 
         const project = results?.project;
