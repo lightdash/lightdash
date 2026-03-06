@@ -38,6 +38,7 @@ export type DbProject = {
     project_defaults: ProjectDefaults | null;
     color_palette_uuid: string | null;
     table_groups: Record<string, GroupType> | null;
+    expires_at: Date | null;
 };
 
 type CreateDbProject = Pick<

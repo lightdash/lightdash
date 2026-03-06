@@ -367,6 +367,7 @@ export class ProjectModel {
                 'projects.created_at',
                 `projects.copied_from_project_uuid`,
                 `projects.created_by_user_uuid`,
+                'projects.expires_at',
                 `${WarehouseCredentialTableName}.warehouse_type`,
                 this.database.raw(
                     "TRIM(CONCAT(users.first_name, ' ', users.last_name)) as created_by_user_name",
@@ -407,6 +408,7 @@ export class ProjectModel {
                 created_by_user_name,
                 copied_from_project_uuid,
                 warehouse_type,
+                expires_at,
             }) => ({
                 name,
                 projectUuid: project_uuid,
@@ -419,6 +421,7 @@ export class ProjectModel {
                     warehouse_type !== null
                         ? (warehouse_type as WarehouseTypes)
                         : undefined,
+                expiresAt: expires_at ?? null,
             }),
         );
     }
@@ -547,6 +550,13 @@ export class ProjectModel {
                     created_by_user_uuid: userUuid,
                     organization_warehouse_credentials_uuid:
                         data.organizationWarehouseCredentialsUuid ?? null,
+                    ...(data.type === ProjectType.PREVIEW
+                        ? {
+                              expires_at: trx.raw(
+                                  `NOW() + INTERVAL '30 days'`,
+                              ),
+                          }
+                        : {}),
                 })
                 .returning('*');
 
