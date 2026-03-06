@@ -153,6 +153,11 @@ export enum FeatureFlags {
      * is true. Disabled by default.
      */
     EnableDataApps = 'enable-data-apps',
+
+    /**
+     * Enable auto-cleanup of preview projects (expiration tracking, cron deletion, visibility filtering)
+     */
+    PreviewAutoCleanup = 'preview-auto-cleanup',
 }
 
 export type FeatureFlag = {
