@@ -33,10 +33,10 @@ import {
     SchedulerFormat,
     SessionUser,
     TogglePinnedItemInfo,
-    type ContentVerificationInfo,
     UpdateDashboard,
     UpdateMultipleDashboards,
     type ChartFieldUpdates,
+    type ContentVerificationInfo,
     type DashboardBasicDetailsWithTileTypes,
     type DashboardHistory,
     type DuplicateDashboardParams,
@@ -59,8 +59,8 @@ import { CaslAuditWrapper } from '../../logging/caslAuditWrapper';
 import { logAuditEvent } from '../../logging/winston';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
-import { ContentVerificationModel } from '../../models/ContentVerificationModel';
 import { getChartFieldUsageChanges } from '../../models/CatalogModel/utils';
+import { ContentVerificationModel } from '../../models/ContentVerificationModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -631,9 +631,7 @@ export class DashboardService
                 }),
             )
         ) {
-            throw new ForbiddenError(
-                'Only admins can verify dashboards',
-            );
+            throw new ForbiddenError('Only admins can verify dashboards');
         }
 
         await this.contentVerificationModel.verify(
@@ -653,11 +651,10 @@ export class DashboardService
             },
         });
 
-        const verification =
-            await this.contentVerificationModel.getByContent(
-                ContentType.DASHBOARD,
-                dashboard.uuid,
-            );
+        const verification = await this.contentVerificationModel.getByContent(
+            ContentType.DASHBOARD,
+            dashboard.uuid,
+        );
         if (!verification) {
             throw new NotFoundError('Verification not found');
         }

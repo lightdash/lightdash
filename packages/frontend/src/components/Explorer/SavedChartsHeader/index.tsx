@@ -342,7 +342,9 @@ const SavedChartsHeader: FC = () => {
     const { mutate: verifyChart } = useVerifyChartMutation();
     const { mutate: unverifyChart } = useUnverifyChartMutation();
 
-    const isChartVerified = savedChart?.verification !== null && savedChart?.verification !== undefined;
+    const isChartVerified =
+        savedChart?.verification !== null &&
+        savedChart?.verification !== undefined;
 
     const userCanCreateDeliveriesAndAlerts = user.data?.ability?.can(
         'create',

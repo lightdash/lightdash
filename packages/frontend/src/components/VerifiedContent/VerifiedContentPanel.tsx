@@ -26,14 +26,14 @@ import {
 } from 'mantine-react-table';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { Link } from 'react-router';
-import MantineIcon from '../common/MantineIcon';
-import MantineModal from '../common/MantineModal';
-import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import {
     useUnverifyChartMutation,
     useUnverifyDashboardMutation,
 } from '../../hooks/useContentVerification';
 import { useVerifiedContentList } from '../../hooks/useVerifiedContentList';
+import MantineIcon from '../common/MantineIcon';
+import MantineModal from '../common/MantineModal';
+import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 
 type Props = {
     projectUuid: string;
@@ -189,9 +189,7 @@ const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
                         </Menu.Target>
                         <Menu.Dropdown>
                             <Menu.Item
-                                leftSection={
-                                    <MantineIcon icon={IconCircleX} />
-                                }
+                                leftSection={<MantineIcon icon={IconCircleX} />}
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     handleUnverify(row.original);
@@ -204,7 +202,7 @@ const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
                 ),
             },
         ],
-        [handleUnverify],
+        [handleUnverify, projectUuid],
     );
 
     const table = useMantineReactTable({

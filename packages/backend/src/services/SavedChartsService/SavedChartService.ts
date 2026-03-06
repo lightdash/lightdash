@@ -13,7 +13,6 @@ import {
     countCustomDimensionsInMetricQuery,
     countTotalFilterRules,
     CreateSavedChart,
-    type ContentVerificationInfo,
     CreateSavedChartVersion,
     CreateSchedulerAndTargetsWithoutIds,
     DeletedContentFilters,
@@ -49,6 +48,7 @@ import {
     UpdateSavedChart,
     ViewStatistics,
     type ChartFieldUpdates,
+    type ContentVerificationInfo,
     type Explore,
     type ExploreError,
     type SpaceAccess,
@@ -70,8 +70,8 @@ import { CaslAuditWrapper } from '../../logging/caslAuditWrapper';
 import { logAuditEvent } from '../../logging/winston';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
-import { ContentVerificationModel } from '../../models/ContentVerificationModel';
 import { getChartFieldUsageChanges } from '../../models/CatalogModel/utils';
+import { ContentVerificationModel } from '../../models/ContentVerificationModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -222,9 +222,7 @@ export class SavedChartService
                 }),
             )
         ) {
-            throw new ForbiddenError(
-                'Only admins can verify charts',
-            );
+            throw new ForbiddenError('Only admins can verify charts');
         }
 
         await this.contentVerificationModel.verify(
@@ -234,11 +232,10 @@ export class SavedChartService
             user.userUuid,
         );
 
-        const verification =
-            await this.contentVerificationModel.getByContent(
-                ContentType.CHART,
-                chartUuid,
-            );
+        const verification = await this.contentVerificationModel.getByContent(
+            ContentType.CHART,
+            chartUuid,
+        );
 
         if (!verification) {
             throw new Error('Failed to verify chart');
@@ -257,10 +254,7 @@ export class SavedChartService
         return verification;
     }
 
-    async unverifyChart(
-        user: SessionUser,
-        chartUuid: string,
-    ): Promise<void> {
+    async unverifyChart(user: SessionUser, chartUuid: string): Promise<void> {
         const savedChart = await this.savedChartModel.getSummary(chartUuid);
         const { organizationUuid, projectUuid } = savedChart;
 

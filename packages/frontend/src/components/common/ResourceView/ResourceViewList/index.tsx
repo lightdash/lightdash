@@ -357,7 +357,11 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                             e.preventDefault();
                         }}
                     >
-                        <ResourceActionMenu item={item} onAction={onAction} hideVerification={hideVerification} />
+                        <ResourceActionMenu
+                            item={item}
+                            onAction={onAction}
+                            hideVerification={hideVerification}
+                        />
                     </Box>
                 ),
                 enableSorting: false,
@@ -374,6 +378,7 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
             spaces,
             onAction,
             hoveredItem,
+            hideVerification,
         ],
     );
 

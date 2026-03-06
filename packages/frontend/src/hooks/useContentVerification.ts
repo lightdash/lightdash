@@ -1,5 +1,4 @@
 import {
-    type ApiContentVerificationDeleteResponse,
     type ApiContentVerificationResponse,
     type ApiError,
     type ContentVerificationInfo,
@@ -112,9 +111,7 @@ export const useVerifyDashboardMutation = () => {
                 await queryClient.invalidateQueries(['spaces']);
                 await queryClient.invalidateQueries(['content']);
                 await queryClient.invalidateQueries(['dashboards']);
-                await queryClient.invalidateQueries([
-                    'saved_dashboard_query',
-                ]);
+                await queryClient.invalidateQueries(['saved_dashboard_query']);
                 await queryClient.invalidateQueries([
                     'verified-content-homepage',
                 ]);
@@ -144,9 +141,7 @@ export const useUnverifyDashboardMutation = () => {
                 await queryClient.invalidateQueries(['spaces']);
                 await queryClient.invalidateQueries(['content']);
                 await queryClient.invalidateQueries(['dashboards']);
-                await queryClient.invalidateQueries([
-                    'saved_dashboard_query',
-                ]);
+                await queryClient.invalidateQueries(['saved_dashboard_query']);
                 await queryClient.invalidateQueries([
                     'verified-content-homepage',
                 ]);

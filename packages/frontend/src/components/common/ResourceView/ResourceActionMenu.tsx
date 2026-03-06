@@ -28,12 +28,6 @@ import { type FC } from 'react';
 import { useLocation, useParams } from 'react-router';
 import { PromotionConfirmDialog } from '../../../features/promotion/components/PromotionConfirmDialog';
 import {
-    useVerifyChartMutation,
-    useUnverifyChartMutation,
-    useVerifyDashboardMutation,
-    useUnverifyDashboardMutation,
-} from '../../../hooks/useContentVerification';
-import {
     usePromoteChartDiffMutation,
     usePromoteMutation,
 } from '../../../features/promotion/hooks/usePromoteChart';
@@ -41,6 +35,12 @@ import {
     usePromoteDashboardDiffMutation,
     usePromoteDashboardMutation,
 } from '../../../features/promotion/hooks/usePromoteDashboard';
+import {
+    useUnverifyChartMutation,
+    useUnverifyDashboardMutation,
+    useVerifyChartMutation,
+    useVerifyDashboardMutation,
+} from '../../../hooks/useContentVerification';
 import { useProject } from '../../../hooks/useProject';
 import { useSpaceSummaries } from '../../../hooks/useSpaces';
 import useApp from '../../../providers/App/useApp';
@@ -86,8 +86,7 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
 
     const isChartOrDashboard =
         isResourceViewItemChart(item) || isResourceViewItemDashboard(item);
-    const isVerified =
-        isChartOrDashboard && item.data.verification !== null;
+    const isVerified = isChartOrDashboard && item.data.verification !== null;
     const userCanManageVerification =
         user.data?.ability?.can(
             'manage',
@@ -423,7 +422,9 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                                         onClick={() => {
                                             if (isVerified) {
                                                 if (
-                                                    isResourceViewItemChart(item)
+                                                    isResourceViewItemChart(
+                                                        item,
+                                                    )
                                                 ) {
                                                     unverifyChart(
                                                         item.data.uuid,
@@ -435,11 +436,11 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                                                 }
                                             } else {
                                                 if (
-                                                    isResourceViewItemChart(item)
+                                                    isResourceViewItemChart(
+                                                        item,
+                                                    )
                                                 ) {
-                                                    verifyChart(
-                                                        item.data.uuid,
-                                                    );
+                                                    verifyChart(item.data.uuid);
                                                 } else {
                                                     verifyDashboard(
                                                         item.data.uuid,

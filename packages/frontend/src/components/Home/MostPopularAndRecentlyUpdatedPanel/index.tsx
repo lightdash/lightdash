@@ -63,11 +63,7 @@ export const MostPopularAndRecentlyUpdatedPanel: FC<Props> = ({
                 ),
                 category: ResourceItemCategory.VERIFIED,
             })) ?? [];
-        return [
-            ...mostPopularItems,
-            ...recentlyUpdatedItems,
-            ...verifiedItems,
-        ];
+        return [...mostPopularItems, ...recentlyUpdatedItems, ...verifiedItems];
     }, [data?.mostPopular, data?.recentlyUpdated, verifiedContentData]);
 
     const handleCreateChart = () => {
