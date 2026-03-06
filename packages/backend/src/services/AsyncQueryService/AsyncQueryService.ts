@@ -99,7 +99,6 @@ import { createInterface } from 'readline';
 import { Readable, Writable } from 'stream';
 import { v4 as uuidv4 } from 'uuid';
 import { DownloadCsv } from '../../analytics/LightdashAnalytics';
-import { type AsyncQueryAccountType } from '../../asyncQuery/natsContracts';
 import { transformAndExportResults } from '../../clients/Aws/transformAndExportResults';
 import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
 import type { INatsJobClient } from '../../clients/NatsJobClient';
@@ -109,6 +108,7 @@ import { DownloadAuditModel } from '../../models/DownloadAuditModel';
 import { PreAggregateDailyStatsModel } from '../../models/PreAggregateDailyStatsModel';
 import { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import type { SavedSqlModel } from '../../models/SavedSqlModel';
+import { type AsyncQueryAccountType } from '../../nats/natsContracts';
 import PrometheusMetrics from '../../prometheus/PrometheusMetrics';
 import { compileMetricQuery } from '../../queryCompiler';
 import type { SchedulerClient } from '../../scheduler/SchedulerClient';
@@ -2456,25 +2456,18 @@ export class AsyncQueryService extends ProjectService {
                         }
                     } else {
                         this.logger.info(
-                            `Enqueueing query ${queryHistoryUuid} on the ${executionPlan.target} worker fleet`,
+                            `Running query ${queryHistoryUuid} inline (fire-and-forget, target: ${executionPlan.target})`,
                         );
 
                         if (executionPlan.target === 'pre_aggregate') {
-                            await this.schedulerClient.runAsyncPreAggregateQuery(
-                                {
-                                    organizationUuid,
-                                    ...warehouseArgs,
-                                    preAggregateQuery:
-                                        executionPlan.preAggregateQuery,
-                                    warehouseQuery:
-                                        executionPlan.warehouseQuery,
-                                },
-                            );
-                        } else {
-                            await this.schedulerClient.runAsyncWarehouseQuery({
-                                organizationUuid,
+                            void this.runAsyncPreAggregateQuery({
                                 ...warehouseArgs,
+                                preAggregateQuery:
+                                    executionPlan.preAggregateQuery,
+                                warehouseQuery: executionPlan.warehouseQuery,
                             });
+                        } else {
+                            void this.runAsyncWarehouseQuery(warehouseArgs);
                         }
                     }
 

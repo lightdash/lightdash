@@ -169,8 +169,6 @@ const getMockedAsyncQueryService = (
         } as unknown as EmailModel,
         schedulerClient: {
             scheduleTask: jest.fn(),
-            runAsyncPreAggregateQuery: jest.fn(),
-            runAsyncWarehouseQuery: jest.fn(),
         } as unknown as SchedulerClient,
         natsJobClient: {
             enqueueWarehouseQuery: jest.fn(async () => ({
@@ -412,6 +410,10 @@ describe('AsyncQueryService', () => {
                 queryUuid: 'test-query-uuid',
             });
 
+            const runAsyncSpy = jest
+                .spyOn(serviceWithCache, 'runAsyncWarehouseQuery')
+                .mockResolvedValue(undefined);
+
             // WHEN: executeAsyncQuery is called
             const result = await serviceWithCache.executeAsyncQuery(
                 {
@@ -455,10 +457,8 @@ describe('AsyncQueryService', () => {
                 }),
             );
 
-            // THEN: Query dispatched to Graphile worker with correct parameters
-            expect(
-                serviceWithCache.schedulerClient.runAsyncWarehouseQuery,
-            ).toHaveBeenCalledWith(
+            // THEN: Query dispatched inline (fire-and-forget)
+            expect(runAsyncSpy).toHaveBeenCalledWith(
                 expect.objectContaining({
                     userUuid: sessionAccount.user.id,
                     isRegisteredUser: sessionAccount.isRegisteredUser(),
@@ -501,6 +501,10 @@ describe('AsyncQueryService', () => {
                 queryUuid: 'test-query-uuid',
             });
 
+            const runAsyncSpy = jest
+                .spyOn(serviceWithCache, 'runAsyncWarehouseQuery')
+                .mockResolvedValue(undefined);
+
             // WHEN: executeAsyncQuery is called with invalidateCache: true
             const result = await serviceWithCache.executeAsyncQuery(
                 {
@@ -528,10 +532,8 @@ describe('AsyncQueryService', () => {
                 true,
             );
 
-            // THEN: Query dispatched to Graphile worker with correct parameters
-            expect(
-                serviceWithCache.schedulerClient.runAsyncWarehouseQuery,
-            ).toHaveBeenCalledWith(
+            // THEN: Query dispatched inline (fire-and-forget)
+            expect(runAsyncSpy).toHaveBeenCalledWith(
                 expect.objectContaining({
                     userUuid: sessionAccount.user.id,
                     isRegisteredUser: sessionAccount.isRegisteredUser(),
@@ -594,6 +596,9 @@ describe('AsyncQueryService', () => {
                 serviceWithoutCache,
                 'findResultsCache',
             );
+            const runAsyncSpy = jest
+                .spyOn(serviceWithoutCache, 'runAsyncWarehouseQuery')
+                .mockResolvedValue(undefined);
 
             // WHEN: executeAsyncQuery is called
             const result = await serviceWithoutCache.executeAsyncQuery(
@@ -622,10 +627,8 @@ describe('AsyncQueryService', () => {
                 false, // invalidateCache
             );
 
-            // THEN: Query dispatched to Graphile worker with correct parameters
-            expect(
-                serviceWithoutCache.schedulerClient.runAsyncWarehouseQuery,
-            ).toHaveBeenCalledWith(
+            // THEN: Query dispatched inline (fire-and-forget)
+            expect(runAsyncSpy).toHaveBeenCalledWith(
                 expect.objectContaining({
                     userUuid: sessionAccount.user.id,
                     isRegisteredUser: sessionAccount.isRegisteredUser(),
@@ -736,11 +739,6 @@ describe('AsyncQueryService', () => {
         });
 
         test('enqueues warehouse queries on NATS when enabled', async () => {
-            const schedulerClientMock = {
-                scheduleTask: jest.fn(),
-                runAsyncPreAggregateQuery: jest.fn(),
-                runAsyncWarehouseQuery: jest.fn(),
-            };
             const natsJobClientMock = {
                 enqueueWarehouseQuery: jest.fn(async () => ({
                     jobId: 'nats-job-1',
@@ -758,8 +756,6 @@ describe('AsyncQueryService', () => {
                     },
                 },
                 {
-                    schedulerClient:
-                        schedulerClientMock as unknown as SchedulerClient,
                     natsJobClient:
                         natsJobClientMock as unknown as INatsJobClient,
                 },
@@ -815,18 +811,10 @@ describe('AsyncQueryService', () => {
                     accountType: 'session',
                 }),
             );
-            expect(
-                schedulerClientMock.runAsyncWarehouseQuery,
-            ).not.toHaveBeenCalled();
             expect(runAsyncWarehouseQuerySpy).not.toHaveBeenCalled();
         });
 
         test('sets query history to error when NATS enqueue fails', async () => {
-            const schedulerClientMock = {
-                scheduleTask: jest.fn(),
-                runAsyncPreAggregateQuery: jest.fn(),
-                runAsyncWarehouseQuery: jest.fn(),
-            };
             const natsJobClientMock = {
                 enqueueWarehouseQuery: jest.fn(async () => {
                     throw new Error('NATS publish failed');
@@ -844,8 +832,6 @@ describe('AsyncQueryService', () => {
                     },
                 },
                 {
-                    schedulerClient:
-                        schedulerClientMock as unknown as SchedulerClient,
                     natsJobClient:
                         natsJobClientMock as unknown as INatsJobClient,
                 },
@@ -901,22 +887,11 @@ describe('AsyncQueryService', () => {
                 },
                 sessionAccount,
             );
-            expect(
-                schedulerClientMock.runAsyncWarehouseQuery,
-            ).not.toHaveBeenCalled();
             expect(runAsyncWarehouseQuerySpy).not.toHaveBeenCalled();
         });
 
-        test('falls back to Graphile worker when NATS is disabled', async () => {
-            const schedulerClientMock = {
-                scheduleTask: jest.fn(),
-                runAsyncPreAggregateQuery: jest.fn(),
-                runAsyncWarehouseQuery: jest.fn(),
-            };
-            const service = getMockedAsyncQueryService(lightdashConfigMock, {
-                schedulerClient:
-                    schedulerClientMock as unknown as SchedulerClient,
-            });
+        test('runs inline fire-and-forget when NATS is disabled', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
 
             service.findResultsCache = jest.fn().mockResolvedValueOnce({
                 cacheHit: false,
@@ -927,10 +902,9 @@ describe('AsyncQueryService', () => {
                 queryUuid: 'test-query-uuid',
             });
 
-            const runAsyncWarehouseQuerySpy = jest.spyOn(
-                service,
-                'runAsyncWarehouseQuery',
-            );
+            const runAsyncWarehouseQuerySpy = jest
+                .spyOn(service, 'runAsyncWarehouseQuery')
+                .mockResolvedValue(undefined);
 
             const result = await service.executeAsyncQuery(
                 {
@@ -960,19 +934,14 @@ describe('AsyncQueryService', () => {
                 },
             } satisfies ExecuteAsyncQueryReturn);
 
-            expect(
-                schedulerClientMock.runAsyncWarehouseQuery,
-            ).toHaveBeenCalledWith(
+            expect(runAsyncWarehouseQuerySpy).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    organizationUuid:
-                        sessionAccount.organization.organizationUuid,
                     userUuid: sessionAccount.user.id,
                     projectUuid,
                     queryUuid: 'test-query-uuid',
                     query: 'SELECT * FROM test',
                 }),
             );
-            expect(runAsyncWarehouseQuerySpy).not.toHaveBeenCalled();
         });
 
         test('does not resolve pre-aggregates when flag is disabled', async () => {
@@ -989,6 +958,10 @@ describe('AsyncQueryService', () => {
             (service as AnyType).preAggregationDuckDbClient = {
                 resolve: resolveSpy,
             } as unknown as PreAggregationDuckDbClient;
+
+            const runAsyncSpy = jest
+                .spyOn(service, 'runAsyncWarehouseQuery')
+                .mockResolvedValue(undefined);
 
             await service.executeAsyncQuery(
                 {
@@ -1020,9 +993,7 @@ describe('AsyncQueryService', () => {
             );
 
             expect(resolveSpy).not.toHaveBeenCalled();
-            expect(
-                service.schedulerClient.runAsyncWarehouseQuery,
-            ).toHaveBeenCalledTimes(1);
+            expect(runAsyncSpy).toHaveBeenCalledTimes(1);
         });
 
         test('required pre-aggregate routes do not fall back when DuckDB cannot resolve', async () => {
@@ -1081,13 +1052,18 @@ describe('AsyncQueryService', () => {
                 },
             );
 
+            const runAsyncWarehouseSpy = jest.spyOn(
+                service,
+                'runAsyncWarehouseQuery',
+            );
+            const runAsyncPreAggSpy = jest.spyOn(
+                service,
+                'runAsyncPreAggregateQuery',
+            );
+
             expect(resolveSpy).toHaveBeenCalledTimes(1);
-            expect(
-                service.schedulerClient.runAsyncWarehouseQuery,
-            ).not.toHaveBeenCalled();
-            expect(
-                service.schedulerClient.runAsyncPreAggregateQuery,
-            ).not.toHaveBeenCalled();
+            expect(runAsyncWarehouseSpy).not.toHaveBeenCalled();
+            expect(runAsyncPreAggSpy).not.toHaveBeenCalled();
             expect(service.queryHistoryModel.update).toHaveBeenCalledWith(
                 'test-query-uuid',
                 projectUuid,
@@ -1118,6 +1094,13 @@ describe('AsyncQueryService', () => {
             (service.queryHistoryModel.create as jest.Mock).mockResolvedValue({
                 queryUuid: 'test-query-uuid',
             });
+
+            const runAsyncPreAggSpy = jest
+                .spyOn(service, 'runAsyncPreAggregateQuery')
+                .mockResolvedValue(undefined);
+            const runAsyncWarehouseSpy = jest
+                .spyOn(service, 'runAsyncWarehouseQuery')
+                .mockResolvedValue(undefined);
 
             await service.executeAsyncQuery(
                 {
@@ -1155,20 +1138,14 @@ describe('AsyncQueryService', () => {
                 },
             );
 
-            expect(
-                service.schedulerClient.runAsyncPreAggregateQuery,
-            ).toHaveBeenCalledTimes(1);
-            expect(
-                service.schedulerClient.runAsyncPreAggregateQuery,
-            ).toHaveBeenCalledWith(
+            expect(runAsyncPreAggSpy).toHaveBeenCalledTimes(1);
+            expect(runAsyncPreAggSpy).toHaveBeenCalledWith(
                 expect.objectContaining({
                     preAggregateQuery: 'SELECT * FROM duckdb_preagg',
                     warehouseQuery: 'SELECT * FROM warehouse',
                 }),
             );
-            expect(
-                service.schedulerClient.runAsyncWarehouseQuery,
-            ).not.toHaveBeenCalled();
+            expect(runAsyncWarehouseSpy).not.toHaveBeenCalled();
         });
 
         test('opportunistic pre-aggregate routes still fall back to the warehouse when DuckDB cannot resolve', async () => {
@@ -1190,6 +1167,10 @@ describe('AsyncQueryService', () => {
             (service.queryHistoryModel.create as jest.Mock).mockResolvedValue({
                 queryUuid: 'test-query-uuid',
             });
+
+            const runAsyncSpy = jest
+                .spyOn(service, 'runAsyncWarehouseQuery')
+                .mockResolvedValue(undefined);
 
             await service.executeAsyncQuery(
                 {
@@ -1221,12 +1202,8 @@ describe('AsyncQueryService', () => {
             );
 
             expect(resolveSpy).toHaveBeenCalledTimes(1);
-            expect(
-                service.schedulerClient.runAsyncWarehouseQuery,
-            ).toHaveBeenCalledTimes(1);
-            expect(
-                service.schedulerClient.runAsyncWarehouseQuery,
-            ).toHaveBeenCalledWith(
+            expect(runAsyncSpy).toHaveBeenCalledTimes(1);
+            expect(runAsyncSpy).toHaveBeenCalledWith(
                 expect.objectContaining({
                     query: 'SELECT * FROM warehouse',
                 }),
@@ -1588,24 +1565,13 @@ describe('AsyncQueryService', () => {
     });
 
     describe('executeAsyncQuery with originalColumns', () => {
-        const schedulerClientMock = {
-            scheduleTask: jest.fn(),
-            runAsyncPreAggregateQuery: jest.fn(),
-            runAsyncWarehouseQuery: jest.fn(),
-        };
-        const serviceWithCache = getMockedAsyncQueryService(
-            {
-                ...lightdashConfigMock,
-                results: {
-                    ...lightdashConfigMock.results,
-                    cacheEnabled: true,
-                },
+        const serviceWithCache = getMockedAsyncQueryService({
+            ...lightdashConfigMock,
+            results: {
+                ...lightdashConfigMock.results,
+                cacheEnabled: true,
             },
-            {
-                schedulerClient:
-                    schedulerClientMock as unknown as SchedulerClient,
-            },
-        );
+        });
 
         const mockOriginalColumns: ResultColumns = {
             user_id: { reference: 'user_id', type: DimensionType.STRING },
@@ -1643,6 +1609,10 @@ describe('AsyncQueryService', () => {
                 queryUuid: 'test-query-uuid',
             });
 
+            const runAsyncSpy = jest
+                .spyOn(serviceWithCache, 'runAsyncWarehouseQuery')
+                .mockResolvedValue(undefined);
+
             await serviceWithCache.executeAsyncQuery(
                 {
                     account: sessionAccount,
@@ -1663,10 +1633,8 @@ describe('AsyncQueryService', () => {
                 { query: metricQueryMock },
             );
 
-            // Verify that original columns are passed to the Graphile worker
-            expect(
-                schedulerClientMock.runAsyncWarehouseQuery,
-            ).toHaveBeenCalledWith(
+            // Verify that original columns are passed to the inline fire-and-forget call
+            expect(runAsyncSpy).toHaveBeenCalledWith(
                 expect.objectContaining({
                     originalColumns: mockOriginalColumns,
                 }),

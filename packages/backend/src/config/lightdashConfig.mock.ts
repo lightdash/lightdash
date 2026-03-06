@@ -151,7 +151,7 @@ export const lightdashConfigMock: LightdashConfig = {
     asyncQuery: {
         nats: {
             enabled: false,
-            url: 'nats://localhost:4222',
+            url: undefined,
             workerConcurrency: 1,
         },
     },

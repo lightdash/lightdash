@@ -1,4 +1,8 @@
-import type { QueueTraceProperties } from '@lightdash/common';
+export type NatsTraceProperties = {
+    traceHeader?: string;
+    baggageHeader?: string;
+    sentryMessageId?: string;
+};
 
 export const NATS_HEADERS = {
     JOB_ID: 'x-lightdash-job-id',
@@ -7,7 +11,7 @@ export const NATS_HEADERS = {
     SENTRY_MESSAGE_ID: 'x-lightdash-sentry-message-id',
 } as const;
 
-export type AsyncQueryNatsEnvelope<TPayload> = QueueTraceProperties & {
+export type AsyncQueryNatsEnvelope<TPayload> = NatsTraceProperties & {
     jobId: string;
     payload: TPayload;
 };

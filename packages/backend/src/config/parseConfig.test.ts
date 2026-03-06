@@ -614,16 +614,6 @@ describe('scheduler poll interval', () => {
 });
 
 describe('async query NATS config', () => {
-    test('should parse defaults correctly', () => {
-        const config = parseConfig();
-
-        expect(config.asyncQuery.nats).toEqual({
-            enabled: false,
-            url: 'nats://localhost:4222',
-            workerConcurrency: 1,
-        });
-    });
-
     test('should parse valid enabled config', () => {
         process.env.NATS_ENABLED = 'true';
         process.env.NATS_URL = 'nats://nats.example.com:4222';
@@ -636,6 +626,16 @@ describe('async query NATS config', () => {
             url: 'nats://nats.example.com:4222',
             workerConcurrency: 50,
         });
+    });
+
+    test('should throw when NATS_ENABLED=true but NATS_URL is not set', () => {
+        process.env.NATS_ENABLED = 'true';
+        delete process.env.NATS_URL;
+
+        expect(() => parseConfig()).toThrowError(ParseError);
+        expect(() => parseConfig()).toThrowError(
+            'NATS_URL is required when NATS_ENABLED=true',
+        );
     });
 
     test('should throw when worker concurrency is invalid', () => {

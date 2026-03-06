@@ -3,17 +3,14 @@ import { type AnyType } from './any';
 import { type ApiSuccess } from './api/success';
 import type { DownloadFileType } from './downloadFile';
 import { type Explore, type ExploreError } from './explore';
-import { type ItemsMap } from './field';
 import { type DashboardFilterRule, type DashboardFilters } from './filter';
 import { type KnexPaginatedData } from './knex-paginate';
 import { type MetricQuery } from './metricQuery';
 import { type ParametersValuesMap } from './parameters';
-import { type PivotConfig, type PivotConfiguration } from './pivot';
-import { type ResultColumns } from './results';
+import { type PivotConfig } from './pivot';
 import type { PartialFailure, SchedulerRun } from './schedulerLog';
 import { type DateGranularity } from './timeFrames';
 import { type ValidationTarget } from './validation';
-import { type RunQueryTags } from './warehouse';
 
 export type SchedulerCsvOptions = {
     formatted: boolean;
@@ -687,32 +684,6 @@ export type DownloadAsyncQueryResultsPayload = TraceTaskBase & {
     pivotConfig?: PivotConfig;
     attachmentDownloadName?: string;
     encodedJwt?: string;
-};
-
-export type AsyncQueryWarehouseCredentialsOverrides = {
-    snowflakeVirtualWarehouse?: string;
-    databricksCompute?: string;
-};
-
-export type AsyncQueryWorkerPayloadBase = TraceTaskBase & {
-    queryUuid: string;
-    isRegisteredUser: boolean;
-    isServiceAccount?: boolean;
-    queryTags: RunQueryTags;
-    fieldsMap: ItemsMap;
-    cacheKey: string;
-    warehouseCredentialsOverrides?: AsyncQueryWarehouseCredentialsOverrides;
-    pivotConfiguration?: PivotConfiguration;
-    originalColumns?: ResultColumns;
-};
-
-export type RunAsyncWarehouseQueryPayload = AsyncQueryWorkerPayloadBase & {
-    query: string;
-};
-
-export type RunAsyncPreAggregateQueryPayload = AsyncQueryWorkerPayloadBase & {
-    preAggregateQuery: string;
-    warehouseQuery: string;
 };
 
 export type SyncSlackChannelsPayload = Pick<

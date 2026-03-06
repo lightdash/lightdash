@@ -4,9 +4,7 @@ import {
     isSchedulerTaskName,
     SCHEDULER_TASKS,
     SchedulerJobStatus,
-    type Account,
 } from '@lightdash/common';
-import { fromSession } from '../../auth/account';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { tryJobOrTimeout } from '../../scheduler/SchedulerJobTimeout';
 import { SchedulerTaskArguments } from '../../scheduler/SchedulerTask';
@@ -46,43 +44,6 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
     protected getFullTaskList(): TypedEETaskList {
         return {
             ...super.getFullTaskList(),
-            [SCHEDULER_TASKS.RUN_ASYNC_PRE_AGGREGATE_QUERY]: async (
-                payload,
-                helpers,
-            ) => {
-                await tryJobOrTimeout(
-                    SchedulerClient.processJob(
-                        SCHEDULER_TASKS.RUN_ASYNC_PRE_AGGREGATE_QUERY,
-                        helpers.job.id,
-                        helpers.job.run_at,
-                        payload,
-                        async () => {
-                            await this.runAsyncPreAggregateQuery(
-                                helpers.job.id,
-                                helpers.job.run_at,
-                                payload,
-                            );
-                        },
-                    ),
-                    helpers.job,
-                    this.lightdashConfig.scheduler.jobTimeout,
-                    async (job, e) => {
-                        await this.schedulerService.logSchedulerJob({
-                            task: SCHEDULER_TASKS.RUN_ASYNC_PRE_AGGREGATE_QUERY,
-                            jobId: job.id,
-                            scheduledTime: job.run_at,
-                            status: SchedulerJobStatus.ERROR,
-                            details: {
-                                createdByUserUuid: payload.userUuid,
-                                error: getErrorMessage(e),
-                                queryUuid: payload.queryUuid,
-                                projectUuid: payload.projectUuid,
-                                organizationUuid: payload.organizationUuid,
-                            },
-                        });
-                    },
-                );
-            },
             [EE_SCHEDULER_TASKS.SLACK_AI_PROMPT]: async (payload, _helpers) => {
                 await this.aiAgentService.replyToSlackPrompt(
                     payload.slackPromptUuid,

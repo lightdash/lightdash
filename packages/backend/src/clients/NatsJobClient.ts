@@ -2,15 +2,15 @@ import { getErrorMessage } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { connect, headers, StringCodec, type JetStreamClient } from 'nats';
 import { v4 as uuidv4 } from 'uuid';
+import { type LightdashConfig } from '../config/parseConfig';
+import Logger from '../logging/logger';
 import {
     NATS_HEADERS,
     PRE_AGGREGATE_QUERY_SUBJECT,
     WAREHOUSE_QUERY_SUBJECT,
     type AsyncQueryJobPayload,
     type AsyncQueryNatsEnvelope,
-} from '../asyncQuery/natsContracts';
-import { type LightdashConfig } from '../config/parseConfig';
-import Logger from '../logging/logger';
+} from '../nats/natsContracts';
 
 type NatsJobClientArguments = {
     lightdashConfig: LightdashConfig;
@@ -28,6 +28,11 @@ export class NatsJobClient implements INatsJobClient {
 
     private readonly codec = StringCodec();
 
+    /**
+     * Lazy-init with retry-on-error: caches the connection promise so
+     * concurrent callers share one connection. On failure the cache is
+     * cleared so the next call retries a fresh connection.
+     */
     private jetStreamPromise: Promise<JetStreamClient> | undefined;
 
     constructor(args: NatsJobClientArguments) {
@@ -67,7 +72,6 @@ export class NatsJobClient implements INatsJobClient {
                     'messaging.message.body.size': Buffer.byteLength(
                         JSON.stringify(payload),
                     ),
-                    'messaging.message.job.id': jobId,
                 },
             },
             async (span) => {

@@ -138,18 +138,6 @@ const getTagsForTask: {
         'project.uuid': payload.projectUuid,
     }),
 
-    [SCHEDULER_TASKS.RUN_ASYNC_PRE_AGGREGATE_QUERY]: (payload) => ({
-        'organization.uuid': payload.organizationUuid,
-        'user.uuid': payload.userUuid,
-        'project.uuid': payload.projectUuid,
-    }),
-
-    [SCHEDULER_TASKS.RUN_ASYNC_WAREHOUSE_QUERY]: (payload) => ({
-        'organization.uuid': payload.organizationUuid,
-        'user.uuid': payload.userUuid,
-        'project.uuid': payload.projectUuid,
-    }),
-
     [SCHEDULER_TASKS.GENERATE_DAILY_JOBS]: () => ({}),
 
     [SCHEDULER_TASKS.EXPORT_CSV_DASHBOARD]: (payload) => ({

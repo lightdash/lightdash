@@ -913,7 +913,7 @@ export type LightdashConfig = {
     asyncQuery: {
         nats: {
             enabled: boolean;
-            url: string;
+            url: string | undefined;
             workerConcurrency: number;
         };
     };
@@ -1383,11 +1383,15 @@ export const parseConfig = (): LightdashConfig => {
         licenseKey !== null && process.env.PRE_AGGREGATES_ENABLED === 'true';
     const preAggregatesS3 = parsePreAggregateResultsS3Config();
     const asyncQueryNatsEnabled = process.env.NATS_ENABLED === 'true';
+    const asyncQueryNatsUrl = process.env.NATS_URL;
     const asyncQueryNatsWorkerConcurrency =
         getIntegerFromEnvironmentVariable('NATS_WORKER_CONCURRENCY') ?? 1;
 
     if (preAggregatesEnabled && !preAggregatesS3) {
         throw new ParseError('Pre-aggregates require S3 configuration', {});
+    }
+    if (asyncQueryNatsEnabled && !asyncQueryNatsUrl) {
+        throw new ParseError('NATS_URL is required when NATS_ENABLED=true', {});
     }
     if (asyncQueryNatsWorkerConcurrency <= 0) {
         throw new ParseError(
@@ -1760,7 +1764,7 @@ export const parseConfig = (): LightdashConfig => {
         asyncQuery: {
             nats: {
                 enabled: asyncQueryNatsEnabled,
-                url: process.env.NATS_URL || 'nats://localhost:4222',
+                url: asyncQueryNatsUrl,
                 workerConcurrency: asyncQueryNatsWorkerConcurrency,
             },
         },

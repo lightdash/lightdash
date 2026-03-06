@@ -22,8 +22,6 @@ import {
     type MsTeamsBatchNotificationPayload,
     type MsTeamsNotificationPayload,
     type ReplaceCustomFieldsPayload,
-    type RunAsyncPreAggregateQueryPayload,
-    type RunAsyncWarehouseQueryPayload,
     type ScheduledDeliveryPayload,
     type SchedulerCreateProjectWithCompilePayload,
     type SlackBatchNotificationPayload,
@@ -38,7 +36,6 @@ import {
 } from './sqlRunner';
 
 export const EE_SCHEDULER_TASKS = {
-    RUN_ASYNC_PRE_AGGREGATE_QUERY: 'runAsyncPreAggregateQuery',
     SLACK_AI_PROMPT: 'slackAiPrompt',
     AI_AGENT_EVAL_RESULT: 'aiAgentEvalResult',
     EMBED_ARTIFACT_VERSION: 'embedArtifactVersion',
@@ -68,7 +65,6 @@ export const SCHEDULER_TASKS = {
     SQL_RUNNER_PIVOT_QUERY: 'sqlRunnerPivotQuery',
     REPLACE_CUSTOM_FIELDS: 'replaceCustomFields',
     INDEX_CATALOG: 'indexCatalog',
-    RUN_ASYNC_WAREHOUSE_QUERY: 'runAsyncWarehouseQuery',
     GENERATE_DAILY_JOBS: 'generateDailyJobs',
     EXPORT_CSV_DASHBOARD: 'exportCsvDashboard',
     RENAME_RESOURCES: 'renameResources',
@@ -109,8 +105,6 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.SQL_RUNNER_PIVOT_QUERY]: SqlRunnerPivotQueryPayload;
     [SCHEDULER_TASKS.REPLACE_CUSTOM_FIELDS]: ReplaceCustomFieldsPayload;
     [SCHEDULER_TASKS.INDEX_CATALOG]: SchedulerIndexCatalogJobPayload;
-    [SCHEDULER_TASKS.RUN_ASYNC_PRE_AGGREGATE_QUERY]: RunAsyncPreAggregateQueryPayload;
-    [SCHEDULER_TASKS.RUN_ASYNC_WAREHOUSE_QUERY]: RunAsyncWarehouseQueryPayload;
     [SCHEDULER_TASKS.GENERATE_DAILY_JOBS]: TraceTaskBase;
     [SCHEDULER_TASKS.EXPORT_CSV_DASHBOARD]: ExportCsvDashboardPayload;
     [SCHEDULER_TASKS.SLACK_AI_PROMPT]: SlackPromptJobPayload;
@@ -128,7 +122,6 @@ export interface TaskPayloadMap {
 }
 
 export interface EETaskPayloadMap {
-    [EE_SCHEDULER_TASKS.RUN_ASYNC_PRE_AGGREGATE_QUERY]: RunAsyncPreAggregateQueryPayload;
     [EE_SCHEDULER_TASKS.SLACK_AI_PROMPT]: SlackPromptJobPayload;
     [EE_SCHEDULER_TASKS.AI_AGENT_EVAL_RESULT]: AiAgentEvalRunJobPayload;
     [EE_SCHEDULER_TASKS.EMBED_ARTIFACT_VERSION]: EmbedArtifactVersionJobPayload;

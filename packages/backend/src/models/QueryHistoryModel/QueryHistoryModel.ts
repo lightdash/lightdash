@@ -241,7 +241,7 @@ export class QueryHistoryModel {
         };
     }
 
-    async getWorkerPayload(queryUuid: string): Promise<DbQueryHistory> {
+    async getFullByQueryUuid(queryUuid: string): Promise<DbQueryHistory> {
         const result = await this.database(QueryHistoryTableName)
             .where('query_uuid', queryUuid)
             .first<DbQueryHistory>();
