@@ -1,3 +1,10 @@
+# [0.2580.0](https://github.com/lightdash/lightdash/compare/0.2579.2...0.2580.0) (2026-03-06)
+
+
+### Features
+
+* add graphite and breakup-pr skills ([#20915](https://github.com/lightdash/lightdash/issues/20915)) ([b494e61](https://github.com/lightdash/lightdash/commit/b494e619be6e9521dab4f7cbde36f5f632a861e7))
+
 ## [0.2579.2](https://github.com/lightdash/lightdash/compare/0.2579.1...0.2579.2) (2026-03-06)
 
 
