@@ -265,9 +265,9 @@
                     "type": "string"
                 },
                 "values": {
-                    "description": "Values that belong to this group (e.g. [\"US\", \"CA\", \"MX\"])",
+                    "description": "Rules that match values into this group",
                     "items": {
-                        "type": "string"
+                        "$ref": "#/$defs/GroupValueRule"
                     },
                     "type": "array"
                 }
@@ -290,13 +290,20 @@
             },
             "type": "object"
         },
-        "BinType": {
-            "enum": [
-                "fixed_number",
-                "fixed_width",
-                "custom_range",
-                "custom_group"
-            ],
+        "BinType.CUSTOM_GROUP": {
+            "enum": ["custom_group"],
+            "type": "string"
+        },
+        "BinType.CUSTOM_RANGE": {
+            "enum": ["custom_range"],
+            "type": "string"
+        },
+        "BinType.FIXED_NUMBER": {
+            "enum": ["fixed_number"],
+            "type": "string"
+        },
+        "BinType.FIXED_WIDTH": {
+            "enum": ["fixed_width"],
             "type": "string"
         },
         "CartesianChart": {
@@ -713,66 +720,20 @@
             ]
         },
         "CustomBinDimension": {
-            "additionalProperties": true,
-            "properties": {
-                "binNumber": {
-                    "description": "Number of bins (for fixed_number bin type)",
-                    "format": "double",
-                    "type": "number"
+            "anyOf": [
+                {
+                    "$ref": "#/$defs/FixedNumberBinDimension"
                 },
-                "binType": {
-                    "$ref": "#/$defs/BinType",
-                    "description": "Binning strategy to use"
+                {
+                    "$ref": "#/$defs/FixedWidthBinDimension"
                 },
-                "binWidth": {
-                    "description": "Width of each bin (for fixed_width bin type)",
-                    "format": "double",
-                    "type": "number"
+                {
+                    "$ref": "#/$defs/CustomRangeBinDimension"
                 },
-                "customGroups": {
-                    "description": "Custom groups mapping values to group names (for custom_group bin type)",
-                    "items": {
-                        "$ref": "#/$defs/BinGroup"
-                    },
-                    "type": "array"
-                },
-                "customRange": {
-                    "description": "Custom bin ranges (for custom_range bin type)",
-                    "items": {
-                        "$ref": "#/$defs/BinRange"
-                    },
-                    "type": "array"
-                },
-                "dimensionId": {
-                    "$ref": "#/$defs/FieldId",
-                    "description": "Field ID of the parent dimension to bin"
-                },
-                "id": {
-                    "description": "Unique identifier for the custom dimension",
-                    "type": "string"
-                },
-                "name": {
-                    "description": "Display name for the custom dimension",
-                    "type": "string"
-                },
-                "table": {
-                    "description": "Table this custom dimension belongs to",
-                    "type": "string"
-                },
-                "type": {
-                    "$ref": "#/$defs/CustomDimensionType.BIN",
-                    "description": "Type of custom dimension (bin or sql)"
+                {
+                    "$ref": "#/$defs/CustomGroupBinDimension"
                 }
-            },
-            "required": [
-                "id",
-                "name",
-                "table",
-                "type",
-                "dimensionId",
-                "binType"
-            ],
-            "type": "object"
+            ]
         },
         "CustomDimension": {
             "anyOf": [
@@ -850,6 +811,94 @@
                 "custom"
             ],
             "type": "string"
+        },
+        "CustomGroupBinDimension": {
+            "additionalProperties": true,
+            "properties": {
+                "binType": {
+                    "$ref": "#/$defs/BinType.CUSTOM_GROUP"
+                },
+                "customGroups": {
+                    "items": {
+                        "$ref": "#/$defs/BinGroup"
+                    },
+                    "type": "array"
+                },
+                "dimensionId": {
+                    "$ref": "#/$defs/FieldId",
+                    "description": "Field ID of the parent dimension to bin"
+                },
+                "id": {
+                    "description": "Unique identifier for the custom dimension",
+                    "type": "string"
+                },
+                "name": {
+                    "description": "Display name for the custom dimension",
+                    "type": "string"
+                },
+                "table": {
+                    "description": "Table this custom dimension belongs to",
+                    "type": "string"
+                },
+                "type": {
+                    "$ref": "#/$defs/CustomDimensionType.BIN",
+                    "description": "Type of custom dimension (bin or sql)"
+                }
+            },
+            "required": [
+                "id",
+                "name",
+                "table",
+                "type",
+                "dimensionId",
+                "binType",
+                "customGroups"
+            ],
+            "type": "object"
+        },
+        "CustomRangeBinDimension": {
+            "additionalProperties": true,
+            "properties": {
+                "binType": {
+                    "$ref": "#/$defs/BinType.CUSTOM_RANGE"
+                },
+                "customRange": {
+                    "items": {
+                        "$ref": "#/$defs/BinRange"
+                    },
+                    "type": "array"
+                },
+                "dimensionId": {
+                    "$ref": "#/$defs/FieldId",
+                    "description": "Field ID of the parent dimension to bin"
+                },
+                "id": {
+                    "description": "Unique identifier for the custom dimension",
+                    "type": "string"
+                },
+                "name": {
+                    "description": "Display name for the custom dimension",
+                    "type": "string"
+                },
+                "table": {
+                    "description": "Table this custom dimension belongs to",
+                    "type": "string"
+                },
+                "type": {
+                    "$ref": "#/$defs/CustomDimensionType.BIN",
+                    "description": "Type of custom dimension (bin or sql)"
+                }
+            },
+            "required": [
+                "id",
+                "name",
+                "table",
+                "type",
+                "dimensionId",
+                "binType",
+                "customRange"
+            ],
+            "type": "object"
         },
         "CustomSqlDimension": {
             "additionalProperties": true,
@@ -1101,6 +1150,90 @@
             },
             "type": "object"
         },
+        "FixedNumberBinDimension": {
+            "additionalProperties": true,
+            "properties": {
+                "binNumber": {
+                    "format": "double",
+                    "type": "number"
+                },
+                "binType": {
+                    "$ref": "#/$defs/BinType.FIXED_NUMBER"
+                },
+                "dimensionId": {
+                    "$ref": "#/$defs/FieldId",
+                    "description": "Field ID of the parent dimension to bin"
+                },
+                "id": {
+                    "description": "Unique identifier for the custom dimension",
+                    "type": "string"
+                },
+                "name": {
+                    "description": "Display name for the custom dimension",
+                    "type": "string"
+                },
+                "table": {
+                    "description": "Table this custom dimension belongs to",
+                    "type": "string"
+                },
+                "type": {
+                    "$ref": "#/$defs/CustomDimensionType.BIN",
+                    "description": "Type of custom dimension (bin or sql)"
+                }
+            },
+            "required": [
+                "id",
+                "name",
+                "table",
+                "type",
+                "dimensionId",
+                "binType",
+                "binNumber"
+            ],
+            "type": "object"
+        },
+        "FixedWidthBinDimension": {
+            "additionalProperties": true,
+            "properties": {
+                "binType": {
+                    "$ref": "#/$defs/BinType.FIXED_WIDTH"
+                },
+                "binWidth": {
+                    "format": "double",
+                    "type": "number"
+                },
+                "dimensionId": {
+                    "$ref": "#/$defs/FieldId",
+                    "description": "Field ID of the parent dimension to bin"
+                },
+                "id": {
+                    "description": "Unique identifier for the custom dimension",
+                    "type": "string"
+                },
+                "name": {
+                    "description": "Display name for the custom dimension",
+                    "type": "string"
+                },
+                "table": {
+                    "description": "Table this custom dimension belongs to",
+                    "type": "string"
+                },
+                "type": {
+                    "$ref": "#/$defs/CustomDimensionType.BIN",
+                    "description": "Type of custom dimension (bin or sql)"
+                }
+            },
+            "required": [
+                "id",
+                "name",
+                "table",
+                "type",
+                "dimensionId",
+                "binType",
+                "binWidth"
+            ],
+            "type": "object"
+        },
         "Format": {
             "enum": [
                 "km",
@@ -1325,6 +1458,22 @@
                 }
             },
             "required": ["color", "max", "min"],
+            "type": "object"
+        },
+        "GroupValueMatchType": {
+            "enum": ["exact", "startsWith", "endsWith", "includes"],
+            "type": "string"
+        },
+        "GroupValueRule": {
+            "properties": {
+                "matchType": {
+                    "$ref": "#/$defs/GroupValueMatchType"
+                },
+                "value": {
+                    "type": "string"
+                }
+            },
+            "required": ["value", "matchType"],
             "type": "object"
         },
         "MapChart": {

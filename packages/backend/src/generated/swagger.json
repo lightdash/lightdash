@@ -3560,17 +3560,108 @@
                 "type": "object",
                 "additionalProperties": true
             },
+            "BinType.FIXED_NUMBER": {
+                "enum": ["fixed_number"],
+                "type": "string"
+            },
             "CustomDimensionType.BIN": {
                 "enum": ["bin"],
                 "type": "string"
             },
-            "BinType": {
-                "enum": [
-                    "fixed_number",
-                    "fixed_width",
-                    "custom_range",
-                    "custom_group"
+            "CustomDimensionType": {
+                "enum": ["bin", "sql"],
+                "type": "string"
+            },
+            "FixedNumberBinDimension": {
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "description": "Unique identifier for the custom dimension"
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "Display name for the custom dimension"
+                    },
+                    "table": {
+                        "type": "string",
+                        "description": "Table this custom dimension belongs to"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/CustomDimensionType.BIN",
+                        "description": "Type of custom dimension (bin or sql)"
+                    },
+                    "dimensionId": {
+                        "$ref": "#/components/schemas/FieldId",
+                        "description": "Field ID of the parent dimension to bin"
+                    },
+                    "binType": {
+                        "$ref": "#/components/schemas/BinType.FIXED_NUMBER"
+                    },
+                    "binNumber": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": [
+                    "id",
+                    "name",
+                    "table",
+                    "type",
+                    "dimensionId",
+                    "binType",
+                    "binNumber"
                 ],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "BinType.FIXED_WIDTH": {
+                "enum": ["fixed_width"],
+                "type": "string"
+            },
+            "FixedWidthBinDimension": {
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "description": "Unique identifier for the custom dimension"
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "Display name for the custom dimension"
+                    },
+                    "table": {
+                        "type": "string",
+                        "description": "Table this custom dimension belongs to"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/CustomDimensionType.BIN",
+                        "description": "Type of custom dimension (bin or sql)"
+                    },
+                    "dimensionId": {
+                        "$ref": "#/components/schemas/FieldId",
+                        "description": "Field ID of the parent dimension to bin"
+                    },
+                    "binType": {
+                        "$ref": "#/components/schemas/BinType.FIXED_WIDTH"
+                    },
+                    "binWidth": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": [
+                    "id",
+                    "name",
+                    "table",
+                    "type",
+                    "dimensionId",
+                    "binType",
+                    "binWidth"
+                ],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "BinType.CUSTOM_RANGE": {
+                "enum": ["custom_range"],
                 "type": "string"
             },
             "BinRange": {
@@ -3587,6 +3678,54 @@
                     }
                 },
                 "type": "object"
+            },
+            "CustomRangeBinDimension": {
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "description": "Unique identifier for the custom dimension"
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "Display name for the custom dimension"
+                    },
+                    "table": {
+                        "type": "string",
+                        "description": "Table this custom dimension belongs to"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/CustomDimensionType.BIN",
+                        "description": "Type of custom dimension (bin or sql)"
+                    },
+                    "dimensionId": {
+                        "$ref": "#/components/schemas/FieldId",
+                        "description": "Field ID of the parent dimension to bin"
+                    },
+                    "binType": {
+                        "$ref": "#/components/schemas/BinType.CUSTOM_RANGE"
+                    },
+                    "customRange": {
+                        "items": {
+                            "$ref": "#/components/schemas/BinRange"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": [
+                    "id",
+                    "name",
+                    "table",
+                    "type",
+                    "dimensionId",
+                    "binType",
+                    "customRange"
+                ],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "BinType.CUSTOM_GROUP": {
+                "enum": ["custom_group"],
+                "type": "string"
             },
             "GroupValueMatchType": {
                 "enum": ["exact", "startsWith", "endsWith", "includes"],
@@ -3621,11 +3760,7 @@
                 "required": ["values", "name"],
                 "type": "object"
             },
-            "CustomDimensionType": {
-                "enum": ["bin", "sql"],
-                "type": "string"
-            },
-            "CustomBinDimension": {
+            "CustomGroupBinDimension": {
                 "properties": {
                     "id": {
                         "type": "string",
@@ -3648,32 +3783,13 @@
                         "description": "Field ID of the parent dimension to bin"
                     },
                     "binType": {
-                        "$ref": "#/components/schemas/BinType",
-                        "description": "Binning strategy to use"
-                    },
-                    "binNumber": {
-                        "type": "number",
-                        "format": "double",
-                        "description": "Number of bins (for fixed_number bin type)"
-                    },
-                    "binWidth": {
-                        "type": "number",
-                        "format": "double",
-                        "description": "Width of each bin (for fixed_width bin type)"
-                    },
-                    "customRange": {
-                        "items": {
-                            "$ref": "#/components/schemas/BinRange"
-                        },
-                        "type": "array",
-                        "description": "Custom bin ranges (for custom_range bin type)"
+                        "$ref": "#/components/schemas/BinType.CUSTOM_GROUP"
                     },
                     "customGroups": {
                         "items": {
                             "$ref": "#/components/schemas/BinGroup"
                         },
-                        "type": "array",
-                        "description": "Custom groups mapping values to group names (for custom_group bin type)"
+                        "type": "array"
                     }
                 },
                 "required": [
@@ -3682,10 +3798,27 @@
                     "table",
                     "type",
                     "dimensionId",
-                    "binType"
+                    "binType",
+                    "customGroups"
                 ],
                 "type": "object",
                 "additionalProperties": true
+            },
+            "CustomBinDimension": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/FixedNumberBinDimension"
+                    },
+                    {
+                        "$ref": "#/components/schemas/FixedWidthBinDimension"
+                    },
+                    {
+                        "$ref": "#/components/schemas/CustomRangeBinDimension"
+                    },
+                    {
+                        "$ref": "#/components/schemas/CustomGroupBinDimension"
+                    }
+                ]
             },
             "CustomDimensionType.SQL": {
                 "enum": ["sql"],
@@ -9024,6 +9157,19 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
+                                                            "error",
+                                                            "success"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": ["status"],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
                                                             "success",
                                                             "error"
                                                         ]
@@ -12729,10 +12875,48 @@
                 "type": "object",
                 "additionalProperties": true
             },
+            "ImpersonationInfo": {
+                "properties": {
+                    "adminUserUuid": {
+                        "type": "string"
+                    },
+                    "adminName": {
+                        "type": "string"
+                    },
+                    "impersonatedUserUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "adminUserUuid",
+                    "adminName",
+                    "impersonatedUserUuid"
+                ],
+                "type": "object",
+                "additionalProperties": true
+            },
             "ApiGetAuthenticatedUserResponse": {
                 "properties": {
                     "results": {
-                        "$ref": "#/components/schemas/LightdashUser"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/LightdashUser"
+                            },
+                            {
+                                "properties": {
+                                    "impersonation": {
+                                        "allOf": [
+                                            {
+                                                "$ref": "#/components/schemas/ImpersonationInfo"
+                                            }
+                                        ],
+                                        "nullable": true
+                                    }
+                                },
+                                "required": ["impersonation"],
+                                "type": "object"
+                            }
+                        ]
                     },
                     "status": {
                         "type": "string",
@@ -22536,6 +22720,47 @@
                 "required": ["parameterReferences", "query"],
                 "type": "object"
             },
+            "ApiStartImpersonationResponse": {
+                "properties": {
+                    "results": {
+                        "type": "number",
+                        "enum": [null],
+                        "nullable": true
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiStartImpersonationRequest": {
+                "properties": {
+                    "targetUserUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["targetUserUuid"],
+                "type": "object"
+            },
+            "ApiStopImpersonationResponse": {
+                "properties": {
+                    "results": {
+                        "type": "number",
+                        "enum": [null],
+                        "nullable": true
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "ApiGroupResponse": {
                 "properties": {
                     "results": {
@@ -27738,7 +27963,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2579.0",
+        "version": "0.2580.3",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -39142,6 +39367,80 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/impersonation/start": {
+            "post": {
+                "operationId": "StartImpersonation",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiStartImpersonationResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Start impersonating a user",
+                "summary": "Start impersonation",
+                "tags": ["Impersonation"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiStartImpersonationRequest"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/impersonation/stop": {
+            "post": {
+                "operationId": "StopImpersonation",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiStopImpersonationResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Stop impersonating a user",
+                "summary": "Stop impersonation",
+                "tags": ["Impersonation"],
+                "security": [],
+                "parameters": []
             }
         },
         "/api/v1/groups/{groupUuid}": {
