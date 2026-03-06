@@ -569,6 +569,7 @@ export type CreateProject = Omit<
     copyWarehouseConnectionFromUpstreamProject?: boolean;
     tableConfiguration?: CreateProjectTableConfiguration;
     copyContent?: boolean;
+    expiresInHours?: number;
 };
 
 export type CreateProjectOptionalCredentials = Omit<

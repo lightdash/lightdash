@@ -135,6 +135,7 @@ type CreateProjectOptions = {
     organizationCredentials?: string;
     targetPath?: string;
     assumeYes?: boolean;
+    expiresIn?: number;
 };
 
 const isSnowflakeSsoEnabled = async (): Promise<boolean> => {
@@ -397,6 +398,9 @@ export const createProject = async (
         tableConfiguration: options.tableConfiguration,
         copyContent: options.copyContent,
         organizationWarehouseCredentialsUuid,
+        ...(options.expiresIn !== undefined
+            ? { expiresInHours: options.expiresIn }
+            : {}),
     };
 
     return lightdashApi<ApiCreateProjectResults>({
