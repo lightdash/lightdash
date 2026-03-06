@@ -115,6 +115,14 @@ export class SchedulerWorker extends SchedulerTask {
                         maxAttempts: 3,
                     },
                 },
+                {
+                    task: SCHEDULER_TASKS.CLEAN_EXPIRED_PREVIEWS,
+                    pattern: '0 * * * *', // Every hour
+                    options: {
+                        backfillPeriod: 2 * 3600 * 1000, // 2 hours in ms
+                        maxAttempts: 3,
+                    },
+                },
             ]),
             taskList: traceTasks(this.getTaskList()),
             events: schedulerWorkerEventEmitter,
@@ -1013,6 +1021,24 @@ export class SchedulerWorker extends SchedulerTask {
                 } catch (error) {
                     Logger.error(
                         'Error during deploy sessions cleanup:',
+                        error,
+                    );
+                    throw error;
+                }
+            },
+            [SCHEDULER_TASKS.CLEAN_EXPIRED_PREVIEWS]: async () => {
+                Logger.info('Starting expired preview projects cleanup job');
+
+                try {
+                    const deletedCount =
+                        await this.projectService.deleteExpiredPreviewProjects();
+
+                    Logger.info(
+                        `Expired preview projects cleanup completed. Deleted: ${deletedCount}`,
+                    );
+                } catch (error) {
+                    Logger.error(
+                        'Error during expired preview projects cleanup:',
                         error,
                     );
                     throw error;

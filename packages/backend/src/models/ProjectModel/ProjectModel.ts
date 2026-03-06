@@ -636,6 +636,29 @@ export class ProjectModel {
         });
     }
 
+    async getExpiredPreviewProjects(): Promise<
+        { projectUuid: string; organizationUuid: string }[]
+    > {
+        const results = await this.database('projects')
+            .join(
+                'organizations',
+                'projects.organization_id',
+                'organizations.organization_id',
+            )
+            .where('projects.project_type', ProjectType.PREVIEW)
+            .whereNotNull('projects.expires_at')
+            .where('projects.expires_at', '<=', this.database.fn.now())
+            .select(
+                'projects.project_uuid',
+                'organizations.organization_uuid',
+            );
+
+        return results.map((r) => ({
+            projectUuid: r.project_uuid,
+            organizationUuid: r.organization_uuid,
+        }));
+    }
+
     async delete(projectUuid: string): Promise<void> {
         // Invalidate warehouse credentials cache
         warehouseCredentialsCache?.del(projectUuid);
