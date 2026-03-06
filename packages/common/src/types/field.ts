@@ -804,6 +804,20 @@ export const isMetric = (
 export const isNonAggregateMetric = (field: Field): boolean =>
     isMetric(field) && NonAggregateMetricTypes.includes(field.type);
 
+export const AggregateMetricTypes = [
+    MetricType.SUM,
+    MetricType.COUNT,
+    MetricType.COUNT_DISTINCT,
+    MetricType.AVERAGE,
+    MetricType.MIN,
+    MetricType.MAX,
+    MetricType.MEDIAN,
+    MetricType.PERCENTILE,
+] as const;
+
+export const isAggregateMetricType = (type: MetricType): boolean =>
+    (AggregateMetricTypes as readonly MetricType[]).includes(type);
+
 export const isPostCalculationMetricType = (type: MetricType): boolean =>
     PostCalculationMetricTypes.includes(type);
 

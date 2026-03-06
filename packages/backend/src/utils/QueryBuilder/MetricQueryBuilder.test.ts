@@ -42,6 +42,7 @@ import {
     EXPLORE_WITH_CROSS_TABLE_METRICS,
     EXPLORE_WITH_DATE_DIMENSION,
     EXPLORE_WITH_DATE_DIMENSION_ZOOMED,
+    EXPLORE_WITH_NESTED_AGG,
     EXPLORE_WITH_REQUIRED_FILTERS,
     EXPLORE_WITH_SQL_FILTER,
     EXPLORE_WITH_SUM_DISTINCT,
@@ -55,6 +56,13 @@ import {
     METRIC_QUERY_CROSS_TABLE,
     METRIC_QUERY_JOIN_CHAIN,
     METRIC_QUERY_JOIN_CHAIN_SQL,
+    METRIC_QUERY_NESTED_AGG_COMPLEX,
+    METRIC_QUERY_NESTED_AGG_CONDITIONAL,
+    METRIC_QUERY_NESTED_AGG_COUNT_DISTINCT,
+    METRIC_QUERY_NESTED_AGG_MIXED,
+    METRIC_QUERY_NESTED_AGG_NO_DIMS,
+    METRIC_QUERY_NESTED_AGG_PRODUCT,
+    METRIC_QUERY_NESTED_AGG_WITH_DIMS,
     METRIC_QUERY_SQL,
     METRIC_QUERY_SQL_BIGQUERY,
     METRIC_QUERY_SUM_DISTINCT_NO_DIMS,
@@ -4480,5 +4488,150 @@ describe('Default sort behavior', () => {
 
         // Should have no ORDER BY clause at all
         expect(result.query).not.toContain('ORDER BY');
+    });
+});
+
+describe('Nested aggregate metrics', () => {
+    test('should generate nested_agg CTE for metrics with nested aggregates and dimensions', () => {
+        const result = buildQuery({
+            explore: EXPLORE_WITH_NESTED_AGG,
+            compiledMetricQuery: METRIC_QUERY_NESTED_AGG_WITH_DIMS,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        // Should contain both CTEs
+        expect(result.query).toContain('nested_agg AS (');
+        expect(result.query).toContain('nested_agg_results AS (');
+        // CTE 1 should compute the inner metric
+        expect(result.query).toContain(
+            'MAX("my_table".value) AS "my_table_max_value"',
+        );
+        // Final query should NOT contain nested aggregate
+        expect(result.query).not.toContain('SUM(MAX(');
+        // Results CTE should reference CTE 1 columns
+        expect(result.query).toContain('nested_agg."my_table_max_value"');
+        // Outer SELECT should reference nested_agg_results (no aggregates)
+        expect(result.query).toContain('INNER JOIN nested_agg_results ON');
+        expect(result.query).toContain(
+            'nested_agg_results."my_table_sum_of_max"',
+        );
+    });
+
+    test('should select FROM nested_agg when no dimensions are selected', () => {
+        const result = buildQuery({
+            explore: EXPLORE_WITH_NESTED_AGG,
+            compiledMetricQuery: METRIC_QUERY_NESTED_AGG_NO_DIMS,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        expect(result.query).toContain('nested_agg AS (');
+        expect(result.query).not.toContain('SUM(MAX(');
+        // With no dimensions and no other metrics, selects directly from the CTE
+        expect(result.query).toContain('FROM nested_agg');
+    });
+
+    test('should handle complex nested aggregate with mixed refs (agg + non-agg)', () => {
+        const result = buildQuery({
+            explore: EXPLORE_WITH_NESTED_AGG,
+            compiledMetricQuery: METRIC_QUERY_NESTED_AGG_COMPLEX,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        // Should contain the nested_agg CTE
+        expect(result.query).toContain('nested_agg AS (');
+        // Should NOT contain nested aggregate
+        expect(result.query).not.toContain('SUM(MAX(');
+        // The count_records metric ref (non-nested) should still compile normally
+        expect(result.query).toContain('COUNT("my_table".id)');
+    });
+
+    test('should handle COUNT(DISTINCT) wrapping aggregate metric (PROD-5657)', () => {
+        const result = buildQuery({
+            explore: EXPLORE_WITH_NESTED_AGG,
+            compiledMetricQuery: METRIC_QUERY_NESTED_AGG_COUNT_DISTINCT,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        // Should contain both CTEs
+        expect(result.query).toContain('nested_agg AS (');
+        expect(result.query).toContain('nested_agg_results AS (');
+        // CTE 1 should compute the inner metric
+        expect(result.query).toContain(
+            'MAX("my_table".value) AS "my_table_max_value"',
+        );
+        // Should NOT contain nested aggregate COUNT(DISTINCT MAX(...))
+        expect(result.query).not.toContain('COUNT(DISTINCT MAX(');
+        // Results CTE should reference CTE 1 columns
+        expect(result.query).toContain('nested_agg."my_table_max_value"');
+        // Outer SELECT should reference nested_agg_results (no aggregates)
+        expect(result.query).toContain(
+            'nested_agg_results."my_table_count_distinct_of_max"',
+        );
+    });
+
+    test('should handle conditional SUM wrapping aggregate metric', () => {
+        const result = buildQuery({
+            explore: EXPLORE_WITH_NESTED_AGG,
+            compiledMetricQuery: METRIC_QUERY_NESTED_AGG_CONDITIONAL,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        // Should contain the nested_agg CTE
+        expect(result.query).toContain('nested_agg AS (');
+        // Should NOT contain nested aggregate SUM(CASE WHEN MAX(...)...)
+        expect(result.query).not.toContain('SUM(CASE WHEN MAX(');
+        // Should reference the CTE column in the outer SQL
+        expect(result.query).toContain('nested_agg."my_table_max_value"');
+    });
+
+    test('should NOT generate CTE for product of aggregates (no outer aggregation)', () => {
+        const result = buildQuery({
+            explore: EXPLORE_WITH_NESTED_AGG,
+            compiledMetricQuery: METRIC_QUERY_NESTED_AGG_PRODUCT,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        // Should NOT contain nested_agg CTE — no outer aggregation wrapping
+        expect(result.query).not.toContain('nested_agg AS (');
+        // SQL is valid: MAX(...) * COUNT(...) — sibling aggregates, not nested
+        expect(result.query).toContain('MAX("my_table".value)');
+        expect(result.query).toContain('COUNT("my_table".id)');
+    });
+
+    test('should route non-wrapping aggregate-referencing metrics through CTE when mixed with wrapping metrics', () => {
+        const result = buildQuery({
+            explore: EXPLORE_WITH_NESTED_AGG,
+            compiledMetricQuery: METRIC_QUERY_NESTED_AGG_MIXED,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        // Should contain both CTEs
+        expect(result.query).toContain('nested_agg AS (');
+        expect(result.query).toContain('nested_agg_results AS (');
+        // Should NOT contain nested aggregate
+        expect(result.query).not.toContain('SUM(MAX(');
+        // Results CTE should compute product_of_aggregates using CTE refs
+        expect(result.query).toContain('nested_agg."my_table_max_value"');
+        // Outer SELECT should reference nested_agg_results columns (no aggregates)
+        expect(result.query).toContain(
+            'nested_agg_results."my_table_product_of_aggregates"',
+        );
+        expect(result.query).toContain(
+            'nested_agg_results."my_table_sum_of_max"',
+        );
     });
 });
