@@ -3552,68 +3552,6 @@ export class ProjectService extends BaseService {
         );
     }
 
-    /**
-     * @deprecated Use {@link AsyncQueryService.executeSavedChartQueryAndGetResults} instead.
-     * Remaining callers are in the GSheets scheduled delivery code (GLITCH-182).
-     * Remove in GLITCH-186 once all callers are migrated.
-     */
-    async getResultsForChart(
-        account: Account,
-        chartUuid: string,
-        context: QueryExecutionContext,
-        dashboardParameters?: ParametersValuesMap,
-    ): Promise<{
-        rows: Record<string, AnyType>[];
-        cacheMetadata: CacheMetadata;
-    }> {
-        return wrapSentryTransaction(
-            'getResultsForChartWithWarehouseQuery',
-            {
-                userUuid: account.user.id,
-                chartUuid,
-            },
-            async () => {
-                const chart = await this.savedChartModel.get(chartUuid);
-                const { metricQuery, parameters: savedChartParameters } = chart;
-                const exploreId = chart.tableName;
-                const queryTags: RunQueryTags = {
-                    ...this.getUserQueryTags(account),
-                    project_uuid: chart.projectUuid,
-                    chart_uuid: chartUuid,
-                    explore_name: exploreId,
-                    query_context: context,
-                };
-
-                // Parameter overrides are the dashboard parameters
-                const explore = await this.getExplore(
-                    account,
-                    chart.projectUuid,
-                    exploreId,
-                );
-
-                const parameters = await this.combineParameters(
-                    chart.projectUuid,
-                    explore,
-                    undefined,
-                    dashboardParameters ?? savedChartParameters, // Dashboard parameters go in place of saved chart parameters
-                );
-
-                return this.runMetricQuery({
-                    account,
-                    metricQuery,
-                    projectUuid: chart.projectUuid,
-                    exploreName: exploreId,
-                    csvLimit: undefined,
-                    context,
-                    chartUuid,
-                    queryTags,
-                    parameters,
-                    explore, // Passing in explore to avoid fetching it again
-                });
-            },
-        );
-    }
-
     async getResultsFromCacheOrWarehouse({
         projectUuid,
         userUuid,
