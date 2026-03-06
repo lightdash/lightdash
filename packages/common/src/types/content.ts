@@ -1,3 +1,4 @@
+import { type ContentVerificationInfo } from './contentVerification';
 import type { KnexPaginatedData } from './knex-paginate';
 import { type ChartKind } from './savedCharts';
 import { type SessionUser } from './user';
@@ -43,6 +44,7 @@ export interface Content {
     } | null;
     views: number;
     firstViewedAt: Date | null;
+    verification: ContentVerificationInfo | null;
 }
 
 export enum ContentSortByColumns {
