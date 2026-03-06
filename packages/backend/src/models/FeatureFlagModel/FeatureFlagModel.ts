@@ -42,8 +42,6 @@ export class FeatureFlagModel {
             [FeatureFlags.Maps]: this.getMapsEnabled.bind(this),
             [FeatureFlags.ShowExecutionTime]:
                 this.getShowExecutionTimeEnabled.bind(this),
-            [FeatureFlags.AdminChangeNotifications]:
-                this.getAdminChangeNotifications.bind(this),
             [FeatureFlags.SavedMetricsTree]:
                 this.getSavedMetricsTreeEnabled.bind(this),
             [FeatureFlags.DefaultUserSpaces]:
@@ -219,31 +217,6 @@ export class FeatureFlagModel {
                   )
                 : false);
 
-        return {
-            id: featureFlagId,
-            enabled,
-        };
-    }
-
-    private async getAdminChangeNotifications({
-        user,
-        featureFlagId,
-    }: FeatureFlagLogicArgs) {
-        const enabled =
-            this.lightdashConfig.adminChangeNotifications.enabled ||
-            (user
-                ? await isFeatureFlagEnabled(
-                      FeatureFlags.AdminChangeNotifications,
-                      {
-                          userUuid: user.userUuid,
-                          organizationUuid: user.organizationUuid,
-                      },
-                      {
-                          throwOnTimeout: false,
-                          timeoutMilliseconds: 500,
-                      },
-                  )
-                : false);
         return {
             id: featureFlagId,
             enabled,

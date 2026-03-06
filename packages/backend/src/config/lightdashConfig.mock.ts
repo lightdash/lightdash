@@ -328,9 +328,6 @@ export const lightdashConfigMock: LightdashConfig = {
     defaultUserSpaces: {
         enabled: false,
     },
-    adminChangeNotifications: {
-        enabled: false,
-    },
     persistentDownloadUrls: {
         enabled: false,
         expirationSeconds: 259200,

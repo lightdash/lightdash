@@ -281,7 +281,6 @@ export class ServiceRepository
                 new AdminNotificationService({
                     lightdashConfig: this.context.lightdashConfig,
                     emailClient: this.clients.getEmailClient(),
-                    featureFlagModel: this.models.getFeatureFlagModel(),
                     organizationMemberProfileModel:
                         this.models.getOrganizationMemberProfileModel(),
                     organizationModel: this.models.getOrganizationModel(),

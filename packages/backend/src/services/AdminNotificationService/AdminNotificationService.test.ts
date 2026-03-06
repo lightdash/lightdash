@@ -6,7 +6,6 @@ import {
 } from '@lightdash/common';
 import EmailClient from '../../clients/EmailClient/EmailClient';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
-import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { OrganizationMemberProfileModel } from '../../models/OrganizationMemberProfileModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -35,10 +34,6 @@ const emailClient = {
     sendAdminChangeNotificationEmail,
 };
 
-const featureFlagModel = {
-    get: jest.fn(async () => ({ enabled: true })),
-};
-
 const organizationMemberProfileModel = {
     getOrganizationAdmins: jest.fn(async () => [mockOrgAdmin1, mockOrgAdmin2]),
 };
@@ -60,7 +55,6 @@ describe('AdminNotificationService', () => {
     const service = new AdminNotificationService({
         lightdashConfig: lightdashConfigMock,
         emailClient: emailClient as unknown as EmailClient,
-        featureFlagModel: featureFlagModel as unknown as FeatureFlagModel,
         organizationMemberProfileModel:
             organizationMemberProfileModel as unknown as OrganizationMemberProfileModel,
         organizationModel: organizationModel as unknown as OrganizationModel,
@@ -70,38 +64,6 @@ describe('AdminNotificationService', () => {
 
     afterEach(() => {
         jest.clearAllMocks();
-    });
-
-    it('should not send org notification when feature flag is disabled', async () => {
-        (featureFlagModel.get as jest.Mock).mockResolvedValueOnce({
-            enabled: false,
-        });
-
-        await service.notifyOrgAdminRoleChange(
-            mockSessionAccount,
-            mockTargetUserUuid,
-            mockOrganizationUuid,
-            OrganizationMemberRole.MEMBER,
-            OrganizationMemberRole.ADMIN,
-        );
-
-        expect(sendAdminChangeNotificationEmail).not.toHaveBeenCalled();
-    });
-
-    it('should not send org notification when feature flag check throws', async () => {
-        (featureFlagModel.get as jest.Mock).mockRejectedValueOnce(
-            new Error('Feature flag error'),
-        );
-
-        await service.notifyOrgAdminRoleChange(
-            mockSessionAccount,
-            mockTargetUserUuid,
-            mockOrganizationUuid,
-            OrganizationMemberRole.MEMBER,
-            OrganizationMemberRole.ADMIN,
-        );
-
-        expect(sendAdminChangeNotificationEmail).not.toHaveBeenCalled();
     });
 
     it('should send notification when promoting user to org admin', async () => {
@@ -258,23 +220,6 @@ describe('AdminNotificationService', () => {
         ).resolves.not.toThrow();
     });
 
-    it('should not send project notification when feature flag is disabled', async () => {
-        (featureFlagModel.get as jest.Mock).mockResolvedValueOnce({
-            enabled: false,
-        });
-
-        await service.notifyProjectAdminRoleChange({
-            account: mockSessionAccount,
-            targetUserUuid: mockTargetUserUuid,
-            projectUuid: mockProjectUuid,
-            organizationUuid: mockOrganizationUuid,
-            previousRole: ProjectMemberRole.EDITOR,
-            newRole: ProjectMemberRole.ADMIN,
-        });
-
-        expect(sendAdminChangeNotificationEmail).not.toHaveBeenCalled();
-    });
-
     it('should send notification when promoting user to project admin', async () => {
         await service.notifyProjectAdminRoleChange({
             account: mockSessionAccount,
@@ -392,21 +337,6 @@ describe('AdminNotificationService', () => {
     });
 
     describe('notifyConnectionSettingsChange', () => {
-        it('should not send when feature flag is disabled', async () => {
-            (featureFlagModel.get as jest.Mock).mockResolvedValueOnce({
-                enabled: false,
-            });
-
-            await service.notifyConnectionSettingsChange({
-                organizationUuid: mockOrganizationUuid,
-                projectUuid: mockProjectUuid,
-                projectName: 'Test Project',
-                changedBy: mockSessionAccount,
-            });
-
-            expect(sendAdminChangeNotificationEmail).not.toHaveBeenCalled();
-        });
-
         it('should not send when no recipients found', async () => {
             (
                 organizationMemberProfileModel.getOrganizationAdmins as jest.Mock
