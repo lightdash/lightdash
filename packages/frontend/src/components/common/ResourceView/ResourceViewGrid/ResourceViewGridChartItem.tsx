@@ -3,6 +3,7 @@ import { Box, Flex, Group, Paper, Text, Tooltip } from '@mantine-8/core';
 import { useDisclosure, useHover } from '@mantine/hooks';
 import { IconCircleCheckFilled, IconEye } from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
+import { useContentVerificationEnabled } from '../../../../hooks/useContentVerificationEnabled';
 import { ResourceIcon, ResourceIndicator } from '../../ResourceIcon';
 import ResourceViewActionMenu, {
     type ResourceViewActionMenuCommonProps,
@@ -25,6 +26,7 @@ const ResourceViewGridChartItem: FC<ResourceViewGridChartItemProps> = ({
     onAction,
     dragIcon,
 }) => {
+    const isContentVerificationEnabled = useContentVerificationEnabled();
     const { hovered, ref } = useHover();
     const [opened, handlers] = useDisclosure(false);
 
@@ -45,7 +47,7 @@ const ResourceViewGridChartItem: FC<ResourceViewGridChartItemProps> = ({
                 className={classes.gridCardTopSection}
             >
                 {dragIcon}
-                {item.data.verification ? (
+                {isContentVerificationEnabled && item.data.verification ? (
                     <ResourceIndicator
                         iconProps={{
                             icon: IconCircleCheckFilled,

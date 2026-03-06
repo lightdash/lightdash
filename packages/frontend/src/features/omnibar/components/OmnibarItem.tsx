@@ -1,6 +1,7 @@
 import { Box, Group, Stack, Text, Tooltip } from '@mantine-8/core';
 import { IconCircleCheckFilled } from '@tabler/icons-react';
 import { type FC, type MutableRefObject } from 'react';
+import { useContentVerificationEnabled } from '../../../hooks/useContentVerificationEnabled';
 import { type SearchItem } from '../types/searchItem';
 import classes from './OmnibarItem.module.css';
 import {
@@ -37,6 +38,7 @@ const OmnibarItem: FC<Props> = ({
     onClick,
     scrollRef,
 }) => {
+    const isContentVerificationEnabled = useContentVerificationEnabled();
     return (
         <Group
             role="menuitem"
@@ -59,7 +61,7 @@ const OmnibarItem: FC<Props> = ({
                 )}
             </Box>
 
-            {itemHasVerification(item) && (
+            {isContentVerificationEnabled && itemHasVerification(item) && (
                 <Tooltip label="Verified" withArrow>
                     <IconCircleCheckFilled
                         size={14}

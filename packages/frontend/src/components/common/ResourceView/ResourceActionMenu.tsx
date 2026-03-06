@@ -41,6 +41,7 @@ import {
     useVerifyChartMutation,
     useVerifyDashboardMutation,
 } from '../../../hooks/useContentVerification';
+import { useContentVerificationEnabled } from '../../../hooks/useContentVerificationEnabled';
 import { useProject } from '../../../hooks/useProject';
 import { useSpaceSummaries } from '../../../hooks/useSpaces';
 import useApp from '../../../providers/App/useApp';
@@ -84,6 +85,7 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
     const isPinned = !!item.data.pinnedListUuid;
     const isDashboardPage = location.pathname.includes('/dashboards');
 
+    const isContentVerificationEnabled = useContentVerificationEnabled();
     const isChartOrDashboard =
         isResourceViewItemChart(item) || isResourceViewItemDashboard(item);
     const isVerified = isChartOrDashboard && item.data.verification !== null;
@@ -403,7 +405,8 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                                 </Menu.Item>
                             ) : null}
 
-                            {userCanManageVerification &&
+                            {isContentVerificationEnabled &&
+                                userCanManageVerification &&
                                 isChartOrDashboard &&
                                 !hideVerification && (
                                     <Menu.Item

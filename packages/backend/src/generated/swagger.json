@@ -10770,6 +10770,361 @@
                 "required": ["changeUuid"],
                 "type": "object"
             },
+            "PreAggregateDailyStatResult": {
+                "properties": {
+                    "updatedAt": {
+                        "type": "string"
+                    },
+                    "preAggregateName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "missReason": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "missCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "hitCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "queryContext": {
+                        "type": "string"
+                    },
+                    "dashboardName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "dashboardUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "chartName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "chartUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "date": {
+                        "type": "string"
+                    },
+                    "exploreName": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "updatedAt",
+                    "preAggregateName",
+                    "missReason",
+                    "missCount",
+                    "hitCount",
+                    "queryContext",
+                    "dashboardName",
+                    "dashboardUuid",
+                    "chartName",
+                    "chartUuid",
+                    "date",
+                    "exploreName"
+                ],
+                "type": "object"
+            },
+            "ApiPreAggregateStatsResults": {
+                "properties": {
+                    "stats": {
+                        "items": {
+                            "$ref": "#/components/schemas/PreAggregateDailyStatResult"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["stats"],
+                "type": "object"
+            },
+            "KnexPaginatedData_ApiPreAggregateStatsResults_": {
+                "properties": {
+                    "pagination": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/KnexPaginateArgs"
+                            },
+                            {
+                                "properties": {
+                                    "totalResults": {
+                                        "type": "number",
+                                        "format": "double"
+                                    },
+                                    "totalPageCount": {
+                                        "type": "number",
+                                        "format": "double"
+                                    }
+                                },
+                                "required": ["totalResults", "totalPageCount"],
+                                "type": "object"
+                            }
+                        ]
+                    },
+                    "data": {
+                        "$ref": "#/components/schemas/ApiPreAggregateStatsResults"
+                    }
+                },
+                "required": ["data"],
+                "type": "object"
+            },
+            "ApiGetPreAggregateStatsResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/KnexPaginatedData_ApiPreAggregateStatsResults_"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "PreAggregateMaterializationWarning": {
+                "properties": {
+                    "threshold": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "rowCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "message": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": ["row_count_exceeded"],
+                        "nullable": false
+                    }
+                },
+                "required": ["threshold", "rowCount", "message", "type"],
+                "type": "object"
+            },
+            "PreAggregateMaterializationStatus": {
+                "type": "string",
+                "enum": ["in_progress", "active", "superseded", "failed"]
+            },
+            "ResultColumn": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/DimensionType"
+                    },
+                    "reference": {
+                        "type": "string"
+                    }
+                },
+                "required": ["type", "reference"],
+                "type": "object"
+            },
+            "Record_string.ResultColumn_": {
+                "properties": {},
+                "additionalProperties": {
+                    "$ref": "#/components/schemas/ResultColumn"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "ResultColumns": {
+                "$ref": "#/components/schemas/Record_string.ResultColumn_"
+            },
+            "PreAggregateMaterializationTrigger": {
+                "type": "string",
+                "enum": ["compile", "cron", "manual", "webhook"]
+            },
+            "PreAggregateMaterializationSummary": {
+                "properties": {
+                    "materialization": {
+                        "properties": {
+                            "trigger": {
+                                "$ref": "#/components/schemas/PreAggregateMaterializationTrigger"
+                            },
+                            "errorMessage": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "totalBytes": {
+                                "type": "number",
+                                "format": "double",
+                                "nullable": true
+                            },
+                            "columns": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/ResultColumns"
+                                    }
+                                ],
+                                "nullable": true
+                            },
+                            "rowCount": {
+                                "type": "number",
+                                "format": "double",
+                                "nullable": true
+                            },
+                            "durationMs": {
+                                "type": "number",
+                                "format": "double",
+                                "nullable": true
+                            },
+                            "materializedAt": {
+                                "type": "string",
+                                "format": "date-time",
+                                "nullable": true
+                            },
+                            "status": {
+                                "$ref": "#/components/schemas/PreAggregateMaterializationStatus"
+                            },
+                            "materializationUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "trigger",
+                            "errorMessage",
+                            "totalBytes",
+                            "columns",
+                            "rowCount",
+                            "durationMs",
+                            "materializedAt",
+                            "status",
+                            "materializationUuid"
+                        ],
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "warnings": {
+                        "items": {
+                            "$ref": "#/components/schemas/PreAggregateMaterializationWarning"
+                        },
+                        "type": "array"
+                    },
+                    "definitionError": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "refreshCron": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "granularity": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/TimeFrames"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "timeDimension": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "metrics": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "dimensions": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "sourceExploreName": {
+                        "type": "string"
+                    },
+                    "preAggExploreName": {
+                        "type": "string"
+                    },
+                    "preAggregateName": {
+                        "type": "string"
+                    },
+                    "preAggregateDefinitionUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "materialization",
+                    "warnings",
+                    "definitionError",
+                    "refreshCron",
+                    "granularity",
+                    "timeDimension",
+                    "metrics",
+                    "dimensions",
+                    "sourceExploreName",
+                    "preAggExploreName",
+                    "preAggregateName",
+                    "preAggregateDefinitionUuid"
+                ],
+                "type": "object"
+            },
+            "ApiPreAggregateMaterializationsResults": {
+                "properties": {
+                    "materializations": {
+                        "items": {
+                            "$ref": "#/components/schemas/PreAggregateMaterializationSummary"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["materializations"],
+                "type": "object"
+            },
+            "KnexPaginatedData_ApiPreAggregateMaterializationsResults_": {
+                "properties": {
+                    "pagination": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/KnexPaginateArgs"
+                            },
+                            {
+                                "properties": {
+                                    "totalResults": {
+                                        "type": "number",
+                                        "format": "double"
+                                    },
+                                    "totalPageCount": {
+                                        "type": "number",
+                                        "format": "double"
+                                    }
+                                },
+                                "required": ["totalResults", "totalPageCount"],
+                                "type": "object"
+                            }
+                        ]
+                    },
+                    "data": {
+                        "$ref": "#/components/schemas/ApiPreAggregateMaterializationsResults"
+                    }
+                },
+                "required": ["data"],
+                "type": "object"
+            },
+            "ApiGetPreAggregateMaterializationsResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/KnexPaginatedData_ApiPreAggregateMaterializationsResults_"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "WarehouseTypes": {
                 "enum": [
                     "bigquery",
@@ -16756,14 +17111,14 @@
                         "type": "string",
                         "nullable": true
                     },
+                    "cron": {
+                        "type": "string"
+                    },
                     "message": {
                         "type": "string"
                     },
                     "format": {
                         "$ref": "#/components/schemas/SchedulerFormat"
-                    },
-                    "cron": {
-                        "type": "string"
                     },
                     "timezone": {
                         "type": "string"
@@ -16802,8 +17157,8 @@
                 },
                 "required": [
                     "name",
-                    "format",
                     "cron",
+                    "format",
                     "options",
                     "enabled",
                     "includeLinks",
@@ -17137,6 +17492,14 @@
                     },
                     {
                         "properties": {
+                            "verification": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/ContentVerificationInfo"
+                                    }
+                                ],
+                                "nullable": true
+                            },
                             "validationErrors": {
                                 "items": {
                                     "$ref": "#/components/schemas/ValidationSummary"
@@ -17144,6 +17507,7 @@
                                 "type": "array"
                             }
                         },
+                        "required": ["verification"],
                         "type": "object"
                     }
                 ]
@@ -20445,22 +20809,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "chart": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_ChartAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ApiChartAsCodeListResponse": {
@@ -20762,22 +21126,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "dashboard": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ApiDashboardAsCodeListResponse": {
@@ -21272,6 +21636,79 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "ContentType": {
+                "enum": ["chart", "dashboard", "space"],
+                "type": "string"
+            },
+            "VerifiedContentListItem": {
+                "properties": {
+                    "verifiedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "verifiedBy": {
+                        "properties": {
+                            "lastName": {
+                                "type": "string"
+                            },
+                            "firstName": {
+                                "type": "string"
+                            },
+                            "userUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["lastName", "firstName", "userUuid"],
+                        "type": "object"
+                    },
+                    "spaceName": {
+                        "type": "string"
+                    },
+                    "spaceUuid": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "contentUuid": {
+                        "type": "string"
+                    },
+                    "contentType": {
+                        "$ref": "#/components/schemas/ContentType"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "verifiedAt",
+                    "verifiedBy",
+                    "spaceName",
+                    "spaceUuid",
+                    "name",
+                    "contentUuid",
+                    "contentType",
+                    "uuid"
+                ],
+                "type": "object"
+            },
+            "ApiVerifiedContentListResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/VerifiedContentListItem"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "CompilationSource": {
                 "type": "string",
                 "enum": ["cli_deploy", "refresh_dbt", "create_project"]
@@ -21614,7 +22051,7 @@
                 "enum": ["dashboard"],
                 "type": "string"
             },
-            "Pick_DashboardBasicDetails.uuid-or-spaceUuid-or-description-or-name-or-views-or-firstViewedAt-or-pinnedListUuid-or-pinnedListOrder-or-updatedAt-or-updatedByUser-or-validationErrors_": {
+            "Pick_DashboardBasicDetails.uuid-or-spaceUuid-or-description-or-name-or-views-or-firstViewedAt-or-pinnedListUuid-or-pinnedListOrder-or-updatedAt-or-updatedByUser-or-validationErrors-or-verification_": {
                 "properties": {
                     "description": {
                         "type": "string"
@@ -21639,6 +22076,14 @@
                     "pinnedListOrder": {
                         "type": "number",
                         "format": "double",
+                        "nullable": true
+                    },
+                    "verification": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ContentVerificationInfo"
+                            }
+                        ],
                         "nullable": true
                     },
                     "updatedByUser": {
@@ -21674,6 +22119,7 @@
                     "spaceUuid",
                     "pinnedListUuid",
                     "pinnedListOrder",
+                    "verification",
                     "views",
                     "firstViewedAt"
                 ],
@@ -21685,7 +22131,8 @@
                     "mostPopular",
                     "recentlyUpdated",
                     "pinned",
-                    "favorites"
+                    "favorites",
+                    "verified"
                 ],
                 "type": "string"
             },
@@ -21695,7 +22142,7 @@
                         "$ref": "#/components/schemas/ResourceItemCategory"
                     },
                     "data": {
-                        "$ref": "#/components/schemas/Pick_DashboardBasicDetails.uuid-or-spaceUuid-or-description-or-name-or-views-or-firstViewedAt-or-pinnedListUuid-or-pinnedListOrder-or-updatedAt-or-updatedByUser-or-validationErrors_"
+                        "$ref": "#/components/schemas/Pick_DashboardBasicDetails.uuid-or-spaceUuid-or-description-or-name-or-views-or-firstViewedAt-or-pinnedListUuid-or-pinnedListOrder-or-updatedAt-or-updatedByUser-or-validationErrors-or-verification_"
                     },
                     "type": {
                         "$ref": "#/components/schemas/ResourceViewItemType.DASHBOARD"
@@ -21708,7 +22155,7 @@
                 "enum": ["chart"],
                 "type": "string"
             },
-            "Pick_SpaceQuery.uuid-or-name-or-chartType-or-chartKind-or-firstViewedAt-or-views-or-pinnedListUuid-or-pinnedListOrder-or-spaceUuid-or-description-or-updatedAt-or-updatedByUser-or-validationErrors-or-slug_": {
+            "Pick_SpaceQuery.uuid-or-name-or-chartType-or-chartKind-or-firstViewedAt-or-views-or-pinnedListUuid-or-pinnedListOrder-or-spaceUuid-or-description-or-updatedAt-or-updatedByUser-or-validationErrors-or-verification-or-slug_": {
                 "properties": {
                     "description": {
                         "type": "string",
@@ -21741,6 +22188,14 @@
                     "slug": {
                         "type": "string",
                         "description": "Unique identifier slug for this chart"
+                    },
+                    "verification": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ContentVerificationInfo"
+                            }
+                        ],
+                        "nullable": true
                     },
                     "updatedByUser": {
                         "$ref": "#/components/schemas/UpdatedByUser"
@@ -21782,6 +22237,7 @@
                     "pinnedListUuid",
                     "pinnedListOrder",
                     "slug",
+                    "verification",
                     "views",
                     "firstViewedAt"
                 ],
@@ -21796,7 +22252,7 @@
                     "data": {
                         "allOf": [
                             {
-                                "$ref": "#/components/schemas/Pick_SpaceQuery.uuid-or-name-or-chartType-or-chartKind-or-firstViewedAt-or-views-or-pinnedListUuid-or-pinnedListOrder-or-spaceUuid-or-description-or-updatedAt-or-updatedByUser-or-validationErrors-or-slug_"
+                                "$ref": "#/components/schemas/Pick_SpaceQuery.uuid-or-name-or-chartType-or-chartKind-or-firstViewedAt-or-views-or-pinnedListUuid-or-pinnedListOrder-or-spaceUuid-or-description-or-updatedAt-or-updatedByUser-or-validationErrors-or-verification-or-slug_"
                             },
                             {
                                 "properties": {
@@ -23947,10 +24403,6 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "ContentType": {
-                "enum": ["chart", "dashboard", "space"],
-                "type": "string"
-            },
             "ToggleFavoriteResponse": {
                 "properties": {
                     "contentUuid": {
@@ -26023,29 +26475,6 @@
                     }
                 ]
             },
-            "ResultColumn": {
-                "properties": {
-                    "type": {
-                        "$ref": "#/components/schemas/DimensionType"
-                    },
-                    "reference": {
-                        "type": "string"
-                    }
-                },
-                "required": ["type", "reference"],
-                "type": "object"
-            },
-            "Record_string.ResultColumn_": {
-                "properties": {},
-                "additionalProperties": {
-                    "$ref": "#/components/schemas/ResultColumn"
-                },
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
-            },
-            "ResultColumns": {
-                "$ref": "#/components/schemas/Record_string.ResultColumn_"
-            },
             "ResultValue": {
                 "properties": {
                     "formatted": {
@@ -27059,338 +27488,6 @@
                     }
                 ]
             },
-            "PreAggregateDailyStatResult": {
-                "properties": {
-                    "updatedAt": {
-                        "type": "string"
-                    },
-                    "preAggregateName": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "missReason": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "missCount": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "hitCount": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "queryContext": {
-                        "type": "string"
-                    },
-                    "dashboardName": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "dashboardUuid": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "chartName": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "chartUuid": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "date": {
-                        "type": "string"
-                    },
-                    "exploreName": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "updatedAt",
-                    "preAggregateName",
-                    "missReason",
-                    "missCount",
-                    "hitCount",
-                    "queryContext",
-                    "dashboardName",
-                    "dashboardUuid",
-                    "chartName",
-                    "chartUuid",
-                    "date",
-                    "exploreName"
-                ],
-                "type": "object"
-            },
-            "ApiPreAggregateStatsResults": {
-                "properties": {
-                    "stats": {
-                        "items": {
-                            "$ref": "#/components/schemas/PreAggregateDailyStatResult"
-                        },
-                        "type": "array"
-                    }
-                },
-                "required": ["stats"],
-                "type": "object"
-            },
-            "KnexPaginatedData_ApiPreAggregateStatsResults_": {
-                "properties": {
-                    "pagination": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/KnexPaginateArgs"
-                            },
-                            {
-                                "properties": {
-                                    "totalResults": {
-                                        "type": "number",
-                                        "format": "double"
-                                    },
-                                    "totalPageCount": {
-                                        "type": "number",
-                                        "format": "double"
-                                    }
-                                },
-                                "required": ["totalResults", "totalPageCount"],
-                                "type": "object"
-                            }
-                        ]
-                    },
-                    "data": {
-                        "$ref": "#/components/schemas/ApiPreAggregateStatsResults"
-                    }
-                },
-                "required": ["data"],
-                "type": "object"
-            },
-            "ApiGetPreAggregateStatsResponse": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/KnexPaginatedData_ApiPreAggregateStatsResults_"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "PreAggregateMaterializationWarning": {
-                "properties": {
-                    "threshold": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "rowCount": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "message": {
-                        "type": "string"
-                    },
-                    "type": {
-                        "type": "string",
-                        "enum": ["row_count_exceeded"],
-                        "nullable": false
-                    }
-                },
-                "required": ["threshold", "rowCount", "message", "type"],
-                "type": "object"
-            },
-            "PreAggregateMaterializationStatus": {
-                "type": "string",
-                "enum": ["in_progress", "active", "superseded", "failed"]
-            },
-            "PreAggregateMaterializationTrigger": {
-                "type": "string",
-                "enum": ["compile", "cron", "manual", "webhook"]
-            },
-            "PreAggregateMaterializationSummary": {
-                "properties": {
-                    "materialization": {
-                        "properties": {
-                            "trigger": {
-                                "$ref": "#/components/schemas/PreAggregateMaterializationTrigger"
-                            },
-                            "errorMessage": {
-                                "type": "string",
-                                "nullable": true
-                            },
-                            "totalBytes": {
-                                "type": "number",
-                                "format": "double",
-                                "nullable": true
-                            },
-                            "columns": {
-                                "allOf": [
-                                    {
-                                        "$ref": "#/components/schemas/ResultColumns"
-                                    }
-                                ],
-                                "nullable": true
-                            },
-                            "rowCount": {
-                                "type": "number",
-                                "format": "double",
-                                "nullable": true
-                            },
-                            "durationMs": {
-                                "type": "number",
-                                "format": "double",
-                                "nullable": true
-                            },
-                            "materializedAt": {
-                                "type": "string",
-                                "format": "date-time",
-                                "nullable": true
-                            },
-                            "status": {
-                                "$ref": "#/components/schemas/PreAggregateMaterializationStatus"
-                            },
-                            "materializationUuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "trigger",
-                            "errorMessage",
-                            "totalBytes",
-                            "columns",
-                            "rowCount",
-                            "durationMs",
-                            "materializedAt",
-                            "status",
-                            "materializationUuid"
-                        ],
-                        "type": "object",
-                        "nullable": true
-                    },
-                    "warnings": {
-                        "items": {
-                            "$ref": "#/components/schemas/PreAggregateMaterializationWarning"
-                        },
-                        "type": "array"
-                    },
-                    "definitionError": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "refreshCron": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "granularity": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/TimeFrames"
-                            }
-                        ],
-                        "nullable": true
-                    },
-                    "timeDimension": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "metrics": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "dimensions": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "sourceExploreName": {
-                        "type": "string"
-                    },
-                    "preAggExploreName": {
-                        "type": "string"
-                    },
-                    "preAggregateName": {
-                        "type": "string"
-                    },
-                    "preAggregateDefinitionUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "materialization",
-                    "warnings",
-                    "definitionError",
-                    "refreshCron",
-                    "granularity",
-                    "timeDimension",
-                    "metrics",
-                    "dimensions",
-                    "sourceExploreName",
-                    "preAggExploreName",
-                    "preAggregateName",
-                    "preAggregateDefinitionUuid"
-                ],
-                "type": "object"
-            },
-            "ApiPreAggregateMaterializationsResults": {
-                "properties": {
-                    "materializations": {
-                        "items": {
-                            "$ref": "#/components/schemas/PreAggregateMaterializationSummary"
-                        },
-                        "type": "array"
-                    }
-                },
-                "required": ["materializations"],
-                "type": "object"
-            },
-            "KnexPaginatedData_ApiPreAggregateMaterializationsResults_": {
-                "properties": {
-                    "pagination": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/KnexPaginateArgs"
-                            },
-                            {
-                                "properties": {
-                                    "totalResults": {
-                                        "type": "number",
-                                        "format": "double"
-                                    },
-                                    "totalPageCount": {
-                                        "type": "number",
-                                        "format": "double"
-                                    }
-                                },
-                                "required": ["totalResults", "totalPageCount"],
-                                "type": "object"
-                            }
-                        ]
-                    },
-                    "data": {
-                        "$ref": "#/components/schemas/ApiPreAggregateMaterializationsResults"
-                    }
-                },
-                "required": ["data"],
-                "type": "object"
-            },
-            "ApiGetPreAggregateMaterializationsResponse": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/KnexPaginatedData_ApiPreAggregateMaterializationsResults_"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
             "ProjectParameterSummary": {
                 "properties": {
                     "modelName": {
@@ -27697,6 +27794,14 @@
                         "format": "date-time",
                         "nullable": true
                     },
+                    "verification": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ContentVerificationInfo"
+                            }
+                        ],
+                        "nullable": true
+                    },
                     "source": {
                         "$ref": "#/components/schemas/ChartSourceType"
                     },
@@ -27733,6 +27838,7 @@
                     "pinnedList",
                     "views",
                     "firstViewedAt",
+                    "verification",
                     "source",
                     "chartKind",
                     "dashboard"
@@ -27857,6 +27963,14 @@
                         "type": "string",
                         "format": "date-time",
                         "nullable": true
+                    },
+                    "verification": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ContentVerificationInfo"
+                            }
+                        ],
+                        "nullable": true
                     }
                 },
                 "required": [
@@ -27874,7 +27988,8 @@
                     "space",
                     "pinnedList",
                     "views",
-                    "firstViewedAt"
+                    "firstViewedAt",
+                    "verification"
                 ],
                 "type": "object",
                 "additionalProperties": true
@@ -28001,6 +28116,14 @@
                         "format": "date-time",
                         "nullable": true
                     },
+                    "verification": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ContentVerificationInfo"
+                            }
+                        ],
+                        "nullable": true
+                    },
                     "inheritParentPermissions": {
                         "type": "boolean"
                     },
@@ -28046,6 +28169,7 @@
                     "pinnedList",
                     "views",
                     "firstViewedAt",
+                    "verification",
                     "inheritParentPermissions",
                     "dashboardCount",
                     "chartCount",
@@ -28701,7 +28825,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2649.0",
+        "version": "0.2654.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -30099,6 +30223,150 @@
                 "tags": ["Projects"],
                 "security": [],
                 "parameters": []
+            }
+        },
+        "/api/v2/projects/{projectUuid}/pre-aggregates/stats": {
+            "get": {
+                "operationId": "getPreAggregateStats",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiGetPreAggregateStatsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Retrieves aggregated pre-aggregate hit/miss statistics for a project",
+                "summary": "Get pre-aggregate stats",
+                "tags": ["v2", "Pre-Aggregates"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "days",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "page",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "pageSize",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "exploreName",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "queryType",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": ["chart", "dashboard", "explorer"]
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v2/projects/{projectUuid}/pre-aggregates/materializations": {
+            "get": {
+                "operationId": "getPreAggregateMaterializations",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiGetPreAggregateMaterializationsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Retrieves pre-aggregate definitions with their latest materialization status",
+                "summary": "Get pre-aggregate materializations",
+                "tags": ["v2", "Pre-Aggregates"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "page",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "pageSize",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/org/warehouse-credentials": {
@@ -38918,6 +39186,47 @@
                 ]
             }
         },
+        "/api/v1/projects/{projectUuid}/content-verification": {
+            "get": {
+                "operationId": "listVerifiedContent",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiVerifiedContentListResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "List all verified content (charts and dashboards) in a project",
+                "summary": "List verified content",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
         "/api/v1/projects/{projectUuid}/compile-logs": {
             "get": {
                 "operationId": "getProjectCompileLogs",
@@ -47028,150 +47337,6 @@
                         "required": true,
                         "schema": {
                             "type": "string"
-                        }
-                    }
-                ]
-            }
-        },
-        "/api/v2/projects/{projectUuid}/pre-aggregates/stats": {
-            "get": {
-                "operationId": "getPreAggregateStats",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiGetPreAggregateStatsResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Retrieves aggregated pre-aggregate hit/miss statistics for a project",
-                "summary": "Get pre-aggregate stats",
-                "tags": ["v2", "Pre-Aggregates"],
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "in": "query",
-                        "name": "days",
-                        "required": false,
-                        "schema": {
-                            "format": "double",
-                            "type": "number"
-                        }
-                    },
-                    {
-                        "in": "query",
-                        "name": "page",
-                        "required": false,
-                        "schema": {
-                            "format": "double",
-                            "type": "number"
-                        }
-                    },
-                    {
-                        "in": "query",
-                        "name": "pageSize",
-                        "required": false,
-                        "schema": {
-                            "format": "double",
-                            "type": "number"
-                        }
-                    },
-                    {
-                        "in": "query",
-                        "name": "exploreName",
-                        "required": false,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "in": "query",
-                        "name": "queryType",
-                        "required": false,
-                        "schema": {
-                            "type": "string",
-                            "enum": ["chart", "dashboard", "explorer"]
-                        }
-                    }
-                ]
-            }
-        },
-        "/api/v2/projects/{projectUuid}/pre-aggregates/materializations": {
-            "get": {
-                "operationId": "getPreAggregateMaterializations",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiGetPreAggregateMaterializationsResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Retrieves pre-aggregate definitions with their latest materialization status",
-                "summary": "Get pre-aggregate materializations",
-                "tags": ["v2", "Pre-Aggregates"],
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "in": "query",
-                        "name": "page",
-                        "required": false,
-                        "schema": {
-                            "format": "double",
-                            "type": "number"
-                        }
-                    },
-                    {
-                        "in": "query",
-                        "name": "pageSize",
-                        "required": false,
-                        "schema": {
-                            "format": "double",
-                            "type": "number"
                         }
                     }
                 ]
