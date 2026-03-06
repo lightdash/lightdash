@@ -88,6 +88,28 @@ module.exports = {
         },
 
         // ─────────────────────────────────────────────────────────────────
+        // Async Query NATS Worker
+        // ─────────────────────────────────────────────────────────────────
+        {
+            name: 'lightdash-async-query-worker',
+            script: 'src/asyncQuery.ts',
+            interpreter: 'node',
+            node_args: '--import tsx',
+            cwd: path.join(__dirname, 'packages/backend'),
+            env: {
+                ...envWithPath,
+                NODE_ENV: 'development',
+                SENTRY_SPOTLIGHT: 'http://localhost:8969/stream',
+                PORT: '8082',
+            },
+            watch: false,
+            autorestart: true,
+            kill_timeout: 5000,
+            merge_logs: true,
+            time: true,
+        },
+
+        // ─────────────────────────────────────────────────────────────────
         // Frontend Vite Dev Server
         // ─────────────────────────────────────────────────────────────────
         {
