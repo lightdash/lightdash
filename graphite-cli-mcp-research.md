@@ -276,6 +276,49 @@ if [ -f ".git/.graphite_repo_config" ]; then
 fi
 ```
 
+## Lightdash Team Workflow (from @owlas)
+
+A practical Graphite workflow used by the team:
+
+### Conflicts
+- Inspect and fix conflicts, ask for help if needed
+
+### WIP (Work in Progress)
+- WIP should always be in git + GitHub
+- Mark clearly as WIP and as a **draft PR** assigned to `owlas`
+
+### Staging (use `git add`)
+1. Check if working tree is dirty (`git diff`)
+2. **Never mix** different fixes/features/WIP together
+3. Stage only **one set of related** changes
+
+### Branch Selection Decision Tree
+Use the Graphite CLI:
+
+| Situation | Action |
+|-----------|--------|
+| On main? | **Never commit to main.** Create new branch: `gt c --no-interactive -m 'message'` |
+| On a branch + staged files are related WIP? | Amend in place: `gt m --no-interactive` |
+| On unrelated branch + independent changes? | `gt co main` → create new branch with staged changes |
+| On a branch + staged changes depend on it? | Create stacked branch: `gt c --no-interactive -m 'message'` |
+
+### Key Commands
+```bash
+gt c --no-interactive -m 'feat: description'  # Create new branch
+gt m --no-interactive                          # Modify/amend existing branch
+gt co main                                     # Checkout main
+gt sync --no-interactive                       # Update main
+gt s --draft --no-interactive                  # Submit as draft PR
+```
+
+### Pushing
+- Always push PRs as **drafts** if WIP
+- Tag WIP PRs appropriately
+- Use **semantic commit names** (feat:, fix:, chore:, etc.)
+
+### Completion Criteria
+- Working tree must be **clean** (no unstaged/untracked changes)
+
 ## Sources
 
 - [Graphite CLI Quick Start](https://graphite.com/docs/cli-quick-start)
