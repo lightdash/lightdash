@@ -824,7 +824,7 @@ export class EmbedService extends BaseService {
             dashboard_uuid?: string; // optional for standalone chart embeds
         };
         account: AnonymousAccount;
-        dateZoomGranularity?: DateGranularity;
+        dateZoomGranularity?: DateGranularity | string;
         combinedParameters?: ParametersValuesMap;
     }) {
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
@@ -1049,7 +1049,7 @@ export class EmbedService extends BaseService {
         account: AnonymousAccount,
         tileUuid: string,
         dashboardFilters?: DashboardFilters,
-        dateZoomGranularity?: DateGranularity,
+        dateZoomGranularity?: DateGranularity | string,
         dashboardSorts?: SortField[],
         userParameters?: ParametersValuesMap,
         checkPermissions: boolean = true,

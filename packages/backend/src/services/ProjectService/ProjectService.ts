@@ -42,6 +42,7 @@ import {
     DashboardFilters,
     DatabricksAuthenticationType,
     DatabricksTokenError,
+    DateGranularity,
     DateZoom,
     DbtExposure,
     DbtExposureType,
@@ -2867,20 +2868,51 @@ export class ProjectService extends BaseService {
                         ? timeDimensionsMap[baseDimensionId]
                         : dimToOverride;
 
-                const dimWithGranularityOverride =
-                    createDimensionWithGranularity(
-                        dimToOverride.name,
-                        baseTimeDimension,
-                        explore,
-                        warehouseSqlBuilder,
-                        dateZoom?.granularity,
-                        availableParameters,
+                // Check if this is a custom granularity (not a standard DateGranularity)
+                const isStandardGranularity = Object.values(
+                    DateGranularity,
+                ).includes(dateZoom.granularity as DateGranularity);
+
+                if (!isStandardGranularity) {
+                    // Custom granularity: find the pre-compiled dimension
+                    const customDimName = `${baseTimeDimension.name}_${dateZoom.granularity}`;
+                    // Search all dimensions in all tables (custom granularity might be string type, not in timeDimensionsMap)
+                    const customDim = Object.values(explore.tables).reduce<
+                        CompiledDimension | undefined
+                    >(
+                        (found, t) => found ?? t.dimensions[customDimName],
+                        undefined,
                     );
 
-                return replaceDimensionInExplore(
-                    explore,
-                    dimWithGranularityOverride,
-                );
+                    if (customDim) {
+                        // Override the original dimension with the custom granularity's SQL/type/label,
+                        // keeping the original name so the metric query still references it correctly
+                        const dimWithCustomOverride: CompiledDimension = {
+                            ...customDim,
+                            name: dimToOverride.name,
+                        };
+                        return replaceDimensionInExplore(
+                            explore,
+                            dimWithCustomOverride,
+                        );
+                    }
+                    // Custom granularity not found — return unchanged explore
+                } else {
+                    // Standard granularity: existing logic
+                    const dimWithGranularityOverride =
+                        createDimensionWithGranularity(
+                            dimToOverride.name,
+                            baseTimeDimension,
+                            explore,
+                            warehouseSqlBuilder,
+                            dateZoom.granularity as DateGranularity,
+                            availableParameters,
+                        );
+                    return replaceDimensionInExplore(
+                        explore,
+                        dimWithGranularityOverride,
+                    );
+                }
             }
         }
         return explore;
