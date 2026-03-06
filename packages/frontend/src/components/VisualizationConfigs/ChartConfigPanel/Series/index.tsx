@@ -120,9 +120,9 @@ export const Series: FC<Props> = ({ items }) => {
 
     // Collect unique category values using raw values as keys (matching echarts dataset)
     // and formatted values for display labels
-    const { uniqueCategories, remainingCount } = useMemo(() => {
+    const { uniqueCategories, allRawKeys, remainingCount } = useMemo(() => {
         if (!isCartesianChart)
-            return { uniqueCategories: [], remainingCount: 0 };
+            return { uniqueCategories: [], allRawKeys: [], remainingCount: 0 };
 
         const {
             dirtyLayout: layout,
@@ -137,15 +137,16 @@ export const Series: FC<Props> = ({ items }) => {
             series.length <= 1;
 
         if (!isSingle || !layout?.colorByCategory || !resultsData?.rows)
-            return { uniqueCategories: [], remainingCount: 0 };
+            return { uniqueCategories: [], allRawKeys: [], remainingCount: 0 };
 
         const xField = layout.xField;
-        if (!xField) return { uniqueCategories: [], remainingCount: 0 };
+        if (!xField)
+            return { uniqueCategories: [], allRawKeys: [], remainingCount: 0 };
 
         const seen = new Map<string, string>(); // raw -> formatted
         for (const row of resultsData.rows) {
             const cell = row[xField];
-            if (cell?.value?.raw != null && cell.value.raw !== '') {
+            if (cell?.value != null) {
                 const rawKey = String(cell.value.raw ?? cell.value.formatted);
                 if (!seen.has(rawKey)) {
                     seen.set(
@@ -158,6 +159,7 @@ export const Series: FC<Props> = ({ items }) => {
         const entries = Array.from(seen.entries());
         return {
             uniqueCategories: entries.slice(0, MAX_COLOR_VALUES),
+            allRawKeys: Array.from(seen.keys()),
             remainingCount: Math.max(0, entries.length - MAX_COLOR_VALUES),
         };
     }, [
@@ -172,14 +174,14 @@ export const Series: FC<Props> = ({ items }) => {
         (color: string) => {
             if (!isCartesianChart) return;
             const overrides: Record<string, string> = {};
-            for (const [rawKey] of uniqueCategories) {
+            for (const rawKey of allRawKeys) {
                 overrides[rawKey] = color;
             }
             visualizationConfig.chartConfig.setAllCategoryColorOverrides(
                 overrides,
             );
         },
-        [isCartesianChart, uniqueCategories, visualizationConfig],
+        [isCartesianChart, allRawKeys, visualizationConfig],
     );
 
     if (!isCartesianChart) return null;
