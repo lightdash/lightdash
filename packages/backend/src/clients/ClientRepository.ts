@@ -1,7 +1,6 @@
 import { ModelRepository } from '../models/ModelRepository';
 import { SchedulerClient } from '../scheduler/SchedulerClient';
 import { type OperationContext } from '../services/ServiceRepository';
-import { AsyncQuerySchedulerClient } from './AsyncQuerySchedulerClient';
 import { S3CacheClient } from './Aws/S3CacheClient';
 import { S3Client } from './Aws/S3Client';
 import EmailClient from './EmailClient/EmailClient';
@@ -9,6 +8,7 @@ import { type FileStorageClient } from './FileStorage/FileStorageClient';
 import { GoogleDriveClient } from './Google/GoogleDriveClient';
 import { GoogleChatClient } from './GoogleChat/GoogleChatClient';
 import { MicrosoftTeamsClient } from './MicrosoftTeams/MicrosoftTeamsClient';
+import { NatsJobClient } from './NatsJobClient';
 import { S3ResultsFileStorageClient } from './ResultsFileStorageClients/S3ResultsFileStorageClient';
 import { SlackClient } from './Slack/SlackClient';
 
@@ -18,7 +18,7 @@ import { SlackClient } from './Slack/SlackClient';
  */
 
 export interface ClientManifest {
-    asyncQuerySchedulerClient: AsyncQuerySchedulerClient;
+    natsJobClient: NatsJobClient;
     emailClient: EmailClient;
     googleDriveClient: GoogleDriveClient;
     s3CacheClient: S3CacheClient;
@@ -119,11 +119,11 @@ export class ClientRepository
      */
     protected clientInstances: Partial<ClientManifest> = {};
 
-    public getAsyncQuerySchedulerClient(): AsyncQuerySchedulerClient {
+    public getNatsJobClient(): NatsJobClient {
         return this.getClient(
-            'asyncQuerySchedulerClient',
+            'natsJobClient',
             () =>
-                new AsyncQuerySchedulerClient({
+                new NatsJobClient({
                     lightdashConfig: this.context.lightdashConfig,
                 }),
         );

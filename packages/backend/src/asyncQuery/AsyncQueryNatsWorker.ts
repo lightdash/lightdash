@@ -1,4 +1,10 @@
-import { getErrorMessage, type QueueTraceProperties } from '@lightdash/common';
+import {
+    getErrorMessage,
+    isExploreError,
+    NotFoundError,
+    type QueueTraceProperties,
+    type RunQueryTags,
+} from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import {
     connect,
@@ -10,8 +16,15 @@ import {
 } from 'nats';
 import { z } from 'zod';
 import { type LightdashConfig } from '../config/parseConfig';
+import { type DbQueryHistory } from '../database/entities/queryHistory';
 import Logger from '../logging/logger';
-import { AsyncQueryService } from '../services/AsyncQueryService/AsyncQueryService';
+import { type ProjectModel } from '../models/ProjectModel/ProjectModel';
+import { type QueryHistoryModel } from '../models/QueryHistoryModel/QueryHistoryModel';
+import { type AsyncQueryService } from '../services/AsyncQueryService/AsyncQueryService';
+import {
+    type RunAsyncPreAggregateQueryArgs,
+    type RunAsyncWarehouseQueryArgs,
+} from '../services/AsyncQueryService/types';
 import {
     NATS_HEADERS,
     PRE_AGGREGATE_QUERY_SUBJECT,
@@ -20,94 +33,50 @@ import {
     WAREHOUSE_QUERY_SUBJECT,
     WAREHOUSE_STREAM_NAME,
     WAREHOUSE_WORKER_DURABLE_NAME,
-    type AsyncQueryPreAggregateJobMessage,
-    type AsyncQueryWarehouseJobMessage,
-    type RunAsyncPreAggregateQueryJobPayload,
-    type RunAsyncWarehouseQueryJobPayload,
+    type AsyncQueryAccountType,
+    type AsyncQueryJobMessage,
+    type AsyncQueryJobPayload,
 } from './natsContracts';
 
-const warehouseQueryPayloadSchema = z
-    .object({
-        organizationUuid: z.string().min(1),
-        projectUuid: z.string().min(1),
-        userUuid: z.string().min(1),
-        queryUuid: z.string().min(1),
-        isRegisteredUser: z.boolean(),
-        isServiceAccount: z.boolean().optional(),
-        queryTags: z.record(z.unknown()),
-        fieldsMap: z.record(z.unknown()),
-        cacheKey: z.string().min(1),
-        query: z.string().min(1),
-        warehouseCredentialsOverrides: z
-            .object({
-                snowflakeVirtualWarehouse: z.string().optional(),
-                databricksCompute: z.string().optional(),
-            })
-            .optional(),
-        pivotConfiguration: z.unknown().optional(),
-        originalColumns: z.record(z.unknown()).optional(),
-    })
-    .passthrough();
+const asyncQueryPayloadSchema = z.object({
+    queryUuid: z.string().min(1),
+    accountType: z.enum([
+        'session',
+        'jwt',
+        'api-key',
+        'service-account',
+        'oauth',
+    ]),
+    userUuid: z.string().min(1),
+});
 
-const warehouseQueryEnvelopeSchema = z.object({
+const asyncQueryEnvelopeSchema = z.object({
     jobId: z.string().min(1),
-    payload: warehouseQueryPayloadSchema,
+    payload: asyncQueryPayloadSchema,
     traceHeader: z.string().optional(),
     baggageHeader: z.string().optional(),
     sentryMessageId: z.string().optional(),
 });
 
-const preAggregateQueryPayloadSchema = z
-    .object({
-        organizationUuid: z.string().min(1),
-        projectUuid: z.string().min(1),
-        userUuid: z.string().min(1),
-        queryUuid: z.string().min(1),
-        isRegisteredUser: z.boolean(),
-        isServiceAccount: z.boolean().optional(),
-        queryTags: z.record(z.unknown()),
-        fieldsMap: z.record(z.unknown()),
-        cacheKey: z.string().min(1),
-        preAggregateQuery: z.string().min(1),
-        warehouseQuery: z.string().min(1),
-        warehouseCredentialsOverrides: z
-            .object({
-                snowflakeVirtualWarehouse: z.string().optional(),
-                databricksCompute: z.string().optional(),
-            })
-            .optional(),
-        pivotConfiguration: z.unknown().optional(),
-        originalColumns: z.record(z.unknown()).optional(),
-    })
-    .passthrough();
-
-const preAggregateQueryEnvelopeSchema = z.object({
-    jobId: z.string().min(1),
-    payload: preAggregateQueryPayloadSchema,
-    traceHeader: z.string().optional(),
-    baggageHeader: z.string().optional(),
-    sentryMessageId: z.string().optional(),
-});
-
-type ParsedWarehouseMessage = {
+type ParsedMessage = {
     jobId?: string;
-    payload: RunAsyncWarehouseQueryJobPayload;
-    trace: QueueTraceProperties;
-};
-
-type ParsedPreAggregateMessage = {
-    jobId?: string;
-    payload: RunAsyncPreAggregateQueryJobPayload;
+    payload: AsyncQueryJobPayload;
     trace: QueueTraceProperties;
 };
 
 type AsyncQueryNatsWorkerArgs = {
     lightdashConfig: LightdashConfig;
     asyncQueryService: AsyncQueryService;
+    queryHistoryModel: QueryHistoryModel;
+    projectModel: ProjectModel;
 };
 
 export class AsyncQueryNatsWorker {
     private readonly asyncQueryService: AsyncQueryService;
+
+    private readonly queryHistoryModel: QueryHistoryModel;
+
+    private readonly projectModel: ProjectModel;
 
     private readonly natsConfig: LightdashConfig['asyncQuery']['nats'];
 
@@ -137,6 +106,8 @@ export class AsyncQueryNatsWorker {
 
     constructor(args: AsyncQueryNatsWorkerArgs) {
         this.asyncQueryService = args.asyncQueryService;
+        this.queryHistoryModel = args.queryHistoryModel;
+        this.projectModel = args.projectModel;
         this.natsConfig = args.lightdashConfig.asyncQuery.nats;
         this.workerConcurrency = this.natsConfig.workerConcurrency;
         this.warehouseSubject = WAREHOUSE_QUERY_SUBJECT;
@@ -242,7 +213,7 @@ export class AsyncQueryNatsWorker {
         message: JsMsg,
         workerLabel: string,
     ): Promise<void> {
-        const parsed = this.parseWarehouseMessage(message);
+        const parsed = this.parseMessage(message);
         if (!parsed) {
             message.term();
             return;
@@ -251,8 +222,6 @@ export class AsyncQueryNatsWorker {
         const jobMetadata = {
             jobId: parsed.jobId,
             queryUuid: parsed.payload.queryUuid,
-            organizationUuid: parsed.payload.organizationUuid,
-            projectUuid: parsed.payload.projectUuid,
             userUuid: parsed.payload.userUuid,
             subject: message.subject,
         };
@@ -269,9 +238,10 @@ export class AsyncQueryNatsWorker {
                     baggage: parsed.trace.baggageHeader,
                 },
                 async () => {
-                    await this.asyncQueryService.runAsyncWarehouseQuery(
+                    const args = await this.buildWarehouseQueryArgs(
                         parsed.payload,
                     );
+                    await this.asyncQueryService.runAsyncWarehouseQuery(args);
                 },
             );
             message.ack();
@@ -292,7 +262,7 @@ export class AsyncQueryNatsWorker {
         message: JsMsg,
         workerLabel: string,
     ): Promise<void> {
-        const parsed = this.parsePreAggregateMessage(message);
+        const parsed = this.parseMessage(message);
         if (!parsed) {
             message.term();
             return;
@@ -301,8 +271,6 @@ export class AsyncQueryNatsWorker {
         const jobMetadata = {
             jobId: parsed.jobId,
             queryUuid: parsed.payload.queryUuid,
-            organizationUuid: parsed.payload.organizationUuid,
-            projectUuid: parsed.payload.projectUuid,
             userUuid: parsed.payload.userUuid,
             subject: message.subject,
         };
@@ -319,8 +287,11 @@ export class AsyncQueryNatsWorker {
                     baggage: parsed.trace.baggageHeader,
                 },
                 async () => {
-                    await this.asyncQueryService.runAsyncPreAggregateQuery(
+                    const args = await this.buildPreAggregateQueryArgs(
                         parsed.payload,
+                    );
+                    await this.asyncQueryService.runAsyncPreAggregateQuery(
+                        args,
                     );
                 },
             );
@@ -335,6 +306,140 @@ export class AsyncQueryNatsWorker {
                 { error, ...jobMetadata },
             );
             message.nak();
+        }
+    }
+
+    private async buildWarehouseQueryArgs(
+        payload: AsyncQueryJobPayload,
+    ): Promise<RunAsyncWarehouseQueryArgs> {
+        const qh = await this.queryHistoryModel.getWorkerPayload(
+            payload.queryUuid,
+        );
+        const queryTags = AsyncQueryNatsWorker.buildQueryTags(qh, payload);
+        const warehouseCredentialsOverrides =
+            await this.deriveWarehouseCredentialsOverrides(qh);
+
+        return {
+            projectUuid: qh.project_uuid ?? '',
+            userUuid:
+                qh.created_by_user_uuid ??
+                qh.created_by_account ??
+                payload.userUuid,
+            queryUuid: qh.query_uuid,
+            isRegisteredUser: payload.accountType !== 'jwt',
+            isServiceAccount: payload.accountType === 'service-account',
+            queryTags,
+            fieldsMap: qh.fields,
+            cacheKey: qh.cache_key,
+            warehouseCredentialsOverrides,
+            pivotConfiguration: qh.pivot_configuration ?? undefined,
+            originalColumns: qh.original_columns ?? undefined,
+            query: qh.compiled_sql,
+        };
+    }
+
+    private async buildPreAggregateQueryArgs(
+        payload: AsyncQueryJobPayload,
+    ): Promise<RunAsyncPreAggregateQueryArgs> {
+        const qh = await this.queryHistoryModel.getWorkerPayload(
+            payload.queryUuid,
+        );
+
+        if (!qh.pre_aggregate_compiled_sql) {
+            throw new NotFoundError(
+                `Pre-aggregate query not found in query_history for ${payload.queryUuid}`,
+            );
+        }
+
+        const queryTags = AsyncQueryNatsWorker.buildQueryTags(qh, payload);
+        const warehouseCredentialsOverrides =
+            await this.deriveWarehouseCredentialsOverrides(qh);
+
+        return {
+            projectUuid: qh.project_uuid ?? '',
+            userUuid:
+                qh.created_by_user_uuid ??
+                qh.created_by_account ??
+                payload.userUuid,
+            queryUuid: qh.query_uuid,
+            isRegisteredUser: payload.accountType !== 'jwt',
+            isServiceAccount: payload.accountType === 'service-account',
+            queryTags,
+            fieldsMap: qh.fields,
+            cacheKey: qh.cache_key,
+            warehouseCredentialsOverrides,
+            pivotConfiguration: qh.pivot_configuration ?? undefined,
+            originalColumns: qh.original_columns ?? undefined,
+            preAggregateQuery: qh.pre_aggregate_compiled_sql,
+            warehouseQuery: qh.compiled_sql,
+        };
+    }
+
+    private static buildQueryTags(
+        qh: DbQueryHistory,
+        payload: AsyncQueryJobPayload,
+    ): RunQueryTags {
+        // embed/external_id are extra tags for JWT users — not in RunQueryTags type
+        // but accepted by warehouse clients as arbitrary key-value pairs
+        const userTag: Record<string, string> =
+            payload.accountType === 'jwt'
+                ? { embed: 'true', external_id: payload.userUuid }
+                : { user_uuid: payload.userUuid };
+
+        // Extract chart_uuid and dashboard_uuid from request_parameters if present
+        const params = qh.request_parameters;
+        const chartUuid =
+            params && 'chartUuid' in params ? params.chartUuid : undefined;
+        const dashboardUuid =
+            params && 'dashboardUuid' in params
+                ? params.dashboardUuid
+                : undefined;
+
+        return {
+            ...userTag,
+            organization_uuid: qh.organization_uuid,
+            project_uuid: qh.project_uuid ?? undefined,
+            explore_name: qh.metric_query.exploreName,
+            query_context: qh.context,
+            ...(chartUuid ? { chart_uuid: chartUuid } : {}),
+            ...(dashboardUuid ? { dashboard_uuid: dashboardUuid } : {}),
+        };
+    }
+
+    private async deriveWarehouseCredentialsOverrides(
+        qh: DbQueryHistory,
+    ): Promise<
+        | { snowflakeVirtualWarehouse?: string; databricksCompute?: string }
+        | undefined
+    > {
+        const { exploreName } = qh.metric_query;
+        if (!exploreName || !qh.project_uuid) {
+            return undefined;
+        }
+
+        try {
+            const explore = await this.projectModel.getExploreFromCache(
+                qh.project_uuid,
+                exploreName,
+            );
+
+            if (isExploreError(explore)) {
+                return undefined;
+            }
+
+            if (!explore.warehouse && !explore.databricksCompute) {
+                return undefined;
+            }
+
+            return {
+                snowflakeVirtualWarehouse: explore.warehouse,
+                databricksCompute: explore.databricksCompute,
+            };
+        } catch {
+            Logger.warn(
+                `Could not derive warehouse credentials overrides for explore "${exploreName}" in project "${qh.project_uuid}"`,
+            );
+            return undefined;
         }
     }
 
@@ -368,16 +473,13 @@ export class AsyncQueryNatsWorker {
         });
     }
 
-    private parseWarehouseMessage(
-        message: JsMsg,
-    ): ParsedWarehouseMessage | null {
+    private parseMessage(message: JsMsg): ParsedMessage | null {
         try {
             const raw = JSON.parse(this.codec.decode(message.data)) as unknown;
 
-            const parsedEnvelope = warehouseQueryEnvelopeSchema.safeParse(raw);
+            const parsedEnvelope = asyncQueryEnvelopeSchema.safeParse(raw);
             if (parsedEnvelope.success) {
-                const value =
-                    parsedEnvelope.data as AsyncQueryWarehouseJobMessage;
+                const value = parsedEnvelope.data as AsyncQueryJobMessage;
                 return {
                     jobId: value.jobId,
                     payload: value.payload,
@@ -389,11 +491,11 @@ export class AsyncQueryNatsWorker {
                 };
             }
 
-            const parsedPayload = warehouseQueryPayloadSchema.safeParse(raw);
+            // Fallback: bare payload without envelope (tracing from headers)
+            const parsedPayload = asyncQueryPayloadSchema.safeParse(raw);
             if (parsedPayload.success) {
                 return {
-                    payload:
-                        parsedPayload.data as RunAsyncWarehouseQueryJobPayload,
+                    payload: parsedPayload.data,
                     jobId: message.headers?.get(NATS_HEADERS.JOB_ID),
                     trace: {
                         traceHeader: message.headers?.get(
@@ -410,69 +512,13 @@ export class AsyncQueryNatsWorker {
             }
 
             Logger.error(
-                `Invalid warehouse query payload for subject "${message.subject}"`,
+                `Invalid async query payload for subject "${message.subject}"`,
                 parsedEnvelope.error,
             );
             return null;
         } catch (error) {
             Logger.error(
-                `Unable to parse warehouse query payload for subject "${message.subject}"`,
-                error,
-            );
-            return null;
-        }
-    }
-
-    private parsePreAggregateMessage(
-        message: JsMsg,
-    ): ParsedPreAggregateMessage | null {
-        try {
-            const raw = JSON.parse(this.codec.decode(message.data)) as unknown;
-
-            const parsedEnvelope =
-                preAggregateQueryEnvelopeSchema.safeParse(raw);
-            if (parsedEnvelope.success) {
-                const value =
-                    parsedEnvelope.data as AsyncQueryPreAggregateJobMessage;
-                return {
-                    jobId: value.jobId,
-                    payload: value.payload,
-                    trace: {
-                        traceHeader: value.traceHeader,
-                        baggageHeader: value.baggageHeader,
-                        sentryMessageId: value.sentryMessageId,
-                    },
-                };
-            }
-
-            const parsedPayload = preAggregateQueryPayloadSchema.safeParse(raw);
-            if (parsedPayload.success) {
-                return {
-                    payload:
-                        parsedPayload.data as RunAsyncPreAggregateQueryJobPayload,
-                    jobId: message.headers?.get(NATS_HEADERS.JOB_ID),
-                    trace: {
-                        traceHeader: message.headers?.get(
-                            NATS_HEADERS.SENTRY_TRACE,
-                        ),
-                        baggageHeader: message.headers?.get(
-                            NATS_HEADERS.BAGGAGE,
-                        ),
-                        sentryMessageId: message.headers?.get(
-                            NATS_HEADERS.SENTRY_MESSAGE_ID,
-                        ),
-                    },
-                };
-            }
-
-            Logger.error(
-                `Invalid pre-aggregate query payload for subject "${message.subject}"`,
-                parsedEnvelope.error,
-            );
-            return null;
-        } catch (error) {
-            Logger.error(
-                `Unable to parse pre-aggregate query payload for subject "${message.subject}"`,
+                `Unable to parse async query payload for subject "${message.subject}"`,
                 error,
             );
             return null;

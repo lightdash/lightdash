@@ -1,15 +1,9 @@
-import type {
-    ItemsMap,
-    PivotConfiguration,
-    QueueTraceProperties,
-    ResultColumns,
-    RunQueryTags,
-} from '@lightdash/common';
+import type { QueueTraceProperties } from '@lightdash/common';
 
 export const NATS_HEADERS = {
     JOB_ID: 'x-lightdash-job-id',
-    SENTRY_TRACE: 'sentry-trace',
     BAGGAGE: 'baggage',
+    SENTRY_TRACE: 'sentry-trace',
     SENTRY_MESSAGE_ID: 'x-lightdash-sentry-message-id',
 } as const;
 
@@ -18,41 +12,27 @@ export type AsyncQueryNatsEnvelope<TPayload> = QueueTraceProperties & {
     payload: TPayload;
 };
 
-type AsyncQueryWarehouseCredentialsOverrides = {
-    snowflakeVirtualWarehouse?: string;
-    databricksCompute?: string;
-};
+/**
+ * Account type discriminator passed through NATS so the worker can derive
+ * `isRegisteredUser` and `isServiceAccount` without storing them in the DB.
+ */
+export type AsyncQueryAccountType =
+    | 'session'
+    | 'jwt'
+    | 'api-key'
+    | 'service-account'
+    | 'oauth';
 
-export type RunAsyncWarehouseQueryJobPayload = {
-    organizationUuid: string;
-    projectUuid: string;
-    userUuid: string;
-    schedulerUuid?: string;
+/**
+ * Lightweight NATS payload — the worker looks up everything else from query_history.
+ */
+export type AsyncQueryJobPayload = {
     queryUuid: string;
-    isRegisteredUser: boolean;
-    isServiceAccount?: boolean;
-    queryTags: RunQueryTags;
-    fieldsMap: ItemsMap;
-    cacheKey: string;
-    warehouseCredentialsOverrides?: AsyncQueryWarehouseCredentialsOverrides;
-    pivotConfiguration?: PivotConfiguration;
-    originalColumns?: ResultColumns;
-    query: string;
+    accountType: AsyncQueryAccountType;
+    userUuid: string;
 };
 
-export type RunAsyncPreAggregateQueryJobPayload = Omit<
-    RunAsyncWarehouseQueryJobPayload,
-    'query'
-> & {
-    preAggregateQuery: string;
-    warehouseQuery: string;
-};
-
-export type AsyncQueryWarehouseJobMessage =
-    AsyncQueryNatsEnvelope<RunAsyncWarehouseQueryJobPayload>;
-
-export type AsyncQueryPreAggregateJobMessage =
-    AsyncQueryNatsEnvelope<RunAsyncPreAggregateQueryJobPayload>;
+export type AsyncQueryJobMessage = AsyncQueryNatsEnvelope<AsyncQueryJobPayload>;
 
 export const WAREHOUSE_STREAM_NAME = 'WAREHOUSE_QUERY_JOBS';
 

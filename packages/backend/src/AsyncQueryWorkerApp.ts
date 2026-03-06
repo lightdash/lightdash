@@ -40,14 +40,19 @@ type AsyncQueryWorkerAppArguments = {
 const asyncQueryWorkerFactory = (context: {
     lightdashConfig: LightdashConfig;
     serviceRepository: ServiceRepository;
+    modelRepository: ModelRepository;
 }) =>
     new AsyncQueryNatsWorker({
         lightdashConfig: context.lightdashConfig,
         asyncQueryService: context.serviceRepository.getAsyncQueryService(),
+        queryHistoryModel: context.modelRepository.getQueryHistoryModel(),
+        projectModel: context.modelRepository.getProjectModel(),
     });
 
 export default class AsyncQueryWorkerApp {
     private readonly serviceRepository: ServiceRepository;
+
+    private readonly modelRepository: ModelRepository;
 
     private readonly lightdashConfig: LightdashConfig;
 
@@ -105,6 +110,7 @@ export default class AsyncQueryWorkerApp {
             models,
         });
 
+        this.modelRepository = models;
         this.serviceRepository = new ServiceRepository({
             serviceProviders: args.serviceProviders,
             context: new OperationContext({
@@ -148,6 +154,7 @@ export default class AsyncQueryWorkerApp {
         const worker = this.asyncQueryWorkerFactory({
             lightdashConfig: this.lightdashConfig,
             serviceRepository: this.serviceRepository,
+            modelRepository: this.modelRepository,
         });
         await worker.run();
         return worker;
