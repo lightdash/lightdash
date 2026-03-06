@@ -1,6 +1,4 @@
 import {
-    FeatureFlags,
-    ForbiddenError,
     getObjectValue,
     getRequestMethod,
     LightdashRequestMethodHeader,
@@ -106,11 +104,9 @@ projectRouter.get(
             const filename = path.basename(filePath);
             const normalizedPath = path.resolve('/tmp/', filename);
             if (!normalizedPath.startsWith('/tmp/')) {
-                // eslint-disable-next-line @typescript-eslint/only-throw-error -- NotFoundError extends Error
                 throw new NotFoundError(`File not found ${filename}`);
             }
             if (!fs.existsSync(normalizedPath)) {
-                // eslint-disable-next-line @typescript-eslint/only-throw-error -- NotFoundError extends Error
                 throw new NotFoundError(`File not found: ${filename}`);
             }
             res.set('Content-Type', 'text/csv');
@@ -245,14 +241,6 @@ projectRouter.get(
     allowApiKeyAuthentication,
     isAuthenticated,
     async (req, res, next) => {
-        const featureFlag = await req.services.getFeatureFlagService().get({
-            user: req.user,
-            featureFlagId: FeatureFlags.ContentVerification,
-        });
-        if (!featureFlag.enabled) {
-            // eslint-disable-next-line @typescript-eslint/only-throw-error -- ForbiddenError extends Error
-            throw new ForbiddenError('Feature not enabled');
-        }
         req.services
             .getProjectService()
             .getVerifiedContentForHomepage(

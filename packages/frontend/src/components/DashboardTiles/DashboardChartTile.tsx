@@ -525,12 +525,6 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
     );
     const showExecutionTime = showExecutionTimeFlag?.enabled;
 
-    const { data: contentVerificationFlag } = useServerFeatureFlag(
-        FeatureFlags.ContentVerification,
-    );
-    const isContentVerificationEnabled =
-        contentVerificationFlag?.enabled ?? false;
-
     const {
         tile: {
             uuid: tileUuid,
@@ -1236,11 +1230,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                 }
                 title={title || chart.name || ''}
                 chartName={chart.name}
-                verification={
-                    isContentVerificationEnabled
-                        ? (chart.verification ?? null)
-                        : null
-                }
+                verification={chart.verification ?? null}
                 titleHref={`/projects/${projectUuid}/saved/${savedChartUuid}/`}
                 description={chart.description}
                 belongsToDashboard={belongsToDashboard}

@@ -1,12 +1,8 @@
-import {
-    FeatureFlags,
-    type ResourceViewDashboardItem,
-} from '@lightdash/common';
+import { type ResourceViewDashboardItem } from '@lightdash/common';
 import { Box, Flex, Group, Paper, Text, Tooltip } from '@mantine-8/core';
 import { useDisclosure, useHover } from '@mantine/hooks';
 import { IconCircleCheckFilled, IconEye } from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
-import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
 import { ResourceIcon, ResourceIndicator } from '../../ResourceIcon';
 import ResourceViewActionMenu, {
     type ResourceViewActionMenuCommonProps,
@@ -31,11 +27,6 @@ const ResourceViewGridDashboardItem: FC<ResourceViewGridDashboardItemProps> = ({
 }) => {
     const { hovered, ref } = useHover();
     const [opened, handlers] = useDisclosure(false);
-    const { data: contentVerificationFlag } = useServerFeatureFlag(
-        FeatureFlags.ContentVerification,
-    );
-    const isContentVerificationEnabled =
-        contentVerificationFlag?.enabled ?? false;
 
     return (
         <Paper
@@ -54,7 +45,7 @@ const ResourceViewGridDashboardItem: FC<ResourceViewGridDashboardItemProps> = ({
                 className={classes.gridCardTopSection}
             >
                 {dragIcon}
-                {isContentVerificationEnabled && item.data.verification ? (
+                {item.data.verification ? (
                     <ResourceIndicator
                         iconProps={{
                             icon: IconCircleCheckFilled,
