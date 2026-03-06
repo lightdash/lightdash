@@ -84,6 +84,7 @@ import {
     useUnverifyChartMutation,
     useVerifyChartMutation,
 } from '../../../hooks/useContentVerification';
+import { useContentVerificationEnabled } from '../../../hooks/useContentVerificationEnabled';
 import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
 import { useProject } from '../../../hooks/useProject';
 import { useUpdateMutation } from '../../../hooks/useSavedQuery';
@@ -360,12 +361,9 @@ const SavedChartsHeader: FC = () => {
         }),
     );
 
-    const { data: contentVerificationFlag } = useServerFeatureFlag(
-        FeatureFlags.ContentVerification,
-    );
+    const isContentVerificationEnabled = useContentVerificationEnabled();
 
     const canManageContentVerification =
-        contentVerificationFlag?.enabled === true &&
         user.data?.ability?.can(
             'manage',
             subject('ContentVerification', {
@@ -484,25 +482,27 @@ const SavedChartsHeader: FC = () => {
                                     {savedChart.name}
                                 </Title>
 
-                                {isChartVerified && (
-                                    <Tooltip
-                                        label={
-                                            savedChart?.verification?.verifiedBy
-                                                ? `Verified by ${savedChart.verification.verifiedBy.firstName} ${savedChart.verification.verifiedBy.lastName}`
-                                                : 'Verified'
-                                        }
-                                        withArrow
-                                        withinPortal
-                                        zIndex={10000}
-                                    >
-                                        <IconCircleCheckFilled
-                                            size={16}
-                                            style={{
-                                                color: 'var(--mantine-color-green-6)',
-                                            }}
-                                        />
-                                    </Tooltip>
-                                )}
+                                {isContentVerificationEnabled &&
+                                    isChartVerified && (
+                                        <Tooltip
+                                            label={
+                                                savedChart?.verification
+                                                    ?.verifiedBy
+                                                    ? `Verified by ${savedChart.verification.verifiedBy.firstName} ${savedChart.verification.verifiedBy.lastName}`
+                                                    : 'Verified'
+                                            }
+                                            withArrow
+                                            withinPortal
+                                            zIndex={10000}
+                                        >
+                                            <IconCircleCheckFilled
+                                                size={16}
+                                                style={{
+                                                    color: 'var(--mantine-color-green-6)',
+                                                }}
+                                            />
+                                        </Tooltip>
+                                    )}
 
                                 <ActionIcon
                                     size="xs"
@@ -808,7 +808,8 @@ const SavedChartsHeader: FC = () => {
                                     </Tooltip>
                                 }
 
-                                {canManageContentVerification &&
+                                {isContentVerificationEnabled &&
+                                    canManageContentVerification &&
                                     savedChart?.uuid && (
                                         <Menu.Item
                                             leftSection={

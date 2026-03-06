@@ -270,6 +270,9 @@ const applyServiceAccountStaticAbilities: Record<
         can('manage', 'ContentAsCode', {
             organizationUuid,
         });
+        can('manage', 'ContentVerification', {
+            organizationUuid,
+        });
         can('view', 'JobStatus', {
             organizationUuid,
         });
