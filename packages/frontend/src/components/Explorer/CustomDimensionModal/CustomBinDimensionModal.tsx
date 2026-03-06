@@ -57,7 +57,28 @@ const DEFAULT_CUSTOM_RANGE: BinRange[] = [
     { to: 0, from: undefined },
     { from: 1, to: undefined },
 ];
-const DEFAULT_CUSTOM_GROUPS: BinGroup[] = [{ name: 'Group 1', values: [] }];
+
+type FormGroupValueRule = GroupValueRule & { _id: string };
+type FormBinGroup = Omit<BinGroup, 'values'> & {
+    _id: string;
+    values: FormGroupValueRule[];
+};
+
+const makeFormGroup = (group: BinGroup): FormBinGroup => ({
+    ...group,
+    _id: crypto.randomUUID(),
+    values: group.values.map((v) => ({ ...v, _id: crypto.randomUUID() })),
+});
+
+const stripFormIds = (groups: FormBinGroup[]): BinGroup[] =>
+    groups.map(({ _id, values, ...rest }) => ({
+        ...rest,
+        values: values.map(({ _id: _, ...v }) => v),
+    }));
+
+const createDefaultCustomGroups = (): FormBinGroup[] => [
+    makeFormGroup({ name: 'Group 1', values: [] }),
+];
 
 const MATCH_TYPE_OPTIONS = [
     { value: GroupValueMatchType.EXACT, label: 'is' },
@@ -66,10 +87,11 @@ const MATCH_TYPE_OPTIONS = [
     { value: GroupValueMatchType.INCLUDES, label: 'includes' },
 ];
 
-const DEFAULT_VALUE_RULE: GroupValueRule = {
+const createDefaultValueRule = (): FormGroupValueRule => ({
+    _id: crypto.randomUUID(),
     matchType: GroupValueMatchType.EXACT,
     value: '',
-};
+});
 
 const isStringBinType = (binType: BinType) => binType === BinType.CUSTOM_GROUP;
 
@@ -104,7 +126,7 @@ const buildCustomBinDimension = (
             return {
                 ...common,
                 binType: BinType.CUSTOM_GROUP,
-                customGroups: values.binConfig.customGroups,
+                customGroups: stripFormIds(values.binConfig.customGroups),
             };
         default:
             return {
@@ -122,7 +144,7 @@ type FormValues = {
         fixedNumber: { binNumber: number };
         fixedWidth: { binWidth: number };
         customRange: Array<{ from?: number; to?: number }>;
-        customGroups: BinGroup[];
+        customGroups: FormBinGroup[];
     };
 };
 
@@ -177,7 +199,7 @@ const GroupValueRow: FC<{
                         {groups.map((targetGroup, targetIndex) =>
                             targetIndex !== groupIndex ? (
                                 <Menu.Item
-                                    key={targetIndex}
+                                    key={targetGroup._id}
                                     onClick={() => {
                                         const newGroups =
                                             structuredClone(groups);
@@ -263,9 +285,9 @@ const CustomGroupCard: FC<{
                 )}
             </Flex>
 
-            {group.values.map((_value, valueIndex) => (
+            {group.values.map((value, valueIndex) => (
                 <GroupValueRow
-                    key={`custom-group.${groupIndex}.value.${valueIndex}`}
+                    key={value._id}
                     form={form}
                     groupIndex={groupIndex}
                     valueIndex={valueIndex}
@@ -354,10 +376,12 @@ export const CustomBinDimensionModal: FC<{
             ),
             customGroups: z.array(
                 z.object({
+                    _id: z.string(),
                     name: z.string().min(1),
                     values: z
                         .array(
                             z.object({
+                                _id: z.string(),
                                 matchType: z.nativeEnum(GroupValueMatchType),
                                 value: z.string().trim().min(1),
                             }),
@@ -382,7 +406,7 @@ export const CustomBinDimensionModal: FC<{
                     binWidth: MIN_OF_FIXED_NUMBER_BINS,
                 },
                 customRange: DEFAULT_CUSTOM_RANGE,
-                customGroups: DEFAULT_CUSTOM_GROUPS,
+                customGroups: createDefaultCustomGroups(),
             },
         },
         validate: zodResolver(formSchema),
@@ -416,7 +440,7 @@ export const CustomBinDimensionModal: FC<{
                 case BinType.CUSTOM_GROUP:
                     setFieldValue(
                         'binConfig.customGroups',
-                        structuredClone(item.customGroups),
+                        item.customGroups.map(makeFormGroup),
                     );
                     break;
                 default:
@@ -521,9 +545,11 @@ export const CustomBinDimensionModal: FC<{
             afterValueIndex !== undefined
                 ? afterValueIndex + 1
                 : newGroups[groupIndex].values.length;
-        newGroups[groupIndex].values.splice(insertAt, 0, {
-            ...DEFAULT_VALUE_RULE,
-        });
+        newGroups[groupIndex].values.splice(
+            insertAt,
+            0,
+            createDefaultValueRule(),
+        );
         form.setFieldValue('binConfig.customGroups', newGroups);
         setFocusTarget(`custom-group-${groupIndex}-value-${insertAt}`);
     };
@@ -796,9 +822,9 @@ export const CustomBinDimensionModal: FC<{
                         <>
                             <Text fw={500}>Groups</Text>
                             {form.values.binConfig.customGroups.map(
-                                (_group, groupIndex) => (
+                                (group, groupIndex) => (
                                     <CustomGroupCard
-                                        key={`custom-group.${groupIndex}`}
+                                        key={group._id}
                                         form={form}
                                         groupIndex={groupIndex}
                                         onAddValue={addValueToGroup}
@@ -817,10 +843,10 @@ export const CustomBinDimensionModal: FC<{
                                         [
                                             ...form.values.binConfig
                                                 .customGroups,
-                                            {
+                                            makeFormGroup({
                                                 name: '',
                                                 values: [],
-                                            },
+                                            }),
                                         ],
                                     );
                                 }}
