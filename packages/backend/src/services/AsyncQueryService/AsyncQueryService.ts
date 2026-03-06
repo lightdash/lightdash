@@ -99,9 +99,10 @@ import { createInterface } from 'readline';
 import { Readable, Writable } from 'stream';
 import { v4 as uuidv4 } from 'uuid';
 import { DownloadCsv } from '../../analytics/LightdashAnalytics';
-import type { IAsyncQuerySchedulerClient } from '../../clients/AsyncQuerySchedulerClient';
+import { type AsyncQueryAccountType } from '../../asyncQuery/natsContracts';
 import { transformAndExportResults } from '../../clients/Aws/transformAndExportResults';
 import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
+import type { INatsJobClient } from '../../clients/NatsJobClient';
 import { S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import { measureTime } from '../../logging/measureTime';
 import { DownloadAuditModel } from '../../models/DownloadAuditModel';
@@ -190,6 +191,10 @@ type AsyncQueryExecutionPlan =
           target: 'pre_aggregate';
           preAggregateQuery: string;
           warehouseQuery: string;
+      }
+    | {
+          target: 'error';
+          error: string;
       };
 
 type AsyncQueryServiceArguments = ProjectServiceArguments & {
@@ -202,7 +207,7 @@ type AsyncQueryServiceArguments = ProjectServiceArguments & {
     pivotTableService: PivotTableService;
     prometheusMetrics?: PrometheusMetrics;
     schedulerClient: SchedulerClient;
-    asyncQuerySchedulerClient: IAsyncQuerySchedulerClient;
+    natsJobClient: INatsJobClient;
     permissionsService: PermissionsService;
     persistentDownloadFileService: PersistentDownloadFileService;
     preAggregationDuckDbClient: PreAggregationDuckDbClient;
@@ -230,7 +235,7 @@ export class AsyncQueryService extends ProjectService {
 
     schedulerClient: SchedulerClient;
 
-    asyncQuerySchedulerClient: IAsyncQuerySchedulerClient;
+    natsJobClient: INatsJobClient;
 
     permissionsService: PermissionsService;
 
@@ -253,11 +258,19 @@ export class AsyncQueryService extends ProjectService {
         this.pivotTableService = args.pivotTableService;
         this.prometheusMetrics = args.prometheusMetrics;
         this.schedulerClient = args.schedulerClient;
-        this.asyncQuerySchedulerClient = args.asyncQuerySchedulerClient;
+        this.natsJobClient = args.natsJobClient;
         this.permissionsService = args.permissionsService;
         this.persistentDownloadFileService = args.persistentDownloadFileService;
         this.preAggregationDuckDbClient = args.preAggregationDuckDbClient;
         this.preAggregateDailyStatsModel = args.preAggregateDailyStatsModel;
+    }
+
+    static getAccountType(account: Account): AsyncQueryAccountType {
+        if (account.isServiceAccount()) return 'service-account';
+        if (account.isJwtUser()) return 'jwt';
+        if (account.isPatUser()) return 'api-key';
+        if (account.isOauthUser()) return 'oauth';
+        return 'session';
     }
 
     private recordPreAggregateStats(params: {
@@ -1600,6 +1613,25 @@ export class AsyncQueryService extends ProjectService {
             };
         }
 
+        // When mode is 'required' and resolution failed, do not fall back to warehouse
+        if (
+            preAggregationRoute?.mode === 'required' &&
+            preAggResolution &&
+            !preAggResolution.resolved
+        ) {
+            const error =
+                PreAggregationDuckDbClient.getPreAggregationResolutionErrorMessage(
+                    {
+                        route: preAggregationRoute,
+                        reason: preAggResolution.reason,
+                    },
+                );
+            this.logger.warn(
+                `Required pre-aggregate resolution failed for ${queryUuid}: ${error}`,
+            );
+            return { target: 'error', error };
+        }
+
         return {
             target: 'warehouse',
             warehouseQuery,
@@ -2320,6 +2352,25 @@ export class AsyncQueryService extends ProjectService {
                             queryUuid: queryHistoryUuid,
                         });
 
+                    if (executionPlan.target === 'error') {
+                        await this.queryHistoryModel.update(
+                            queryHistoryUuid,
+                            projectUuid,
+                            {
+                                status: QueryHistoryStatus.ERROR,
+                                error: executionPlan.error,
+                            },
+                            account,
+                        );
+
+                        return {
+                            queryUuid: queryHistoryUuid,
+                            cacheMetadata: {
+                                cacheHit: false,
+                            },
+                        } satisfies ExecuteAsyncQueryReturn;
+                    }
+
                     const warehouseArgs: RunAsyncWarehouseQueryArgs = {
                         userUuid: account.user.id,
                         isRegisteredUser: account.isRegisteredUser(),
@@ -2341,23 +2392,33 @@ export class AsyncQueryService extends ProjectService {
                         );
 
                         try {
+                            const natsPayload = {
+                                queryUuid: queryHistoryUuid,
+                                accountType:
+                                    AsyncQueryService.getAccountType(account),
+                                userUuid: account.user.id,
+                            };
+
+                            // Store pre-aggregate SQL in query_history before dispatching
+                            if (executionPlan.target === 'pre_aggregate') {
+                                await this.queryHistoryModel.update(
+                                    queryHistoryUuid,
+                                    projectUuid,
+                                    {
+                                        pre_aggregate_compiled_sql:
+                                            executionPlan.preAggregateQuery,
+                                    },
+                                    account,
+                                );
+                            }
+
                             const { jobId } =
                                 executionPlan.target === 'pre_aggregate'
-                                    ? await this.asyncQuerySchedulerClient.enqueuePreAggregateQuery(
-                                          {
-                                              organizationUuid,
-                                              ...warehouseArgs,
-                                              preAggregateQuery:
-                                                  executionPlan.preAggregateQuery,
-                                              warehouseQuery:
-                                                  executionPlan.warehouseQuery,
-                                          },
+                                    ? await this.natsJobClient.enqueuePreAggregateQuery(
+                                          natsPayload,
                                       )
-                                    : await this.asyncQuerySchedulerClient.enqueueWarehouseQuery(
-                                          {
-                                              organizationUuid,
-                                              ...warehouseArgs,
-                                          },
+                                    : await this.natsJobClient.enqueueWarehouseQuery(
+                                          natsPayload,
                                       );
 
                             this.logger.info(

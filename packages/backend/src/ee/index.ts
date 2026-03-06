@@ -214,8 +214,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         models.getWarehouseAvailableTablesModel(),
                     emailModel: models.getEmailModel(),
                     schedulerClient: clients.getSchedulerClient(),
-                    asyncQuerySchedulerClient:
-                        clients.getAsyncQuerySchedulerClient(),
+                    natsJobClient: clients.getNatsJobClient(),
                     downloadFileModel: models.getDownloadFileModel(),
                     fileStorageClient: clients.getFileStorageClient(),
                     groupsModel: models.getGroupsModel(),
@@ -285,8 +284,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         models.getWarehouseAvailableTablesModel(),
                     emailModel: models.getEmailModel(),
                     schedulerClient: clients.getSchedulerClient(),
-                    asyncQuerySchedulerClient:
-                        clients.getAsyncQuerySchedulerClient(),
+                    natsJobClient: clients.getNatsJobClient(),
                     downloadFileModel: models.getDownloadFileModel(),
                     fileStorageClient: clients.getFileStorageClient(),
                     groupsModel: models.getGroupsModel(),

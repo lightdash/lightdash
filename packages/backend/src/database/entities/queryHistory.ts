@@ -40,6 +40,7 @@ export type DbQueryHistory = {
     results_expires_at: Date | null;
     columns: ResultColumns | null; // result columns with or without pivoting
     original_columns: ResultColumns | null; // columns from original SQL, before pivoting
+    pre_aggregate_compiled_sql: string | null; // DuckDB SQL for pre-aggregate execution path
 };
 
 export type DbQueryHistoryIn = Omit<
@@ -66,6 +67,7 @@ export type DbQueryHistoryUpdate = Partial<
         | 'results_expires_at'
         | 'columns'
         | 'original_columns'
+        | 'pre_aggregate_compiled_sql'
     >
 >;
 
