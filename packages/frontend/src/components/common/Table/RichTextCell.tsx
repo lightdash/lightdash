@@ -37,8 +37,21 @@ const rehypeRemoveLineBreaks: Plugin<[], Root> = () => {
 const RichTextCell: FC<RichTextCellProps> = ({ content }) => {
     const { colorScheme } = useMantineColorScheme();
 
+    // Stop click propagation on links to prevent table cell selection
+    const handleClick = (e: React.MouseEvent) => {
+        const target = e.target as HTMLElement;
+        // Check if the clicked element is a link or inside a link
+        if (target.tagName === 'A' || target.closest('a')) {
+            e.stopPropagation();
+        }
+    };
+
     return (
-        <div data-color-mode={colorScheme} className={styles.richTextCell}>
+        <div
+            data-color-mode={colorScheme}
+            className={styles.richTextCell}
+            onClick={handleClick}
+        >
             <MarkdownPreview
                 source={content}
                 rehypePlugins={[
