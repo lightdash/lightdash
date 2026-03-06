@@ -20,9 +20,10 @@ jest.mock('nodemailer', () => ({
     })),
 }));
 
-jest.mock('nodemailer-express-handlebars', () => ({
-    __esModule: true,
-    default: jest.fn(() => jest.fn()),
+jest.mock('fs', () => ({
+    ...jest.requireActual('fs'),
+    readdirSync: jest.fn(() => []),
+    readFileSync: jest.fn(() => ''),
 }));
 
 // Mock the SMTPError interface to allow for code property
