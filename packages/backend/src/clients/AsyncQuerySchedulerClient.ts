@@ -4,11 +4,11 @@ import { connect, headers, StringCodec, type JetStreamClient } from 'nats';
 import { v4 as uuidv4 } from 'uuid';
 import {
     ASYNC_QUERY_NATS_HEADERS,
+    getPreAggregateQuerySubject,
+    getWarehouseQuerySubject,
     type AsyncQueryNatsEnvelope,
     type RunAsyncPreAggregateQueryJobPayload,
     type RunAsyncWarehouseQueryJobPayload,
-    getPreAggregateQuerySubject,
-    getWarehouseQuerySubject,
 } from '../asyncQuery/natsContracts';
 import { type LightdashConfig } from '../config/parseConfig';
 import Logger from '../logging/logger';

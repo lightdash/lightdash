@@ -412,12 +412,6 @@ describe('AsyncQueryService', () => {
                 queryUuid: 'test-query-uuid',
             });
 
-            // Spy on runAsyncWarehouseQuery to verify it IS called
-            const runAsyncWarehouseQuerySpy = jest.spyOn(
-                serviceWithCache,
-                'runAsyncWarehouseQuery',
-            );
-
             // WHEN: executeAsyncQuery is called
             const result = await serviceWithCache.executeAsyncQuery(
                 {
@@ -461,8 +455,10 @@ describe('AsyncQueryService', () => {
                 }),
             );
 
-            // THEN: runAsyncWarehouseQuery IS called with correct parameters
-            expect(runAsyncWarehouseQuerySpy).toHaveBeenCalledWith(
+            // THEN: Query dispatched to Graphile worker with correct parameters
+            expect(
+                serviceWithCache.schedulerClient.runAsyncWarehouseQuery,
+            ).toHaveBeenCalledWith(
                 expect.objectContaining({
                     userUuid: sessionAccount.user.id,
                     isRegisteredUser: sessionAccount.isRegisteredUser(),
@@ -505,12 +501,6 @@ describe('AsyncQueryService', () => {
                 queryUuid: 'test-query-uuid',
             });
 
-            // Spy on runAsyncWarehouseQuery to verify it IS called
-            const runAsyncWarehouseQuerySpy = jest.spyOn(
-                serviceWithCache,
-                'runAsyncWarehouseQuery',
-            );
-
             // WHEN: executeAsyncQuery is called with invalidateCache: true
             const result = await serviceWithCache.executeAsyncQuery(
                 {
@@ -538,8 +528,10 @@ describe('AsyncQueryService', () => {
                 true,
             );
 
-            // THEN: runAsyncWarehouseQuery IS called with correct parameters
-            expect(runAsyncWarehouseQuerySpy).toHaveBeenCalledWith(
+            // THEN: Query dispatched to Graphile worker with correct parameters
+            expect(
+                serviceWithCache.schedulerClient.runAsyncWarehouseQuery,
+            ).toHaveBeenCalledWith(
                 expect.objectContaining({
                     userUuid: sessionAccount.user.id,
                     isRegisteredUser: sessionAccount.isRegisteredUser(),
@@ -597,14 +589,10 @@ describe('AsyncQueryService', () => {
                 queryUuid: 'test-query-uuid',
             });
 
-            // Spy on cache and warehouse methods
+            // Spy on cache methods
             const findResultsCacheSpy = jest.spyOn(
                 serviceWithoutCache,
                 'findResultsCache',
-            );
-            const runAsyncWarehouseQuerySpy = jest.spyOn(
-                serviceWithoutCache,
-                'runAsyncWarehouseQuery',
             );
 
             // WHEN: executeAsyncQuery is called
@@ -634,8 +622,10 @@ describe('AsyncQueryService', () => {
                 false, // invalidateCache
             );
 
-            // THEN: runAsyncWarehouseQuery IS always called with correct parameters
-            expect(runAsyncWarehouseQuerySpy).toHaveBeenCalledWith(
+            // THEN: Query dispatched to Graphile worker with correct parameters
+            expect(
+                serviceWithoutCache.schedulerClient.runAsyncWarehouseQuery,
+            ).toHaveBeenCalledWith(
                 expect.objectContaining({
                     userUuid: sessionAccount.user.id,
                     isRegisteredUser: sessionAccount.isRegisteredUser(),
@@ -767,13 +757,6 @@ describe('AsyncQueryService', () => {
                             customerId: 'customer-a',
                         },
                     },
-                    scheduler: {
-                        ...lightdashConfigMock.scheduler,
-                        asyncQueryWorkers: {
-                            preAggregatesEnabled: false,
-                            warehouseEnabled: true,
-                        },
-                    },
                 },
                 {
                     schedulerClient:
@@ -836,7 +819,9 @@ describe('AsyncQueryService', () => {
                     query: 'SELECT * FROM test',
                 }),
             );
-            expect(schedulerClientMock.runAsyncWarehouseQuery).not.toHaveBeenCalled();
+            expect(
+                schedulerClientMock.runAsyncWarehouseQuery,
+            ).not.toHaveBeenCalled();
             expect(runAsyncWarehouseQuerySpy).not.toHaveBeenCalled();
         });
 
@@ -912,9 +897,7 @@ describe('AsyncQueryService', () => {
                     cacheExpiresAt: undefined,
                 },
             } satisfies ExecuteAsyncQueryReturn);
-            expect(
-                service.queryHistoryModel.update,
-            ).toHaveBeenCalledWith(
+            expect(service.queryHistoryModel.update).toHaveBeenCalledWith(
                 'test-query-uuid',
                 projectUuid,
                 {
@@ -923,32 +906,22 @@ describe('AsyncQueryService', () => {
                 },
                 sessionAccount,
             );
-            expect(schedulerClientMock.runAsyncWarehouseQuery).not.toHaveBeenCalled();
+            expect(
+                schedulerClientMock.runAsyncWarehouseQuery,
+            ).not.toHaveBeenCalled();
             expect(runAsyncWarehouseQuerySpy).not.toHaveBeenCalled();
         });
 
-        test('keeps existing worker behavior when NATS is disabled', async () => {
+        test('falls back to Graphile worker when NATS is disabled', async () => {
             const schedulerClientMock = {
                 scheduleTask: jest.fn(),
                 runAsyncPreAggregateQuery: jest.fn(),
                 runAsyncWarehouseQuery: jest.fn(),
             };
-            const service = getMockedAsyncQueryService(
-                {
-                    ...lightdashConfigMock,
-                    scheduler: {
-                        ...lightdashConfigMock.scheduler,
-                        asyncQueryWorkers: {
-                            preAggregatesEnabled: false,
-                            warehouseEnabled: true,
-                        },
-                    },
-                },
-                {
-                    schedulerClient:
-                        schedulerClientMock as unknown as SchedulerClient,
-                },
-            );
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                schedulerClient:
+                    schedulerClientMock as unknown as SchedulerClient,
+            });
 
             service.findResultsCache = jest.fn().mockResolvedValueOnce({
                 cacheHit: false,
@@ -1622,13 +1595,24 @@ describe('AsyncQueryService', () => {
     });
 
     describe('executeAsyncQuery with originalColumns', () => {
-        const serviceWithCache = getMockedAsyncQueryService({
-            ...lightdashConfigMock,
-            results: {
-                ...lightdashConfigMock.results,
-                cacheEnabled: true,
+        const schedulerClientMock = {
+            scheduleTask: jest.fn(),
+            runAsyncPreAggregateQuery: jest.fn(),
+            runAsyncWarehouseQuery: jest.fn(),
+        };
+        const serviceWithCache = getMockedAsyncQueryService(
+            {
+                ...lightdashConfigMock,
+                results: {
+                    ...lightdashConfigMock.results,
+                    cacheEnabled: true,
+                },
             },
-        });
+            {
+                schedulerClient:
+                    schedulerClientMock as unknown as SchedulerClient,
+            },
+        );
 
         const mockOriginalColumns: ResultColumns = {
             user_id: { reference: 'user_id', type: DimensionType.STRING },
@@ -1666,10 +1650,6 @@ describe('AsyncQueryService', () => {
                 queryUuid: 'test-query-uuid',
             });
 
-            serviceWithCache.runAsyncWarehouseQuery = jest
-                .fn()
-                .mockResolvedValue(undefined);
-
             await serviceWithCache.executeAsyncQuery(
                 {
                     account: sessionAccount,
@@ -1690,9 +1670,9 @@ describe('AsyncQueryService', () => {
                 { query: metricQueryMock },
             );
 
-            // Verify that original columns are passed to runAsyncWarehouseQuery
+            // Verify that original columns are passed to the Graphile worker
             expect(
-                serviceWithCache.runAsyncWarehouseQuery,
+                schedulerClientMock.runAsyncWarehouseQuery,
             ).toHaveBeenCalledWith(
                 expect.objectContaining({
                     originalColumns: mockOriginalColumns,
