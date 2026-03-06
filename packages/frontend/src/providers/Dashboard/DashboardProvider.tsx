@@ -244,10 +244,39 @@ const DashboardProvider: React.FC<
         useState<boolean>(false);
 
     // Date zoom granularities state
-    const allGranularities = useMemo(() => Object.values(DateGranularity), []);
+    const allStandardGranularities = useMemo(
+        () => Object.values(DateGranularity),
+        [],
+    );
 
-    const [dateZoomGranularities, setDateZoomGranularitiesState] =
-        useState<(DateGranularity | string)[]>(allGranularities);
+    // Custom granularities discovered from explores: key → label (e.g., "fiscal_quarter" → "Fiscal Quarter")
+    const [availableCustomGranularities, setAvailableCustomGranularities] =
+        useState<Record<string, string>>({});
+
+    const addAvailableCustomGranularities = useCallback(
+        (granularities: Record<string, string>) => {
+            setAvailableCustomGranularities((prev) => {
+                const newKeys = Object.keys(granularities).filter(
+                    (k) => !(k in prev),
+                );
+                if (newKeys.length === 0) return prev;
+                return { ...prev, ...granularities };
+            });
+        },
+        [],
+    );
+
+    const allGranularities = useMemo(
+        () => [
+            ...allStandardGranularities,
+            ...Object.keys(availableCustomGranularities),
+        ],
+        [allStandardGranularities, availableCustomGranularities],
+    );
+
+    const [dateZoomGranularities, setDateZoomGranularitiesState] = useState<
+        (DateGranularity | string)[]
+    >(allStandardGranularities);
     const [
         haveDateZoomGranularitiesChanged,
         setHaveDateZoomGranularitiesChanged,
@@ -826,11 +855,16 @@ const DashboardProvider: React.FC<
         // Date zoom
         const dateZoomParam = searchParams.get('dateZoom');
         if (dateZoomParam) {
-            const dateZoomUrl = Object.values(DateGranularity).find(
+            const standardMatch = Object.values(DateGranularity).find(
                 (granularity) =>
-                    granularity.toLowerCase() === dateZoomParam?.toLowerCase(),
+                    granularity.toLowerCase() === dateZoomParam.toLowerCase(),
             );
-            if (dateZoomUrl) setDateZoomGranularity(dateZoomUrl);
+            if (standardMatch) {
+                setDateZoomGranularity(standardMatch);
+            } else {
+                // Custom granularity — use the param value directly
+                setDateZoomGranularity(dateZoomParam);
+            }
         }
 
         // Temp filters
@@ -1405,6 +1439,8 @@ const DashboardProvider: React.FC<
         hasDefaultDateZoomGranularityChanged,
         setHasDefaultDateZoomGranularityChanged,
         addParameterDefinitions,
+        availableCustomGranularities,
+        addAvailableCustomGranularities,
         tileNamesById,
         preAggregateStatuses,
         addPreAggregateStatus,

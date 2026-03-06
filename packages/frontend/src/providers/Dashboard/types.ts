@@ -125,6 +125,10 @@ export type DashboardContextType = {
     areAllChartsLoaded: boolean;
     parameterDefinitions: ParameterDefinitions;
     addParameterDefinitions: (parameters: ParameterDefinitions) => void;
+    availableCustomGranularities: Record<string, string>;
+    addAvailableCustomGranularities: (
+        granularities: Record<string, string>,
+    ) => void;
     missingRequiredParameters: string[];
     pinnedParameters: string[];
     setPinnedParameters: (parameters: string[]) => void;
