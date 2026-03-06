@@ -354,6 +354,7 @@ export const expectedAllDashboards: DashboardBasicDetailsWithTileTypes[] = [
         views: 1,
         firstViewedAt: new Date(1),
         validationErrors: [],
+        verification: null,
         tileTypes: [DashboardTileTypes.SAVED_CHART],
     },
 ];

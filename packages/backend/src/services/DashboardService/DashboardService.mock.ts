@@ -183,6 +183,7 @@ export const dashboardsDetails: DashboardBasicDetails[] = [
         pinnedListOrder: null,
         views: 1,
         firstViewedAt: new Date(1),
+        verification: null,
     },
 ];
 

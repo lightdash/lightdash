@@ -245,7 +245,10 @@ export type DashboardBasicDetails = Pick<
     | 'firstViewedAt'
     | 'pinnedListUuid'
     | 'pinnedListOrder'
-> & { validationErrors?: ValidationSummary[] };
+> & {
+    validationErrors?: ValidationSummary[];
+    verification: ContentVerificationInfo | null;
+};
 
 export type DashboardBasicDetailsWithTileTypes = DashboardBasicDetails & {
     tileTypes: DashboardTileTypes[];
