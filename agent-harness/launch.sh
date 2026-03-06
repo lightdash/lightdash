@@ -71,16 +71,13 @@ fi
 MINIO_BUCKET="agent-${AGENT_ID}"
 log "Ensuring MinIO bucket '$MINIO_BUCKET' exists..."
 
-# Use the MinIO HTTP API to create the bucket (PUT /<bucket>)
-MINIO_ENDPOINT="http://localhost:${MINIO_PORT}"
-HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X PUT \
-    -u "minioadmin:minioadmin" \
-    "${MINIO_ENDPOINT}/${MINIO_BUCKET}/" 2>/dev/null) || true
-
-if [ "$HTTP_STATUS" = "200" ] || [ "$HTTP_STATUS" = "409" ]; then
+# Use mc inside the MinIO container (avoids needing AWS4-HMAC-SHA256 signing locally)
+MINIO_CONTAINER="agent-infra-minio-1"
+docker exec "$MINIO_CONTAINER" mc alias set local http://localhost:9000 minioadmin minioadmin >/dev/null 2>&1
+if docker exec "$MINIO_CONTAINER" mc mb --ignore-existing "local/${MINIO_BUCKET}" >/dev/null 2>&1; then
     log "MinIO bucket '$MINIO_BUCKET' is ready."
 else
-    log "Warning: MinIO bucket creation returned HTTP $HTTP_STATUS (may already exist or MinIO not ready)"
+    log "Warning: Failed to create MinIO bucket '$MINIO_BUCKET'"
 fi
 
 # ── Step 4: Git worktree (optional) ───────────────────────────────────────
