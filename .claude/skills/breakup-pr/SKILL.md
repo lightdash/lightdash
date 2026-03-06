@@ -124,7 +124,7 @@ Do NOT slice by architectural layer (e.g., "PR 1: migration", "PR 2: backend typ
 - Be independently mergeable and CI-green
 - Gate new behavior behind the shared feature flag
 - Not break existing functionality when the flag is OFF
-- Be reviewable in isolation (aim for <400 lines per PR)
+- Be reviewable in isolation (aim for <600 lines per PR)
 - Be describable as a user-facing capability (not an architectural layer)
 
 **Present the plan to the user before coding:**
@@ -235,7 +235,7 @@ gt log
 - **Different feature flags per slice** — use ONE flag for the whole feature
 - **Mixing unrelated changes** — each PR is one logical vertical
 - **Breaking existing behavior when flag is OFF** — feature-flagged code must be invisible when disabled
-- **Giant slices** — if a slice is >400 lines, break it down further
+- **Giant slices** — if a slice is >600 lines, break it down further
 - **Skipping typecheck/lint** — every slice must be CI-green independently
 - **Infrastructure-only PRs with no user-facing change** — prefer bundling infrastructure with the first slice that uses it
 
