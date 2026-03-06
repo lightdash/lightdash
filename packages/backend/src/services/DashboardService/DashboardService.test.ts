@@ -12,6 +12,7 @@ import { SlackClient } from '../../clients/Slack/SlackClient';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
+import { ContentVerificationModel } from '../../models/ContentVerificationModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -131,6 +132,7 @@ describe('DashboardService', () => {
         catalogModel: {} as CatalogModel,
         spacePermissionService:
             spacePermissionService as unknown as SpacePermissionService,
+        contentVerificationModel: {} as ContentVerificationModel,
     });
     afterEach(() => {
         jest.clearAllMocks();

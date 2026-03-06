@@ -75,3 +75,74 @@ export const useUnverifyChartMutation = () => {
         },
     );
 };
+
+// Dashboard verification
+
+const verifyDashboard = async (
+    dashboardUuid: string,
+): Promise<ContentVerificationInfo> =>
+    lightdashApi<ApiContentVerificationResponse['results']>({
+        url: `/dashboards/${dashboardUuid}/verification`,
+        method: 'POST',
+        body: undefined,
+    });
+
+const unverifyDashboard = async (dashboardUuid: string): Promise<void> => {
+    await lightdashApi<null>({
+        url: `/dashboards/${dashboardUuid}/verification`,
+        method: 'DELETE',
+        body: undefined,
+    });
+};
+
+export const useVerifyDashboardMutation = () => {
+    const { showToastSuccess, showToastApiError } = useToaster();
+    const queryClient = useQueryClient();
+
+    return useMutation<ContentVerificationInfo, ApiError, string>(
+        (dashboardUuid) => verifyDashboard(dashboardUuid),
+        {
+            mutationKey: ['dashboard_verify'],
+            onSuccess: async () => {
+                await queryClient.invalidateQueries(['spaces']);
+                await queryClient.invalidateQueries(['content']);
+                await queryClient.invalidateQueries(['dashboards']);
+                showToastSuccess({
+                    title: 'Dashboard verified',
+                });
+            },
+            onError: ({ error }) => {
+                showToastApiError({
+                    title: 'Failed to verify dashboard',
+                    apiError: error,
+                });
+            },
+        },
+    );
+};
+
+export const useUnverifyDashboardMutation = () => {
+    const { showToastSuccess, showToastApiError } = useToaster();
+    const queryClient = useQueryClient();
+
+    return useMutation<void, ApiError, string>(
+        (dashboardUuid) => unverifyDashboard(dashboardUuid),
+        {
+            mutationKey: ['dashboard_unverify'],
+            onSuccess: async () => {
+                await queryClient.invalidateQueries(['spaces']);
+                await queryClient.invalidateQueries(['content']);
+                await queryClient.invalidateQueries(['dashboards']);
+                showToastSuccess({
+                    title: 'Dashboard verification removed',
+                });
+            },
+            onError: ({ error }) => {
+                showToastApiError({
+                    title: 'Failed to remove dashboard verification',
+                    apiError: error,
+                });
+            },
+        },
+    );
+};
