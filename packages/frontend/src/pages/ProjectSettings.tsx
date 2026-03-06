@@ -18,6 +18,7 @@ import ProjectTablesConfiguration from '../components/ProjectTablesConfiguration
 import SettingsScheduler from '../components/SettingsScheduler';
 import SettingsUsageAnalytics from '../components/SettingsUsageAnalytics';
 import { SettingsValidator } from '../components/SettingsValidator';
+import VerifiedContentPanel from '../components/VerifiedContent/VerifiedContentPanel';
 import SettingsEmbed from '../ee/features/embed/SettingsEmbed';
 import { ProjectChangesets } from '../features/changesets/components/ProjectChangesets';
 import RecentlyDeletedPage from '../features/recentlyDeleted/components/RecentlyDeletedPage';
@@ -73,6 +74,10 @@ const ProjectSettings: FC = () => {
             {
                 path: `/validator`,
                 element: <SettingsValidator projectUuid={projectUuid} />,
+            },
+            {
+                path: `/verifiedContent`,
+                element: <VerifiedContentPanel projectUuid={projectUuid} />,
             },
             {
                 path: `/dataOps`,
