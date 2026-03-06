@@ -15,6 +15,7 @@ import type {
     SavedChart,
     SqlChart,
 } from '..';
+import type { ContentVerificationInfo } from './contentVerification';
 
 export const currentVersion = 1;
 
@@ -78,6 +79,8 @@ export type ChartAsCode = Omit<
     spaceSlug: string;
     /** Timestamp when this chart was downloaded from Lightdash */
     downloadedAt?: Date;
+    /** Verification status of this chart. Read-only; ignored on upload. */
+    verification?: ContentVerificationInfo | null;
 };
 
 // SQL Charts are stored separately from regular saved charts
@@ -165,6 +168,8 @@ export type DashboardAsCode = Pick<
         metrics?: DashboardFilterRule[];
         tableCalculations?: DashboardFilterRule[];
     };
+    /** Verification status of this dashboard. Read-only; ignored on upload. */
+    verification?: ContentVerificationInfo | null;
 };
 
 export type ApiDashboardAsCodeListResponse = {

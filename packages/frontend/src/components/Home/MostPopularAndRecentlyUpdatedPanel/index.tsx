@@ -4,11 +4,13 @@ import {
     ResourceViewItemType,
     wrapResource,
     type MostPopularAndRecentlyUpdated,
+    type ResourceViewItem,
 } from '@lightdash/common';
 import { Button } from '@mantine-8/core';
 import { IconChartBar, IconPlus } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import { useNavigate } from 'react-router';
+import { useContentVerificationEnabled } from '../../../hooks/useContentVerificationEnabled';
 import useCreateInAnySpaceAccess from '../../../hooks/user/useCreateInAnySpaceAccess';
 import { useVerifiedContentForHomepage } from '../../../hooks/useVerifiedContentList';
 import useApp from '../../../providers/App/useApp';
@@ -28,6 +30,7 @@ export const MostPopularAndRecentlyUpdatedPanel: FC<Props> = ({
     const MAX_NUMBER_OF_ITEMS_IN_PANEL = 10;
     const navigate = useNavigate();
     const { health } = useApp();
+    const isContentVerificationEnabled = useContentVerificationEnabled();
 
     const { data: verifiedContentData } =
         useVerifiedContentForHomepage(projectUuid);
@@ -53,18 +56,24 @@ export const MostPopularAndRecentlyUpdatedPanel: FC<Props> = ({
                 ),
                 category: ResourceItemCategory.RECENTLY_UPDATED,
             })) ?? [];
-        const verifiedItems =
-            verifiedContentData?.map((item) => ({
-                ...wrapResource(
-                    item,
-                    'chartType' in item
-                        ? ResourceViewItemType.CHART
-                        : ResourceViewItemType.DASHBOARD,
-                ),
-                category: ResourceItemCategory.VERIFIED,
-            })) ?? [];
+        const verifiedItems = isContentVerificationEnabled
+            ? (verifiedContentData?.map((item) => ({
+                  ...wrapResource(
+                      item,
+                      'chartType' in item
+                          ? ResourceViewItemType.CHART
+                          : ResourceViewItemType.DASHBOARD,
+                  ),
+                  category: ResourceItemCategory.VERIFIED,
+              })) ?? [])
+            : [];
         return [...mostPopularItems, ...recentlyUpdatedItems, ...verifiedItems];
-    }, [data?.mostPopular, data?.recentlyUpdated, verifiedContentData]);
+    }, [
+        data?.mostPopular,
+        data?.recentlyUpdated,
+        verifiedContentData,
+        isContentVerificationEnabled,
+    ]);
 
     const handleCreateChart = () => {
         void navigate(`/projects/${projectUuid}/tables`);
@@ -96,13 +105,18 @@ export const MostPopularAndRecentlyUpdatedPanel: FC<Props> = ({
                         'category' in item &&
                         item.category === ResourceItemCategory.RECENTLY_UPDATED,
                 },
-                {
-                    id: 'verified',
-                    name: 'Verified',
-                    filter: (item) =>
-                        'category' in item &&
-                        item.category === ResourceItemCategory.VERIFIED,
-                },
+                ...(isContentVerificationEnabled
+                    ? [
+                          {
+                              id: 'verified',
+                              name: 'Verified',
+                              filter: (item: ResourceViewItem) =>
+                                  'category' in item &&
+                                  item.category ===
+                                      ResourceItemCategory.VERIFIED,
+                          },
+                      ]
+                    : []),
             ]}
             listProps={{
                 enableSorting: false,

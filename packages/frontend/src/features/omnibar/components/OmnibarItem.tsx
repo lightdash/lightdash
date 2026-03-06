@@ -1,4 +1,4 @@
-import { Box, Group, Stack, Text, Tooltip } from '@mantine-8/core';
+import { Badge, Box, Group, Stack, Text } from '@mantine-8/core';
 import { IconCircleCheckFilled } from '@tabler/icons-react';
 import { type FC, type MutableRefObject } from 'react';
 import { useContentVerificationEnabled } from '../../../hooks/useContentVerificationEnabled';
@@ -61,22 +61,26 @@ const OmnibarItem: FC<Props> = ({
                 )}
             </Box>
 
-            {isContentVerificationEnabled && itemHasVerification(item) && (
-                <Tooltip label="Verified" withArrow>
-                    <IconCircleCheckFilled
-                        size={14}
-                        style={{
-                            flexShrink: 0,
-                            color: 'var(--mantine-color-green-6)',
-                        }}
-                    />
-                </Tooltip>
-            )}
-
             <Stack gap="two" className={classes.content}>
-                <Text fw={500} size="sm" truncate ref={scrollRef}>
-                    {item.prefix} {item.title}
-                </Text>
+                <Group gap="xs" wrap="nowrap">
+                    <Text fw={500} size="sm" truncate ref={scrollRef}>
+                        {item.prefix} {item.title}
+                    </Text>
+                    {isContentVerificationEnabled &&
+                        itemHasVerification(item) && (
+                            <Badge
+                                size="xs"
+                                variant="light"
+                                color="green"
+                                leftSection={
+                                    <IconCircleCheckFilled size={10} />
+                                }
+                                style={{ flexShrink: 0 }}
+                            >
+                                Verified
+                            </Badge>
+                        )}
+                </Group>
 
                 {item.description || item.typeLabel ? (
                     <Text size="xs" truncate c="dimmed">
