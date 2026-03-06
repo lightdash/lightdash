@@ -1,3 +1,10 @@
+# [0.2581.0](https://github.com/lightdash/lightdash/compare/0.2580.3...0.2581.0) (2026-03-06)
+
+
+### Features
+
+* add impersonation feature for admins ([#20075](https://github.com/lightdash/lightdash/issues/20075)) ([92c9867](https://github.com/lightdash/lightdash/commit/92c98671aeb53c5a69e7829a3176dfa1e4cfd1cf))
+
 ## [0.2580.3](https://github.com/lightdash/lightdash/compare/0.2580.2...0.2580.3) (2026-03-06)
 
 
