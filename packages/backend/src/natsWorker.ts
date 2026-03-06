@@ -1,8 +1,25 @@
-import AsyncQueryWorkerApp from './AsyncQueryWorkerApp';
+import { z } from 'zod';
 import { lightdashConfig } from './config/lightdashConfig';
 import { getEnterpriseAppArguments } from './ee';
 import knexConfig from './knexfile';
 import Logger from './logging/logger';
+import {
+    NATS_WORKER_STREAMS,
+    natsWorkerStreamSchema,
+    type NatsWorkerStream,
+} from './nats/NatsWorker';
+import NatsWorkerApp from './NatsWorkerApp';
+
+const parseStreams = (): NatsWorkerStream[] => {
+    const streams: NatsWorkerStream[] = [];
+    const args = process.argv.slice(2);
+    args.forEach((arg, i) => {
+        if (arg === '--stream' && args[i + 1]) {
+            streams.push(natsWorkerStreamSchema.parse(args[i + 1]));
+        }
+    });
+    return streams.length > 0 ? streams : [...NATS_WORKER_STREAMS];
+};
 
 process
     .on('unhandledRejection', (reason, p) => {
@@ -16,7 +33,8 @@ process
 (async () => {
     if (process.env.CI !== 'true') {
         const eeArgs = await getEnterpriseAppArguments();
-        const asyncQueryWorkerApp = new AsyncQueryWorkerApp({
+        const streams = parseStreams();
+        const natsWorkerApp = new NatsWorkerApp({
             lightdashConfig,
             port: process.env.PORT || 8082,
             environment:
@@ -24,15 +42,16 @@ process
                     ? 'development'
                     : 'production',
             knexConfig,
+            streams,
             clientProviders: eeArgs.clientProviders,
             serviceProviders: eeArgs.serviceProviders,
             modelProviders: eeArgs.modelProviders,
         });
 
-        asyncQueryWorkerApp.start().catch((e) => {
-            Logger.error('Error starting async query worker', e);
+        natsWorkerApp.start().catch((e) => {
+            Logger.error('Error starting NATS worker', e);
         });
     } else {
-        Logger.info('Not running async query worker on CI');
+        Logger.info('Not running NATS worker on CI');
     }
 })();
