@@ -87,6 +87,7 @@ Write a draft reply to send to the customer. Rules:
 - Use the customer's first name.
 - If it's a question: include the answer with links to relevant docs.
 - If it's a bug or feature request: acknowledge what they reported and let them know we're looking into it.
+- If a matching GitHub issue exists, always link to it in the customer reply so they can follow progress.
 - If you need more info from the customer, ask a specific clarifying question instead of guessing.
 - Do not be verbose. Short sentences. No filler.
 
