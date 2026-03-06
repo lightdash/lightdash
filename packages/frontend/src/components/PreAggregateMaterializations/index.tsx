@@ -47,7 +47,7 @@ import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { usePreAggregateMaterializations } from '../../hooks/usePreAggregateMaterializations';
 import {
     useRefreshAllPreAggregates,
-    useRefreshPreAggregateByName,
+    useRefreshPreAggregateByDefinitionName,
 } from '../../hooks/usePreAggregateRefresh';
 import { useProject } from '../../hooks/useProject';
 import { useTimeAgo } from '../../hooks/useTimeAgo';
@@ -165,8 +165,8 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
     const {
         mutate: refreshByName,
         isLoading: isRefreshingOne,
-        variables: refreshingExploreName,
-    } = useRefreshPreAggregateByName(projectUuid);
+        variables: refreshingDefinitionName,
+    } = useRefreshPreAggregateByDefinitionName(projectUuid);
     const [
         isRefreshModalOpen,
         { open: openRefreshModal, close: closeRefreshModal },
@@ -449,8 +449,8 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                 Cell: ({ row }) => {
                     const isThisRowRefreshing =
                         isRefreshingOne &&
-                        refreshingExploreName ===
-                            row.original.preAggExploreName;
+                        refreshingDefinitionName ===
+                            row.original.preAggregateName;
                     return (
                         <Tooltip label="Refresh this pre-aggregate">
                             <ActionIcon
@@ -461,7 +461,7 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     refreshByName(
-                                        row.original.preAggExploreName,
+                                        row.original.preAggregateName,
                                     );
                                 }}
                             >
@@ -472,7 +472,7 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                 },
             },
         ],
-        [isRefreshingOne, refreshingExploreName, refreshByName],
+        [isRefreshingOne, refreshingDefinitionName, refreshByName],
     );
 
     const table = useMantineReactTable({
@@ -685,7 +685,8 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                 onRefresh={refreshByName}
                 isRefreshing={
                     isRefreshingOne &&
-                    refreshingExploreName === selectedSummary?.preAggExploreName
+                    refreshingDefinitionName ===
+                        selectedSummary?.preAggregateName
                 }
             />
 

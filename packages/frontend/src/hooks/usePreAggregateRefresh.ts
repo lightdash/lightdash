@@ -10,16 +10,6 @@ const refreshAllPreAggregates = async (projectUuid: string) =>
         body: undefined,
     });
 
-const refreshPreAggregateByName = async (
-    projectUuid: string,
-    preAggExploreName: string,
-) =>
-    lightdashApi<{ jobIds: string[] }>({
-        url: `/projects/${projectUuid}/pre-aggregates/${encodeURIComponent(preAggExploreName)}/refresh`,
-        method: 'POST',
-        body: undefined,
-    });
-
 export const useRefreshAllPreAggregates = (projectUuid: string) => {
     const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
@@ -49,15 +39,33 @@ export const useRefreshAllPreAggregates = (projectUuid: string) => {
     );
 };
 
-export const useRefreshPreAggregateByName = (projectUuid: string) => {
+const refreshPreAggregateByDefinitionName = async (
+    projectUuid: string,
+    preAggregateDefinitionName: string,
+) =>
+    lightdashApi<{ jobIds: string[] }>({
+        url: `/projects/${projectUuid}/pre-aggregates/definitions/${encodeURIComponent(preAggregateDefinitionName)}/refresh`,
+        method: 'POST',
+        body: undefined,
+    });
+
+export const useRefreshPreAggregateByDefinitionName = (
+    projectUuid: string,
+) => {
     const { showToastApiError, showToastInfo } = useToaster();
     const queryClient = useQueryClient();
 
     return useMutation<{ jobIds: string[] }, ApiError, string>(
-        (preAggExploreName) =>
-            refreshPreAggregateByName(projectUuid, preAggExploreName),
+        (preAggregateDefinitionName) =>
+            refreshPreAggregateByDefinitionName(
+                projectUuid,
+                preAggregateDefinitionName,
+            ),
         {
-            mutationKey: ['refreshPreAggregate', projectUuid],
+            mutationKey: [
+                'refreshPreAggregateByDefinitionName',
+                projectUuid,
+            ],
             onSuccess: async () => {
                 showToastInfo({
                     title: 'Pre-aggregate refresh started',

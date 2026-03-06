@@ -95,7 +95,7 @@ type Props = {
     summary: PreAggregateMaterializationSummary | null;
     opened: boolean;
     onClose: () => void;
-    onRefresh: (preAggExploreName: string) => void;
+    onRefresh: (preAggregateName: string) => void;
     isRefreshing: boolean;
 };
 
@@ -234,7 +234,7 @@ const MaterializationDetailDrawer: FC<Props> = ({
                                         size="sm"
                                         loading={isRefreshing}
                                         onClick={() =>
-                                            onRefresh(summary.preAggExploreName)
+                                            onRefresh(summary.preAggregateName)
                                         }
                                     >
                                         <MantineIcon
