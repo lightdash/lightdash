@@ -35,6 +35,7 @@ import {
     IconPencil,
     IconPin,
     IconPinnedOff,
+    IconRefresh,
     IconSend,
     IconStar,
     IconStarFilled,
@@ -77,6 +78,7 @@ import {
     DASHBOARD_HEADER_ZINDEX,
 } from './dashboard.constants';
 import headerClasses from './DashboardHeader.module.css';
+import DashboardPreAggRefreshModal from './DashboardPreAggRefreshModal';
 import { DashboardRefreshButton } from './DashboardRefreshButton';
 import { PreAggregateAuditDrawer } from './PreAggregateAuditIndicator';
 
@@ -163,6 +165,18 @@ const DashboardHeader = ({
     const [isTransferToSpaceModalOpen, transferToSpaceModalHandlers] =
         useDisclosure(false);
     const [isPreAggAuditOpen, preAggAuditHandlers] = useDisclosure(false);
+    const [isPreAggRefreshOpen, preAggRefreshHandlers] = useDisclosure(false);
+
+    const uniquePreAggregateNames = useMemo(() => {
+        if (!preAggregateStatuses) return [];
+        return [
+            ...new Set(
+                Object.values(preAggregateStatuses)
+                    .filter((s) => s.hit && s.preAggregateName !== null)
+                    .map((s) => s.preAggregateName as string),
+            ),
+        ];
+    }, [preAggregateStatuses]);
     const handleEditClick = () => {
         setIsUpdating(true);
         track({ name: EventName.UPDATE_DASHBOARD_NAME_CLICKED });
@@ -239,6 +253,11 @@ const DashboardHeader = ({
         'manage',
         subject('Dashboard', dashboard),
     );
+    const userCanRefreshPreAggregates =
+        user.data?.ability.can(
+            'create',
+            subject('Job', { organizationUuid, projectUuid }),
+        ) && user.data?.ability.can('manage', 'CompileProject');
     const userCanCreateDeliveries = user.data?.ability?.can(
         'create',
         subject('ScheduledDeliveries', {
@@ -670,6 +689,25 @@ const DashboardHeader = ({
                                                     >
                                                         Pre-aggregation audit
                                                     </Menu.Item>
+                                                    {userCanRefreshPreAggregates &&
+                                                        uniquePreAggregateNames.length >
+                                                            0 && (
+                                                            <Menu.Item
+                                                                leftSection={
+                                                                    <MantineIcon
+                                                                        icon={
+                                                                            IconRefresh
+                                                                        }
+                                                                    />
+                                                                }
+                                                                onClick={
+                                                                    preAggRefreshHandlers.open
+                                                                }
+                                                            >
+                                                                Refresh
+                                                                pre-aggregates
+                                                            </Menu.Item>
+                                                        )}
                                                     <Menu.Divider />
                                                 </>
                                             )}
@@ -866,6 +904,16 @@ const DashboardHeader = ({
                     onSwitchTab={(tab) => onSwitchTab?.(tab)}
                 />
             )}
+            {preAggregatesEnabled &&
+                projectUuid &&
+                uniquePreAggregateNames.length > 0 && (
+                    <DashboardPreAggRefreshModal
+                        opened={isPreAggRefreshOpen}
+                        onClose={preAggRefreshHandlers.close}
+                        projectUuid={projectUuid}
+                        preAggregateNames={uniquePreAggregateNames}
+                    />
+                )}
         </PageHeader>
     );
 };
