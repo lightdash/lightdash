@@ -754,7 +754,6 @@ describe('AsyncQueryService', () => {
                         nats: {
                             ...lightdashConfigMock.asyncQuery.nats,
                             enabled: true,
-                            customerId: 'customer-a',
                         },
                     },
                 },
@@ -844,7 +843,6 @@ describe('AsyncQueryService', () => {
                         nats: {
                             ...lightdashConfigMock.asyncQuery.nats,
                             enabled: true,
-                            customerId: 'customer-a',
                         },
                     },
                 },

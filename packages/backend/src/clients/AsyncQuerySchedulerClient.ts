@@ -3,9 +3,9 @@ import * as Sentry from '@sentry/node';
 import { connect, headers, StringCodec, type JetStreamClient } from 'nats';
 import { v4 as uuidv4 } from 'uuid';
 import {
-    ASYNC_QUERY_NATS_HEADERS,
-    getPreAggregateQuerySubject,
-    getWarehouseQuerySubject,
+    NATS_HEADERS,
+    PRE_AGGREGATE_QUERY_SUBJECT,
+    WAREHOUSE_QUERY_SUBJECT,
     type AsyncQueryNatsEnvelope,
     type RunAsyncPreAggregateQueryJobPayload,
     type RunAsyncWarehouseQueryJobPayload,
@@ -37,16 +37,6 @@ export class AsyncQuerySchedulerClient implements IAsyncQuerySchedulerClient {
 
     constructor(args: AsyncQuerySchedulerClientArguments) {
         this.natsConfig = args.lightdashConfig.asyncQuery.nats;
-    }
-
-    private getCustomerId(): string {
-        if (!this.natsConfig.customerId) {
-            throw new Error(
-                'ASYNC_QUERY_NATS_CUSTOMER_ID is required to publish async query jobs',
-            );
-        }
-
-        return this.natsConfig.customerId;
     }
 
     private async getJetStreamClient(): Promise<JetStreamClient> {
@@ -103,22 +93,16 @@ export class AsyncQuerySchedulerClient implements IAsyncQuerySchedulerClient {
                 };
 
                 const natsHeaders = headers();
-                natsHeaders.set(ASYNC_QUERY_NATS_HEADERS.JOB_ID, jobId);
+                natsHeaders.set(NATS_HEADERS.JOB_ID, jobId);
                 natsHeaders.set(
-                    ASYNC_QUERY_NATS_HEADERS.SENTRY_MESSAGE_ID,
+                    NATS_HEADERS.SENTRY_MESSAGE_ID,
                     sentryMessageId,
                 );
                 if (traceHeader) {
-                    natsHeaders.set(
-                        ASYNC_QUERY_NATS_HEADERS.SENTRY_TRACE,
-                        traceHeader,
-                    );
+                    natsHeaders.set(NATS_HEADERS.SENTRY_TRACE, traceHeader);
                 }
                 if (baggageHeader) {
-                    natsHeaders.set(
-                        ASYNC_QUERY_NATS_HEADERS.BAGGAGE,
-                        baggageHeader,
-                    );
+                    natsHeaders.set(NATS_HEADERS.BAGGAGE, baggageHeader);
                 }
 
                 try {
@@ -146,18 +130,12 @@ export class AsyncQuerySchedulerClient implements IAsyncQuerySchedulerClient {
     async enqueueWarehouseQuery(
         payload: RunAsyncWarehouseQueryJobPayload,
     ): Promise<{ jobId: string }> {
-        return this.enqueue(
-            getWarehouseQuerySubject(this.getCustomerId()),
-            payload,
-        );
+        return this.enqueue(WAREHOUSE_QUERY_SUBJECT, payload);
     }
 
     async enqueuePreAggregateQuery(
         payload: RunAsyncPreAggregateQueryJobPayload,
     ): Promise<{ jobId: string }> {
-        return this.enqueue(
-            getPreAggregateQuerySubject(this.getCustomerId()),
-            payload,
-        );
+        return this.enqueue(PRE_AGGREGATE_QUERY_SUBJECT, payload);
     }
 }
