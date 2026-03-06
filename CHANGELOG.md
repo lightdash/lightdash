@@ -1,3 +1,10 @@
+## [0.2580.3](https://github.com/lightdash/lightdash/compare/0.2580.2...0.2580.3) (2026-03-06)
+
+
+### Bug Fixes
+
+* dont allow x-axis to be the same as group by ([#20827](https://github.com/lightdash/lightdash/issues/20827)) ([41c5609](https://github.com/lightdash/lightdash/commit/41c56090a3f304737d853bfe00c5ac98313dbd0f))
+
 ## [0.2580.2](https://github.com/lightdash/lightdash/compare/0.2580.1...0.2580.2) (2026-03-06)
 
 
