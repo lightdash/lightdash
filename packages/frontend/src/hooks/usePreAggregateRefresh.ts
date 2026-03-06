@@ -1,7 +1,13 @@
 import { type ApiError } from '@lightdash/common';
+import { IconLayersIntersect } from '@tabler/icons-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../api';
+import useSchedulerJobsContext from '../providers/SchedulerJobs/useSchedulerJobsContext';
 import useToaster from './toaster/useToaster';
+
+type RefreshOptions = {
+    showToast?: boolean;
+};
 
 const refreshAllPreAggregates = async (projectUuid: string) =>
     lightdashApi<{ jobIds: string[] }>({
@@ -10,24 +16,35 @@ const refreshAllPreAggregates = async (projectUuid: string) =>
         body: undefined,
     });
 
-export const useRefreshAllPreAggregates = (projectUuid: string) => {
-    const { showToastSuccess, showToastApiError } = useToaster();
+export const useRefreshAllPreAggregates = (
+    projectUuid: string,
+    options: RefreshOptions = {},
+) => {
+    const { showToast = true } = options;
+    const { showToastApiError } = useToaster();
+    const { registerJobs } = useSchedulerJobsContext();
     const queryClient = useQueryClient();
 
     return useMutation<{ jobIds: string[] }, ApiError>(
         () => refreshAllPreAggregates(projectUuid),
         {
             mutationKey: ['refreshAllPreAggregates', projectUuid],
-            onSuccess: async () => {
-                showToastSuccess({
-                    title: 'Pre-aggregate refresh started',
-                    subtitle:
-                        'All pre-aggregates are being refreshed in the background.',
+            onSuccess: (data) => {
+                registerJobs({
+                    jobIds: data.jobIds,
+                    showToast,
+                    toastKey: 'pre-aggregate-refresh',
+                    toastTitle: 'Pre-aggregate refresh',
+                    toastIcon: IconLayersIntersect,
+                    onComplete: () => {
+                        void queryClient.invalidateQueries({
+                            queryKey: [
+                                'preAggregateMaterializations',
+                                projectUuid,
+                            ],
+                        });
+                    },
                 });
-                await queryClient.invalidateQueries([
-                    'preAggregateMaterializations',
-                    projectUuid,
-                ]);
             },
             onError: ({ error }) => {
                 showToastApiError({
@@ -51,8 +68,11 @@ const refreshPreAggregateByDefinitionName = async (
 
 export const useRefreshPreAggregateByDefinitionName = (
     projectUuid: string,
+    options: RefreshOptions = {},
 ) => {
-    const { showToastApiError, showToastInfo } = useToaster();
+    const { showToast = true } = options;
+    const { showToastApiError } = useToaster();
+    const { registerJobs } = useSchedulerJobsContext();
     const queryClient = useQueryClient();
 
     return useMutation<{ jobIds: string[] }, ApiError, string>(
@@ -62,20 +82,24 @@ export const useRefreshPreAggregateByDefinitionName = (
                 preAggregateDefinitionName,
             ),
         {
-            mutationKey: [
-                'refreshPreAggregateByDefinitionName',
-                projectUuid,
-            ],
-            onSuccess: async () => {
-                showToastInfo({
-                    title: 'Pre-aggregate refresh started',
-                    subtitle:
-                        'The pre-aggregate is being refreshed in the background.',
+            mutationKey: ['refreshPreAggregateByDefinitionName', projectUuid],
+            onSuccess: (data, preAggregateDefinitionName) => {
+                registerJobs({
+                    jobIds: data.jobIds,
+                    label: preAggregateDefinitionName,
+                    showToast,
+                    toastKey: 'pre-aggregate-refresh',
+                    toastTitle: 'Pre-aggregate refresh',
+                    toastIcon: IconLayersIntersect,
+                    onComplete: () => {
+                        void queryClient.invalidateQueries({
+                            queryKey: [
+                                'preAggregateMaterializations',
+                                projectUuid,
+                            ],
+                        });
+                    },
                 });
-                await queryClient.invalidateQueries([
-                    'preAggregateMaterializations',
-                    projectUuid,
-                ]);
             },
             onError: ({ error }) => {
                 showToastApiError({

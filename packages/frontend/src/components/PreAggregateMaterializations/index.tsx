@@ -35,7 +35,6 @@ import {
     IconSearch,
     IconTable,
 } from '@tabler/icons-react';
-import { useQueryClient } from '@tanstack/react-query';
 import cronstrue from 'cronstrue';
 import {
     MantineReactTable,
@@ -51,6 +50,7 @@ import {
 } from '../../hooks/usePreAggregateRefresh';
 import { useProject } from '../../hooks/useProject';
 import { useTimeAgo } from '../../hooks/useTimeAgo';
+import useSchedulerJobsContext from '../../providers/SchedulerJobs/useSchedulerJobsContext';
 import MantineIcon from '../common/MantineIcon';
 import MantineModal from '../common/MantineModal';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
@@ -159,14 +159,16 @@ const StatusFilter: FC<{
 
 const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
     const { isLoading: isLoadingProject } = useProject(projectUuid);
-    const queryClient = useQueryClient();
+    const { hasActiveJobs } = useSchedulerJobsContext();
     const { mutate: refreshAll, isLoading: isRefreshingAll } =
-        useRefreshAllPreAggregates(projectUuid);
+        useRefreshAllPreAggregates(projectUuid, { showToast: true });
     const {
         mutate: refreshByName,
         isLoading: isRefreshingOne,
         variables: refreshingDefinitionName,
-    } = useRefreshPreAggregateByDefinitionName(projectUuid);
+    } = useRefreshPreAggregateByDefinitionName(projectUuid, {
+        showToast: false,
+    });
     const [
         isRefreshModalOpen,
         { open: openRefreshModal, close: closeRefreshModal },
@@ -198,13 +200,6 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
         hasNextPage,
         isFetchingNextPage,
     } = usePreAggregateMaterializations(projectUuid);
-
-    const handleRefresh = () => {
-        void queryClient.invalidateQueries([
-            'preAggregateMaterializations',
-            projectUuid,
-        ]);
-    };
 
     useEffect(() => {
         if (hasNextPage && !isFetchingNextPage) {
@@ -540,16 +535,6 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                     <Text size="xs" c="dimmed">
                         {summary.active}/{summary.total} active
                     </Text>
-                    <Tooltip label="Refresh">
-                        <ActionIcon
-                            variant="subtle"
-                            color="gray"
-                            size="sm"
-                            onClick={handleRefresh}
-                        >
-                            <MantineIcon icon={IconRefresh} />
-                        </ActionIcon>
-                    </Tooltip>
                 </Group>
             </Group>
         ),
@@ -657,7 +642,7 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                             leftSection={
                                 <MantineIcon icon={IconRefresh} size="sm" />
                             }
-                            loading={isRefreshingAll}
+                            loading={isRefreshingAll || hasActiveJobs}
                             onClick={handleRefreshAllClick}
                         >
                             Refresh all
