@@ -144,6 +144,7 @@ const parseChartFromExplorerSearchParams = (
             JSON.parse(chartConfigSearchParam);
         return {
             ...parsedValue,
+            tableConfig: parsedValue.tableConfig ?? { columnOrder: [] },
             metricQuery: {
                 ...parsedValue.metricQuery,
                 exploreName:
