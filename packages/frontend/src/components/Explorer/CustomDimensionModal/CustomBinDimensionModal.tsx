@@ -32,7 +32,7 @@ import {
     IconX,
 } from '@tabler/icons-react';
 import cloneDeep from 'lodash/cloneDeep';
-import { useEffect, useMemo, type FC } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { z } from 'zod';
 import {
     explorerActions,
@@ -280,6 +280,32 @@ export const CustomBinDimensionModal: FC<{
         toggleModal();
         form.reset();
     };
+
+    const [focusTarget, setFocusTarget] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (focusTarget) {
+            const el = document.querySelector<HTMLInputElement>(
+                `[data-focus-id="${focusTarget}"]`,
+            );
+            el?.focus();
+            setFocusTarget(null);
+        }
+    }, [focusTarget]);
+
+    const addValueToGroup = useCallback(
+        (groupIndex: number, afterValueIndex?: number) => {
+            const newGroups = cloneDeep(form.values.binConfig.customGroups);
+            const insertAt =
+                afterValueIndex !== undefined
+                    ? afterValueIndex + 1
+                    : newGroups[groupIndex].values.length;
+            newGroups[groupIndex].values.splice(insertAt, 0, '');
+            form.setFieldValue('binConfig.customGroups', newGroups);
+            setFocusTarget(`custom-group-${groupIndex}-value-${insertAt}`);
+        },
+        [form],
+    );
 
     const hasEmptyGroups =
         form.values.binType === BinType.CUSTOM_GROUP &&
@@ -568,6 +594,14 @@ export const CustomBinDimensionModal: FC<{
                                                 {...form.getInputProps(
                                                     `binConfig.customGroups.${groupIndex}.name`,
                                                 )}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') {
+                                                        e.preventDefault();
+                                                        addValueToGroup(
+                                                            groupIndex,
+                                                        );
+                                                    }
+                                                }}
                                             />
                                             {form.values.binConfig.customGroups
                                                 .length > 1 && (
@@ -608,9 +642,22 @@ export const CustomBinDimensionModal: FC<{
                                                         flex={1}
                                                         size="xs"
                                                         placeholder="Enter a value"
+                                                        data-focus-id={`custom-group-${groupIndex}-value-${valueIndex}`}
                                                         {...form.getInputProps(
                                                             `binConfig.customGroups.${groupIndex}.values.${valueIndex}`,
                                                         )}
+                                                        onKeyDown={(e) => {
+                                                            if (
+                                                                e.key ===
+                                                                'Enter'
+                                                            ) {
+                                                                e.preventDefault();
+                                                                addValueToGroup(
+                                                                    groupIndex,
+                                                                    valueIndex,
+                                                                );
+                                                            }
+                                                        }}
                                                     />
                                                     {form.values.binConfig
                                                         .customGroups.length >
@@ -725,19 +772,9 @@ export const CustomBinDimensionModal: FC<{
                                             style={{
                                                 alignSelf: 'flex-start',
                                             }}
-                                            onClick={() => {
-                                                const newGroups = cloneDeep(
-                                                    form.values.binConfig
-                                                        .customGroups,
-                                                );
-                                                newGroups[
-                                                    groupIndex
-                                                ].values.push('');
-                                                form.setFieldValue(
-                                                    'binConfig.customGroups',
-                                                    newGroups,
-                                                );
-                                            }}
+                                            onClick={() =>
+                                                addValueToGroup(groupIndex)
+                                            }
                                         >
                                             + Add a value
                                         </Button>
