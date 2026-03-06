@@ -14,9 +14,86 @@ env:
 
 jobs:
   # ============================================================================
+  # Job 0: Rebuild dbt-versions image if dbt-versions.json changed
+  # ============================================================================
+  check-dbt-changes:
+    name: Check if dbt versions changed
+    runs-on: depot-ubuntu-24.04-4
+    outputs:
+      should_build: ${{ steps.check.outputs.should_build }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.release.tag_name }}
+
+      - name: Check for dbt-versions.json changes
+        id: check
+        run: |
+          CURRENT_TAG="${{ github.event.release.tag_name }}"
+          PREVIOUS_TAG=$(git tag --sort=-version:refname | grep -A1 "^${CURRENT_TAG}$" | tail -1)
+
+          if [ -z "$PREVIOUS_TAG" ] || [ "$PREVIOUS_TAG" = "$CURRENT_TAG" ]; then
+            echo "No previous tag found, building dbt image"
+            echo "should_build=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "Comparing $PREVIOUS_TAG to $CURRENT_TAG"
+
+          CHANGED=$(git diff --name-only "$PREVIOUS_TAG" "$CURRENT_TAG" -- docker/dbt-versions.json docker/Dockerfile.dbt docker/install-dbt.sh || true)
+
+          if [ -n "$CHANGED" ]; then
+            echo "dbt files changed:"
+            echo "$CHANGED"
+            echo "should_build=true" >> $GITHUB_OUTPUT
+          elif docker manifest inspect lightdash/dbt-versions:latest > /dev/null 2>&1; then
+            echo "No dbt changes and image exists in registry, skipping build"
+            echo "should_build=false" >> $GITHUB_OUTPUT
+          else
+            echo "No dbt changes but image not found in registry, building"
+            echo "should_build=true" >> $GITHUB_OUTPUT
+          fi
+
+  build-dbt-image:
+    name: Build and Push dbt-versions Image
+    needs: check-dbt-changes
+    if: needs.check-dbt-changes.outputs.should_build == 'true'
+    runs-on: depot-ubuntu-24.04-4
+    outputs:
+      dbt_version_image: lightdash/dbt-versions:${{ github.event.release.tag_name }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name }}
+
+      - name: Set up Depot CLI
+        uses: depot/setup-action@v1
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push dbt-versions image
+        uses: depot/build-push-action@v1
+        with:
+          project: bgbbt3d0kc
+          token: ${{ secrets.DEPOT_PROJECT_TOKEN }}
+          file: docker/Dockerfile.dbt
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: |
+            lightdash/dbt-versions:latest
+            lightdash/dbt-versions:${{ github.event.release.tag_name }}
+
+  # ============================================================================
   # Job 1: Build and push Docker images with multiple tags
   # ============================================================================
   build-and-push-images:
+    needs: [check-dbt-changes, build-dbt-image]
+    if: always() && !failure() && !cancelled()
     name: Build and Push Images
     runs-on: depot-ubuntu-24.04-4
     steps:
@@ -26,6 +103,24 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
           ref: ${{ github.event.release.tag_name }}
+
+      # ========================================
+      # Resolve which dbt-versions image to use
+      # ========================================
+      - name: Resolve dbt-versions image
+        id: dbt
+        run: |
+          # If build-dbt-image ran, use the pinned release tag for traceability.
+          # Otherwise use :latest.
+          if [ -n "${{ needs.build-dbt-image.outputs.dbt_version_image }}" ]; then
+            IMG="${{ needs.build-dbt-image.outputs.dbt_version_image }}"
+            echo "dbt-versions image was just built: $IMG"
+          else
+            IMG="lightdash/dbt-versions:latest"
+            echo "dbt-versions build was skipped, using $IMG"
+          fi
+
+          echo "dbt_version_image=$IMG" >> $GITHUB_OUTPUT
 
       # ========================================
       # Set up version and timestamp for tagging
@@ -112,6 +207,7 @@ jobs:
             europe-west2-docker.pkg.dev/lightdash-containers/lightdash/lightdash:${{ steps.version.outputs.timestamp }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
+            DBT_VERSION_IMAGE=${{ steps.dbt.outputs.dbt_version_image }}
             SENTRY_AUTH_TOKEN=${{ secrets.SENTRY_AUTH_TOKEN }}
             SENTRY_ORG=lightdash
             SENTRY_RELEASE_VERSION=${{ steps.version.outputs.version }}

@@ -177,6 +177,19 @@ jobs:
     outputs:
       url: ${{ steps.deploy.outputs.url }}
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check if dbt-versions.json changed
+        id: dbt-check
+        run: |
+          if git diff --name-only origin/${{ github.event.pull_request.base.ref }}...HEAD -- docker/dbt-versions.json docker/Dockerfile.dbt docker/install-dbt.sh | grep -q .; then
+            echo "dbt_version_image=dbt-builder" >> $GITHUB_OUTPUT
+          else
+            echo "dbt_version_image=lightdash/dbt-versions:latest" >> $GITHUB_OUTPUT
+          fi
+
       - name: Context
         uses: okteto/context@latest
         with:
@@ -201,7 +214,7 @@ jobs:
           name: pr-${{ github.event.number }}
           timeout: 15m
           file: okteto.preview.yaml
-          variables: SITE_URL=https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev
+          variables: "SITE_URL=https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev,DBT_VERSION_IMAGE=${{ steps.dbt-check.outputs.dbt_version_image }}"
 
       - name: Set preview URL output
         run: echo "url=https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev" >> "$GITHUB_OUTPUT"
