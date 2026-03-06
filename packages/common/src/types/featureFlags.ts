@@ -98,6 +98,11 @@ export enum FeatureFlags {
      * Enable custom group bins for string dimensions
      */
     CustomGroupBins = 'custom-group-bins',
+
+    /**
+     * Enable content verification (verified seal for charts and dashboards)
+     */
+    ContentVerification = 'content-verification',
 }
 
 export type FeatureFlag = {
