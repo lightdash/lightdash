@@ -88,7 +88,10 @@ import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
 import { useProject } from '../../../hooks/useProject';
 import { useUpdateMutation } from '../../../hooks/useSavedQuery';
 import useSearchParams from '../../../hooks/useSearchParams';
-import { useClientFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
+import {
+    useClientFeatureFlag,
+    useServerFeatureFlag,
+} from '../../../hooks/useServerOrClientFeatureFlag';
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
 import {
@@ -357,7 +360,14 @@ const SavedChartsHeader: FC = () => {
         }),
     );
 
+    const { data: contentVerificationFlag } = useServerFeatureFlag(
+        FeatureFlags.ContentVerification,
+    );
+    const isContentVerificationEnabled =
+        contentVerificationFlag?.enabled ?? false;
+
     const canManageContentVerification =
+        isContentVerificationEnabled &&
         user.data?.ability?.can(
             'manage',
             subject('ContentVerification', {
@@ -370,6 +380,7 @@ const SavedChartsHeader: FC = () => {
     const { mutate: unverifyChart } = useUnverifyChartMutation();
 
     const isChartVerified =
+        isContentVerificationEnabled &&
         savedChart?.verification !== null &&
         savedChart?.verification !== undefined;
 

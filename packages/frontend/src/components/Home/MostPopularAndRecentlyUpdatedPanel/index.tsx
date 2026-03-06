@@ -1,15 +1,18 @@
 import {
+    FeatureFlags,
     LightdashMode,
     ResourceItemCategory,
     ResourceViewItemType,
     wrapResource,
     type MostPopularAndRecentlyUpdated,
+    type ResourceViewItem,
 } from '@lightdash/common';
 import { Button } from '@mantine-8/core';
 import { IconChartBar, IconPlus } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import useCreateInAnySpaceAccess from '../../../hooks/user/useCreateInAnySpaceAccess';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { useVerifiedContentForHomepage } from '../../../hooks/useVerifiedContentList';
 import useApp from '../../../providers/App/useApp';
 import MantineIcon from '../../common/MantineIcon';
@@ -29,8 +32,15 @@ export const MostPopularAndRecentlyUpdatedPanel: FC<Props> = ({
     const navigate = useNavigate();
     const { health } = useApp();
 
-    const { data: verifiedContentData } =
-        useVerifiedContentForHomepage(projectUuid);
+    const { data: contentVerificationFlag } = useServerFeatureFlag(
+        FeatureFlags.ContentVerification,
+    );
+    const isContentVerificationEnabled =
+        contentVerificationFlag?.enabled ?? false;
+
+    const { data: verifiedContentData } = useVerifiedContentForHomepage(
+        isContentVerificationEnabled ? projectUuid : undefined,
+    );
 
     const allItems = useMemo(() => {
         const mostPopularItems =
@@ -96,13 +106,21 @@ export const MostPopularAndRecentlyUpdatedPanel: FC<Props> = ({
                         'category' in item &&
                         item.category === ResourceItemCategory.RECENTLY_UPDATED,
                 },
-                {
-                    id: 'verified',
-                    name: 'Verified',
-                    filter: (item) =>
-                        'category' in item &&
-                        item.category === ResourceItemCategory.VERIFIED,
-                },
+                ...(isContentVerificationEnabled
+                    ? [
+                          {
+                              id: 'verified',
+                              name: 'Verified',
+                              filter: (item: ResourceViewItem) =>
+                                  'category' in item &&
+                                  (
+                                      item as ResourceViewItem & {
+                                          category: ResourceItemCategory;
+                                      }
+                                  ).category === ResourceItemCategory.VERIFIED,
+                          },
+                      ]
+                    : []),
             ]}
             listProps={{
                 enableSorting: false,
