@@ -4823,10 +4823,6 @@ export default class SchedulerTask {
         });
 
         try {
-            if (!this.lightdashConfig.googleChat.enabled) {
-                throw new MissingConfigError('Google Chat is not configured');
-            }
-
             const {
                 format,
                 savedChartUuid,
