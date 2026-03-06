@@ -58,8 +58,10 @@ const SpaceSelector = ({
             case 'all':
                 return spaces;
             case 'shared':
-                return spaces.filter((space) =>
-                    space.access.includes(user.data.userUuid),
+                return spaces.filter(
+                    (space) =>
+                        space.inheritParentPermissions ||
+                        space.access.includes(user.data.userUuid),
                 );
             default:
                 return assertUnreachable(
