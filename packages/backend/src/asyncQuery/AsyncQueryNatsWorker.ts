@@ -13,11 +13,13 @@ import { type LightdashConfig } from '../config/parseConfig';
 import Logger from '../logging/logger';
 import { AsyncQueryService } from '../services/AsyncQueryService/AsyncQueryService';
 import {
-    ASYNC_QUERY_NATS_HEADERS,
-    getPreAggregateQuerySubject,
-    getPreAggregateWorkerDurableName,
-    getWarehouseQuerySubject,
-    getWarehouseWorkerDurableName,
+    NATS_HEADERS,
+    PRE_AGGREGATE_QUERY_SUBJECT,
+    PRE_AGGREGATE_STREAM_NAME,
+    PRE_AGGREGATE_WORKER_DURABLE_NAME,
+    WAREHOUSE_QUERY_SUBJECT,
+    WAREHOUSE_STREAM_NAME,
+    WAREHOUSE_WORKER_DURABLE_NAME,
     type AsyncQueryPreAggregateJobMessage,
     type AsyncQueryWarehouseJobMessage,
     type RunAsyncPreAggregateQueryJobPayload,
@@ -134,27 +136,19 @@ export class AsyncQueryNatsWorker {
     public isRunning = false;
 
     constructor(args: AsyncQueryNatsWorkerArgs) {
-        const { customerId } = args.lightdashConfig.asyncQuery.nats;
-        if (!customerId) {
-            throw new Error(
-                'ASYNC_QUERY_NATS_CUSTOMER_ID is required for async query worker',
-            );
-        }
-
         this.asyncQueryService = args.asyncQueryService;
         this.natsConfig = args.lightdashConfig.asyncQuery.nats;
         this.workerConcurrency = this.natsConfig.workerConcurrency;
-        this.warehouseSubject = getWarehouseQuerySubject(customerId);
-        this.warehouseConsumer = getWarehouseWorkerDurableName(customerId);
-        this.preAggregateSubject = getPreAggregateQuerySubject(customerId);
-        this.preAggregateConsumer =
-            getPreAggregateWorkerDurableName(customerId);
+        this.warehouseSubject = WAREHOUSE_QUERY_SUBJECT;
+        this.warehouseConsumer = WAREHOUSE_WORKER_DURABLE_NAME;
+        this.preAggregateSubject = PRE_AGGREGATE_QUERY_SUBJECT;
+        this.preAggregateConsumer = PRE_AGGREGATE_WORKER_DURABLE_NAME;
     }
 
     public async run(): Promise<void> {
         if (!this.natsConfig.enabled) {
             throw new Error(
-                'ASYNC_QUERY_NATS_ENABLED must be true to run async query worker',
+                'NATS_ENABLED must be true to run async query worker',
             );
         }
 
@@ -164,23 +158,20 @@ export class AsyncQueryNatsWorker {
         const jetStream = this.connection.jetstream();
 
         this.warehouseJetStreamConsumer = await jetStream.consumers
-            .get(this.natsConfig.warehouseStreamName, this.warehouseConsumer)
+            .get(WAREHOUSE_STREAM_NAME, this.warehouseConsumer)
             .catch((error) => {
                 Logger.error(
-                    `Failed to load JetStream consumer "${this.warehouseConsumer}" on stream "${this.natsConfig.warehouseStreamName}". Ensure stream and durable consumer are bootstrapped before startup.`,
+                    `Failed to load JetStream consumer "${this.warehouseConsumer}" on stream "${WAREHOUSE_STREAM_NAME}". Ensure stream and durable consumer are bootstrapped before startup.`,
                     error,
                 );
                 throw error;
             });
 
         this.preAggregateJetStreamConsumer = await jetStream.consumers
-            .get(
-                this.natsConfig.preAggregateStreamName,
-                this.preAggregateConsumer,
-            )
+            .get(PRE_AGGREGATE_STREAM_NAME, this.preAggregateConsumer)
             .catch((error) => {
                 Logger.error(
-                    `Failed to load JetStream consumer "${this.preAggregateConsumer}" on stream "${this.natsConfig.preAggregateStreamName}". Ensure stream and durable consumer are bootstrapped before startup.`,
+                    `Failed to load JetStream consumer "${this.preAggregateConsumer}" on stream "${PRE_AGGREGATE_STREAM_NAME}". Ensure stream and durable consumer are bootstrapped before startup.`,
                     error,
                 );
                 throw error;
@@ -189,7 +180,7 @@ export class AsyncQueryNatsWorker {
         this.isRunning = true;
 
         Logger.info(
-            `Async query worker started. warehouse: stream=${this.natsConfig.warehouseStreamName} durable=${this.warehouseConsumer} subject=${this.warehouseSubject}, pre-aggregate: stream=${this.natsConfig.preAggregateStreamName} durable=${this.preAggregateConsumer} subject=${this.preAggregateSubject}, concurrency=${this.workerConcurrency}`,
+            `Async query worker started. warehouse: stream=${WAREHOUSE_STREAM_NAME} durable=${this.warehouseConsumer} subject=${this.warehouseSubject}, pre-aggregate: stream=${PRE_AGGREGATE_STREAM_NAME} durable=${this.preAggregateConsumer} subject=${this.preAggregateSubject}, concurrency=${this.workerConcurrency}`,
         );
 
         const warehouseWorkerLoops = Array.from(
@@ -403,18 +394,16 @@ export class AsyncQueryNatsWorker {
                 return {
                     payload:
                         parsedPayload.data as RunAsyncWarehouseQueryJobPayload,
-                    jobId: message.headers?.get(
-                        ASYNC_QUERY_NATS_HEADERS.JOB_ID,
-                    ),
+                    jobId: message.headers?.get(NATS_HEADERS.JOB_ID),
                     trace: {
                         traceHeader: message.headers?.get(
-                            ASYNC_QUERY_NATS_HEADERS.SENTRY_TRACE,
+                            NATS_HEADERS.SENTRY_TRACE,
                         ),
                         baggageHeader: message.headers?.get(
-                            ASYNC_QUERY_NATS_HEADERS.BAGGAGE,
+                            NATS_HEADERS.BAGGAGE,
                         ),
                         sentryMessageId: message.headers?.get(
-                            ASYNC_QUERY_NATS_HEADERS.SENTRY_MESSAGE_ID,
+                            NATS_HEADERS.SENTRY_MESSAGE_ID,
                         ),
                     },
                 };
@@ -461,18 +450,16 @@ export class AsyncQueryNatsWorker {
                 return {
                     payload:
                         parsedPayload.data as RunAsyncPreAggregateQueryJobPayload,
-                    jobId: message.headers?.get(
-                        ASYNC_QUERY_NATS_HEADERS.JOB_ID,
-                    ),
+                    jobId: message.headers?.get(NATS_HEADERS.JOB_ID),
                     trace: {
                         traceHeader: message.headers?.get(
-                            ASYNC_QUERY_NATS_HEADERS.SENTRY_TRACE,
+                            NATS_HEADERS.SENTRY_TRACE,
                         ),
                         baggageHeader: message.headers?.get(
-                            ASYNC_QUERY_NATS_HEADERS.BAGGAGE,
+                            NATS_HEADERS.BAGGAGE,
                         ),
                         sentryMessageId: message.headers?.get(
-                            ASYNC_QUERY_NATS_HEADERS.SENTRY_MESSAGE_ID,
+                            NATS_HEADERS.SENTRY_MESSAGE_ID,
                         ),
                     },
                 };
