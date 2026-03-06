@@ -2841,6 +2841,9 @@
                         "required": ["url"],
                         "type": "object"
                     },
+                    "richText": {
+                        "type": "string"
+                    },
                     "spotlight": {
                         "properties": {
                             "segmentBy": {
@@ -3385,6 +3388,7 @@
                     "count_distinct",
                     "sum",
                     "sum_distinct",
+                    "average_distinct",
                     "min",
                     "max",
                     "percent_of_previous",
@@ -5999,6 +6003,9 @@
                         "required": ["url"],
                         "type": "object"
                     },
+                    "richText": {
+                        "type": "string"
+                    },
                     "spotlight": {
                         "properties": {
                             "segmentBy": {
@@ -6265,6 +6272,9 @@
                                 "type": "array"
                             }
                         ]
+                    },
+                    "richText": {
+                        "type": "string"
                     }
                 },
                 "required": [
@@ -6500,6 +6510,18 @@
                 "required": ["metrics", "dimensions", "name"],
                 "type": "object"
             },
+            "PreAggregateSource": {
+                "properties": {
+                    "preAggregateName": {
+                        "type": "string"
+                    },
+                    "sourceExploreName": {
+                        "type": "string"
+                    }
+                },
+                "required": ["preAggregateName", "sourceExploreName"],
+                "type": "object"
+            },
             "InlineErrorType": {
                 "enum": [
                     "METADATA_PARSE_ERROR",
@@ -6530,6 +6552,9 @@
                         },
                         "type": "array",
                         "description": "Non-fatal warnings from partial compilation.\nPresent when some joins or fields failed to compile but the explore is still usable.\nOnly populated when PARTIAL_COMPILATION_ENABLED=true."
+                    },
+                    "preAggregateSource": {
+                        "$ref": "#/components/schemas/PreAggregateSource"
                     },
                     "preAggregates": {
                         "items": {
@@ -8963,8 +8988,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "error",
-                                                            "success"
+                                                            "success",
+                                                            "error"
                                                         ]
                                                     }
                                                 },
@@ -8976,8 +9001,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "success",
-                                                            "error"
+                                                            "error",
+                                                            "success"
                                                         ]
                                                     }
                                                 },
@@ -8991,15 +9016,18 @@
                                                             "topMatchingFields": {
                                                                 "items": {
                                                                     "properties": {
+                                                                        "chartUsage": {
+                                                                            "type": "number",
+                                                                            "format": "double",
+                                                                            "nullable": true
+                                                                        },
                                                                         "searchRank": {
                                                                             "type": "number",
                                                                             "format": "double",
                                                                             "nullable": true
                                                                         },
-                                                                        "chartUsage": {
-                                                                            "type": "number",
-                                                                            "format": "double",
-                                                                            "nullable": true
+                                                                        "fieldType": {
+                                                                            "type": "string"
                                                                         },
                                                                         "tableName": {
                                                                             "type": "string"
@@ -9007,17 +9035,14 @@
                                                                         "label": {
                                                                             "type": "string"
                                                                         },
-                                                                        "fieldType": {
-                                                                            "type": "string"
-                                                                        },
                                                                         "name": {
                                                                             "type": "string"
                                                                         }
                                                                     },
                                                                     "required": [
+                                                                        "fieldType",
                                                                         "tableName",
                                                                         "label",
-                                                                        "fieldType",
                                                                         "name"
                                                                     ],
                                                                     "type": "object"
@@ -9066,8 +9091,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "success",
-                                                            "error"
+                                                            "error",
+                                                            "success"
                                                         ]
                                                     }
                                                 },
@@ -9111,15 +9136,18 @@
                                                                         "results": {
                                                                             "items": {
                                                                                 "properties": {
+                                                                                    "chartUsage": {
+                                                                                        "type": "number",
+                                                                                        "format": "double",
+                                                                                        "nullable": true
+                                                                                    },
                                                                                     "searchRank": {
                                                                                         "type": "number",
                                                                                         "format": "double",
                                                                                         "nullable": true
                                                                                     },
-                                                                                    "chartUsage": {
-                                                                                        "type": "number",
-                                                                                        "format": "double",
-                                                                                        "nullable": true
+                                                                                    "fieldType": {
+                                                                                        "type": "string"
                                                                                     },
                                                                                     "tableName": {
                                                                                         "type": "string"
@@ -9127,17 +9155,14 @@
                                                                                     "label": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "fieldType": {
-                                                                                        "type": "string"
-                                                                                    },
                                                                                     "name": {
                                                                                         "type": "string"
                                                                                     }
                                                                                 },
                                                                                 "required": [
+                                                                                    "fieldType",
                                                                                     "tableName",
                                                                                     "label",
-                                                                                    "fieldType",
                                                                                     "name"
                                                                                 ],
                                                                                 "type": "object"
@@ -9165,8 +9190,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "success",
-                                                            "error"
+                                                            "error",
+                                                            "success"
                                                         ]
                                                     }
                                                 },
@@ -16966,6 +16991,35 @@
                 ],
                 "type": "object"
             },
+            "SchedulerGoogleChatTarget": {
+                "properties": {
+                    "googleChatWebhook": {
+                        "type": "string"
+                    },
+                    "schedulerUuid": {
+                        "type": "string"
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "schedulerGoogleChatTargetUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "googleChatWebhook",
+                    "schedulerUuid",
+                    "updatedAt",
+                    "createdAt",
+                    "schedulerGoogleChatTargetUuid"
+                ],
+                "type": "object"
+            },
             "SchedulerJobStatus": {
                 "enum": ["scheduled", "started", "completed", "error"],
                 "type": "string"
@@ -17119,6 +17173,9 @@
                                         },
                                         {
                                             "$ref": "#/components/schemas/SchedulerMsTeamsTarget"
+                                        },
+                                        {
+                                            "$ref": "#/components/schemas/SchedulerGoogleChatTarget"
                                         }
                                     ]
                                 },
@@ -17141,9 +17198,11 @@
                     "sendSlackNotification",
                     "sendEmailNotification",
                     "sendMsTeamsNotification",
+                    "sendGoogleChatNotification",
                     "sendSlackBatchNotification",
                     "sendEmailBatchNotification",
                     "sendMsTeamsBatchNotification",
+                    "sendGoogleChatBatchNotification",
                     "uploadGsheets",
                     "downloadCsv",
                     "uploadGsheetFromQuery",
@@ -17198,7 +17257,7 @@
             },
             "SchedulerTargetType": {
                 "type": "string",
-                "enum": ["email", "slack", "gsheets", "msteams"]
+                "enum": ["email", "slack", "gsheets", "msteams", "googlechat"]
             },
             "PartialFailureType.DASHBOARD_CHART": {
                 "enum": ["dashboard_chart"],
@@ -20639,6 +20698,9 @@
                         },
                         "type": "array"
                     },
+                    "preAggregateSource": {
+                        "$ref": "#/components/schemas/PreAggregateSource"
+                    },
                     "warnings": {
                         "items": {
                             "$ref": "#/components/schemas/InlineError"
@@ -23208,6 +23270,9 @@
                             }
                         ]
                     },
+                    "preAggregateSource": {
+                        "$ref": "#/components/schemas/PreAggregateSource"
+                    },
                     "warnings": {
                         "items": {
                             "$ref": "#/components/schemas/InlineError"
@@ -23418,6 +23483,9 @@
                             "$ref": "#/components/schemas/PreAggregateDef"
                         },
                         "type": "array"
+                    },
+                    "preAggregateSource": {
+                        "$ref": "#/components/schemas/PreAggregateSource"
                     },
                     "warnings": {
                         "items": {
@@ -27647,7 +27715,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2569.0",
+        "version": "0.2580.3",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -33424,7 +33492,7 @@
                         }
                     },
                     {
-                        "description": "filter by destination types (comma-separated: email, slack, msteams)",
+                        "description": "filter by destination types (comma-separated: email, slack, msteams, googlechat)",
                         "in": "query",
                         "name": "destinations",
                         "required": false,
@@ -33551,7 +33619,7 @@
                         }
                     },
                     {
-                        "description": "filter by destination types (comma-separated: email, slack, msteams)",
+                        "description": "filter by destination types (comma-separated: email, slack, msteams, googlechat)",
                         "in": "query",
                         "name": "destinations",
                         "required": false,
@@ -33731,7 +33799,7 @@
                         }
                     },
                     {
-                        "description": "filter by destination types (comma-separated: email, slack, msteams)",
+                        "description": "filter by destination types (comma-separated: email, slack, msteams, googlechat)",
                         "in": "query",
                         "name": "destinations",
                         "required": false,
@@ -33876,7 +33944,7 @@
                         }
                     },
                     {
-                        "description": "filter by destination types (comma-separated: email, slack, msteams)",
+                        "description": "filter by destination types (comma-separated: email, slack, msteams, googlechat)",
                         "in": "query",
                         "name": "destinations",
                         "required": false,

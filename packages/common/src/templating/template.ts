@@ -17,6 +17,12 @@ export const renderTemplatedUrl = (
     row: Record<string, Record<string, ResultValue>>,
 ): string => templateEngine.parseAndRenderSync(templatedUrl, { value, row });
 
+export const renderRichTextTemplate = (
+    template: string,
+    value: ResultValue,
+    row: Record<string, Record<string, ResultValue>>,
+): string => templateEngine.parseAndRenderSync(template, { value, row });
+
 export const getTemplatedUrlRowDependencies = (
     templatedUrl: string,
 ): string[] => {
