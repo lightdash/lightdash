@@ -13,9 +13,47 @@ PROJECT_NAME="agent-infra"
 TEMPLATE_DB="lightdash_template"
 DB_PORT="${AGENT_DB_PORT:-15432}"
 
-PSQL="psql -h localhost -p $DB_PORT -U postgres -d postgres"
+export PGPASSWORD="${PGPASSWORD:-password}"
 
 log() { echo "==> $*" >&2; }
+
+# ── Step 0: Check prerequisites ──────────────────────────────────────────────
+missing=()
+for cmd in docker pnpm jq; do
+    command -v "$cmd" &>/dev/null || missing+=("$cmd")
+done
+
+# libpq tools (psql, pg_isready) — check PATH and common Homebrew keg-only location
+if ! command -v psql &>/dev/null; then
+    if [ -x "/opt/homebrew/opt/libpq/bin/psql" ]; then
+        export PATH="/opt/homebrew/opt/libpq/bin:$PATH"
+    else
+        missing+=("psql (brew install libpq)")
+    fi
+fi
+
+# dbt versioned aliases — set up if missing
+DBT_ALIASES_DIR="$REPO_ROOT/.venvs/bin"
+if [ ! -x "$DBT_ALIASES_DIR/dbt1.7" ]; then
+    log "dbt aliases not found — running setup-dbt-venvs.sh..."
+    "$REPO_ROOT/scripts/setup-dbt-venvs.sh"
+fi
+if [ -d "$DBT_ALIASES_DIR" ]; then
+    export PATH="$DBT_ALIASES_DIR:$PATH"
+fi
+if ! command -v dbt1.7 &>/dev/null; then
+    missing+=("dbt1.7 (run: ./scripts/setup-dbt-venvs.sh)")
+fi
+
+if [ ${#missing[@]} -gt 0 ]; then
+    echo "Error: Missing required tools:" >&2
+    for cmd in "${missing[@]}"; do
+        echo "  - $cmd" >&2
+    done
+    exit 1
+fi
+
+PSQL="psql -h localhost -p $DB_PORT -U postgres -d postgres"
 
 # ── Step 1: Start Docker Compose stack ──────────────────────────────────────
 log "Starting shared infrastructure (project: $PROJECT_NAME)..."
@@ -30,6 +68,7 @@ for i in $(seq 1 30); do
     fi
     if [ "$i" -eq 30 ]; then
         echo "Error: PostgreSQL did not become ready within 30 seconds." >&2
+        echo "  Check container logs: docker logs agent-infra-db-1" >&2
         exit 1
     fi
     sleep 1
@@ -46,14 +85,13 @@ else
     log "Creating template database '$TEMPLATE_DB'..."
     $PSQL -c "CREATE DATABASE $TEMPLATE_DB"
 
-    TEMPLATE_PSQL="psql -h localhost -p $DB_PORT -U postgres -d $TEMPLATE_DB"
-
     log "Running migrations..."
     LIGHTDASH_SECRET=template-secret \
     PGHOST=localhost PGPORT="$DB_PORT" PGUSER=postgres PGPASSWORD=password PGDATABASE="$TEMPLATE_DB" \
         pnpm --dir "$REPO_ROOT" -F backend migrate
 
     log "Seeding Lightdash..."
+    TS_NODE_TRANSPILE_ONLY=true \
     LIGHTDASH_SECRET=template-secret \
     DBT_DEMO_DIR="$REPO_ROOT/examples/full-jaffle-shop-demo" \
     PGHOST=localhost PGPORT="$DB_PORT" PGUSER=postgres PGPASSWORD=password PGDATABASE="$TEMPLATE_DB" \

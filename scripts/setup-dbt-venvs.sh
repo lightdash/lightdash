@@ -18,6 +18,26 @@ VERSIONS_FILE="$SCRIPT_DIR/dbt-versions.json"
 VENVS_BASE=".venvs/dbt"
 ALIASES_DIR=".venvs/bin"
 HASH_FILE=".venvs/.versions-hash"
+MIN_PYTHON="3.10"
+
+# ── Check prerequisites ─────────────────────────────────────────────────────
+if ! command -v "$PYTHON" &>/dev/null; then
+    echo "Error: Python not found at '$PYTHON'." >&2
+    echo "  Install Python >= $MIN_PYTHON or pass the path: $0 /path/to/python3" >&2
+    exit 1
+fi
+
+python_version=$("$PYTHON" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
+if [ "$(printf '%s\n' "$MIN_PYTHON" "$python_version" | sort -V | head -1)" != "$MIN_PYTHON" ]; then
+    echo "Error: Python >= $MIN_PYTHON required (found $python_version at $PYTHON)." >&2
+    echo "  Hint: brew install python@3.12 && $0 /opt/homebrew/bin/python3.12" >&2
+    exit 1
+fi
+
+if ! command -v jq &>/dev/null; then
+    echo "Error: jq is required. Install with: brew install jq" >&2
+    exit 1
+fi
 
 # Check hash — skip if nothing changed
 current_hash=$(shasum -a 256 "$VERSIONS_FILE" | cut -d' ' -f1)
