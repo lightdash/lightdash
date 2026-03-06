@@ -1,9 +1,9 @@
 import { subject } from '@casl/ability';
 import {
     ContentType,
-    FeatureFlags,
     ResourceViewItemType,
     type Dashboard,
+    type FeatureFlags,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -65,10 +65,7 @@ import {
     useVerifyDashboardMutation,
 } from '../../../hooks/useContentVerification';
 import { useProject } from '../../../hooks/useProject';
-import {
-    useClientFeatureFlag,
-    useServerFeatureFlag,
-} from '../../../hooks/useServerOrClientFeatureFlag';
+import { useClientFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
 import { type TilePreAggregateStatus } from '../../../providers/Dashboard/types';
 import useTracking from '../../../providers/Tracking/useTracking';
@@ -297,14 +294,7 @@ const DashboardHeader = ({
         }),
     );
 
-    const { data: contentVerificationFlag } = useServerFeatureFlag(
-        FeatureFlags.ContentVerification,
-    );
-    const isContentVerificationEnabled =
-        contentVerificationFlag?.enabled ?? false;
-
     const canManageContentVerification =
-        isContentVerificationEnabled &&
         user.data?.ability?.can(
             'manage',
             subject('ContentVerification', {
@@ -352,7 +342,7 @@ const DashboardHeader = ({
             <Group gap="xs" flex={1} wrap="nowrap">
                 <Title order={6}>{dashboard.name}</Title>
 
-                {isContentVerificationEnabled && isDashboardVerified && (
+                {isDashboardVerified && (
                     <Tooltip
                         label={
                             dashboard?.verification?.verifiedBy

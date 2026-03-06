@@ -1,5 +1,4 @@
 import {
-    FeatureFlags,
     isResourceViewItemChart,
     isResourceViewItemDashboard,
     isResourceViewSpaceItem,
@@ -15,7 +14,6 @@ import {
     IconLayoutDashboard,
 } from '@tabler/icons-react';
 import { Link } from 'react-router';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { ResourceIcon, ResourceIndicator } from '../ResourceIcon';
 import { ResourceInfoPopup } from '../ResourceInfoPopup/ResourceInfoPopup';
 import AttributeCount from './ResourceAttributeCount';
@@ -147,12 +145,6 @@ const InfiniteResourceTableColumnName = ({
     projectUuid,
     canUserManageValidation,
 }: InfiniteResourceTableColumnNameProps) => {
-    const { data: contentVerificationFlag } = useServerFeatureFlag(
-        FeatureFlags.ContentVerification,
-    );
-    const isContentVerificationEnabled =
-        contentVerificationFlag?.enabled ?? false;
-
     const isSpace = isResourceViewSpaceItem(item);
     const isChartOrDashboard =
         isResourceViewItemChart(item) || isResourceViewItemDashboard(item);
@@ -167,9 +159,7 @@ const InfiniteResourceTableColumnName = ({
         : undefined;
 
     const verification =
-        isContentVerificationEnabled &&
-        isChartOrDashboard &&
-        !hasValidationErrors
+        isChartOrDashboard && !hasValidationErrors
             ? item.data.verification
             : null;
 
