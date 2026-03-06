@@ -2793,6 +2793,9 @@
                     "timeIntervalBaseDimensionName": {
                         "type": "string"
                     },
+                    "customTimeInterval": {
+                        "type": "string"
+                    },
                     "isAdditionalDimension": {
                         "type": "boolean"
                     },
@@ -5950,6 +5953,9 @@
                         "$ref": "#/components/schemas/TimeFrames"
                     },
                     "timeIntervalBaseDimensionName": {
+                        "type": "string"
+                    },
+                    "customTimeInterval": {
                         "type": "string"
                     },
                     "isAdditionalDimension": {

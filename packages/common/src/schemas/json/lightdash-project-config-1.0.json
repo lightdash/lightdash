@@ -133,6 +133,33 @@
                     ]
                 }
             }
+        },
+        "custom_granularities": {
+            "type": ["object", "null"],
+            "description": "Define reusable custom time granularities referenced in column time_intervals",
+            "patternProperties": {
+                "^[a-z0-9_]+$": {
+                    "type": "object",
+                    "properties": {
+                        "label": {
+                            "description": "Display name for the granularity",
+                            "type": "string"
+                        },
+                        "sql": {
+                            "description": "SQL template with ${COLUMN} placeholder that gets replaced with the base dimension SQL",
+                            "type": "string",
+                            "minLength": 1
+                        },
+                        "type": {
+                            "description": "Output dimension type (defaults to date)",
+                            "type": "string",
+                            "enum": ["date", "timestamp", "string"],
+                            "default": "date"
+                        }
+                    },
+                    "required": ["label", "sql"]
+                }
+            }
         }
     }
 }
