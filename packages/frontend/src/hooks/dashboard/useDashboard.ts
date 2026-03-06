@@ -249,7 +249,7 @@ export const useExportDashboard = () => {
 const exportCsvDashboard = async (
     id: string,
     filters: DashboardFilters,
-    dateZoomGranularity: DateGranularity | undefined,
+    dateZoomGranularity: DateGranularity | string | undefined,
     selectedTabs: string[] | null,
 ) =>
     lightdashApi<ApiJobScheduledResponse['results']>({
@@ -273,7 +273,7 @@ export const useExportCsvDashboard = () => {
         {
             dashboard: Dashboard;
             filters: DashboardFilters;
-            dateZoomGranularity: DateGranularity | undefined;
+            dateZoomGranularity: DateGranularity | string | undefined;
             selectedTabs: string[] | null;
         }
     >(
