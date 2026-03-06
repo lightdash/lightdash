@@ -491,6 +491,8 @@ export type Series = {
     isFilteredOut?: boolean;
     /** When enabled on a single non-stacked bar series, assigns a unique color from the org palette to each bar */
     colorByValue?: boolean;
+    /** Custom color overrides for each dimension value when colorByValue is enabled. Maps formatted dimension value string to hex color. */
+    colorByValueColors?: Record<string, string>;
 };
 
 export type EchartsLegend = {

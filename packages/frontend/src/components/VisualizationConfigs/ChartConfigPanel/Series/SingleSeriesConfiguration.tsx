@@ -14,6 +14,7 @@ import {
     Popover,
     Select,
     Stack,
+    Text,
     Tooltip,
 } from '@mantine/core';
 import { useDebouncedState, useHover } from '@mantine/hooks';
@@ -22,6 +23,7 @@ import {
     IconChevronUp,
     IconEye,
     IconEyeOff,
+    IconHelpCircle,
     IconSettings,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
@@ -370,24 +372,35 @@ const SingleSeriesConfiguration: FC<Props> = ({
                         !isGrouped &&
                         isSingle && (
                             <Group spacing="xs">
-                                <Tooltip
-                                    withinPortal
-                                    maw={300}
-                                    multiline
-                                    label="Assign a unique color to each bar based on its dimension value"
-                                >
-                                    <Checkbox
-                                        checked={Boolean(series.colorByValue)}
-                                        label="Color by value"
-                                        onChange={() => {
-                                            updateSingleSeries({
-                                                ...series,
-                                                colorByValue:
-                                                    !series.colorByValue,
-                                            });
-                                        }}
-                                    />
-                                </Tooltip>
+                                <Checkbox
+                                    checked={Boolean(series.colorByValue)}
+                                    label={
+                                        <Group spacing={4}>
+                                            <Text fz="xs">Color by value</Text>
+                                            <Tooltip
+                                                withinPortal
+                                                maw={300}
+                                                multiline
+                                                label="Assigns a unique color to each bar based on its dimension value, using your organization's color palette"
+                                            >
+                                                <MantineIcon
+                                                    icon={IconHelpCircle}
+                                                    color="ldGray.6"
+                                                />
+                                            </Tooltip>
+                                        </Group>
+                                    }
+                                    onChange={() => {
+                                        updateSingleSeries({
+                                            ...series,
+                                            colorByValue: !series.colorByValue,
+                                            // Clear custom colors when disabling
+                                            ...(series.colorByValue && {
+                                                colorByValueColors: undefined,
+                                            }),
+                                        });
+                                    }}
+                                />
                             </Group>
                         )}
                 </Stack>

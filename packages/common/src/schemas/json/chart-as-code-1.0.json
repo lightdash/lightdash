@@ -1633,6 +1633,7 @@
                 "count_distinct",
                 "sum",
                 "sum_distinct",
+                "average_distinct",
                 "min",
                 "max",
                 "percent_of_previous",
@@ -2170,6 +2171,14 @@
                 "color": {
                     "description": "Color for the series (hex code)",
                     "type": "string"
+                },
+                "colorByValue": {
+                    "description": "When enabled on a single non-stacked bar series, assigns a unique color from the org palette to each bar",
+                    "type": "boolean"
+                },
+                "colorByValueColors": {
+                    "$ref": "#/$defs/Record_string.string_",
+                    "description": "Custom color overrides for each dimension value when colorByValue is enabled. Maps formatted dimension value string to hex color."
                 },
                 "encode": {
                     "description": "Field references for this series",

@@ -939,6 +939,7 @@ export class SpaceModel {
             )
             .whereRaw('?::ltree <@ path', [path])
             .andWhere(`${ProjectTableName}.project_uuid`, projectUuid)
+            .whereNull(`${SpaceTableName}.deleted_at`)
             .orderByRaw('nlevel(path) DESC')
             .first();
 

@@ -111,12 +111,15 @@ const formatBarDisplayCell = (
     const columnId = info.column.id;
     const columnProperties = info.table?.options.meta?.columnProperties;
     const minMaxMap = info.table?.options.meta?.minMaxMap;
-    const color = columnProperties?.[columnId]?.color;
 
     // For pivot tables, get the base field ID from the item in meta
     // This is needed because pivoted columns have different IDs than the base field
     const item = info.column.columnDef.meta?.item;
     const baseFieldId = item ? getItemId(item) : columnId;
+
+    const color =
+        columnProperties?.[baseFieldId]?.color ??
+        columnProperties?.[columnId]?.color;
 
     let formatted, value: number;
 

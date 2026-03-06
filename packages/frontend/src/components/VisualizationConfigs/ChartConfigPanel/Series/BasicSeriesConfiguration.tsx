@@ -16,7 +16,7 @@ import ColorSelector from '../../ColorSelector';
 import { Config } from '../../common/Config';
 import { EditableText } from '../../common/EditableText';
 import { GrabIcon } from '../../common/GrabIcon';
-import classes from './BasicSeriesConfiguration.module.css';
+import ColorByValueConfiguration from './ColorByValueConfiguration';
 import SingleSeriesConfiguration from './SingleSeriesConfiguration';
 
 type BasicSeriesConfigurationProps = {
@@ -57,33 +57,19 @@ const BasicSeriesConfiguration: FC<BasicSeriesConfigurationProps> = ({
                         disabledTooltip="Series order is automatically determined by the sort applied to the grouped dimension"
                     />
 
-                    <Box
-                        className={
-                            series.colorByValue
-                                ? classes.disabledColorSwatch
-                                : undefined
-                        }
-                    >
+                    {!series.colorByValue && (
                         <ColorSelector
-                            color={
-                                series.colorByValue
-                                    ? '#dee2e6'
-                                    : getSeriesColor(series)
-                            }
+                            color={getSeriesColor(series)}
                             swatches={colorPalette}
                             withAlpha
-                            onColorChange={
-                                series.colorByValue
-                                    ? undefined
-                                    : (color) => {
-                                          updateSingleSeries({
-                                              ...series,
-                                              color,
-                                          });
-                                      }
-                            }
+                            onColorChange={(color) => {
+                                updateSingleSeries({
+                                    ...series,
+                                    color,
+                                });
+                            }}
                         />
-                    </Box>
+                    )}
                     {isSingle ? (
                         <Config.Heading>
                             {getItemLabelWithoutTableName(item)}
@@ -120,6 +106,13 @@ const BasicSeriesConfiguration: FC<BasicSeriesConfigurationProps> = ({
                     updateSingleSeries={updateSingleSeries}
                     getSingleSeries={getSingleSeries}
                 />
+                {series.colorByValue && (
+                    <ColorByValueConfiguration
+                        layout={layout}
+                        series={series}
+                        updateSingleSeries={updateSingleSeries}
+                    />
+                )}
             </Config.Section>
         </Config>
     );

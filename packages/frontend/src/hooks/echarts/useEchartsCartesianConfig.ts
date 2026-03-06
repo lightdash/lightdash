@@ -2460,10 +2460,6 @@ const useEchartsCartesianConfig = (
                 if (serie.type === CartesianSeriesType.BAR) {
                     const isNonStacked =
                         !serie.stack || getValidStack(serie) === undefined;
-                    const shouldColorByValue =
-                        serie.colorByValue &&
-                        isNonStacked &&
-                        series.length === 1;
                     return {
                         ...baseConfig,
                         ...getBarStyle(),
@@ -2475,15 +2471,6 @@ const useEchartsCartesianConfig = (
                                     true,
                                     dynamicRadius,
                                 ),
-                                // When colorByValue is enabled, each bar
-                                // gets a unique color from the palette
-                                ...(shouldColorByValue && {
-                                    color: (params: { dataIndex: number }) =>
-                                        colorPalette[
-                                            params.dataIndex %
-                                                colorPalette.length
-                                        ],
-                                }),
                             },
                         }),
                     };
@@ -2538,7 +2525,6 @@ const useEchartsCartesianConfig = (
         rows,
         validCartesianConfigLegend,
         getSeriesColor,
-        colorPalette,
         theme.colors.background,
     ]);
     const sortedResults = useMemo(() => {
@@ -2817,6 +2803,118 @@ const useEchartsCartesianConfig = (
         xAxisSortedResults,
     ]);
 
+    // When colorByValue is enabled, split a single bar series into one sub-series
+    // per dimension value. This gives us proper legend entries, click-to-hide, and
+    // correct tooltip behavior — all for free from ECharts.
+    const finalSeriesWithColorByValue = useMemo(() => {
+        if (!stackedSeriesWithColorAssignments) return undefined;
+
+        const colorByValueIndex = stackedSeriesWithColorAssignments.findIndex(
+            (s) => s.colorByValue,
+        );
+        if (colorByValueIndex === -1) {
+            return stackedSeriesWithColorAssignments;
+        }
+
+        const originalSeries =
+            stackedSeriesWithColorAssignments[colorByValueIndex];
+
+        // Determine the dimension field ID (xField in normal, yField[0] when flipped)
+        const isFlipped = validCartesianConfig?.layout.flipAxes;
+        const dimensionFieldId = isFlipped
+            ? validCartesianConfig?.layout?.yField?.[0]
+            : validCartesianConfig?.layout?.xField;
+
+        // Determine the metric field hash used for encoding
+        const metricFieldHash = isFlipped
+            ? originalSeries.encode?.x
+            : originalSeries.encode?.y;
+
+        if (!dimensionFieldId || !metricFieldHash) {
+            return stackedSeriesWithColorAssignments;
+        }
+
+        // Get the dimension item from itemsMap for formatting
+        const dimensionItem = itemsMap?.[dimensionFieldId];
+
+        // Extract unique dimension values in row order from dataToRender
+        const seenValues = new Set<string>();
+        const uniqueDimensionValues: string[] = [];
+        for (const row of dataToRender) {
+            const rowData = row as Record<string, unknown>;
+            const rawValue = rowData[dimensionFieldId];
+            const formatted = dimensionItem
+                ? formatItemValue(dimensionItem, rawValue, true)
+                : String(rawValue ?? '');
+            if (!seenValues.has(formatted)) {
+                seenValues.add(formatted);
+                uniqueDimensionValues.push(formatted);
+            }
+        }
+
+        // Build one sub-series per dimension value
+        const subSeries: EChartsSeries[] = uniqueDimensionValues.map(
+            (dimValue, i) => {
+                // Custom color override or palette fallback
+                const color =
+                    originalSeries.colorByValueColors?.[dimValue] ??
+                    colorPalette[i % colorPalette.length];
+
+                // Build the data array: metric value for matching rows, null for others
+                const data = dataToRender.map((row) => {
+                    const rowData = row as Record<string, unknown>;
+                    const rawValue = rowData[dimensionFieldId];
+                    const formatted = dimensionItem
+                        ? formatItemValue(dimensionItem, rawValue, true)
+                        : String(rawValue ?? '');
+                    if (formatted === dimValue) {
+                        return rowData[metricFieldHash] ?? null;
+                    }
+                    return null;
+                });
+
+                return {
+                    ...originalSeries,
+                    name: dimValue,
+                    color,
+                    data,
+                    // Remove encode/dimensions — we use explicit data arrays
+                    encode: undefined,
+                    dimensions: undefined,
+                    // Only keep markLine on the first sub-series to avoid duplicates
+                    ...(i > 0 && { markLine: undefined }),
+                    // Clear colorByValue flag on sub-series (already split)
+                    colorByValue: undefined,
+                    colorByValueColors: undefined,
+                    // Apply label color if labels are shown
+                    ...(originalSeries.label?.show && {
+                        label: {
+                            ...originalSeries.label,
+                            ...getValueLabelStyle(
+                                originalSeries.label.position,
+                                originalSeries.type,
+                                color,
+                            ),
+                        },
+                    }),
+                };
+            },
+        );
+
+        // Replace the original series with the sub-series
+        const result = [...stackedSeriesWithColorAssignments];
+        result.splice(colorByValueIndex, 1, ...subSeries);
+        return result;
+    }, [
+        stackedSeriesWithColorAssignments,
+        validCartesianConfig?.layout.flipAxes,
+        validCartesianConfig?.layout?.yField,
+        validCartesianConfig?.layout?.xField,
+        itemsMap,
+        dataToRender,
+        colorPalette,
+    ]);
+
     const tooltip = useMemo<TooltipOption>(() => {
         // Check if any series is line/area/scatter (use line pointer) vs bar (use shadow pointer)
         const hasLineAreaScatterSeries = series.some(
@@ -3067,14 +3165,17 @@ const useEchartsCartesianConfig = (
     const { tooltip: legendDoubleClickTooltip } = useLegendDoubleClickTooltip();
 
     const legendConfigWithInstructionsTooltip = useMemo(() => {
+        // Use finalSeriesWithColorByValue so the legend reflects split sub-series
+        // (e.g. when colorByValue is on, each dimension value becomes a legend entry)
+        const legendSeries = finalSeriesWithColorByValue ?? series;
         const mergedLegendConfig = mergeLegendSettings(
             validCartesianConfig?.eChartsConfig.legend,
             validCartesianConfigLegend,
-            series,
+            legendSeries,
         );
 
         // Use line icon only for line/area charts, otherwise use square with border radius
-        const hasOnlyLineCharts = series.every(
+        const hasOnlyLineCharts = legendSeries.every(
             (s) =>
                 s.type === CartesianSeriesType.LINE ||
                 s.type === CartesianSeriesType.AREA,
@@ -3094,6 +3195,7 @@ const useEchartsCartesianConfig = (
         validCartesianConfig?.eChartsConfig.legend,
         validCartesianConfigLegend,
         series,
+        finalSeriesWithColorByValue,
     ]);
 
     // When BAR_TOTALS or CATEGORY sorting is active, we need to explicitly set the category axis data
@@ -3136,7 +3238,9 @@ const useEchartsCartesianConfig = (
             xAxis: sortedAxes.xAxis,
             yAxis: sortedAxes.yAxis,
             useUTC: true,
-            series: stackedSeriesWithColorAssignments,
+            series:
+                finalSeriesWithColorByValue ??
+                stackedSeriesWithColorAssignments,
             animation: !(isInDashboard || minimal),
             legend: legendConfigWithInstructionsTooltip,
             dataset: {
@@ -3176,6 +3280,7 @@ const useEchartsCartesianConfig = (
     }, [
         sortedAxes,
         stackedSeriesWithColorAssignments,
+        finalSeriesWithColorByValue,
         isInDashboard,
         minimal,
         legendConfigWithInstructionsTooltip,

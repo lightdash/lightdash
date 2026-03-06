@@ -1,3 +1,27 @@
+## [0.2579.2](https://github.com/lightdash/lightdash/compare/0.2579.1...0.2579.2) (2026-03-06)
+
+
+### Bug Fixes
+
+* re-create soft-deleted space with cli upload ([#20908](https://github.com/lightdash/lightdash/issues/20908)) ([1d67ab8](https://github.com/lightdash/lightdash/commit/1d67ab87d68186f99fc7f61bd8387dd513e1a44f))
+* use baseFieldId for bar-in-cell color lookup in pivot tables ([#20895](https://github.com/lightdash/lightdash/issues/20895)) ([eb1790b](https://github.com/lightdash/lightdash/commit/eb1790b2238393d32e8e1b9202ece8882b878f75))
+
+## [0.2579.1](https://github.com/lightdash/lightdash/compare/0.2579.0...0.2579.1) (2026-03-06)
+
+
+### Bug Fixes
+
+* loosen gchat notification ([#20909](https://github.com/lightdash/lightdash/issues/20909)) ([b616ebf](https://github.com/lightdash/lightdash/commit/b616ebfd659ec0b951bad002cea1b495570e175c))
+* subtotal rows show '-' when all underlying values have no result ([#20901](https://github.com/lightdash/lightdash/issues/20901)) ([28bd689](https://github.com/lightdash/lightdash/commit/28bd689b784b8a040b583dd58e7a2868f5a2ef7a)), closes [#20900](https://github.com/lightdash/lightdash/issues/20900)
+
+# [0.2579.0](https://github.com/lightdash/lightdash/compare/0.2578.1...0.2579.0) (2026-03-06)
+
+
+### Features
+
+* introduce scheduler jobs provider ([#20887](https://github.com/lightdash/lightdash/issues/20887)) ([9086314](https://github.com/lightdash/lightdash/commit/908631499cfb5696a0d0c83ed5503b8aac21ff81))
+* pre-aggregate refresh in dashboards and tiles ([#20871](https://github.com/lightdash/lightdash/issues/20871)) ([f0e2092](https://github.com/lightdash/lightdash/commit/f0e20927747bd0056713377fb84fb94720cf4cbc))
+
 ## [0.2578.1](https://github.com/lightdash/lightdash/compare/0.2578.0...0.2578.1) (2026-03-05)
 
 

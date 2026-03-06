@@ -155,6 +155,42 @@ export class PreAggregateModel {
         };
     }
 
+    async getPreAggregateDefinitionByDefinitionName(args: {
+        projectUuid: string;
+        preAggregateDefinitionName: string;
+    }): Promise<PreAggregateDefinitionWithExploreName | undefined> {
+        const row = await this.database(PreAggregateDefinitionsTableName)
+            .innerJoin(
+                CachedExploreTableName,
+                `${PreAggregateDefinitionsTableName}.pre_agg_cached_explore_uuid`,
+                `${CachedExploreTableName}.cached_explore_uuid`,
+            )
+            .where(
+                `${PreAggregateDefinitionsTableName}.project_uuid`,
+                args.projectUuid,
+            )
+            .andWhereRaw(
+                `${PreAggregateDefinitionsTableName}.pre_aggregate_definition->>'name' = ?`,
+                [args.preAggregateDefinitionName],
+            )
+            .select<DbPreAggregateDefinitionWithExploreName[]>([
+                `${PreAggregateDefinitionsTableName}.*`,
+                this.database.raw(
+                    `${CachedExploreTableName}.name as pre_agg_explore_name`,
+                ),
+            ])
+            .first();
+
+        if (!row) {
+            return undefined;
+        }
+
+        return {
+            ...toPreAggregateDefinition(row),
+            preAggExploreName: row.pre_agg_explore_name,
+        };
+    }
+
     async getProjectSchedulerDetailsForPreAggregates(): Promise<
         PreAggregateSchedulerDetails[]
     > {
