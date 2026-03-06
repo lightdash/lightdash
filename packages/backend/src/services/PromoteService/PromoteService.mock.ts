@@ -218,6 +218,7 @@ export const promotedDashboard: PromotedDashboard = {
         versionUuid: 'promoted-dashboard-version-uuid',
         uuid: 'promoted-dashboard-uuid',
         name: 'dashboard',
+        verification: null,
         description: '',
         updatedAt: new Date(),
         pinnedListUuid: null,
