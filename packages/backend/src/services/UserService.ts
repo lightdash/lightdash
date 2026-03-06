@@ -2359,6 +2359,10 @@ export class UserService extends BaseService {
             startedAt: new Date().toISOString(),
         });
 
+        this.logger.info(
+            `Impersonation started: admin ${adminUser.userUuid} (${adminUser.firstName} ${adminUser.lastName}) is now impersonating user ${targetUserUuid} in organization ${adminUser.organizationUuid}`,
+        );
+
         this.analytics.track({
             event: 'user.impersonation_started',
             userId: adminUser.userUuid,
@@ -2390,6 +2394,10 @@ export class UserService extends BaseService {
             await this.userModel.getUserDetailsByUuid(adminUserUuid);
 
         clearImpersonation();
+
+        this.logger.info(
+            `Impersonation stopped: admin ${adminUserUuid} (${adminUser.firstName} ${adminUser.lastName}) stopped impersonating user ${targetUserUuid} in organization ${adminUser.organizationUuid}`,
+        );
 
         this.analytics.track({
             event: 'user.impersonation_stopped',
