@@ -47,7 +47,7 @@ import { UserAccessAction, UserAccessOptions } from './ShareSpaceSelect';
 import { getInitials, getUserNameOrEmail } from './Utils';
 
 type UserAccessListProps = {
-    isPrivate: boolean;
+    inheritParentPermissions: boolean;
     accessList: SpaceShare[];
     sessionUser: LightdashUser | undefined;
     onAccessChange: (action: UserAccessAction, user: SpaceShare) => void;
@@ -57,7 +57,7 @@ type UserAccessListProps = {
 };
 
 export const UserAccessList: FC<UserAccessListProps> = ({
-    isPrivate,
+    inheritParentPermissions,
     accessList,
     sessionUser,
     onAccessChange,
@@ -96,7 +96,8 @@ export const UserAccessList: FC<UserAccessListProps> = ({
                         t.value !== UserAccessAction.DELETE ||
                         sharedUser.hasDirectAccess,
                 ).map((t) =>
-                    t.value === UserAccessAction.DELETE && !isPrivate
+                    t.value === UserAccessAction.DELETE &&
+                    inheritParentPermissions
                         ? {
                               ...t,
                               title: 'Reset access',
@@ -236,7 +237,7 @@ export const UserAccessList: FC<UserAccessListProps> = ({
 
 type GroupAccessListProps = {
     disabled?: boolean;
-    isPrivate: boolean;
+    inheritParentPermissions: boolean;
     groupsAccess: SpaceGroup[];
     onAccessChange: (action: UserAccessAction, group: SpaceGroup) => void;
     pageSize?: number;
@@ -244,7 +245,7 @@ type GroupAccessListProps = {
 
 export const GroupsAccessList: FC<GroupAccessListProps> = ({
     disabled = false,
-    isPrivate,
+    inheritParentPermissions,
     onAccessChange,
     groupsAccess,
     pageSize,
@@ -273,12 +274,12 @@ export const GroupsAccessList: FC<GroupAccessListProps> = ({
                     t.value === UserAccessAction.DELETE
                         ? {
                               ...t,
-                              title: isPrivate
-                                  ? 'Remove access'
-                                  : 'Reset access',
-                              selectDescription: isPrivate
-                                  ? `Remove group's access`
-                                  : `Reset group's access`,
+                              title: inheritParentPermissions
+                                  ? 'Reset access'
+                                  : 'Remove access',
+                              selectDescription: inheritParentPermissions
+                                  ? `Reset group's access`
+                                  : `Remove group's access`,
                           }
                         : t,
                 );

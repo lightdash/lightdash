@@ -7,7 +7,6 @@ import {
 import { Paper, Stack, TextInput } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { useMemo, useState } from 'react';
-import { hasDirectAccessToSpace } from '../../../hooks/useSpaces';
 import useApp from '../../../providers/App/useApp';
 import AdminContentViewFilter from '../ResourceView/AdminContentViewFilter';
 import Tree from '../Tree/Tree';
@@ -18,7 +17,10 @@ type SpaceSelectorProps = {
     projectUuid: string | undefined;
     selectedSpaceUuid: string | null;
     spaces:
-        | Array<Pick<SpaceSummary, 'isPrivate' | 'access'> & NestableItem>
+        | Array<
+              Pick<SpaceSummary, 'inheritParentPermissions' | 'access'> &
+                  NestableItem
+          >
         | undefined;
     isLoading?: boolean;
     itemType: ResourceViewItemType | undefined;
@@ -56,8 +58,10 @@ const SpaceSelector = ({
             case 'all':
                 return spaces;
             case 'shared':
-                return spaces.filter((space) =>
-                    hasDirectAccessToSpace(space, user.data.userUuid),
+                return spaces.filter(
+                    (space) =>
+                        space.inheritParentPermissions ||
+                        space.access.includes(user.data.userUuid),
                 );
             default:
                 return assertUnreachable(

@@ -213,25 +213,22 @@ export class SpaceService
             }
         }
 
-        // you can either set isPrivate or inheritParentPermissions while we temporarily
-        // support both. Keeping the other property in sync in the meantime.
-        let { isPrivate, inheritParentPermissions } = space;
-        if (inheritParentPermissions !== undefined) {
-            isPrivate = !inheritParentPermissions;
-        } else if (isPrivate !== undefined) {
-            inheritParentPermissions = !isPrivate;
+        // Derive inheritParentPermissions from either the new property or the
+        // legacy isPrivate property (kept in the API contract for backwards compat).
+        let inheritParentPermissions: boolean;
+        if (space.inheritParentPermissions !== undefined) {
+            inheritParentPermissions = space.inheritParentPermissions;
+        } else if (space.isPrivate !== undefined) {
+            inheritParentPermissions = !space.isPrivate;
         } else if (space.parentSpaceUuid) {
-            isPrivate = false;
             inheritParentPermissions = true;
         } else {
-            isPrivate = true;
             inheritParentPermissions = false;
         }
 
         const newSpace = await this.spaceModel.createSpace(
             {
                 name: space.name,
-                isPrivate,
                 inheritParentPermissions,
                 parentSpaceUuid: space.parentSpaceUuid ?? null,
             },
@@ -264,7 +261,7 @@ export class SpaceService
                 name: space.name,
                 spaceId: newSpace.uuid,
                 projectId: projectUuid,
-                isPrivate: newSpace.isPrivate,
+                isPrivate: !newSpace.inheritParentPermissions,
                 userAccessCount: space.access?.length ?? 0,
                 isNested: !!space.parentSpaceUuid,
             },
@@ -285,13 +282,14 @@ export class SpaceService
 
         const space = await this.spaceModel.getSpaceSummary(spaceUuid);
 
-        // you can either set isPrivate or inheritParentPermissions while we temporarily
-        // support both. Keeping the other property in sync in the meantime.
-        let { isPrivate, inheritParentPermissions } = updateSpace;
-        if (inheritParentPermissions !== undefined) {
-            isPrivate = !inheritParentPermissions;
-        } else if (isPrivate !== undefined) {
-            inheritParentPermissions = !isPrivate;
+        // Derive inheritParentPermissions from either the new property or the
+        // legacy isPrivate property (kept in the API contract for backwards compat).
+        let { inheritParentPermissions } = updateSpace;
+        if (
+            inheritParentPermissions === undefined &&
+            updateSpace.isPrivate !== undefined
+        ) {
+            inheritParentPermissions = !updateSpace.isPrivate;
         }
 
         // When switching from inherit to not-inherit, copy inherited permissions
@@ -336,14 +334,13 @@ export class SpaceService
             }
             await this.spaceModel.updateWithCopiedPermissions(
                 spaceUuid,
-                { ...updateSpace, isPrivate, inheritParentPermissions },
+                { ...updateSpace, inheritParentPermissions },
                 userAccessEntries,
                 groupAccessEntries,
             );
         } else {
             await this.spaceModel.update(spaceUuid, {
                 ...updateSpace,
-                isPrivate,
                 inheritParentPermissions,
             });
         }
@@ -362,7 +359,7 @@ export class SpaceService
                 name: space.name,
                 spaceId: spaceUuid,
                 projectId: space.projectUuid,
-                isPrivate: space.isPrivate,
+                isPrivate: !space.inheritParentPermissions,
                 isNested,
                 // This used to rely on summary.access.length, which only contained direct user access and ignored direct group access
                 userAccessCount: directAccessCount,

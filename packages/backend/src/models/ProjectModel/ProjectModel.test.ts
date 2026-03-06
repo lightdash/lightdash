@@ -421,7 +421,6 @@ describe('ProjectModel', () => {
                 expect.arrayContaining([
                     'Jane Doe', // space name
                     true, // is_default_user_space
-                    false, // is_private
                     parentSpaceUuid,
                 ]),
             );

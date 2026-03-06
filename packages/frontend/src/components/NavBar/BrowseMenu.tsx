@@ -68,14 +68,10 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
     const [hasBeenOpened, setHasBeenOpened] = useState(false);
     const [spacesExpanded, setSpacesExpanded] = useState(false);
 
-    const { data: spaces, isInitialLoading } = useSpaceSummaries(
-        projectUuid,
-        true,
-        {
-            select: (data) => data.filter((space) => !space.parentSpaceUuid),
-            enabled: hasBeenOpened,
-        },
-    );
+    const { data: spaces, isInitialLoading } = useSpaceSummaries(projectUuid, {
+        select: (data) => data.filter((space) => !space.parentSpaceUuid),
+        enabled: hasBeenOpened,
+    });
     const { data: hasMetrics } = useHasMetricsInCatalog({
         projectUuid,
     });

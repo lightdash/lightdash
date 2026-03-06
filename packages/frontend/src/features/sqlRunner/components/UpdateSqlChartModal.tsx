@@ -64,10 +64,8 @@ export const UpdateSqlChartModal: FC<Props> = ({
         uuid: savedSqlUuid,
     });
 
-    const { data: spaces = [], isLoading: isSpacesLoading } = useSpaceSummaries(
-        projectUuid,
-        true,
-    );
+    const { data: spaces = [], isLoading: isSpacesLoading } =
+        useSpaceSummaries(projectUuid);
 
     const spaceManagement = useSpaceManagement({
         projectUuid,
@@ -115,7 +113,7 @@ export const UpdateSqlChartModal: FC<Props> = ({
         async ({ name, description, spaceUuid, newSpaceName }) => {
             let newSpace = newSpaceName
                 ? await spaceManagement.handleCreateNewSpace({
-                      isPrivate: true,
+                      inheritParentPermissions: false,
                   })
                 : undefined;
 

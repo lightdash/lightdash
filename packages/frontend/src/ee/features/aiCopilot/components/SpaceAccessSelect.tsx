@@ -25,10 +25,8 @@ export const SpaceAccessSelect: FC<SpaceAccessSelectProps> = ({
     value,
     onChange,
 }) => {
-    const { data: spaces = [], isLoading: isLoadingSpaces } = useSpaceSummaries(
-        projectUuid,
-        true,
-    );
+    const { data: spaces = [], isLoading: isLoadingSpaces } =
+        useSpaceSummaries(projectUuid);
     const [isExpanded, setIsExpanded] = useState(false);
 
     if (isLoadingSpaces) {

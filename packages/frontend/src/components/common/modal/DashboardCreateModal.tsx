@@ -72,7 +72,7 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
         data: spaces,
         isInitialLoading: isLoadingSpaces,
         isSuccess,
-    } = useSpaceSummaries(projectUuid, true, {
+    } = useSpaceSummaries(projectUuid, {
         staleTime: 0,
         enabled: modalProps.opened, // Only fetch when modal is open
         select: (data) => {
@@ -127,7 +127,7 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
 
             if (data.newSpaceName) {
                 newSpace = await spaceManagement.handleCreateNewSpace({
-                    isPrivate: false,
+                    inheritParentPermissions: true,
                 });
             }
 

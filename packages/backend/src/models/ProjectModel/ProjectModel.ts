@@ -530,7 +530,6 @@ export class ProjectModel {
                 await trx(SpaceTableName).insert({
                     project_id: project.project_id,
                     name: 'Shared',
-                    is_private: false,
                     slug,
                     parent_space_uuid: null,
                     path,
@@ -1621,7 +1620,6 @@ export class ProjectModel {
                     .insert({
                         project_id: project.project_id,
                         name: DEFAULT_USER_SPACES_PARENT_NAME,
-                        is_private: false,
                         inherit_parent_permissions: true,
                         slug: parentSlug,
                         parent_space_uuid: null,
@@ -1716,7 +1714,6 @@ export class ProjectModel {
                 .insert({
                     project_id: projectId,
                     name: spaceName,
-                    is_private: true,
                     inherit_parent_permissions: false,
                     slug,
                     parent_space_uuid: parentSpaceUuid,

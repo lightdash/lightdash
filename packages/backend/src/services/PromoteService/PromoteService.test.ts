@@ -784,7 +784,6 @@ describe('PromoteService promoting and mutating changes', () => {
         expect(spaceModel.createSpace).toHaveBeenCalledTimes(1);
         expect(spaceModel.createSpace).toHaveBeenCalledWith(
             {
-                isPrivate: true,
                 inheritParentPermissions: false,
                 name: 'Private space',
                 parentSpaceUuid: null,
@@ -1128,7 +1127,8 @@ describe('PromoteService promoting and mutating changes', () => {
                 organization_uuid: user.organizationUuid,
                 updated_at: new Date('2024-01-01T00:00:00.000Z'),
                 spaceName: existingUpstreamSqlChart.space.name,
-                space_is_private: existingUpstreamSqlChart.space.isPrivate,
+                space_inherit_parent_permissions:
+                    !existingUpstreamSqlChart.space.isPrivate,
                 dashboardName: null,
                 created_by_user_uuid: user.userUuid,
                 created_by_user_first_name: user.firstName,
