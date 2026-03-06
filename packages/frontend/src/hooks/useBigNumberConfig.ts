@@ -427,20 +427,42 @@ const useBigNumberConfig = (
 
     const granularityMap = useMemo((): GranularityMap => {
         if (!itemsMap) return {};
+
+        // When date zoom is active with a custom granularity, resolve its label
+        // from the explore dimensions so interpolation shows e.g. "fiscal quarter"
+        // instead of the raw key "fiscal_quarter".
+        let dateZoomGranularityLabel: string | undefined;
+        if (dateZoom?.granularity) {
+            const matchingDim = Object.values(itemsMap).find(
+                (f) =>
+                    isDimension(f) &&
+                    f.customTimeInterval === dateZoom.granularity,
+            );
+            dateZoomGranularityLabel = matchingDim
+                ? matchingDim.label
+                : dateZoom.granularity;
+        }
+
         const map: GranularityMap = {};
         for (const field of Object.values(itemsMap)) {
             if (
                 isDimension(field) &&
-                isTimeBasedDimension(field) &&
-                field.timeInterval &&
-                field.timeIntervalBaseDimensionName
+                field.timeIntervalBaseDimensionName &&
+                (isTimeBasedDimension(field) || field.customTimeInterval)
             ) {
-                const granularity =
-                    dateZoom?.granularity ??
-                    timeFrameToDateGranularityMap[field.timeInterval];
-                if (granularity) {
-                    const baseId = `${field.table}_${field.timeIntervalBaseDimensionName}`;
-                    map[baseId] = granularity;
+                const baseId = `${field.table}_${field.timeIntervalBaseDimensionName}`;
+
+                if (dateZoom?.granularity) {
+                    map[baseId] =
+                        dateZoomGranularityLabel ?? dateZoom.granularity;
+                } else if (field.customTimeInterval) {
+                    map[baseId] = field.label;
+                } else if (field.timeInterval) {
+                    const granularity =
+                        timeFrameToDateGranularityMap[field.timeInterval];
+                    if (granularity) {
+                        map[baseId] = granularity;
+                    }
                 }
             }
         }
