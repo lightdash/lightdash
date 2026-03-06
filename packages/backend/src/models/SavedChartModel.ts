@@ -307,6 +307,11 @@ const createSavedChartVersion = async (
                         customDimension.customRange.length > 0
                             ? JSON.stringify(customDimension.customRange)
                             : null,
+                    custom_groups:
+                        customDimension.customGroups &&
+                        customDimension.customGroups.length > 0
+                            ? JSON.stringify(customDimension.customGroups)
+                            : null,
                     order: tableConfig.columnOrder.findIndex(
                         (column) => column === getItemId(customDimension),
                     ),
@@ -1193,6 +1198,7 @@ export class SavedChartModel {
                                 binNumber: cd.bin_number || undefined,
                                 binWidth: cd.bin_width || undefined,
                                 customRange: cd.custom_range || undefined,
+                                customGroups: cd.custom_groups || undefined,
                             })),
                             ...(
                                 customSqlDimensionsRows || []
