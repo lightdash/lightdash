@@ -239,10 +239,13 @@ app.ontoolresult = (result) => {
     }
 };
 
+let resizeTimeout: ReturnType<typeof setTimeout> | null = null;
 const resizeObserver = new ResizeObserver(() => {
     if (chart) {
-        // Important to call resize method to ensure the chart is responsive
-        chart.resize();
+        if (resizeTimeout) clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(() => {
+            chart?.resize();
+        }, 100);
     }
 });
 resizeObserver.observe(chartContainer);
