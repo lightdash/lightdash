@@ -110,6 +110,11 @@ export enum FeatureFlags {
      * Enable content verification (verified seal for charts and dashboards)
      */
     ContentVerification = 'content-verification',
+
+    /**
+     * Enable auto-cleanup of preview projects (expiration tracking, cron deletion, visibility filtering)
+     */
+    PreviewAutoCleanup = 'preview-auto-cleanup',
 }
 
 export type FeatureFlag = {
