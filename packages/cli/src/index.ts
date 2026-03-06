@@ -574,6 +574,10 @@ program
         'Number of batches to send in parallel (default: 1, use higher values with caution)',
         '1',
     )
+    .option(
+        '--expires-in <hours>',
+        'Number of hours until the preview project auto-expires (default: 720, i.e. 30 days)',
+    )
     .action(previewHandler);
 
 program
@@ -696,6 +700,10 @@ program
         '--parallel-batches <number>',
         'Number of batches to send in parallel (default: 1, use higher values with caution)',
         '1',
+    )
+    .option(
+        '--expires-in <hours>',
+        'Number of hours until the preview project auto-expires (default: 720, i.e. 30 days)',
     )
     .action(startPreviewHandler);
 
