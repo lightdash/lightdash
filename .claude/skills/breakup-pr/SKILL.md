@@ -26,6 +26,36 @@ You are splitting a large PR into **vertical feature slices** — each slice is 
 
 All slices are gated behind a **single shared feature flag** so the feature ships atomically when the flag is enabled.
 
+## Why Vertical Slices?
+
+Large PRs are hard to review, hard to reason about, and risky to merge. Vertical slicing solves this by breaking work into small, focused changes that are easier to understand and safer to ship.
+
+**Easier code review:**
+- Reviewers can focus on one concern at a time (e.g., "just the migration" or "just the API")
+- Each PR tells a clear story — what changed and why is obvious from the diff
+- Smaller diffs mean faster reviews and higher-quality feedback
+- Comments and discussions stay focused instead of sprawling across unrelated changes
+
+**Iterative improvement:**
+- Each slice can be reviewed, refined, and merged independently
+- Feedback on early slices (e.g., schema design) can inform later slices before they're written
+- If a later slice needs rework, earlier slices are already safely merged
+- The stack shows a natural progression — reviewers understand the "journey" of the feature
+
+**Safer delivery:**
+- Smaller changes = smaller blast radius if something goes wrong
+- Issues are easier to bisect — you know exactly which slice introduced a problem
+- Rollback is surgical: revert one slice, not the whole feature
+- CI catches issues earlier in the stack, before dependent code is written
+
+**Better collaboration:**
+- Multiple people can review different slices in parallel
+- Stack structure makes dependencies explicit — no guessing what to review first
+- Merge conflicts are localized to individual slices
+- Progress is visible: "3 of 5 PRs merged" is clearer than "PR still in review"
+
+**The feature flag unifies it all:** Even though slices merge incrementally, the feature flag keeps everything hidden until you're ready to ship. Merge with confidence, ship when ready.
+
 ## Process
 
 ### Step 1: Analyze the PR
