@@ -3560,34 +3560,19 @@
                 "type": "object",
                 "additionalProperties": true
             },
+            "BinType.FIXED_NUMBER": {
+                "enum": ["fixed_number"],
+                "type": "string"
+            },
             "CustomDimensionType.BIN": {
                 "enum": ["bin"],
                 "type": "string"
-            },
-            "BinType": {
-                "enum": ["fixed_number", "fixed_width", "custom_range"],
-                "type": "string"
-            },
-            "BinRange": {
-                "properties": {
-                    "to": {
-                        "type": "number",
-                        "format": "double",
-                        "description": "End value for this bin range (undefined for the last range)"
-                    },
-                    "from": {
-                        "type": "number",
-                        "format": "double",
-                        "description": "Start value for this bin range (undefined for the first range)"
-                    }
-                },
-                "type": "object"
             },
             "CustomDimensionType": {
                 "enum": ["bin", "sql"],
                 "type": "string"
             },
-            "CustomBinDimension": {
+            "FixedNumberBinDimension": {
                 "properties": {
                     "id": {
                         "type": "string",
@@ -3610,25 +3595,11 @@
                         "description": "Field ID of the parent dimension to bin"
                     },
                     "binType": {
-                        "$ref": "#/components/schemas/BinType",
-                        "description": "Binning strategy to use"
+                        "$ref": "#/components/schemas/BinType.FIXED_NUMBER"
                     },
                     "binNumber": {
                         "type": "number",
-                        "format": "double",
-                        "description": "Number of bins (for fixed_number bin type)"
-                    },
-                    "binWidth": {
-                        "type": "number",
-                        "format": "double",
-                        "description": "Width of each bin (for fixed_width bin type)"
-                    },
-                    "customRange": {
-                        "items": {
-                            "$ref": "#/components/schemas/BinRange"
-                        },
-                        "type": "array",
-                        "description": "Custom bin ranges (for custom_range bin type)"
+                        "format": "double"
                     }
                 },
                 "required": [
@@ -3637,10 +3608,217 @@
                     "table",
                     "type",
                     "dimensionId",
-                    "binType"
+                    "binType",
+                    "binNumber"
                 ],
                 "type": "object",
                 "additionalProperties": true
+            },
+            "BinType.FIXED_WIDTH": {
+                "enum": ["fixed_width"],
+                "type": "string"
+            },
+            "FixedWidthBinDimension": {
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "description": "Unique identifier for the custom dimension"
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "Display name for the custom dimension"
+                    },
+                    "table": {
+                        "type": "string",
+                        "description": "Table this custom dimension belongs to"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/CustomDimensionType.BIN",
+                        "description": "Type of custom dimension (bin or sql)"
+                    },
+                    "dimensionId": {
+                        "$ref": "#/components/schemas/FieldId",
+                        "description": "Field ID of the parent dimension to bin"
+                    },
+                    "binType": {
+                        "$ref": "#/components/schemas/BinType.FIXED_WIDTH"
+                    },
+                    "binWidth": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": [
+                    "id",
+                    "name",
+                    "table",
+                    "type",
+                    "dimensionId",
+                    "binType",
+                    "binWidth"
+                ],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "BinType.CUSTOM_RANGE": {
+                "enum": ["custom_range"],
+                "type": "string"
+            },
+            "BinRange": {
+                "properties": {
+                    "to": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "End value for this bin range (undefined for the last range)"
+                    },
+                    "from": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Start value for this bin range (undefined for the first range)"
+                    }
+                },
+                "type": "object"
+            },
+            "CustomRangeBinDimension": {
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "description": "Unique identifier for the custom dimension"
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "Display name for the custom dimension"
+                    },
+                    "table": {
+                        "type": "string",
+                        "description": "Table this custom dimension belongs to"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/CustomDimensionType.BIN",
+                        "description": "Type of custom dimension (bin or sql)"
+                    },
+                    "dimensionId": {
+                        "$ref": "#/components/schemas/FieldId",
+                        "description": "Field ID of the parent dimension to bin"
+                    },
+                    "binType": {
+                        "$ref": "#/components/schemas/BinType.CUSTOM_RANGE"
+                    },
+                    "customRange": {
+                        "items": {
+                            "$ref": "#/components/schemas/BinRange"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": [
+                    "id",
+                    "name",
+                    "table",
+                    "type",
+                    "dimensionId",
+                    "binType",
+                    "customRange"
+                ],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "BinType.CUSTOM_GROUP": {
+                "enum": ["custom_group"],
+                "type": "string"
+            },
+            "GroupValueMatchType": {
+                "enum": ["exact", "startsWith", "endsWith", "includes"],
+                "type": "string"
+            },
+            "GroupValueRule": {
+                "properties": {
+                    "value": {
+                        "type": "string"
+                    },
+                    "matchType": {
+                        "$ref": "#/components/schemas/GroupValueMatchType"
+                    }
+                },
+                "required": ["value", "matchType"],
+                "type": "object"
+            },
+            "BinGroup": {
+                "properties": {
+                    "values": {
+                        "items": {
+                            "$ref": "#/components/schemas/GroupValueRule"
+                        },
+                        "type": "array",
+                        "description": "Rules that match values into this group"
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "Display name for this group (e.g. \"North America\")"
+                    }
+                },
+                "required": ["values", "name"],
+                "type": "object"
+            },
+            "CustomGroupBinDimension": {
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "description": "Unique identifier for the custom dimension"
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "Display name for the custom dimension"
+                    },
+                    "table": {
+                        "type": "string",
+                        "description": "Table this custom dimension belongs to"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/CustomDimensionType.BIN",
+                        "description": "Type of custom dimension (bin or sql)"
+                    },
+                    "dimensionId": {
+                        "$ref": "#/components/schemas/FieldId",
+                        "description": "Field ID of the parent dimension to bin"
+                    },
+                    "binType": {
+                        "$ref": "#/components/schemas/BinType.CUSTOM_GROUP"
+                    },
+                    "customGroups": {
+                        "items": {
+                            "$ref": "#/components/schemas/BinGroup"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": [
+                    "id",
+                    "name",
+                    "table",
+                    "type",
+                    "dimensionId",
+                    "binType",
+                    "customGroups"
+                ],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "CustomBinDimension": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/FixedNumberBinDimension"
+                    },
+                    {
+                        "$ref": "#/components/schemas/FixedWidthBinDimension"
+                    },
+                    {
+                        "$ref": "#/components/schemas/CustomRangeBinDimension"
+                    },
+                    {
+                        "$ref": "#/components/schemas/CustomGroupBinDimension"
+                    }
+                ]
             },
             "CustomDimensionType.SQL": {
                 "enum": ["sql"],
@@ -8977,6 +9155,19 @@
                                                         "type": "string",
                                                         "enum": ["error"],
                                                         "nullable": false
+                                                    }
+                                                },
+                                                "required": ["status"],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "error",
+                                                            "success"
+                                                        ]
                                                     }
                                                 },
                                                 "required": ["status"],

@@ -1,5 +1,27 @@
-import { type BinRange } from '../types/field';
+import {
+    GroupValueMatchType,
+    type BinGroup,
+    type BinRange,
+    type GroupValueRule,
+} from '../types/field';
 import { type WarehouseSqlBuilder } from '../types/warehouse';
+import assertUnreachable from './assertUnreachable';
+
+const createEscapeValue = (
+    quoteChar: string,
+    escapeChar: string,
+): ((value: string) => string) => {
+    if (escapeChar === quoteChar) {
+        return (value: string) =>
+            value.split(quoteChar).join(`${quoteChar}${quoteChar}`);
+    }
+    return (value: string) =>
+        value
+            .split(escapeChar)
+            .join(`${escapeChar}${escapeChar}`)
+            .split(quoteChar)
+            .join(`${escapeChar}${quoteChar}`);
+};
 
 export const getFixedWidthBinSelectSql = ({
     binWidth,
@@ -65,5 +87,168 @@ export const getCustomRangeSelectSql = ({
 
     return `CASE
             ${rangeWhens.join('\n')}
+            END`;
+};
+
+const LIKE_ESCAPE_CHAR = '\\';
+
+const escapeLikeWildcards = (value: string): string =>
+    value
+        .split(LIKE_ESCAPE_CHAR)
+        .join(`${LIKE_ESCAPE_CHAR}${LIKE_ESCAPE_CHAR}`)
+        .split('%')
+        .join(`${LIKE_ESCAPE_CHAR}%`)
+        .split('_')
+        .join(`${LIKE_ESCAPE_CHAR}_`);
+
+const renderValueCondition = (
+    rule: GroupValueRule,
+    baseDimensionSql: string,
+    quoteChar: string,
+    escapeValue: (value: string) => string,
+): string => {
+    const escaped = escapeValue(rule.value);
+    const likeEscape = `ESCAPE ${quoteChar}${escapeValue(LIKE_ESCAPE_CHAR)}${quoteChar}`;
+    switch (rule.matchType) {
+        case GroupValueMatchType.EXACT:
+            return `${baseDimensionSql} = ${quoteChar}${escaped}${quoteChar}`;
+        case GroupValueMatchType.STARTS_WITH: {
+            const likeEscaped = escapeValue(escapeLikeWildcards(rule.value));
+            return `${baseDimensionSql} LIKE ${quoteChar}${likeEscaped}%${quoteChar} ${likeEscape}`;
+        }
+        case GroupValueMatchType.ENDS_WITH: {
+            const likeEscaped = escapeValue(escapeLikeWildcards(rule.value));
+            return `${baseDimensionSql} LIKE ${quoteChar}%${likeEscaped}${quoteChar} ${likeEscape}`;
+        }
+        case GroupValueMatchType.INCLUDES: {
+            const likeEscaped = escapeValue(escapeLikeWildcards(rule.value));
+            return `${baseDimensionSql} LIKE ${quoteChar}%${likeEscaped}%${quoteChar} ${likeEscape}`;
+        }
+        default:
+            return assertUnreachable(
+                rule.matchType,
+                `Unknown match type: ${rule.matchType}`,
+            );
+    }
+};
+
+const renderGroupCondition = (
+    rules: GroupValueRule[],
+    baseDimensionSql: string,
+    quoteChar: string,
+    escapeValue: (value: string) => string,
+): string => {
+    // Optimise: batch exact-match rules into a single IN clause
+    const exactRules = rules.filter(
+        (r) => r.matchType === GroupValueMatchType.EXACT,
+    );
+    const patternRules = rules.filter(
+        (r) => r.matchType !== GroupValueMatchType.EXACT,
+    );
+
+    const conditions: string[] = [];
+
+    if (exactRules.length === 1) {
+        conditions.push(
+            renderValueCondition(
+                exactRules[0],
+                baseDimensionSql,
+                quoteChar,
+                escapeValue,
+            ),
+        );
+    } else if (exactRules.length > 1) {
+        const inValues = exactRules
+            .map((r) => `${quoteChar}${escapeValue(r.value)}${quoteChar}`)
+            .join(', ');
+        conditions.push(`${baseDimensionSql} IN (${inValues})`);
+    }
+
+    for (const rule of patternRules) {
+        conditions.push(
+            renderValueCondition(
+                rule,
+                baseDimensionSql,
+                quoteChar,
+                escapeValue,
+            ),
+        );
+    }
+
+    if (conditions.length === 1) {
+        return conditions[0];
+    }
+    return `(${conditions.join(' OR ')})`;
+};
+
+export const getCustomGroupSelectSql = ({
+    binGroups,
+    baseDimensionSql,
+    warehouseSqlBuilder,
+}: {
+    binGroups: BinGroup[];
+    baseDimensionSql: string;
+    warehouseSqlBuilder: WarehouseSqlBuilder;
+}) => {
+    const quoteChar = warehouseSqlBuilder.getStringQuoteChar();
+    const escapeChar = warehouseSqlBuilder.getEscapeStringQuoteChar();
+    const escapeValue = createEscapeValue(quoteChar, escapeChar);
+
+    const nonEmptyGroups = binGroups.filter((group) => group.values.length > 0);
+
+    const groupWhens = nonEmptyGroups.map((group) => {
+        const condition = renderGroupCondition(
+            group.values,
+            baseDimensionSql,
+            quoteChar,
+            escapeValue,
+        );
+        return `WHEN ${condition} THEN ${quoteChar}${escapeValue(group.name)}${quoteChar}`;
+    });
+
+    const whens = [
+        `WHEN ${baseDimensionSql} IS NULL THEN NULL`,
+        ...groupWhens,
+        `ELSE ${quoteChar}Other${quoteChar}`,
+    ];
+
+    return `CASE
+            ${whens.join('\n')}
+            END`;
+};
+
+export const getCustomGroupOrderSql = ({
+    binGroups,
+    baseDimensionSql,
+    warehouseSqlBuilder,
+}: {
+    binGroups: BinGroup[];
+    baseDimensionSql: string;
+    warehouseSqlBuilder: WarehouseSqlBuilder;
+}) => {
+    const quoteChar = warehouseSqlBuilder.getStringQuoteChar();
+    const escapeChar = warehouseSqlBuilder.getEscapeStringQuoteChar();
+    const escapeValue = createEscapeValue(quoteChar, escapeChar);
+
+    const nonEmptyGroups = binGroups.filter((group) => group.values.length > 0);
+
+    const groupWhens = nonEmptyGroups.map((group, index) => {
+        const condition = renderGroupCondition(
+            group.values,
+            baseDimensionSql,
+            quoteChar,
+            escapeValue,
+        );
+        return `WHEN ${condition} THEN ${index}`;
+    });
+
+    const whens = [
+        `WHEN ${baseDimensionSql} IS NULL THEN NULL`,
+        ...groupWhens,
+        `ELSE ${nonEmptyGroups.length}`,
+    ];
+
+    return `CASE
+            ${whens.join('\n')}
             END`;
 };

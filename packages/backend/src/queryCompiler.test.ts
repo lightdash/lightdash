@@ -976,7 +976,7 @@ test('Should compile template table calculations using _order for custom bin dim
                 type: CustomDimensionType.BIN as const,
                 dimensionId: 'table1_dim_1',
                 table: 'table1',
-                binType: BinType.FIXED_WIDTH,
+                binType: BinType.FIXED_WIDTH as const,
                 binWidth: 10,
             },
         ],

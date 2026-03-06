@@ -1,0 +1,8 @@
+.addButton {
+    align-self: flex-start;
+}
+
+.groupCard {
+    border: 1px solid var(--mantine-color-ldGray-3);
+    border-radius: var(--mantine-radius-sm);
+}

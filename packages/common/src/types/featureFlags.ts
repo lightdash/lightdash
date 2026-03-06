@@ -93,6 +93,11 @@ export enum FeatureFlags {
      * actions are blocked and active sessions are cleared.
      */
     UserImpersonation = 'user-impersonation',
+
+    /**
+     * Enable custom group bins for string dimensions
+     */
+    CustomGroupBins = 'custom-group-bins',
 }
 
 export type FeatureFlag = {

@@ -300,12 +300,21 @@ const createSavedChartVersion = async (
                     dimension_id: customDimension.dimensionId,
                     table: customDimension.table,
                     bin_type: customDimension.binType,
-                    bin_number: customDimension.binNumber || null,
-                    bin_width: customDimension.binWidth || null,
+                    bin_number:
+                        customDimension.binType === BinType.FIXED_NUMBER
+                            ? customDimension.binNumber
+                            : null,
+                    bin_width:
+                        customDimension.binType === BinType.FIXED_WIDTH
+                            ? customDimension.binWidth
+                            : null,
                     custom_range:
-                        customDimension.customRange &&
-                        customDimension.customRange.length > 0
+                        customDimension.binType === BinType.CUSTOM_RANGE
                             ? JSON.stringify(customDimension.customRange)
+                            : null,
+                    custom_groups:
+                        customDimension.binType === BinType.CUSTOM_GROUP
+                            ? JSON.stringify(customDimension.customGroups)
                             : null,
                     order: tableConfig.columnOrder.findIndex(
                         (column) => column === getItemId(customDimension),
@@ -1183,17 +1192,46 @@ export class SavedChartModel {
                         customDimensions: [
                             ...(
                                 customBinDimensionsRows || []
-                            ).map<CustomBinDimension>((cd) => ({
-                                id: cd.id,
-                                name: cd.name,
-                                type: CustomDimensionType.BIN,
-                                dimensionId: cd.dimension_id,
-                                table: cd.table,
-                                binType: cd.bin_type as BinType,
-                                binNumber: cd.bin_number || undefined,
-                                binWidth: cd.bin_width || undefined,
-                                customRange: cd.custom_range || undefined,
-                            })),
+                            ).map<CustomBinDimension>((cd) => {
+                                const base = {
+                                    id: cd.id,
+                                    name: cd.name,
+                                    type: CustomDimensionType.BIN as const,
+                                    dimensionId: cd.dimension_id,
+                                    table: cd.table,
+                                };
+                                switch (cd.bin_type) {
+                                    case BinType.FIXED_NUMBER:
+                                        return {
+                                            ...base,
+                                            binType: BinType.FIXED_NUMBER,
+                                            binNumber: cd.bin_number || 1,
+                                        };
+                                    case BinType.FIXED_WIDTH:
+                                        return {
+                                            ...base,
+                                            binType: BinType.FIXED_WIDTH,
+                                            binWidth: cd.bin_width || 1,
+                                        };
+                                    case BinType.CUSTOM_RANGE:
+                                        return {
+                                            ...base,
+                                            binType: BinType.CUSTOM_RANGE,
+                                            customRange: cd.custom_range || [],
+                                        };
+                                    case BinType.CUSTOM_GROUP:
+                                        return {
+                                            ...base,
+                                            binType: BinType.CUSTOM_GROUP,
+                                            customGroups:
+                                                cd.custom_groups || [],
+                                        };
+                                    default:
+                                        throw new Error(
+                                            `Unknown bin type "${cd.bin_type}" for custom dimension "${cd.name}"`,
+                                        );
+                                }
+                            }),
                             ...(
                                 customSqlDimensionsRows || []
                             ).map<CustomSqlDimension>((cd) => ({
