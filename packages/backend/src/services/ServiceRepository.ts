@@ -648,6 +648,8 @@ export class ServiceRepository
                     adminNotificationService:
                         this.getAdminNotificationService(),
                     spacePermissionService: this.getSpacePermissionService(),
+                    contentVerificationModel:
+                        this.models.getContentVerificationModel(),
                 }),
         );
     }
