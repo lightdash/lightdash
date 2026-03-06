@@ -1,3 +1,10 @@
+## [0.2580.2](https://github.com/lightdash/lightdash/compare/0.2580.1...0.2580.2) (2026-03-06)
+
+
+### Bug Fixes
+
+* reduce navbar z index ([#20920](https://github.com/lightdash/lightdash/issues/20920)) ([257083c](https://github.com/lightdash/lightdash/commit/257083cf54005bde3bfd4d83ff2cae5094d2e037)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
 ## [0.2580.1](https://github.com/lightdash/lightdash/compare/0.2580.0...0.2580.1) (2026-03-06)
 
 
