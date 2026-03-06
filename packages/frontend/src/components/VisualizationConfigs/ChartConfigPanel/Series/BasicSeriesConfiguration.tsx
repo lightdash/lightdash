@@ -91,6 +91,7 @@ const BasicSeriesConfiguration: FC<BasicSeriesConfigurationProps> = ({
                                         format="hex"
                                         swatches={colorPalette}
                                         swatchesPerRow={8}
+                                        value={colorPalette[0]}
                                         onChange={(color) => {
                                             updateSingleSeries({
                                                 ...series,
