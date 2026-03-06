@@ -145,7 +145,7 @@ export const CustomBinDimensionModal: FC<{
                         .array(
                             z.object({
                                 matchType: z.nativeEnum(GroupValueMatchType),
-                                value: z.string().min(1),
+                                value: z.string().trim().min(1),
                             }),
                         )
                         .min(1, 'Each group must have at least one value'),
@@ -565,7 +565,6 @@ export const CustomBinDimensionModal: FC<{
                             )}
 
                             <Button
-                                c="blue"
                                 variant="light"
                                 size="compact-xs"
                                 fw="400"
@@ -816,7 +815,6 @@ export const CustomBinDimensionModal: FC<{
                             )}
 
                             <Button
-                                c="blue"
                                 variant="light"
                                 size="compact-xs"
                                 fw="400"

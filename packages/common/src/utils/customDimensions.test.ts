@@ -63,40 +63,47 @@ describe('getCustomGroupSelectSql', () => {
         expect(result).toContain(`ELSE 'Other'`);
     });
 
-    it('generates LIKE for starts_with match type', () => {
+    it('generates LIKE for starts_with with escaped underscore', () => {
         const result = getCustomGroupSelectSql({
             binGroups: [{ name: 'Prod', values: [startsWith('prod_')] }],
             baseDimensionSql,
             warehouseSqlBuilder: backslashEscapeBuilder,
         });
 
-        expect(result).toContain(
-            `WHEN ${baseDimensionSql} LIKE 'prod_%' THEN 'Prod'`,
-        );
+        expect(result).toContain(`LIKE 'prod\\\\_%'`);
+        expect(result).toContain(`ESCAPE '\\\\'`);
     });
 
-    it('generates LIKE for ends_with match type', () => {
+    it('generates LIKE for ends_with match type with ESCAPE clause', () => {
         const result = getCustomGroupSelectSql({
             binGroups: [{ name: 'Gmail', values: [endsWith('@gmail.com')] }],
             baseDimensionSql,
             warehouseSqlBuilder: backslashEscapeBuilder,
         });
 
-        expect(result).toContain(
-            `WHEN ${baseDimensionSql} LIKE '%@gmail.com' THEN 'Gmail'`,
-        );
+        expect(result).toContain(`LIKE '%@gmail.com'`);
+        expect(result).toContain(`ESCAPE '\\\\'`);
     });
 
-    it('generates LIKE for includes match type', () => {
+    it('generates LIKE for includes match type with ESCAPE clause', () => {
         const result = getCustomGroupSelectSql({
             binGroups: [{ name: 'Has Test', values: [includes('test')] }],
             baseDimensionSql,
             warehouseSqlBuilder: backslashEscapeBuilder,
         });
 
-        expect(result).toContain(
-            `WHEN ${baseDimensionSql} LIKE '%test%' THEN 'Has Test'`,
-        );
+        expect(result).toContain(`LIKE '%test%'`);
+        expect(result).toContain(`ESCAPE '\\\\'`);
+    });
+
+    it('escapes LIKE wildcards % and _ in pattern match values', () => {
+        const result = getCustomGroupSelectSql({
+            binGroups: [{ name: 'Discount', values: [includes('50%')] }],
+            baseDimensionSql,
+            warehouseSqlBuilder: backslashEscapeBuilder,
+        });
+
+        expect(result).toContain(`%50\\\\%%`);
     });
 
     it('combines exact matches into IN and pattern matches with OR', () => {
@@ -111,8 +118,9 @@ describe('getCustomGroupSelectSql', () => {
             warehouseSqlBuilder: backslashEscapeBuilder,
         });
 
+        expect(result).toContain(`${baseDimensionSql} IN ('US', 'CA')`);
         expect(result).toContain(
-            `WHEN (${baseDimensionSql} IN ('US', 'CA') OR ${baseDimensionSql} LIKE '%.com') THEN 'Mixed'`,
+            `${baseDimensionSql} LIKE '%.com' ESCAPE '\\\\'`,
         );
     });
 

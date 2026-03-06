@@ -90,6 +90,17 @@ export const getCustomRangeSelectSql = ({
             END`;
 };
 
+const LIKE_ESCAPE_CHAR = '\\';
+
+const escapeLikeWildcards = (value: string): string =>
+    value
+        .split(LIKE_ESCAPE_CHAR)
+        .join(`${LIKE_ESCAPE_CHAR}${LIKE_ESCAPE_CHAR}`)
+        .split('%')
+        .join(`${LIKE_ESCAPE_CHAR}%`)
+        .split('_')
+        .join(`${LIKE_ESCAPE_CHAR}_`);
+
 const renderValueCondition = (
     rule: GroupValueRule,
     baseDimensionSql: string,
@@ -97,15 +108,22 @@ const renderValueCondition = (
     escapeValue: (value: string) => string,
 ): string => {
     const escaped = escapeValue(rule.value);
+    const likeEscape = `ESCAPE ${quoteChar}${escapeValue(LIKE_ESCAPE_CHAR)}${quoteChar}`;
     switch (rule.matchType) {
         case GroupValueMatchType.EXACT:
             return `${baseDimensionSql} = ${quoteChar}${escaped}${quoteChar}`;
-        case GroupValueMatchType.STARTS_WITH:
-            return `${baseDimensionSql} LIKE ${quoteChar}${escaped}%${quoteChar}`;
-        case GroupValueMatchType.ENDS_WITH:
-            return `${baseDimensionSql} LIKE ${quoteChar}%${escaped}${quoteChar}`;
-        case GroupValueMatchType.INCLUDES:
-            return `${baseDimensionSql} LIKE ${quoteChar}%${escaped}%${quoteChar}`;
+        case GroupValueMatchType.STARTS_WITH: {
+            const likeEscaped = escapeValue(escapeLikeWildcards(rule.value));
+            return `${baseDimensionSql} LIKE ${quoteChar}${likeEscaped}%${quoteChar} ${likeEscape}`;
+        }
+        case GroupValueMatchType.ENDS_WITH: {
+            const likeEscaped = escapeValue(escapeLikeWildcards(rule.value));
+            return `${baseDimensionSql} LIKE ${quoteChar}%${likeEscaped}${quoteChar} ${likeEscape}`;
+        }
+        case GroupValueMatchType.INCLUDES: {
+            const likeEscaped = escapeValue(escapeLikeWildcards(rule.value));
+            return `${baseDimensionSql} LIKE ${quoteChar}%${likeEscaped}%${quoteChar} ${likeEscape}`;
+        }
         default:
             return assertUnreachable(
                 rule.matchType,
