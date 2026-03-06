@@ -1,3 +1,17 @@
+# [0.2582.0](https://github.com/lightdash/lightdash/compare/0.2581.0...0.2582.0) (2026-03-06)
+
+
+### Bug Fixes
+
+* replace nodemailer-express-handlebars with native Handlebars ([#20941](https://github.com/lightdash/lightdash/issues/20941)) ([e2cc43f](https://github.com/lightdash/lightdash/commit/e2cc43f1c23258f334c850a529d30d3dbbb3d7e6))
+
+
+### Features
+
+* add a way to set all colors at once ([#20878](https://github.com/lightdash/lightdash/issues/20878)) ([ad70f9d](https://github.com/lightdash/lightdash/commit/ad70f9dd96fcb48cb6a2d3d284cb077e0e7bb291))
+* add custom group bins for string dimensions ([#20893](https://github.com/lightdash/lightdash/issues/20893)) ([85cf6ed](https://github.com/lightdash/lightdash/commit/85cf6ed38150865e89c45ec1b75d0e604d98246e))
+* enable color by category in 1-series bar charts ([#20845](https://github.com/lightdash/lightdash/issues/20845)) ([cfcd93b](https://github.com/lightdash/lightdash/commit/cfcd93ba9445144fa824c244eeaf89e4b1da552c))
+
 # [0.2581.0](https://github.com/lightdash/lightdash/compare/0.2580.3...0.2581.0) (2026-03-06)
 
 
