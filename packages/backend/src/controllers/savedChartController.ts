@@ -12,6 +12,8 @@ import {
     ApiSuccessEmpty,
     AuthorizationError,
     DateZoom,
+    FeatureFlags,
+    ForbiddenError,
     QueryExecutionContext,
     SortField,
     type ApiCreateSavedChartSchedulerResponse,
@@ -427,6 +429,7 @@ export class SavedChartController extends BaseController {
         @Request() req: express.Request,
     ): Promise<ApiSavedChartSchedulersResponse> {
         if (!req.user) {
+            // eslint-disable-next-line @typescript-eslint/only-throw-error -- AuthorizationError extends Error
             throw new AuthorizationError('User session not found');
         }
 
@@ -508,6 +511,14 @@ export class SavedChartController extends BaseController {
         @Path() chartUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiContentVerificationResponse> {
+        const featureFlag = await this.services.getFeatureFlagService().get({
+            user: req.user,
+            featureFlagId: FeatureFlags.ContentVerification,
+        });
+        if (!featureFlag.enabled) {
+            // eslint-disable-next-line @typescript-eslint/only-throw-error -- ForbiddenError extends Error
+            throw new ForbiddenError('Feature not enabled');
+        }
         this.setStatus(200);
         return {
             status: 'ok',
@@ -535,6 +546,14 @@ export class SavedChartController extends BaseController {
         @Path() chartUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiContentVerificationDeleteResponse> {
+        const featureFlag = await this.services.getFeatureFlagService().get({
+            user: req.user,
+            featureFlagId: FeatureFlags.ContentVerification,
+        });
+        if (!featureFlag.enabled) {
+            // eslint-disable-next-line @typescript-eslint/only-throw-error -- ForbiddenError extends Error
+            throw new ForbiddenError('Feature not enabled');
+        }
         this.setStatus(200);
         await this.services
             .getSavedChartService()

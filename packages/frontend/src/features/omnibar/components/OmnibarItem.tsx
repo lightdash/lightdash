@@ -1,6 +1,8 @@
+import { FeatureFlags } from '@lightdash/common';
 import { Box, Group, Stack, Text, Tooltip } from '@mantine-8/core';
 import { IconCircleCheckFilled } from '@tabler/icons-react';
 import { type FC, type MutableRefObject } from 'react';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { type SearchItem } from '../types/searchItem';
 import classes from './OmnibarItem.module.css';
 import {
@@ -37,6 +39,12 @@ const OmnibarItem: FC<Props> = ({
     onClick,
     scrollRef,
 }) => {
+    const { data: contentVerificationFlag } = useServerFeatureFlag(
+        FeatureFlags.ContentVerification,
+    );
+    const isContentVerificationEnabled =
+        contentVerificationFlag?.enabled ?? false;
+
     return (
         <Group
             role="menuitem"
@@ -59,7 +67,7 @@ const OmnibarItem: FC<Props> = ({
                 )}
             </Box>
 
-            {itemHasVerification(item) && (
+            {isContentVerificationEnabled && itemHasVerification(item) && (
                 <Tooltip label="Verified" withArrow>
                     <IconCircleCheckFilled
                         size={14}

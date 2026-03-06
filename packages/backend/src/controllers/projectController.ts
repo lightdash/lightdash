@@ -25,6 +25,8 @@ import {
     DashboardAsCode,
     DbtExposure,
     DbtProjectEnvironmentVariable,
+    FeatureFlags,
+    ForbiddenError,
     getRequestMethod,
     isDuplicateDashboardParams,
     LightdashRequestMethodHeader,
@@ -174,6 +176,7 @@ export class ProjectController extends BaseController {
         @Request() req: express.Request,
     ): Promise<ApiSpaceSummaryListResponse> {
         if (!req.user) {
+            // eslint-disable-next-line @typescript-eslint/only-throw-error -- AuthorizationError extends Error
             throw new AuthorizationError('User session not found');
         }
         this.setStatus(200);
@@ -669,6 +672,7 @@ export class ProjectController extends BaseController {
 
         if (duplicateFrom) {
             if (!isDuplicateDashboardParams(body)) {
+                // eslint-disable-next-line @typescript-eslint/only-throw-error -- ParameterError extends Error
                 throw new ParameterError(
                     'Invalid parameters to duplicate dashbaord',
                 );
@@ -682,6 +686,7 @@ export class ProjectController extends BaseController {
             );
         } else {
             if (isDuplicateDashboardParams(body)) {
+                // eslint-disable-next-line @typescript-eslint/only-throw-error -- ParameterError extends Error
                 throw new ParameterError(
                     'Invalid parameters to duplicate dashbaord',
                 );
@@ -1206,6 +1211,7 @@ export class ProjectController extends BaseController {
     ) {
         // TODO validate webhook signature https://docs.getdbt.com/docs/deploy/webhooks#validate-a-webhook
         if (!body) {
+            // eslint-disable-next-line @typescript-eslint/only-throw-error -- ParameterError extends Error
             throw new ParameterError('Invalid body');
         }
         if (body.eventType === 'job.run.completed') {
@@ -1321,6 +1327,14 @@ export class ProjectController extends BaseController {
         @Path() projectUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiVerifiedContentListResponse> {
+        const featureFlag = await this.services.getFeatureFlagService().get({
+            user: req.user,
+            featureFlagId: FeatureFlags.ContentVerification,
+        });
+        if (!featureFlag.enabled) {
+            // eslint-disable-next-line @typescript-eslint/only-throw-error -- ForbiddenError extends Error
+            throw new ForbiddenError('Feature not enabled');
+        }
         this.setStatus(200);
         return {
             status: 'ok',

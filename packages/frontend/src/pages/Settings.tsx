@@ -122,6 +122,12 @@ const Settings: FC = () => {
         FeatureFlags.DefaultUserSpaces,
     );
 
+    const { data: contentVerificationFlag } = useServerFeatureFlag(
+        FeatureFlags.ContentVerification,
+    );
+    const isContentVerificationEnabled =
+        contentVerificationFlag?.enabled ?? false;
+
     const { track } = useTracking();
     const {
         data: organization,
@@ -994,7 +1000,8 @@ const Settings: FC = () => {
                                         />
                                     ) : null}
 
-                                    {user.ability?.can(
+                                    {isContentVerificationEnabled &&
+                                    user.ability?.can(
                                         'manage',
                                         subject('ContentVerification', {
                                             organizationUuid:
