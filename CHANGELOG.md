@@ -1,3 +1,11 @@
+## [0.2579.2](https://github.com/lightdash/lightdash/compare/0.2579.1...0.2579.2) (2026-03-06)
+
+
+### Bug Fixes
+
+* re-create soft-deleted space with cli upload ([#20908](https://github.com/lightdash/lightdash/issues/20908)) ([1d67ab8](https://github.com/lightdash/lightdash/commit/1d67ab87d68186f99fc7f61bd8387dd513e1a44f))
+* use baseFieldId for bar-in-cell color lookup in pivot tables ([#20895](https://github.com/lightdash/lightdash/issues/20895)) ([eb1790b](https://github.com/lightdash/lightdash/commit/eb1790b2238393d32e8e1b9202ece8882b878f75))
+
 ## [0.2579.1](https://github.com/lightdash/lightdash/compare/0.2579.0...0.2579.1) (2026-03-06)
 
 
