@@ -9,6 +9,7 @@ import {
     DEFAULT_SPOTLIGHT_CONFIG,
     type LightdashProjectConfig,
 } from '../types/lightdashProjectConfig';
+import { TimeFrames } from '../types/timeFrames';
 
 const defaultConfig: LightdashProjectConfig = {
     spotlight: DEFAULT_SPOTLIGHT_CONFIG,
@@ -68,6 +69,21 @@ export const loadLightdashProjectConfig = async (
                 invalidParameters,
             },
         );
+    }
+
+    if (configFile.custom_granularities) {
+        const timeFrameValues = new Set(
+            Object.values(TimeFrames).map((v) => v.toLowerCase()),
+        );
+        const conflicting = Object.keys(configFile.custom_granularities).filter(
+            (name) => timeFrameValues.has(name.toLowerCase()),
+        );
+        if (conflicting.length > 0) {
+            throw new LightdashProjectConfigError(
+                `Custom granularity names conflict with standard time intervals: ${conflicting.join(', ')}`,
+                { invalidParameters: conflicting },
+            );
+        }
     }
 
     if (onLoaded) {

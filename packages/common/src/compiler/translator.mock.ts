@@ -2315,3 +2315,21 @@ export const MODEL_WITH_METRIC_DRIVERS: DbtModelNode & {
         },
     },
 };
+
+export const MODEL_WITH_CUSTOM_GRANULARITY: DbtModelNode & {
+    relation_name: string;
+} = {
+    ...model,
+    columns: {
+        created_at: {
+            name: 'created_at',
+            data_type: DimensionType.TIMESTAMP,
+            meta: {
+                dimension: {
+                    type: DimensionType.TIMESTAMP,
+                    time_intervals: ['DAY', 'slt_week'],
+                },
+            },
+        },
+    },
+};
