@@ -474,6 +474,7 @@ export class SpaceModel {
                         createdAt: error.created_at,
                     }),
                 ),
+                verification: null,
             }),
         );
     }

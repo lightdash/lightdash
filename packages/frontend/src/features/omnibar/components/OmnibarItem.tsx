@@ -1,4 +1,5 @@
-import { Box, Group, Stack, Text } from '@mantine-8/core';
+import { Box, Group, Stack, Text, Tooltip } from '@mantine-8/core';
+import { IconCircleCheckFilled } from '@tabler/icons-react';
 import { type FC, type MutableRefObject } from 'react';
 import { type SearchItem } from '../types/searchItem';
 import classes from './OmnibarItem.module.css';
@@ -21,6 +22,12 @@ const itemHasValidationError = (searchItem: SearchItem) =>
     ['dashboard', 'saved_chart', 'table'].includes(searchItem.type) &&
     'validationErrors' in searchItem.item &&
     searchItem.item.validationErrors?.length > 0;
+
+const itemHasVerification = (searchItem: SearchItem) =>
+    searchItem.item &&
+    'verification' in searchItem.item &&
+    searchItem.item.verification !== null &&
+    searchItem.item.verification !== undefined;
 
 const OmnibarItem: FC<Props> = ({
     item,
@@ -51,6 +58,18 @@ const OmnibarItem: FC<Props> = ({
                     <OmnibarItemIcon item={item} />
                 )}
             </Box>
+
+            {itemHasVerification(item) && (
+                <Tooltip label="Verified" withArrow>
+                    <IconCircleCheckFilled
+                        size={14}
+                        style={{
+                            flexShrink: 0,
+                            color: 'var(--mantine-color-green-6)',
+                        }}
+                    />
+                </Tooltip>
+            )}
 
             <Stack gap="two" className={classes.content}>
                 <Text fw={500} size="sm" truncate ref={scrollRef}>

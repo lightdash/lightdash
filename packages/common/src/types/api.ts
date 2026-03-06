@@ -76,6 +76,7 @@ import {
 import {
     type ApiContentVerificationDeleteResponse,
     type ApiContentVerificationResponse,
+    type ApiVerifiedContentListResponse,
 } from './contentVerification';
 import {
     type Dashboard,
@@ -964,7 +965,8 @@ type ApiResults =
     | ApiGetPreAggregateMaterializationsResponse['results']
     | ApiImpersonationOrganizationSettingsResponse['results']
     | ApiContentVerificationResponse['results']
-    | ApiContentVerificationDeleteResponse['results'];
+    | ApiContentVerificationDeleteResponse['results']
+    | ApiVerifiedContentListResponse['results'];
 // Note: EE API types removed from ApiResults to avoid circular imports
 // They can still be used with ApiResponse<T> by importing from '@lightdash/common'
 

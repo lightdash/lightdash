@@ -1,9 +1,9 @@
 import { type ResourceViewChartItem } from '@lightdash/common';
 import { Box, Flex, Group, Paper, Text, Tooltip } from '@mantine-8/core';
 import { useDisclosure, useHover } from '@mantine/hooks';
-import { IconEye } from '@tabler/icons-react';
+import { IconCircleCheckFilled, IconEye } from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
-import { ResourceIcon } from '../../ResourceIcon';
+import { ResourceIcon, ResourceIndicator } from '../../ResourceIcon';
 import ResourceViewActionMenu, {
     type ResourceViewActionMenuCommonProps,
 } from '../ResourceActionMenu';
@@ -45,7 +45,35 @@ const ResourceViewGridChartItem: FC<ResourceViewGridChartItemProps> = ({
                 className={classes.gridCardTopSection}
             >
                 {dragIcon}
-                <ResourceIcon item={item} />
+                {item.data.verification ? (
+                    <ResourceIndicator
+                        iconProps={{
+                            icon: IconCircleCheckFilled,
+                            color: 'green.6',
+                        }}
+                        tooltipProps={{
+                            maw: 300,
+                            withinPortal: true,
+                            multiline: true,
+                            offset: -2,
+                            position: 'bottom',
+                        }}
+                        tooltipLabel={
+                            <>
+                                Verified by{' '}
+                                {item.data.verification.verifiedBy.firstName}{' '}
+                                {item.data.verification.verifiedBy.lastName} on{' '}
+                                {new Date(
+                                    item.data.verification.verifiedAt,
+                                ).toLocaleDateString()}
+                            </>
+                        }
+                    >
+                        <ResourceIcon item={item} />
+                    </ResourceIndicator>
+                ) : (
+                    <ResourceIcon item={item} />
+                )}
 
                 <Tooltip
                     label={item.data.description}

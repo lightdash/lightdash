@@ -15,6 +15,7 @@ import { ChangesetService } from './ChangesetService';
 import { CoderService } from './CoderService/CoderService';
 import { CommentService } from './CommentService/CommentService';
 import { ContentService } from './ContentService/ContentService';
+import { ContentVerificationService } from './ContentVerificationService';
 import { CsvService } from './CsvService/CsvService';
 import { DashboardService } from './DashboardService/DashboardService';
 import { DeployService } from './DeployService';
@@ -106,6 +107,7 @@ interface ServiceManifest {
     promoteService: PromoteService;
     savedSqlService: SavedSqlService;
     contentService: ContentService;
+    contentVerificationService: ContentVerificationService;
     coderService: CoderService;
     featureFlagService: FeatureFlagService;
     funnelService: FunnelService;
@@ -1048,6 +1050,18 @@ export class ServiceRepository
                     savedChartService: this.getSavedChartService(),
                     savedSqlService: this.getSavedSqlService(),
                     spacePermissionService: this.getSpacePermissionService(),
+                }),
+        );
+    }
+
+    public getContentVerificationService(): ContentVerificationService {
+        return this.getService(
+            'contentVerificationService',
+            () =>
+                new ContentVerificationService({
+                    contentVerificationModel:
+                        this.models.getContentVerificationModel(),
+                    projectModel: this.models.getProjectModel(),
                 }),
         );
     }
