@@ -87,6 +87,11 @@ export enum FeatureFlags {
      * Enable Google Chat as a scheduled delivery destination
      */
     GoogleChatEnabled = 'google-chat-enabled',
+
+    /**
+     * Enable content verification (verified seal for charts and dashboards)
+     */
+    ContentVerification = 'content-verification',
 }
 
 export type FeatureFlag = {

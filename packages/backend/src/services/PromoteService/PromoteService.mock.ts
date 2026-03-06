@@ -160,6 +160,7 @@ export const promotedChart: PromotedChart = {
         dashboardName: null,
         colorPalette: [],
         slug: 'apple-chart',
+        verification: null,
     },
     projectUuid: promotedProjectUuid,
     space: promotedSpace,
