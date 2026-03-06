@@ -39,35 +39,19 @@ export function fieldDesc(fieldName: string, item: Item) {
 
         switch (item.binType) {
             case BinType.FIXED_NUMBER:
-                if (!item.binNumber) {
-                    break;
-                }
-
                 binString = `- having ${item.binNumber} bin${
                     item.binNumber > 1 ? 's' : ''
                 }`;
                 break;
             case BinType.CUSTOM_RANGE:
-                if (!item.customRange) {
-                    break;
-                }
-
-                binString = `having custom ranges: ${item.customRange?.join(
+                binString = `having custom ranges: ${item.customRange.join(
                     ', ',
                 )}`;
                 break;
             case BinType.FIXED_WIDTH:
-                if (!item.binWidth) {
-                    break;
-                }
-
                 binString = `having fixed width: ${item.binWidth}`;
                 break;
             case BinType.CUSTOM_GROUP:
-                if (!item.customGroups) {
-                    break;
-                }
-
                 binString = `having custom groups: ${item.customGroups
                     .map(
                         (g) =>
@@ -76,10 +60,7 @@ export function fieldDesc(fieldName: string, item: Item) {
                     .join('; ')}`;
                 break;
             default:
-                return assertUnreachable(
-                    item.binType,
-                    `unknown bin type: ${item.binType}`,
-                );
+                return assertUnreachable(item, `unknown bin type`);
         }
         return ` - ${fieldName}: this column is a custom dimension which aggregates the "${item.dimensionId}" dimension into "${item.binType}" bins ${binString}`;
     }

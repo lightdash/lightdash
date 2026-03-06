@@ -73,6 +73,48 @@ const DEFAULT_VALUE_RULE: GroupValueRule = {
 
 const isStringBinType = (binType: BinType) => binType === BinType.CUSTOM_GROUP;
 
+const buildCustomBinDimension = (
+    base: { id: string; name: string; table: string; dimensionId: string },
+    values: FormValues,
+): CustomBinDimension => {
+    const common = {
+        ...base,
+        type: CustomDimensionType.BIN as const,
+    };
+    switch (values.binType) {
+        case BinType.FIXED_NUMBER:
+            return {
+                ...common,
+                binType: BinType.FIXED_NUMBER,
+                binNumber: values.binConfig.fixedNumber.binNumber,
+            };
+        case BinType.FIXED_WIDTH:
+            return {
+                ...common,
+                binType: BinType.FIXED_WIDTH,
+                binWidth: values.binConfig.fixedWidth.binWidth,
+            };
+        case BinType.CUSTOM_RANGE:
+            return {
+                ...common,
+                binType: BinType.CUSTOM_RANGE,
+                customRange: values.binConfig.customRange as BinRange[],
+            };
+        case BinType.CUSTOM_GROUP:
+            return {
+                ...common,
+                binType: BinType.CUSTOM_GROUP,
+                customGroups: values.binConfig.customGroups,
+            };
+        default:
+            return {
+                ...common,
+                binType: BinType.FIXED_NUMBER,
+                binNumber: MIN_OF_FIXED_NUMBER_BINS,
+            };
+    }
+};
+
 type FormValues = {
     customDimensionLabel: string;
     binType: BinType;
@@ -352,29 +394,34 @@ export const CustomBinDimensionModal: FC<{
         if (isEditing && isCustomDimension(item)) {
             setFieldValue('customDimensionLabel', item.name);
             setFieldValue('binType', item.binType);
-            setFieldValue(
-                'binConfig.fixedNumber.binNumber',
-                item.binNumber ? item.binNumber : MIN_OF_FIXED_NUMBER_BINS,
-            );
-
-            setFieldValue(
-                'binConfig.fixedWidth.binWidth',
-                item.binWidth ? item.binWidth : MIN_OF_FIXED_NUMBER_BINS,
-            );
-
-            setFieldValue(
-                'binConfig.customRange',
-                item.customRange
-                    ? structuredClone(item.customRange)
-                    : DEFAULT_CUSTOM_RANGE,
-            );
-
-            setFieldValue(
-                'binConfig.customGroups',
-                item.customGroups
-                    ? structuredClone(item.customGroups)
-                    : DEFAULT_CUSTOM_GROUPS,
-            );
+            switch (item.binType) {
+                case BinType.FIXED_NUMBER:
+                    setFieldValue(
+                        'binConfig.fixedNumber.binNumber',
+                        item.binNumber,
+                    );
+                    break;
+                case BinType.FIXED_WIDTH:
+                    setFieldValue(
+                        'binConfig.fixedWidth.binWidth',
+                        item.binWidth,
+                    );
+                    break;
+                case BinType.CUSTOM_RANGE:
+                    setFieldValue(
+                        'binConfig.customRange',
+                        structuredClone(item.customRange),
+                    );
+                    break;
+                case BinType.CUSTOM_GROUP:
+                    setFieldValue(
+                        'binConfig.customGroups',
+                        structuredClone(item.customGroups),
+                    );
+                    break;
+                default:
+                    break;
+            }
         }
     }, [setFieldValue, item, isEditing]);
 
@@ -393,25 +440,15 @@ export const CustomBinDimensionModal: FC<{
             );
 
             if (isEditing && isCustomDimension(item)) {
-                // Edit by updating the entire array
-                const updatedDimension: CustomBinDimension = {
-                    id: item.id,
-                    name: values.customDimensionLabel,
-                    type: CustomDimensionType.BIN,
-                    dimensionId: item.dimensionId,
-                    binType: values.binType,
-                    binNumber: values.binConfig.fixedNumber.binNumber,
-                    binWidth: values.binConfig.fixedWidth.binWidth,
-                    table: item.table,
-                    customRange:
-                        values.binType === BinType.CUSTOM_RANGE
-                            ? values.binConfig.customRange
-                            : undefined,
-                    customGroups:
-                        values.binType === BinType.CUSTOM_GROUP
-                            ? values.binConfig.customGroups
-                            : undefined,
-                };
+                const updatedDimension = buildCustomBinDimension(
+                    {
+                        id: item.id,
+                        name: values.customDimensionLabel,
+                        table: item.table,
+                        dimensionId: item.dimensionId,
+                    },
+                    values,
+                );
                 const updatedDimensions = (customDimensions ?? []).map((dim) =>
                     dim.id === item.id ? updatedDimension : dim,
                 );
@@ -424,24 +461,17 @@ export const CustomBinDimensionModal: FC<{
                 });
             } else {
                 dispatch(
-                    explorerActions.addCustomDimension({
-                        id: sanitizedId,
-                        name: values.customDimensionLabel,
-                        type: CustomDimensionType.BIN,
-                        dimensionId: getItemId(item),
-                        binType: values.binType,
-                        binNumber: values.binConfig.fixedNumber.binNumber,
-                        binWidth: values.binConfig.fixedWidth.binWidth,
-                        table: item.table,
-                        customRange:
-                            values.binType === BinType.CUSTOM_RANGE
-                                ? values.binConfig.customRange
-                                : undefined,
-                        customGroups:
-                            values.binType === BinType.CUSTOM_GROUP
-                                ? values.binConfig.customGroups
-                                : undefined,
-                    }),
+                    explorerActions.addCustomDimension(
+                        buildCustomBinDimension(
+                            {
+                                id: sanitizedId,
+                                name: values.customDimensionLabel,
+                                table: item.table,
+                                dimensionId: getItemId(item),
+                            },
+                            values,
+                        ),
+                    ),
                 );
 
                 showToastSuccess({

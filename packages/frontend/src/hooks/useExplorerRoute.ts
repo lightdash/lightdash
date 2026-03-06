@@ -152,13 +152,16 @@ const parseChartFromExplorerSearchParams = (
                     parsedValue.metricQuery.customDimensions?.map<CustomDimension>(
                         (customDimension) => {
                             if (customDimension.type === undefined) {
+                                // backwards compat: old URLs lack type field
                                 return {
-                                    ...(customDimension as CustomBinDimension),
-                                    type: CustomDimensionType.BIN, // add type for backwards compatibility
-                                };
-                            } else {
-                                return customDimension;
+                                    ...(customDimension as unknown as Record<
+                                        string,
+                                        unknown
+                                    >),
+                                    type: CustomDimensionType.BIN,
+                                } as CustomBinDimension;
                             }
+                            return customDimension;
                         },
                     ),
             },

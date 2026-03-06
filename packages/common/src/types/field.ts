@@ -250,21 +250,37 @@ export interface BaseCustomDimension {
     type: CustomDimensionType;
 }
 
-export interface CustomBinDimension extends BaseCustomDimension {
+interface BaseCustomBinDimension extends BaseCustomDimension {
     type: CustomDimensionType.BIN;
     /** Field ID of the parent dimension to bin */
     dimensionId: FieldId;
-    /** Binning strategy to use */
-    binType: BinType;
-    /** Number of bins (for fixed_number bin type) */
-    binNumber?: number;
-    /** Width of each bin (for fixed_width bin type) */
-    binWidth?: number;
-    /** Custom bin ranges (for custom_range bin type) */
-    customRange?: BinRange[];
-    /** Custom groups mapping values to group names (for custom_group bin type) */
-    customGroups?: BinGroup[];
 }
+
+export interface FixedNumberBinDimension extends BaseCustomBinDimension {
+    binType: BinType.FIXED_NUMBER;
+    binNumber: number;
+}
+
+export interface FixedWidthBinDimension extends BaseCustomBinDimension {
+    binType: BinType.FIXED_WIDTH;
+    binWidth: number;
+}
+
+export interface CustomRangeBinDimension extends BaseCustomBinDimension {
+    binType: BinType.CUSTOM_RANGE;
+    customRange: BinRange[];
+}
+
+export interface CustomGroupBinDimension extends BaseCustomBinDimension {
+    binType: BinType.CUSTOM_GROUP;
+    customGroups: BinGroup[];
+}
+
+export type CustomBinDimension =
+    | FixedNumberBinDimension
+    | FixedWidthBinDimension
+    | CustomRangeBinDimension
+    | CustomGroupBinDimension;
 
 export interface CustomSqlDimension extends BaseCustomDimension {
     type: CustomDimensionType.SQL;
