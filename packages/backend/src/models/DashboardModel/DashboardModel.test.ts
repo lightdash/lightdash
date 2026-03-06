@@ -18,7 +18,6 @@ import {
     DashboardVersionsTableName,
     DashboardViewsTableName,
 } from '../../database/entities/dashboards';
-
 import { SavedChartsTableName } from '../../database/entities/savedCharts';
 import { SpaceTableName } from '../../database/entities/spaces';
 import { projectUuid } from '../ProjectModel/ProjectModel.mock';

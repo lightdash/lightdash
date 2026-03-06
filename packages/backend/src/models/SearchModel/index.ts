@@ -332,10 +332,11 @@ export class SearchModel {
 
         const dashboardUuids = dashboards.map((dashboard) => dashboard.uuid);
 
-        const verificationMap = await this.contentVerificationModel.getByContentUuids(
-            ContentType.DASHBOARD,
-            dashboardUuids,
-        );
+        const verificationMap =
+            await this.contentVerificationModel.getByContentUuids(
+                ContentType.DASHBOARD,
+                dashboardUuids,
+            );
 
         const validationErrors = await this.database('validations')
             .where('project_uuid', projectUuid)
@@ -966,8 +967,7 @@ export class SearchModel {
                       userUuid: chart.lastUpdatedByUserUuid,
                   }
                 : null,
-            verification:
-                savedChartVerificationMap.get(chart.uuid) ?? null,
+            verification: savedChartVerificationMap.get(chart.uuid) ?? null,
         }));
     }
 
@@ -1219,10 +1219,11 @@ export class SearchModel {
             .limit(20);
 
         const chartUuids = results.map((r) => r.uuid);
-        const chartVerificationMap = await this.contentVerificationModel.getByContentUuids(
-            ContentType.CHART,
-            chartUuids,
-        );
+        const chartVerificationMap =
+            await this.contentVerificationModel.getByContentUuids(
+                ContentType.CHART,
+                chartUuids,
+            );
 
         return results.map((result) => ({
             uuid: result.uuid,

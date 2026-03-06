@@ -2812,8 +2812,8 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                 finalResults = finalResults.map((result) => ({
                     ...result,
                     verification: isDashboardSearchResult(result)
-                        ? dashboardVerifications.get(result.uuid) ?? null
-                        : chartVerifications.get(result.uuid) ?? null,
+                        ? (dashboardVerifications.get(result.uuid) ?? null)
+                        : (chartVerifications.get(result.uuid) ?? null),
                 }));
 
                 return {

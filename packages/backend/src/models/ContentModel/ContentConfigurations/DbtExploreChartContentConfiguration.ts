@@ -281,8 +281,7 @@ export const dbtExploreChartContentConfiguration: ContentConfiguration<SelectSav
                               userUuid: value.verified_by_user_uuid,
                               firstName:
                                   value.verified_by_user_first_name ?? '',
-                              lastName:
-                                  value.verified_by_user_last_name ?? '',
+                              lastName: value.verified_by_user_last_name ?? '',
                           },
                           verifiedAt: value.verified_at!,
                       }

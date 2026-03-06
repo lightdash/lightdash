@@ -496,7 +496,11 @@ export class SavedChartController extends BaseController {
      * @param chartUuid The uuid of the chart to verify
      * @param req
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated, unauthorisedInDemo])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
     @SuccessResponse('200', 'Success')
     @Post('verification')
     @OperationId('verifyChart')
@@ -519,7 +523,11 @@ export class SavedChartController extends BaseController {
      * @param chartUuid The uuid of the chart to unverify
      * @param req
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated, unauthorisedInDemo])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
     @SuccessResponse('200', 'Success')
     @Delete('verification')
     @OperationId('unverifyChart')

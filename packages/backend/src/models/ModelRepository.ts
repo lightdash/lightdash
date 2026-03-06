@@ -643,8 +643,7 @@ export class ModelRepository
     public getContentVerificationModel(): ContentVerificationModel {
         return this.getModel(
             'contentVerificationModel',
-            () =>
-                new ContentVerificationModel({ database: this.database }),
+            () => new ContentVerificationModel({ database: this.database }),
         );
     }
 

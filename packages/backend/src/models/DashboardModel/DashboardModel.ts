@@ -70,12 +70,12 @@ import {
     SavedChartsTableName,
     SavedChartTable,
 } from '../../database/entities/savedCharts';
-import { ContentVerificationModel } from '../ContentVerificationModel';
 import { SavedSqlTableName } from '../../database/entities/savedSql';
 import { SpaceTableName } from '../../database/entities/spaces';
 import { UserTable, UserTableName } from '../../database/entities/users';
 import { DbValidationTable } from '../../database/entities/validation';
 import { generateUniqueSlug } from '../../utils/SlugUtils';
+import { ContentVerificationModel } from '../ContentVerificationModel';
 import { SpaceModel } from '../SpaceModel';
 import Transaction = Knex.Transaction;
 

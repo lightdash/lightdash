@@ -29,13 +29,13 @@ import {
     ChangesTableName,
 } from '../database/entities/changesets';
 import {
-    ContentVerificationTable,
-    ContentVerificationTableName,
-} from '../database/entities/contentVerification';
-import {
     DashboardTileCommentsTable,
     DashboardTileCommentsTableName,
 } from '../database/entities/comments';
+import {
+    ContentVerificationTable,
+    ContentVerificationTableName,
+} from '../database/entities/contentVerification';
 import {
     DashboardsTableName,
     DashboardTable,

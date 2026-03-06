@@ -13,10 +13,7 @@ export type DbContentVerification = {
 
 export type CreateDbContentVerification = Pick<
     DbContentVerification,
-    | 'content_type'
-    | 'content_uuid'
-    | 'project_uuid'
-    | 'verified_by_user_uuid'
+    'content_type' | 'content_uuid' | 'project_uuid' | 'verified_by_user_uuid'
 >;
 
 export type UpdateDbContentVerification = Pick<

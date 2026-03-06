@@ -79,12 +79,12 @@ import {
     SavedChartVersionFieldsTableName,
     SavedChartVersionsTableName,
 } from '../database/entities/savedCharts';
-import { ContentVerificationModel } from './ContentVerificationModel';
 import { SpaceTableName } from '../database/entities/spaces';
 import { UserTableName } from '../database/entities/users';
 import KnexPaginate from '../database/pagination';
 import { wrapSentryTransaction } from '../utils';
 import { generateUniqueSlug } from '../utils/SlugUtils';
+import { ContentVerificationModel } from './ContentVerificationModel';
 import { SpaceModel } from './SpaceModel';
 
 type DbSavedChartDetails = {

@@ -199,7 +199,11 @@ export class DashboardController extends BaseController {
      * @param dashboardUuid The uuid of the dashboard to verify
      * @param req
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated, unauthorisedInDemo])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
     @SuccessResponse('200', 'Success')
     @Post('verification')
     @OperationId('verifyDashboard')
@@ -222,7 +226,11 @@ export class DashboardController extends BaseController {
      * @param dashboardUuid The uuid of the dashboard to unverify
      * @param req
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated, unauthorisedInDemo])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
     @SuccessResponse('200', 'Success')
     @Delete('verification')
     @OperationId('unverifyDashboard')

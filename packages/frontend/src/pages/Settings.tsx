@@ -20,6 +20,7 @@ import {
     IconPlug,
     IconRefresh,
     IconReportAnalytics,
+    IconShieldCheck,
     IconTableOptions,
     IconTrash,
     IconUserCircle,
@@ -28,7 +29,6 @@ import {
     IconUsers,
     IconUserShield,
     IconVariable,
-    IconShieldCheck,
 } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import {

@@ -34,14 +34,8 @@ export class ContentVerificationModel {
                 `${ContentVerificationTableName}.verified_by_user_uuid`,
                 `${UserTableName}.user_uuid`,
             )
-            .where(
-                `${ContentVerificationTableName}.content_type`,
-                contentType,
-            )
-            .where(
-                `${ContentVerificationTableName}.content_uuid`,
-                contentUuid,
-            )
+            .where(`${ContentVerificationTableName}.content_type`, contentType)
+            .where(`${ContentVerificationTableName}.content_uuid`, contentUuid)
             .select(
                 `${ContentVerificationTableName}.verified_at`,
                 `${UserTableName}.user_uuid`,
@@ -74,10 +68,7 @@ export class ContentVerificationModel {
                 `${ContentVerificationTableName}.verified_by_user_uuid`,
                 `${UserTableName}.user_uuid`,
             )
-            .where(
-                `${ContentVerificationTableName}.content_type`,
-                contentType,
-            )
+            .where(`${ContentVerificationTableName}.content_type`, contentType)
             .whereIn(
                 `${ContentVerificationTableName}.content_uuid`,
                 contentUuids,
@@ -157,10 +148,7 @@ export class ContentVerificationModel {
                 `${ContentVerificationTableName}.verified_by_user_uuid`,
                 `${UserTableName}.user_uuid`,
             )
-            .where(
-                `${ContentVerificationTableName}.project_uuid`,
-                projectUuid,
-            )
+            .where(`${ContentVerificationTableName}.project_uuid`, projectUuid)
             .where(
                 `${ContentVerificationTableName}.content_type`,
                 ContentType.CHART,
@@ -196,10 +184,7 @@ export class ContentVerificationModel {
                 `${ContentVerificationTableName}.verified_by_user_uuid`,
                 `${UserTableName}.user_uuid`,
             )
-            .where(
-                `${ContentVerificationTableName}.project_uuid`,
-                projectUuid,
-            )
+            .where(`${ContentVerificationTableName}.project_uuid`, projectUuid)
             .where(
                 `${ContentVerificationTableName}.content_type`,
                 ContentType.DASHBOARD,
