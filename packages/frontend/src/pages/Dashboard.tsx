@@ -655,8 +655,12 @@ const Dashboard: FC = () => {
             config: {
                 isDateZoomDisabled,
                 pinnedParameters,
-                dateZoomGranularities,
-                defaultDateZoomGranularity,
+                dateZoomGranularities: haveDateZoomGranularitiesChanged
+                    ? dateZoomGranularities
+                    : dashboard.config?.dateZoomGranularities,
+                defaultDateZoomGranularity: hasDefaultDateZoomGranularityChanged
+                    ? defaultDateZoomGranularity
+                    : dashboard.config?.defaultDateZoomGranularity,
             },
             parameters: dashboardParameters,
         });
