@@ -18,7 +18,6 @@ import {
     isMetric,
     isNumericItem,
     isTableCalculation,
-    isTimeBasedDimension,
     resolveGranularityInLabel,
     timeFrameToDateGranularityMap,
     valueIsNaN,
@@ -433,11 +432,9 @@ const useBigNumberConfig = (
         // instead of the raw key "fiscal_quarter".
         let dateZoomGranularityLabel: string | undefined;
         if (dateZoom?.granularity) {
-            const matchingDim = Object.values(itemsMap).find(
-                (f) =>
-                    isDimension(f) &&
-                    f.customTimeInterval === dateZoom.granularity,
-            );
+            const matchingDim = Object.values(itemsMap)
+                .filter(isDimension)
+                .find((f) => f.customTimeInterval === dateZoom.granularity);
             dateZoomGranularityLabel = matchingDim
                 ? matchingDim.label
                 : dateZoom.granularity;
@@ -448,7 +445,7 @@ const useBigNumberConfig = (
             if (
                 isDimension(field) &&
                 field.timeIntervalBaseDimensionName &&
-                (isTimeBasedDimension(field) || field.customTimeInterval)
+                (field.timeInterval || field.customTimeInterval)
             ) {
                 const baseId = `${field.table}_${field.timeIntervalBaseDimensionName}`;
 
