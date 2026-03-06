@@ -96,29 +96,47 @@ export enum FeatureFlags {
 
 Break the PR into vertical slices ordered by dependency (bottom of stack = first to merge):
 
-**Slicing rules:**
-1. **Schema/migrations first** — database changes are the foundation
-2. **Backend types & models next** — shared types, model changes
-3. **Backend API/services** — endpoints, business logic
-4. **Frontend components** — UI changes, hooks, pages
-5. **Cleanup/polish last** — tests, docs, edge cases
+**What is a vertical slice?**
+A vertical slice is a thin, end-to-end piece of **user-facing functionality** that cuts through all architectural layers (migration + types + backend + API + frontend). Each slice delivers something a user could test or demo, even if it's narrow.
+
+**How to identify slices:**
+Think about the feature from the user's perspective. Ask: "What are the distinct things a user can *do* with this feature?" Each answer is a candidate slice.
+
+For example, a "content verification" feature might slice as:
+1. Admin can verify/unverify a **chart** (migration + model + service + API + UI — but only for charts)
+2. Admin can verify/unverify a **dashboard** (extend to dashboards)
+3. Verified badge appears in **search and content browser**
+4. Editing content **auto-removes** verification
+5. Admin **settings panel** to view all verified content
+
+Each slice touches every layer it needs — that's what makes it vertical.
+
+**Anti-pattern: horizontal/layer slicing**
+Do NOT slice by architectural layer (e.g., "PR 1: migration", "PR 2: backend types", "PR 3: API", "PR 4: frontend"). This produces PRs that aren't independently testable and forces reviewers to hold the whole feature in their head across multiple PRs.
+
+**Slicing guidelines:**
+- Start with the **narrowest end-to-end path** — the simplest user action that exercises the full stack
+- Subsequent slices **widen** the feature: new entity types, new surfaces, new behaviors, edge cases
+- Infrastructure-only slices (e.g., a migration with no consumers) are acceptable ONLY when the migration is complex enough to warrant isolated review — and even then, prefer bundling it with the first slice that uses it
+- Each slice should tell a coherent story: a reviewer should understand what user-facing change this enables
 
 **Each slice MUST:**
 - Be independently mergeable and CI-green
 - Gate new behavior behind the shared feature flag
 - Not break existing functionality when the flag is OFF
 - Be reviewable in isolation (aim for <400 lines per PR)
+- Be describable as a user-facing capability (not an architectural layer)
 
 **Present the plan to the user before coding:**
 ```
 Feature flag: FeatureFlags.MyNewFeature ('my-new-feature')
 
 Stack plan (bottom → top):
-  1. PR: Add database migration for new_table
-  2. PR: Add backend model and service methods
-  3. PR: Add API endpoints (gated by feature flag)
-  4. PR: Add frontend components (gated by feature flag)
-  5. PR: Wire up frontend to API and add tests
+  1. PR: Admin can verify a chart (migration + types + model + service + API + UI)
+  2. PR: Extend verification to dashboards
+  3. PR: Show verified badge in search and content browser
+  4. PR: Auto-remove verification on content edit
+  5. PR: Admin settings panel to manage verified content
 ```
 
 Wait for user confirmation before proceeding.
@@ -213,11 +231,13 @@ gt log
 
 ## Anti-patterns to Avoid
 
+- **Horizontal/layer slicing** — DO NOT create PRs like "migration PR", "backend types PR", "API PR", "frontend PR". Each PR should be a vertical slice through all necessary layers
 - **Different feature flags per slice** — use ONE flag for the whole feature
 - **Mixing unrelated changes** — each PR is one logical vertical
 - **Breaking existing behavior when flag is OFF** — feature-flagged code must be invisible when disabled
 - **Giant slices** — if a slice is >400 lines, break it down further
 - **Skipping typecheck/lint** — every slice must be CI-green independently
+- **Infrastructure-only PRs with no user-facing change** — prefer bundling infrastructure with the first slice that uses it
 
 ## Completion Criteria
 
