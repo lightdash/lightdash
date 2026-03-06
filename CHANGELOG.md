@@ -1,3 +1,10 @@
+## [0.2580.1](https://github.com/lightdash/lightdash/compare/0.2580.0...0.2580.1) (2026-03-06)
+
+
+### Bug Fixes
+
+* address infinite mcp app chart height growth ([#20913](https://github.com/lightdash/lightdash/issues/20913)) ([fd2fdd7](https://github.com/lightdash/lightdash/commit/fd2fdd73021c8c88267d6048954005216fe9466c))
+
 # [0.2580.0](https://github.com/lightdash/lightdash/compare/0.2579.2...0.2580.0) (2026-03-06)
 
 
