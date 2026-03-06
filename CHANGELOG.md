@@ -1,3 +1,11 @@
+## [0.2579.1](https://github.com/lightdash/lightdash/compare/0.2579.0...0.2579.1) (2026-03-06)
+
+
+### Bug Fixes
+
+* loosen gchat notification ([#20909](https://github.com/lightdash/lightdash/issues/20909)) ([b616ebf](https://github.com/lightdash/lightdash/commit/b616ebfd659ec0b951bad002cea1b495570e175c))
+* subtotal rows show '-' when all underlying values have no result ([#20901](https://github.com/lightdash/lightdash/issues/20901)) ([28bd689](https://github.com/lightdash/lightdash/commit/28bd689b784b8a040b583dd58e7a2868f5a2ef7a)), closes [#20900](https://github.com/lightdash/lightdash/issues/20900)
+
 # [0.2579.0](https://github.com/lightdash/lightdash/compare/0.2578.1...0.2579.0) (2026-03-06)
 
 
