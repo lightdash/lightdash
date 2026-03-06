@@ -130,6 +130,7 @@ export const dashboard: Dashboard = {
     inheritsFromOrgOrProject: true,
     access: [],
     tabs: [],
+    verification: null,
 };
 
 export const chart: SavedChart = {
@@ -166,6 +167,7 @@ export const chart: SavedChart = {
     isPrivate: false,
     inheritsFromOrgOrProject: true,
     access: [],
+    verification: null,
 };
 
 export const dashboardsDetails: DashboardBasicDetails[] = [
@@ -181,6 +183,7 @@ export const dashboardsDetails: DashboardBasicDetails[] = [
         pinnedListOrder: null,
         views: 1,
         firstViewedAt: new Date(1),
+        verification: null,
     },
 ];
 

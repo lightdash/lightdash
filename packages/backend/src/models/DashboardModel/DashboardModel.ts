@@ -1,5 +1,6 @@
 import {
     assertUnreachable,
+    ContentType,
     CreateDashboard,
     CreateDashboardChartTile,
     CreateDashboardHeadingTile,
@@ -74,6 +75,7 @@ import { SpaceTableName } from '../../database/entities/spaces';
 import { UserTable, UserTableName } from '../../database/entities/users';
 import { DbValidationTable } from '../../database/entities/validation';
 import { generateUniqueSlug } from '../../utils/SlugUtils';
+import { ContentVerificationModel } from '../ContentVerificationModel';
 import { SpaceModel } from '../SpaceModel';
 import Transaction = Knex.Transaction;
 
@@ -126,6 +128,7 @@ type DashboardModelArguments = {
     lightdashConfig?: {
         dashboard: { versionHistory: { daysLimit: number } };
     };
+    contentVerificationModel?: ContentVerificationModel;
 };
 
 export class DashboardModel {
@@ -133,9 +136,14 @@ export class DashboardModel {
 
     private readonly lightdashConfig?: DashboardModelArguments['lightdashConfig'];
 
+    private readonly contentVerificationModel:
+        | ContentVerificationModel
+        | undefined;
+
     constructor(args: DashboardModelArguments) {
         this.database = args.database;
         this.lightdashConfig = args.lightdashConfig;
+        this.contentVerificationModel = args.contentVerificationModel;
     }
 
     private static async createVersion(
@@ -533,6 +541,7 @@ export class DashboardModel {
                             }),
                         ),
                         tileTypes,
+                        verification: null,
                     };
                 },
             ),
@@ -823,6 +832,12 @@ export class DashboardModel {
         if (!dashboard) {
             throw new NotFoundError('Dashboard not found');
         }
+
+        const verification =
+            (await this.contentVerificationModel?.getByContent(
+                ContentType.DASHBOARD,
+                dashboard.dashboard_uuid,
+            )) ?? null;
 
         const [view] = await this.database(DashboardViewsTableName)
             .select('*')
@@ -1135,6 +1150,7 @@ export class DashboardModel {
                 lastName: dashboard.last_name,
             },
             slug: dashboard.slug,
+            verification,
             config: dashboard?.config,
             ...(dashboard.deleted_at
                 ? {
@@ -1732,6 +1748,12 @@ export class DashboardModel {
             throw new NotFoundError('Dashboard version not found');
         }
 
+        const versionVerification =
+            (await this.contentVerificationModel?.getByContent(
+                ContentType.DASHBOARD,
+                dashboard.dashboard_uuid,
+            )) ?? null;
+
         const [view] = await this.database(DashboardViewsTableName)
             .select('*')
             .orderBy(`${DashboardViewsTableName}.created_at`, 'desc')
@@ -2039,6 +2061,7 @@ export class DashboardModel {
                 lastName: dashboard.last_name,
             },
             slug: dashboard.slug,
+            verification: versionVerification,
             config: dashboard?.config,
         };
     }

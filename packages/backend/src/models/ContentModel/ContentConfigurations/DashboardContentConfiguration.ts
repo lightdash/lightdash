@@ -1,5 +1,6 @@
 import { ContentType, DashboardContent } from '@lightdash/common';
 import { Knex } from 'knex';
+import { ContentVerificationTableName } from '../../../database/entities/contentVerification';
 import {
     DashboardsTableName,
     DashboardVersionsTableName,
@@ -87,6 +88,25 @@ export const dashboardContentConfiguration: ContentConfiguration<SummaryContentR
                     `updated_by_user.user_uuid`,
                     `last_version.updated_by_user_uuid`,
                 )
+                .leftJoin(
+                    ContentVerificationTableName,
+                    function verificationJoin() {
+                        this.on(
+                            `${ContentVerificationTableName}.content_uuid`,
+                            '=',
+                            `${DashboardsTableName}.dashboard_uuid`,
+                        ).andOnVal(
+                            `${ContentVerificationTableName}.content_type`,
+                            '=',
+                            ContentType.DASHBOARD,
+                        );
+                    },
+                )
+                .leftJoin(
+                    `${UserTableName} as verified_by_user`,
+                    `verified_by_user.user_uuid`,
+                    `${ContentVerificationTableName}.verified_by_user_uuid`,
+                )
                 .select<SummaryContentRow[]>([
                     knex.raw(`'${ContentType.DASHBOARD}' as content_type`),
                     knex.raw(
@@ -130,6 +150,12 @@ export const dashboardContentConfiguration: ContentConfiguration<SummaryContentR
                     knex.raw(
                         `(SELECT last_name FROM users WHERE user_uuid = ${DashboardsTableName}.deleted_by_user_uuid) as deleted_by_user_last_name`,
                     ),
+                    knex.raw(
+                        `${ContentVerificationTableName}.verified_at::timestamp as verified_at`,
+                    ),
+                    `verified_by_user.user_uuid as verified_by_user_uuid`,
+                    `verified_by_user.first_name as verified_by_user_first_name`,
+                    `verified_by_user.last_name as verified_by_user_last_name`,
                     knex.raw(
                         `json_build_object(${
                             filters.includeDescendantCounts
@@ -243,6 +269,17 @@ export const dashboardContentConfiguration: ContentConfiguration<SummaryContentR
                     : null,
                 views: value.views,
                 firstViewedAt: value.first_viewed_at,
+                verification: value.verified_by_user_uuid
+                    ? {
+                          verifiedBy: {
+                              userUuid: value.verified_by_user_uuid,
+                              firstName:
+                                  value.verified_by_user_first_name ?? '',
+                              lastName: value.verified_by_user_last_name ?? '',
+                          },
+                          verifiedAt: value.verified_at!,
+                      }
+                    : null,
             };
         },
     };

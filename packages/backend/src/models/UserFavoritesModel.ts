@@ -151,6 +151,7 @@ export class UserFavoritesModel {
                       }
                     : undefined,
                 slug: row.slug,
+                verification: null,
             },
         }));
     }
@@ -227,6 +228,7 @@ export class UserFavoritesModel {
                           lastName: row.updated_by_user_last_name,
                       }
                     : undefined,
+                verification: null,
             },
         }));
     }

@@ -105,6 +105,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     userModel: models.getUserModel(),
                     aiAgentModel: models.getAiAgentModel(),
                     changesetModel: models.getChangesetModel(),
+                    contentVerificationModel:
+                        models.getContentVerificationModel(),
                     catalogModel: models.getCatalogModel(),
                     groupsModel: models.getGroupsModel(),
                     featureFlagService: repository.getFeatureFlagService(),
@@ -231,6 +233,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         repository.getAdminNotificationService(),
                     spacePermissionService:
                         repository.getSpacePermissionService(),
+                    contentVerificationModel:
+                        models.getContentVerificationModel(),
                 }),
             instanceConfigurationService: ({
                 models,

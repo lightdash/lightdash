@@ -332,6 +332,7 @@ export const expectedDashboard: DashboardDAO = {
     views: 1,
     firstViewedAt: new Date(1),
     tabs: [],
+    verification: null,
 };
 
 export const expectedAllDashboards: DashboardBasicDetailsWithTileTypes[] = [
@@ -354,6 +355,7 @@ export const expectedAllDashboards: DashboardBasicDetailsWithTileTypes[] = [
         firstViewedAt: new Date(1),
         validationErrors: [],
         tileTypes: [DashboardTileTypes.SAVED_CHART],
+        verification: null,
     },
 ];
 

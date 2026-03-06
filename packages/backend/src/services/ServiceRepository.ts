@@ -15,6 +15,7 @@ import { ChangesetService } from './ChangesetService';
 import { CoderService } from './CoderService/CoderService';
 import { CommentService } from './CommentService/CommentService';
 import { ContentService } from './ContentService/ContentService';
+import { ContentVerificationService } from './ContentVerificationService';
 import { CsvService } from './CsvService/CsvService';
 import { DashboardService } from './DashboardService/DashboardService';
 import { DeployService } from './DeployService';
@@ -107,6 +108,7 @@ interface ServiceManifest {
     promoteService: PromoteService;
     savedSqlService: SavedSqlService;
     contentService: ContentService;
+    contentVerificationService: ContentVerificationService;
     coderService: CoderService;
     featureFlagService: FeatureFlagService;
     funnelService: FunnelService;
@@ -362,6 +364,8 @@ export class ServiceRepository
                     slackClient: this.clients.getSlackClient(),
                     catalogModel: this.models.getCatalogModel(),
                     spacePermissionService: this.getSpacePermissionService(),
+                    contentVerificationModel:
+                        this.models.getContentVerificationModel(),
                 }),
         );
     }
@@ -641,6 +645,8 @@ export class ServiceRepository
                     adminNotificationService:
                         this.getAdminNotificationService(),
                     spacePermissionService: this.getSpacePermissionService(),
+                    contentVerificationModel:
+                        this.models.getContentVerificationModel(),
                 }),
         );
     }
@@ -733,6 +739,8 @@ export class ServiceRepository
                     googleDriveClient: this.clients.getGoogleDriveClient(),
                     userService: this.getUserService(),
                     spacePermissionService: this.getSpacePermissionService(),
+                    contentVerificationModel:
+                        this.models.getContentVerificationModel(),
                 }),
         );
     }
@@ -935,6 +943,8 @@ export class ServiceRepository
                     schedulerClient: this.clients.getSchedulerClient(),
                     promoteService: this.getPromoteService(),
                     spacePermissionService: this.getSpacePermissionService(),
+                    contentVerificationModel:
+                        this.models.getContentVerificationModel(),
                 }),
         );
     }
@@ -1046,6 +1056,18 @@ export class ServiceRepository
                     savedChartService: this.getSavedChartService(),
                     savedSqlService: this.getSavedSqlService(),
                     spacePermissionService: this.getSpacePermissionService(),
+                }),
+        );
+    }
+
+    public getContentVerificationService(): ContentVerificationService {
+        return this.getService(
+            'contentVerificationService',
+            () =>
+                new ContentVerificationService({
+                    contentVerificationModel:
+                        this.models.getContentVerificationModel(),
+                    projectModel: this.models.getProjectModel(),
                 }),
         );
     }

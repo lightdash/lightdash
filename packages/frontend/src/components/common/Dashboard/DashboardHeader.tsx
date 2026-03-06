@@ -22,6 +22,8 @@ import { useDisclosure } from '@mantine/hooks';
 import {
     IconAlertTriangle,
     IconBolt,
+    IconCircleCheck,
+    IconCircleCheckFilled,
     IconCopy,
     IconDatabase,
     IconDatabaseExport,
@@ -58,6 +60,10 @@ import useDashboardPerformanceWarning from '../../../hooks/dashboard/useDashboar
 import { useFavoriteMutation } from '../../../hooks/favorites/useFavoriteMutation';
 import { useFavorites } from '../../../hooks/favorites/useFavorites';
 import { useDashboardPinningMutation } from '../../../hooks/pinning/useDashboardPinningMutation';
+import {
+    useUnverifyDashboardMutation,
+    useVerifyDashboardMutation,
+} from '../../../hooks/useContentVerification';
 import { useProject } from '../../../hooks/useProject';
 import { useClientFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
@@ -279,6 +285,20 @@ const DashboardHeader = ({
         }),
     );
 
+    const canManageContentVerification =
+        user.data?.ability?.can(
+            'manage',
+            subject('ContentVerification', {
+                organizationUuid,
+                projectUuid,
+            }),
+        ) === true;
+
+    const { mutate: verifyDashboard } = useVerifyDashboardMutation();
+    const { mutate: unverifyDashboard } = useUnverifyDashboardMutation();
+
+    const isDashboardVerified = dashboard.verification !== null;
+
     const userCanPromoteDashboard = user.data?.ability?.can(
         'promote',
         subject('Dashboard', {
@@ -322,6 +342,26 @@ const DashboardHeader = ({
         >
             <Group gap="xs" flex={1} wrap="nowrap">
                 <Title order={6}>{dashboard.name}</Title>
+
+                {isDashboardVerified && (
+                    <Tooltip
+                        label={
+                            dashboard.verification?.verifiedBy
+                                ? `Verified by ${dashboard.verification.verifiedBy.firstName} ${dashboard.verification.verifiedBy.lastName}`
+                                : 'Verified'
+                        }
+                        withArrow
+                        withinPortal
+                        zIndex={10000}
+                    >
+                        <IconCircleCheckFilled
+                            size={16}
+                            style={{
+                                color: 'var(--mantine-color-green-6)',
+                            }}
+                        />
+                    </Tooltip>
+                )}
 
                 {dashboardUuid && (
                     <ActionIcon
@@ -404,7 +444,10 @@ const DashboardHeader = ({
                         onClose={transferToSpaceModalHandlers.close}
                         items={[
                             {
-                                data: dashboard,
+                                data: {
+                                    ...dashboard,
+                                    verification: null,
+                                },
                                 type: ResourceViewItemType.DASHBOARD,
                             },
                         ]}
@@ -804,6 +847,39 @@ const DashboardHeader = ({
                                         </div>
                                     </Tooltip>
                                 )}
+
+                                {canManageContentVerification &&
+                                    dashboardUuid && (
+                                        <Menu.Item
+                                            leftSection={
+                                                isDashboardVerified ? (
+                                                    <IconCircleCheckFilled
+                                                        size={18}
+                                                        color="var(--mantine-color-green-6)"
+                                                    />
+                                                ) : (
+                                                    <IconCircleCheck
+                                                        size={18}
+                                                    />
+                                                )
+                                            }
+                                            onClick={() => {
+                                                if (isDashboardVerified) {
+                                                    unverifyDashboard(
+                                                        dashboardUuid,
+                                                    );
+                                                } else {
+                                                    verifyDashboard(
+                                                        dashboardUuid,
+                                                    );
+                                                }
+                                            }}
+                                        >
+                                            {isDashboardVerified
+                                                ? 'Remove verification'
+                                                : 'Verify'}
+                                        </Menu.Item>
+                                    )}
 
                                 {userCanManageDashboard && dashboardUuid && (
                                     <Menu.Item

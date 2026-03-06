@@ -17,6 +17,8 @@ Build and deploy Lightdash analytics projects. This skill covers the **semantic 
 | Build dashboards | `lightdash download`, edit YAML, `lightdash upload` | [Dashboard Reference](./resources/dashboard-reference.md) |
 | Lint yaml files | `lightdash lint` | [CLI Reference](./resources/cli-reference.md) |
 | Deploy changes | `lightdash deploy` (semantic layer), `lightdash upload` (content) | [CLI Reference](./resources/cli-reference.md) |
+| Verify content | Mark charts/dashboards as trusted | [Content Verification](./resources/content-verification-reference.md) |
+| Generate design patterns | Download verified content, analyze patterns | [Design Patterns](./resources/design-patterns-reference.md) |
 | Test changes | `lightdash preview` | [Workflows](./resources/workflows-reference.md) |
 
 ## Before You Start
@@ -231,6 +233,37 @@ See individual chart type references for YAML structure and configuration option
 
 Dashboards arrange charts and content in a grid layout. See [Dashboard Reference](./resources/dashboard-reference.md) for YAML structure, tile types, tabs, and filters.
 
+## Content Verification
+
+Charts and dashboards can be **verified** to mark them as trusted, reviewed sources of truth. Verified content displays a badge in the UI and is preferred by the AI agent when answering questions.
+
+When downloaded as code, verified content includes a `verification` field:
+
+```yaml
+verification:
+  verifiedBy:
+    userUuid: "abc-123"
+    firstName: "Jane"
+    lastName: "Doe"
+  verifiedAt: "2025-01-15T10:30:00.000Z"
+```
+
+**Note:** The `verification` field is read-only in chart-as-code YAML. It is populated on download but ignored on upload. Use the UI or API to verify/unverify content.
+
+See [Content Verification Reference](./resources/content-verification-reference.md) for managing verification via the UI, API, and admin panel.
+
+## Design Pattern Generation
+
+You can analyze verified content to automatically generate a company-specific design guide. This documents which chart types, metrics, formatting conventions, and dashboard layouts a team prefers — based on what admins have actually approved.
+
+**Workflow:**
+1. List verified content via the API
+2. Download verified charts and dashboards as YAML
+3. Analyze patterns across the YAML files (chart types, key metrics, formatting, layout)
+4. Generate an editable design guide markdown file
+
+See [Design Patterns Reference](./resources/design-patterns-reference.md) for the full workflow and example output.
+
 ## Exploring the Warehouse
 
 Use `lightdash sql` to explore data when building models:
@@ -280,6 +313,10 @@ See [Workflows Reference](./resources/workflows-reference.md) for detailed examp
 - [Dashboard Best Practices](./resources/dashboard-best-practices.md)
 - [CLI Reference](./resources/cli-reference.md)
 - [Workflows Reference](./resources/workflows-reference.md)
+
+### Content Management
+- [Content Verification Reference](./resources/content-verification-reference.md)
+- [Design Patterns Reference](./resources/design-patterns-reference.md)
 
 ### External
 - [Lightdash Docs](https://docs.lightdash.com)

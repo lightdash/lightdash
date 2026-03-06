@@ -1,3 +1,4 @@
+import { type ContentVerificationInfo } from './contentVerification';
 import { type FilterableDimension } from './field';
 import { type DashboardFilters } from './filter';
 import { type KnexPaginatedData } from './knex-paginate';
@@ -202,6 +203,7 @@ export type Dashboard = {
     inheritsFromOrgOrProject: boolean;
     access: SpaceAccess[] | null;
     slug: string;
+    verification: ContentVerificationInfo | null;
     config?: DashboardConfig;
     deletedAt?: Date;
     deletedBy?: {
@@ -243,7 +245,10 @@ export type DashboardBasicDetails = Pick<
     | 'firstViewedAt'
     | 'pinnedListUuid'
     | 'pinnedListOrder'
-> & { validationErrors?: ValidationSummary[] };
+> & {
+    validationErrors?: ValidationSummary[];
+    verification: ContentVerificationInfo | null;
+};
 
 export type DashboardBasicDetailsWithTileTypes = DashboardBasicDetails & {
     tileTypes: DashboardTileTypes[];

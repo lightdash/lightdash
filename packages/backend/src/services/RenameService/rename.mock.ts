@@ -120,6 +120,7 @@ export const chartWithCustomMetric = {
         '#ea7ccc',
     ],
     slug: 'min-customer-id-1',
+    verification: null,
 } as SavedChartDAO;
 
 export const expectedRenamedChartWithCustomMetric = {
@@ -228,6 +229,7 @@ export const expectedRenamedChartWithCustomMetric = {
         '#ea7ccc',
     ],
     slug: 'min-customer-id-1',
+    verification: null,
 } as SavedChartDAO;
 
 // TO replace order_status with orders_order_type
@@ -442,6 +444,7 @@ export const chartMocked = {
     dashboardName: null,
     colorPalette: ['#7162FF'],
     slug: 'custom-metric-filter',
+    verification: null,
 } as SavedChartDAO;
 
 export const expectedRenamedChartMocked = {
@@ -657,6 +660,7 @@ export const expectedRenamedChartMocked = {
     dashboardName: null,
     colorPalette: ['#7162FF'],
     slug: 'custom-metric-filter',
+    verification: null,
 } as SavedChartDAO;
 
 export const chartWithCustomMetricWithSimilarName = {
@@ -758,4 +762,5 @@ export const chartWithCustomMetricWithSimilarName = {
         '#ea7ccc',
     ],
     slug: 'min-customer-id-1',
+    verification: null,
 } as SavedChartDAO;
