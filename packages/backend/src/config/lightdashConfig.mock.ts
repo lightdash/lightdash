@@ -148,6 +148,16 @@ export const lightdashConfigMock: LightdashConfig = {
             region: 'mock_region',
         },
     },
+    asyncQuery: {
+        nats: {
+            enabled: false,
+            url: 'nats://localhost:4222',
+            customerId: undefined,
+            warehouseStreamName: 'WAREHOUSE_QUERY_JOBS',
+            preAggregateStreamName: 'PRE_AGGREGATE_QUERY_JOBS',
+            workerConcurrency: 1,
+        },
+    },
     rudder: {
         writeKey: '',
         dataPlaneUrl: '',
@@ -158,6 +168,10 @@ export const lightdashConfigMock: LightdashConfig = {
         pollInterval: 1000,
         jobTimeout: 0,
         tasks: ALL_TASK_NAMES,
+        asyncQueryWorkers: {
+            preAggregatesEnabled: false,
+            warehouseEnabled: false,
+        },
         queryHistory: {
             cleanup: {
                 enabled: true,

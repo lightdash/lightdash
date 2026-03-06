@@ -1,5 +1,6 @@
 volumes:
     postgres_data:
+    postgres_data_2:
     minio_data:
 
 services:
@@ -45,3 +46,20 @@ services:
             MP_MAX_MESSAGES: 5000
             MP_SMTP_AUTH_ACCEPT_ANY: 1
             MP_SMTP_AUTH_ALLOW_INSECURE: 1
+    
+    db-dev-2:
+        image: pgvector/pgvector:pg16
+        restart: always
+        environment:
+            POSTGRES_PASSWORD: password
+        ports:
+            - '5433:5432'
+        volumes:
+            - postgres_data_2:/var/lib/postgresql/data
+
+    nats:
+        image: nats:2.11-alpine
+        command: ['-js']
+        ports:
+            - '4222:4222'
+            - '8222:8222'
