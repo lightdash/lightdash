@@ -1031,10 +1031,9 @@ export class CsvService extends BaseService {
     }
 
     /**
-     * This method is used to schedule a CSV download for a chart.
-     * It will unfold all the arguments required to schedule a CSV download from a chartUuid
-     * This will allow users to download CSVs with custom dimensions
-     * We check permissions on scheduleDownloadCsv call
+     * @deprecated Uses old sync query pipeline (runMetricQuery + pivotDetails: null).
+     * Only kept alive by deprecated v1 downloadCsv endpoints for external API consumers.
+     * Internal frontend uses v2 schedule-download flow instead.
      */
     async scheduleDownloadCsvForChart(
         user: SessionUser,
@@ -1101,6 +1100,11 @@ export class CsvService extends BaseService {
         });
     }
 
+    /**
+     * @deprecated Uses old sync query pipeline (runMetricQuery + pivotDetails: null).
+     * Only kept alive by deprecated v1 downloadCsv endpoints for external API consumers.
+     * Internal frontend uses v2 schedule-download flow instead.
+     */
     async scheduleDownloadCsv(
         user: SessionUser,
         csvOptions: DownloadMetricCsv,
@@ -1161,6 +1165,11 @@ export class CsvService extends BaseService {
         return { jobId };
     }
 
+    /**
+     * @deprecated Uses old sync query pipeline (runMetricQuery + pivotDetails: null).
+     * Only kept alive by deprecated v1 downloadCsv endpoints for external API consumers.
+     * Internal frontend uses v2 schedule-download flow instead.
+     */
     async downloadCsv(
         jobId: string,
         {
