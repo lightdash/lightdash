@@ -6,9 +6,8 @@ import {
     NATS_HEADERS,
     PRE_AGGREGATE_QUERY_SUBJECT,
     WAREHOUSE_QUERY_SUBJECT,
+    type AsyncQueryJobPayload,
     type AsyncQueryNatsEnvelope,
-    type RunAsyncPreAggregateQueryJobPayload,
-    type RunAsyncWarehouseQueryJobPayload,
 } from '../asyncQuery/natsContracts';
 import { type LightdashConfig } from '../config/parseConfig';
 import Logger from '../logging/logger';
@@ -20,12 +19,8 @@ type AsyncQuerySchedulerClientArguments = {
 type EnqueueResult = Promise<{ jobId: string }>;
 
 export interface IAsyncQuerySchedulerClient {
-    enqueueWarehouseQuery(
-        payload: RunAsyncWarehouseQueryJobPayload,
-    ): EnqueueResult;
-    enqueuePreAggregateQuery(
-        payload: RunAsyncPreAggregateQueryJobPayload,
-    ): EnqueueResult;
+    enqueueWarehouseQuery(payload: AsyncQueryJobPayload): EnqueueResult;
+    enqueuePreAggregateQuery(payload: AsyncQueryJobPayload): EnqueueResult;
 }
 
 export class AsyncQuerySchedulerClient implements IAsyncQuerySchedulerClient {
@@ -56,9 +51,9 @@ export class AsyncQuerySchedulerClient implements IAsyncQuerySchedulerClient {
         return this.jetStreamPromise;
     }
 
-    private async enqueue<TPayload>(
+    private async enqueue(
         subject: string,
-        payload: TPayload,
+        payload: AsyncQueryJobPayload,
     ): Promise<{ jobId: string }> {
         const jobId = uuidv4();
 
@@ -84,7 +79,7 @@ export class AsyncQuerySchedulerClient implements IAsyncQuerySchedulerClient {
                     : undefined;
                 const sentryMessageId = jobId;
 
-                const message: AsyncQueryNatsEnvelope<TPayload> = {
+                const message: AsyncQueryNatsEnvelope<AsyncQueryJobPayload> = {
                     jobId,
                     payload,
                     traceHeader,
@@ -128,13 +123,13 @@ export class AsyncQuerySchedulerClient implements IAsyncQuerySchedulerClient {
     }
 
     async enqueueWarehouseQuery(
-        payload: RunAsyncWarehouseQueryJobPayload,
+        payload: AsyncQueryJobPayload,
     ): Promise<{ jobId: string }> {
         return this.enqueue(WAREHOUSE_QUERY_SUBJECT, payload);
     }
 
     async enqueuePreAggregateQuery(
-        payload: RunAsyncPreAggregateQueryJobPayload,
+        payload: AsyncQueryJobPayload,
     ): Promise<{ jobId: string }> {
         return this.enqueue(PRE_AGGREGATE_QUERY_SUBJECT, payload);
     }

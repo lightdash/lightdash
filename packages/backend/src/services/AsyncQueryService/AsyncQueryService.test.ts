@@ -810,12 +810,9 @@ describe('AsyncQueryService', () => {
                 asyncQuerySchedulerClientMock.enqueueWarehouseQuery,
             ).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    organizationUuid:
-                        sessionAccount.organization.organizationUuid,
-                    userUuid: sessionAccount.user.id,
-                    projectUuid,
                     queryUuid: 'test-query-uuid',
-                    query: 'SELECT * FROM test',
+                    userUuid: sessionAccount.user.id,
+                    accountType: 'session',
                 }),
             );
             expect(
@@ -1099,6 +1096,7 @@ describe('AsyncQueryService', () => {
                 resultsExpiresAt: null,
                 columns: null,
                 originalColumns: null,
+                preAggregateCompiledSql: null,
             });
 
             serviceWithCache.getExplore = jest
@@ -1269,6 +1267,7 @@ describe('AsyncQueryService', () => {
                 resultsExpiresAt: new Date(Date.now() + 60_000),
                 columns: expectedColumns,
                 originalColumns: mockOriginalColumns,
+                preAggregateCompiledSql: null,
             };
 
             serviceWithCache.queryHistoryModel.get = jest

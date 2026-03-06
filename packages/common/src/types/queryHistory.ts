@@ -54,4 +54,5 @@ export type QueryHistory = {
     resultsExpiresAt: Date | null;
     columns: ResultColumns | null; // result columns with or without pivoting
     originalColumns: ResultColumns | null; // columns from original SQL, before pivoting
+    preAggregateCompiledSql: string | null; // DuckDB SQL for pre-aggregate execution path
 };
