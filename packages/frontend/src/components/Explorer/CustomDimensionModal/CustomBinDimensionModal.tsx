@@ -28,14 +28,13 @@ import {
     TextInput,
     Tooltip,
 } from '@mantine-8/core';
-import { useForm, zodResolver } from '@mantine/form';
+import { useForm, zodResolver, type UseFormReturnType } from '@mantine/form';
 import {
     IconArrowsTransferDown,
     IconLayoutDashboard,
     IconX,
 } from '@tabler/icons-react';
-import cloneDeep from 'lodash/cloneDeep';
-import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
+import { useEffect, useMemo, useState, type FC } from 'react';
 import { z } from 'zod';
 import {
     explorerActions,
@@ -46,6 +45,7 @@ import {
 import useToaster from '../../../hooks/toaster/useToaster';
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
+import classes from './CustomBinDimensionModal.module.css';
 
 // TODO: preview custom dimension results
 
@@ -72,6 +72,178 @@ const DEFAULT_VALUE_RULE: GroupValueRule = {
 };
 
 const isStringBinType = (binType: BinType) => binType === BinType.CUSTOM_GROUP;
+
+type FormValues = {
+    customDimensionLabel: string;
+    binType: BinType;
+    binConfig: {
+        fixedNumber: { binNumber: number };
+        fixedWidth: { binWidth: number };
+        customRange: Array<{ from?: number; to?: number }>;
+        customGroups: BinGroup[];
+    };
+};
+
+const GroupValueRow: FC<{
+    form: UseFormReturnType<FormValues>;
+    groupIndex: number;
+    valueIndex: number;
+    onAddValueAfter: (groupIndex: number, valueIndex: number) => void;
+}> = ({ form, groupIndex, valueIndex, onAddValueAfter }) => {
+    const groups = form.values.binConfig.customGroups;
+
+    return (
+        <Flex gap="sm" align="center" ml="md">
+            <Select
+                size="xs"
+                w={110}
+                data={MATCH_TYPE_OPTIONS}
+                allowDeselect={false}
+                {...form.getInputProps(
+                    `binConfig.customGroups.${groupIndex}.values.${valueIndex}.matchType`,
+                )}
+            />
+            <TextInput
+                flex={1}
+                size="xs"
+                placeholder="Enter a value"
+                data-focus-id={`custom-group-${groupIndex}-value-${valueIndex}`}
+                {...form.getInputProps(
+                    `binConfig.customGroups.${groupIndex}.values.${valueIndex}.value`,
+                )}
+                onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        onAddValueAfter(groupIndex, valueIndex);
+                    }
+                }}
+            />
+            {groups.length > 1 && (
+                <Menu position="bottom-end" withinPortal>
+                    <Menu.Target>
+                        <ActionIcon
+                            variant="subtle"
+                            color="ldDark.4"
+                            size="sm"
+                            title="Move to group"
+                        >
+                            <MantineIcon icon={IconArrowsTransferDown} />
+                        </ActionIcon>
+                    </Menu.Target>
+                    <Menu.Dropdown>
+                        <Menu.Label>Move to group</Menu.Label>
+                        {groups.map((targetGroup, targetIndex) =>
+                            targetIndex !== groupIndex ? (
+                                <Menu.Item
+                                    key={targetIndex}
+                                    onClick={() => {
+                                        const newGroups =
+                                            structuredClone(groups);
+                                        const [movedValue] = newGroups[
+                                            groupIndex
+                                        ].values.splice(valueIndex, 1);
+                                        newGroups[targetIndex].values.push(
+                                            movedValue,
+                                        );
+                                        form.setFieldValue(
+                                            'binConfig.customGroups',
+                                            newGroups,
+                                        );
+                                    }}
+                                >
+                                    {targetGroup.name ||
+                                        `Group ${targetIndex + 1}`}
+                                </Menu.Item>
+                            ) : null,
+                        )}
+                    </Menu.Dropdown>
+                </Menu>
+            )}
+            <ActionIcon
+                variant="subtle"
+                color="ldDark.6"
+                size="sm"
+                onClick={() => {
+                    const newGroups = structuredClone(groups);
+                    newGroups[groupIndex].values.splice(valueIndex, 1);
+                    form.setFieldValue('binConfig.customGroups', newGroups);
+                }}
+            >
+                <MantineIcon icon={IconX} />
+            </ActionIcon>
+        </Flex>
+    );
+};
+
+const CustomGroupCard: FC<{
+    form: UseFormReturnType<FormValues>;
+    groupIndex: number;
+    onAddValue: (groupIndex: number, afterValueIndex?: number) => void;
+}> = ({ form, groupIndex, onAddValue }) => {
+    const groups = form.values.binConfig.customGroups;
+    const group = groups[groupIndex];
+
+    return (
+        <Stack className={classes.groupCard} gap="xs" p="sm">
+            <Flex gap="sm" align="center">
+                <TextInput
+                    flex={1}
+                    size="sm"
+                    label="Group name"
+                    required
+                    placeholder="e.g. North America"
+                    {...form.getInputProps(
+                        `binConfig.customGroups.${groupIndex}.name`,
+                    )}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            onAddValue(groupIndex);
+                        }
+                    }}
+                />
+                {groups.length > 1 && (
+                    <ActionIcon
+                        variant="subtle"
+                        color="ldDark.6"
+                        mt="xl"
+                        onClick={() => {
+                            const newGroups = [...groups];
+                            newGroups.splice(groupIndex, 1);
+                            form.setFieldValue(
+                                'binConfig.customGroups',
+                                newGroups,
+                            );
+                        }}
+                    >
+                        <MantineIcon icon={IconX} />
+                    </ActionIcon>
+                )}
+            </Flex>
+
+            {group.values.map((_value, valueIndex) => (
+                <GroupValueRow
+                    key={`custom-group.${groupIndex}.value.${valueIndex}`}
+                    form={form}
+                    groupIndex={groupIndex}
+                    valueIndex={valueIndex}
+                    onAddValueAfter={onAddValue}
+                />
+            ))}
+
+            <Button
+                variant="light"
+                size="compact-xs"
+                fw="400"
+                ml="md"
+                className={classes.addButton}
+                onClick={() => onAddValue(groupIndex)}
+            >
+                + Add a value
+            </Button>
+        </Stack>
+    );
+};
 
 export const CustomBinDimensionModal: FC<{
     isEditing: boolean;
@@ -154,8 +326,6 @@ export const CustomBinDimensionModal: FC<{
         }),
     });
 
-    type FormValues = z.infer<typeof formSchema>;
-
     const form = useForm<FormValues>({
         initialValues: {
             customDimensionLabel: '',
@@ -195,14 +365,14 @@ export const CustomBinDimensionModal: FC<{
             setFieldValue(
                 'binConfig.customRange',
                 item.customRange
-                    ? cloneDeep(item.customRange)
+                    ? structuredClone(item.customRange)
                     : DEFAULT_CUSTOM_RANGE,
             );
 
             setFieldValue(
                 'binConfig.customGroups',
                 item.customGroups
-                    ? cloneDeep(item.customGroups)
+                    ? structuredClone(item.customGroups)
                     : DEFAULT_CUSTOM_GROUPS,
             );
         }
@@ -305,37 +475,39 @@ export const CustomBinDimensionModal: FC<{
 
     useEffect(() => {
         if (focusTarget) {
-            const el = document.querySelector<HTMLInputElement>(
-                `[data-focus-id="${focusTarget}"]`,
-            );
-            el?.focus();
             setFocusTarget(null);
+            requestAnimationFrame(() => {
+                const el = document.querySelector<HTMLInputElement>(
+                    `[data-focus-id="${focusTarget}"]`,
+                );
+                el?.focus();
+            });
         }
     }, [focusTarget]);
 
-    const addValueToGroup = useCallback(
-        (groupIndex: number, afterValueIndex?: number) => {
-            const newGroups = cloneDeep(form.values.binConfig.customGroups);
-            const insertAt =
-                afterValueIndex !== undefined
-                    ? afterValueIndex + 1
-                    : newGroups[groupIndex].values.length;
-            newGroups[groupIndex].values.splice(insertAt, 0, {
-                ...DEFAULT_VALUE_RULE,
-            });
-            form.setFieldValue('binConfig.customGroups', newGroups);
-            setFocusTarget(`custom-group-${groupIndex}-value-${insertAt}`);
-        },
-        [form],
-    );
+    const addValueToGroup = (groupIndex: number, afterValueIndex?: number) => {
+        const newGroups = structuredClone(form.values.binConfig.customGroups);
+        const insertAt =
+            afterValueIndex !== undefined
+                ? afterValueIndex + 1
+                : newGroups[groupIndex].values.length;
+        newGroups[groupIndex].values.splice(insertAt, 0, {
+            ...DEFAULT_VALUE_RULE,
+        });
+        form.setFieldValue('binConfig.customGroups', newGroups);
+        setFocusTarget(`custom-group-${groupIndex}-value-${insertAt}`);
+    };
 
-    const hasEmptyGroups =
-        form.values.binType === BinType.CUSTOM_GROUP &&
-        form.values.binConfig.customGroups.some(
-            (group) =>
-                group.values.length === 0 ||
-                group.values.some((v) => v.value.trim() === ''),
-        );
+    const hasEmptyGroups = useMemo(
+        () =>
+            form.values.binType === BinType.CUSTOM_GROUP &&
+            form.values.binConfig.customGroups.some(
+                (group) =>
+                    group.values.length === 0 ||
+                    group.values.some((v) => v.value.trim() === ''),
+            ),
+        [form.values.binType, form.values.binConfig.customGroups],
+    );
 
     return (
         <MantineModal
@@ -568,7 +740,7 @@ export const CustomBinDimensionModal: FC<{
                                 variant="light"
                                 size="compact-xs"
                                 fw="400"
-                                style={{ alignSelf: 'flex-start' }}
+                                className={classes.addButton}
                                 onClick={() => {
                                     // Insert new custom range item before the last one
                                     const newRange = [
@@ -594,223 +766,13 @@ export const CustomBinDimensionModal: FC<{
                         <>
                             <Text fw={500}>Groups</Text>
                             {form.values.binConfig.customGroups.map(
-                                (group, groupIndex) => (
-                                    <Stack
+                                (_group, groupIndex) => (
+                                    <CustomGroupCard
                                         key={`custom-group.${groupIndex}`}
-                                        gap="xs"
-                                        p="sm"
-                                        style={{
-                                            border: '1px solid var(--mantine-color-ldGray-3)',
-                                            borderRadius:
-                                                'var(--mantine-radius-sm)',
-                                        }}
-                                    >
-                                        <Flex gap="sm" align="center">
-                                            <TextInput
-                                                flex={1}
-                                                size="sm"
-                                                label="Group name"
-                                                required
-                                                placeholder="e.g. North America"
-                                                {...form.getInputProps(
-                                                    `binConfig.customGroups.${groupIndex}.name`,
-                                                )}
-                                                onKeyDown={(e) => {
-                                                    if (e.key === 'Enter') {
-                                                        e.preventDefault();
-                                                        addValueToGroup(
-                                                            groupIndex,
-                                                        );
-                                                    }
-                                                }}
-                                            />
-                                            {form.values.binConfig.customGroups
-                                                .length > 1 && (
-                                                <ActionIcon
-                                                    variant="subtle"
-                                                    color="ldDark.6"
-                                                    mt="xl"
-                                                    onClick={() => {
-                                                        const newGroups = [
-                                                            ...form.values
-                                                                .binConfig
-                                                                .customGroups,
-                                                        ];
-                                                        newGroups.splice(
-                                                            groupIndex,
-                                                            1,
-                                                        );
-                                                        form.setFieldValue(
-                                                            'binConfig.customGroups',
-                                                            newGroups,
-                                                        );
-                                                    }}
-                                                >
-                                                    <MantineIcon icon={IconX} />
-                                                </ActionIcon>
-                                            )}
-                                        </Flex>
-
-                                        {group.values.map(
-                                            (value, valueIndex) => (
-                                                <Flex
-                                                    key={`custom-group.${groupIndex}.value.${valueIndex}`}
-                                                    gap="sm"
-                                                    align="center"
-                                                    ml="md"
-                                                >
-                                                    <Select
-                                                        size="xs"
-                                                        w={110}
-                                                        data={
-                                                            MATCH_TYPE_OPTIONS
-                                                        }
-                                                        allowDeselect={false}
-                                                        {...form.getInputProps(
-                                                            `binConfig.customGroups.${groupIndex}.values.${valueIndex}.matchType`,
-                                                        )}
-                                                    />
-                                                    <TextInput
-                                                        flex={1}
-                                                        size="xs"
-                                                        placeholder="Enter a value"
-                                                        data-focus-id={`custom-group-${groupIndex}-value-${valueIndex}`}
-                                                        {...form.getInputProps(
-                                                            `binConfig.customGroups.${groupIndex}.values.${valueIndex}.value`,
-                                                        )}
-                                                        onKeyDown={(e) => {
-                                                            if (
-                                                                e.key ===
-                                                                'Enter'
-                                                            ) {
-                                                                e.preventDefault();
-                                                                addValueToGroup(
-                                                                    groupIndex,
-                                                                    valueIndex,
-                                                                );
-                                                            }
-                                                        }}
-                                                    />
-                                                    {form.values.binConfig
-                                                        .customGroups.length >
-                                                        1 && (
-                                                        <Menu
-                                                            position="bottom-end"
-                                                            withinPortal
-                                                        >
-                                                            <Menu.Target>
-                                                                <ActionIcon
-                                                                    variant="subtle"
-                                                                    color="ldDark.4"
-                                                                    size="sm"
-                                                                    title="Move to group"
-                                                                >
-                                                                    <MantineIcon
-                                                                        icon={
-                                                                            IconArrowsTransferDown
-                                                                        }
-                                                                    />
-                                                                </ActionIcon>
-                                                            </Menu.Target>
-                                                            <Menu.Dropdown>
-                                                                <Menu.Label>
-                                                                    Move to
-                                                                    group
-                                                                </Menu.Label>
-                                                                {form.values.binConfig.customGroups.map(
-                                                                    (
-                                                                        targetGroup,
-                                                                        targetIndex,
-                                                                    ) =>
-                                                                        targetIndex !==
-                                                                            groupIndex && (
-                                                                            <Menu.Item
-                                                                                key={
-                                                                                    targetIndex
-                                                                                }
-                                                                                onClick={() => {
-                                                                                    const newGroups =
-                                                                                        cloneDeep(
-                                                                                            form
-                                                                                                .values
-                                                                                                .binConfig
-                                                                                                .customGroups,
-                                                                                        );
-                                                                                    const [
-                                                                                        movedValue,
-                                                                                    ] =
-                                                                                        newGroups[
-                                                                                            groupIndex
-                                                                                        ].values.splice(
-                                                                                            valueIndex,
-                                                                                            1,
-                                                                                        );
-                                                                                    newGroups[
-                                                                                        targetIndex
-                                                                                    ].values.push(
-                                                                                        movedValue,
-                                                                                    );
-                                                                                    form.setFieldValue(
-                                                                                        'binConfig.customGroups',
-                                                                                        newGroups,
-                                                                                    );
-                                                                                }}
-                                                                            >
-                                                                                {targetGroup.name ||
-                                                                                    `Group ${targetIndex + 1}`}
-                                                                            </Menu.Item>
-                                                                        ),
-                                                                )}
-                                                            </Menu.Dropdown>
-                                                        </Menu>
-                                                    )}
-                                                    <ActionIcon
-                                                        variant="subtle"
-                                                        color="ldDark.6"
-                                                        size="sm"
-                                                        onClick={() => {
-                                                            const newGroups =
-                                                                cloneDeep(
-                                                                    form.values
-                                                                        .binConfig
-                                                                        .customGroups,
-                                                                );
-                                                            newGroups[
-                                                                groupIndex
-                                                            ].values.splice(
-                                                                valueIndex,
-                                                                1,
-                                                            );
-                                                            form.setFieldValue(
-                                                                'binConfig.customGroups',
-                                                                newGroups,
-                                                            );
-                                                        }}
-                                                    >
-                                                        <MantineIcon
-                                                            icon={IconX}
-                                                        />
-                                                    </ActionIcon>
-                                                </Flex>
-                                            ),
-                                        )}
-
-                                        <Button
-                                            c="blue"
-                                            variant="light"
-                                            size="compact-xs"
-                                            fw="400"
-                                            ml="md"
-                                            style={{
-                                                alignSelf: 'flex-start',
-                                            }}
-                                            onClick={() =>
-                                                addValueToGroup(groupIndex)
-                                            }
-                                        >
-                                            + Add a value
-                                        </Button>
-                                    </Stack>
+                                        form={form}
+                                        groupIndex={groupIndex}
+                                        onAddValue={addValueToGroup}
+                                    />
                                 ),
                             )}
 
@@ -818,7 +780,7 @@ export const CustomBinDimensionModal: FC<{
                                 variant="light"
                                 size="compact-xs"
                                 fw="400"
-                                style={{ alignSelf: 'flex-start' }}
+                                className={classes.addButton}
                                 onClick={() => {
                                     form.setFieldValue(
                                         'binConfig.customGroups',
