@@ -133,6 +133,7 @@ export const chart: SavedChart = {
     projectUuid: dashboard.projectUuid,
     name: 'chart name',
     slug: 'chart-name',
+    verification: null,
 
     tableName: 'table_name',
     metricQuery: {

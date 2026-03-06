@@ -27,6 +27,7 @@ export type CaslSubjectNames =
     | 'ChangeCsvResults'
     | 'CompileProject'
     | 'ContentAsCode'
+    | 'ContentVerification'
     | 'CustomSql'
     | 'Dashboard'
     | 'DeployProject'
