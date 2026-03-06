@@ -6,6 +6,7 @@ import {
     ChartAsCodeInternalization,
     ChartSummary,
     ContentAsCodeType,
+    ContentType,
     CreateSavedChart,
     currentVersion,
     DashboardAsCode,
@@ -29,6 +30,7 @@ import {
     SpaceMemberRole,
     SqlChartAsCode,
     UpdatedByUser,
+    type ContentVerificationInfo,
     type DashboardTileWithSlug,
     type FilterGroup,
     type FilterGroupInput,
@@ -42,6 +44,7 @@ import {
 import { v4 as uuidv4 } from 'uuid';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
+import { ContentVerificationModel } from '../../models/ContentVerificationModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
@@ -63,6 +66,7 @@ type CoderServiceArguments = {
     schedulerClient: SchedulerClient;
     promoteService: PromoteService;
     spacePermissionService: SpacePermissionService;
+    contentVerificationModel: ContentVerificationModel;
 };
 
 const normalizeFilterGroupItem = (
@@ -127,6 +131,8 @@ export class CoderService extends BaseService {
 
     spacePermissionService: SpacePermissionService;
 
+    contentVerificationModel: ContentVerificationModel;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -138,6 +144,7 @@ export class CoderService extends BaseService {
         schedulerClient,
         promoteService,
         spacePermissionService,
+        contentVerificationModel,
     }: CoderServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -150,12 +157,14 @@ export class CoderService extends BaseService {
         this.schedulerClient = schedulerClient;
         this.promoteService = promoteService;
         this.spacePermissionService = spacePermissionService;
+        this.contentVerificationModel = contentVerificationModel;
     }
 
     private static transformChart(
         chart: SavedChartDAO,
         spaceSummary: Pick<SpaceSummaryBase, 'uuid' | 'path'>[],
         dashboardSlugs: Record<string, string>,
+        verificationMap: Map<string, ContentVerificationInfo>,
     ): ChartAsCode {
         const contentSpace = spaceSummary.find(
             (space) => space.uuid === chart.spaceUuid,
@@ -184,6 +193,7 @@ export class CoderService extends BaseService {
             contentType: ContentAsCodeType.CHART,
             downloadedAt: new Date(),
             parameters: chart.parameters,
+            verification: verificationMap.get(chart.uuid) ?? null,
         };
     }
 
@@ -336,6 +346,7 @@ export class CoderService extends BaseService {
     private static transformDashboard(
         dashboard: DashboardDAO,
         spaceSummary: Pick<SpaceSummaryBase, 'uuid' | 'path'>[],
+        verificationMap: Map<string, ContentVerificationInfo>,
     ): DashboardAsCode {
         const contentSpace = spaceSummary.find(
             (space) => space.uuid === dashboard.spaceUuid,
@@ -390,6 +401,7 @@ export class CoderService extends BaseService {
             version: currentVersion,
             contentType: ContentAsCodeType.DASHBOARD,
             downloadedAt: new Date(),
+            verification: verificationMap.get(dashboard.uuid) ?? null,
         };
 
         return dashboardAsCode;
@@ -660,8 +672,21 @@ export class CoderService extends BaseService {
             spaces,
         );
 
+        const dashboardUuidsForVerification = dashboardsWithAccess.map(
+            (d) => d.uuid,
+        );
+        const dashboardVerificationMap =
+            await this.contentVerificationModel.getByContentUuids(
+                ContentType.DASHBOARD,
+                dashboardUuidsForVerification,
+            );
+
         const transformedDashboards = dashboardsWithAccess.map((dashboard) =>
-            CoderService.transformDashboard(dashboard, spaces),
+            CoderService.transformDashboard(
+                dashboard,
+                spaces,
+                dashboardVerificationMap,
+            ),
         );
 
         return {
@@ -771,8 +796,20 @@ export class CoderService extends BaseService {
         const dashboards =
             await this.dashboardModel.getSlugsForUuids(dashboardUuids);
 
+        const chartUuids = charts.map((chart) => chart.uuid);
+        const chartVerificationMap =
+            await this.contentVerificationModel.getByContentUuids(
+                ContentType.CHART,
+                chartUuids,
+            );
+
         const transformedCharts = charts.map((chart) =>
-            CoderService.transformChart(chart, spaces, dashboards),
+            CoderService.transformChart(
+                chart,
+                spaces,
+                dashboards,
+                chartVerificationMap,
+            ),
         );
 
         const missingIds = CoderService.getMissingIds(chartIds, charts);
