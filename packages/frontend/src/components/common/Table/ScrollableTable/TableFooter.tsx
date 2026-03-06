@@ -26,7 +26,10 @@ const TableFooter = () => {
                                     key={header.id}
                                     colSpan={header.colSpan}
                                     $isNaN={
-                                        !meta?.item || !isNumericItem(meta.item)
+                                        !meta?.item ||
+                                        !isNumericItem(meta.item) ||
+                                        ('richText' in meta.item &&
+                                            meta.item.richText)
                                     }
                                 >
                                     {header.isPlaceholder

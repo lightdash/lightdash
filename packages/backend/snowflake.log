@@ -1,0 +1,2 @@
+{"level":"ERROR","message":"[1:20:18.377 PM]: Connection[id: 85b45e31-3f60-4074-9f5d-0f19d03506b8] - connection failed after 8534.92 milliseconds. Error: getaddrinfo ENOTFOUND aaa99827.snowflakecomputing.com"}
+{"level":"ERROR","message":"[1:20:21.391 PM]: Connection[id: 2cff0560-7815-4d42-974f-76ea3480627f] - connection failed after 12164.3 milliseconds. Error: getaddrinfo ENOTFOUND aaa99827.snowflakecomputing.com"}
