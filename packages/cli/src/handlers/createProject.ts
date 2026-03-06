@@ -135,6 +135,7 @@ type CreateProjectOptions = {
     organizationCredentials?: string;
     targetPath?: string;
     assumeYes?: boolean;
+    expiresIn?: number;
 };
 
 const isSnowflakeSsoEnabled = async (): Promise<boolean> => {
@@ -340,6 +341,9 @@ For a better user experience, we recommend enabling Snowflake OAuth authenticati
         tableConfiguration: options.tableConfiguration,
         copyContent: options.copyContent,
         organizationWarehouseCredentialsUuid,
+        ...(options.expiresIn !== undefined
+            ? { expiresInHours: options.expiresIn }
+            : {}),
     };
 
     return lightdashApi<ApiCreateProjectResults>({
