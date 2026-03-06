@@ -94,9 +94,12 @@ export type ExecuteAsyncQueryReturn = {
     cacheMetadata: CacheMetadata;
 };
 
+export type PreAggregationRouteMode = 'required' | 'opportunistic';
+
 export type PreAggregationRoute = {
     sourceExploreName: string;
     preAggregateName: string;
+    mode: PreAggregationRouteMode;
 };
 
 export type ExecuteAsyncSqlQueryArgs = CommonAsyncQueryArgs & {

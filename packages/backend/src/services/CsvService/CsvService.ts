@@ -1365,13 +1365,13 @@ export class CsvService extends BaseService {
 
     /**
      * This method is used to schedule a CSV download for a dashboard.
-     * Method in scheduler: `runScheduledExportCsvDashboard`
      */
     async scheduleExportCsvDashboard(
         user: SessionUser,
         dashboardUuid: string,
         dashboardFilters: DashboardFilters,
-        dateZoomGranularity?: DateGranularity,
+        dateZoomGranularity: DateGranularity | undefined,
+        selectedTabs: string[] | null,
     ) {
         const dashboard =
             await this.dashboardModel.getByIdOrSlug(dashboardUuid);
@@ -1391,6 +1391,7 @@ export class CsvService extends BaseService {
             dashboardUuid,
             dashboardFilters,
             dateZoomGranularity,
+            selectedTabs,
             // TraceTaskBase
             organizationUuid: dashboard.organizationUuid,
             projectUuid: dashboard.projectUuid,
@@ -1403,117 +1404,5 @@ export class CsvService extends BaseService {
         );
 
         return { jobId };
-    }
-
-    /**
-     * This method is running on scheduler
-     * Method triggered by `scheduleExportCsvDashboard`
-     */
-    async runScheduledExportCsvDashboard({
-        dashboardUuid,
-        dashboardFilters,
-        dateZoomGranularity,
-        userUuid,
-        organizationUuid,
-    }: ExportCsvDashboardPayload) {
-        if (!this.fileStorageClient.isEnabled()) {
-            throw new MissingConfigError('Cloud storage is not enabled');
-        }
-        const options: SchedulerCsvOptions = {
-            formatted: true,
-            limit: 'table',
-        };
-        const dashboard =
-            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
-
-        this.logger.info(`Exporting CSVs for dashboard ${dashboardUuid}`);
-        const user = await this.userModel.findSessionUserAndOrgByUuid(
-            userUuid,
-            organizationUuid,
-        );
-
-        const analyticProperties: DownloadCsv['properties'] = {
-            jobId: '', // not a job
-            userId: user.userUuid,
-            organizationId: user.organizationUuid,
-            projectId: dashboard.projectUuid,
-            fileType: SchedulerFormat.CSV,
-            values: options.formatted ? 'formatted' : 'raw',
-            limit: options.limit === 'table' ? 'results' : 'all',
-            context: 'dashboard csv zip',
-        };
-        this.analytics.track({
-            event: 'download_results.started',
-            userId: user.userUuid,
-            properties: {
-                ...analyticProperties,
-            },
-        });
-
-        const writeZipFile = async (files: AttachmentUrl[]) =>
-            new Promise<string>((resolve, reject) => {
-                const zipName = `/tmp/${nanoid()}.zip`;
-                const output = fs.createWriteStream(zipName);
-                const archive = archiver('zip', {
-                    zlib: { level: 9 }, // Sets the compression level.
-                });
-                output.on('close', () => {
-                    this.logger.info(
-                        `Generated .zip file of ${archive.pointer()} bytes`,
-                    );
-                    resolve(zipName);
-                });
-                archive.on('error', (err) => {
-                    reject(err);
-                });
-                files.forEach((file) => {
-                    archive.file(file.localPath, {
-                        name: `${file.filename}.csv`,
-                    });
-                });
-                archive.pipe(output);
-                void archive.finalize(); // This finalize doesn't wait for the files to be written
-            });
-
-        const csvFiles = await this.getCsvsForDashboard({
-            user,
-            dashboardUuid,
-            options,
-            overrideDashboardFilters: dashboardFilters,
-            dateZoomGranularity,
-            selectedTabs: null,
-        }).then((urls) => urls.filter((url) => url.path !== '#no-results'));
-
-        this.logger.info(
-            `Writing ${csvFiles.length} CSV files to zip file for dashboard ${dashboardUuid}`,
-        );
-        const zipFile = await writeZipFile(csvFiles);
-
-        this.analytics.track({
-            event: 'download_results.completed',
-            userId: user.userUuid,
-            properties: {
-                ...analyticProperties,
-                numCharts: csvFiles.length,
-            },
-        });
-        const zipFileName = `${sanitizeGenericFileName(
-            dashboard.name,
-        )}-${moment().format('YYYY-MM-DD-HH-mm-ss-SSSS')}.zip`;
-        this.logger.info(
-            `Uploading zip file to S3 for dashboard ${dashboardUuid}: ${zipFileName}`,
-        );
-        await this.fileStorageClient.uploadZip(
-            fs.createReadStream(zipFile),
-            zipFileName,
-        );
-
-        return this.persistentDownloadFileService.createPersistentUrl({
-            s3Key: zipFileName,
-            fileType: 'zip',
-            organizationUuid,
-            projectUuid: dashboard.projectUuid,
-            createdByUserUuid: userUuid,
-        });
     }
 }

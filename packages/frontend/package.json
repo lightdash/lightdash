@@ -1,6 +1,6 @@
 {
     "name": "@lightdash/frontend",
-    "version": "0.2567.0",
+    "version": "0.2579.2",
     "private": true,
     "scripts": {
         "typecheck": "tsc --project tsconfig.json --noEmit",
@@ -52,8 +52,8 @@
         "@tabler/icons-react": "^2.32.0",
         "@tanstack/react-query": "^4.36.1",
         "@tanstack/react-query-devtools": "^4.36.1",
-        "@tanstack/react-table": "^8.15.3",
-        "@tanstack/react-virtual": "^3.10.7",
+        "@tanstack/react-table": "^8.21.3",
+        "@tanstack/react-virtual": "^3.13.19",
         "@tiptap/extension-link": "^2.2.4",
         "@tiptap/extension-mention": "^2.2.4",
         "@tiptap/extension-placeholder": "^2.2.4",

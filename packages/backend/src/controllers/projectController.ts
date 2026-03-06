@@ -1278,8 +1278,8 @@ export class ProjectController extends BaseController {
     }
 
     /**
-     * Refresh a single pre-aggregate explore in a project
-     * @summary Refresh project pre-aggregate by name
+     * Refresh a single pre-aggregate by its definition name
+     * @summary Refresh pre-aggregate by definition name
      */
     @Middlewares([
         allowApiKeyAuthentication,
@@ -1287,11 +1287,13 @@ export class ProjectController extends BaseController {
         unauthorisedInDemo,
     ])
     @SuccessResponse('200', 'Success')
-    @Post('{projectUuid}/pre-aggregates/{preAggExploreName}/refresh')
-    @OperationId('refreshProjectPreAggregateByName')
-    async refreshPreAggregateByName(
+    @Post(
+        '{projectUuid}/pre-aggregates/definitions/{preAggregateDefinitionName}/refresh',
+    )
+    @OperationId('refreshProjectPreAggregateByDefinitionName')
+    async refreshPreAggregateByDefinitionName(
         @Path() projectUuid: string,
-        @Path() preAggExploreName: string,
+        @Path() preAggregateDefinitionName: string,
         @Request() req: express.Request,
     ): Promise<ApiSuccess<{ jobIds: string[] }>> {
         this.setStatus(200);
@@ -1299,10 +1301,10 @@ export class ProjectController extends BaseController {
             status: 'ok',
             results: await this.services
                 .getProjectService()
-                .refreshPreAggregateByName(
+                .refreshPreAggregateByDefinitionName(
                     req.user!,
                     projectUuid,
-                    preAggExploreName,
+                    preAggregateDefinitionName,
                 ),
         };
     }

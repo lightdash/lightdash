@@ -98,7 +98,7 @@ const getExploresFromLightdashYmlProject = async (
         warehouseSqlBuilder,
         lightdashProjectConfig,
         disableTimestampConversion,
-        process.env.PARTIAL_COMPILATION_ENABLED === 'true',
+        process.env.PARTIAL_COMPILATION_ENABLED !== 'false',
     );
 
     return validExplores;
@@ -332,7 +332,7 @@ export const compile = async (options: CompileHandlerOptions) => {
             warehouseSqlBuilder,
             lightdashProjectConfig,
             options.disableTimestampConversion,
-            process.env.PARTIAL_COMPILATION_ENABLED === 'true',
+            process.env.PARTIAL_COMPILATION_ENABLED !== 'false',
         );
         console.error('');
 
@@ -353,7 +353,7 @@ export const compile = async (options: CompileHandlerOptions) => {
             messages = `: ${styles.error(e.errors.map((err) => err.message).join(', '))}`;
             errors += 1;
         } else if (
-            process.env.PARTIAL_COMPILATION_ENABLED === 'true' &&
+            process.env.PARTIAL_COMPILATION_ENABLED !== 'false' &&
             'warnings' in e &&
             e.warnings &&
             e.warnings.length > 0
@@ -371,7 +371,7 @@ export const compile = async (options: CompileHandlerOptions) => {
     console.error('');
 
     if (
-        process.env.PARTIAL_COMPILATION_ENABLED === 'true' &&
+        process.env.PARTIAL_COMPILATION_ENABLED !== 'false' &&
         partialSuccess > 0
     ) {
         console.error(

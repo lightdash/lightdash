@@ -84,6 +84,8 @@ export class ExploreController extends BaseController {
                 req.account!,
                 projectUuid,
                 req.query.filtered === 'true',
+                true,
+                req.query.includePreAggregates === 'true',
             );
 
         return {

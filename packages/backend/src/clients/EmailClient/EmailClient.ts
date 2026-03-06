@@ -392,7 +392,7 @@ export default class EmailClient {
         recipient: string,
         schedulerName: string,
         schedulerUrl: string,
-        deliveryType: 'slack' | 'email' | 'msteams',
+        deliveryType: 'slack' | 'email' | 'msteams' | 'googlechat',
         failedTargets: { target: string; error?: string }[],
         totalTargets: number,
     ) {

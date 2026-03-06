@@ -1,3 +1,4 @@
+import { PRE_AGGREGATE_MATERIALIZED_TABLE_PLACEHOLDER } from '../preAggregates/buildPreAggregateExplore';
 import { SupportedDbtAdapter, type DbtModelNode } from '../types/dbt';
 import { ExploreType, InlineErrorType, type Explore } from '../types/explore';
 import { DimensionType, FieldType } from '../types/field';
@@ -1407,7 +1408,7 @@ describe('pre-aggregate virtual explore generation', () => {
         expect(preAggregateExplore.preAggregates).toEqual([]);
         expect(
             preAggregateExplore.tables[preAggregateExplore.baseTable].sqlTable,
-        ).toBe(MODEL_WITH_METRIC.relation_name);
+        ).toBe(PRE_AGGREGATE_MATERIALIZED_TABLE_PLACEHOLDER);
     });
 
     it('generates an internal pre-aggregate explore for average metrics without warnings', async () => {

@@ -16,7 +16,6 @@ import { ProjectTableName } from '../database/entities/projects';
 import { SavedChartsTableName } from '../database/entities/savedCharts';
 import { SpaceTableName } from '../database/entities/spaces';
 import { UserTableName } from '../database/entities/users';
-import { getRootSpaceIsPrivateQuery } from './SpacePermissionModel';
 
 type ResourceViewItemModelArguments = {
     database: Knex;
@@ -282,7 +281,7 @@ const getAllSpaces = async (
             space_uuid: `${PinnedSpaceTableName}.space_uuid`,
             order: `${PinnedSpaceTableName}.order`,
             name: `${SpaceTableName}.name`,
-            is_private: knex.raw(getRootSpaceIsPrivateQuery()),
+            is_private: `${SpaceTableName}.is_private`,
             inherit_parent_permissions: `${SpaceTableName}.inherit_parent_permissions`,
             parent_space_uuid: `${SpaceTableName}.parent_space_uuid`,
             path: `${SpaceTableName}.path`,

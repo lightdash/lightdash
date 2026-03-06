@@ -7,7 +7,6 @@ import {
 } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
-import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SpaceModel } from '../../models/SpaceModel';
@@ -34,7 +33,6 @@ describe('SpaceService', () => {
             projectModel: {} as ProjectModel,
             spaceModel: {} as SpaceModel,
             pinnedListModel: {} as PinnedListModel,
-            featureFlagModel: {} as FeatureFlagModel,
             spacePermissionService: {
                 getSpaceAccessContext: mockGetSpaceAccessContext,
             } as unknown as SpacePermissionService,
@@ -883,9 +881,6 @@ describe('SpaceService.updateSpace - permission copy on inherit toggle', () => {
         getSpaceDashboards: jest.fn(),
         find: jest.fn(),
     };
-    const mockFeatureFlagModel = {
-        get: jest.fn(),
-    };
     const mockSpacePermissionService = {
         can: jest.fn(),
         getAccessibleSpaceUuids: jest.fn(),
@@ -910,8 +905,6 @@ describe('SpaceService.updateSpace - permission copy on inherit toggle', () => {
             projectModel: {} as ProjectModel,
             spaceModel: mockSpaceModel as unknown as SpaceModel,
             pinnedListModel: {} as PinnedListModel,
-            featureFlagModel:
-                mockFeatureFlagModel as unknown as FeatureFlagModel,
             spacePermissionService:
                 mockSpacePermissionService as unknown as SpacePermissionService,
             savedChartService: {} as SavedChartService,
@@ -975,7 +968,6 @@ describe('SpaceService.updateSpace - permission copy on inherit toggle', () => {
             inheritParentPermissions: true,
         });
         mockSpaceModel.isRootSpace.mockResolvedValue(true);
-        mockFeatureFlagModel.get.mockResolvedValue({ enabled: true });
         mockSpacePermissionService.getInheritedPermissionsToCopy.mockResolvedValue(
             {
                 userAccessEntries: [
@@ -1011,36 +1003,6 @@ describe('SpaceService.updateSpace - permission copy on inherit toggle', () => {
         expect(mockSpaceModel.update).not.toHaveBeenCalled();
     });
 
-    test('does NOT copy permissions when flag is disabled', async () => {
-        mockSpaceModel.getSpaceSummary.mockResolvedValue({
-            uuid: 'space-uuid',
-            name: 'Test Space',
-            projectUuid: 'project-uuid',
-            organizationUuid: 'org-uuid',
-            isPrivate: false,
-            inheritParentPermissions: true,
-        });
-        mockSpaceModel.isRootSpace.mockResolvedValue(true);
-        mockFeatureFlagModel.get.mockResolvedValue({ enabled: false });
-
-        await service.updateSpace(
-            mockUser as unknown as SessionUser,
-            'space-uuid',
-            {
-                name: 'Test Space',
-                inheritParentPermissions: false,
-            },
-        );
-
-        expect(
-            mockSpacePermissionService.getInheritedPermissionsToCopy,
-        ).not.toHaveBeenCalled();
-        expect(
-            mockSpaceModel.updateWithCopiedPermissions,
-        ).not.toHaveBeenCalled();
-        expect(mockSpaceModel.update).toHaveBeenCalled();
-    });
-
     test('does NOT copy permissions when transitioning false → true', async () => {
         mockSpaceModel.getSpaceSummary.mockResolvedValue({
             uuid: 'space-uuid',
@@ -1051,7 +1013,6 @@ describe('SpaceService.updateSpace - permission copy on inherit toggle', () => {
             inheritParentPermissions: false,
         });
         mockSpaceModel.isRootSpace.mockResolvedValue(true);
-        mockFeatureFlagModel.get.mockResolvedValue({ enabled: true });
 
         await service.updateSpace(
             mockUser as unknown as SessionUser,
@@ -1081,7 +1042,6 @@ describe('SpaceService.updateSpace - permission copy on inherit toggle', () => {
             inheritParentPermissions: true,
         });
         mockSpaceModel.isRootSpace.mockResolvedValue(true);
-        mockFeatureFlagModel.get.mockResolvedValue({ enabled: true });
 
         await service.updateSpace(
             mockUser as unknown as SessionUser,
@@ -1110,7 +1070,6 @@ describe('SpaceService.updateSpace - permission copy on inherit toggle', () => {
             inheritParentPermissions: true,
         });
         mockSpaceModel.isRootSpace.mockResolvedValue(true);
-        mockFeatureFlagModel.get.mockResolvedValue({ enabled: true });
 
         // User has EDITOR access inherited from project (no direct access)
         mockSpacePermissionService.getSpaceAccessContext.mockResolvedValue({
@@ -1160,7 +1119,6 @@ describe('SpaceService.updateSpace - permission copy on inherit toggle', () => {
             inheritParentPermissions: true,
         });
         mockSpaceModel.isRootSpace.mockResolvedValue(true);
-        mockFeatureFlagModel.get.mockResolvedValue({ enabled: true });
 
         // User has EDITOR access inherited (not direct) on the target space
         mockSpacePermissionService.getSpaceAccessContext.mockResolvedValue({
@@ -1220,7 +1178,6 @@ describe('SpaceService.updateSpace - permission copy on inherit toggle', () => {
             inheritParentPermissions: true,
         });
         mockSpaceModel.isRootSpace.mockResolvedValue(true);
-        mockFeatureFlagModel.get.mockResolvedValue({ enabled: true });
 
         // User already has direct access
         mockSpacePermissionService.getSpaceAccessContext.mockResolvedValue({
@@ -1265,7 +1222,6 @@ describe('SpaceService.updateSpace - permission copy on inherit toggle', () => {
             inheritParentPermissions: false,
         });
         mockSpaceModel.isRootSpace.mockResolvedValue(true);
-        mockFeatureFlagModel.get.mockResolvedValue({ enabled: true });
 
         await service.updateSpace(
             mockUser as unknown as SessionUser,

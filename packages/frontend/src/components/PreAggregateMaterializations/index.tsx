@@ -35,7 +35,6 @@ import {
     IconSearch,
     IconTable,
 } from '@tabler/icons-react';
-import { useQueryClient } from '@tanstack/react-query';
 import cronstrue from 'cronstrue';
 import {
     MantineReactTable,
@@ -47,10 +46,11 @@ import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { usePreAggregateMaterializations } from '../../hooks/usePreAggregateMaterializations';
 import {
     useRefreshAllPreAggregates,
-    useRefreshPreAggregateByName,
+    useRefreshPreAggregateByDefinitionName,
 } from '../../hooks/usePreAggregateRefresh';
 import { useProject } from '../../hooks/useProject';
 import { useTimeAgo } from '../../hooks/useTimeAgo';
+import useSchedulerJobsContext from '../../providers/SchedulerJobs/useSchedulerJobsContext';
 import MantineIcon from '../common/MantineIcon';
 import MantineModal from '../common/MantineModal';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
@@ -159,14 +159,16 @@ const StatusFilter: FC<{
 
 const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
     const { isLoading: isLoadingProject } = useProject(projectUuid);
-    const queryClient = useQueryClient();
+    const { hasActiveJobs } = useSchedulerJobsContext();
     const { mutate: refreshAll, isLoading: isRefreshingAll } =
-        useRefreshAllPreAggregates(projectUuid);
+        useRefreshAllPreAggregates(projectUuid, { showToast: true });
     const {
         mutate: refreshByName,
         isLoading: isRefreshingOne,
-        variables: refreshingExploreName,
-    } = useRefreshPreAggregateByName(projectUuid);
+        variables: refreshingDefinitionName,
+    } = useRefreshPreAggregateByDefinitionName(projectUuid, {
+        showToast: false,
+    });
     const [
         isRefreshModalOpen,
         { open: openRefreshModal, close: closeRefreshModal },
@@ -198,13 +200,6 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
         hasNextPage,
         isFetchingNextPage,
     } = usePreAggregateMaterializations(projectUuid);
-
-    const handleRefresh = () => {
-        void queryClient.invalidateQueries([
-            'preAggregateMaterializations',
-            projectUuid,
-        ]);
-    };
 
     useEffect(() => {
         if (hasNextPage && !isFetchingNextPage) {
@@ -449,8 +444,8 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                 Cell: ({ row }) => {
                     const isThisRowRefreshing =
                         isRefreshingOne &&
-                        refreshingExploreName ===
-                            row.original.preAggExploreName;
+                        refreshingDefinitionName ===
+                            row.original.preAggregateName;
                     return (
                         <Tooltip label="Refresh this pre-aggregate">
                             <ActionIcon
@@ -461,7 +456,7 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     refreshByName(
-                                        row.original.preAggExploreName,
+                                        row.original.preAggregateName,
                                     );
                                 }}
                             >
@@ -472,7 +467,7 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                 },
             },
         ],
-        [isRefreshingOne, refreshingExploreName, refreshByName],
+        [isRefreshingOne, refreshingDefinitionName, refreshByName],
     );
 
     const table = useMantineReactTable({
@@ -540,16 +535,6 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                     <Text size="xs" c="dimmed">
                         {summary.active}/{summary.total} active
                     </Text>
-                    <Tooltip label="Refresh">
-                        <ActionIcon
-                            variant="subtle"
-                            color="gray"
-                            size="sm"
-                            onClick={handleRefresh}
-                        >
-                            <MantineIcon icon={IconRefresh} />
-                        </ActionIcon>
-                    </Tooltip>
                 </Group>
             </Group>
         ),
@@ -657,7 +642,7 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                             leftSection={
                                 <MantineIcon icon={IconRefresh} size="sm" />
                             }
-                            loading={isRefreshingAll}
+                            loading={isRefreshingAll || hasActiveJobs}
                             onClick={handleRefreshAllClick}
                         >
                             Refresh all
@@ -685,7 +670,8 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                 onRefresh={refreshByName}
                 isRefreshing={
                     isRefreshingOne &&
-                    refreshingExploreName === selectedSummary?.preAggExploreName
+                    refreshingDefinitionName ===
+                        selectedSummary?.preAggregateName
                 }
             />
 

@@ -1,3 +1,159 @@
+## [0.2579.2](https://github.com/lightdash/lightdash/compare/0.2579.1...0.2579.2) (2026-03-06)
+
+
+### Bug Fixes
+
+* re-create soft-deleted space with cli upload ([#20908](https://github.com/lightdash/lightdash/issues/20908)) ([1d67ab8](https://github.com/lightdash/lightdash/commit/1d67ab87d68186f99fc7f61bd8387dd513e1a44f))
+* use baseFieldId for bar-in-cell color lookup in pivot tables ([#20895](https://github.com/lightdash/lightdash/issues/20895)) ([eb1790b](https://github.com/lightdash/lightdash/commit/eb1790b2238393d32e8e1b9202ece8882b878f75))
+
+## [0.2579.1](https://github.com/lightdash/lightdash/compare/0.2579.0...0.2579.1) (2026-03-06)
+
+
+### Bug Fixes
+
+* loosen gchat notification ([#20909](https://github.com/lightdash/lightdash/issues/20909)) ([b616ebf](https://github.com/lightdash/lightdash/commit/b616ebfd659ec0b951bad002cea1b495570e175c))
+* subtotal rows show '-' when all underlying values have no result ([#20901](https://github.com/lightdash/lightdash/issues/20901)) ([28bd689](https://github.com/lightdash/lightdash/commit/28bd689b784b8a040b583dd58e7a2868f5a2ef7a)), closes [#20900](https://github.com/lightdash/lightdash/issues/20900)
+
+# [0.2579.0](https://github.com/lightdash/lightdash/compare/0.2578.1...0.2579.0) (2026-03-06)
+
+
+### Features
+
+* introduce scheduler jobs provider ([#20887](https://github.com/lightdash/lightdash/issues/20887)) ([9086314](https://github.com/lightdash/lightdash/commit/908631499cfb5696a0d0c83ed5503b8aac21ff81))
+* pre-aggregate refresh in dashboards and tiles ([#20871](https://github.com/lightdash/lightdash/issues/20871)) ([f0e2092](https://github.com/lightdash/lightdash/commit/f0e20927747bd0056713377fb84fb94720cf4cbc))
+
+## [0.2578.1](https://github.com/lightdash/lightdash/compare/0.2578.0...0.2578.1) (2026-03-05)
+
+
+### Bug Fixes
+
+* import all eslint / oxc format issues ([#20877](https://github.com/lightdash/lightdash/issues/20877)) ([d7b179d](https://github.com/lightdash/lightdash/commit/d7b179dcd9b29b9b1a4a437a9c70236b532a806a))
+* improve CI parallel job error handling ([#20873](https://github.com/lightdash/lightdash/issues/20873)) ([46f7f90](https://github.com/lightdash/lightdash/commit/46f7f905e320d26d8f887721eccfa751d1f2c39f))
+
+# [0.2578.0](https://github.com/lightdash/lightdash/compare/0.2577.0...0.2578.0) (2026-03-05)
+
+
+### Features
+
+* add selectedTabs parameter to dashboard CSV export ([#20890](https://github.com/lightdash/lightdash/issues/20890)) ([a632363](https://github.com/lightdash/lightdash/commit/a632363a3ed881875aaaae03df507d9b860184ae))
+
+# [0.2577.0](https://github.com/lightdash/lightdash/compare/0.2576.0...0.2577.0) (2026-03-05)
+
+
+### Features
+
+* add failure count to dashboard CSV export with warning toast ([#20889](https://github.com/lightdash/lightdash/issues/20889)) ([12b8f09](https://github.com/lightdash/lightdash/commit/12b8f09dd55358af69174473513597d4c4856b10))
+* add Google Chat integration for scheduled deliveries (frontend) ([#20886](https://github.com/lightdash/lightdash/issues/20886)) ([9b6d5eb](https://github.com/lightdash/lightdash/commit/9b6d5eb26a74283bc6b8dcb81efc226bae724626)), closes [#18267](https://github.com/lightdash/lightdash/issues/18267)
+* implement dashboard CSV zip export with async query service ([#20879](https://github.com/lightdash/lightdash/issues/20879)) ([edc44ae](https://github.com/lightdash/lightdash/commit/edc44aea4a0ebf6261039d9b527c9cf86dcd8e33))
+
+# [0.2576.0](https://github.com/lightdash/lightdash/compare/0.2575.0...0.2576.0) (2026-03-05)
+
+
+### Features
+
+* add default sort behavior for MetricQueryBuilder ([#20869](https://github.com/lightdash/lightdash/issues/20869)) ([9c9d286](https://github.com/lightdash/lightdash/commit/9c9d286e022baa9147872dc1f88bde3750eaa7bf))
+* add Google Chat integration for scheduled deliveries (backend) ([#20881](https://github.com/lightdash/lightdash/issues/20881)) ([a600717](https://github.com/lightdash/lightdash/commit/a60071740b18e728dfe40ef028509b2079c4aadd)), closes [#18267](https://github.com/lightdash/lightdash/issues/18267)
+
+# [0.2575.0](https://github.com/lightdash/lightdash/compare/0.2574.0...0.2575.0) (2026-03-05)
+
+
+### Bug Fixes
+
+* allow apostrophes in email validation ([#20875](https://github.com/lightdash/lightdash/issues/20875)) ([9896f7a](https://github.com/lightdash/lightdash/commit/9896f7ad7a7da17dd9f2d2c476209b9ab896c8a6)), closes [#20874](https://github.com/lightdash/lightdash/issues/20874)
+* skip pre_agg parsing for empty string values ([#20876](https://github.com/lightdash/lightdash/issues/20876)) ([1487b8c](https://github.com/lightdash/lightdash/commit/1487b8cb349be3c3a75e4448f51c447541d0afe9))
+
+
+### Features
+
+* enable partial compilation by default ([#20864](https://github.com/lightdash/lightdash/issues/20864)) ([dbe2a1f](https://github.com/lightdash/lightdash/commit/dbe2a1fd5c503c62949acaa7800c0f3a387abffb))
+
+# [0.2574.0](https://github.com/lightdash/lightdash/compare/0.2573.1...0.2574.0) (2026-03-05)
+
+
+### Bug Fixes
+
+* don't show original explore table name in pre-aggregation compiled queries ([#20862](https://github.com/lightdash/lightdash/issues/20862)) ([b647c84](https://github.com/lightdash/lightdash/commit/b647c84804c5ef7379f5ad5b200be2a9ccb2e8af))
+
+
+### Features
+
+* premissions for viewing a pre-aggregate ([#20844](https://github.com/lightdash/lightdash/issues/20844)) ([de4e3d7](https://github.com/lightdash/lightdash/commit/de4e3d7501111a12c551038d9f900dfcc4f2defe))
+* show pre-aggregates in the explorer sidebar ([#20838](https://github.com/lightdash/lightdash/issues/20838)) ([c9b56d1](https://github.com/lightdash/lightdash/commit/c9b56d10d43664ef8562e2d273657d9f5cd2ed67))
+* way to query the materialized pre-aggregate directly ([#20830](https://github.com/lightdash/lightdash/issues/20830)) ([1e108ea](https://github.com/lightdash/lightdash/commit/1e108eaf9e2dec6043ef641c5f32172c22c9255e))
+
+## [0.2573.1](https://github.com/lightdash/lightdash/compare/0.2573.0...0.2573.1) (2026-03-05)
+
+
+### Bug Fixes
+
+* stabilize virtualized table scrolling ([#20867](https://github.com/lightdash/lightdash/issues/20867)) ([f10c21e](https://github.com/lightdash/lightdash/commit/f10c21ec1213854e4400fd5f513d109af0a10b33))
+
+# [0.2573.0](https://github.com/lightdash/lightdash/compare/0.2572.2...0.2573.0) (2026-03-05)
+
+
+### Features
+
+* add average_distinct metric type ([#20832](https://github.com/lightdash/lightdash/issues/20832)) ([5753e55](https://github.com/lightdash/lightdash/commit/5753e55075665d2989532e3ad87e1d754bbc3e65))
+
+## [0.2572.2](https://github.com/lightdash/lightdash/compare/0.2572.1...0.2572.2) (2026-03-05)
+
+
+### Bug Fixes
+
+* add configurable query retry on transient errors ([#20400](https://github.com/lightdash/lightdash/issues/20400)) ([cbdb8c3](https://github.com/lightdash/lightdash/commit/cbdb8c3af650f5fca1f67b49c70d78bc83d884a8))
+
+## [0.2572.1](https://github.com/lightdash/lightdash/compare/0.2572.0...0.2572.1) (2026-03-05)
+
+
+### Bug Fixes
+
+* clean up LabelEditor and BigNumber config ([#20859](https://github.com/lightdash/lightdash/issues/20859)) ([96945c4](https://github.com/lightdash/lightdash/commit/96945c48e7a12b6cad7514ede7ad9b1d855d64d1))
+* preserve canonical order when toggling date zoom granularities ([#20860](https://github.com/lightdash/lightdash/issues/20860)) ([5cbb61b](https://github.com/lightdash/lightdash/commit/5cbb61bcfe8cd5d6c03736f3fae1ff69257af18b))
+
+# [0.2572.0](https://github.com/lightdash/lightdash/compare/0.2571.0...0.2572.0) (2026-03-05)
+
+
+### Features
+
+* add resolveGranularityInLabel utility for big number labels ([#20829](https://github.com/lightdash/lightdash/issues/20829)) ([eb4629d](https://github.com/lightdash/lightdash/commit/eb4629d28bdc5ba4d818f1f74f22bb9184cccc63))
+
+# [0.2571.0](https://github.com/lightdash/lightdash/compare/0.2570.0...0.2571.0) (2026-03-05)
+
+
+### Features
+
+* add ThoughtSpot TML to Lightdash translation skill ([#20852](https://github.com/lightdash/lightdash/issues/20852)) ([6d7100c](https://github.com/lightdash/lightdash/commit/6d7100c1bfef760de29b8dbc139f688400cf4023))
+
+# [0.2570.0](https://github.com/lightdash/lightdash/compare/0.2569.1...0.2570.0) (2026-03-05)
+
+
+### Features
+
+* add Liquid template support for dynamic SQL dimensions ([#20843](https://github.com/lightdash/lightdash/issues/20843)) ([ce2de9f](https://github.com/lightdash/lightdash/commit/ce2de9f4eeba9214df23dfc92abca461b53094de))
+
+## [0.2569.1](https://github.com/lightdash/lightdash/compare/0.2569.0...0.2569.1) (2026-03-05)
+
+
+### Bug Fixes
+
+* ensure Snowflake connections are properly destroyed after async queries ([#20850](https://github.com/lightdash/lightdash/issues/20850)) ([3c6091d](https://github.com/lightdash/lightdash/commit/3c6091d9ec93c6b92e4c90dd3ffbff6b749dceac))
+
+# [0.2569.0](https://github.com/lightdash/lightdash/compare/0.2568.0...0.2569.0) (2026-03-04)
+
+
+### Features
+
+* add FE_HOST environment variable support ([#20847](https://github.com/lightdash/lightdash/issues/20847)) ([ac5c2a4](https://github.com/lightdash/lightdash/commit/ac5c2a41b52c92d0fd97fdc38d75bb3b2580b718))
+
+# [0.2568.0](https://github.com/lightdash/lightdash/compare/0.2567.0...0.2568.0) (2026-03-04)
+
+
+### Features
+
+* add dateZoomGranularities and defaultDateZoomGranularity to DashboardConfig ([#20800](https://github.com/lightdash/lightdash/issues/20800)) ([c683f20](https://github.com/lightdash/lightdash/commit/c683f204799a3e03fc19398042e6f29be50c8132))
+* migrate threshold alerts off old query pipeline ([#20834](https://github.com/lightdash/lightdash/issues/20834)) ([faafbd4](https://github.com/lightdash/lightdash/commit/faafbd42d86ee71f93bd0c4a6fff1df4c94972c7))
+* use async query service for Google Sheets scheduler with pivot support ([#20851](https://github.com/lightdash/lightdash/issues/20851)) ([fe42b18](https://github.com/lightdash/lightdash/commit/fe42b18483f47ca917ab65bef9f9b25008578a60))
+
 # [0.2567.0](https://github.com/lightdash/lightdash/compare/0.2566.0...0.2567.0) (2026-03-04)
 
 

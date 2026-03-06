@@ -141,7 +141,9 @@ export const MostPopularAndRecentlyUpdatedPanel: FC<Props> = ({
                 action:
                     !isDemo && userCanCreateCharts ? (
                         <Button
-                            leftSection={<MantineIcon icon={IconPlus} size={18} />}
+                            leftSection={
+                                <MantineIcon icon={IconPlus} size={18} />
+                            }
                             onClick={handleCreateChart}
                         >
                             Create chart

@@ -40,19 +40,9 @@ const applyOrganizationMemberStaticAbilities: Record<
     },
     viewer(member, { can }) {
         applyOrganizationMemberStaticAbilities.member(member, { can });
-        // TODO: remove once we're confident that nobody is stuck on an old frontend version
-        can('view', 'Dashboard', {
-            organizationUuid: member.organizationUuid,
-            isPrivate: false,
-        });
         can('view', 'Dashboard', {
             organizationUuid: member.organizationUuid,
             inheritsFromOrgOrProject: true,
-        });
-        // TODO: remove once we're confident that nobody is stuck on an old frontend version
-        can('view', 'SavedChart', {
-            organizationUuid: member.organizationUuid,
-            isPrivate: false,
         });
         can('view', 'SavedChart', {
             organizationUuid: member.organizationUuid,
@@ -69,11 +59,6 @@ const applyOrganizationMemberStaticAbilities: Record<
             access: {
                 $elemMatch: { userUuid: member.userUuid },
             },
-        });
-        // TODO: remove once we're confident that nobody is stuck on an old frontend version
-        can('view', 'Space', {
-            organizationUuid: member.organizationUuid,
-            isPrivate: false,
         });
         can('view', 'Space', {
             organizationUuid: member.organizationUuid,
@@ -209,11 +194,6 @@ const applyOrganizationMemberStaticAbilities: Record<
         applyOrganizationMemberStaticAbilities.interactive_viewer(member, {
             can,
         });
-        // TODO: remove once we're confident that nobody is stuck on an old frontend version
-        can('manage', 'Space', {
-            organizationUuid: member.organizationUuid,
-            isPrivate: false,
-        });
         can('manage', 'Space', {
             organizationUuid: member.organizationUuid,
             inheritsFromOrgOrProject: true,
@@ -243,6 +223,9 @@ const applyOrganizationMemberStaticAbilities: Record<
     },
     developer(member, { can }) {
         applyOrganizationMemberStaticAbilities.editor(member, { can });
+        can('manage', 'PreAggregation', {
+            organizationUuid: member.organizationUuid,
+        });
         can('manage', 'VirtualView', {
             organizationUuid: member.organizationUuid,
         });

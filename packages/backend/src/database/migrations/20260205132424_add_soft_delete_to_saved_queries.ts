@@ -43,7 +43,9 @@ export async function up(knex: Knex): Promise<void> {
 }
 
 export async function down(knex: Knex): Promise<void> {
-    await knex.raw('DROP INDEX CONCURRENTLY IF EXISTS idx_saved_queries_deleted');
+    await knex.raw(
+        'DROP INDEX CONCURRENTLY IF EXISTS idx_saved_queries_deleted',
+    );
     await knex.raw(
         'DROP INDEX CONCURRENTLY IF EXISTS idx_saved_queries_not_deleted',
     );

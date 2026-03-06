@@ -26,19 +26,9 @@ const applyServiceAccountStaticAbilities: Record<
             organizationUuid,
         });
 
-        // TODO: remove once we're confident that nobody is stuck on an old frontend version
-        can('view', 'Dashboard', {
-            organizationUuid,
-            isPrivate: false,
-        });
         can('view', 'Dashboard', {
             organizationUuid,
             inheritsFromOrgOrProject: true,
-        });
-        // TODO: remove once we're confident that nobody is stuck on an old frontend version
-        can('view', 'SavedChart', {
-            organizationUuid,
-            isPrivate: false,
         });
         can('view', 'SavedChart', {
             organizationUuid,
@@ -56,11 +46,6 @@ const applyServiceAccountStaticAbilities: Record<
            access: {
                 $elemMatch: { userUuid: userUuid },
             }, */
-        });
-        // TODO: remove once we're confident that nobody is stuck on an old frontend version
-        can('view', 'Space', {
-            organizationUuid,
-            isPrivate: false,
         });
         can('view', 'Space', {
             organizationUuid,
@@ -194,11 +179,6 @@ const applyServiceAccountStaticAbilities: Record<
             organizationUuid,
             builder: { can },
         });
-        // TODO: remove once we're confident that nobody is stuck on an old frontend version
-        can('manage', 'Space', {
-            organizationUuid,
-            isPrivate: false,
-        });
         can('manage', 'Space', {
             organizationUuid,
             inheritsFromOrgOrProject: true,
@@ -233,6 +213,9 @@ const applyServiceAccountStaticAbilities: Record<
         applyServiceAccountStaticAbilities[ServiceAccountScope.ORG_EDIT]({
             organizationUuid,
             builder: { can },
+        });
+        can('manage', 'PreAggregation', {
+            organizationUuid,
         });
         can('manage', 'VirtualView', {
             organizationUuid,

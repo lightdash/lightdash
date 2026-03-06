@@ -12,6 +12,7 @@ import {
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useCallback, useMemo, useRef } from 'react';
 import { getValueCell } from '../../../hooks/useColumns';
+import { useResizeObserver } from '../../../hooks/useResizeObserver';
 import { ROW_HEIGHT_PX } from '../../common/Table/constants';
 import { calculateColumnStats } from '../utils/columnStats';
 
@@ -48,6 +49,19 @@ export const useTableDataModel = ({
         return calculateColumnStats(rows, barColumns);
     }, [rows, columns, config?.columns]);
 
+    const [setResizeRef, containerRect] = useResizeObserver<HTMLDivElement>();
+    const scrollElementRef = useRef<HTMLDivElement | null>(null);
+
+    const tableWrapperRef = useCallback(
+        (el: HTMLDivElement | null) => {
+            scrollElementRef.current = el;
+            setResizeRef(el);
+        },
+        [setResizeRef],
+    );
+
+    const containerWidth = containerRect.width;
+
     const tanstackColumns: ColumnDef<RawResultRow, any>[] = useMemo(() => {
         return columns.map((column) => ({
             id: column,
@@ -72,10 +86,8 @@ export const useTableDataModel = ({
 
     const getRowHeight = useCallback(() => ROW_HEIGHT_PX, []);
 
-    const tableWrapperRef = useRef<HTMLDivElement>(null);
-
     const virtualizer = useVirtualizer({
-        getScrollElement: () => tableWrapperRef.current,
+        getScrollElement: () => scrollElementRef.current,
         count: tableModel.getRowsCount(),
         estimateSize: () => getRowHeight(),
         overscan: 25,
@@ -114,5 +126,6 @@ export const useTableDataModel = ({
         getTableData,
         paddingTop,
         paddingBottom,
+        containerWidth,
     };
 };

@@ -585,10 +585,7 @@ export const parsePreAggregateResultsS3Config = ():
     const secretKey = process.env.PRE_AGGREGATE_RESULTS_S3_SECRET_KEY;
 
     const hasAnyPreAggregateS3Config =
-        bucket !== undefined ||
-        region !== undefined ||
-        accessKey !== undefined ||
-        secretKey !== undefined;
+        bucket || region || accessKey || secretKey;
 
     if (!hasAnyPreAggregateS3Config) {
         return undefined;
@@ -882,6 +879,7 @@ export type LightdashConfig = {
         useSqlPivotResults: boolean | undefined;
         showExecutionTime: boolean | undefined;
         enableTableColumnCustomization: boolean | undefined;
+        retryQueryOnTransientErrors: boolean;
     };
     pivotTable: {
         maxColumnLimit: number;
@@ -933,9 +931,6 @@ export type LightdashConfig = {
     };
     groups: {
         enabled: boolean | undefined;
-    };
-    adminChangeNotifications: {
-        enabled: boolean;
     };
     persistentDownloadUrls: {
         enabled: boolean;
@@ -997,6 +992,9 @@ export type LightdashConfig = {
         maxDownloads: number;
     };
     microsoftTeams: {
+        enabled: boolean;
+    };
+    googleChat: {
         enabled: boolean;
     };
     googleCloudPlatform: {
@@ -1092,9 +1090,6 @@ export type LightdashConfig = {
     savedMetricsTree: {
         enabled: boolean | undefined;
     };
-    nestedSpacesPermissions: {
-        enabled: boolean;
-    };
     defaultUserSpaces: {
         enabled: boolean;
     };
@@ -1104,7 +1099,6 @@ export type LightdashConfig = {
     };
     preAggregates: {
         enabled: boolean;
-        debug: boolean;
         s3?: Omit<S3Config, 'expirationTime'>;
     };
 };
@@ -1682,6 +1676,11 @@ export const parseConfig = (): LightdashConfig => {
                 .ENABLE_TABLE_COLUMN_CUSTOMIZATION
                 ? process.env.ENABLE_TABLE_COLUMN_CUSTOMIZATION === 'true'
                 : undefined,
+            retryQueryOnTransientErrors: process.env
+                .LIGHTDASH_QUERY_RETRY_ON_TRANSIENT_ERRORS
+                ? process.env.LIGHTDASH_QUERY_RETRY_ON_TRANSIENT_ERRORS ===
+                  'true'
+                : false,
         },
         chart: {
             versionHistory: {
@@ -1800,9 +1799,6 @@ export const parseConfig = (): LightdashConfig => {
             enabled: process.env.GROUPS_ENABLED
                 ? process.env.GROUPS_ENABLED === 'true'
                 : undefined,
-        },
-        adminChangeNotifications: {
-            enabled: process.env.ADMIN_CHANGE_NOTIFICATIONS_ENABLED === 'true',
         },
         persistentDownloadUrls: {
             enabled: process.env.PERSISTENT_DOWNLOAD_URLS_ENABLED === 'true',
@@ -1936,6 +1932,9 @@ export const parseConfig = (): LightdashConfig => {
         microsoftTeams: {
             enabled: process.env.MICROSOFT_TEAMS_ENABLED === 'true',
         },
+        googleChat: {
+            enabled: process.env.GOOGLE_CHAT_ENABLED === 'true',
+        },
         googleCloudPlatform: {
             projectId: process.env.GOOGLE_CLOUD_PROJECT_ID,
         },
@@ -1958,7 +1957,7 @@ export const parseConfig = (): LightdashConfig => {
             enabled: process.env.EDIT_YAML_IN_UI_ENABLED === 'true',
         },
         partialCompilation: {
-            enabled: process.env.PARTIAL_COMPILATION_ENABLED === 'true',
+            enabled: process.env.PARTIAL_COMPILATION_ENABLED !== 'false',
         },
         funnelBuilder: {
             enabled:
@@ -1977,10 +1976,6 @@ export const parseConfig = (): LightdashConfig => {
                     ? true
                     : undefined,
         },
-        // TODO: Nested spaces permissions on by default -> remove this flag and the old code paths
-        nestedSpacesPermissions: {
-            enabled: process.env.NESTED_SPACES_PERMISSIONS_ENABLED !== 'false',
-        },
         defaultUserSpaces: {
             enabled:
                 process.env.LIGHTDASH_DEFAULT_USER_SPACES_ENABLED === 'true',
@@ -1994,9 +1989,6 @@ export const parseConfig = (): LightdashConfig => {
         },
         preAggregates: {
             enabled: preAggregatesEnabled,
-            debug:
-                licenseKey !== null &&
-                process.env.DEBUG_PRE_AGGREGATES === 'true',
             s3: preAggregatesS3,
         },
     };

@@ -1,5 +1,3 @@
-import { type OrganizationMemberProfile } from '@lightdash/common';
-
 export const getUserNameOrEmail = (
     userUuid: string | undefined,
     firstName: string | undefined,
@@ -28,31 +26,4 @@ export const getInitials = (
     } else {
         return userUuid;
     }
-};
-
-export const getOrgUserInitials = (
-    userUuid: string,
-    organizationUsers: OrganizationMemberProfile[] | undefined,
-) => {
-    const user = organizationUsers?.find(
-        (userAccess) => userAccess.userUuid === userUuid,
-    );
-    if (!user) return userUuid;
-
-    if (user?.firstName) {
-        return user.firstName.substr(0, 1) + user.lastName.substr(0, 1);
-    } else {
-        return user.email.substr(0, 2).toUpperCase();
-    }
-};
-
-export const getOrgUserNameOrEmail = (
-    userUuid: string,
-    organizationUsers: OrganizationMemberProfile[] | undefined,
-) => {
-    const user = organizationUsers?.find(
-        (userAccess) => userAccess.userUuid === userUuid,
-    );
-    if (!user) return userUuid;
-    return user?.firstName ? `${user.firstName} ${user.lastName}` : user.email;
 };

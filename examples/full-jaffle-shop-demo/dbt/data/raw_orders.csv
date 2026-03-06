@@ -147,3 +147,6 @@ id,user_id,order_date,status,order_source,shipping_method,promo_code,order_prior
 146,67,2026-02-21,completed,phone,express,,high,2,40.75,0.085,USD,east_coast,
 147,19,2026-02-25,shipped,website,standard,LATE26,normal,6,29.99,0.0875,USD,west_coast,Late February
 148,52,2026-02-28,completed,mobile_app,overnight,,urgent,1,61.50,0.08,USD,central,Month end
+149,1,2026-03-01,completed,website,standard,,normal,5,10.99,0.0875,USD,east_coast,
+150,3,2026-03-02,completed,mobile_app,express,,high,2,15.50,0.08,USD,west_coast,
+151,94,2026-03-03,completed,phone,standard,,normal,7,12.25,0.0925,USD,central,

@@ -27,15 +27,13 @@ import {
 } from '@tabler/icons-react';
 import chunk from 'lodash/chunk';
 import { useCallback, useMemo, useState, type FC } from 'react';
-import { useUpdateMutation } from '../../../../hooks/useSpaces';
-import useApp from '../../../../providers/App/useApp';
-import Callout from '../../Callout';
-import MantineIcon from '../../MantineIcon';
-import MantineModal from '../../MantineModal';
-import PaginateControl from '../../PaginateControl';
-import { DEFAULT_PAGE_SIZE } from '../../Table/constants';
-import { UserAccessAction, UserAccessOptions } from '../ShareSpaceSelect';
-import { getInitials, getUserNameOrEmail } from '../Utils';
+import { useUpdateMutation } from '../../../hooks/useSpaces';
+import useApp from '../../../providers/App/useApp';
+import Callout from '../Callout';
+import MantineIcon from '../MantineIcon';
+import MantineModal from '../MantineModal';
+import PaginateControl from '../PaginateControl';
+import { DEFAULT_PAGE_SIZE } from '../Table/constants';
 import classes from './ShareSpaceModalShared.module.css';
 import {
     getAccessColor,
@@ -45,6 +43,8 @@ import {
     sortAccessList,
     type SortOrder,
 } from './ShareSpaceModalUtils';
+import { UserAccessAction, UserAccessOptions } from './ShareSpaceSelect';
+import { getInitials, getUserNameOrEmail } from './Utils';
 
 type UserAccessListProps = {
     isPrivate: boolean;

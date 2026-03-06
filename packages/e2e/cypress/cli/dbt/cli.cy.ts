@@ -236,6 +236,7 @@ describe('CLI', () => {
                 env: {
                     CI: true,
                     NODE_ENV: 'development',
+                    PARTIAL_COMPILATION_ENABLED: 'false',
                     ...databaseEnvVars,
                 },
                 log: true,

@@ -15,6 +15,7 @@ const commonNumberFilterRuleSchema = z.object({
         z.literal(MetricType.COUNT_DISTINCT),
         z.literal(MetricType.SUM),
         z.literal(MetricType.SUM_DISTINCT),
+        z.literal(MetricType.AVERAGE_DISTINCT),
         z.literal(MetricType.MIN),
         z.literal(MetricType.MAX),
     ]),

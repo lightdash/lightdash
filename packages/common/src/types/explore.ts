@@ -76,6 +76,11 @@ export type InlineError = {
     message: string;
 };
 
+export type PreAggregateSource = {
+    sourceExploreName: string;
+    preAggregateName: string;
+};
+
 export type Explore = {
     name: string; // Must be sql friendly (a-Z, 0-9, _)
     label: string; // Friendly name
@@ -101,6 +106,7 @@ export type Explore = {
     aiHint?: string | string[];
     parameters?: LightdashProjectConfig['parameters'];
     preAggregates?: PreAggregateDef[];
+    preAggregateSource?: PreAggregateSource;
     /**
      * Non-fatal warnings from partial compilation.
      * Present when some joins or fields failed to compile but the explore is still usable.
@@ -128,6 +134,7 @@ type SummaryExploreFields =
     | 'tags'
     | 'groupLabel'
     | 'type'
+    | 'preAggregateSource'
     | 'aiHint'
     | 'warnings';
 type SummaryExploreErrorFields =

@@ -13,7 +13,6 @@ const addUuidCondition = (
     context: ScopeContext,
     modifiers?:
         | { inheritsFromOrgOrProject: true }
-        | { isPrivate: false }
         | { userUuid: string | boolean },
 ) => {
     const projectOrOrg = context.organizationUuid
@@ -47,8 +46,6 @@ const scopes: Scope[] = [
         isEnterprise: false,
         group: ScopeGroup.CONTENT,
         getConditions: (context) => [
-            // TODO: remove once we're confident that nobody is stuck on an old frontend version
-            addUuidCondition(context, { isPrivate: false }),
             addUuidCondition(context, { inheritsFromOrgOrProject: true }),
             addAccessCondition(context),
         ],
@@ -77,8 +74,6 @@ const scopes: Scope[] = [
         isEnterprise: false,
         group: ScopeGroup.CONTENT,
         getConditions: (context) => [
-            // TODO: remove once we're confident that nobody is stuck on an old frontend version
-            addUuidCondition(context, { isPrivate: false }),
             addUuidCondition(context, { inheritsFromOrgOrProject: true }),
             addAccessCondition(context),
         ],
@@ -107,8 +102,6 @@ const scopes: Scope[] = [
         isEnterprise: false,
         group: ScopeGroup.CONTENT,
         getConditions: (context) => [
-            // TODO: remove once we're confident that nobody is stuck on an old frontend version
-            addUuidCondition(context, { isPrivate: false }),
             addUuidCondition(context, { inheritsFromOrgOrProject: true }),
             addAccessCondition(context),
         ],
@@ -133,8 +126,6 @@ const scopes: Scope[] = [
         isEnterprise: false,
         group: ScopeGroup.CONTENT,
         getConditions: (context) => [
-            // TODO: remove once we're confident that nobody is stuck on an old frontend version
-            addUuidCondition(context, { isPrivate: false }),
             addUuidCondition(context, { inheritsFromOrgOrProject: true }),
         ],
     },
@@ -574,6 +565,13 @@ const scopes: Scope[] = [
         name: 'manage:VirtualView',
         description: 'Create and manage virtual views',
         isEnterprise: false,
+        group: ScopeGroup.DATA,
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'manage:PreAggregation',
+        description: 'View and query pre-aggregates in explore',
+        isEnterprise: true,
         group: ScopeGroup.DATA,
         getConditions: addDefaultUuidCondition,
     },

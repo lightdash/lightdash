@@ -212,6 +212,7 @@ export const lightdashConfigMock: LightdashConfig = {
         useSqlPivotResults: false,
         showExecutionTime: false,
         enableTableColumnCustomization: undefined,
+        retryQueryOnTransientErrors: true,
     },
     ai: {
         copilot: {
@@ -279,6 +280,9 @@ export const lightdashConfigMock: LightdashConfig = {
     microsoftTeams: {
         enabled: false,
     },
+    googleChat: {
+        enabled: false,
+    },
     serviceAccount: {
         enabled: false,
     },
@@ -310,7 +314,7 @@ export const lightdashConfigMock: LightdashConfig = {
         enabled: false,
     },
     partialCompilation: {
-        enabled: false,
+        enabled: true,
     },
     funnelBuilder: {
         enabled: false,
@@ -321,13 +325,7 @@ export const lightdashConfigMock: LightdashConfig = {
     savedMetricsTree: {
         enabled: undefined,
     },
-    nestedSpacesPermissions: {
-        enabled: false,
-    },
     defaultUserSpaces: {
-        enabled: false,
-    },
-    adminChangeNotifications: {
         enabled: false,
     },
     persistentDownloadUrls: {
@@ -343,7 +341,6 @@ export const lightdashConfigMock: LightdashConfig = {
     },
     preAggregates: {
         enabled: false,
-        debug: false,
         s3: {
             endpoint: 'mock_endpoint',
             bucket: 'mock_preagg_bucket',

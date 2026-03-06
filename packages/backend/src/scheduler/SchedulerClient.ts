@@ -8,12 +8,16 @@ import {
     EmailNotificationPayload,
     getSchedulerTargetUuid,
     getSchedulerUuid,
+    GoogleChatBatchNotificationPayload,
+    GoogleChatNotificationPayload,
     GsheetsNotificationPayload,
     hasSchedulerUuid,
     isCreateScheduler,
+    isCreateSchedulerGoogleChatTarget,
     isCreateSchedulerMsTeamsTarget,
     isCreateSchedulerSlackTarget,
     isEmailTarget,
+    isGoogleChatTarget,
     isMsTeamsTarget,
     isSlackTarget,
     JobPriority,
@@ -30,6 +34,7 @@ import {
     SchedulerAndTargets,
     SchedulerEmailTarget,
     SchedulerFormat,
+    SchedulerGoogleChatTarget,
     SchedulerJobStatus,
     SchedulerMsTeamsTarget,
     SchedulerSlackTarget,
@@ -453,11 +458,12 @@ export class SchedulerClient {
 
         const getIdentifierAndPayload = (): {
             identifier: SchedulerTaskName;
-            type: 'slack' | 'email' | 'msteams';
+            type: 'slack' | 'email' | 'msteams' | 'googlechat';
             payload:
                 | SlackNotificationPayload
                 | EmailNotificationPayload
-                | MsTeamsNotificationPayload;
+                | MsTeamsNotificationPayload
+                | GoogleChatNotificationPayload;
         } => {
             if (isCreateSchedulerSlackTarget(target)) {
                 return {
@@ -487,6 +493,22 @@ export class SchedulerClient {
                         schedulerMsTeamsTargetUuid: targetUuid,
                         scheduler,
                         webhook: target.webhook,
+                        ...traceProperties,
+                    },
+                };
+            }
+            if (isCreateSchedulerGoogleChatTarget(target)) {
+                return {
+                    identifier: SCHEDULER_TASKS.SEND_GOOGLE_CHAT_NOTIFICATION,
+                    type: 'googlechat',
+                    payload: {
+                        schedulerUuid,
+                        jobGroup,
+                        scheduledTime: date,
+                        page,
+                        schedulerGoogleChatTargetUuid: targetUuid,
+                        scheduler,
+                        googleChatWebhook: target.googleChatWebhook,
                         ...traceProperties,
                     },
                 };
@@ -694,6 +716,58 @@ export class SchedulerClient {
         };
     }
 
+    private async addGoogleChatBatchNotificationJob(
+        date: Date,
+        jobGroup: string,
+        scheduler: SchedulerAndTargets,
+        targets: SchedulerGoogleChatTarget[],
+        page: NotificationPayloadBase['page'],
+        traceProperties: TraceTaskBase,
+    ) {
+        const graphileClient = await this.graphileUtils;
+
+        const payload: GoogleChatBatchNotificationPayload = {
+            schedulerUuid: scheduler.schedulerUuid,
+            jobGroup,
+            scheduledTime: date,
+            page,
+            targets,
+            scheduler,
+            ...traceProperties,
+        };
+
+        const id = await SchedulerClient.addJob(
+            graphileClient,
+            SCHEDULER_TASKS.SEND_GOOGLE_CHAT_BATCH_NOTIFICATION,
+            payload,
+            date,
+            JobPriority.LOW,
+        );
+
+        this.analytics.track({
+            event: 'scheduler_notification_job.created',
+            anonymousId: LightdashAnalytics.anonymousId,
+            userId: traceProperties.userUuid,
+            properties: {
+                jobId: id,
+                organizationId: traceProperties.organizationUuid,
+                projectId: traceProperties.projectUuid,
+                schedulerId: scheduler.schedulerUuid,
+                groupId: jobGroup,
+                type: 'googlechat',
+                targetCount: targets.length,
+                format: scheduler.format,
+                sendNow: false,
+            },
+        });
+
+        return {
+            jobId: id,
+            type: 'googlechat' as const,
+            targetCount: targets.length,
+        };
+    }
+
     async generateDailyJobsForScheduler(
         scheduler: SchedulerAndTargets,
         traceProperties: TraceTaskBase,
@@ -776,6 +850,7 @@ export class SchedulerClient {
             email?: NotificationPayloadBase['page'];
             slack?: NotificationPayloadBase['page'];
             msteams?: NotificationPayloadBase['page'];
+            googlechat?: NotificationPayloadBase['page'];
         },
     ) {
         const schedulerUuid = getSchedulerUuid(scheduler);
@@ -820,6 +895,8 @@ export class SchedulerClient {
                         targetPage = perChannelPages.slack ?? page;
                     } else if (isCreateSchedulerMsTeamsTarget(target)) {
                         targetPage = perChannelPages.msteams ?? page;
+                    } else if (isCreateSchedulerGoogleChatTarget(target)) {
+                        targetPage = perChannelPages.googlechat ?? page;
                     } else {
                         targetPage = perChannelPages.email ?? page;
                     }
@@ -857,11 +934,12 @@ export class SchedulerClient {
             email?: NotificationPayloadBase['page'];
             slack?: NotificationPayloadBase['page'];
             msteams?: NotificationPayloadBase['page'];
+            googlechat?: NotificationPayloadBase['page'];
         },
     ) {
         if (!page) {
             throw new Error(
-                'Missing page data for slack, email, or msteams notification',
+                'Missing page data for slack, email, msteams, or googlechat notification',
             );
         }
 
@@ -869,10 +947,11 @@ export class SchedulerClient {
         const slackTargets = scheduler.targets.filter(isSlackTarget);
         const emailTargets = scheduler.targets.filter(isEmailTarget);
         const msTeamsTargets = scheduler.targets.filter(isMsTeamsTarget);
+        const googleChatTargets = scheduler.targets.filter(isGoogleChatTarget);
 
         const batchJobs: Promise<{
             jobId: string;
-            type: 'slack' | 'email' | 'msteams';
+            type: 'slack' | 'email' | 'msteams' | 'googlechat';
             targetCount: number;
         }>[] = [];
 
@@ -915,9 +994,22 @@ export class SchedulerClient {
             );
         }
 
+        if (googleChatTargets.length > 0) {
+            batchJobs.push(
+                this.addGoogleChatBatchNotificationJob(
+                    scheduledTime,
+                    parentJobId,
+                    scheduler,
+                    googleChatTargets,
+                    perChannelPages?.googlechat ?? page,
+                    traceProperties,
+                ),
+            );
+        }
+
         Logger.info(
             `Creating ${batchJobs.length} batch notification jobs for scheduler ${scheduler.schedulerUuid} ` +
-                `(slack: ${slackTargets.length}, email: ${emailTargets.length}, msteams: ${msTeamsTargets.length})`,
+                `(slack: ${slackTargets.length}, email: ${emailTargets.length}, msteams: ${msTeamsTargets.length}, googlechat: ${googleChatTargets.length})`,
         );
 
         const results = await Promise.all(batchJobs);

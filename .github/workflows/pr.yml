@@ -38,14 +38,20 @@ jobs:
           cache-dependency-path: "pnpm-lock.yaml"
       - name: Install packages
         run: pnpm install --frozen-lockfile --prefer-offline
-      - name: Run quality checks and build in parallel
+      - name: Build
+        run: pnpm build
+      - name: Run quality checks in parallel
         run: |
-          pnpm lint &
-          pnpm format &
-          pnpm -F frontend unused-exports &
-          pnpm typecheck &
-          pnpm build &
-          wait
+          pnpm lint & pid_lint=$!
+          pnpm format & pid_format=$!
+          pnpm -F frontend unused-exports & pid_unused=$!
+          pnpm typecheck & pid_typecheck=$!
+          fail=0
+          wait $pid_lint || fail=1
+          wait $pid_format || fail=1
+          wait $pid_unused || fail=1
+          wait $pid_typecheck || fail=1
+          exit $fail
       - name: Run unit tests
         run: pnpm test
 

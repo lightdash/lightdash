@@ -14,11 +14,6 @@ export const projectMemberAbilities: Record<
     ) => void
 > = {
     viewer(member, { can }) {
-        // TODO: remove once we're confident that nobody is stuck on an old frontend version
-        can('view', 'Dashboard', {
-            projectUuid: member.projectUuid,
-            isPrivate: false,
-        });
         can('view', 'Dashboard', {
             projectUuid: member.projectUuid,
             inheritsFromOrgOrProject: true,
@@ -26,11 +21,6 @@ export const projectMemberAbilities: Record<
         can('view', 'JobStatus', {
             createdByUserUuid: member.userUuid,
         });
-        // TODO: remove once we're confident that nobody is stuck on an old frontend version
-        can('view', 'SavedChart', {
-            projectUuid: member.projectUuid,
-            isPrivate: false,
-        });
         can('view', 'SavedChart', {
             projectUuid: member.projectUuid,
             inheritsFromOrgOrProject: true,
@@ -46,11 +36,6 @@ export const projectMemberAbilities: Record<
             access: {
                 $elemMatch: { userUuid: member.userUuid },
             },
-        });
-        // TODO: remove once we're confident that nobody is stuck on an old frontend version
-        can('view', 'Space', {
-            projectUuid: member.projectUuid,
-            isPrivate: false,
         });
         can('view', 'Space', {
             projectUuid: member.projectUuid,
@@ -174,11 +159,6 @@ export const projectMemberAbilities: Record<
         can('create', 'Space', {
             projectUuid: member.projectUuid,
         });
-        // TODO: remove once we're confident that nobody is stuck on an old frontend version
-        can('manage', 'Space', {
-            projectUuid: member.projectUuid,
-            isPrivate: false,
-        });
         can('manage', 'Space', {
             projectUuid: member.projectUuid,
             inheritsFromOrgOrProject: true,
@@ -205,6 +185,9 @@ export const projectMemberAbilities: Record<
     },
     developer(member, { can }) {
         projectMemberAbilities.editor(member, { can });
+        can('manage', 'PreAggregation', {
+            projectUuid: member.projectUuid,
+        });
         can('manage', 'VirtualView', {
             projectUuid: member.projectUuid,
         });

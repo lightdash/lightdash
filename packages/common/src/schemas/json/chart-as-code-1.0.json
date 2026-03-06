@@ -2173,6 +2173,13 @@
                     },
                     "type": "array"
                 },
+                "pivotDimensions": {
+                    "description": "Dimension field IDs used as pivot columns (from chart's pivotConfig.columns).\nUsed by row_total() to determine non-pivot dimensions for GROUP BY.",
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": "array"
+                },
                 "sorts": {
                     "description": "Sort configuration for query results",
                     "items": {

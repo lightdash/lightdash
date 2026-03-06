@@ -250,11 +250,12 @@ const exportCsvDashboard = async (
     id: string,
     filters: DashboardFilters,
     dateZoomGranularity: DateGranularity | undefined,
+    selectedTabs: string[] | null,
 ) =>
     lightdashApi<ApiJobScheduledResponse['results']>({
         url: `/dashboards/${id}/exportCsv`,
         method: 'POST',
-        body: JSON.stringify({ filters, dateZoomGranularity }),
+        body: JSON.stringify({ filters, dateZoomGranularity, selectedTabs }),
     });
 
 export const useExportCsvDashboard = () => {
@@ -263,6 +264,7 @@ export const useExportCsvDashboard = () => {
         showToastError,
         showToastApiError,
         showToastInfo,
+        showToastWarning,
     } = useToaster();
 
     return useMutation<
@@ -272,6 +274,7 @@ export const useExportCsvDashboard = () => {
             dashboard: Dashboard;
             filters: DashboardFilters;
             dateZoomGranularity: DateGranularity | undefined;
+            selectedTabs: string[] | null;
         }
     >(
         (data) =>
@@ -279,6 +282,7 @@ export const useExportCsvDashboard = () => {
                 data.dashboard.uuid,
                 data.filters,
                 data.dateZoomGranularity,
+                data.selectedTabs,
             ),
         {
             mutationKey: ['export_csv_dashboard'],
@@ -306,10 +310,23 @@ export const useExportCsvDashboard = () => {
                             document.body.appendChild(link);
                             link.click();
                             link.remove(); // Remove the link from the DOM
-                            showToastSuccess({
-                                key: 'dashboard_export_toast',
-                                title: `Success! ${data.dashboard.name} was exported.`,
-                            });
+
+                            const numFailures = Number(
+                                details.numFailures ?? 0,
+                            );
+                            if (numFailures > 0) {
+                                showToastWarning({
+                                    key: 'dashboard_export_toast',
+                                    title: `${data.dashboard.name} was exported with ${numFailures} failed chart(s).`,
+                                    subtitle:
+                                        'Some charts could not be exported. The download contains only the successful ones.',
+                                });
+                            } else {
+                                showToastSuccess({
+                                    key: 'dashboard_export_toast',
+                                    title: `Success! ${data.dashboard.name} was exported.`,
+                                });
+                            }
                         } else {
                             showToastError({
                                 key: 'dashboard_export_toast',

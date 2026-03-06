@@ -17,6 +17,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import getChartDataModel from '../../../components/DataViz/transformers/getChartDataModel';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
+import { useQueryRetryConfig } from '../../../hooks/useQueryRetry';
 import {
     getDashboardSqlChartPivotChartData,
     getSqlChartPivotChartData,
@@ -62,6 +63,7 @@ type UseSavedSqlChartResults = {
 export const useSavedSqlChartResults = (
     args: UseSavedSqlChartResultsArguments,
 ) => {
+    const retryConfig = useQueryRetryConfig();
     // Needed for organization colors
     const { data: organization } = useOrganization();
 
@@ -78,6 +80,7 @@ export const useSavedSqlChartResults = (
             }),
         {
             enabled: (!!savedSqlUuid || !!slug) && !!projectUuid,
+            ...retryConfig,
         },
     );
 
@@ -171,6 +174,7 @@ export const useSavedSqlChartResults = (
                 !!chartQuery.data &&
                 !!projectUuid &&
                 (!!savedSqlUuid || !!slug),
+            ...retryConfig,
         },
     );
 

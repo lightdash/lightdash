@@ -38,6 +38,7 @@ import {
     EXPLORE_ALL_JOIN_TYPES_CHAIN,
     EXPLORE_BIGQUERY,
     EXPLORE_JOIN_CHAIN,
+    EXPLORE_WITH_AVERAGE_DISTINCT,
     EXPLORE_WITH_CROSS_TABLE_METRICS,
     EXPLORE_WITH_DATE_DIMENSION,
     EXPLORE_WITH_DATE_DIMENSION_ZOOMED,
@@ -49,6 +50,8 @@ import {
     INTRINSIC_USER_ATTRIBUTES,
     METRIC_QUERY,
     METRIC_QUERY_ALL_JOIN_TYPES_CHAIN_SQL,
+    METRIC_QUERY_AVERAGE_DISTINCT_NO_DIMS,
+    METRIC_QUERY_AVERAGE_DISTINCT_WITH_DIMS,
     METRIC_QUERY_CROSS_TABLE,
     METRIC_QUERY_JOIN_CHAIN,
     METRIC_QUERY_JOIN_CHAIN_SQL,
@@ -2365,8 +2368,8 @@ LIMIT 10`;
             );
             // Should still have the ROW_NUMBER window function
             expect(result.query).toContain('ROW_NUMBER() OVER');
-            // Should have the sd CTE
-            expect(result.query).toContain('sd_orders_total_revenue');
+            // Should have the dd CTE
+            expect(result.query).toContain('dd_orders_total_revenue');
         });
 
         test('sum_distinct should work with no dimensions selected', () => {
@@ -2383,7 +2386,48 @@ LIMIT 10`;
                 'PARTITION BY "orders".line_item_id ORDER BY',
             );
             // Should use CROSS JOIN (no dimensions to join on)
-            expect(result.query).not.toContain('INNER JOIN sd_');
+            expect(result.query).not.toContain('INNER JOIN dd_');
+        });
+
+        test('average_distinct should generate CTE with FLOAT division', () => {
+            const result = buildQuery({
+                explore: EXPLORE_WITH_AVERAGE_DISTINCT,
+                compiledMetricQuery: METRIC_QUERY_AVERAGE_DISTINCT_NO_DIMS,
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+
+            expect(result.query).toContain('ROW_NUMBER() OVER');
+            expect(result.query).toContain('dd_orders_avg_shipping_cost');
+            expect(result.query).toContain(
+                'PARTITION BY "orders".line_item_id ORDER BY',
+            );
+            // Should use FLOAT division, not integer division
+            expect(result.query).toContain(
+                'CAST(SUM(CASE WHEN __dd_rn = 1 THEN __dd_val ELSE NULL END) AS FLOAT)',
+            );
+            expect(result.query).toContain(
+                'CAST(NULLIF(COUNT(CASE WHEN __dd_rn = 1 THEN __dd_val END), 0) AS FLOAT)',
+            );
+            // Neither distinct metric type should use COALESCE
+            expect(result.query).not.toContain('COALESCE');
+        });
+
+        test('average_distinct should include selected dimensions in PARTITION BY', () => {
+            const result = buildQuery({
+                explore: EXPLORE_WITH_AVERAGE_DISTINCT,
+                compiledMetricQuery: METRIC_QUERY_AVERAGE_DISTINCT_WITH_DIMS,
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+
+            expect(result.query).toContain(
+                'PARTITION BY "orders".line_item_id, "orders".payment_method',
+            );
+            expect(result.query).toContain('GROUP BY');
+            expect(result.query).toContain('dd_orders_avg_shipping_cost');
         });
     });
 
@@ -4332,5 +4376,109 @@ describe('Date zoom with filters', () => {
         // Without date zoom, both SELECT and WHERE use the raw column
         expect(result.query).toContain('"orders".created_at');
         expect(result.query).not.toContain('DATE_TRUNC');
+    });
+});
+
+describe('Default sort behavior', () => {
+    test('Should apply default sort by time dimension DESC when no sorts are specified', () => {
+        const result = buildQuery({
+            explore: EXPLORE_WITH_DATE_DIMENSION,
+            compiledMetricQuery: {
+                ...METRIC_QUERY,
+                dimensions: ['orders_created_at'],
+                metrics: ['orders_order_count'],
+                sorts: [], // No sorts specified
+            },
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        // Should apply default sort by date dimension descending
+        expect(result.query).toContain('ORDER BY');
+        expect(result.query).toContain('"orders_created_at" DESC');
+    });
+
+    test('Should apply default sort by first metric DESC when no time dimension', () => {
+        const result = buildQuery({
+            explore: EXPLORE,
+            compiledMetricQuery: {
+                ...METRIC_QUERY,
+                dimensions: ['table1_dim1'],
+                metrics: ['table1_metric1'],
+                sorts: [], // No sorts specified
+            },
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        // Should apply default sort by first metric descending
+        expect(result.query).toContain('ORDER BY');
+        expect(result.query).toContain('"table1_metric1" DESC');
+    });
+
+    test('Should apply default sort by first dimension ASC when only dimensions', () => {
+        const result = buildQuery({
+            explore: EXPLORE,
+            compiledMetricQuery: {
+                ...METRIC_QUERY,
+                dimensions: ['table1_dim1'],
+                metrics: [],
+                sorts: [], // No sorts specified
+            },
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        // Should apply default sort by first dimension ascending
+        expect(result.query).toContain('ORDER BY');
+        expect(result.query).toContain('"table1_dim1"');
+        expect(result.query).not.toContain('"table1_dim1" DESC');
+    });
+
+    test('Should not apply default sort when sorts are already specified', () => {
+        const result = buildQuery({
+            explore: EXPLORE,
+            compiledMetricQuery: {
+                ...METRIC_QUERY,
+                dimensions: ['table1_dim1'],
+                metrics: ['table1_metric1'],
+                sorts: [
+                    {
+                        fieldId: 'table1_dim1',
+                        descending: true,
+                    },
+                ],
+            },
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        // Should use the specified sort, not the default
+        expect(result.query).toContain('ORDER BY');
+        expect(result.query).toContain('"table1_dim1" DESC');
+        // Should not contain the default metric sort
+        expect(result.query).not.toContain('"table1_metric1" DESC');
+    });
+
+    test('Should have no ORDER BY when no dimensions and no metrics', () => {
+        const result = buildQuery({
+            explore: EXPLORE,
+            compiledMetricQuery: {
+                ...METRIC_QUERY,
+                dimensions: [],
+                metrics: [],
+                sorts: [],
+            },
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        // Should have no ORDER BY clause at all
+        expect(result.query).not.toContain('ORDER BY');
     });
 });

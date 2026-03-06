@@ -65,8 +65,14 @@ export function getGroupingValuesAndSubtotalKey(
 export function getSubtotalValueFromGroup(
     subtotal: Record<string, number> | undefined,
     columnId: string,
-) {
-    const subtotalColumnIds = Object.keys(subtotal ?? {});
+): number | null | undefined {
+    // No matching subtotal record exists (no data for this combination)
+    // Return undefined so formatItemValue will show '-'
+    if (subtotal === undefined) {
+        return undefined;
+    }
+
+    const subtotalColumnIds = Object.keys(subtotal);
 
     // If the subtotal column is not in the subtotalsGroup, return null
     // This is needed to prevent showing '-' when processing a value for the last grouped dimension column which is not taken into account for subtotals
@@ -75,7 +81,9 @@ export function getSubtotalValueFromGroup(
         return null;
     }
 
-    return subtotal?.[columnId];
+    // Convert null to undefined so formatItemValue shows '-' instead of '∅'
+    // SQL returns null when all aggregated values are null (no data)
+    return subtotal[columnId] ?? undefined;
 }
 
 const getImageSize = (item: ItemsMap[string] | undefined) => {

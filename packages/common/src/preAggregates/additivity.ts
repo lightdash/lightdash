@@ -18,6 +18,7 @@ export const getAdditivityType = (metricType: MetricType): AdditivityType => {
             return AdditivityType.DECOMPOSABLE;
         case MetricType.COUNT_DISTINCT:
         case MetricType.SUM_DISTINCT:
+        case MetricType.AVERAGE_DISTINCT:
         case MetricType.MEDIAN:
         case MetricType.PERCENTILE:
         case MetricType.NUMBER:

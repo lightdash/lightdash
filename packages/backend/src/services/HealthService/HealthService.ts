@@ -121,6 +121,8 @@ export class HealthService extends BaseService {
                 maxLimit: this.lightdashConfig.query.maxLimit,
                 maxPageSize: this.lightdashConfig.query.maxPageSize,
                 defaultLimit: this.lightdashConfig.query.defaultLimit,
+                retryQueryOnTransientErrors:
+                    this.lightdashConfig.query.retryQueryOnTransientErrors,
             },
             dashboard: this.lightdashConfig.dashboard,
             pivotTable: this.lightdashConfig.pivotTable,

@@ -117,9 +117,9 @@ dimensions:
         // Mock console.error to capture output
         const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
 
-        // Set environment variable for partial compilation
+        // Partial compilation is now enabled by default
         const originalEnv = process.env.PARTIAL_COMPILATION_ENABLED;
-        process.env.PARTIAL_COMPILATION_ENABLED = 'true';
+        // No need to set to 'true' as it's enabled by default
 
         try {
             // Create mock explores array with different statuses
@@ -175,7 +175,7 @@ dimensions:
                     messages = `: ${styles.error(e.errors.map((err: { message: string }) => err.message).join(', '))}`;
                     errors += 1;
                 } else if (
-                    process.env.PARTIAL_COMPILATION_ENABLED === 'true' &&
+                    process.env.PARTIAL_COMPILATION_ENABLED !== 'false' &&
                     'warnings' in e &&
                     e.warnings &&
                     e.warnings.length > 0
@@ -201,7 +201,7 @@ dimensions:
 
             // Display summary
             if (
-                process.env.PARTIAL_COMPILATION_ENABLED === 'true' &&
+                process.env.PARTIAL_COMPILATION_ENABLED !== 'false' &&
                 partialSuccess > 0
             ) {
                 console.error(

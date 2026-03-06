@@ -54,6 +54,7 @@ import {
     IconCopy,
     IconFilter,
     IconFolders,
+    IconRefresh,
     IconTableExport,
     IconTelescope,
     IconVariable,
@@ -101,6 +102,7 @@ import useToaster from '../../hooks/toaster/useToaster';
 import { useContextMenuPermissions } from '../../hooks/useContextMenuPermissions';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
 import usePivotDimensions from '../../hooks/usePivotDimensions';
+import { useRefreshPreAggregateByDefinitionName } from '../../hooks/usePreAggregateRefresh';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
 import {
     useInfiniteQueryResults,
@@ -628,6 +630,11 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
         'manage',
         subject('SavedChart', { ...chart }),
     );
+    const userCanRefreshPreAggregates =
+        ability.can(
+            'create',
+            subject('Job', { organizationUuid, projectUuid }),
+        ) && ability.can('manage', 'CompileProject');
     const userCanViewExplore = canViewExplore;
     const userCanExportData = ability.can(
         'manage',
@@ -654,6 +661,18 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
     const parameterDefinitions = useDashboardContext(
         (c) => c.parameterDefinitions,
     );
+
+    const preAggregateStatuses = useDashboardContext(
+        (c) => c.preAggregateStatuses,
+    );
+    const tilePreAggStatus = preAggregateStatuses[tileUuid];
+    const tilePreAggregateName =
+        tilePreAggStatus?.hit && tilePreAggStatus.preAggregateName
+            ? tilePreAggStatus.preAggregateName
+            : null;
+
+    const { mutate: refreshPreAggregate, isLoading: isRefreshingPreAgg } =
+        useRefreshPreAggregateByDefinitionName(projectUuid ?? '');
 
     const { openUnderlyingDataModal } = useMetricQueryDataContext();
 
@@ -1344,6 +1363,28 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                                 disabled={isEditMode}
                                             >
                                                 Move to space
+                                            </Menu.Item>
+                                        )}
+
+                                    {tilePreAggregateName &&
+                                        userCanRefreshPreAggregates && (
+                                            <Menu.Item
+                                                leftSection={
+                                                    <MantineIcon
+                                                        icon={IconRefresh}
+                                                    />
+                                                }
+                                                disabled={
+                                                    isEditMode ||
+                                                    isRefreshingPreAgg
+                                                }
+                                                onClick={() =>
+                                                    refreshPreAggregate(
+                                                        tilePreAggregateName,
+                                                    )
+                                                }
+                                            >
+                                                Refresh pre-aggregate
                                             </Menu.Item>
                                         )}
                                 </Box>

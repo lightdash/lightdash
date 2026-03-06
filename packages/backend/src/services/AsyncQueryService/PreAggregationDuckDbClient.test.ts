@@ -8,7 +8,10 @@ import {
     metricQueryMock,
     preAggregateExplore,
 } from '../ProjectService/ProjectService.mock';
-import { PreAggregationDuckDbClient } from './PreAggregationDuckDbClient';
+import {
+    PreAggregationDuckDbClient,
+    PreAggregationDuckDbResolveReason,
+} from './PreAggregationDuckDbClient';
 
 describe('PreAggregationDuckDbClient', () => {
     const getClient = ({
@@ -77,6 +80,7 @@ describe('PreAggregationDuckDbClient', () => {
         preAggregationRoute: {
             sourceExploreName: 'valid_explore',
             preAggregateName: 'rollup',
+            mode: 'required' as const,
         },
         fieldsMap: {},
         pivotConfiguration: undefined,
@@ -109,7 +113,7 @@ describe('PreAggregationDuckDbClient', () => {
 
         expect(result).toEqual({
             resolved: false,
-            reason: 'no_active_materialization',
+            reason: PreAggregationDuckDbResolveReason.NO_ACTIVE_MATERIALIZATION,
         });
         expect(preAggregateModel.getActiveMaterialization).toHaveBeenCalledWith(
             'projectUuid',
@@ -134,7 +138,7 @@ describe('PreAggregationDuckDbClient', () => {
 
         expect(result).toEqual({
             resolved: false,
-            reason: 'missing_pre_aggregate_s3_config',
+            reason: PreAggregationDuckDbResolveReason.MISSING_PRE_AGGREGATE_S3_CONFIG,
         });
         expect(
             preAggregateModel.getActiveMaterialization,

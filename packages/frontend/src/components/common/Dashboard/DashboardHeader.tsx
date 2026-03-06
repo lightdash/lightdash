@@ -37,6 +37,7 @@ import {
     IconPencil,
     IconPin,
     IconPinnedOff,
+    IconRefresh,
     IconSend,
     IconStar,
     IconStarFilled,
@@ -55,6 +56,7 @@ import {
 } from '../../../features/promotion/hooks/usePromoteDashboard';
 import { DashboardSchedulersModal } from '../../../features/scheduler';
 import { getSchedulerUuidFromUrlParams } from '../../../features/scheduler/utils';
+import useDashboardPerformanceWarning from '../../../hooks/dashboard/useDashboardPerformanceWarning';
 import { useFavoriteMutation } from '../../../hooks/favorites/useFavoriteMutation';
 import { useFavorites } from '../../../hooks/favorites/useFavorites';
 import { useDashboardPinningMutation } from '../../../hooks/pinning/useDashboardPinningMutation';
@@ -68,7 +70,6 @@ import useApp from '../../../providers/App/useApp';
 import { type TilePreAggregateStatus } from '../../../providers/Dashboard/types';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
-import useDashboardPerformanceWarning from '../../../hooks/dashboard/useDashboardPerformanceWarning';
 import AddTileButton from '../../DashboardTiles/AddTileButton';
 import MantineIcon from '../MantineIcon';
 import DashboardUpdateModal from '../modal/DashboardUpdateModal';
@@ -83,6 +84,7 @@ import {
     DASHBOARD_HEADER_ZINDEX,
 } from './dashboard.constants';
 import headerClasses from './DashboardHeader.module.css';
+import DashboardPreAggRefreshModal from './DashboardPreAggRefreshModal';
 import { DashboardRefreshButton } from './DashboardRefreshButton';
 import { PreAggregateAuditDrawer } from './PreAggregateAuditIndicator';
 
@@ -169,6 +171,18 @@ const DashboardHeader = ({
     const [isTransferToSpaceModalOpen, transferToSpaceModalHandlers] =
         useDisclosure(false);
     const [isPreAggAuditOpen, preAggAuditHandlers] = useDisclosure(false);
+    const [isPreAggRefreshOpen, preAggRefreshHandlers] = useDisclosure(false);
+
+    const uniquePreAggregateNames = useMemo(() => {
+        if (!preAggregateStatuses) return [];
+        return [
+            ...new Set(
+                Object.values(preAggregateStatuses)
+                    .filter((s) => s.hit && s.preAggregateName !== null)
+                    .map((s) => s.preAggregateName as string),
+            ),
+        ];
+    }, [preAggregateStatuses]);
     const handleEditClick = () => {
         setIsUpdating(true);
         track({ name: EventName.UPDATE_DASHBOARD_NAME_CLICKED });
@@ -245,6 +259,11 @@ const DashboardHeader = ({
         'manage',
         subject('Dashboard', dashboard),
     );
+    const userCanRefreshPreAggregates =
+        user.data?.ability.can(
+            'create',
+            subject('Job', { organizationUuid, projectUuid }),
+        ) && user.data?.ability.can('manage', 'CompileProject');
     const userCanCreateDeliveries = user.data?.ability?.can(
         'create',
         subject('ScheduledDeliveries', {
@@ -391,7 +410,6 @@ const DashboardHeader = ({
                         />
                     </Popover.Dropdown>
                 </Popover>
-
 
                 {isEditMode && userCanManageDashboard && (
                     <ActionIcon
@@ -714,6 +732,25 @@ const DashboardHeader = ({
                                                     >
                                                         Pre-aggregation audit
                                                     </Menu.Item>
+                                                    {userCanRefreshPreAggregates &&
+                                                        uniquePreAggregateNames.length >
+                                                            0 && (
+                                                            <Menu.Item
+                                                                leftSection={
+                                                                    <MantineIcon
+                                                                        icon={
+                                                                            IconRefresh
+                                                                        }
+                                                                    />
+                                                                }
+                                                                onClick={
+                                                                    preAggRefreshHandlers.open
+                                                                }
+                                                            >
+                                                                Refresh
+                                                                pre-aggregates
+                                                            </Menu.Item>
+                                                        )}
                                                     <Menu.Divider />
                                                 </>
                                             )}
@@ -943,6 +980,16 @@ const DashboardHeader = ({
                     onSwitchTab={(tab) => onSwitchTab?.(tab)}
                 />
             )}
+            {preAggregatesEnabled &&
+                projectUuid &&
+                uniquePreAggregateNames.length > 0 && (
+                    <DashboardPreAggRefreshModal
+                        opened={isPreAggRefreshOpen}
+                        onClose={preAggRefreshHandlers.close}
+                        projectUuid={projectUuid}
+                        preAggregateNames={uniquePreAggregateNames}
+                    />
+                )}
         </PageHeader>
     );
 };

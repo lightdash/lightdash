@@ -10,7 +10,6 @@ import {
     type ProjectSpaceAccess,
     type SpaceInheritanceChain,
 } from '@lightdash/common';
-import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SpacePermissionModel } from '../../models/SpacePermissionModel';
 import { SpacePermissionService } from './SpacePermissionService';
@@ -52,12 +51,6 @@ const createMockSpacePermissionModel = () => ({
 describe('SpacePermissionService', () => {
     const mockPermissionModel = createMockSpacePermissionModel();
     const service = new SpacePermissionService(
-        {
-            get: async () => ({
-                id: 'nested-spaces-permissions',
-                enabled: true,
-            }),
-        } as unknown as FeatureFlagModel,
         {} as SpaceModel,
         mockPermissionModel as unknown as SpacePermissionModel,
     );

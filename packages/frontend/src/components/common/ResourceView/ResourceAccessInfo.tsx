@@ -1,13 +1,10 @@
-import { FeatureFlags, type ResourceViewSpaceItem } from '@lightdash/common';
+import { type ResourceViewSpaceItem } from '@lightdash/common';
 import { Group, Text, Tooltip } from '@mantine-8/core';
 import { IconLock, IconUser, IconUsers } from '@tabler/icons-react';
 import React, { useMemo } from 'react';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import MantineIcon from '../MantineIcon';
 import { ResourceAccess } from './types';
-import { getResourceAccessLabel, getResourceAccessType } from './utils';
 
-// TODO: these are the old statuses, we need to update them to the new ones
 const ResourceAccessInfoData = {
     [ResourceAccess.Private]: {
         Icon: IconLock,
@@ -15,15 +12,15 @@ const ResourceAccessInfoData = {
     },
     [ResourceAccess.Public]: {
         Icon: IconUsers,
-        status: 'Public',
+        status: 'Inherited access',
     },
     [ResourceAccess.Shared]: {
         Icon: IconUser,
-        status: 'Shared',
+        status: 'Restricted access',
     },
 } as const;
 
-const getV2AccessType = (item: ResourceViewSpaceItem): ResourceAccess => {
+const getAccessType = (item: ResourceViewSpaceItem): ResourceAccess => {
     if (item.data.inheritParentPermissions) {
         return ResourceAccess.Public;
     }
@@ -33,18 +30,7 @@ const getV2AccessType = (item: ResourceViewSpaceItem): ResourceAccess => {
     return ResourceAccess.Private;
 };
 
-const getV2Status = (accessType: ResourceAccess): string => {
-    switch (accessType) {
-        case ResourceAccess.Public:
-            return 'Inherited access';
-        case ResourceAccess.Private:
-            return 'Private';
-        case ResourceAccess.Shared:
-            return 'Restricted access';
-    }
-};
-
-const getV2Label = (
+const getAccessLabel = (
     item: ResourceViewSpaceItem,
     accessType: ResourceAccess,
     isNestedSpace: boolean,
@@ -74,22 +60,11 @@ const ResourceAccessInfo: React.FC<ResourceAccessInfoProps> = ({
     type = 'secondary',
     withTooltip = false,
 }) => {
-    const { data: nestedSpacesPermissionsFlag } = useServerFeatureFlag(
-        FeatureFlags.NestedSpacesPermissions,
-    );
-    const isV2 = !!nestedSpacesPermissionsFlag?.enabled;
-
-    const accessType = isV2
-        ? getV2AccessType(item)
-        : getResourceAccessType(item);
+    const accessType = getAccessType(item);
     const isNestedSpace = !!item.data.parentSpaceUuid;
     const { Icon } = ResourceAccessInfoData[accessType];
-    const status = isV2
-        ? getV2Status(accessType)
-        : ResourceAccessInfoData[accessType].status;
-    const tooltipLabel = isV2
-        ? getV2Label(item, accessType, isNestedSpace)
-        : getResourceAccessLabel(item);
+    const status = ResourceAccessInfoData[accessType].status;
+    const tooltipLabel = getAccessLabel(item, accessType, isNestedSpace);
 
     const styles = useMemo(() => {
         return {

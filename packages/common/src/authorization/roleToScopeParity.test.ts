@@ -127,6 +127,7 @@ const ENTERPRISE_SUBJECTS = new Set([
     'AiAgent',
     'AiAgentThread',
     'ContentAsCode',
+    'PreAggregation',
 ]);
 
 /**
@@ -142,15 +143,6 @@ const filterEnterpriseRules = (
 
     return rules.filter((rule) => !ENTERPRISE_SUBJECTS.has(rule.subject));
 };
-
-/**
- * Filter temporary backward-compatibility rules that use the deprecated `isPrivate` condition.
- * TODO: remove this filter once the temporary isPrivate rules are removed from projectMemberAbility.ts and organizationMemberAbility.ts
- */
-const filterDeprecatedIsPrivateRules = (rules: CASLRule[]): CASLRule[] =>
-    rules.filter(
-        (rule) => !rule.conditions || !('isPrivate' in rule.conditions),
-    );
 
 /**
  * Test role-to-scope parity for a specific role
@@ -175,9 +167,10 @@ const testRoleScopeParity = (
     projectMemberAbilities[role](member, roleBuilder);
     const roleAbility = roleBuilder.build();
 
-    // Filter enterprise rules and deprecated isPrivate rules from role-based abilities
-    const filteredRoleRules = filterDeprecatedIsPrivateRules(
-        filterEnterpriseRules(roleAbility.rules as CASLRule[], isEnterprise),
+    // Filter enterprise rules from role-based abilities if not enterprise
+    const filteredRoleRules = filterEnterpriseRules(
+        roleAbility.rules as CASLRule[],
+        isEnterprise,
     );
 
     // Build abilities using scope-based approach
@@ -195,13 +188,12 @@ const testRoleScopeParity = (
     );
     const scopeAbility = scopeBuilder.build();
 
-    // Filter deprecated isPrivate rules from scope-based abilities too
-    const filteredScopeRules = filterDeprecatedIsPrivateRules(
-        scopeAbility.rules as CASLRule[],
-    );
-
     // Compare the filtered rule sets
-    const result = compareRuleSets(filteredRoleRules, filteredScopeRules, role);
+    const result = compareRuleSets(
+        filteredRoleRules,
+        scopeAbility.rules as CASLRule[],
+        role,
+    );
 
     return result;
 };

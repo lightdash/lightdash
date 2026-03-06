@@ -198,6 +198,10 @@ export const preAggregateExplore: Explore = {
     name: '__preagg__valid_explore__rollup',
     label: 'Pre-agg Explore',
     type: ExploreType.PRE_AGGREGATE,
+    preAggregateSource: {
+        sourceExploreName: 'valid_explore',
+        preAggregateName: 'rollup',
+    },
     tags: [],
 };
 
@@ -476,6 +480,7 @@ export const lightdashConfigWithNoSMTP: Pick<
         useSqlPivotResults: false,
         showExecutionTime: false,
         enableTableColumnCustomization: undefined,
+        retryQueryOnTransientErrors: false,
     },
 };
 
@@ -592,6 +597,7 @@ export const exploreToSummaryWithAttributes = (
         schemaName: baseTable.schema,
         description: baseTable.description,
         type: explore.type,
+        preAggregateSource: explore.preAggregateSource,
         baseTableRequiredAttributes: baseTable.requiredAttributes,
         ...(explore.warnings ? { warnings: explore.warnings } : {}),
     };

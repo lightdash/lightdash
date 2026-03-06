@@ -3,7 +3,6 @@ import {
     ChartSourceType,
     ChartType,
     getLtreePathFromSlug,
-    InvalidSpaceStateError,
     NotFoundError,
     ParameterError,
     Space,
@@ -16,7 +15,6 @@ import {
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { Knex } from 'knex';
-import NodeCache from 'node-cache';
 import {
     DashboardsTableName,
     DashboardVersionsTableName,
@@ -54,20 +52,10 @@ import {
     generateUniqueSpaceSlug,
 } from '../utils/SlugUtils';
 import type { GetDashboardDetailsQuery } from './DashboardModel/DashboardModel';
-import { getRootSpaceIsPrivateQuery } from './SpacePermissionModel';
 
 type SpaceModelArguments = {
     database: Knex;
 };
-// Initialize cache with 30 seconds TTL
-
-const spaceRootCache =
-    process.env.EXPERIMENTAL_CACHE === 'true'
-        ? new NodeCache({
-              stdTTL: 30, // time to live in seconds
-              checkperiod: 60, // cleanup interval in seconds
-          })
-        : undefined;
 export class SpaceModel {
     private database: Knex;
 
@@ -151,7 +139,7 @@ export class SpaceModel {
                         projectUuid: `${ProjectTableName}.project_uuid`,
                         uuid: `${SpaceTableName}.space_uuid`,
                         name: `${SpaceTableName}.name`,
-                        isPrivate: trx.raw(getRootSpaceIsPrivateQuery()),
+                        isPrivate: `${SpaceTableName}.is_private`,
                         pinnedListUuid: `${PinnedListTableName}.pinned_list_uuid`,
                         pinnedListOrder: `${PinnedSpaceTableName}.order`,
                         chartCount: trx
@@ -305,9 +293,7 @@ export class SpaceModel {
                     Pick<DBPinnedSpace, 'order'>)[]
             >([
                 `${SpaceTableName}.*`,
-                this.database.raw(
-                    `${getRootSpaceIsPrivateQuery()} AS is_private`,
-                ),
+                `${SpaceTableName}.is_private`,
                 `${ProjectTableName}.project_uuid`,
                 `${OrganizationTableName}.organization_uuid`,
 
@@ -956,6 +942,7 @@ export class SpaceModel {
             )
             .whereRaw('?::ltree <@ path', [path])
             .andWhere(`${ProjectTableName}.project_uuid`, projectUuid)
+            .whereNull(`${SpaceTableName}.deleted_at`)
             .orderByRaw('nlevel(path) DESC')
             .first();
 
@@ -1452,91 +1439,5 @@ export class SpaceModel {
             .where('space_uuid', spaceUuid)
             .andWhere('group_uuid', groupUuid)
             .delete();
-    }
-
-    /**
-     * Checks if a space is a root space
-     * @param spaceUuid - The UUID of the space to check
-     * @returns True if the space is a root space, false otherwise
-     */
-    async isRootSpace(spaceUuid: string): Promise<boolean> {
-        const { spaceRoot: rootSpaceUuid } =
-            await this.getSpaceRootFromCacheOrDB(spaceUuid);
-        return rootSpaceUuid === spaceUuid;
-    }
-
-    /**
-     * Gets the root space UUID for a given space UUID
-     *
-     * This method uses PostgreSQL's ltree extension to find the root space of a hierarchy.
-     * The spaces are stored in a tree structure where:
-     * - Root spaces have a path with a single level (e.g., "my-space")
-     * - Child spaces have paths that include their parent hierarchy (e.g., "my-space.my-child-space")
-     * @param spaceUuid Space UUID to get the root for
-     * @returns Root space UUID (or itself if it's already a root space)
-     */
-    async getSpaceRootFromCacheOrDB(spaceUuid: string) {
-        const cacheKey = spaceUuid;
-        // Try to get from cache first
-        const cachedSpaceRoot = spaceRootCache?.get<string>(cacheKey);
-
-        if (cachedSpaceRoot) {
-            // Return cached user
-            return { spaceRoot: cachedSpaceRoot, cacheHit: true };
-        }
-        // If not in cache, get from database
-        const spaceRoot = await this.getSpaceRoot(spaceUuid);
-        // Store in cache
-        spaceRootCache?.set(cacheKey, spaceRoot);
-        return { spaceRoot, cacheHit: false };
-    }
-
-    private async getSpaceRoot(spaceUuid: string): Promise<string> {
-        const space = await this.database(SpaceTableName)
-            .select([
-                'path',
-                'project_id',
-                'parent_space_uuid',
-                'is_default_user_space',
-            ])
-            .where('space_uuid', spaceUuid)
-            .first();
-
-        if (!space || !space.path) {
-            throw new NotFoundError(
-                `Space with uuid ${spaceUuid} does not exist`,
-            );
-        }
-
-        if (space.is_default_user_space) {
-            // EXPLAINME: default user spaces are treated like a root space
-            // this is because they should manage their own permissions
-            return spaceUuid;
-        }
-
-        const root = await this.database(SpaceTableName)
-            .select('space_uuid')
-            .whereRaw('nlevel(path) = 1')
-            .andWhereRaw('path @> ?', [space.path])
-            .andWhere('project_id', space.project_id)
-            .first();
-
-        if (!root) {
-            const error = new InvalidSpaceStateError(
-                `Root space for space for ${spaceUuid} not found`,
-            );
-
-            Sentry.captureException(error, {
-                extra: {
-                    spaceUuid,
-                    parentSpaceUuid: space.parent_space_uuid,
-                    path: space.path,
-                },
-            });
-
-            throw error;
-        }
-
-        return root.space_uuid;
     }
 }

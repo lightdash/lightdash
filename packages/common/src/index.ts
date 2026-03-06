@@ -78,6 +78,7 @@ export { default as dashboardAsCodeSchema } from './schemas/json/dashboard-as-co
 export { default as lightdashDbtYamlSchema } from './schemas/json/lightdash-dbt-2.0.json';
 export { default as lightdashProjectConfigSchema } from './schemas/json/lightdash-project-config-1.0.json';
 export { default as modelAsCodeSchema } from './schemas/json/model-as-code-1.0.json';
+export * from './templating/liquidSql';
 export * from './templating/template';
 export * from './types/account';
 export * from './types/adminNotifications';
@@ -177,6 +178,7 @@ export * from './utils/accessors';
 export * from './utils/additionalMetrics';
 export * from './utils/api';
 export { default as assertUnreachable } from './utils/assertUnreachable';
+export * from './utils/bigNumber';
 export * from './utils/changeset';
 export * from './utils/charts';
 export * from './utils/chartValidation';

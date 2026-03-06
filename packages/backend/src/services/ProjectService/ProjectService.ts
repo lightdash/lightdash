@@ -4908,10 +4908,10 @@ export class ProjectService extends BaseService {
         };
     }
 
-    async refreshPreAggregateByName(
+    async refreshPreAggregateByDefinitionName(
         user: SessionUser,
         projectUuid: string,
-        preAggExploreName: string,
+        preAggregateDefinitionName: string,
     ): Promise<{ jobIds: string[] }> {
         const { organizationUuid } = await this.assertCanRefreshPreAggregates(
             user,
@@ -4919,20 +4919,22 @@ export class ProjectService extends BaseService {
         );
 
         const preAggregateDefinition =
-            await this.preAggregateModel.getPreAggregateDefinitionByName({
-                projectUuid,
-                preAggExploreName,
-            });
+            await this.preAggregateModel.getPreAggregateDefinitionByDefinitionName(
+                {
+                    projectUuid,
+                    preAggregateDefinitionName,
+                },
+            );
 
         if (!preAggregateDefinition) {
             throw new NotFoundError(
-                `Pre-aggregate explore "${preAggExploreName}" not found`,
+                `Pre-aggregate definition "${preAggregateDefinitionName}" not found`,
             );
         }
 
         if (!preAggregateDefinition.materializationMetricQuery) {
             throw new ParameterError(
-                `Pre-aggregate explore "${preAggExploreName}" cannot be materialized: ${
+                `Pre-aggregate definition "${preAggregateDefinitionName}" cannot be materialized: ${
                     preAggregateDefinition.materializationQueryError ||
                     'materialization query is missing'
                 }`,
@@ -5188,11 +5190,30 @@ export class ProjectService extends BaseService {
         }, []);
     }
 
+    private canViewPreAggregateExplores(
+        account: Account,
+        organizationUuid: string,
+        projectUuid: string,
+    ): boolean {
+        if (!this.lightdashConfig.preAggregates.enabled) {
+            return false;
+        }
+
+        return account.user.ability.can(
+            'manage',
+            subject('PreAggregation', {
+                organizationUuid,
+                projectUuid,
+            }),
+        );
+    }
+
     async getAllExploresSummary(
         account: Account,
         projectUuid: string,
         filtered: boolean,
         includeErrors: boolean = true,
+        includePreAggregates: boolean = false,
     ): Promise<SummaryExplore[]> {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
@@ -5212,9 +5233,14 @@ export class ProjectService extends BaseService {
             projectUuid,
             includeErrors,
         );
-        const includePreAggregateDebugExplores =
-            this.lightdashConfig.preAggregates.debug;
-        const visibleExploreSummaries = includePreAggregateDebugExplores
+        const shouldIncludePreAggregateExplores =
+            includePreAggregates &&
+            this.canViewPreAggregateExplores(
+                account,
+                organizationUuid,
+                projectUuid,
+            );
+        const visibleExploreSummaries = shouldIncludePreAggregateExplores
             ? allExploreSummaries
             : allExploreSummaries.filter(
                   (explore) => explore.type !== ExploreType.PRE_AGGREGATE,
@@ -5229,7 +5255,7 @@ export class ProjectService extends BaseService {
                     (explore) =>
                         hasIntersection(explore.tags || [], value || []) ||
                         explore.type === ExploreType.VIRTUAL || // Custom explores/Virtual views are included by default
-                        (includePreAggregateDebugExplores &&
+                        (shouldIncludePreAggregateExplores &&
                             explore.type === ExploreType.PRE_AGGREGATE),
                 );
             }
@@ -5238,7 +5264,7 @@ export class ProjectService extends BaseService {
                     (explore) =>
                         (value || []).includes(explore.name) ||
                         explore.type === ExploreType.VIRTUAL || // Custom explores/Virtual views are included by default
-                        (includePreAggregateDebugExplores &&
+                        (shouldIncludePreAggregateExplores &&
                             explore.type === ExploreType.PRE_AGGREGATE),
                 );
             }
@@ -5338,6 +5364,12 @@ export class ProjectService extends BaseService {
                     'name',
                     exploreNames,
                 );
+                const canViewPreAggregateExplores =
+                    this.canViewPreAggregateExplores(
+                        account,
+                        project.organizationUuid,
+                        projectUuid,
+                    );
 
                 const { userAttributes } = await this.getUserAttributes({
                     account,
@@ -5346,6 +5378,12 @@ export class ProjectService extends BaseService {
                 return Object.values(explores).reduce<
                     Record<string, Explore | ExploreError>
                 >((acc, explore) => {
+                    if (
+                        explore.type === ExploreType.PRE_AGGREGATE &&
+                        !canViewPreAggregateExplores
+                    ) {
+                        return acc;
+                    }
                     if (isExploreError(explore)) {
                         acc[explore.name] = explore;
                     } else {

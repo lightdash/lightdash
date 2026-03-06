@@ -73,7 +73,6 @@ services:
             S3_BUCKET: ${S3_BUCKET}
             MCP_ENABLED: true
             CUSTOM_ROLES_ENABLED: true
-            NESTED_SPACES_PERMISSIONS_ENABLED: true
 
             PERSISTENT_DOWNLOAD_URLS_ENABLED: true
 

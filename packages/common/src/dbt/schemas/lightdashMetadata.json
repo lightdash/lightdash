@@ -274,6 +274,7 @@
                         "count_distinct",
                         "sum",
                         "sum_distinct",
+                        "average_distinct",
                         "min",
                         "max",
                         "number",

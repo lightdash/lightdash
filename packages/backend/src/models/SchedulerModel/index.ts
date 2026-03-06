@@ -3,13 +3,16 @@ import {
     CreateSchedulerAndTargets,
     CreateSchedulerLog,
     isChartScheduler,
+    isCreateSchedulerGoogleChatTarget,
     isCreateSchedulerMsTeamsTarget,
     isCreateSchedulerSlackTarget,
     isDashboardScheduler,
     isEmailTarget,
+    isGoogleChatTarget,
     isMsTeamsTarget,
     isSlackTarget,
     isUpdateSchedulerEmailTarget,
+    isUpdateSchedulerGoogleChatTarget,
     isUpdateSchedulerMsTeamsTarget,
     isUpdateSchedulerSlackTarget,
     KnexPaginateArgs,
@@ -20,6 +23,7 @@ import {
     SchedulerAndTargets,
     SchedulerEmailTarget,
     SchedulerFormat,
+    SchedulerGoogleChatTarget,
     SchedulerJobStatus,
     SchedulerLog,
     SchedulerMsTeamsTarget,
@@ -43,6 +47,8 @@ import {
     SchedulerDb,
     SchedulerEmailTargetDb,
     SchedulerEmailTargetTableName,
+    SchedulerGoogleChatTargetDb,
+    SchedulerGoogleChatTargetTableName,
     SchedulerLogDb,
     SchedulerLogTableName,
     SchedulerMsTeamsTargetDb,
@@ -151,11 +157,25 @@ export class SchedulerModel {
         };
     }
 
+    static convertGoogleChatTarget(
+        scheduler: SchedulerGoogleChatTargetDb,
+    ): SchedulerGoogleChatTarget {
+        return {
+            schedulerGoogleChatTargetUuid:
+                scheduler.scheduler_google_chat_target_uuid,
+            createdAt: scheduler.created_at,
+            updatedAt: scheduler.updated_at,
+            schedulerUuid: scheduler.scheduler_uuid,
+            googleChatWebhook: scheduler.webhook,
+        };
+    }
+
     static getSlackChannels(
         targets: (
             | SchedulerSlackTarget
             | SchedulerEmailTarget
             | SchedulerMsTeamsTarget
+            | SchedulerGoogleChatTarget
         )[],
     ): string[] {
         return targets.reduce<string[]>((acc, target) => {
@@ -221,10 +241,19 @@ export class SchedulerModel {
                 `${SchedulerMsTeamsTargetTableName}.scheduler_uuid`,
                 schedulers.map((s) => s.scheduler_uuid),
             );
+        const googleChatTargets = await this.database(
+            SchedulerGoogleChatTargetTableName,
+        )
+            .select()
+            .whereIn(
+                `${SchedulerGoogleChatTargetTableName}.scheduler_uuid`,
+                schedulers.map((s) => s.scheduler_uuid),
+            );
         const targets = [
             ...slackTargets.map(SchedulerModel.convertSlackTarget),
             ...emailTargets.map(SchedulerModel.convertEmailTarget),
             ...msTeamsTargets.map(SchedulerModel.convertMsTeamsTarget),
+            ...googleChatTargets.map(SchedulerModel.convertGoogleChatTarget),
         ];
 
         return schedulers.map((scheduler) => ({
@@ -386,6 +415,28 @@ export class SchedulerModel {
                                 .from(SchedulerMsTeamsTargetTableName)
                                 .whereRaw(
                                     `${SchedulerMsTeamsTargetTableName}.scheduler_uuid = ${SchedulerTableName}.scheduler_uuid`,
+                                );
+                        });
+                    }
+                }
+                if (destinations.includes('googlechat')) {
+                    if (isFirst) {
+                        void builder.whereExists((subQuery) => {
+                            void subQuery
+                                .select('*')
+                                .from(SchedulerGoogleChatTargetTableName)
+                                .whereRaw(
+                                    `${SchedulerGoogleChatTargetTableName}.scheduler_uuid = ${SchedulerTableName}.scheduler_uuid`,
+                                );
+                        });
+                        isFirst = false;
+                    } else {
+                        void builder.orWhereExists((subQuery) => {
+                            void subQuery
+                                .select('*')
+                                .from(SchedulerGoogleChatTargetTableName)
+                                .whereRaw(
+                                    `${SchedulerGoogleChatTargetTableName}.scheduler_uuid = ${SchedulerTableName}.scheduler_uuid`,
                                 );
                         });
                     }
@@ -596,11 +647,20 @@ export class SchedulerModel {
                 `${SchedulerMsTeamsTargetTableName}.scheduler_uuid`,
                 schedulerUuid,
             );
+        const googleChatTargets = await this.database(
+            SchedulerGoogleChatTargetTableName,
+        )
+            .select()
+            .where(
+                `${SchedulerGoogleChatTargetTableName}.scheduler_uuid`,
+                schedulerUuid,
+            );
 
         const targets = [
             ...slackTargets.map(SchedulerModel.convertSlackTarget),
             ...emailTargets.map(SchedulerModel.convertEmailTarget),
             ...msTeamsTargets.map(SchedulerModel.convertMsTeamsTarget),
+            ...googleChatTargets.map(SchedulerModel.convertGoogleChatTarget),
         ];
 
         return {
@@ -666,6 +726,13 @@ export class SchedulerModel {
                     return trx(SchedulerMsTeamsTargetTableName).insert({
                         scheduler_uuid: scheduler.scheduler_uuid,
                         webhook: target.webhook,
+                        updated_at: new Date(),
+                    });
+                }
+                if (isCreateSchedulerGoogleChatTarget(target)) {
+                    return trx(SchedulerGoogleChatTargetTableName).insert({
+                        scheduler_uuid: scheduler.scheduler_uuid,
+                        webhook: target.googleChatWebhook,
                         updated_at: new Date(),
                     });
                 }
@@ -782,6 +849,24 @@ export class SchedulerModel {
                     msTeamsTargetsToUpdate,
                 );
 
+            const googleChatTargetsToUpdate = scheduler.targets.reduce<
+                string[]
+            >(
+                (acc, target) =>
+                    isUpdateSchedulerGoogleChatTarget(target)
+                        ? [...acc, target.schedulerGoogleChatTargetUuid]
+                        : acc,
+                [],
+            );
+            await trx(SchedulerGoogleChatTargetTableName)
+                .delete()
+                .where('scheduler_uuid', scheduler.schedulerUuid)
+                .andWhere(
+                    'scheduler_google_chat_target_uuid',
+                    'not in',
+                    googleChatTargetsToUpdate,
+                );
+
             const emailTargetsToUpdate = scheduler.targets.reduce<string[]>(
                 (acc, target) =>
                     isUpdateSchedulerEmailTarget(target)
@@ -837,6 +922,13 @@ export class SchedulerModel {
                     return trx(SchedulerMsTeamsTargetTableName).insert({
                         scheduler_uuid: scheduler.schedulerUuid,
                         webhook: target.webhook,
+                        updated_at: new Date(),
+                    });
+                }
+                if (isCreateSchedulerGoogleChatTarget(target)) {
+                    return trx(SchedulerGoogleChatTargetTableName).insert({
+                        scheduler_uuid: scheduler.schedulerUuid,
+                        webhook: target.googleChatWebhook,
                         updated_at: new Date(),
                     });
                 }
@@ -1130,6 +1222,12 @@ export class SchedulerModel {
                     if (
                         filters.destinations!.includes('msteams') &&
                         isMsTeamsTarget(target)
+                    ) {
+                        return true;
+                    }
+                    if (
+                        filters.destinations!.includes('googlechat') &&
+                        isGoogleChatTarget(target)
                     ) {
                         return true;
                     }
@@ -1477,6 +1575,12 @@ export class SchedulerModel {
                     if (
                         filters.destinations!.includes('msteams') &&
                         isMsTeamsTarget(target)
+                    ) {
+                        return true;
+                    }
+                    if (
+                        filters.destinations!.includes('googlechat') &&
+                        isGoogleChatTarget(target)
                     ) {
                         return true;
                     }

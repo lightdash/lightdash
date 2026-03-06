@@ -70,6 +70,47 @@ models:
                 url:
                   'https://calendar.google.com/calendar/u/0/r/day/${ value.formatted |split:
                   "-" |join: "/"}'
+      - name: dynamic_date
+        description: "Dynamic date dimension that changes granularity based on the date_granularity parameter. Uses Liquid template syntax for conditional SQL."
+        meta:
+          dimension:
+            type: string
+            sql: >
+              {% raw %}{% if ld.parameters.date_granularity == 'Day' %} ${TABLE}.date
+              {% elsif ld.parameters.date_granularity == 'Week' %} DATE_TRUNC('week', ${TABLE}.date)
+              {% elsif ld.parameters.date_granularity == 'Month' %} DATE_TRUNC('month', ${TABLE}.date)
+              {% elsif ld.parameters.date_granularity == 'Quarter' %} DATE_TRUNC('quarter', ${TABLE}.date)
+              {% elsif ld.parameters.date_granularity == 'Year' %} DATE_TRUNC('year', ${TABLE}.date)
+              {% else %} ${TABLE}.date
+              {% endif %}{% endraw %}
+      - name: dynamic_date_case
+        description: "Same as dynamic_date but using Liquid case/when syntax instead of if/elsif."
+        meta:
+          dimension:
+            type: string
+            sql: >
+              {% raw %}{% case ld.parameters.date_granularity %}
+              {% when 'Day' %} ${TABLE}.date
+              {% when 'Week' %} DATE_TRUNC('week', ${TABLE}.date)
+              {% when 'Month' %} DATE_TRUNC('month', ${TABLE}.date)
+              {% when 'Quarter' %} DATE_TRUNC('quarter', ${TABLE}.date)
+              {% when 'Year' %} DATE_TRUNC('year', ${TABLE}.date)
+              {% else %} ${TABLE}.date
+              {% endcase %}{% endraw %}
+      - name: dynamic_metric
+        description: "Switches between counting events or summing event IDs based on the metric_type parameter. Demonstrates Liquid column-switching pattern from Looker migrations."
+        meta:
+          dimension:
+            hidden: true
+            type: number
+            sql: >
+              {% raw %}{% if ld.parameters.metric_type == 'count' %} 1
+              {% else %} ${TABLE}.event_id
+              {% endif %}{% endraw %}
+          metrics:
+            dynamic_total:
+              type: sum
+              description: "When metric_type=count, counts events. When metric_type=revenue, sums event IDs."
       - name: event
         description: ""
         meta:

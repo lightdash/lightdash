@@ -88,4 +88,4 @@ export const validateOrganizationEmailDomains = (domains: string[]) => {
 };
 
 export const isValidEmailAddress = (email: string): boolean =>
-    /^[\w.+-]+@[\w-]+\.[A-Za-z]{2,}(?:\.[A-Za-z]{2,})*$/.test(email);
+    /^[\w.+'-]+@[\w-]+\.[A-Za-z]{2,}(?:\.[A-Za-z]{2,})*$/.test(email);
