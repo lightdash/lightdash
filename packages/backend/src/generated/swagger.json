@@ -1628,8 +1628,7 @@
                         "format": "double"
                     },
                     "tabUuid": {
-                        "type": "string",
-                        "nullable": true
+                        "type": "string"
                     }
                 },
                 "required": ["uuid", "type", "x", "y", "h", "w"],
@@ -1658,8 +1657,7 @@
                     "custom",
                     "treemap",
                     "gauge",
-                    "map",
-                    "sankey"
+                    "map"
                 ],
                 "type": "string"
             },
@@ -2183,40 +2181,17 @@
                 "type": "object"
             },
             "DateGranularity": {
-                "enum": [
-                    "Second",
-                    "Minute",
-                    "Hour",
-                    "Day",
-                    "Week",
-                    "Month",
-                    "Quarter",
-                    "Year"
-                ],
+                "enum": ["Day", "Week", "Month", "Quarter", "Year"],
                 "type": "string"
             },
             "DashboardConfig": {
                 "properties": {
                     "defaultDateZoomGranularity": {
-                        "anyOf": [
-                            {
-                                "$ref": "#/components/schemas/DateGranularity"
-                            },
-                            {
-                                "type": "string"
-                            }
-                        ]
+                        "$ref": "#/components/schemas/DateGranularity"
                     },
                     "dateZoomGranularities": {
                         "items": {
-                            "anyOf": [
-                                {
-                                    "$ref": "#/components/schemas/DateGranularity"
-                                },
-                                {
-                                    "type": "string"
-                                }
-                            ]
+                            "$ref": "#/components/schemas/DateGranularity"
                         },
                         "type": "array"
                     },
@@ -2225,9 +2200,6 @@
                             "type": "string"
                         },
                         "type": "array"
-                    },
-                    "isAddFilterDisabled": {
-                        "type": "boolean"
                     },
                     "isDateZoomDisabled": {
                         "type": "boolean"
@@ -2273,6 +2245,10 @@
                     },
                     "inheritsFromOrgOrProject": {
                         "type": "boolean"
+                    },
+                    "isPrivate": {
+                        "type": "boolean",
+                        "nullable": true
                     },
                     "tabs": {
                         "items": {
@@ -2365,6 +2341,7 @@
                     "slug",
                     "access",
                     "inheritsFromOrgOrProject",
+                    "isPrivate",
                     "tabs",
                     "pinnedListOrder",
                     "pinnedListUuid",
@@ -2850,9 +2827,6 @@
                     "timeIntervalBaseDimensionName": {
                         "type": "string"
                     },
-                    "customTimeInterval": {
-                        "type": "string"
-                    },
                     "isAdditionalDimension": {
                         "type": "boolean"
                     },
@@ -2900,9 +2874,6 @@
                         },
                         "required": ["url"],
                         "type": "object"
-                    },
-                    "richText": {
-                        "type": "string"
                     },
                     "spotlight": {
                         "properties": {
@@ -5663,51 +5634,6 @@
                 "required": ["type"],
                 "type": "object"
             },
-            "ChartType.SANKEY": {
-                "enum": ["sankey"],
-                "type": "string"
-            },
-            "SankeyChart": {
-                "properties": {
-                    "orient": {
-                        "type": "string",
-                        "enum": ["horizontal", "vertical"],
-                        "description": "Orientation of the diagram"
-                    },
-                    "nodeAlign": {
-                        "type": "string",
-                        "enum": ["left", "right", "justify"],
-                        "description": "Node alignment"
-                    },
-                    "metricFieldId": {
-                        "type": "string",
-                        "description": "Field ID for the link value metric"
-                    },
-                    "targetFieldId": {
-                        "type": "string",
-                        "description": "Field ID for the target node dimension"
-                    },
-                    "sourceFieldId": {
-                        "type": "string",
-                        "description": "Field ID for the source node dimension"
-                    }
-                },
-                "type": "object"
-            },
-            "SankeyChartConfig": {
-                "properties": {
-                    "config": {
-                        "$ref": "#/components/schemas/SankeyChart",
-                        "description": "Chart-type-specific configuration"
-                    },
-                    "type": {
-                        "$ref": "#/components/schemas/ChartType.SANKEY",
-                        "description": "Type of chart visualization"
-                    }
-                },
-                "required": ["type"],
-                "type": "object"
-            },
             "ChartConfig": {
                 "anyOf": [
                     {
@@ -5736,9 +5662,6 @@
                     },
                     {
                         "$ref": "#/components/schemas/MapChartConfig"
-                    },
-                    {
-                        "$ref": "#/components/schemas/SankeyChartConfig"
                     }
                 ]
             },
@@ -5794,6 +5717,9 @@
                         "type": "array"
                     },
                     "inheritsFromOrgOrProject": {
+                        "type": "boolean"
+                    },
+                    "isPrivate": {
                         "type": "boolean"
                     },
                     "colorPalette": {
@@ -5900,6 +5826,7 @@
                     "slug",
                     "access",
                     "inheritsFromOrgOrProject",
+                    "isPrivate",
                     "colorPalette",
                     "dashboardName",
                     "dashboardUuid",
@@ -6083,12 +6010,6 @@
             },
             "TableBase": {
                 "properties": {
-                    "warnings": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
                     "aiHint": {
                         "anyOf": [
                             {
@@ -6260,9 +6181,6 @@
                     "timeIntervalBaseDimensionName": {
                         "type": "string"
                     },
-                    "customTimeInterval": {
-                        "type": "string"
-                    },
                     "isAdditionalDimension": {
                         "type": "boolean"
                     },
@@ -6310,9 +6228,6 @@
                         },
                         "required": ["url"],
                         "type": "object"
-                    },
-                    "richText": {
-                        "type": "string"
                     },
                     "spotlight": {
                         "properties": {
@@ -6580,9 +6495,6 @@
                                 "type": "array"
                             }
                         ]
-                    },
-                    "richText": {
-                        "type": "string"
                     }
                 },
                 "required": [
@@ -6836,9 +6748,7 @@
                     "NO_DIMENSIONS_FOUND",
                     "SKIPPED_JOIN",
                     "MISSING_TABLE",
-                    "FIELD_ERROR",
-                    "SET_VALIDATION_ERROR",
-                    "INVALID_PARAMETER"
+                    "FIELD_ERROR"
                 ],
                 "type": "string"
             },
@@ -7521,9 +7431,6 @@
                     },
                     {
                         "properties": {
-                            "dateZoomApplied": {
-                                "type": "boolean"
-                            },
                             "appliedDashboardFilters": {
                                 "$ref": "#/components/schemas/DashboardFilters"
                             },
@@ -7535,7 +7442,6 @@
                             }
                         },
                         "required": [
-                            "dateZoomApplied",
                             "appliedDashboardFilters",
                             "fields",
                             "metricQuery"
@@ -7550,14 +7456,7 @@
                         "type": "string"
                     },
                     "granularity": {
-                        "anyOf": [
-                            {
-                                "$ref": "#/components/schemas/DateGranularity"
-                            },
-                            {
-                                "type": "string"
-                            }
-                        ]
+                        "$ref": "#/components/schemas/DateGranularity"
                     }
                 },
                 "type": "object"
@@ -12694,7 +12593,6 @@
             "DashboardFilterValidationErrorType": {
                 "enum": [
                     "field_does_not_exist",
-                    "field_table_mismatch",
                     "table_not_used_by_any_chart",
                     "table_does_not_exist"
                 ],
@@ -14998,7 +14896,7 @@
                     }
                 ]
             },
-            "Pick_SpaceSummary.uuid-or-name-or-userAccess_": {
+            "Pick_SpaceSummary.uuid-or-name-or-isPrivate-or-userAccess_": {
                 "properties": {
                     "name": {
                         "type": "string"
@@ -15008,9 +14906,12 @@
                     },
                     "userAccess": {
                         "$ref": "#/components/schemas/SpaceAccess"
+                    },
+                    "isPrivate": {
+                        "type": "boolean"
                     }
                 },
-                "required": ["name", "uuid"],
+                "required": ["name", "uuid", "isPrivate"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
@@ -15078,7 +14979,7 @@
                         "nullable": true
                     },
                     "space": {
-                        "$ref": "#/components/schemas/Pick_SpaceSummary.uuid-or-name-or-userAccess_"
+                        "$ref": "#/components/schemas/Pick_SpaceSummary.uuid-or-name-or-isPrivate-or-userAccess_"
                     },
                     "lastUpdatedBy": {
                         "allOf": [
@@ -15375,7 +15276,7 @@
                 "enum": ["no changes", "create", "update", "delete"],
                 "type": "string"
             },
-            "Pick_Space.organizationUuid-or-projectUuid-or-uuid-or-name-or-inheritParentPermissions-or-pinnedListUuid-or-pinnedListOrder-or-slug-or-parentSpaceUuid-or-path_": {
+            "Pick_Space.organizationUuid-or-projectUuid-or-uuid-or-name-or-isPrivate-or-inheritParentPermissions-or-pinnedListUuid-or-pinnedListOrder-or-slug-or-parentSpaceUuid-or-path_": {
                 "properties": {
                     "name": {
                         "type": "string"
@@ -15388,6 +15289,9 @@
                     },
                     "uuid": {
                         "type": "string"
+                    },
+                    "isPrivate": {
+                        "type": "boolean"
                     },
                     "inheritParentPermissions": {
                         "type": "boolean"
@@ -15417,6 +15321,7 @@
                     "projectUuid",
                     "organizationUuid",
                     "uuid",
+                    "isPrivate",
                     "inheritParentPermissions",
                     "pinnedListUuid",
                     "pinnedListOrder",
@@ -15430,7 +15335,7 @@
             "SpaceSummaryBase": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/Pick_Space.organizationUuid-or-projectUuid-or-uuid-or-name-or-inheritParentPermissions-or-pinnedListUuid-or-pinnedListOrder-or-slug-or-parentSpaceUuid-or-path_"
+                        "$ref": "#/components/schemas/Pick_Space.organizationUuid-or-projectUuid-or-uuid-or-name-or-isPrivate-or-inheritParentPermissions-or-pinnedListUuid-or-pinnedListOrder-or-slug-or-parentSpaceUuid-or-path_"
                     },
                     {
                         "properties": {
@@ -15482,7 +15387,7 @@
             "PromotedSpace": {
                 "$ref": "#/components/schemas/SpaceSummaryBase"
             },
-            "Pick_Dashboard.Exclude_keyofDashboard.inheritsFromOrgOrProject-or-access__": {
+            "Pick_Dashboard.Exclude_keyofDashboard.isPrivate-or-inheritsFromOrgOrProject-or-access__": {
                 "properties": {
                     "description": {
                         "type": "string"
@@ -15620,12 +15525,12 @@
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
-            "Omit_Dashboard.inheritsFromOrgOrProject-or-access_": {
-                "$ref": "#/components/schemas/Pick_Dashboard.Exclude_keyofDashboard.inheritsFromOrgOrProject-or-access__",
+            "Omit_Dashboard.isPrivate-or-inheritsFromOrgOrProject-or-access_": {
+                "$ref": "#/components/schemas/Pick_Dashboard.Exclude_keyofDashboard.isPrivate-or-inheritsFromOrgOrProject-or-access__",
                 "description": "Construct a type with the properties of T except for those in type K."
             },
             "DashboardDAO": {
-                "$ref": "#/components/schemas/Omit_Dashboard.inheritsFromOrgOrProject-or-access_"
+                "$ref": "#/components/schemas/Omit_Dashboard.isPrivate-or-inheritsFromOrgOrProject-or-access_"
             },
             "PromotedDashboard": {
                 "allOf": [
@@ -15646,7 +15551,7 @@
                     }
                 ]
             },
-            "Pick_SavedChart.Exclude_keyofSavedChart.inheritsFromOrgOrProject-or-access__": {
+            "Pick_SavedChart.Exclude_keyofSavedChart.isPrivate-or-inheritsFromOrgOrProject-or-access__": {
                 "properties": {
                     "description": {
                         "type": "string",
@@ -15800,12 +15705,12 @@
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
-            "Omit_SavedChart.inheritsFromOrgOrProject-or-access_": {
-                "$ref": "#/components/schemas/Pick_SavedChart.Exclude_keyofSavedChart.inheritsFromOrgOrProject-or-access__",
+            "Omit_SavedChart.isPrivate-or-inheritsFromOrgOrProject-or-access_": {
+                "$ref": "#/components/schemas/Pick_SavedChart.Exclude_keyofSavedChart.isPrivate-or-inheritsFromOrgOrProject-or-access__",
                 "description": "Construct a type with the properties of T except for those in type K."
             },
             "SavedChartDAO": {
-                "$ref": "#/components/schemas/Omit_SavedChart.inheritsFromOrgOrProject-or-access_"
+                "$ref": "#/components/schemas/Omit_SavedChart.isPrivate-or-inheritsFromOrgOrProject-or-access_"
             },
             "PromotedChart": {
                 "allOf": [
@@ -16067,758 +15972,6 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "SchedulerFormat": {
-                "enum": ["csv", "xlsx", "image", "gsheets"],
-                "type": "string"
-            },
-            "SchedulerCsvOptions": {
-                "properties": {
-                    "asAttachment": {
-                        "type": "boolean"
-                    },
-                    "limit": {
-                        "anyOf": [
-                            {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            {
-                                "type": "string",
-                                "enum": ["table", "all"]
-                            }
-                        ]
-                    },
-                    "formatted": {
-                        "type": "boolean"
-                    }
-                },
-                "required": ["limit", "formatted"],
-                "type": "object"
-            },
-            "SchedulerImageOptions": {
-                "properties": {
-                    "withPdf": {
-                        "type": "boolean"
-                    }
-                },
-                "type": "object"
-            },
-            "SchedulerGsheetsOptions": {
-                "properties": {
-                    "tabName": {
-                        "type": "string"
-                    },
-                    "url": {
-                        "type": "string"
-                    },
-                    "gdriveOrganizationName": {
-                        "type": "string"
-                    },
-                    "gdriveName": {
-                        "type": "string"
-                    },
-                    "gdriveId": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "url",
-                    "gdriveOrganizationName",
-                    "gdriveName",
-                    "gdriveId"
-                ],
-                "type": "object"
-            },
-            "SchedulerOptions": {
-                "anyOf": [
-                    {
-                        "$ref": "#/components/schemas/SchedulerCsvOptions"
-                    },
-                    {
-                        "$ref": "#/components/schemas/SchedulerImageOptions"
-                    },
-                    {
-                        "$ref": "#/components/schemas/SchedulerGsheetsOptions"
-                    }
-                ]
-            },
-            "ThresholdOperator": {
-                "enum": [
-                    "greaterThan",
-                    "lessThan",
-                    "increasedBy",
-                    "decreasedBy"
-                ],
-                "type": "string"
-            },
-            "ThresholdOptions": {
-                "properties": {
-                    "value": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "fieldId": {
-                        "type": "string"
-                    },
-                    "operator": {
-                        "$ref": "#/components/schemas/ThresholdOperator"
-                    }
-                },
-                "required": ["value", "fieldId", "operator"],
-                "type": "object"
-            },
-            "NotificationFrequency": {
-                "enum": ["always", "once"],
-                "type": "string"
-            },
-            "SchedulerBase": {
-                "properties": {
-                    "projectName": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "projectUuid": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "includeLinks": {
-                        "type": "boolean"
-                    },
-                    "notificationFrequency": {
-                        "$ref": "#/components/schemas/NotificationFrequency"
-                    },
-                    "enabled": {
-                        "type": "boolean"
-                    },
-                    "thresholds": {
-                        "items": {
-                            "$ref": "#/components/schemas/ThresholdOptions"
-                        },
-                        "type": "array"
-                    },
-                    "options": {
-                        "$ref": "#/components/schemas/SchedulerOptions"
-                    },
-                    "savedSqlName": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "savedSqlUuid": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "dashboardName": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "dashboardUuid": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "savedChartName": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "savedChartUuid": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "projectSchedulerTimezone": {
-                        "type": "string"
-                    },
-                    "timezone": {
-                        "type": "string"
-                    },
-                    "cron": {
-                        "type": "string"
-                    },
-                    "format": {
-                        "$ref": "#/components/schemas/SchedulerFormat"
-                    },
-                    "createdByName": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "createdBy": {
-                        "type": "string"
-                    },
-                    "updatedAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "createdAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "message": {
-                        "type": "string"
-                    },
-                    "name": {
-                        "type": "string"
-                    },
-                    "schedulerUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "includeLinks",
-                    "enabled",
-                    "options",
-                    "savedSqlName",
-                    "savedSqlUuid",
-                    "dashboardName",
-                    "dashboardUuid",
-                    "savedChartName",
-                    "savedChartUuid",
-                    "cron",
-                    "format",
-                    "createdByName",
-                    "createdBy",
-                    "updatedAt",
-                    "createdAt",
-                    "name",
-                    "schedulerUuid"
-                ],
-                "type": "object"
-            },
-            "ChartScheduler": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/SchedulerBase"
-                    },
-                    {
-                        "properties": {
-                            "savedSqlUuid": {
-                                "type": "number",
-                                "enum": [null],
-                                "nullable": true
-                            },
-                            "dashboardUuid": {
-                                "type": "number",
-                                "enum": [null],
-                                "nullable": true
-                            },
-                            "savedChartUuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "savedSqlUuid",
-                            "dashboardUuid",
-                            "savedChartUuid"
-                        ],
-                        "type": "object"
-                    }
-                ]
-            },
-            "DashboardScheduler": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/SchedulerBase"
-                    },
-                    {
-                        "properties": {
-                            "selectedTabs": {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array",
-                                "nullable": true
-                            },
-                            "customViewportWidth": {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            "parameters": {
-                                "$ref": "#/components/schemas/ParametersValuesMap"
-                            },
-                            "filters": {
-                                "items": {
-                                    "$ref": "#/components/schemas/DashboardFilterRule"
-                                },
-                                "type": "array"
-                            },
-                            "savedSqlUuid": {
-                                "type": "number",
-                                "enum": [null],
-                                "nullable": true
-                            },
-                            "dashboardUuid": {
-                                "type": "string"
-                            },
-                            "savedChartUuid": {
-                                "type": "number",
-                                "enum": [null],
-                                "nullable": true
-                            }
-                        },
-                        "required": [
-                            "selectedTabs",
-                            "savedSqlUuid",
-                            "dashboardUuid",
-                            "savedChartUuid"
-                        ],
-                        "type": "object"
-                    }
-                ]
-            },
-            "SqlChartScheduler": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/SchedulerBase"
-                    },
-                    {
-                        "properties": {
-                            "savedSqlUuid": {
-                                "type": "string"
-                            },
-                            "dashboardUuid": {
-                                "type": "number",
-                                "enum": [null],
-                                "nullable": true
-                            },
-                            "savedChartUuid": {
-                                "type": "number",
-                                "enum": [null],
-                                "nullable": true
-                            }
-                        },
-                        "required": [
-                            "savedSqlUuid",
-                            "dashboardUuid",
-                            "savedChartUuid"
-                        ],
-                        "type": "object"
-                    }
-                ]
-            },
-            "Scheduler": {
-                "anyOf": [
-                    {
-                        "$ref": "#/components/schemas/ChartScheduler"
-                    },
-                    {
-                        "$ref": "#/components/schemas/DashboardScheduler"
-                    },
-                    {
-                        "$ref": "#/components/schemas/SqlChartScheduler"
-                    }
-                ]
-            },
-            "SchedulerSlackTarget": {
-                "properties": {
-                    "channel": {
-                        "type": "string"
-                    },
-                    "schedulerUuid": {
-                        "type": "string"
-                    },
-                    "updatedAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "createdAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "schedulerSlackTargetUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "channel",
-                    "schedulerUuid",
-                    "updatedAt",
-                    "createdAt",
-                    "schedulerSlackTargetUuid"
-                ],
-                "type": "object"
-            },
-            "SchedulerEmailTarget": {
-                "properties": {
-                    "recipient": {
-                        "type": "string"
-                    },
-                    "schedulerUuid": {
-                        "type": "string"
-                    },
-                    "updatedAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "createdAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "schedulerEmailTargetUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "recipient",
-                    "schedulerUuid",
-                    "updatedAt",
-                    "createdAt",
-                    "schedulerEmailTargetUuid"
-                ],
-                "type": "object"
-            },
-            "SchedulerMsTeamsTarget": {
-                "properties": {
-                    "webhook": {
-                        "type": "string"
-                    },
-                    "schedulerUuid": {
-                        "type": "string"
-                    },
-                    "updatedAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "createdAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "schedulerMsTeamsTargetUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "webhook",
-                    "schedulerUuid",
-                    "updatedAt",
-                    "createdAt",
-                    "schedulerMsTeamsTargetUuid"
-                ],
-                "type": "object"
-            },
-            "SchedulerGoogleChatTarget": {
-                "properties": {
-                    "googleChatWebhook": {
-                        "type": "string"
-                    },
-                    "schedulerUuid": {
-                        "type": "string"
-                    },
-                    "updatedAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "createdAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "schedulerGoogleChatTargetUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "googleChatWebhook",
-                    "schedulerUuid",
-                    "updatedAt",
-                    "createdAt",
-                    "schedulerGoogleChatTargetUuid"
-                ],
-                "type": "object"
-            },
-            "SchedulerJobStatus": {
-                "enum": ["scheduled", "started", "completed", "error"],
-                "type": "string"
-            },
-            "SchedulerRunStatus": {
-                "enum": [
-                    "completed",
-                    "partial_failure",
-                    "failed",
-                    "running",
-                    "scheduled"
-                ],
-                "type": "string"
-            },
-            "Record_string.AnyType_": {
-                "properties": {},
-                "additionalProperties": {},
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
-            },
-            "LogCounts": {
-                "properties": {
-                    "error": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "completed": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "started": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "scheduled": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "total": {
-                        "type": "number",
-                        "format": "double"
-                    }
-                },
-                "required": [
-                    "error",
-                    "completed",
-                    "started",
-                    "scheduled",
-                    "total"
-                ],
-                "type": "object"
-            },
-            "SchedulerResourceType": {
-                "enum": ["chart", "dashboard", "sqlChart"],
-                "type": "string"
-            },
-            "SchedulerRun": {
-                "properties": {
-                    "format": {
-                        "$ref": "#/components/schemas/SchedulerFormat"
-                    },
-                    "createdByUserName": {
-                        "type": "string"
-                    },
-                    "createdByUserUuid": {
-                        "type": "string"
-                    },
-                    "resourceName": {
-                        "type": "string"
-                    },
-                    "resourceUuid": {
-                        "type": "string"
-                    },
-                    "resourceType": {
-                        "$ref": "#/components/schemas/SchedulerResourceType"
-                    },
-                    "logCounts": {
-                        "$ref": "#/components/schemas/LogCounts"
-                    },
-                    "details": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/Record_string.AnyType_"
-                            }
-                        ],
-                        "nullable": true
-                    },
-                    "createdAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "runStatus": {
-                        "$ref": "#/components/schemas/SchedulerRunStatus"
-                    },
-                    "status": {
-                        "$ref": "#/components/schemas/SchedulerJobStatus"
-                    },
-                    "scheduledTime": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "schedulerName": {
-                        "type": "string"
-                    },
-                    "schedulerUuid": {
-                        "type": "string"
-                    },
-                    "runId": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "format",
-                    "createdByUserName",
-                    "createdByUserUuid",
-                    "resourceName",
-                    "resourceUuid",
-                    "resourceType",
-                    "logCounts",
-                    "details",
-                    "createdAt",
-                    "runStatus",
-                    "status",
-                    "scheduledTime",
-                    "schedulerName",
-                    "schedulerUuid",
-                    "runId"
-                ],
-                "type": "object"
-            },
-            "SchedulerAndTargets": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/Scheduler"
-                    },
-                    {
-                        "properties": {
-                            "latestRun": {
-                                "allOf": [
-                                    {
-                                        "$ref": "#/components/schemas/SchedulerRun"
-                                    }
-                                ],
-                                "nullable": true
-                            },
-                            "targets": {
-                                "items": {
-                                    "anyOf": [
-                                        {
-                                            "$ref": "#/components/schemas/SchedulerSlackTarget"
-                                        },
-                                        {
-                                            "$ref": "#/components/schemas/SchedulerEmailTarget"
-                                        },
-                                        {
-                                            "$ref": "#/components/schemas/SchedulerMsTeamsTarget"
-                                        },
-                                        {
-                                            "$ref": "#/components/schemas/SchedulerGoogleChatTarget"
-                                        }
-                                    ]
-                                },
-                                "type": "array"
-                            }
-                        },
-                        "required": ["targets"],
-                        "type": "object"
-                    }
-                ]
-            },
-            "Pick_SchedulerSlackTarget.channel_": {
-                "properties": {
-                    "channel": {
-                        "type": "string"
-                    }
-                },
-                "required": ["channel"],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "Pick_SchedulerMsTeamsTarget.webhook_": {
-                "properties": {
-                    "webhook": {
-                        "type": "string"
-                    }
-                },
-                "required": ["webhook"],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "Pick_SchedulerGoogleChatTarget.googleChatWebhook_": {
-                "properties": {
-                    "googleChatWebhook": {
-                        "type": "string"
-                    }
-                },
-                "required": ["googleChatWebhook"],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "Pick_SchedulerEmailTarget.recipient_": {
-                "properties": {
-                    "recipient": {
-                        "type": "string"
-                    }
-                },
-                "required": ["recipient"],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "CreateSchedulerTarget": {
-                "anyOf": [
-                    {
-                        "$ref": "#/components/schemas/Pick_SchedulerSlackTarget.channel_"
-                    },
-                    {
-                        "$ref": "#/components/schemas/Pick_SchedulerMsTeamsTarget.webhook_"
-                    },
-                    {
-                        "$ref": "#/components/schemas/Pick_SchedulerGoogleChatTarget.googleChatWebhook_"
-                    },
-                    {
-                        "$ref": "#/components/schemas/Pick_SchedulerEmailTarget.recipient_"
-                    }
-                ]
-            },
-            "Pick_CreateSchedulerAndTargets.Exclude_keyofCreateSchedulerAndTargets.savedChartUuid-or-dashboardUuid-or-savedSqlUuid-or-createdBy__": {
-                "properties": {
-                    "name": {
-                        "type": "string"
-                    },
-                    "projectUuid": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "message": {
-                        "type": "string"
-                    },
-                    "format": {
-                        "$ref": "#/components/schemas/SchedulerFormat"
-                    },
-                    "cron": {
-                        "type": "string"
-                    },
-                    "timezone": {
-                        "type": "string"
-                    },
-                    "projectSchedulerTimezone": {
-                        "type": "string"
-                    },
-                    "options": {
-                        "$ref": "#/components/schemas/SchedulerOptions"
-                    },
-                    "thresholds": {
-                        "items": {
-                            "$ref": "#/components/schemas/ThresholdOptions"
-                        },
-                        "type": "array"
-                    },
-                    "enabled": {
-                        "type": "boolean"
-                    },
-                    "notificationFrequency": {
-                        "$ref": "#/components/schemas/NotificationFrequency"
-                    },
-                    "includeLinks": {
-                        "type": "boolean"
-                    },
-                    "projectName": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "targets": {
-                        "items": {
-                            "$ref": "#/components/schemas/CreateSchedulerTarget"
-                        },
-                        "type": "array"
-                    }
-                },
-                "required": [
-                    "name",
-                    "format",
-                    "cron",
-                    "options",
-                    "enabled",
-                    "includeLinks",
-                    "targets"
-                ],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "Omit_CreateSchedulerAndTargets.savedChartUuid-or-dashboardUuid-or-savedSqlUuid-or-createdBy_": {
-                "$ref": "#/components/schemas/Pick_CreateSchedulerAndTargets.Exclude_keyofCreateSchedulerAndTargets.savedChartUuid-or-dashboardUuid-or-savedSqlUuid-or-createdBy__",
-                "description": "Construct a type with the properties of T except for those in type K."
-            },
-            "CreateSchedulerAndTargetsWithoutIds": {
-                "$ref": "#/components/schemas/Omit_CreateSchedulerAndTargets.savedChartUuid-or-dashboardUuid-or-savedSqlUuid-or-createdBy_"
-            },
             "SpotlightTableColumns": {
                 "enum": [
                     "label",
@@ -16936,8 +16089,7 @@
                     "treemap",
                     "gauge",
                     "custom",
-                    "map",
-                    "sankey"
+                    "map"
                 ],
                 "type": "string"
             },
@@ -17137,6 +16289,14 @@
                     },
                     {
                         "properties": {
+                            "verification": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/ContentVerificationInfo"
+                                    }
+                                ],
+                                "nullable": true
+                            },
                             "validationErrors": {
                                 "items": {
                                     "$ref": "#/components/schemas/ValidationSummary"
@@ -17144,6 +16304,7 @@
                                 "type": "array"
                             }
                         },
+                        "required": ["verification"],
                         "type": "object"
                     }
                 ]
@@ -17269,6 +16430,9 @@
                     "inheritsFromOrgOrProject": {
                         "type": "boolean"
                     },
+                    "isPrivate": {
+                        "type": "boolean"
+                    },
                     "name": {
                         "type": "string"
                     },
@@ -17293,6 +16457,7 @@
                     "projectUuid",
                     "queries",
                     "inheritsFromOrgOrProject",
+                    "isPrivate",
                     "name",
                     "uuid",
                     "organizationUuid"
@@ -17443,6 +16608,9 @@
                     "inheritParentPermissions": {
                         "type": "boolean"
                     },
+                    "isPrivate": {
+                        "type": "boolean"
+                    },
                     "name": {
                         "type": "string"
                     }
@@ -17453,6 +16621,9 @@
             "UpdateSpace": {
                 "properties": {
                     "inheritParentPermissions": {
+                        "type": "boolean"
+                    },
+                    "isPrivate": {
                         "type": "boolean"
                     },
                     "name": {
@@ -17746,6 +16917,569 @@
             "CreateShareUrl": {
                 "$ref": "#/components/schemas/Pick_ShareUrl.path-or-params_",
                 "description": "Contains the detail of a full URL to generate a short URL id"
+            },
+            "SchedulerFormat": {
+                "enum": ["csv", "xlsx", "image", "gsheets"],
+                "type": "string"
+            },
+            "SchedulerCsvOptions": {
+                "properties": {
+                    "asAttachment": {
+                        "type": "boolean"
+                    },
+                    "limit": {
+                        "anyOf": [
+                            {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            {
+                                "type": "string",
+                                "enum": ["table", "all"]
+                            }
+                        ]
+                    },
+                    "formatted": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["limit", "formatted"],
+                "type": "object"
+            },
+            "SchedulerImageOptions": {
+                "properties": {
+                    "withPdf": {
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
+            "SchedulerGsheetsOptions": {
+                "properties": {
+                    "tabName": {
+                        "type": "string"
+                    },
+                    "url": {
+                        "type": "string"
+                    },
+                    "gdriveOrganizationName": {
+                        "type": "string"
+                    },
+                    "gdriveName": {
+                        "type": "string"
+                    },
+                    "gdriveId": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "url",
+                    "gdriveOrganizationName",
+                    "gdriveName",
+                    "gdriveId"
+                ],
+                "type": "object"
+            },
+            "SchedulerOptions": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/SchedulerCsvOptions"
+                    },
+                    {
+                        "$ref": "#/components/schemas/SchedulerImageOptions"
+                    },
+                    {
+                        "$ref": "#/components/schemas/SchedulerGsheetsOptions"
+                    }
+                ]
+            },
+            "ThresholdOperator": {
+                "enum": [
+                    "greaterThan",
+                    "lessThan",
+                    "increasedBy",
+                    "decreasedBy"
+                ],
+                "type": "string"
+            },
+            "ThresholdOptions": {
+                "properties": {
+                    "value": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "fieldId": {
+                        "type": "string"
+                    },
+                    "operator": {
+                        "$ref": "#/components/schemas/ThresholdOperator"
+                    }
+                },
+                "required": ["value", "fieldId", "operator"],
+                "type": "object"
+            },
+            "NotificationFrequency": {
+                "enum": ["always", "once"],
+                "type": "string"
+            },
+            "SchedulerBase": {
+                "properties": {
+                    "projectName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "projectUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "includeLinks": {
+                        "type": "boolean"
+                    },
+                    "notificationFrequency": {
+                        "$ref": "#/components/schemas/NotificationFrequency"
+                    },
+                    "enabled": {
+                        "type": "boolean"
+                    },
+                    "thresholds": {
+                        "items": {
+                            "$ref": "#/components/schemas/ThresholdOptions"
+                        },
+                        "type": "array"
+                    },
+                    "options": {
+                        "$ref": "#/components/schemas/SchedulerOptions"
+                    },
+                    "dashboardName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "dashboardUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "savedChartName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "savedChartUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "projectSchedulerTimezone": {
+                        "type": "string"
+                    },
+                    "timezone": {
+                        "type": "string"
+                    },
+                    "cron": {
+                        "type": "string"
+                    },
+                    "format": {
+                        "$ref": "#/components/schemas/SchedulerFormat"
+                    },
+                    "createdByName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "createdBy": {
+                        "type": "string"
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "message": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "schedulerUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "includeLinks",
+                    "enabled",
+                    "options",
+                    "dashboardName",
+                    "dashboardUuid",
+                    "savedChartName",
+                    "savedChartUuid",
+                    "cron",
+                    "format",
+                    "createdByName",
+                    "createdBy",
+                    "updatedAt",
+                    "createdAt",
+                    "name",
+                    "schedulerUuid"
+                ],
+                "type": "object"
+            },
+            "ChartScheduler": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/SchedulerBase"
+                    },
+                    {
+                        "properties": {
+                            "dashboardUuid": {
+                                "type": "number",
+                                "enum": [null],
+                                "nullable": true
+                            },
+                            "savedChartUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["dashboardUuid", "savedChartUuid"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "DashboardScheduler": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/SchedulerBase"
+                    },
+                    {
+                        "properties": {
+                            "selectedTabs": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array",
+                                "nullable": true
+                            },
+                            "customViewportWidth": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "parameters": {
+                                "$ref": "#/components/schemas/ParametersValuesMap"
+                            },
+                            "filters": {
+                                "items": {
+                                    "$ref": "#/components/schemas/DashboardFilterRule"
+                                },
+                                "type": "array"
+                            },
+                            "dashboardUuid": {
+                                "type": "string"
+                            },
+                            "savedChartUuid": {
+                                "type": "number",
+                                "enum": [null],
+                                "nullable": true
+                            }
+                        },
+                        "required": [
+                            "selectedTabs",
+                            "dashboardUuid",
+                            "savedChartUuid"
+                        ],
+                        "type": "object"
+                    }
+                ]
+            },
+            "Scheduler": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/ChartScheduler"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DashboardScheduler"
+                    }
+                ]
+            },
+            "SchedulerSlackTarget": {
+                "properties": {
+                    "channel": {
+                        "type": "string"
+                    },
+                    "schedulerUuid": {
+                        "type": "string"
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "schedulerSlackTargetUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "channel",
+                    "schedulerUuid",
+                    "updatedAt",
+                    "createdAt",
+                    "schedulerSlackTargetUuid"
+                ],
+                "type": "object"
+            },
+            "SchedulerEmailTarget": {
+                "properties": {
+                    "recipient": {
+                        "type": "string"
+                    },
+                    "schedulerUuid": {
+                        "type": "string"
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "schedulerEmailTargetUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "recipient",
+                    "schedulerUuid",
+                    "updatedAt",
+                    "createdAt",
+                    "schedulerEmailTargetUuid"
+                ],
+                "type": "object"
+            },
+            "SchedulerMsTeamsTarget": {
+                "properties": {
+                    "webhook": {
+                        "type": "string"
+                    },
+                    "schedulerUuid": {
+                        "type": "string"
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "schedulerMsTeamsTargetUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "webhook",
+                    "schedulerUuid",
+                    "updatedAt",
+                    "createdAt",
+                    "schedulerMsTeamsTargetUuid"
+                ],
+                "type": "object"
+            },
+            "SchedulerGoogleChatTarget": {
+                "properties": {
+                    "googleChatWebhook": {
+                        "type": "string"
+                    },
+                    "schedulerUuid": {
+                        "type": "string"
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "schedulerGoogleChatTargetUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "googleChatWebhook",
+                    "schedulerUuid",
+                    "updatedAt",
+                    "createdAt",
+                    "schedulerGoogleChatTargetUuid"
+                ],
+                "type": "object"
+            },
+            "SchedulerJobStatus": {
+                "enum": ["scheduled", "started", "completed", "error"],
+                "type": "string"
+            },
+            "SchedulerRunStatus": {
+                "enum": [
+                    "completed",
+                    "partial_failure",
+                    "failed",
+                    "running",
+                    "scheduled"
+                ],
+                "type": "string"
+            },
+            "Record_string.AnyType_": {
+                "properties": {},
+                "additionalProperties": {},
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "LogCounts": {
+                "properties": {
+                    "error": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "completed": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "started": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "scheduled": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "total": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": [
+                    "error",
+                    "completed",
+                    "started",
+                    "scheduled",
+                    "total"
+                ],
+                "type": "object"
+            },
+            "SchedulerRun": {
+                "properties": {
+                    "format": {
+                        "$ref": "#/components/schemas/SchedulerFormat"
+                    },
+                    "createdByUserName": {
+                        "type": "string"
+                    },
+                    "createdByUserUuid": {
+                        "type": "string"
+                    },
+                    "resourceName": {
+                        "type": "string"
+                    },
+                    "resourceUuid": {
+                        "type": "string"
+                    },
+                    "resourceType": {
+                        "type": "string",
+                        "enum": ["chart", "dashboard"]
+                    },
+                    "logCounts": {
+                        "$ref": "#/components/schemas/LogCounts"
+                    },
+                    "details": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Record_string.AnyType_"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "runStatus": {
+                        "$ref": "#/components/schemas/SchedulerRunStatus"
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/SchedulerJobStatus"
+                    },
+                    "scheduledTime": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "schedulerName": {
+                        "type": "string"
+                    },
+                    "schedulerUuid": {
+                        "type": "string"
+                    },
+                    "runId": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "format",
+                    "createdByUserName",
+                    "createdByUserUuid",
+                    "resourceName",
+                    "resourceUuid",
+                    "resourceType",
+                    "logCounts",
+                    "details",
+                    "createdAt",
+                    "runStatus",
+                    "status",
+                    "scheduledTime",
+                    "schedulerName",
+                    "schedulerUuid",
+                    "runId"
+                ],
+                "type": "object"
+            },
+            "SchedulerAndTargets": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Scheduler"
+                    },
+                    {
+                        "properties": {
+                            "latestRun": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/SchedulerRun"
+                                    }
+                                ],
+                                "nullable": true
+                            },
+                            "targets": {
+                                "items": {
+                                    "anyOf": [
+                                        {
+                                            "$ref": "#/components/schemas/SchedulerSlackTarget"
+                                        },
+                                        {
+                                            "$ref": "#/components/schemas/SchedulerEmailTarget"
+                                        },
+                                        {
+                                            "$ref": "#/components/schemas/SchedulerMsTeamsTarget"
+                                        },
+                                        {
+                                            "$ref": "#/components/schemas/SchedulerGoogleChatTarget"
+                                        }
+                                    ]
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["targets"],
+                        "type": "object"
+                    }
+                ]
             },
             "SchedulerTaskName": {
                 "type": "string",
@@ -18188,7 +17922,8 @@
                         "type": "string"
                     },
                     "resourceType": {
-                        "$ref": "#/components/schemas/SchedulerResourceType"
+                        "type": "string",
+                        "enum": ["chart", "dashboard"]
                     },
                     "logs": {
                         "items": {
@@ -18730,43 +18465,6 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "ApiRenameDashboardResponse": {
-                "properties": {
-                    "results": {
-                        "properties": {
-                            "jobId": {
-                                "type": "string"
-                            }
-                        },
-                        "type": "object"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "ApiRenameDashboardBody": {
-                "properties": {
-                    "fixAll": {
-                        "type": "boolean"
-                    },
-                    "type": {
-                        "$ref": "#/components/schemas/RenameType"
-                    },
-                    "to": {
-                        "type": "string"
-                    },
-                    "from": {
-                        "type": "string"
-                    }
-                },
-                "required": ["type", "to", "from"],
-                "type": "object"
-            },
             "DbtProjectType.DBT": {
                 "enum": ["dbt"],
                 "type": "string"
@@ -19186,10 +18884,6 @@
                         "type": "string",
                         "nullable": true
                     },
-                    "queryTimezone": {
-                        "type": "string",
-                        "nullable": true
-                    },
                     "schedulerTimezone": {
                         "type": "string"
                     },
@@ -19224,7 +18918,6 @@
                 "required": [
                     "hasDefaultUserSpaces",
                     "createdByUserUuid",
-                    "queryTimezone",
                     "schedulerTimezone",
                     "dbtVersion",
                     "dbtConnection",
@@ -19298,12 +18991,9 @@
                             },
                             "userAccess": {
                                 "$ref": "#/components/schemas/SpaceAccess"
-                            },
-                            "inheritsFromOrgOrProject": {
-                                "type": "boolean"
                             }
                         },
-                        "required": ["access", "inheritsFromOrgOrProject"],
+                        "required": ["access"],
                         "type": "object"
                     }
                 ]
@@ -19628,8 +19318,7 @@
             "CreateDashboardTileBase": {
                 "properties": {
                     "tabUuid": {
-                        "type": "string",
-                        "nullable": true
+                        "type": "string"
                     },
                     "w": {
                         "type": "number",
@@ -19990,16 +19679,6 @@
                 "required": ["schedulerTimezone"],
                 "type": "object"
             },
-            "UpdateQueryTimezoneSettings": {
-                "properties": {
-                    "queryTimezone": {
-                        "type": "string",
-                        "nullable": true
-                    }
-                },
-                "required": ["queryTimezone"],
-                "type": "object"
-            },
             "ApiCreateTagResponse": {
                 "properties": {
                     "results": {
@@ -20167,10 +19846,6 @@
                         "format": "double",
                         "description": "Maximum number of rows to return"
                     },
-                    "timezone": {
-                        "type": "string",
-                        "description": "Timezone for date/time values (e.g., 'America/Los_Angeles', 'UTC')"
-                    },
                     "exploreName": {
                         "type": "string",
                         "description": "The name of the explore to query"
@@ -20224,6 +19899,10 @@
                     "dimensionOverrides": {
                         "$ref": "#/components/schemas/DimensionOverrides",
                         "description": "Override formatting options for existing dimensions"
+                    },
+                    "timezone": {
+                        "type": "string",
+                        "description": "Timezone for date/time values (e.g., 'America/Los_Angeles', 'UTC')"
                     },
                     "pivotDimensions": {
                         "items": {
@@ -20372,10 +20051,6 @@
                 },
                 "type": "object"
             },
-            "ContentAsCodeType.CHART": {
-                "enum": ["chart"],
-                "type": "string"
-            },
             "ChartAsCode": {
                 "allOf": [
                     {
@@ -20391,10 +20066,6 @@
                             "spaceSlug": {
                                 "type": "string",
                                 "description": "Slug of the space containing this chart"
-                            },
-                            "contentType": {
-                                "$ref": "#/components/schemas/ContentAsCodeType.CHART",
-                                "description": "Content type discriminator"
                             },
                             "version": {
                                 "type": "number",
@@ -20506,7 +20177,7 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_Dashboard.name-or-description-or-tabs-or-slug-or-config_": {
+            "Pick_Dashboard.name-or-description-or-tabs-or-slug_": {
                 "properties": {
                     "description": {
                         "type": "string"
@@ -20522,9 +20193,6 @@
                             "$ref": "#/components/schemas/DashboardTab"
                         },
                         "type": "array"
-                    },
-                    "config": {
-                        "$ref": "#/components/schemas/DashboardConfig"
                     }
                 },
                 "required": ["name", "slug", "tabs"],
@@ -20553,8 +20221,7 @@
                         "format": "double"
                     },
                     "tabUuid": {
-                        "type": "string",
-                        "nullable": true
+                        "type": "string"
                     }
                 },
                 "required": ["type", "x", "y", "h", "w"],
@@ -20653,10 +20320,6 @@
                     }
                 ]
             },
-            "ContentAsCodeType.DASHBOARD": {
-                "enum": ["dashboard"],
-                "type": "string"
-            },
             "Pick_DashboardFilterRule.Exclude_keyofDashboardFilterRule.id__": {
                 "properties": {
                     "label": {
@@ -20704,7 +20367,7 @@
             "DashboardAsCode": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/Pick_Dashboard.name-or-description-or-tabs-or-slug-or-config_"
+                        "$ref": "#/components/schemas/Pick_Dashboard.name-or-description-or-tabs-or-slug_"
                     },
                     {
                         "properties": {
@@ -20737,9 +20400,6 @@
                             },
                             "spaceSlug": {
                                 "type": "string"
-                            },
-                            "contentType": {
-                                "$ref": "#/components/schemas/ContentAsCodeType.DASHBOARD"
                             },
                             "version": {
                                 "type": "number",
@@ -20916,10 +20576,6 @@
                         "type": "string",
                         "description": "Slug of the dashboard this chart belongs to (if any)"
                     },
-                    "contentType": {
-                        "$ref": "#/components/schemas/ContentAsCodeType.CHART",
-                        "description": "Content type discriminator"
-                    },
                     "spaceSlug": {
                         "type": "string",
                         "description": "Slug of the space containing this chart"
@@ -21000,10 +20656,6 @@
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
-            "ContentAsCodeType.SQL_CHART": {
-                "enum": ["sql_chart"],
-                "type": "string"
-            },
             "SqlChartAsCode": {
                 "allOf": [
                     {
@@ -21021,9 +20673,6 @@
                             },
                             "spaceSlug": {
                                 "type": "string"
-                            },
-                            "contentType": {
-                                "$ref": "#/components/schemas/ContentAsCodeType.SQL_CHART"
                             },
                             "version": {
                                 "type": "number",
@@ -21110,9 +20759,6 @@
                     },
                     "slug": {
                         "type": "string"
-                    },
-                    "contentType": {
-                        "$ref": "#/components/schemas/ContentAsCodeType.SQL_CHART"
                     },
                     "spaceSlug": {
                         "type": "string"
@@ -21204,12 +20850,6 @@
                         },
                         "type": "array"
                     },
-                    "config": {
-                        "$ref": "#/components/schemas/DashboardConfig"
-                    },
-                    "contentType": {
-                        "$ref": "#/components/schemas/ContentAsCodeType.DASHBOARD"
-                    },
                     "spaceSlug": {
                         "type": "string"
                     },
@@ -21262,6 +20902,79 @@
                         },
                         "required": ["jobIds"],
                         "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ContentType": {
+                "enum": ["chart", "dashboard", "space"],
+                "type": "string"
+            },
+            "VerifiedContentListItem": {
+                "properties": {
+                    "verifiedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "verifiedBy": {
+                        "properties": {
+                            "lastName": {
+                                "type": "string"
+                            },
+                            "firstName": {
+                                "type": "string"
+                            },
+                            "userUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["lastName", "firstName", "userUuid"],
+                        "type": "object"
+                    },
+                    "spaceName": {
+                        "type": "string"
+                    },
+                    "spaceUuid": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "contentUuid": {
+                        "type": "string"
+                    },
+                    "contentType": {
+                        "$ref": "#/components/schemas/ContentType"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "verifiedAt",
+                    "verifiedBy",
+                    "spaceName",
+                    "spaceUuid",
+                    "name",
+                    "contentUuid",
+                    "contentType",
+                    "uuid"
+                ],
+                "type": "object"
+            },
+            "ApiVerifiedContentListResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/VerifiedContentListItem"
+                        },
+                        "type": "array"
                     },
                     "status": {
                         "type": "string",
@@ -21614,7 +21327,7 @@
                 "enum": ["dashboard"],
                 "type": "string"
             },
-            "Pick_DashboardBasicDetails.uuid-or-spaceUuid-or-description-or-name-or-views-or-firstViewedAt-or-pinnedListUuid-or-pinnedListOrder-or-updatedAt-or-updatedByUser-or-validationErrors_": {
+            "Pick_DashboardBasicDetails.uuid-or-spaceUuid-or-description-or-name-or-views-or-firstViewedAt-or-pinnedListUuid-or-pinnedListOrder-or-updatedAt-or-updatedByUser-or-validationErrors-or-verification_": {
                 "properties": {
                     "description": {
                         "type": "string"
@@ -21639,6 +21352,14 @@
                     "pinnedListOrder": {
                         "type": "number",
                         "format": "double",
+                        "nullable": true
+                    },
+                    "verification": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ContentVerificationInfo"
+                            }
+                        ],
                         "nullable": true
                     },
                     "updatedByUser": {
@@ -21674,6 +21395,7 @@
                     "spaceUuid",
                     "pinnedListUuid",
                     "pinnedListOrder",
+                    "verification",
                     "views",
                     "firstViewedAt"
                 ],
@@ -21685,7 +21407,8 @@
                     "mostPopular",
                     "recentlyUpdated",
                     "pinned",
-                    "favorites"
+                    "favorites",
+                    "verified"
                 ],
                 "type": "string"
             },
@@ -21695,7 +21418,7 @@
                         "$ref": "#/components/schemas/ResourceItemCategory"
                     },
                     "data": {
-                        "$ref": "#/components/schemas/Pick_DashboardBasicDetails.uuid-or-spaceUuid-or-description-or-name-or-views-or-firstViewedAt-or-pinnedListUuid-or-pinnedListOrder-or-updatedAt-or-updatedByUser-or-validationErrors_"
+                        "$ref": "#/components/schemas/Pick_DashboardBasicDetails.uuid-or-spaceUuid-or-description-or-name-or-views-or-firstViewedAt-or-pinnedListUuid-or-pinnedListOrder-or-updatedAt-or-updatedByUser-or-validationErrors-or-verification_"
                     },
                     "type": {
                         "$ref": "#/components/schemas/ResourceViewItemType.DASHBOARD"
@@ -21708,7 +21431,7 @@
                 "enum": ["chart"],
                 "type": "string"
             },
-            "Pick_SpaceQuery.uuid-or-name-or-chartType-or-chartKind-or-firstViewedAt-or-views-or-pinnedListUuid-or-pinnedListOrder-or-spaceUuid-or-description-or-updatedAt-or-updatedByUser-or-validationErrors-or-slug_": {
+            "Pick_SpaceQuery.uuid-or-name-or-chartType-or-chartKind-or-firstViewedAt-or-views-or-pinnedListUuid-or-pinnedListOrder-or-spaceUuid-or-description-or-updatedAt-or-updatedByUser-or-validationErrors-or-verification-or-slug_": {
                 "properties": {
                     "description": {
                         "type": "string",
@@ -21741,6 +21464,14 @@
                     "slug": {
                         "type": "string",
                         "description": "Unique identifier slug for this chart"
+                    },
+                    "verification": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ContentVerificationInfo"
+                            }
+                        ],
+                        "nullable": true
                     },
                     "updatedByUser": {
                         "$ref": "#/components/schemas/UpdatedByUser"
@@ -21782,6 +21513,7 @@
                     "pinnedListUuid",
                     "pinnedListOrder",
                     "slug",
+                    "verification",
                     "views",
                     "firstViewedAt"
                 ],
@@ -21796,7 +21528,7 @@
                     "data": {
                         "allOf": [
                             {
-                                "$ref": "#/components/schemas/Pick_SpaceQuery.uuid-or-name-or-chartType-or-chartKind-or-firstViewedAt-or-views-or-pinnedListUuid-or-pinnedListOrder-or-spaceUuid-or-description-or-updatedAt-or-updatedByUser-or-validationErrors-or-slug_"
+                                "$ref": "#/components/schemas/Pick_SpaceQuery.uuid-or-name-or-chartType-or-chartKind-or-firstViewedAt-or-views-or-pinnedListUuid-or-pinnedListOrder-or-spaceUuid-or-description-or-updatedAt-or-updatedByUser-or-validationErrors-or-verification-or-slug_"
                             },
                             {
                                 "properties": {
@@ -21819,7 +21551,7 @@
                 "enum": ["space"],
                 "type": "string"
             },
-            "Pick_Space.projectUuid-or-uuid-or-name-or-pinnedListUuid-or-pinnedListOrder-or-organizationUuid-or-parentSpaceUuid-or-path-or-inheritParentPermissions_": {
+            "Pick_Space.projectUuid-or-uuid-or-name-or-isPrivate-or-pinnedListUuid-or-pinnedListOrder-or-organizationUuid-or-parentSpaceUuid-or-path-or-inheritParentPermissions_": {
                 "properties": {
                     "name": {
                         "type": "string"
@@ -21832,6 +21564,9 @@
                     },
                     "uuid": {
                         "type": "string"
+                    },
+                    "isPrivate": {
+                        "type": "boolean"
                     },
                     "inheritParentPermissions": {
                         "type": "boolean"
@@ -21858,6 +21593,7 @@
                     "projectUuid",
                     "organizationUuid",
                     "uuid",
+                    "isPrivate",
                     "inheritParentPermissions",
                     "pinnedListUuid",
                     "pinnedListOrder",
@@ -21872,7 +21608,7 @@
                     "data": {
                         "allOf": [
                             {
-                                "$ref": "#/components/schemas/Pick_Space.projectUuid-or-uuid-or-name-or-pinnedListUuid-or-pinnedListOrder-or-organizationUuid-or-parentSpaceUuid-or-path-or-inheritParentPermissions_"
+                                "$ref": "#/components/schemas/Pick_Space.projectUuid-or-uuid-or-name-or-isPrivate-or-pinnedListUuid-or-pinnedListOrder-or-organizationUuid-or-parentSpaceUuid-or-path-or-inheritParentPermissions_"
                             },
                             {
                                 "properties": {
@@ -22962,44 +22698,6 @@
                     }
                 ]
             },
-            "ImpersonationOrganizationSettings": {
-                "properties": {
-                    "impersonationEnabled": {
-                        "type": "boolean"
-                    },
-                    "organizationUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": ["impersonationEnabled", "organizationUuid"],
-                "type": "object"
-            },
-            "ApiSuccess_ImpersonationOrganizationSettings_": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/ImpersonationOrganizationSettings"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "ApiImpersonationOrganizationSettingsResponse": {
-                "$ref": "#/components/schemas/ApiSuccess_ImpersonationOrganizationSettings_"
-            },
-            "UpdateImpersonationOrganizationSettings": {
-                "properties": {
-                    "impersonationEnabled": {
-                        "type": "boolean"
-                    }
-                },
-                "required": ["impersonationEnabled"],
-                "type": "object"
-            },
             "NotificationBase": {
                 "properties": {
                     "url": {
@@ -23946,10 +23644,6 @@
                 },
                 "required": ["results", "status"],
                 "type": "object"
-            },
-            "ContentType": {
-                "enum": ["chart", "dashboard", "space"],
-                "type": "string"
             },
             "ToggleFavoriteResponse": {
                 "properties": {
@@ -26212,24 +25906,12 @@
                 "enum": ["pending"],
                 "type": "string"
             },
-            "QueryHistoryStatus.QUEUED": {
-                "enum": ["queued"],
-                "type": "string"
-            },
-            "QueryHistoryStatus.EXECUTING": {
-                "enum": ["executing"],
-                "type": "string"
-            },
             "QueryHistoryStatus.CANCELLED": {
                 "enum": ["cancelled"],
                 "type": "string"
             },
             "QueryHistoryStatus.ERROR": {
                 "enum": ["error"],
-                "type": "string"
-            },
-            "QueryHistoryStatus.EXPIRED": {
-                "enum": ["expired"],
                 "type": "string"
             },
             "ApiGetAsyncQueryResults": {
@@ -26246,12 +25928,6 @@
                                 "anyOf": [
                                     {
                                         "$ref": "#/components/schemas/QueryHistoryStatus.PENDING"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/QueryHistoryStatus.QUEUED"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/QueryHistoryStatus.EXECUTING"
                                     },
                                     {
                                         "$ref": "#/components/schemas/QueryHistoryStatus.CANCELLED"
@@ -26272,14 +25948,7 @@
                                 "type": "string"
                             },
                             "status": {
-                                "anyOf": [
-                                    {
-                                        "$ref": "#/components/schemas/QueryHistoryStatus.ERROR"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/QueryHistoryStatus.EXPIRED"
-                                    }
-                                ]
+                                "$ref": "#/components/schemas/QueryHistoryStatus.ERROR"
                             }
                         },
                         "required": ["error", "queryUuid", "status"],
@@ -26332,7 +26001,6 @@
                     "gsheets",
                     "scheduledGsheetsChart",
                     "scheduledGsheetsDashboard",
-                    "scheduledGsheetsSqlChart",
                     "scheduledChart",
                     "scheduledDashboard",
                     "calculateTotal",
@@ -26378,9 +26046,6 @@
                         },
                         "type": "object"
                     },
-                    "timezone": {
-                        "type": "string"
-                    },
                     "exploreName": {
                         "type": "string"
                     },
@@ -26425,6 +26090,9 @@
                     },
                     "dimensionOverrides": {
                         "$ref": "#/components/schemas/DimensionOverrides"
+                    },
+                    "timezone": {
+                        "type": "string"
                     },
                     "pivotDimensions": {
                         "items": {
@@ -26916,20 +26584,6 @@
                 "$ref": "#/components/schemas/Pick_DownloadAsyncQueryResultsRequestParams.Exclude_keyofDownloadAsyncQueryResultsRequestParams.queryUuid__",
                 "description": "Construct a type with the properties of T except for those in type K."
             },
-            "ApiSavedChartResponse": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/SavedChart"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
             "ApiSuccess_ProjectDefaults-or-undefined_": {
                 "properties": {
                     "results": {
@@ -26955,109 +26609,6 @@
                 },
                 "required": ["status"],
                 "type": "object"
-            },
-            "ApiDashboardResponse": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/Dashboard"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "Pick_CreateDashboard.name-or-description-or-spaceUuid_": {
-                "properties": {
-                    "description": {
-                        "type": "string"
-                    },
-                    "name": {
-                        "type": "string"
-                    },
-                    "spaceUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": ["name"],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "DashboardUnversionedFields": {
-                "$ref": "#/components/schemas/Pick_CreateDashboard.name-or-description-or-spaceUuid_"
-            },
-            "Pick_CreateDashboard.tiles-or-filters-or-parameters-or-updatedByUser-or-tabs-or-config_": {
-                "properties": {
-                    "parameters": {
-                        "$ref": "#/components/schemas/DashboardParameters"
-                    },
-                    "tiles": {
-                        "items": {
-                            "anyOf": [
-                                {
-                                    "$ref": "#/components/schemas/CreateDashboardChartTile"
-                                },
-                                {
-                                    "$ref": "#/components/schemas/CreateDashboardMarkdownTile"
-                                },
-                                {
-                                    "$ref": "#/components/schemas/CreateDashboardLoomTile"
-                                },
-                                {
-                                    "$ref": "#/components/schemas/CreateDashboardSqlChartTile"
-                                },
-                                {
-                                    "$ref": "#/components/schemas/CreateDashboardHeadingTile"
-                                }
-                            ]
-                        },
-                        "type": "array"
-                    },
-                    "filters": {
-                        "$ref": "#/components/schemas/DashboardFilters"
-                    },
-                    "updatedByUser": {
-                        "$ref": "#/components/schemas/Pick_UpdatedByUser.userUuid_"
-                    },
-                    "tabs": {
-                        "items": {
-                            "$ref": "#/components/schemas/DashboardTab"
-                        },
-                        "type": "array"
-                    },
-                    "config": {
-                        "$ref": "#/components/schemas/DashboardConfig"
-                    }
-                },
-                "required": ["tiles", "tabs"],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "DashboardVersionedFields": {
-                "$ref": "#/components/schemas/Pick_CreateDashboard.tiles-or-filters-or-parameters-or-updatedByUser-or-tabs-or-config_"
-            },
-            "UpdateDashboard": {
-                "anyOf": [
-                    {
-                        "$ref": "#/components/schemas/DashboardUnversionedFields"
-                    },
-                    {
-                        "$ref": "#/components/schemas/DashboardVersionedFields"
-                    },
-                    {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/DashboardUnversionedFields"
-                            },
-                            {
-                                "$ref": "#/components/schemas/DashboardVersionedFields"
-                            }
-                        ]
-                    }
-                ]
             },
             "PreAggregateDailyStatResult": {
                 "properties": {
@@ -27178,28 +26729,6 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "PreAggregateMaterializationWarning": {
-                "properties": {
-                    "threshold": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "rowCount": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "message": {
-                        "type": "string"
-                    },
-                    "type": {
-                        "type": "string",
-                        "enum": ["row_count_exceeded"],
-                        "nullable": false
-                    }
-                },
-                "required": ["threshold", "rowCount", "message", "type"],
-                "type": "object"
-            },
             "PreAggregateMaterializationStatus": {
                 "type": "string",
                 "enum": ["in_progress", "active", "superseded", "failed"]
@@ -27219,11 +26748,6 @@
                                 "type": "string",
                                 "nullable": true
                             },
-                            "totalBytes": {
-                                "type": "number",
-                                "format": "double",
-                                "nullable": true
-                            },
                             "columns": {
                                 "allOf": [
                                     {
@@ -27233,11 +26757,6 @@
                                 "nullable": true
                             },
                             "rowCount": {
-                                "type": "number",
-                                "format": "double",
-                                "nullable": true
-                            },
-                            "durationMs": {
                                 "type": "number",
                                 "format": "double",
                                 "nullable": true
@@ -27257,22 +26776,14 @@
                         "required": [
                             "trigger",
                             "errorMessage",
-                            "totalBytes",
                             "columns",
                             "rowCount",
-                            "durationMs",
                             "materializedAt",
                             "status",
                             "materializationUuid"
                         ],
                         "type": "object",
                         "nullable": true
-                    },
-                    "warnings": {
-                        "items": {
-                            "$ref": "#/components/schemas/PreAggregateMaterializationWarning"
-                        },
-                        "type": "array"
                     },
                     "definitionError": {
                         "type": "string",
@@ -27321,7 +26832,6 @@
                 },
                 "required": [
                     "materialization",
-                    "warnings",
                     "definitionError",
                     "refreshCron",
                     "granularity",
@@ -27697,6 +27207,14 @@
                         "format": "date-time",
                         "nullable": true
                     },
+                    "verification": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ContentVerificationInfo"
+                            }
+                        ],
+                        "nullable": true
+                    },
                     "source": {
                         "$ref": "#/components/schemas/ChartSourceType"
                     },
@@ -27733,6 +27251,7 @@
                     "pinnedList",
                     "views",
                     "firstViewedAt",
+                    "verification",
                     "source",
                     "chartKind",
                     "dashboard"
@@ -27857,6 +27376,14 @@
                         "type": "string",
                         "format": "date-time",
                         "nullable": true
+                    },
+                    "verification": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ContentVerificationInfo"
+                            }
+                        ],
+                        "nullable": true
                     }
                 },
                 "required": [
@@ -27874,7 +27401,8 @@
                     "space",
                     "pinnedList",
                     "views",
-                    "firstViewedAt"
+                    "firstViewedAt",
+                    "verification"
                 ],
                 "type": "object",
                 "additionalProperties": true
@@ -28001,6 +27529,17 @@
                         "format": "date-time",
                         "nullable": true
                     },
+                    "verification": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ContentVerificationInfo"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "isPrivate": {
+                        "type": "boolean"
+                    },
                     "inheritParentPermissions": {
                         "type": "boolean"
                     },
@@ -28046,6 +27585,8 @@
                     "pinnedList",
                     "views",
                     "firstViewedAt",
+                    "verification",
+                    "isPrivate",
                     "inheritParentPermissions",
                     "dashboardCount",
                     "chartCount",
@@ -28632,57 +28173,6 @@
                 },
                 "required": ["item"],
                 "type": "object"
-            },
-            "KnexPaginatedData_CatalogField-Array_": {
-                "properties": {
-                    "pagination": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/KnexPaginateArgs"
-                            },
-                            {
-                                "properties": {
-                                    "totalResults": {
-                                        "type": "number",
-                                        "format": "double"
-                                    },
-                                    "totalPageCount": {
-                                        "type": "number",
-                                        "format": "double"
-                                    }
-                                },
-                                "required": ["totalResults", "totalPageCount"],
-                                "type": "object"
-                            }
-                        ]
-                    },
-                    "data": {
-                        "items": {
-                            "$ref": "#/components/schemas/CatalogField"
-                        },
-                        "type": "array"
-                    }
-                },
-                "required": ["data"],
-                "type": "object"
-            },
-            "ApiPaginatedMetricsWithTimeDimensionResponse": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/KnexPaginatedData_CatalogField-Array_"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "CatalogSortField": {
-                "type": "string",
-                "enum": ["name", "label", "chartUsage", "tableLabel", "owner"]
             }
         },
         "securitySchemes": {
@@ -28701,7 +28191,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2649.0",
+        "version": "0.2582.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -33316,137 +32806,6 @@
                 }
             }
         },
-        "/api/v1/projects/{projectUuid}/sqlRunner/saved/{savedSqlUuid}/schedulers": {
-            "get": {
-                "operationId": "getSqlChartSchedulers",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "results": {
-                                            "items": {
-                                                "$ref": "#/components/schemas/SchedulerAndTargets"
-                                            },
-                                            "type": "array"
-                                        },
-                                        "status": {
-                                            "type": "string",
-                                            "enum": ["ok"],
-                                            "nullable": false
-                                        }
-                                    },
-                                    "required": ["results", "status"],
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Get all schedulers for a SQL chart",
-                "summary": "List SQL chart schedulers",
-                "tags": ["SQL runner"],
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "in": "path",
-                        "name": "savedSqlUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ]
-            },
-            "post": {
-                "operationId": "createSqlChartScheduler",
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "results": {
-                                            "$ref": "#/components/schemas/SchedulerAndTargets"
-                                        },
-                                        "status": {
-                                            "type": "string",
-                                            "enum": ["ok"],
-                                            "nullable": false
-                                        }
-                                    },
-                                    "required": ["results", "status"],
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Create a scheduler for a SQL chart",
-                "summary": "Create SQL chart scheduler",
-                "tags": ["SQL runner"],
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "in": "path",
-                        "name": "savedSqlUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/CreateSchedulerAndTargetsWithoutIds"
-                            }
-                        }
-                    }
-                }
-            }
-        },
         "/api/v1/projects/{projectUuid}/spotlight/table/config": {
             "post": {
                 "operationId": "postSpotlightTableConfig",
@@ -36566,122 +35925,6 @@
                 ]
             }
         },
-        "/api/v1/projects/{projectUuid}/rename/dashboard/{dashboardUuid}": {
-            "post": {
-                "operationId": "renameDashboardFilter",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiRenameDashboardResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Rename a dashboard filter's field or model reference",
-                "summary": "Rename dashboard filter",
-                "tags": ["Projects"],
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "in": "path",
-                        "name": "dashboardUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/ApiRenameDashboardBody"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/projects/{projectUuid}/rename/dashboard/{dashboardUuid}/fields": {
-            "get": {
-                "operationId": "renameDashboardFields",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiRenameFieldsResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Get a list of fields from explores referenced by the dashboard's filters",
-                "summary": "Get dashboard fields for rename",
-                "tags": ["Projects"],
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "in": "path",
-                        "name": "dashboardUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "in": "query",
-                        "name": "table",
-                        "required": false,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ]
-            }
-        },
         "/api/v1/projects/{projectUuid}": {
             "get": {
                 "operationId": "GetProject",
@@ -37978,57 +37221,6 @@
                 }
             }
         },
-        "/api/v1/projects/{projectUuid}/queryTimezoneSettings": {
-            "patch": {
-                "operationId": "updateQueryTimezoneSettings",
-                "responses": {
-                    "200": {
-                        "description": "Updated",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Update query timezone settings for a project",
-                "summary": "Update query timezone settings",
-                "tags": ["Projects"],
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/UpdateQueryTimezoneSettings"
-                            }
-                        }
-                    }
-                }
-            }
-        },
         "/api/v1/projects/{projectUuid}/tags": {
             "post": {
                 "operationId": "createTag",
@@ -38910,6 +38102,47 @@
                     {
                         "in": "path",
                         "name": "preAggregateDefinitionName",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/content-verification": {
+            "get": {
+                "operationId": "listVerifiedContent",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiVerifiedContentListResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "List all verified content (charts and dashboards) in a project",
+                "summary": "List verified content",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
                         "required": true,
                         "schema": {
                             "type": "string"
@@ -40166,80 +39399,6 @@
                         }
                     }
                 ]
-            }
-        },
-        "/api/v1/org/impersonation": {
-            "get": {
-                "operationId": "GetImpersonationSettings",
-                "responses": {
-                    "200": {
-                        "description": "Ok",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiImpersonationOrganizationSettingsResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Get the impersonation setting for the current organization",
-                "summary": "Get impersonation settings",
-                "tags": ["Organizations"],
-                "security": [],
-                "parameters": []
-            },
-            "patch": {
-                "operationId": "UpdateImpersonationSettings",
-                "responses": {
-                    "200": {
-                        "description": "Ok",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiImpersonationOrganizationSettingsResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Update the impersonation setting for the current organization",
-                "summary": "Update impersonation settings",
-                "tags": ["Organizations"],
-                "security": [],
-                "parameters": [],
-                "requestBody": {
-                    "description": "the new impersonation settings",
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/UpdateImpersonationOrganizationSettings",
-                                "description": "the new impersonation settings"
-                            }
-                        }
-                    }
-                }
             }
         },
         "/api/v1/notifications": {
@@ -46645,102 +45804,6 @@
                 }
             }
         },
-        "/api/v2/projects/{projectUuid}/saved/{chartUuidOrSlug}": {
-            "get": {
-                "operationId": "getProjectSavedChart",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiSavedChartResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Get a saved chart by uuid or slug within a project",
-                "summary": "Get chart",
-                "tags": ["v2", "Charts"],
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "in": "path",
-                        "name": "chartUuidOrSlug",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ]
-            },
-            "delete": {
-                "operationId": "deleteProjectSavedChart",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Delete a saved chart by uuid or slug within a project",
-                "summary": "Delete chart",
-                "tags": ["v2", "Charts"],
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "in": "path",
-                        "name": "chartUuidOrSlug",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ]
-            }
-        },
         "/api/v2/projects/{projectUuid}/defaults": {
             "get": {
                 "operationId": "getProjectDefaults",
@@ -46829,208 +45892,6 @@
                         }
                     }
                 }
-            }
-        },
-        "/api/v2/projects/{projectUuid}/dashboards/{dashboardUuidOrSlug}": {
-            "get": {
-                "operationId": "getProjectDashboard",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiDashboardResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Get a dashboard by uuid or slug within a project",
-                "summary": "Get dashboard",
-                "tags": ["v2", "Dashboards"],
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "in": "path",
-                        "name": "dashboardUuidOrSlug",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ]
-            },
-            "patch": {
-                "operationId": "updateProjectDashboard",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiDashboardResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Update a dashboard by uuid or slug within a project",
-                "summary": "Update dashboard",
-                "tags": ["v2", "Dashboards"],
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "in": "path",
-                        "name": "dashboardUuidOrSlug",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/UpdateDashboard"
-                            }
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "operationId": "deleteProjectDashboard",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Delete a dashboard by uuid or slug within a project",
-                "summary": "Delete dashboard",
-                "tags": ["v2", "Dashboards"],
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "in": "path",
-                        "name": "dashboardUuidOrSlug",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ]
-            }
-        },
-        "/api/v2/projects/{projectUuid}/dashboards/{dashboardUuidOrSlug}/comments": {
-            "get": {
-                "operationId": "getProjectDashboardComments",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiGetComments"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Gets all comments for a dashboard within a project",
-                "summary": "Get comments",
-                "tags": ["v2", "Dashboards"],
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "in": "path",
-                        "name": "dashboardUuidOrSlug",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ]
             }
         },
         "/api/v2/projects/{projectUuid}/pre-aggregates/stats": {
@@ -48051,116 +46912,6 @@
                         }
                     }
                 }
-            }
-        },
-        "/api/v2/projects/{projectUuid}/dataCatalog/metrics-with-time-dimensions": {
-            "get": {
-                "operationId": "getPaginatedMetricsWithTimeDimensions",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiPaginatedMetricsWithTimeDimensionResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Get paginated metrics that have time dimensions available",
-                "summary": "List metrics with time dimensions",
-                "tags": ["v2", "Catalog"],
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "in": "query",
-                        "name": "page",
-                        "required": false,
-                        "schema": {
-                            "default": 1,
-                            "format": "double",
-                            "type": "number"
-                        }
-                    },
-                    {
-                        "in": "query",
-                        "name": "pageSize",
-                        "required": false,
-                        "schema": {
-                            "default": 50,
-                            "format": "double",
-                            "type": "number"
-                        }
-                    },
-                    {
-                        "in": "query",
-                        "name": "sort",
-                        "required": false,
-                        "schema": {
-                            "$ref": "#/components/schemas/CatalogSortField"
-                        }
-                    },
-                    {
-                        "in": "query",
-                        "name": "order",
-                        "required": false,
-                        "schema": {
-                            "type": "string",
-                            "enum": ["asc", "desc"]
-                        }
-                    },
-                    {
-                        "in": "query",
-                        "name": "tableName",
-                        "required": false,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "description": "Spotlight category yaml references to filter by (OR mode)",
-                        "in": "query",
-                        "name": "categories",
-                        "required": false,
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    {
-                        "description": "dbt tag names to filter by (OR mode)",
-                        "in": "query",
-                        "name": "tags",
-                        "required": false,
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                ]
             }
         }
     },
