@@ -48,6 +48,7 @@ type SortingStateMap = Map<ColumnName, SortingState>;
 
 export interface ResourceViewListCommonProps {
     enableSorting?: boolean;
+    hideVerification?: boolean;
     enableMultiSort?: boolean;
     defaultSort?: Partial<Record<ColumnName, ResourceSortDirection>>;
     defaultColumnVisibility?: Partial<Record<ColumnName, boolean>>;
@@ -82,6 +83,7 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
     enableMultiSort = false,
     defaultColumnVisibility,
     defaultSort,
+    hideVerification = false,
     onAction,
 }) => {
     const navigate = useNavigate();
@@ -355,7 +357,11 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                             e.preventDefault();
                         }}
                     >
-                        <ResourceActionMenu item={item} onAction={onAction} />
+                        <ResourceActionMenu
+                            item={item}
+                            onAction={onAction}
+                            hideVerification={hideVerification}
+                        />
                     </Box>
                 ),
                 enableSorting: false,
@@ -372,6 +378,7 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
             spaces,
             onAction,
             hoveredItem,
+            hideVerification,
         ],
     );
 
