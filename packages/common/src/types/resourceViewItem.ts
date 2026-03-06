@@ -15,6 +15,7 @@ export enum ResourceItemCategory {
     RECENTLY_UPDATED = 'recentlyUpdated',
     PINNED = 'pinned',
     FAVORITES = 'favorites',
+    VERIFIED = 'verified',
 }
 
 export type ResourceViewChartItem = {
@@ -34,6 +35,7 @@ export type ResourceViewChartItem = {
         | 'updatedAt'
         | 'updatedByUser'
         | 'validationErrors'
+        | 'verification'
         | 'slug'
     > & { source?: ChartSourceType };
     category?: ResourceItemCategory;
@@ -54,6 +56,7 @@ export type ResourceViewDashboardItem = {
         | 'updatedAt'
         | 'updatedByUser'
         | 'validationErrors'
+        | 'verification'
     >;
     category?: ResourceItemCategory;
 };
@@ -169,6 +172,7 @@ export const contentToResourceViewItem = (content: SummaryContent) => {
                     ...updatedByUser,
                     userUuid: updatedByUser.uuid,
                 },
+                verification: content.verification,
                 projectUuid: content.project.uuid, // Required for permission checks in ResourceActionMenu
                 organizationUuid: content.organization.uuid,
             };
@@ -188,6 +192,7 @@ export const contentToResourceViewItem = (content: SummaryContent) => {
                     ...updatedByUser,
                     userUuid: updatedByUser.uuid,
                 },
+                verification: content.verification,
                 projectUuid: content.project.uuid,
                 organizationUuid: content.organization.uuid,
             };

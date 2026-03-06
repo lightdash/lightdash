@@ -221,6 +221,7 @@ const ResourceView: FC<ResourceViewProps> = ({
                         defaultColumnVisibility={
                             listProps.defaultColumnVisibility
                         }
+                        hideVerification={activeTabId === 'verified'}
                         onAction={handleAction}
                     />
                 ) : view === ResourceViewType.GRID ? (

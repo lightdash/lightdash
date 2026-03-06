@@ -538,6 +538,7 @@ export class DashboardModel {
                                 createdAt: error.created_at,
                             }),
                         ),
+                        verification: null,
                         tileTypes,
                     };
                 },

@@ -229,6 +229,7 @@ export const sqlChartContentConfiguration: ContentConfiguration<SelectSavedSql> 
                     : null,
                 views: value.views,
                 firstViewedAt: value.first_viewed_at,
+                verification: null,
             };
         },
     };

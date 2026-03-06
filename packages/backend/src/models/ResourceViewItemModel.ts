@@ -95,6 +95,7 @@ const getCharts = async (
                 lastName: row.updated_by_user_last_name,
             },
             slug: row.slug,
+            verification: null,
         },
     }));
     return items;
@@ -184,6 +185,7 @@ const getDashboards = async (
                 firstName: row.updated_by_user_first_name,
                 lastName: row.updated_by_user_last_name,
             },
+            verification: null,
         },
     }));
     return items;

@@ -289,6 +289,7 @@ export const spaceContentConfiguration: ContentConfiguration<SpaceContentRow> =
                 dashboardCount: value.metadata.dashboardCount,
                 chartCount: value.metadata.chartCount,
                 childSpaceCount: value.metadata.childSpaceCount,
+                verification: null,
             };
         },
     };

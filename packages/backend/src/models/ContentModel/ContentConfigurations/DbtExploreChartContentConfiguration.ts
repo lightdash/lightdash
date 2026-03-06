@@ -249,6 +249,7 @@ export const dbtExploreChartContentConfiguration: ContentConfiguration<SelectSav
                     : null,
                 views: value.views,
                 firstViewedAt: value.first_viewed_at,
+                verification: null,
             };
         },
     };
