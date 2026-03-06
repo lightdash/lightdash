@@ -1101,6 +1101,9 @@ export type LightdashConfig = {
         enabled: boolean;
         s3?: Omit<S3Config, 'expirationTime'>;
     };
+    userImpersonation: {
+        enabled: boolean | undefined;
+    };
 };
 
 export type SlackConfig = {
@@ -1990,6 +1993,11 @@ export const parseConfig = (): LightdashConfig => {
         preAggregates: {
             enabled: preAggregatesEnabled,
             s3: preAggregatesS3,
+        },
+        userImpersonation: {
+            enabled: process.env.USER_IMPERSONATION_ENABLED
+                ? process.env.USER_IMPERSONATION_ENABLED === 'true'
+                : undefined,
         },
     };
 };

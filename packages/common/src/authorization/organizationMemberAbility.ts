@@ -359,6 +359,10 @@ const applyOrganizationMemberStaticAbilities: Record<
         can('manage', 'DeployProject', {
             organizationUuid: member.organizationUuid,
         });
+        can('impersonate', 'User', {
+            organizationUuid: member.organizationUuid,
+            isActive: true,
+        });
     },
 };
 
