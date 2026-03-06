@@ -15173,6 +15173,14 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        verification: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { ref: 'ContentVerificationInfo' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
                         validationErrors: {
                             dataType: 'array',
                             array: {
@@ -19461,6 +19469,56 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ContentType: {
+        dataType: 'refEnum',
+        enums: ['chart', 'dashboard', 'space'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    VerifiedContentListItem: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                verifiedAt: { dataType: 'datetime', required: true },
+                verifiedBy: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        lastName: { dataType: 'string', required: true },
+                        firstName: { dataType: 'string', required: true },
+                        userUuid: { dataType: 'string', required: true },
+                    },
+                    required: true,
+                },
+                spaceName: { dataType: 'string', required: true },
+                spaceUuid: { dataType: 'string', required: true },
+                name: { dataType: 'string', required: true },
+                contentUuid: { dataType: 'string', required: true },
+                contentType: { ref: 'ContentType', required: true },
+                uuid: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiVerifiedContentListResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'VerifiedContentListItem',
+                    },
+                    required: true,
+                },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     CompilationSource: {
         dataType: 'refAlias',
         type: {
@@ -19883,7 +19941,7 @@ const models: TsoaRoute.Models = {
         enums: ['dashboard'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_DashboardBasicDetails.uuid-or-spaceUuid-or-description-or-name-or-views-or-firstViewedAt-or-pinnedListUuid-or-pinnedListOrder-or-updatedAt-or-updatedByUser-or-validationErrors_':
+    'Pick_DashboardBasicDetails.uuid-or-spaceUuid-or-description-or-name-or-views-or-firstViewedAt-or-pinnedListUuid-or-pinnedListOrder-or-updatedAt-or-updatedByUser-or-validationErrors-or-verification_':
         {
             dataType: 'refAlias',
             type: {
@@ -19912,6 +19970,14 @@ const models: TsoaRoute.Models = {
                         dataType: 'union',
                         subSchemas: [
                             { dataType: 'double' },
+                            { dataType: 'enum', enums: [null] },
+                        ],
+                        required: true,
+                    },
+                    verification: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { ref: 'ContentVerificationInfo' },
                             { dataType: 'enum', enums: [null] },
                         ],
                         required: true,
@@ -19953,7 +20019,13 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ResourceItemCategory: {
         dataType: 'refEnum',
-        enums: ['mostPopular', 'recentlyUpdated', 'pinned', 'favorites'],
+        enums: [
+            'mostPopular',
+            'recentlyUpdated',
+            'pinned',
+            'favorites',
+            'verified',
+        ],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ResourceViewDashboardItem: {
@@ -19963,7 +20035,7 @@ const models: TsoaRoute.Models = {
             nestedProperties: {
                 category: { ref: 'ResourceItemCategory' },
                 data: {
-                    ref: 'Pick_DashboardBasicDetails.uuid-or-spaceUuid-or-description-or-name-or-views-or-firstViewedAt-or-pinnedListUuid-or-pinnedListOrder-or-updatedAt-or-updatedByUser-or-validationErrors_',
+                    ref: 'Pick_DashboardBasicDetails.uuid-or-spaceUuid-or-description-or-name-or-views-or-firstViewedAt-or-pinnedListUuid-or-pinnedListOrder-or-updatedAt-or-updatedByUser-or-validationErrors-or-verification_',
                     required: true,
                 },
                 type: { ref: 'ResourceViewItemType.DASHBOARD', required: true },
@@ -19977,7 +20049,7 @@ const models: TsoaRoute.Models = {
         enums: ['chart'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_SpaceQuery.uuid-or-name-or-chartType-or-chartKind-or-firstViewedAt-or-views-or-pinnedListUuid-or-pinnedListOrder-or-spaceUuid-or-description-or-updatedAt-or-updatedByUser-or-validationErrors-or-slug_':
+    'Pick_SpaceQuery.uuid-or-name-or-chartType-or-chartKind-or-firstViewedAt-or-views-or-pinnedListUuid-or-pinnedListOrder-or-spaceUuid-or-description-or-updatedAt-or-updatedByUser-or-validationErrors-or-verification-or-slug_':
         {
             dataType: 'refAlias',
             type: {
@@ -20011,6 +20083,14 @@ const models: TsoaRoute.Models = {
                         required: true,
                     },
                     slug: { dataType: 'string', required: true },
+                    verification: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { ref: 'ContentVerificationInfo' },
+                            { dataType: 'enum', enums: [null] },
+                        ],
+                        required: true,
+                    },
                     updatedByUser: {
                         dataType: 'union',
                         subSchemas: [
@@ -20070,7 +20150,7 @@ const models: TsoaRoute.Models = {
                     dataType: 'intersection',
                     subSchemas: [
                         {
-                            ref: 'Pick_SpaceQuery.uuid-or-name-or-chartType-or-chartKind-or-firstViewedAt-or-views-or-pinnedListUuid-or-pinnedListOrder-or-spaceUuid-or-description-or-updatedAt-or-updatedByUser-or-validationErrors-or-slug_',
+                            ref: 'Pick_SpaceQuery.uuid-or-name-or-chartType-or-chartKind-or-firstViewedAt-or-views-or-pinnedListUuid-or-pinnedListOrder-or-spaceUuid-or-description-or-updatedAt-or-updatedByUser-or-validationErrors-or-verification-or-slug_',
                         },
                         {
                             dataType: 'nestedObjectLiteral',
@@ -22053,11 +22133,6 @@ const models: TsoaRoute.Models = {
             },
             validators: {},
         },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ContentType: {
-        dataType: 'refEnum',
-        enums: ['chart', 'dashboard', 'space'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ToggleFavoriteResponse: {
@@ -25813,6 +25888,14 @@ const models: TsoaRoute.Models = {
                 ],
                 required: true,
             },
+            verification: {
+                dataType: 'union',
+                subSchemas: [
+                    { ref: 'ContentVerificationInfo' },
+                    { dataType: 'enum', enums: [null] },
+                ],
+                required: true,
+            },
             source: { ref: 'ChartSourceType', required: true },
             chartKind: { ref: 'ChartKind', required: true },
             dashboard: {
@@ -25938,6 +26021,14 @@ const models: TsoaRoute.Models = {
                 ],
                 required: true,
             },
+            verification: {
+                dataType: 'union',
+                subSchemas: [
+                    { ref: 'ContentVerificationInfo' },
+                    { dataType: 'enum', enums: [null] },
+                ],
+                required: true,
+            },
         },
         additionalProperties: true,
     },
@@ -26044,6 +26135,14 @@ const models: TsoaRoute.Models = {
                 dataType: 'union',
                 subSchemas: [
                     { dataType: 'datetime' },
+                    { dataType: 'enum', enums: [null] },
+                ],
+                required: true,
+            },
+            verification: {
+                dataType: 'union',
+                subSchemas: [
+                    { ref: 'ContentVerificationInfo' },
                     { dataType: 'enum', enums: [null] },
                 ],
                 required: true,
@@ -43184,6 +43283,65 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'refreshPreAggregateByDefinitionName',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsProjectController_listVerifiedContent: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
+    app.get(
+        '/api/v1/projects/:projectUuid/content-verification',
+        ...fetchMiddlewares<RequestHandler>(ProjectController),
+        ...fetchMiddlewares<RequestHandler>(
+            ProjectController.prototype.listVerifiedContent,
+        ),
+
+        async function ProjectController_listVerifiedContent(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsProjectController_listVerifiedContent,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<ProjectController>(ProjectController);
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'listVerifiedContent',
                     controller,
                     response,
                     next,

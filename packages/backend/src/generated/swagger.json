@@ -16065,6 +16065,14 @@
                     },
                     {
                         "properties": {
+                            "verification": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/ContentVerificationInfo"
+                                    }
+                                ],
+                                "nullable": true
+                            },
                             "validationErrors": {
                                 "items": {
                                     "$ref": "#/components/schemas/ValidationSummary"
@@ -16072,6 +16080,7 @@
                                 "type": "array"
                             }
                         },
+                        "required": ["verification"],
                         "type": "object"
                     }
                 ]
@@ -20679,6 +20688,79 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "ContentType": {
+                "enum": ["chart", "dashboard", "space"],
+                "type": "string"
+            },
+            "VerifiedContentListItem": {
+                "properties": {
+                    "verifiedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "verifiedBy": {
+                        "properties": {
+                            "lastName": {
+                                "type": "string"
+                            },
+                            "firstName": {
+                                "type": "string"
+                            },
+                            "userUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["lastName", "firstName", "userUuid"],
+                        "type": "object"
+                    },
+                    "spaceName": {
+                        "type": "string"
+                    },
+                    "spaceUuid": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "contentUuid": {
+                        "type": "string"
+                    },
+                    "contentType": {
+                        "$ref": "#/components/schemas/ContentType"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "verifiedAt",
+                    "verifiedBy",
+                    "spaceName",
+                    "spaceUuid",
+                    "name",
+                    "contentUuid",
+                    "contentType",
+                    "uuid"
+                ],
+                "type": "object"
+            },
+            "ApiVerifiedContentListResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/VerifiedContentListItem"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "CompilationSource": {
                 "type": "string",
                 "enum": ["cli_deploy", "refresh_dbt", "create_project"]
@@ -21021,7 +21103,7 @@
                 "enum": ["dashboard"],
                 "type": "string"
             },
-            "Pick_DashboardBasicDetails.uuid-or-spaceUuid-or-description-or-name-or-views-or-firstViewedAt-or-pinnedListUuid-or-pinnedListOrder-or-updatedAt-or-updatedByUser-or-validationErrors_": {
+            "Pick_DashboardBasicDetails.uuid-or-spaceUuid-or-description-or-name-or-views-or-firstViewedAt-or-pinnedListUuid-or-pinnedListOrder-or-updatedAt-or-updatedByUser-or-validationErrors-or-verification_": {
                 "properties": {
                     "description": {
                         "type": "string"
@@ -21046,6 +21128,14 @@
                     "pinnedListOrder": {
                         "type": "number",
                         "format": "double",
+                        "nullable": true
+                    },
+                    "verification": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ContentVerificationInfo"
+                            }
+                        ],
                         "nullable": true
                     },
                     "updatedByUser": {
@@ -21081,6 +21171,7 @@
                     "spaceUuid",
                     "pinnedListUuid",
                     "pinnedListOrder",
+                    "verification",
                     "views",
                     "firstViewedAt"
                 ],
@@ -21092,7 +21183,8 @@
                     "mostPopular",
                     "recentlyUpdated",
                     "pinned",
-                    "favorites"
+                    "favorites",
+                    "verified"
                 ],
                 "type": "string"
             },
@@ -21102,7 +21194,7 @@
                         "$ref": "#/components/schemas/ResourceItemCategory"
                     },
                     "data": {
-                        "$ref": "#/components/schemas/Pick_DashboardBasicDetails.uuid-or-spaceUuid-or-description-or-name-or-views-or-firstViewedAt-or-pinnedListUuid-or-pinnedListOrder-or-updatedAt-or-updatedByUser-or-validationErrors_"
+                        "$ref": "#/components/schemas/Pick_DashboardBasicDetails.uuid-or-spaceUuid-or-description-or-name-or-views-or-firstViewedAt-or-pinnedListUuid-or-pinnedListOrder-or-updatedAt-or-updatedByUser-or-validationErrors-or-verification_"
                     },
                     "type": {
                         "$ref": "#/components/schemas/ResourceViewItemType.DASHBOARD"
@@ -21115,7 +21207,7 @@
                 "enum": ["chart"],
                 "type": "string"
             },
-            "Pick_SpaceQuery.uuid-or-name-or-chartType-or-chartKind-or-firstViewedAt-or-views-or-pinnedListUuid-or-pinnedListOrder-or-spaceUuid-or-description-or-updatedAt-or-updatedByUser-or-validationErrors-or-slug_": {
+            "Pick_SpaceQuery.uuid-or-name-or-chartType-or-chartKind-or-firstViewedAt-or-views-or-pinnedListUuid-or-pinnedListOrder-or-spaceUuid-or-description-or-updatedAt-or-updatedByUser-or-validationErrors-or-verification-or-slug_": {
                 "properties": {
                     "description": {
                         "type": "string",
@@ -21148,6 +21240,14 @@
                     "slug": {
                         "type": "string",
                         "description": "Unique identifier slug for this chart"
+                    },
+                    "verification": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ContentVerificationInfo"
+                            }
+                        ],
+                        "nullable": true
                     },
                     "updatedByUser": {
                         "$ref": "#/components/schemas/UpdatedByUser"
@@ -21189,6 +21289,7 @@
                     "pinnedListUuid",
                     "pinnedListOrder",
                     "slug",
+                    "verification",
                     "views",
                     "firstViewedAt"
                 ],
@@ -21203,7 +21304,7 @@
                     "data": {
                         "allOf": [
                             {
-                                "$ref": "#/components/schemas/Pick_SpaceQuery.uuid-or-name-or-chartType-or-chartKind-or-firstViewedAt-or-views-or-pinnedListUuid-or-pinnedListOrder-or-spaceUuid-or-description-or-updatedAt-or-updatedByUser-or-validationErrors-or-slug_"
+                                "$ref": "#/components/schemas/Pick_SpaceQuery.uuid-or-name-or-chartType-or-chartKind-or-firstViewedAt-or-views-or-pinnedListUuid-or-pinnedListOrder-or-spaceUuid-or-description-or-updatedAt-or-updatedByUser-or-validationErrors-or-verification-or-slug_"
                             },
                             {
                                 "properties": {
@@ -23278,10 +23379,6 @@
                 },
                 "required": ["results", "status"],
                 "type": "object"
-            },
-            "ContentType": {
-                "enum": ["chart", "dashboard", "space"],
-                "type": "string"
             },
             "ToggleFavoriteResponse": {
                 "properties": {
@@ -26845,6 +26942,14 @@
                         "format": "date-time",
                         "nullable": true
                     },
+                    "verification": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ContentVerificationInfo"
+                            }
+                        ],
+                        "nullable": true
+                    },
                     "source": {
                         "$ref": "#/components/schemas/ChartSourceType"
                     },
@@ -26881,6 +26986,7 @@
                     "pinnedList",
                     "views",
                     "firstViewedAt",
+                    "verification",
                     "source",
                     "chartKind",
                     "dashboard"
@@ -27005,6 +27111,14 @@
                         "type": "string",
                         "format": "date-time",
                         "nullable": true
+                    },
+                    "verification": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ContentVerificationInfo"
+                            }
+                        ],
+                        "nullable": true
                     }
                 },
                 "required": [
@@ -27022,7 +27136,8 @@
                     "space",
                     "pinnedList",
                     "views",
-                    "firstViewedAt"
+                    "firstViewedAt",
+                    "verification"
                 ],
                 "type": "object",
                 "additionalProperties": true
@@ -27149,6 +27264,14 @@
                         "format": "date-time",
                         "nullable": true
                     },
+                    "verification": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ContentVerificationInfo"
+                            }
+                        ],
+                        "nullable": true
+                    },
                     "isPrivate": {
                         "type": "boolean"
                     },
@@ -27197,6 +27320,7 @@
                     "pinnedList",
                     "views",
                     "firstViewedAt",
+                    "verification",
                     "isPrivate",
                     "inheritParentPermissions",
                     "dashboardCount",
@@ -37712,6 +37836,47 @@
                     {
                         "in": "path",
                         "name": "preAggregateDefinitionName",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/content-verification": {
+            "get": {
+                "operationId": "listVerifiedContent",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiVerifiedContentListResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "List all verified content (charts and dashboards) in a project",
+                "summary": "List verified content",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
                         "required": true,
                         "schema": {
                             "type": "string"
