@@ -1227,11 +1227,9 @@ export class SavedChartModel {
                                                 cd.custom_groups || [],
                                         };
                                     default:
-                                        return {
-                                            ...base,
-                                            binType: BinType.FIXED_NUMBER,
-                                            binNumber: 1,
-                                        };
+                                        throw new Error(
+                                            `Unknown bin type "${cd.bin_type}" for custom dimension "${cd.name}"`,
+                                        );
                                 }
                             }),
                             ...(

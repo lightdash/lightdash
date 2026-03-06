@@ -1,12 +1,13 @@
 import {
+    BinType,
     ChartType,
     CustomDimensionType,
     DateGranularity,
     getItemId,
     isCartesianChartConfig,
+    type BinRange,
     type ChartConfig,
     type CreateSavedChartVersion,
-    type CustomBinDimension,
     type CustomDimension,
     type Metric,
     type MetricQuery,
@@ -152,14 +153,44 @@ const parseChartFromExplorerSearchParams = (
                     parsedValue.metricQuery.customDimensions?.map<CustomDimension>(
                         (customDimension) => {
                             if (customDimension.type === undefined) {
-                                // backwards compat: old URLs lack type field
-                                return {
-                                    ...(customDimension as unknown as Record<
+                                // backwards compat: old URLs lack type field and use flat shape
+                                const raw =
+                                    customDimension as unknown as Record<
                                         string,
                                         unknown
-                                    >),
-                                    type: CustomDimensionType.BIN,
-                                } as CustomBinDimension;
+                                    >;
+                                const base = {
+                                    id: raw.id as string,
+                                    name: raw.name as string,
+                                    type: CustomDimensionType.BIN as const,
+                                    dimensionId: raw.dimensionId as string,
+                                    table: raw.table as string,
+                                };
+                                switch (raw.binType) {
+                                    case BinType.FIXED_WIDTH:
+                                        return {
+                                            ...base,
+                                            binType: BinType.FIXED_WIDTH,
+                                            binWidth:
+                                                (raw.binWidth as number) || 1,
+                                        };
+                                    case BinType.CUSTOM_RANGE:
+                                        return {
+                                            ...base,
+                                            binType: BinType.CUSTOM_RANGE,
+                                            customRange:
+                                                (raw.customRange as BinRange[]) ||
+                                                [],
+                                        };
+                                    case BinType.FIXED_NUMBER:
+                                    default:
+                                        return {
+                                            ...base,
+                                            binType: BinType.FIXED_NUMBER,
+                                            binNumber:
+                                                (raw.binNumber as number) || 1,
+                                        };
+                                }
                             }
                             return customDimension;
                         },

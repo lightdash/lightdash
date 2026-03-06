@@ -1,4 +1,5 @@
 import {
+    assertUnreachable,
     BinType,
     CustomDimensionType,
     DimensionType,
@@ -129,11 +130,7 @@ const buildCustomBinDimension = (
                 customGroups: stripFormIds(values.binConfig.customGroups),
             };
         default:
-            return {
-                ...common,
-                binType: BinType.FIXED_NUMBER,
-                binNumber: MIN_OF_FIXED_NUMBER_BINS,
-            };
+            return assertUnreachable(values.binType, `Unknown bin type`);
     }
 };
 
@@ -201,14 +198,31 @@ const GroupValueRow: FC<{
                                 <Menu.Item
                                     key={targetGroup._id}
                                     onClick={() => {
-                                        const newGroups =
-                                            structuredClone(groups);
-                                        const [movedValue] = newGroups[
-                                            groupIndex
-                                        ].values.splice(valueIndex, 1);
-                                        newGroups[targetIndex].values.push(
-                                            movedValue,
-                                        );
+                                        const movedValue =
+                                            groups[groupIndex].values[
+                                                valueIndex
+                                            ];
+                                        const newGroups = groups.map((g, i) => {
+                                            if (i === groupIndex) {
+                                                return {
+                                                    ...g,
+                                                    values: g.values.filter(
+                                                        (_, j) =>
+                                                            j !== valueIndex,
+                                                    ),
+                                                };
+                                            }
+                                            if (i === targetIndex) {
+                                                return {
+                                                    ...g,
+                                                    values: [
+                                                        ...g.values,
+                                                        movedValue,
+                                                    ],
+                                                };
+                                            }
+                                            return g;
+                                        });
                                         form.setFieldValue(
                                             'binConfig.customGroups',
                                             newGroups,
@@ -228,8 +242,16 @@ const GroupValueRow: FC<{
                 color="ldDark.6"
                 size="sm"
                 onClick={() => {
-                    const newGroups = structuredClone(groups);
-                    newGroups[groupIndex].values.splice(valueIndex, 1);
+                    const newGroups = groups.map((g, i) =>
+                        i === groupIndex
+                            ? {
+                                  ...g,
+                                  values: g.values.filter(
+                                      (_, j) => j !== valueIndex,
+                                  ),
+                              }
+                            : g,
+                    );
                     form.setFieldValue('binConfig.customGroups', newGroups);
                 }}
             >
@@ -540,15 +562,22 @@ export const CustomBinDimensionModal: FC<{
     }, [focusTarget]);
 
     const addValueToGroup = (groupIndex: number, afterValueIndex?: number) => {
-        const newGroups = structuredClone(form.values.binConfig.customGroups);
+        const groups = form.values.binConfig.customGroups;
         const insertAt =
             afterValueIndex !== undefined
                 ? afterValueIndex + 1
-                : newGroups[groupIndex].values.length;
-        newGroups[groupIndex].values.splice(
-            insertAt,
-            0,
-            createDefaultValueRule(),
+                : groups[groupIndex].values.length;
+        const newGroups = groups.map((g, i) =>
+            i === groupIndex
+                ? {
+                      ...g,
+                      values: [
+                          ...g.values.slice(0, insertAt),
+                          createDefaultValueRule(),
+                          ...g.values.slice(insertAt),
+                      ],
+                  }
+                : g,
         );
         form.setFieldValue('binConfig.customGroups', newGroups);
         setFocusTarget(`custom-group-${groupIndex}-value-${insertAt}`);
