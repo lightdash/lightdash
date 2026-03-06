@@ -26,6 +26,7 @@ import {
     OrganizationMemberRole,
     OrganizationProject,
     ParameterError,
+    ProjectType,
     SessionUser,
     UpdateAllowedEmailDomains,
     UpdateColorPalette,
@@ -310,7 +311,7 @@ export class OrganizationService extends BaseService {
                 this.projectModel.getAllByOrganizationUuid(organizationUuid),
         );
 
-        return projects.filter((project) =>
+        const viewableProjects = projects.filter((project) =>
             account.user.ability.can(
                 'view',
                 subject('Project', {
@@ -319,6 +320,25 @@ export class OrganizationService extends BaseService {
                 }),
             ),
         );
+
+        // Hide preview projects from non-admin/developer users
+        if (account.isRegisteredUser()) {
+            const registeredUser = account.user as {
+                userUuid: string;
+                role?: OrganizationMemberRole;
+            };
+            const isAdminOrDeveloper =
+                registeredUser.role === OrganizationMemberRole.ADMIN ||
+                registeredUser.role === OrganizationMemberRole.DEVELOPER;
+
+            if (!isAdminOrDeveloper) {
+                return viewableProjects.filter(
+                    (p) => p.type !== ProjectType.PREVIEW,
+                );
+            }
+        }
+
+        return viewableProjects;
     }
 
     async getOnboarding(user: SessionUser): Promise<OnbordingRecord> {
