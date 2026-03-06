@@ -820,7 +820,7 @@ export const getCustomBinDimensionSql = ({
             case BinType.CUSTOM_GROUP:
                 if (!customDimension.customGroups) {
                     throw new Error(
-                        `Undefined customGroups for custom dimension ${BinType.CUSTOM_GROUP} `,
+                        `Undefined customGroups for custom dimension ${customDimension.name}`,
                     );
                 }
 
