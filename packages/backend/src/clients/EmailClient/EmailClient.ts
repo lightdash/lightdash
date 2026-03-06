@@ -12,6 +12,8 @@ import {
     SmptError,
     type PartialFailure,
 } from '@lightdash/common';
+import fs from 'fs';
+import Handlebars from 'handlebars';
 import { marked } from 'marked';
 import * as nodemailer from 'nodemailer';
 import Mail from 'nodemailer/lib/mailer';
@@ -149,20 +151,41 @@ export default class EmailClient {
             }
         });
 
-        // Dynamic import for ESM-only package
-        const { default: hbs } = await import('nodemailer-express-handlebars');
-        this.transporter.use(
-            'compile',
-            hbs({
-                viewEngine: {
-                    partialsDir: path.join(__dirname, './templates/'),
-                    defaultLayout: undefined,
-                    extname: '.html',
-                },
-                viewPath: path.join(__dirname, './templates/'),
-                extName: '.html',
-            }),
-        );
+        // Register partials from templates directory (files starting with _)
+        const templatesDir = path.join(__dirname, './templates/');
+        const partialFiles = fs
+            .readdirSync(templatesDir)
+            .filter((f) => f.startsWith('_') && f.endsWith('.html'));
+        partialFiles.forEach((file) => {
+            const partialName = file.replace('.html', '');
+            const partialContent = fs.readFileSync(
+                path.join(templatesDir, file),
+                'utf-8',
+            );
+            Handlebars.registerPartial(partialName, partialContent);
+        });
+
+        // Custom nodemailer plugin for Handlebars template compilation
+        this.transporter.use('compile', (mail, callback) => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const mailData = mail.data as any;
+            if (mailData.template) {
+                try {
+                    const templatePath = path.join(
+                        templatesDir,
+                        `${mailData.template}.html`,
+                    );
+                    const source = fs.readFileSync(templatePath, 'utf-8');
+                    const compiled = Handlebars.compile(source);
+                    mailData.html = compiled(mailData.context || {});
+                    callback();
+                } catch (err) {
+                    callback(err as Error);
+                }
+            } else {
+                callback();
+            }
+        });
     }
 
     private async sendEmail(
