@@ -17,7 +17,8 @@ triggers:
   - phased delivery
   - vertical features
 invocation: user
-arguments: "[PR URL or branch name] - the PR to break up"
+argument-hint: "[PR URL or branch name]"
+arguments: pr-url
 ---
 
 # Break Up PR into Vertical Feature Slices
