@@ -268,6 +268,7 @@ export const expectedDashboard: DashboardDAO = {
     uuid: dashboardEntry.dashboard_uuid,
     name: dashboardEntry.name,
     slug: `name`,
+    verification: null,
 
     description: dashboardEntry.description,
     updatedAt: dashboardVersionEntry.created_at,
