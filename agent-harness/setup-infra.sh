@@ -8,6 +8,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
 COMPOSE_FILE="$SCRIPT_DIR/docker-compose.agent.yml"
 PROJECT_NAME="agent-infra"
 TEMPLATE_DB="lightdash_template"

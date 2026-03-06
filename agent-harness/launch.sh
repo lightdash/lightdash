@@ -11,6 +11,12 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
+# Add libpq to PATH if installed via Homebrew (provides psql, pg_isready)
+LIBPQ_PREFIX="$(brew --prefix libpq 2>/dev/null || true)"
+if [ -n "$LIBPQ_PREFIX" ] && [ -d "$LIBPQ_PREFIX/bin" ]; then
+    export PATH="$LIBPQ_PREFIX/bin:$PATH"
+fi
+
 # ── Parse arguments ────────────────────────────────────────────────────────
 AGENT_ID="${1:-}"
 USE_WORKTREE=false
@@ -48,6 +54,7 @@ log "Ensuring shared infrastructure is running..."
 
 # ── Step 2: Create agent database from template ───────────────────────────
 AGENT_DB="agent_${AGENT_ID}"
+export PGPASSWORD=password
 PSQL="psql -h localhost -p $DB_PORT -U postgres -d postgres"
 
 if $PSQL -tAc "SELECT 1 FROM pg_database WHERE datname = '$AGENT_DB'" | grep -q 1; then
