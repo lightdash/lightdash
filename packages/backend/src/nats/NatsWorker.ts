@@ -64,14 +64,38 @@ type ParsedMessage = {
     trace: QueueTraceProperties;
 };
 
-type AsyncQueryNatsWorkerArgs = {
+export const natsWorkerStreamSchema = z.enum(['warehouse', 'pre-aggregate']);
+export const NATS_WORKER_STREAMS = natsWorkerStreamSchema.options;
+export type NatsWorkerStream = z.infer<typeof natsWorkerStreamSchema>;
+
+type NatsWorkerArgs = {
     lightdashConfig: LightdashConfig;
     asyncQueryService: AsyncQueryService;
     queryHistoryModel: QueryHistoryModel;
     projectModel: ProjectModel;
+    streams: NatsWorkerStream[];
 };
 
-export class AsyncQueryNatsWorker {
+type StreamConfig = {
+    streamName: string;
+    subject: string;
+    durableName: string;
+};
+
+const STREAM_CONFIGS: Record<NatsWorkerStream, StreamConfig> = {
+    warehouse: {
+        streamName: WAREHOUSE_STREAM_NAME,
+        subject: WAREHOUSE_QUERY_SUBJECT,
+        durableName: WAREHOUSE_WORKER_DURABLE_NAME,
+    },
+    'pre-aggregate': {
+        streamName: PRE_AGGREGATE_STREAM_NAME,
+        subject: PRE_AGGREGATE_QUERY_SUBJECT,
+        durableName: PRE_AGGREGATE_WORKER_DURABLE_NAME,
+    },
+};
+
+export class NatsWorker {
     private readonly asyncQueryService: AsyncQueryService;
 
     private readonly queryHistoryModel: QueryHistoryModel;
@@ -82,19 +106,9 @@ export class AsyncQueryNatsWorker {
 
     private readonly codec = StringCodec();
 
-    private readonly warehouseSubject: string;
-
-    private readonly warehouseConsumer: string;
-
-    private readonly preAggregateSubject: string;
-
-    private readonly preAggregateConsumer: string;
+    private readonly activeConfigs: StreamConfig[];
 
     private connection: NatsConnection | undefined;
-
-    private warehouseJetStreamConsumer: Consumer | undefined;
-
-    private preAggregateJetStreamConsumer: Consumer | undefined;
 
     private messageStreams: ConsumerMessages[] = [];
 
@@ -104,16 +118,13 @@ export class AsyncQueryNatsWorker {
 
     public isRunning = false;
 
-    constructor(args: AsyncQueryNatsWorkerArgs) {
+    constructor(args: NatsWorkerArgs) {
         this.asyncQueryService = args.asyncQueryService;
         this.queryHistoryModel = args.queryHistoryModel;
         this.projectModel = args.projectModel;
         this.natsConfig = args.lightdashConfig.asyncQuery.nats;
         this.workerConcurrency = this.natsConfig.workerConcurrency;
-        this.warehouseSubject = WAREHOUSE_QUERY_SUBJECT;
-        this.warehouseConsumer = WAREHOUSE_WORKER_DURABLE_NAME;
-        this.preAggregateSubject = PRE_AGGREGATE_QUERY_SUBJECT;
-        this.preAggregateConsumer = PRE_AGGREGATE_WORKER_DURABLE_NAME;
+        this.activeConfigs = args.streams.map((s) => STREAM_CONFIGS[s]);
     }
 
     public async run(): Promise<void> {
@@ -127,55 +138,38 @@ export class AsyncQueryNatsWorker {
         this.messageStreams = [];
 
         const jetStream = this.connection.jetstream();
+        const workerLoops: Promise<void>[] = [];
 
-        this.warehouseJetStreamConsumer = await jetStream.consumers
-            .get(WAREHOUSE_STREAM_NAME, this.warehouseConsumer)
-            .catch((error) => {
-                Logger.error(
-                    `Failed to load JetStream consumer "${this.warehouseConsumer}" on stream "${WAREHOUSE_STREAM_NAME}". Ensure stream and durable consumer are bootstrapped before startup.`,
-                    error,
-                );
-                throw error;
-            });
+        for (const config of this.activeConfigs) {
+            // eslint-disable-next-line no-await-in-loop
+            const consumer = await jetStream.consumers
+                .get(config.streamName, config.durableName)
+                .catch((error) => {
+                    Logger.error(
+                        `Failed to load JetStream consumer "${config.durableName}" on stream "${config.streamName}". Ensure stream and durable consumer are bootstrapped before startup.`,
+                        error,
+                    );
+                    throw error;
+                });
 
-        this.preAggregateJetStreamConsumer = await jetStream.consumers
-            .get(PRE_AGGREGATE_STREAM_NAME, this.preAggregateConsumer)
-            .catch((error) => {
-                Logger.error(
-                    `Failed to load JetStream consumer "${this.preAggregateConsumer}" on stream "${PRE_AGGREGATE_STREAM_NAME}". Ensure stream and durable consumer are bootstrapped before startup.`,
-                    error,
-                );
-                throw error;
-            });
+            Array.from({ length: this.workerConcurrency }, (_, i) =>
+                workerLoops.push(
+                    this.spawnWorkerLoop(
+                        consumer,
+                        `${config.durableName}-${i + 1}`,
+                    ),
+                ),
+            );
+        }
 
         this.isRunning = true;
 
+        const streamNames = this.activeConfigs.map((c) => c.streamName);
         Logger.info(
-            `Async query worker started. warehouse: stream=${WAREHOUSE_STREAM_NAME} durable=${this.warehouseConsumer} subject=${this.warehouseSubject}, pre-aggregate: stream=${PRE_AGGREGATE_STREAM_NAME} durable=${this.preAggregateConsumer} subject=${this.preAggregateSubject}, concurrency=${this.workerConcurrency}`,
+            `NATS worker started. streams=${streamNames.join(',')}, concurrency=${this.workerConcurrency}`,
         );
 
-        const warehouseWorkerLoops = Array.from(
-            { length: this.workerConcurrency },
-            (_, index) =>
-                this.spawnWorkerLoop(
-                    this.warehouseJetStreamConsumer!,
-                    `warehouse-${index + 1}`,
-                ),
-        );
-
-        const preAggregateWorkerLoops = Array.from(
-            { length: this.workerConcurrency },
-            (_, index) =>
-                this.spawnWorkerLoop(
-                    this.preAggregateJetStreamConsumer!,
-                    `pre-aggregate-${index + 1}`,
-                ),
-        );
-
-        this.consumePromise = Promise.allSettled([
-            ...warehouseWorkerLoops,
-            ...preAggregateWorkerLoops,
-        ])
+        this.consumePromise = Promise.allSettled(workerLoops)
             .then(() => undefined)
             .finally(() => {
                 this.isRunning = false;
@@ -197,9 +191,11 @@ export class AsyncQueryNatsWorker {
     ): Promise<void> {
         const workerLabel = workerId ?? 'unknown';
 
-        if (message.subject === this.warehouseSubject) {
+        if (message.subject === STREAM_CONFIGS.warehouse.subject) {
             await this.handleWarehouseMessage(message, workerLabel);
-        } else if (message.subject === this.preAggregateSubject) {
+        } else if (
+            message.subject === STREAM_CONFIGS['pre-aggregate'].subject
+        ) {
             await this.handlePreAggregateMessage(message, workerLabel);
         } else {
             Logger.error(
@@ -315,7 +311,7 @@ export class AsyncQueryNatsWorker {
         const qh = await this.queryHistoryModel.getWorkerPayload(
             payload.queryUuid,
         );
-        const queryTags = AsyncQueryNatsWorker.buildQueryTags(qh, payload);
+        const queryTags = NatsWorker.buildQueryTags(qh, payload);
         const warehouseCredentialsOverrides =
             await this.deriveWarehouseCredentialsOverrides(qh);
 
@@ -351,7 +347,7 @@ export class AsyncQueryNatsWorker {
             );
         }
 
-        const queryTags = AsyncQueryNatsWorker.buildQueryTags(qh, payload);
+        const queryTags = NatsWorker.buildQueryTags(qh, payload);
         const warehouseCredentialsOverrides =
             await this.deriveWarehouseCredentialsOverrides(qh);
 

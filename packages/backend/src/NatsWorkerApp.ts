@@ -5,7 +5,6 @@ import express from 'express';
 import http from 'http';
 import knex, { Knex } from 'knex';
 import { LightdashAnalytics } from './analytics/LightdashAnalytics';
-import { AsyncQueryNatsWorker } from './asyncQuery/AsyncQueryNatsWorker';
 import {
     ClientProviderMap,
     ClientRepository,
@@ -13,6 +12,7 @@ import {
 import { LightdashConfig } from './config/parseConfig';
 import Logger from './logging/logger';
 import { ModelProviderMap, ModelRepository } from './models/ModelRepository';
+import { NatsWorker, type NatsWorkerStream } from './nats/NatsWorker';
 import { IGNORE_ERRORS } from './sentry';
 import {
     OperationContext,
@@ -22,7 +22,7 @@ import {
 import { UtilProviderMap, UtilRepository } from './utils/UtilRepository';
 import { VERSION } from './version';
 
-type AsyncQueryWorkerAppArguments = {
+type NatsWorkerAppArguments = {
     lightdashConfig: LightdashConfig;
     port: string | number;
     environment?: 'production' | 'development';
@@ -34,22 +34,25 @@ type AsyncQueryWorkerAppArguments = {
     clientProviders?: ClientProviderMap;
     modelProviders?: ModelProviderMap;
     utilProviders?: UtilProviderMap;
-    asyncQueryWorkerFactory?: typeof asyncQueryWorkerFactory;
+    streams: NatsWorkerStream[];
+    natsWorkerFactory?: typeof natsWorkerFactory;
 };
 
-const asyncQueryWorkerFactory = (context: {
+const natsWorkerFactory = (context: {
     lightdashConfig: LightdashConfig;
     serviceRepository: ServiceRepository;
     modelRepository: ModelRepository;
+    streams: NatsWorkerStream[];
 }) =>
-    new AsyncQueryNatsWorker({
+    new NatsWorker({
         lightdashConfig: context.lightdashConfig,
         asyncQueryService: context.serviceRepository.getAsyncQueryService(),
         queryHistoryModel: context.modelRepository.getQueryHistoryModel(),
         projectModel: context.modelRepository.getProjectModel(),
+        streams: context.streams,
     });
 
-export default class AsyncQueryWorkerApp {
+export default class NatsWorkerApp {
     private readonly serviceRepository: ServiceRepository;
 
     private readonly modelRepository: ModelRepository;
@@ -64,9 +67,11 @@ export default class AsyncQueryWorkerApp {
 
     private readonly database: Knex;
 
-    private readonly asyncQueryWorkerFactory: typeof asyncQueryWorkerFactory;
+    private readonly streams: NatsWorkerStream[];
 
-    constructor(args: AsyncQueryWorkerAppArguments) {
+    private readonly natsWorkerFactory: typeof natsWorkerFactory;
+
+    constructor(args: NatsWorkerAppArguments) {
         this.lightdashConfig = args.lightdashConfig;
         this.port = args.port;
         this.environment = args.environment || 'production';
@@ -103,7 +108,7 @@ export default class AsyncQueryWorkerApp {
         const clients = new ClientRepository({
             clientProviders: args.clientProviders,
             context: new OperationContext({
-                operationId: 'AsyncQueryWorkerApp#ctor',
+                operationId: 'NatsWorkerApp#ctor',
                 lightdashAnalytics: this.analytics,
                 lightdashConfig: this.lightdashConfig,
             }),
@@ -116,14 +121,14 @@ export default class AsyncQueryWorkerApp {
             context: new OperationContext({
                 lightdashAnalytics: this.analytics,
                 lightdashConfig: this.lightdashConfig,
-                operationId: 'AsyncQueryWorkerApp#ctor',
+                operationId: 'NatsWorkerApp#ctor',
             }),
             clients,
             models,
             utils,
         });
-        this.asyncQueryWorkerFactory =
-            args.asyncQueryWorkerFactory || asyncQueryWorkerFactory;
+        this.streams = args.streams;
+        this.natsWorkerFactory = args.natsWorkerFactory || natsWorkerFactory;
     }
 
     public async start() {
@@ -150,17 +155,18 @@ export default class AsyncQueryWorkerApp {
         });
     }
 
-    private async initWorker(): Promise<AsyncQueryNatsWorker> {
-        const worker = this.asyncQueryWorkerFactory({
+    private async initWorker(): Promise<NatsWorker> {
+        const worker = this.natsWorkerFactory({
             lightdashConfig: this.lightdashConfig,
             serviceRepository: this.serviceRepository,
             modelRepository: this.modelRepository,
+            streams: this.streams,
         });
         await worker.run();
         return worker;
     }
 
-    private async initServer(worker: AsyncQueryNatsWorker) {
+    private async initServer(worker: NatsWorker) {
         const app = express();
         const server = http.createServer(app);
 
@@ -170,23 +176,23 @@ export default class AsyncQueryWorkerApp {
                 '/api/v1/health': () =>
                     new Promise((resolve, reject) => {
                         if (worker.isRunning) {
-                            resolve('Async query worker is running');
+                            resolve('NATS worker is running');
                         } else {
-                            reject(new Error('Async query worker not running'));
+                            reject(new Error('NATS worker not running'));
                         }
                     }),
                 '/api/v1/livez': () => Promise.resolve(),
             },
             beforeShutdown: async () => {
                 Logger.debug('Shutdown signal received');
-                Logger.info('Shutting down async query worker gracefully');
+                Logger.info('Shutting down NATS worker gracefully');
             },
             onSignal: async () => {
-                Logger.info('Stopping async query worker');
+                Logger.info('Stopping NATS worker');
                 await worker.stop();
             },
             onShutdown: async () => {
-                Logger.info('Async query worker shutdown complete');
+                Logger.info('NATS worker shutdown complete');
             },
             useExit0: true,
             logger: Logger.error,

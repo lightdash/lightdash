@@ -2,15 +2,15 @@ import { getErrorMessage } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { connect, headers, StringCodec, type JetStreamClient } from 'nats';
 import { v4 as uuidv4 } from 'uuid';
+import { type LightdashConfig } from '../config/parseConfig';
+import Logger from '../logging/logger';
 import {
     NATS_HEADERS,
     PRE_AGGREGATE_QUERY_SUBJECT,
     WAREHOUSE_QUERY_SUBJECT,
     type AsyncQueryJobPayload,
     type AsyncQueryNatsEnvelope,
-} from '../asyncQuery/natsContracts';
-import { type LightdashConfig } from '../config/parseConfig';
-import Logger from '../logging/logger';
+} from '../nats/natsContracts';
 
 type NatsJobClientArguments = {
     lightdashConfig: LightdashConfig;
