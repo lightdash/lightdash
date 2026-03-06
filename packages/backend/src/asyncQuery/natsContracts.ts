@@ -6,7 +6,7 @@ import type {
     RunQueryTags,
 } from '@lightdash/common';
 
-export const ASYNC_QUERY_NATS_HEADERS = {
+export const NATS_HEADERS = {
     JOB_ID: 'x-lightdash-job-id',
     SENTRY_TRACE: 'sentry-trace',
     BAGGAGE: 'baggage',
@@ -54,14 +54,14 @@ export type AsyncQueryWarehouseJobMessage =
 export type AsyncQueryPreAggregateJobMessage =
     AsyncQueryNatsEnvelope<RunAsyncPreAggregateQueryJobPayload>;
 
-export const getWarehouseQuerySubject = (customerId: string): string =>
-    `tenant.${customerId}.warehouse.query.jobs`;
+export const WAREHOUSE_STREAM_NAME = 'WAREHOUSE_QUERY_JOBS';
 
-export const getPreAggregateQuerySubject = (customerId: string): string =>
-    `tenant.${customerId}.pre_aggregate.query.jobs`;
+export const PRE_AGGREGATE_STREAM_NAME = 'PRE_AGGREGATE_QUERY_JOBS';
 
-export const getWarehouseWorkerDurableName = (customerId: string): string =>
-    `worker-${customerId}-warehouse`;
+export const WAREHOUSE_QUERY_SUBJECT = 'warehouse.query.jobs';
 
-export const getPreAggregateWorkerDurableName = (customerId: string): string =>
-    `worker-${customerId}-pre-aggregate`;
+export const PRE_AGGREGATE_QUERY_SUBJECT = 'pre_aggregate.query.jobs';
+
+export const WAREHOUSE_WORKER_DURABLE_NAME = 'worker-warehouse';
+
+export const PRE_AGGREGATE_WORKER_DURABLE_NAME = 'worker-pre-aggregate';
