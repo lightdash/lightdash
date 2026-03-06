@@ -1,6 +1,6 @@
 import { QueryExecutionContext } from '@lightdash/common';
-import * as nats from 'nats';
 import * as Sentry from '@sentry/node';
+import * as nats from 'nats';
 import type { RunAsyncWarehouseQueryJobPayload } from '../asyncQuery/natsContracts';
 import { lightdashConfigMock } from '../config/lightdashConfig.mock';
 import { AsyncQuerySchedulerClient } from './AsyncQuerySchedulerClient';

@@ -62,3 +62,6 @@ export const getPreAggregateQuerySubject = (customerId: string): string =>
 
 export const getWarehouseWorkerDurableName = (customerId: string): string =>
     `worker-${customerId}-warehouse`;
+
+export const getPreAggregateWorkerDurableName = (customerId: string): string =>
+    `worker-${customerId}-pre-aggregate`;

@@ -17206,6 +17206,7 @@
             "SchedulerTaskName": {
                 "type": "string",
                 "enum": [
+                    "runAsyncPreAggregateQuery",
                     "slackAiPrompt",
                     "aiAgentEvalResult",
                     "embedArtifactVersion",
@@ -17230,6 +17231,7 @@
                     "sqlRunnerPivotQuery",
                     "replaceCustomFields",
                     "indexCatalog",
+                    "runAsyncWarehouseQuery",
                     "generateDailyJobs",
                     "exportCsvDashboard",
                     "renameResources",
