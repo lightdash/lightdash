@@ -373,6 +373,7 @@ export class SavedChartController extends BaseController {
         isAuthenticated,
         deprecatedDownloadCsvRoute,
     ])
+    @Deprecated()
     @SuccessResponse('200', 'Success')
     @Post('/downloadCsv')
     @OperationId('DownloadCsvFromSavedChart')

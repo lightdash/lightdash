@@ -3,9 +3,7 @@ import {
     addDashboardFiltersToMetricQuery,
     AnyType,
     ApiSqlQueryResults,
-    applyDimensionOverrides,
     CustomSqlQueryForbiddenError,
-    DashboardFilterRule,
     DashboardFilters,
     DateGranularity,
     DimensionType,
@@ -20,7 +18,6 @@ import {
     getCustomLabelsFromTableConfig,
     getDashboardFiltersForTileAndTables,
     getErrorMessage,
-    getFulfilledValues,
     getHiddenTableFields,
     getItemLabel,
     getItemLabelWithoutTableName,
@@ -31,12 +28,10 @@ import {
     isDashboardSqlChartTile,
     isField,
     isTableChartConfig,
-    isVizCartesianChartConfig,
     ItemsMap,
     MetricQuery,
     MissingConfigError,
     ParameterError,
-    ParametersValuesMap,
     PivotConfig,
     pivotResultsAsCsv,
     QueryExecutionContext,
@@ -44,10 +39,8 @@ import {
     SchedulerCsvOptions,
     SchedulerFormat,
     SessionUser,
-    validateSelectedTabs,
     type RunQueryTags,
 } from '@lightdash/common';
-import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import archiver from 'archiver';
 import { stringify } from 'csv-stringify';
 import * as fs from 'fs';
@@ -63,7 +56,6 @@ import {
     Writable,
 } from 'stream';
 import { StringDecoder } from 'string_decoder';
-import { Worker } from 'worker_threads';
 import {
     DownloadCsv,
     LightdashAnalytics,
@@ -82,7 +74,6 @@ import { SavedChartModel } from '../../models/SavedChartModel';
 import { SavedSqlModel } from '../../models/SavedSqlModel';
 import { UserModel } from '../../models/UserModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
-import { runWorkerThread, wrapSentryTransaction } from '../../utils';
 import {
     generateGenericFileId,
     isRowValueDate,
@@ -90,7 +81,6 @@ import {
     sanitizeGenericFileName,
     streamJsonlData,
 } from '../../utils/FileDownloadUtils/FileDownloadUtils';
-import { PivotQueryBuilder } from '../../utils/QueryBuilder/PivotQueryBuilder';
 import { BaseService } from '../BaseService';
 import { PersistentDownloadFileService } from '../PersistentDownloadFileService/PersistentDownloadFileService';
 import { PivotTableService } from '../PivotTableService/PivotTableService';
@@ -530,26 +520,6 @@ export class CsvService extends BaseService {
         return fileId;
     }
 
-    static async convertSqlQueryResultsToCsv(
-        results: ApiSqlQueryResults,
-        customLabels: Record<string, string> | undefined,
-    ): Promise<string> {
-        if (results.rows.length > 500) {
-            Logger.debug(
-                `Using worker to format csv with ${results.rows.length} lines`,
-            );
-            return runWorkerThread<string>(
-                new Worker('./dist/services/CsvService/convertSqlToCsv.js', {
-                    workerData: {
-                        results,
-                        customLabels,
-                    },
-                }),
-            );
-        }
-        return convertSqlToCsv(results, customLabels);
-    }
-
     couldBeTruncated(rows: Record<string, AnyType>[]) {
         if (rows.length === 0) return false;
 
@@ -637,397 +607,6 @@ export class CsvService extends BaseService {
             localPath: filePath,
             truncated,
         };
-    }
-
-    async getCsvForChart({
-        user,
-        chartUuid,
-        options,
-        jobId,
-        tileUuid,
-        dashboardFilters,
-        dateZoomGranularity,
-        invalidateCache,
-        schedulerParameters,
-    }: {
-        user: SessionUser;
-        chartUuid: string;
-        options: SchedulerCsvOptions | undefined;
-        jobId?: string;
-        tileUuid?: string;
-        dashboardFilters?: DashboardFilters;
-        dateZoomGranularity?: DateGranularity;
-        invalidateCache?: boolean;
-        schedulerParameters?: ParametersValuesMap;
-    }): Promise<AttachmentUrl> {
-        const chart = await this.savedChartModel.get(chartUuid);
-        const {
-            metricQuery,
-            chartConfig: { config },
-        } = chart;
-        const exploreId = chart.tableName;
-        const onlyRaw = options?.formatted === false;
-
-        const analyticProperties: DownloadCsv['properties'] | undefined = jobId
-            ? {
-                  jobId,
-                  userId: user.userUuid,
-                  organizationId: user.organizationUuid,
-                  projectId: chart.projectUuid,
-                  fileType: SchedulerFormat.CSV,
-                  values: onlyRaw ? 'raw' : 'formatted',
-                  limit: parseAnalyticsLimit(options?.limit),
-                  storage: this.fileStorageClient.isEnabled() ? 's3' : 'local',
-                  context: QueryExecutionContext.SCHEDULED_DELIVERY,
-                  numColumns:
-                      metricQuery.dimensions.length +
-                      metricQuery.metrics.length +
-                      metricQuery.tableCalculations.length,
-              }
-            : undefined;
-
-        if (analyticProperties) {
-            this.analytics.track({
-                event: 'download_results.started',
-                userId: user.userUuid,
-                properties: analyticProperties,
-            });
-        }
-
-        const account = Account.fromSession(user);
-        const explore = await this.projectService.getExplore(
-            account,
-            chart.projectUuid,
-            exploreId,
-        );
-
-        const dashboardFiltersForTile =
-            tileUuid && dashboardFilters
-                ? getDashboardFiltersForTileAndTables(
-                      tileUuid,
-                      Object.keys(explore.tables),
-                      dashboardFilters,
-                  )
-                : undefined;
-
-        const metricQueryWithDashboardFilters = dashboardFiltersForTile
-            ? addDashboardFiltersToMetricQuery(
-                  metricQuery,
-                  dashboardFiltersForTile,
-                  explore,
-              )
-            : metricQuery;
-
-        const queryTags: RunQueryTags = {
-            project_uuid: chart.projectUuid,
-            user_uuid: user.userUuid,
-            organization_uuid: user.organizationUuid,
-            chart_uuid: chartUuid,
-            explore_name: exploreId,
-            query_context: QueryExecutionContext.CSV,
-        };
-
-        const { rows, fields } = await this.projectService.runMetricQuery({
-            account,
-            metricQuery: metricQueryWithDashboardFilters,
-            projectUuid: chart.projectUuid,
-            exploreName: exploreId,
-            csvLimit: getSchedulerCsvLimit(options),
-            context: QueryExecutionContext.CSV,
-            dateZoom: {
-                granularity: dateZoomGranularity,
-            },
-            chartUuid,
-            queryTags,
-            invalidateCache,
-            parameters: schedulerParameters,
-        });
-        const numberRows = rows.length;
-
-        if (numberRows === 0)
-            return {
-                path: '#no-results',
-                filename: `${chart.name} (empty)`,
-                localPath: '',
-                truncated: false,
-            };
-
-        const truncated = this.couldBeTruncated(rows);
-
-        const pivotConfig = getPivotConfig(chart);
-        if (pivotConfig && isTableChartConfig(config)) {
-            const itemMap = getItemMap(
-                explore,
-                metricQuery.additionalMetrics,
-                metricQuery.tableCalculations,
-                metricQuery.customDimensions,
-            );
-            const customLabels = getCustomLabelsFromTableConfig(config);
-
-            const downloadUrl = this.pivotTableService.downloadPivotTableCsv({
-                pivotConfig,
-                name: chart.name,
-                projectUuid: chart.projectUuid,
-                customLabels,
-                rows,
-                itemMap,
-                metricQuery,
-                pivotDetails: null, // TODO: this is using old way of running queries + pivoting, therefore pivotDetails is not available
-                exploreId,
-                onlyRaw,
-                truncated,
-                organizationUuid: chart.organizationUuid,
-                createdByUserUuid: user.userUuid,
-            });
-
-            if (analyticProperties) {
-                this.analytics.track({
-                    event: 'download_results.completed',
-                    userId: user.userUuid,
-                    properties: {
-                        ...analyticProperties,
-                        numPivotDimensions: pivotConfig.pivotDimensions.length,
-                        numRows: numberRows,
-                    },
-                });
-            }
-
-            return downloadUrl;
-        }
-
-        const fileId = await CsvService.writeRowsToFile(
-            rows,
-            onlyRaw,
-            metricQueryWithDashboardFilters,
-            fields,
-            isTableChartConfig(config)
-                ? (config.showTableNames ?? false)
-                : true,
-            chart.name,
-            truncated,
-            getCustomLabelsFromTableConfig(config),
-            chart.tableConfig.columnOrder,
-            getHiddenTableFields(chart.chartConfig),
-        );
-
-        if (analyticProperties) {
-            this.analytics.track({
-                event: 'download_results.completed',
-                userId: user.userUuid,
-                properties: { ...analyticProperties, numRows: numberRows },
-            });
-        }
-
-        const csvContent = await fsPromise.readFile(`/tmp/${fileId}`, {
-            encoding: 'utf-8',
-        });
-
-        return this.downloadCsvFile({
-            csvContent,
-            fileName: chart.name,
-            projectUuid: chart.projectUuid,
-            truncated,
-            organizationUuid: chart.organizationUuid,
-            createdByUserUuid: user.userUuid,
-        });
-    }
-
-    async getCsvForSqlChart({
-        user,
-        sqlChartUuid,
-        projectUuid,
-        jobId,
-    }: {
-        user: SessionUser;
-        sqlChartUuid: string;
-        projectUuid: string;
-        jobId?: string;
-    }): Promise<AttachmentUrl> {
-        const [sqlChart] = await this.savedSqlModel.find({
-            uuid: sqlChartUuid,
-            projectUuid,
-        });
-
-        const analyticProperties: DownloadCsv['properties'] | undefined = jobId
-            ? {
-                  jobId,
-                  userId: user.userUuid,
-                  organizationId: user.organizationUuid,
-                  projectId: projectUuid,
-                  fileType: SchedulerFormat.CSV,
-                  values: 'raw',
-                  storage: this.fileStorageClient.isEnabled() ? 's3' : 'local',
-                  context: QueryExecutionContext.SCHEDULED_DELIVERY,
-              }
-            : undefined;
-
-        if (analyticProperties) {
-            this.analytics.track({
-                event: 'download_results.started',
-                userId: user.userUuid,
-                properties: analyticProperties,
-            });
-        }
-
-        const { type: warehouseType, startOfWeek } =
-            await this.projectModel.getWarehouseCredentialsForProject(
-                projectUuid,
-            );
-
-        let { sql } = sqlChart;
-
-        // Checks if the chart is pivoted and applies the pivot to the sql query
-        if (
-            isVizCartesianChartConfig(sqlChart.config) &&
-            sqlChart.config.fieldConfig
-        ) {
-            const warehouseSqlBuilder = warehouseSqlBuilderFromType(
-                warehouseType,
-                startOfWeek,
-            );
-
-            const pivotQueryBuilder = new PivotQueryBuilder(
-                sql,
-                {
-                    indexColumn: sqlChart.config.fieldConfig.x,
-                    valuesColumns: sqlChart.config.fieldConfig.y.filter(
-                        (col): col is Required<typeof col> => !!col.aggregation,
-                    ),
-                    groupByColumns: sqlChart.config.fieldConfig.groupBy,
-                    sortBy: undefined,
-                },
-                warehouseSqlBuilder,
-                sqlChart.limit,
-            );
-
-            sql = pivotQueryBuilder.toSql({
-                columnLimit: this.lightdashConfig.pivotTable.maxColumnLimit,
-            });
-        }
-
-        const resultsFileUrl = await this.projectService.runSqlQuery(
-            user,
-            projectUuid,
-            sql,
-        );
-
-        // Convert SQL results to CSV content
-        const csvContent = await CsvService.convertSqlQueryResultsToCsv(
-            resultsFileUrl,
-            {},
-        );
-
-        if (analyticProperties) {
-            this.analytics.track({
-                event: 'download_results.completed',
-                userId: user.userUuid,
-                properties: {
-                    ...analyticProperties,
-                    numRows: resultsFileUrl.rows.length,
-                    numColumns: Object.keys(resultsFileUrl.fields).length,
-                },
-            });
-        }
-
-        return this.downloadCsvFile({
-            csvContent,
-            fileName: sqlChart.name,
-            projectUuid,
-            organizationUuid: sqlChart.organization_uuid,
-            createdByUserUuid: user.userUuid,
-        });
-    }
-
-    async getCsvsForDashboard({
-        user,
-        dashboardUuid,
-        options,
-        jobId,
-        schedulerFilters,
-        selectedTabs,
-        overrideDashboardFilters,
-        dateZoomGranularity,
-        invalidateCache,
-        schedulerParameters,
-    }: {
-        user: SessionUser;
-        dashboardUuid: string;
-        options: SchedulerCsvOptions | undefined;
-        jobId?: string;
-        schedulerFilters?: DashboardFilterRule[];
-        selectedTabs: string[] | null;
-        overrideDashboardFilters?: DashboardFilters;
-        dateZoomGranularity?: DateGranularity;
-        invalidateCache?: boolean;
-        schedulerParameters?: ParametersValuesMap;
-    }): Promise<AttachmentUrl[]> {
-        const dashboard =
-            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
-
-        const dashboardFilters = overrideDashboardFilters || dashboard.filters;
-
-        validateSelectedTabs(selectedTabs, dashboard.tiles);
-
-        if (schedulerFilters) {
-            dashboardFilters.dimensions = applyDimensionOverrides(
-                dashboard.filters,
-                schedulerFilters,
-            );
-        }
-
-        const chartTileUuidsWithChartUuids = dashboard.tiles
-            .filter(isDashboardChartTileType)
-            .filter((tile) => tile.properties.savedChartUuid)
-            .filter(
-                (tile) =>
-                    !selectedTabs || selectedTabs.includes(tile.tabUuid || ''),
-            )
-            .map((tile) => ({
-                tileUuid: tile.uuid,
-                chartUuid: tile.properties.savedChartUuid!,
-            }));
-        const sqlChartTileUuids = dashboard.tiles
-            .filter(isDashboardSqlChartTile)
-            .filter((tile) => !!tile.properties.savedSqlUuid)
-            .map((tile) => ({
-                tileUuid: tile.uuid,
-                chartUuid: tile.properties.savedSqlUuid!,
-            }));
-
-        this.logger.info(
-            `Downloading ${chartTileUuidsWithChartUuids.length} chart CSVs for dashboard ${dashboardUuid}`,
-        );
-        const csvForChartPromises = chartTileUuidsWithChartUuids.map(
-            ({ tileUuid, chartUuid }) =>
-                this.getCsvForChart({
-                    user,
-                    chartUuid,
-                    options,
-                    jobId,
-                    tileUuid,
-                    dashboardFilters,
-                    dateZoomGranularity,
-                    invalidateCache,
-                    schedulerParameters,
-                }),
-        );
-        this.logger.info(
-            `Downloading ${sqlChartTileUuids.length} sql chart CSVs for dashboard ${dashboardUuid}`,
-        );
-        const csvForSqlChartPromises = sqlChartTileUuids.map(({ chartUuid }) =>
-            this.getCsvForSqlChart({
-                user,
-                sqlChartUuid: chartUuid,
-                projectUuid: dashboard.projectUuid,
-                jobId,
-            }),
-        );
-
-        const csvUrls = await Promise.allSettled([
-            ...csvForChartPromises,
-            ...csvForSqlChartPromises,
-        ]).then(getFulfilledValues);
-        return csvUrls;
     }
 
     /**

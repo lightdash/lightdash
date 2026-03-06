@@ -27971,7 +27971,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2580.3",
+        "version": "0.2581.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -35300,6 +35300,7 @@
                 "description": "Download a CSV from a saved chart uuid",
                 "summary": "Download CSV from saved chart",
                 "tags": ["Charts"],
+                "deprecated": true,
                 "security": [],
                 "parameters": [
                     {
@@ -41629,6 +41630,7 @@
                 "description": "Download CSV from an explore query",
                 "summary": "Download CSV from explore",
                 "tags": ["Projects"],
+                "deprecated": true,
                 "security": [],
                 "parameters": [
                     {
