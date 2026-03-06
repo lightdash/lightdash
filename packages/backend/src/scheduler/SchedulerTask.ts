@@ -1942,6 +1942,11 @@ export default class SchedulerTask {
         }
     }
 
+    /**
+     * @deprecated Uses old sync query pipeline via CsvService.downloadCsv().
+     * Only kept alive by deprecated v1 downloadCsv endpoints for external API consumers.
+     * Internal frontend uses v2 async query + schedule-download flow instead.
+     */
     protected async downloadCsv(
         jobId: string,
         scheduledTime: Date,
