@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     assertUnreachable,
+    FeatureFlags,
     ProjectType,
     type OrganizationProject,
 } from '@lightdash/common';
@@ -39,6 +40,7 @@ import {
 import { useIsTruncated } from '../../hooks/useIsTruncated';
 import { useProject } from '../../hooks/useProject';
 import { useProjects } from '../../hooks/useProjects';
+import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
 import MantineIcon from '../common/MantineIcon';
 import { PolymorphicGroupButton } from '../common/PolymorphicGroupButton';
@@ -101,13 +103,30 @@ const GroupHeader: FC<{
     );
 };
 
+const getExpiresInDays = (expiresAt: Date | null): number | null => {
+    if (!expiresAt) return null;
+    const now = new Date();
+    const diffMs = new Date(expiresAt).getTime() - now.getTime();
+    return Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+};
+
 const ProjectItem: FC<{
     item: OrganizationProject;
     handleProjectChange: (newUuid: string) => void;
     searchQuery?: string;
     isActive?: boolean;
-}> = ({ item, handleProjectChange, searchQuery, isActive = false }) => {
+    showExpiration?: boolean;
+}> = ({
+    item,
+    handleProjectChange,
+    searchQuery,
+    isActive = false,
+    showExpiration = false,
+}) => {
     const { ref: truncatedRef, isTruncated } = useIsTruncated<HTMLDivElement>();
+    const expiresInDays = showExpiration
+        ? getExpiresInDays(item.expiresAt)
+        : null;
 
     return (
         <Menu.Item
@@ -140,18 +159,34 @@ const ProjectItem: FC<{
                     </Highlight>
                 </Tooltip>
 
-                {isActive && (
-                    <Badge
-                        color={isActive ? 'green' : 'yellow.1'}
-                        variant="light"
-                        size="sm"
-                        radius="sm"
-                        fw={450}
-                        className={classes.badge}
-                    >
-                        {isActive ? 'Active' : 'Preview'}
-                    </Badge>
-                )}
+                <Group gap="xs" wrap="nowrap">
+                    {expiresInDays !== null && (
+                        <Badge
+                            color="orange"
+                            variant="light"
+                            size="xs"
+                            radius="sm"
+                            fw={450}
+                            className={classes.badge}
+                        >
+                            {expiresInDays === 0
+                                ? 'Expires today'
+                                : `Expires in ${expiresInDays}d`}
+                        </Badge>
+                    )}
+                    {isActive && (
+                        <Badge
+                            color="green"
+                            variant="light"
+                            size="sm"
+                            radius="sm"
+                            fw={450}
+                            className={classes.badge}
+                        >
+                            Active
+                        </Badge>
+                    )}
+                </Group>
             </Group>
         </Menu.Item>
     );
@@ -206,6 +241,12 @@ const ProjectSwitcher = () => {
     const { mutate: setLastProjectMutation } = useUpdateActiveProjectMutation();
     const location = useLocation();
     const isHomePage = !!useMatch(`/projects/${activeProjectUuid}/home`);
+
+    const { data: previewAutoCleanupFlag } = useServerFeatureFlag(
+        FeatureFlags.PreviewAutoCleanup,
+    );
+    const isPreviewAutoCleanupEnabled =
+        previewAutoCleanupFlag?.enabled ?? false;
 
     const [isCreatePreviewOpen, setIsCreatePreview] = useState(false);
     const [groupStates, setGroupStates] = useState<GroupStates>({
@@ -534,6 +575,9 @@ const ProjectSwitcher = () => {
                                                     isActive={
                                                         item.projectUuid ===
                                                         activeProjectUuid
+                                                    }
+                                                    showExpiration={
+                                                        isPreviewAutoCleanupEnabled
                                                     }
                                                 />
                                             ))}
