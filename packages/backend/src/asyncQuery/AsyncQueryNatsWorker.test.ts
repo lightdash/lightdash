@@ -168,15 +168,23 @@ describe('AsyncQueryNatsWorker', () => {
             'WAREHOUSE_QUERY_JOBS',
             'worker-customer-a-warehouse',
         );
-        expect(consume).toHaveBeenCalledTimes(3);
+        expect(getConsumer).toHaveBeenCalledWith(
+            'PRE_AGGREGATE_QUERY_JOBS',
+            'worker-customer-a-pre-aggregate',
+        );
+        // 3 warehouse + 3 pre-aggregate = 6 consume loops
+        expect(consume).toHaveBeenCalledTimes(6);
         expect(loggerInfoSpy).toHaveBeenCalledWith(
-            'Async query worker 1 spawned (concurrency=3)',
+            'Async query worker warehouse-1 spawned (concurrency=3)',
         );
         expect(loggerInfoSpy).toHaveBeenCalledWith(
-            'Async query worker 2 spawned (concurrency=3)',
+            'Async query worker warehouse-2 spawned (concurrency=3)',
         );
         expect(loggerInfoSpy).toHaveBeenCalledWith(
-            'Async query worker 3 spawned (concurrency=3)',
+            'Async query worker warehouse-3 spawned (concurrency=3)',
+        );
+        expect(loggerInfoSpy).toHaveBeenCalledWith(
+            'Async query worker pre-aggregate-1 spawned (concurrency=3)',
         );
 
         const message = createMessage({

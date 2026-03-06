@@ -53,6 +53,7 @@ const preAggregateStreamName =
 const warehouseSubject = `tenant.${customerId}.warehouse.query.jobs`;
 const preAggregateSubject = `tenant.${customerId}.pre_aggregate.query.jobs`;
 const warehouseDurable = `worker-${customerId}-warehouse`;
+const preAggregateDurable = `worker-${customerId}-pre-aggregate`;
 
 const nc = await connect({ servers: natsUrl });
 try {
@@ -73,6 +74,12 @@ try {
         stream: warehouseStreamName,
         durable: warehouseDurable,
         filterSubject: warehouseSubject,
+    });
+    await ensureConsumer({
+        jsm,
+        stream: preAggregateStreamName,
+        durable: preAggregateDurable,
+        filterSubject: preAggregateSubject,
     });
 
     console.log('async query NATS resources are ready');

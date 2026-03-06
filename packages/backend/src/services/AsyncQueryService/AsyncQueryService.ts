@@ -1543,18 +1543,6 @@ export class AsyncQueryService extends ProjectService {
         };
     }
 
-    private async isWorkerAsyncQueryExecutionEnabled(
-        target: AsyncQueryExecutionPlan['target'],
-        account: Account,
-    ): Promise<boolean> {
-        assertIsAccountWithOrg(account);
-
-        return target === 'pre_aggregate'
-            ? this.lightdashConfig.scheduler.asyncQueryWorkers
-                  .preAggregatesEnabled
-            : this.lightdashConfig.scheduler.asyncQueryWorkers.warehouseEnabled;
-    }
-
     private async resolveAsyncQueryExecutionPlan({
         projectUuid,
         warehouseQuery,
@@ -2347,23 +2335,30 @@ export class AsyncQueryService extends ProjectService {
                         originalColumns,
                     };
 
-                    const useNatsForWarehouseQueries =
-                        this.lightdashConfig.asyncQuery.nats.enabled &&
-                        executionPlan.target === 'warehouse';
-
-                    if (useNatsForWarehouseQueries) {
+                    if (this.lightdashConfig.asyncQuery.nats.enabled) {
                         this.logger.info(
-                            `Enqueueing query ${queryHistoryUuid} on NATS JetStream`,
+                            `Enqueueing query ${queryHistoryUuid} on NATS JetStream (${executionPlan.target})`,
                         );
 
                         try {
                             const { jobId } =
-                                await this.asyncQuerySchedulerClient.enqueueWarehouseQuery(
-                                    {
-                                        organizationUuid,
-                                        ...warehouseArgs,
-                                    },
-                                );
+                                executionPlan.target === 'pre_aggregate'
+                                    ? await this.asyncQuerySchedulerClient.enqueuePreAggregateQuery(
+                                          {
+                                              organizationUuid,
+                                              ...warehouseArgs,
+                                              preAggregateQuery:
+                                                  executionPlan.preAggregateQuery,
+                                              warehouseQuery:
+                                                  executionPlan.warehouseQuery,
+                                          },
+                                      )
+                                    : await this.asyncQuerySchedulerClient.enqueueWarehouseQuery(
+                                          {
+                                              organizationUuid,
+                                              ...warehouseArgs,
+                                          },
+                                      );
 
                             this.logger.info(
                                 `Enqueued query ${queryHistoryUuid} on NATS with job ${jobId}`,
@@ -2380,7 +2375,7 @@ export class AsyncQueryService extends ProjectService {
                                 projectUuid,
                                 {
                                     status: QueryHistoryStatus.ERROR,
-                                    error: `Failed to enqueue warehouse query: ${errorMessage}`,
+                                    error: `Failed to enqueue ${executionPlan.target} query: ${errorMessage}`,
                                 },
                                 account,
                             );
@@ -2398,12 +2393,7 @@ export class AsyncQueryService extends ProjectService {
                                 },
                             } satisfies ExecuteAsyncQueryReturn;
                         }
-                    } else if (
-                        await this.isWorkerAsyncQueryExecutionEnabled(
-                            executionPlan.target,
-                            account,
-                        )
-                    ) {
+                    } else {
                         this.logger.info(
                             `Enqueueing query ${queryHistoryUuid} on the ${executionPlan.target} worker fleet`,
                         );
@@ -2425,33 +2415,6 @@ export class AsyncQueryService extends ProjectService {
                                 ...warehouseArgs,
                             });
                         }
-                    } else {
-                        this.logger.info(
-                            `Executing query ${queryHistoryUuid} in the main loop`,
-                        );
-
-                        void (async () => {
-                            if (executionPlan.target === 'pre_aggregate') {
-                                await this.runAsyncPreAggregateQuery({
-                                    ...warehouseArgs,
-                                    preAggregateQuery:
-                                        executionPlan.preAggregateQuery,
-                                    warehouseQuery:
-                                        executionPlan.warehouseQuery,
-                                });
-                            } else {
-                                await this.runAsyncWarehouseQuery(
-                                    warehouseArgs,
-                                );
-                            }
-                        })().catch((e) => {
-                            // There's no point in throwing the error here as this promise is called with void
-                            // Set the status of the span to ERROR
-                            span.setStatus({
-                                code: 2, // ERROR
-                                message: getErrorMessage(e),
-                            });
-                        });
                     }
 
                     return {

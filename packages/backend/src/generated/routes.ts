@@ -3052,6 +3052,7 @@ const models: TsoaRoute.Models = {
             'count_distinct',
             'sum',
             'sum_distinct',
+            'average_distinct',
             'min',
             'max',
             'percent_of_previous',
@@ -5427,6 +5428,18 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    PreAggregateSource: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                preAggregateName: { dataType: 'string', required: true },
+                sourceExploreName: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     InlineErrorType: {
         dataType: 'refEnum',
         enums: [
@@ -5459,6 +5472,7 @@ const models: TsoaRoute.Models = {
                     dataType: 'array',
                     array: { dataType: 'refAlias', ref: 'InlineError' },
                 },
+                preAggregateSource: { ref: 'PreAggregateSource' },
                 preAggregates: {
                     dataType: 'array',
                     array: { dataType: 'refAlias', ref: 'PreAggregateDef' },
@@ -15955,6 +15969,24 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SchedulerGoogleChatTarget: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                googleChatWebhook: { dataType: 'string', required: true },
+                schedulerUuid: { dataType: 'string', required: true },
+                updatedAt: { dataType: 'datetime', required: true },
+                createdAt: { dataType: 'datetime', required: true },
+                schedulerGoogleChatTargetUuid: {
+                    dataType: 'string',
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SchedulerJobStatus: {
         dataType: 'refEnum',
         enums: ['scheduled', 'started', 'completed', 'error'],
@@ -16059,6 +16091,7 @@ const models: TsoaRoute.Models = {
                                     { ref: 'SchedulerSlackTarget' },
                                     { ref: 'SchedulerEmailTarget' },
                                     { ref: 'SchedulerMsTeamsTarget' },
+                                    { ref: 'SchedulerGoogleChatTarget' },
                                 ],
                             },
                             required: true,
@@ -16075,6 +16108,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'union',
             subSchemas: [
+                { dataType: 'enum', enums: ['runAsyncPreAggregateQuery'] },
                 { dataType: 'enum', enums: ['slackAiPrompt'] },
                 { dataType: 'enum', enums: ['aiAgentEvalResult'] },
                 { dataType: 'enum', enums: ['embedArtifactVersion'] },
@@ -16083,9 +16117,14 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['sendSlackNotification'] },
                 { dataType: 'enum', enums: ['sendEmailNotification'] },
                 { dataType: 'enum', enums: ['sendMsTeamsNotification'] },
+                { dataType: 'enum', enums: ['sendGoogleChatNotification'] },
                 { dataType: 'enum', enums: ['sendSlackBatchNotification'] },
                 { dataType: 'enum', enums: ['sendEmailBatchNotification'] },
                 { dataType: 'enum', enums: ['sendMsTeamsBatchNotification'] },
+                {
+                    dataType: 'enum',
+                    enums: ['sendGoogleChatBatchNotification'],
+                },
                 { dataType: 'enum', enums: ['uploadGsheets'] },
                 { dataType: 'enum', enums: ['downloadCsv'] },
                 { dataType: 'enum', enums: ['uploadGsheetFromQuery'] },
@@ -16097,6 +16136,7 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['sqlRunnerPivotQuery'] },
                 { dataType: 'enum', enums: ['replaceCustomFields'] },
                 { dataType: 'enum', enums: ['indexCatalog'] },
+                { dataType: 'enum', enums: ['runAsyncWarehouseQuery'] },
                 { dataType: 'enum', enums: ['generateDailyJobs'] },
                 { dataType: 'enum', enums: ['exportCsvDashboard'] },
                 { dataType: 'enum', enums: ['renameResources'] },
@@ -16136,6 +16176,7 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['slack'] },
                 { dataType: 'enum', enums: ['gsheets'] },
                 { dataType: 'enum', enums: ['msteams'] },
+                { dataType: 'enum', enums: ['googlechat'] },
             ],
             validators: {},
         },
@@ -19539,6 +19580,13 @@ const models: TsoaRoute.Models = {
                         { dataType: 'undefined' },
                     ],
                 },
+                preAggregateSource: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'PreAggregateSource' },
+                        { dataType: 'undefined' },
+                    ],
+                },
                 warnings: {
                     dataType: 'union',
                     subSchemas: [
@@ -22001,6 +22049,13 @@ const models: TsoaRoute.Models = {
                         { dataType: 'undefined' },
                     ],
                 },
+                preAggregateSource: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'PreAggregateSource' },
+                        { dataType: 'undefined' },
+                    ],
+                },
                 warnings: {
                     dataType: 'union',
                     subSchemas: [
@@ -22274,6 +22329,13 @@ const models: TsoaRoute.Models = {
                                 ref: 'PreAggregateDef',
                             },
                         },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                preAggregateSource: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'PreAggregateSource' },
                         { dataType: 'undefined' },
                     ],
                 },

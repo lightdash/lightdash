@@ -190,6 +190,7 @@ import {
     MetricQueryExecutionProperties,
     ProjectEvent,
 } from '../../analytics/LightdashAnalytics';
+import type { IAsyncQuerySchedulerClient } from '../../clients/AsyncQuerySchedulerClient';
 import { S3CacheClient } from '../../clients/Aws/S3CacheClient';
 import EmailClient from '../../clients/EmailClient/EmailClient';
 import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
@@ -288,6 +289,7 @@ export type ProjectServiceArguments = {
     projectCompileLogModel: ProjectCompileLogModel;
     adminNotificationService: AdminNotificationService;
     spacePermissionService: SpacePermissionService;
+    asyncQuerySchedulerClient?: IAsyncQuerySchedulerClient;
 };
 
 export class ProjectService extends BaseService {
