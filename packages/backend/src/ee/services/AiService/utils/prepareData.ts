@@ -69,7 +69,10 @@ export function fieldDesc(fieldName: string, item: Item) {
                 }
 
                 binString = `having custom groups: ${item.customGroups
-                    .map((g) => `${g.name} (${g.values.join(', ')})`)
+                    .map(
+                        (g) =>
+                            `${g.name} (${g.values.map((v) => `${v.matchType}: ${v.value}`).join(', ')})`,
+                    )
                     .join('; ')}`;
                 break;
             default:

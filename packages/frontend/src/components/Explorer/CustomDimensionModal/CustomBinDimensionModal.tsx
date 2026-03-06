@@ -3,6 +3,7 @@ import {
     CustomDimensionType,
     DimensionType,
     getItemId,
+    GroupValueMatchType,
     isCustomBinDimension,
     isCustomDimension,
     isDimension,
@@ -11,6 +12,7 @@ import {
     type BinRange,
     type CustomBinDimension,
     type Dimension,
+    type GroupValueRule,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -20,6 +22,7 @@ import {
     Menu,
     NumberInput,
     Radio,
+    Select,
     Stack,
     Text,
     TextInput,
@@ -55,6 +58,18 @@ const DEFAULT_CUSTOM_RANGE: BinRange[] = [
     { from: 1, to: undefined },
 ];
 const DEFAULT_CUSTOM_GROUPS: BinGroup[] = [{ name: 'Group 1', values: [] }];
+
+const MATCH_TYPE_OPTIONS = [
+    { value: GroupValueMatchType.EXACT, label: 'is' },
+    { value: GroupValueMatchType.STARTS_WITH, label: 'starts with' },
+    { value: GroupValueMatchType.ENDS_WITH, label: 'ends with' },
+    { value: GroupValueMatchType.INCLUDES, label: 'includes' },
+];
+
+const DEFAULT_VALUE_RULE: GroupValueRule = {
+    matchType: GroupValueMatchType.EXACT,
+    value: '',
+};
 
 const isStringBinType = (binType: BinType) => binType === BinType.CUSTOM_GROUP;
 
@@ -127,7 +142,12 @@ export const CustomBinDimensionModal: FC<{
                 z.object({
                     name: z.string().min(1),
                     values: z
-                        .array(z.string().min(1))
+                        .array(
+                            z.object({
+                                matchType: z.nativeEnum(GroupValueMatchType),
+                                value: z.string().min(1),
+                            }),
+                        )
                         .min(1, 'Each group must have at least one value'),
                 }),
             ),
@@ -300,7 +320,9 @@ export const CustomBinDimensionModal: FC<{
                 afterValueIndex !== undefined
                     ? afterValueIndex + 1
                     : newGroups[groupIndex].values.length;
-            newGroups[groupIndex].values.splice(insertAt, 0, '');
+            newGroups[groupIndex].values.splice(insertAt, 0, {
+                ...DEFAULT_VALUE_RULE,
+            });
             form.setFieldValue('binConfig.customGroups', newGroups);
             setFocusTarget(`custom-group-${groupIndex}-value-${insertAt}`);
         },
@@ -312,7 +334,7 @@ export const CustomBinDimensionModal: FC<{
         form.values.binConfig.customGroups.some(
             (group) =>
                 group.values.length === 0 ||
-                group.values.some((v) => v.trim() === ''),
+                group.values.some((v) => v.value.trim() === ''),
         );
 
     return (
@@ -638,13 +660,24 @@ export const CustomBinDimensionModal: FC<{
                                                     align="center"
                                                     ml="md"
                                                 >
+                                                    <Select
+                                                        size="xs"
+                                                        w={110}
+                                                        data={
+                                                            MATCH_TYPE_OPTIONS
+                                                        }
+                                                        allowDeselect={false}
+                                                        {...form.getInputProps(
+                                                            `binConfig.customGroups.${groupIndex}.values.${valueIndex}.matchType`,
+                                                        )}
+                                                    />
                                                     <TextInput
                                                         flex={1}
                                                         size="xs"
                                                         placeholder="Enter a value"
                                                         data-focus-id={`custom-group-${groupIndex}-value-${valueIndex}`}
                                                         {...form.getInputProps(
-                                                            `binConfig.customGroups.${groupIndex}.values.${valueIndex}`,
+                                                            `binConfig.customGroups.${groupIndex}.values.${valueIndex}.value`,
                                                         )}
                                                         onKeyDown={(e) => {
                                                             if (

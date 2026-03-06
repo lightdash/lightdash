@@ -215,11 +215,23 @@ export type BinRange = {
     to: number | undefined;
 };
 
+export enum GroupValueMatchType {
+    EXACT = 'exact',
+    STARTS_WITH = 'startsWith',
+    ENDS_WITH = 'endsWith',
+    INCLUDES = 'includes',
+}
+
+export type GroupValueRule = {
+    matchType: GroupValueMatchType;
+    value: string;
+};
+
 export type BinGroup = {
     /** Display name for this group (e.g. "North America") */
     name: string;
-    /** Values that belong to this group (e.g. ["US", "CA", "MX"]) */
-    values: string[];
+    /** Rules that match values into this group */
+    values: GroupValueRule[];
 };
 
 export enum CustomDimensionType {

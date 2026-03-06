@@ -1,5 +1,11 @@
-import { type BinGroup, type BinRange } from '../types/field';
+import {
+    GroupValueMatchType,
+    type BinGroup,
+    type BinRange,
+    type GroupValueRule,
+} from '../types/field';
 import { type WarehouseSqlBuilder } from '../types/warehouse';
+import assertUnreachable from './assertUnreachable';
 
 const createEscapeValue = (
     quoteChar: string,
@@ -84,6 +90,79 @@ export const getCustomRangeSelectSql = ({
             END`;
 };
 
+const renderValueCondition = (
+    rule: GroupValueRule,
+    baseDimensionSql: string,
+    quoteChar: string,
+    escapeValue: (value: string) => string,
+): string => {
+    const escaped = escapeValue(rule.value);
+    switch (rule.matchType) {
+        case GroupValueMatchType.EXACT:
+            return `${baseDimensionSql} = ${quoteChar}${escaped}${quoteChar}`;
+        case GroupValueMatchType.STARTS_WITH:
+            return `${baseDimensionSql} LIKE ${quoteChar}${escaped}%${quoteChar}`;
+        case GroupValueMatchType.ENDS_WITH:
+            return `${baseDimensionSql} LIKE ${quoteChar}%${escaped}${quoteChar}`;
+        case GroupValueMatchType.INCLUDES:
+            return `${baseDimensionSql} LIKE ${quoteChar}%${escaped}%${quoteChar}`;
+        default:
+            return assertUnreachable(
+                rule.matchType,
+                `Unknown match type: ${rule.matchType}`,
+            );
+    }
+};
+
+const renderGroupCondition = (
+    rules: GroupValueRule[],
+    baseDimensionSql: string,
+    quoteChar: string,
+    escapeValue: (value: string) => string,
+): string => {
+    // Optimise: batch exact-match rules into a single IN clause
+    const exactRules = rules.filter(
+        (r) => r.matchType === GroupValueMatchType.EXACT,
+    );
+    const patternRules = rules.filter(
+        (r) => r.matchType !== GroupValueMatchType.EXACT,
+    );
+
+    const conditions: string[] = [];
+
+    if (exactRules.length === 1) {
+        conditions.push(
+            renderValueCondition(
+                exactRules[0],
+                baseDimensionSql,
+                quoteChar,
+                escapeValue,
+            ),
+        );
+    } else if (exactRules.length > 1) {
+        const inValues = exactRules
+            .map((r) => `${quoteChar}${escapeValue(r.value)}${quoteChar}`)
+            .join(', ');
+        conditions.push(`${baseDimensionSql} IN (${inValues})`);
+    }
+
+    for (const rule of patternRules) {
+        conditions.push(
+            renderValueCondition(
+                rule,
+                baseDimensionSql,
+                quoteChar,
+                escapeValue,
+            ),
+        );
+    }
+
+    if (conditions.length === 1) {
+        return conditions[0];
+    }
+    return `(${conditions.join(' OR ')})`;
+};
+
 export const getCustomGroupSelectSql = ({
     binGroups,
     baseDimensionSql,
@@ -100,10 +179,13 @@ export const getCustomGroupSelectSql = ({
     const nonEmptyGroups = binGroups.filter((group) => group.values.length > 0);
 
     const groupWhens = nonEmptyGroups.map((group) => {
-        const inValues = group.values
-            .map((v) => `${quoteChar}${escapeValue(v)}${quoteChar}`)
-            .join(', ');
-        return `WHEN ${baseDimensionSql} IN (${inValues}) THEN ${quoteChar}${escapeValue(group.name)}${quoteChar}`;
+        const condition = renderGroupCondition(
+            group.values,
+            baseDimensionSql,
+            quoteChar,
+            escapeValue,
+        );
+        return `WHEN ${condition} THEN ${quoteChar}${escapeValue(group.name)}${quoteChar}`;
     });
 
     const whens = [
@@ -133,10 +215,13 @@ export const getCustomGroupOrderSql = ({
     const nonEmptyGroups = binGroups.filter((group) => group.values.length > 0);
 
     const groupWhens = nonEmptyGroups.map((group, index) => {
-        const inValues = group.values
-            .map((v) => `${quoteChar}${escapeValue(v)}${quoteChar}`)
-            .join(', ');
-        return `WHEN ${baseDimensionSql} IN (${inValues}) THEN ${index}`;
+        const condition = renderGroupCondition(
+            group.values,
+            baseDimensionSql,
+            quoteChar,
+            escapeValue,
+        );
+        return `WHEN ${condition} THEN ${index}`;
     });
 
     const whens = [
