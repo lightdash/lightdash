@@ -153,11 +153,13 @@ const GeneralSettings: FC = () => {
         setShowResultsTotal,
         setShowRowCalculation,
         setShowSubtotals,
+        setShowSubtotalsExpanded,
         setShowTableNames,
         showColumnCalculation,
         showResultsTotal,
         showRowCalculation,
         showSubtotals,
+        showSubtotalsExpanded,
         showTableNames,
     } = chartConfig;
 
@@ -301,6 +303,16 @@ const GeneralSettings: FC = () => {
                         />
                     </Box>
                 </Tooltip>
+                {canUseSubtotals && !metricsAsRows && showSubtotals && (
+                    <Checkbox
+                        label="Expand subtotals by default"
+                        checked={showSubtotalsExpanded}
+                        onChange={() => {
+                            setShowSubtotalsExpanded(!showSubtotalsExpanded);
+                        }}
+                        ml="lg"
+                    />
+                )}
             </Config.Section>
         </Stack>
     );

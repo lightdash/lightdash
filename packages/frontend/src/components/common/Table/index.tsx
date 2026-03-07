@@ -52,7 +52,7 @@ const Table: FC<React.PropsWithChildren<Props>> = ({
     }
 
     return (
-        <TableProvider {...rest}>
+        <TableProvider showSubtotals={showSubtotals} {...rest}>
             <TableContainer
                 className={`sentry-block ph-no-capture ${
                     className ? ` ${className}` : ''
