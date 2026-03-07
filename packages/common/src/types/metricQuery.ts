@@ -212,6 +212,8 @@ export type SortField = {
     descending: boolean;
     /** Sort null values first */
     nullsFirst?: boolean;
+    /** Name of a custom SQL sort expression to use instead of default sort */
+    customSortName?: string;
 };
 
 export const getAdditionalMetricLabel = (item: AdditionalMetric) =>

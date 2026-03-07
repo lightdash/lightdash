@@ -200,6 +200,16 @@ const convertDimension = (
         colors: meta.dimension?.colors,
         ...(meta.dimension?.urls ? { urls: meta.dimension.urls } : {}),
         ...(meta.dimension?.image ? { image: meta.dimension.image } : {}),
+        ...(meta.dimension?.custom_sql_sorts
+            ? {
+                  customSqlSorts: meta.dimension.custom_sql_sorts.map(
+                      (sort) => ({
+                          name: sort.name,
+                          sql: sort.sql,
+                      }),
+                  ),
+              }
+            : {}),
         ...(isAdditionalDimension ? { isAdditionalDimension } : {}),
         groups,
         isIntervalBase,

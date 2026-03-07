@@ -225,6 +225,7 @@ export type DbtColumnLightdashDimension = {
         filter_by?: boolean;
         segment_by?: boolean;
     };
+    custom_sql_sorts?: Array<{ name: string; sql: string }>;
 } & DbtLightdashFieldTags;
 
 export type DbtColumnLightdashAdditionalDimension = Omit<
