@@ -162,3 +162,28 @@ parameters:
       model: orders
       dimension: order_date
 `;
+
+export const validConfigWithOptionsFromDimensionAndLabel = `
+spotlight:
+  default_visibility: show
+parameters:
+  employer:
+    label: Employer
+    options_from_dimension:
+      model: employer_lookup
+      dimension: employer_id
+      label_dimension: employer_name
+`;
+
+export const validConfigWithLabeledOptions = `
+spotlight:
+  default_visibility: show
+parameters:
+  status:
+    label: Status
+    options:
+      - label: Active
+        value: "active_id_1"
+      - label: Inactive
+        value: "inactive_id_2"
+`;
