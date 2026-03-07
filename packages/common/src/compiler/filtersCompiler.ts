@@ -130,8 +130,10 @@ export const renderStringFilterSql = (
                 : 'true';
         case FilterOperator.INCLUDE:
             if (nonEmptyFilterValues && nonEmptyFilterValues.length > 0) {
-                const includesQuery = nonEmptyFilterValues.map(
-                    (v) => `LOWER(${dimensionSql}) LIKE LOWER('%${v}%')`,
+                const includesQuery = nonEmptyFilterValues.map((v) =>
+                    !caseSensitive
+                        ? `UPPER(${dimensionSql}) LIKE UPPER('%${v}%')`
+                        : `(${dimensionSql}) LIKE '%${v}%'`,
                 );
                 if (includesQuery.length > 1)
                     return `(${includesQuery.join('\n  OR\n  ')})`;
@@ -140,8 +142,10 @@ export const renderStringFilterSql = (
             return 'true';
         case FilterOperator.NOT_INCLUDE:
             if (nonEmptyFilterValues && nonEmptyFilterValues.length > 0) {
-                const notIncludeQuery = nonEmptyFilterValues.map(
-                    (v) => `LOWER(${dimensionSql}) NOT LIKE LOWER('%${v}%')`,
+                const notIncludeQuery = nonEmptyFilterValues.map((v) =>
+                    !caseSensitive
+                        ? `UPPER(${dimensionSql}) NOT LIKE UPPER('%${v}%')`
+                        : `(${dimensionSql}) NOT LIKE '%${v}%'`,
                 );
                 return notIncludeQuery.join('\n  AND\n  ');
             }
