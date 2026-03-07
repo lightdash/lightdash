@@ -572,6 +572,8 @@ export type CompleteEChartsConfig = {
     axisLabelFontSize?: number;
     /** Font size for axis titles */
     axisTitleFontSize?: number;
+    /** Chart-level color palette. Overrides the organization color palette for this chart. */
+    colors?: string[];
 };
 
 export type EChartsConfig = Partial<CompleteEChartsConfig>;
