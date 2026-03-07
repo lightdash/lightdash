@@ -101,6 +101,7 @@ import {
     type MsTeamsNotificationPayload,
     type PartialFailure,
     type PivotConfiguration,
+    type RunQueryTags,
     type SchedulerIndexCatalogJobPayload,
     type SlackBatchNotificationPayload,
 } from '@lightdash/common';

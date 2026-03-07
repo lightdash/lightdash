@@ -910,6 +910,13 @@ export type LightdashConfig = {
         cacheStateTimeSeconds: number;
         s3?: Omit<S3Config, 'expirationTime'>;
     };
+    asyncQuery: {
+        nats: {
+            enabled: boolean;
+            url: string | undefined;
+            workerConcurrency: number;
+        };
+    };
     slack?: SlackConfig;
     scheduler: {
         enabled: boolean;
@@ -1375,9 +1382,22 @@ export const parseConfig = (): LightdashConfig => {
     const preAggregatesEnabled =
         licenseKey !== null && process.env.PRE_AGGREGATES_ENABLED === 'true';
     const preAggregatesS3 = parsePreAggregateResultsS3Config();
+    const asyncQueryNatsEnabled = process.env.NATS_ENABLED === 'true';
+    const asyncQueryNatsUrl = process.env.NATS_URL;
+    const asyncQueryNatsWorkerConcurrency =
+        getIntegerFromEnvironmentVariable('NATS_WORKER_CONCURRENCY') ?? 1;
 
     if (preAggregatesEnabled && !preAggregatesS3) {
         throw new ParseError('Pre-aggregates require S3 configuration', {});
+    }
+    if (asyncQueryNatsEnabled && !asyncQueryNatsUrl) {
+        throw new ParseError('NATS_URL is required when NATS_ENABLED=true', {});
+    }
+    if (asyncQueryNatsWorkerConcurrency <= 0) {
+        throw new ParseError(
+            'NATS_WORKER_CONCURRENCY must be greater than 0',
+            {},
+        );
     }
 
     return {
@@ -1740,6 +1760,13 @@ export const parseConfig = (): LightdashConfig => {
                 10,
             ),
             s3: parseResultsS3Config(),
+        },
+        asyncQuery: {
+            nats: {
+                enabled: asyncQueryNatsEnabled,
+                url: asyncQueryNatsUrl,
+                workerConcurrency: asyncQueryNatsWorkerConcurrency,
+            },
         },
         slack: {
             signingSecret: process.env.SLACK_SIGNING_SECRET,

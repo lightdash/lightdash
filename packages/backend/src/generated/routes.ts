@@ -16260,6 +16260,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'union',
             subSchemas: [
+                { dataType: 'enum', enums: ['runAsyncPreAggregateQuery'] },
                 { dataType: 'enum', enums: ['slackAiPrompt'] },
                 { dataType: 'enum', enums: ['aiAgentEvalResult'] },
                 { dataType: 'enum', enums: ['embedArtifactVersion'] },
@@ -16287,6 +16288,7 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['sqlRunnerPivotQuery'] },
                 { dataType: 'enum', enums: ['replaceCustomFields'] },
                 { dataType: 'enum', enums: ['indexCatalog'] },
+                { dataType: 'enum', enums: ['runAsyncWarehouseQuery'] },
                 { dataType: 'enum', enums: ['generateDailyJobs'] },
                 { dataType: 'enum', enums: ['exportCsvDashboard'] },
                 { dataType: 'enum', enums: ['renameResources'] },

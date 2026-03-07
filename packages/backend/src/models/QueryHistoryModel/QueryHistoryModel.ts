@@ -51,6 +51,7 @@ function convertDbQueryHistoryToQueryHistory(
         resultsExpiresAt: queryHistory.results_expires_at,
         columns: queryHistory.columns,
         originalColumns: queryHistory.original_columns,
+        preAggregateCompiledSql: queryHistory.pre_aggregate_compiled_sql,
     };
 }
 
@@ -112,6 +113,7 @@ export class QueryHistoryModel {
             | 'resultsExpiresAt'
             | 'columns'
             | 'originalColumns'
+            | 'preAggregateCompiledSql'
             | 'createdByAccount'
             | 'createdByUserUuid'
             | 'createdBy'
@@ -149,6 +151,7 @@ export class QueryHistoryModel {
                 results_expires_at: null,
                 columns: null,
                 original_columns: null,
+                pre_aggregate_compiled_sql: null,
             })
             .returning('query_uuid');
 
@@ -236,6 +239,20 @@ export class QueryHistoryModel {
             columns: result.columns,
             originalColumns: result.original_columns,
         };
+    }
+
+    async getFullByQueryUuid(queryUuid: string): Promise<DbQueryHistory> {
+        const result = await this.database(QueryHistoryTableName)
+            .where('query_uuid', queryUuid)
+            .first<DbQueryHistory>();
+
+        if (!result) {
+            throw new NotFoundError(
+                `Query history not found for query ${queryUuid}`,
+            );
+        }
+
+        return result;
     }
 
     async getByQueryUuid(queryUuid: string): Promise<QueryHistory | undefined> {

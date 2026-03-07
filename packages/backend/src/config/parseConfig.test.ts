@@ -613,6 +613,41 @@ describe('scheduler poll interval', () => {
     });
 });
 
+describe('async query NATS config', () => {
+    test('should parse valid enabled config', () => {
+        process.env.NATS_ENABLED = 'true';
+        process.env.NATS_URL = 'nats://nats.example.com:4222';
+        process.env.NATS_WORKER_CONCURRENCY = '50';
+
+        const config = parseConfig();
+
+        expect(config.asyncQuery.nats).toEqual({
+            enabled: true,
+            url: 'nats://nats.example.com:4222',
+            workerConcurrency: 50,
+        });
+    });
+
+    test('should throw when NATS_ENABLED=true but NATS_URL is not set', () => {
+        process.env.NATS_ENABLED = 'true';
+        delete process.env.NATS_URL;
+
+        expect(() => parseConfig()).toThrowError(ParseError);
+        expect(() => parseConfig()).toThrowError(
+            'NATS_URL is required when NATS_ENABLED=true',
+        );
+    });
+
+    test('should throw when worker concurrency is invalid', () => {
+        process.env.NATS_WORKER_CONCURRENCY = '0';
+
+        expect(() => parseConfig()).toThrowError(ParseError);
+        expect(() => parseConfig()).toThrowError(
+            'NATS_WORKER_CONCURRENCY must be greater than 0',
+        );
+    });
+});
+
 test('should set useSqlPivotResults only when the environment variable is set', () => {
     const undefinedConfig = parseConfig();
     expect(undefinedConfig.query.useSqlPivotResults).toBeUndefined();

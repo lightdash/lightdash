@@ -78,6 +78,8 @@
         "backend-dev": "pnpm -F backend dev",
         "backend-build": "pnpm -F backend build",
         "backend-start": "pnpm -F backend start",
+        "backend-nats-worker": "pnpm -F backend nats-worker",
+        "backend-nats-worker-dev": "pnpm -F backend nats-worker-dev",
         "backend-lint": "pnpm -F backend lint",
         "backend-format": "pnpm -F backend format",
         "backend-fix-lint": "pnpm -F backend fix-lint",

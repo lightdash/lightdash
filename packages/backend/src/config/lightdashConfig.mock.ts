@@ -148,6 +148,13 @@ export const lightdashConfigMock: LightdashConfig = {
             region: 'mock_region',
         },
     },
+    asyncQuery: {
+        nats: {
+            enabled: false,
+            url: undefined,
+            workerConcurrency: 1,
+        },
+    },
     rudder: {
         writeKey: '',
         dataPlaneUrl: '',

@@ -20,6 +20,7 @@ import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import type { S3CacheClient } from '../../clients/Aws/S3CacheClient';
 import EmailClient from '../../clients/EmailClient/EmailClient';
 import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
+import type { INatsJobClient } from '../../clients/NatsJobClient';
 import { type S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import type { LightdashConfig } from '../../config/parseConfig';
@@ -169,6 +170,12 @@ const getMockedAsyncQueryService = (
         schedulerClient: {
             scheduleTask: jest.fn(),
         } as unknown as SchedulerClient,
+        natsJobClient: {
+            enqueueWarehouseQuery: jest.fn(async () => ({
+                jobId: 'test-nats-job-id',
+            })),
+            enqueuePreAggregateQuery: jest.fn(),
+        } as unknown as INatsJobClient,
         downloadFileModel: {} as unknown as DownloadFileModel,
         fileStorageClient: {} as FileStorageClient,
         groupsModel: {} as GroupsModel,
@@ -403,11 +410,9 @@ describe('AsyncQueryService', () => {
                 queryUuid: 'test-query-uuid',
             });
 
-            // Spy on runAsyncWarehouseQuery to verify it IS called
-            const runAsyncWarehouseQuerySpy = jest.spyOn(
-                serviceWithCache,
-                'runAsyncWarehouseQuery',
-            );
+            const runAsyncSpy = jest
+                .spyOn(serviceWithCache, 'runAsyncWarehouseQuery')
+                .mockResolvedValue(undefined);
 
             // WHEN: executeAsyncQuery is called
             const result = await serviceWithCache.executeAsyncQuery(
@@ -452,14 +457,14 @@ describe('AsyncQueryService', () => {
                 }),
             );
 
-            // THEN: runAsyncWarehouseQuery IS called with correct parameters
-            expect(runAsyncWarehouseQuerySpy).toHaveBeenCalledWith(
+            // THEN: Query dispatched inline (fire-and-forget)
+            expect(runAsyncSpy).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    userId: sessionAccount.user.id,
+                    userUuid: sessionAccount.user.id,
                     isRegisteredUser: sessionAccount.isRegisteredUser(),
                     projectUuid,
                     query: 'SELECT * FROM test',
-                    queryHistoryUuid: 'test-query-uuid',
+                    queryUuid: 'test-query-uuid',
                     fieldsMap: {},
                     queryTags: { query_context: QueryExecutionContext.EXPLORE },
                 } satisfies Partial<RunAsyncWarehouseQueryArgs>),
@@ -496,11 +501,9 @@ describe('AsyncQueryService', () => {
                 queryUuid: 'test-query-uuid',
             });
 
-            // Spy on runAsyncWarehouseQuery to verify it IS called
-            const runAsyncWarehouseQuerySpy = jest.spyOn(
-                serviceWithCache,
-                'runAsyncWarehouseQuery',
-            );
+            const runAsyncSpy = jest
+                .spyOn(serviceWithCache, 'runAsyncWarehouseQuery')
+                .mockResolvedValue(undefined);
 
             // WHEN: executeAsyncQuery is called with invalidateCache: true
             const result = await serviceWithCache.executeAsyncQuery(
@@ -529,14 +532,14 @@ describe('AsyncQueryService', () => {
                 true,
             );
 
-            // THEN: runAsyncWarehouseQuery IS called with correct parameters
-            expect(runAsyncWarehouseQuerySpy).toHaveBeenCalledWith(
+            // THEN: Query dispatched inline (fire-and-forget)
+            expect(runAsyncSpy).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    userId: sessionAccount.user.id,
+                    userUuid: sessionAccount.user.id,
                     isRegisteredUser: sessionAccount.isRegisteredUser(),
                     projectUuid,
                     query: 'SELECT * FROM test',
-                    queryHistoryUuid: 'test-query-uuid',
+                    queryUuid: 'test-query-uuid',
                     fieldsMap: {},
                     queryTags: { query_context: QueryExecutionContext.EXPLORE },
                 } satisfies Partial<RunAsyncWarehouseQueryArgs>),
@@ -588,15 +591,14 @@ describe('AsyncQueryService', () => {
                 queryUuid: 'test-query-uuid',
             });
 
-            // Spy on cache and warehouse methods
+            // Spy on cache methods
             const findResultsCacheSpy = jest.spyOn(
                 serviceWithoutCache,
                 'findResultsCache',
             );
-            const runAsyncWarehouseQuerySpy = jest.spyOn(
-                serviceWithoutCache,
-                'runAsyncWarehouseQuery',
-            );
+            const runAsyncSpy = jest
+                .spyOn(serviceWithoutCache, 'runAsyncWarehouseQuery')
+                .mockResolvedValue(undefined);
 
             // WHEN: executeAsyncQuery is called
             const result = await serviceWithoutCache.executeAsyncQuery(
@@ -625,14 +627,14 @@ describe('AsyncQueryService', () => {
                 false, // invalidateCache
             );
 
-            // THEN: runAsyncWarehouseQuery IS always called with correct parameters
-            expect(runAsyncWarehouseQuerySpy).toHaveBeenCalledWith(
+            // THEN: Query dispatched inline (fire-and-forget)
+            expect(runAsyncSpy).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    userId: sessionAccount.user.id,
+                    userUuid: sessionAccount.user.id,
                     isRegisteredUser: sessionAccount.isRegisteredUser(),
                     projectUuid,
                     query: 'SELECT * FROM test',
-                    queryHistoryUuid: 'test-query-uuid',
+                    queryUuid: 'test-query-uuid',
                     fieldsMap: {},
                     queryTags: { query_context: QueryExecutionContext.EXPLORE },
                 } satisfies Partial<RunAsyncWarehouseQueryArgs>),
@@ -736,6 +738,212 @@ describe('AsyncQueryService', () => {
             expect(runAsyncWarehouseQuerySpy).not.toHaveBeenCalled();
         });
 
+        test('enqueues warehouse queries on NATS when enabled', async () => {
+            const natsJobClientMock = {
+                enqueueWarehouseQuery: jest.fn(async () => ({
+                    jobId: 'nats-job-1',
+                })),
+                enqueuePreAggregateQuery: jest.fn(),
+            };
+            const service = getMockedAsyncQueryService(
+                {
+                    ...lightdashConfigMock,
+                    asyncQuery: {
+                        nats: {
+                            ...lightdashConfigMock.asyncQuery.nats,
+                            enabled: true,
+                        },
+                    },
+                },
+                {
+                    natsJobClient:
+                        natsJobClientMock as unknown as INatsJobClient,
+                },
+            );
+
+            service.findResultsCache = jest.fn().mockResolvedValueOnce({
+                cacheHit: false,
+                updatedAt: undefined,
+                expiresAt: undefined,
+            } satisfies MissCacheResult);
+            (service.queryHistoryModel.create as jest.Mock).mockResolvedValue({
+                queryUuid: 'test-query-uuid',
+            });
+
+            const runAsyncWarehouseQuerySpy = jest.spyOn(
+                service,
+                'runAsyncWarehouseQuery',
+            );
+
+            const result = await service.executeAsyncQuery(
+                {
+                    account: sessionAccount,
+                    projectUuid,
+                    metricQuery: metricQueryMock,
+                    context: QueryExecutionContext.EXPLORE,
+                    dateZoom: undefined,
+                    queryTags: {
+                        query_context: QueryExecutionContext.EXPLORE,
+                    },
+                    explore: validExplore,
+                    invalidateCache: false,
+                    sql: 'SELECT * FROM test',
+                    fields: {},
+                    missingParameterReferences: [],
+                },
+                { query: metricQueryMock },
+            );
+
+            expect(result).toEqual({
+                queryUuid: 'test-query-uuid',
+                cacheMetadata: {
+                    cacheHit: false,
+                    cacheUpdatedTime: undefined,
+                    cacheExpiresAt: undefined,
+                },
+            } satisfies ExecuteAsyncQueryReturn);
+            expect(
+                natsJobClientMock.enqueueWarehouseQuery,
+            ).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    queryUuid: 'test-query-uuid',
+                    userUuid: sessionAccount.user.id,
+                    accountType: 'session',
+                }),
+            );
+            expect(runAsyncWarehouseQuerySpy).not.toHaveBeenCalled();
+        });
+
+        test('sets query history to error when NATS enqueue fails', async () => {
+            const natsJobClientMock = {
+                enqueueWarehouseQuery: jest.fn(async () => {
+                    throw new Error('NATS publish failed');
+                }),
+                enqueuePreAggregateQuery: jest.fn(),
+            };
+            const service = getMockedAsyncQueryService(
+                {
+                    ...lightdashConfigMock,
+                    asyncQuery: {
+                        nats: {
+                            ...lightdashConfigMock.asyncQuery.nats,
+                            enabled: true,
+                        },
+                    },
+                },
+                {
+                    natsJobClient:
+                        natsJobClientMock as unknown as INatsJobClient,
+                },
+            );
+
+            service.findResultsCache = jest.fn().mockResolvedValueOnce({
+                cacheHit: false,
+                updatedAt: undefined,
+                expiresAt: undefined,
+            } satisfies MissCacheResult);
+            (service.queryHistoryModel.create as jest.Mock).mockResolvedValue({
+                queryUuid: 'test-query-uuid',
+            });
+
+            const runAsyncWarehouseQuerySpy = jest.spyOn(
+                service,
+                'runAsyncWarehouseQuery',
+            );
+
+            const result = await service.executeAsyncQuery(
+                {
+                    account: sessionAccount,
+                    projectUuid,
+                    metricQuery: metricQueryMock,
+                    context: QueryExecutionContext.EXPLORE,
+                    dateZoom: undefined,
+                    queryTags: {
+                        query_context: QueryExecutionContext.EXPLORE,
+                    },
+                    explore: validExplore,
+                    invalidateCache: false,
+                    sql: 'SELECT * FROM test',
+                    fields: {},
+                    missingParameterReferences: [],
+                },
+                { query: metricQueryMock },
+            );
+
+            expect(result).toEqual({
+                queryUuid: 'test-query-uuid',
+                cacheMetadata: {
+                    cacheHit: false,
+                    cacheUpdatedTime: undefined,
+                    cacheExpiresAt: undefined,
+                },
+            } satisfies ExecuteAsyncQueryReturn);
+            expect(service.queryHistoryModel.update).toHaveBeenCalledWith(
+                'test-query-uuid',
+                projectUuid,
+                {
+                    status: QueryHistoryStatus.ERROR,
+                    error: 'Failed to enqueue warehouse query: NATS publish failed',
+                },
+                sessionAccount,
+            );
+            expect(runAsyncWarehouseQuerySpy).not.toHaveBeenCalled();
+        });
+
+        test('runs inline fire-and-forget when NATS is disabled', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+
+            service.findResultsCache = jest.fn().mockResolvedValueOnce({
+                cacheHit: false,
+                updatedAt: undefined,
+                expiresAt: undefined,
+            } satisfies MissCacheResult);
+            (service.queryHistoryModel.create as jest.Mock).mockResolvedValue({
+                queryUuid: 'test-query-uuid',
+            });
+
+            const runAsyncWarehouseQuerySpy = jest
+                .spyOn(service, 'runAsyncWarehouseQuery')
+                .mockResolvedValue(undefined);
+
+            const result = await service.executeAsyncQuery(
+                {
+                    account: sessionAccount,
+                    projectUuid,
+                    metricQuery: metricQueryMock,
+                    context: QueryExecutionContext.EXPLORE,
+                    dateZoom: undefined,
+                    queryTags: {
+                        query_context: QueryExecutionContext.EXPLORE,
+                    },
+                    explore: validExplore,
+                    invalidateCache: false,
+                    sql: 'SELECT * FROM test',
+                    fields: {},
+                    missingParameterReferences: [],
+                },
+                { query: metricQueryMock },
+            );
+
+            expect(result).toEqual({
+                queryUuid: 'test-query-uuid',
+                cacheMetadata: {
+                    cacheHit: false,
+                    cacheUpdatedTime: undefined,
+                    cacheExpiresAt: undefined,
+                },
+            } satisfies ExecuteAsyncQueryReturn);
+
+            expect(runAsyncWarehouseQuerySpy).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    userUuid: sessionAccount.user.id,
+                    projectUuid,
+                    queryUuid: 'test-query-uuid',
+                    query: 'SELECT * FROM test',
+                }),
+            );
+        });
+
         test('does not resolve pre-aggregates when flag is disabled', async () => {
             const resolveSpy = jest.fn(async () => ({
                 resolved: false as const,
@@ -751,9 +959,9 @@ describe('AsyncQueryService', () => {
                 resolve: resolveSpy,
             } as unknown as PreAggregationDuckDbClient;
 
-            const runAsyncWarehouseQuerySpy = jest
+            const runAsyncSpy = jest
                 .spyOn(service, 'runAsyncWarehouseQuery')
-                .mockResolvedValue();
+                .mockResolvedValue(undefined);
 
             await service.executeAsyncQuery(
                 {
@@ -785,7 +993,7 @@ describe('AsyncQueryService', () => {
             );
 
             expect(resolveSpy).not.toHaveBeenCalled();
-            expect(runAsyncWarehouseQuerySpy).toHaveBeenCalledTimes(1);
+            expect(runAsyncSpy).toHaveBeenCalledTimes(1);
         });
 
         test('required pre-aggregate routes do not fall back when DuckDB cannot resolve', async () => {
@@ -807,10 +1015,6 @@ describe('AsyncQueryService', () => {
             (service.queryHistoryModel.create as jest.Mock).mockResolvedValue({
                 queryUuid: 'test-query-uuid',
             });
-
-            const runAsyncWarehouseQuerySpy = jest
-                .spyOn(service, 'runAsyncWarehouseQuery')
-                .mockResolvedValue();
 
             await service.executeAsyncQuery(
                 {
@@ -848,10 +1052,18 @@ describe('AsyncQueryService', () => {
                 },
             );
 
-            await new Promise(setImmediate);
+            const runAsyncWarehouseSpy = jest.spyOn(
+                service,
+                'runAsyncWarehouseQuery',
+            );
+            const runAsyncPreAggSpy = jest.spyOn(
+                service,
+                'runAsyncPreAggregateQuery',
+            );
 
             expect(resolveSpy).toHaveBeenCalledTimes(1);
-            expect(runAsyncWarehouseQuerySpy).not.toHaveBeenCalled();
+            expect(runAsyncWarehouseSpy).not.toHaveBeenCalled();
+            expect(runAsyncPreAggSpy).not.toHaveBeenCalled();
             expect(service.queryHistoryModel.update).toHaveBeenCalledWith(
                 'test-query-uuid',
                 projectUuid,
@@ -863,7 +1075,7 @@ describe('AsyncQueryService', () => {
             );
         });
 
-        test('required pre-aggregate routes do not fall back when DuckDB execution fails', async () => {
+        test('resolved pre-aggregate routes delegate to scheduler pre-aggregate path', async () => {
             const service = getMockedAsyncQueryService({
                 ...lightdashConfigMock,
                 preAggregates: {
@@ -883,9 +1095,12 @@ describe('AsyncQueryService', () => {
                 queryUuid: 'test-query-uuid',
             });
 
-            const runAsyncWarehouseQuerySpy = jest
+            const runAsyncPreAggSpy = jest
+                .spyOn(service, 'runAsyncPreAggregateQuery')
+                .mockResolvedValue(undefined);
+            const runAsyncWarehouseSpy = jest
                 .spyOn(service, 'runAsyncWarehouseQuery')
-                .mockRejectedValueOnce(new Error('duckdb failed'));
+                .mockResolvedValue(undefined);
 
             await service.executeAsyncQuery(
                 {
@@ -923,15 +1138,14 @@ describe('AsyncQueryService', () => {
                 },
             );
 
-            await new Promise(setImmediate);
-
-            expect(runAsyncWarehouseQuerySpy).toHaveBeenCalledTimes(1);
-            expect(runAsyncWarehouseQuerySpy).toHaveBeenCalledWith(
+            expect(runAsyncPreAggSpy).toHaveBeenCalledTimes(1);
+            expect(runAsyncPreAggSpy).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    query: 'SELECT * FROM duckdb_preagg',
-                    warehouseClientOverride: warehouseClientMock,
+                    preAggregateQuery: 'SELECT * FROM duckdb_preagg',
+                    warehouseQuery: 'SELECT * FROM warehouse',
                 }),
             );
+            expect(runAsyncWarehouseSpy).not.toHaveBeenCalled();
         });
 
         test('opportunistic pre-aggregate routes still fall back to the warehouse when DuckDB cannot resolve', async () => {
@@ -954,9 +1168,9 @@ describe('AsyncQueryService', () => {
                 queryUuid: 'test-query-uuid',
             });
 
-            const runAsyncWarehouseQuerySpy = jest
+            const runAsyncSpy = jest
                 .spyOn(service, 'runAsyncWarehouseQuery')
-                .mockResolvedValue();
+                .mockResolvedValue(undefined);
 
             await service.executeAsyncQuery(
                 {
@@ -987,11 +1201,9 @@ describe('AsyncQueryService', () => {
                 { query: metricQueryMock },
             );
 
-            await new Promise(setImmediate);
-
             expect(resolveSpy).toHaveBeenCalledTimes(1);
-            expect(runAsyncWarehouseQuerySpy).toHaveBeenCalledTimes(1);
-            expect(runAsyncWarehouseQuerySpy).toHaveBeenCalledWith(
+            expect(runAsyncSpy).toHaveBeenCalledTimes(1);
+            expect(runAsyncSpy).toHaveBeenCalledWith(
                 expect.objectContaining({
                     query: 'SELECT * FROM warehouse',
                 }),
@@ -1119,6 +1331,7 @@ describe('AsyncQueryService', () => {
                 resultsExpiresAt: null,
                 columns: null,
                 originalColumns: null,
+                preAggregateCompiledSql: null,
             });
 
             serviceWithCache.getExplore = jest
@@ -1289,6 +1502,7 @@ describe('AsyncQueryService', () => {
                 resultsExpiresAt: new Date(Date.now() + 60_000),
                 columns: expectedColumns,
                 originalColumns: mockOriginalColumns,
+                preAggregateCompiledSql: null,
             };
 
             serviceWithCache.queryHistoryModel.get = jest
@@ -1395,8 +1609,8 @@ describe('AsyncQueryService', () => {
                 queryUuid: 'test-query-uuid',
             });
 
-            serviceWithCache.runAsyncWarehouseQuery = jest
-                .fn()
+            const runAsyncSpy = jest
+                .spyOn(serviceWithCache, 'runAsyncWarehouseQuery')
                 .mockResolvedValue(undefined);
 
             await serviceWithCache.executeAsyncQuery(
@@ -1419,10 +1633,8 @@ describe('AsyncQueryService', () => {
                 { query: metricQueryMock },
             );
 
-            // Verify that original columns are passed to runAsyncWarehouseQuery
-            expect(
-                serviceWithCache.runAsyncWarehouseQuery,
-            ).toHaveBeenCalledWith(
+            // Verify that original columns are passed to the inline fire-and-forget call
+            expect(runAsyncSpy).toHaveBeenCalledWith(
                 expect.objectContaining({
                     originalColumns: mockOriginalColumns,
                 }),
@@ -1497,14 +1709,14 @@ describe('AsyncQueryService', () => {
                 );
 
                 const runAsyncArgs: RunAsyncWarehouseQueryArgs = {
-                    userId: sessionAccount.user.id,
+                    userUuid: sessionAccount.user.id,
                     isRegisteredUser: true,
                     projectUuid,
                     query: 'SELECT * FROM test',
                     fieldsMap: {},
                     queryTags: { query_context: QueryExecutionContext.EXPLORE },
                     warehouseCredentialsOverrides: undefined,
-                    queryHistoryUuid: 'test-query-uuid',
+                    queryUuid: 'test-query-uuid',
                     cacheKey: 'test-cache-key',
                     pivotConfiguration: undefined,
                     originalColumns: undefined,
@@ -1590,14 +1802,14 @@ describe('AsyncQueryService', () => {
             );
 
             const runAsyncArgs: RunAsyncWarehouseQueryArgs = {
-                userId: sessionAccount.user.id,
+                userUuid: sessionAccount.user.id,
                 isRegisteredUser: true,
                 projectUuid,
                 query: 'SELECT * FROM test_table',
                 fieldsMap: {},
                 queryTags: { query_context: QueryExecutionContext.EXPLORE },
                 warehouseCredentialsOverrides: undefined,
-                queryHistoryUuid: 'test-query-uuid',
+                queryUuid: 'test-query-uuid',
                 cacheKey: 'test-cache-key',
                 pivotConfiguration: undefined,
                 originalColumns: undefined,
