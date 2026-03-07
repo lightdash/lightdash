@@ -1,0 +1,110 @@
+models:
+  - name: monthly_recurring_revenue
+    config:
+      meta:
+        primary_key: [month, division, sub_division, plan_tier]
+    columns:
+      - name: month
+        description: "First day of the month"
+        config:
+          meta:
+            dimension:
+              type: date
+              primary_key: true
+      - name: division
+        description: "Top-level division: Web or Mobile"
+        config:
+          meta:
+            dimension:
+              type: string
+      - name: sub_division
+        description: "Sub-division: Web, iOS, or Android"
+        config:
+          meta:
+            dimension:
+              type: string
+              primary_key: true
+      - name: plan_tier
+        description: "Subscription plan: Starter, Pro, or Enterprise"
+        config:
+          meta:
+            dimension:
+              type: string
+              primary_key: true
+      - name: active_subscriptions
+        description: "Snapshot of active subscriptions at the start of the month. Semi-additive — can sum across divisions and plans but NOT across months."
+        config:
+          meta:
+            dimension:
+              type: number
+            metrics:
+              total_active_subscriptions_incorrect:
+                type: sum
+                description: "Sum of active_subscriptions across all rows — incorrect when aggregating across months because this is a point-in-time snapshot (semi-additive)."
+      - name: new_subscriptions
+        description: "New subscriptions added during the month. Fully additive."
+        config:
+          meta:
+            dimension:
+              type: number
+            metrics:
+              total_new_subscriptions:
+                type: sum
+      - name: churned_subscriptions
+        description: "Subscriptions cancelled during the month. Fully additive."
+        config:
+          meta:
+            dimension:
+              type: number
+            metrics:
+              total_churned_subscriptions:
+                type: sum
+      - name: mrr
+        description: "Monthly recurring revenue at the start of the month. Semi-additive — can sum across divisions and plans but NOT across months."
+        config:
+          meta:
+            dimension:
+              type: number
+            metrics:
+              total_mrr_incorrect:
+                type: sum
+                description: "Sum of MRR across all rows — incorrect when aggregating across months because MRR is a point-in-time snapshot (semi-additive)."
+              average_mrr:
+                type: average
+                description: "Average MRR per segment."
+      - name: new_mrr
+        description: "MRR added from new subscriptions during the month. Fully additive — safe to sum across all dimensions including time."
+        config:
+          meta:
+            dimension:
+              type: number
+            metrics:
+              total_new_mrr:
+                type: sum
+      - name: churned_mrr
+        description: "MRR lost from cancelled subscriptions during the month. Fully additive."
+        config:
+          meta:
+            dimension:
+              type: number
+            metrics:
+              total_churned_mrr:
+                type: sum
+      - name: expansion_mrr
+        description: "MRR gained from upgrades during the month. Fully additive."
+        config:
+          meta:
+            dimension:
+              type: number
+            metrics:
+              total_expansion_mrr:
+                type: sum
+      - name: contraction_mrr
+        description: "MRR lost from downgrades during the month. Fully additive."
+        config:
+          meta:
+            dimension:
+              type: number
+            metrics:
+              total_contraction_mrr:
+                type: sum
