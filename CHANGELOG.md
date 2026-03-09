@@ -1,3 +1,10 @@
+## [0.2585.1](https://github.com/lightdash/lightdash/compare/0.2585.0...0.2585.1) (2026-03-09)
+
+
+### Bug Fixes
+
+* replace Arrow IPC with DuckDB native JSON for pivot queries ([#20963](https://github.com/lightdash/lightdash/issues/20963)) ([31691c3](https://github.com/lightdash/lightdash/commit/31691c3c4777b176ec58f96926aaee7f63e5b40b))
+
 # [0.2585.0](https://github.com/lightdash/lightdash/compare/0.2584.1...0.2585.0) (2026-03-09)
 
 
