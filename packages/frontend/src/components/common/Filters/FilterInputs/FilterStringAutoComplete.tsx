@@ -103,7 +103,9 @@ const RefreshIndicator: FC<{
                 }}
             >
                 Results loaded at {displayTime}{' '}
-                <IconRefresh
+                <MantineIcon
+                    icon={IconRefresh}
+                    display="inline"
                     size={12}
                     className={`${classes.refreshIcon} ${
                         isRefreshing ? classes.refreshIconSpin : ''
