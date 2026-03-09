@@ -199,7 +199,7 @@ export type DbtColumnLightdashDimension = {
     type?: DimensionType;
     description?: string;
     sql?: string;
-    time_intervals?: boolean | 'default' | 'OFF' | TimeFrames[];
+    time_intervals?: boolean | 'default' | 'OFF' | (TimeFrames | string)[];
     hidden?: boolean;
     // @deprecated Use format expression instead
     round?: number;
