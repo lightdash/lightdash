@@ -1,3 +1,15 @@
+# [0.2588.0](https://github.com/lightdash/lightdash/compare/0.2587.0...0.2588.0) (2026-03-09)
+
+
+### Bug Fixes
+
+* set transparent background for markdown images ([#20972](https://github.com/lightdash/lightdash/issues/20972)) ([c7247e6](https://github.com/lightdash/lightdash/commit/c7247e6b836f15ff3e088bc134ea732714d6700a))
+
+
+### Features
+
+* validate custom_granularities and pass to translator ([#20883](https://github.com/lightdash/lightdash/issues/20883)) ([49cb4a9](https://github.com/lightdash/lightdash/commit/49cb4a99301520bff0dcd2800f2c55ecebbeeb5d))
+
 # [0.2587.0](https://github.com/lightdash/lightdash/compare/0.2586.0...0.2587.0) (2026-03-09)
 
 
