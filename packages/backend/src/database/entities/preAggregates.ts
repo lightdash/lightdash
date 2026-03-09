@@ -60,6 +60,7 @@ export type DbPreAggregateMaterialization = {
     row_count: number | null;
     columns: ResultColumns | null;
     error_message: string | null;
+    total_bytes: number | null;
     created_at: Date;
     updated_at: Date;
 };
@@ -79,6 +80,7 @@ export type DbPreAggregateMaterializationUpdate = Partial<
         | 'row_count'
         | 'columns'
         | 'error_message'
+        | 'total_bytes'
         | 'updated_at'
     >
 >;

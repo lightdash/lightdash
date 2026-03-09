@@ -27,6 +27,7 @@ import {
     IconClock,
     IconColumns,
     IconExternalLink,
+    IconFile,
     IconFilter,
     IconFilterOff,
     IconLayersIntersect,
@@ -57,6 +58,14 @@ import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import MaterializationDetailDrawer from './MaterializationDetailDrawer';
 import classes from './PreAggregateMaterializations.module.css';
 import { StatusBadge } from './StatusBadge';
+
+const formatFileSize = (bytes: number): string => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    if (bytes < 1024 * 1024 * 1024)
+        return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+};
 
 type Props = {
     projectUuid: string;
@@ -357,6 +366,28 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                         </Text>
                     );
                 },
+            },
+            {
+                id: 'fileSize',
+                header: 'File size',
+                enableSorting: true,
+                size: 100,
+                accessorFn: (row) => row.materialization?.totalBytes ?? null,
+                Header: ({ column }) => (
+                    <Group gap="two" align="flex-start" wrap="nowrap">
+                        <MantineIcon icon={IconFile} color="ldGray.6" />
+                        {column.columnDef.header}
+                    </Group>
+                ),
+                Cell: ({ row }) => {
+                    const bytes = row.original.materialization?.totalBytes;
+                    return (
+                        <Text size="xs" c="ldGray.6" ff="monospace">
+                            {bytes != null ? formatFileSize(bytes) : '\u2014'}
+                        </Text>
+                    );
+                },
+                sortingFn: 'basic',
             },
             {
                 id: 'materializedAt',

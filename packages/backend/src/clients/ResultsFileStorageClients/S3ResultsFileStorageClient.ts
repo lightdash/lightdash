@@ -1,4 +1,4 @@
-import { GetObjectCommand } from '@aws-sdk/client-s3';
+import { GetObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
 import { Upload } from '@aws-sdk/lib-storage';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import {
@@ -129,6 +129,36 @@ export class S3ResultsFileStorageClient extends S3CacheClient {
         };
 
         return { write, close, writeStream: passThrough };
+    }
+
+    async getFileSize(
+        cacheKey: string,
+        fileExtension = 'jsonl',
+    ): Promise<number | null> {
+        if (!this.configuration || !this.s3) {
+            return null;
+        }
+
+        try {
+            const key = S3ResultsFileStorageClient.sanitizeFileExtension(
+                cacheKey,
+                fileExtension,
+            );
+            const response = await this.s3.send(
+                new HeadObjectCommand({
+                    Bucket: this.configuration.bucket,
+                    Key: key,
+                }),
+            );
+            return response.ContentLength ?? null;
+        } catch (error) {
+            Logger.warn(
+                `Failed to get file size for ${cacheKey}: ${getErrorMessage(
+                    error,
+                )}`,
+            );
+            return null;
+        }
     }
 
     async getDownloadStream(

@@ -3,6 +3,7 @@ import {
     QueryHistoryStatus,
     type Account,
 } from '@lightdash/common';
+import { type S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { type PreAggregateModel } from '../../models/PreAggregateModel';
 import { type QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
@@ -27,11 +28,17 @@ describe('PreAggregateMaterializationService', () => {
         executeAsyncMetricQuery: jest.fn(),
     };
 
+    const preAggregateResultsStorageClient = {
+        getFileSize: jest.fn(),
+    };
+
     const service = new PreAggregateMaterializationService({
         lightdashConfig: lightdashConfigMock,
         preAggregateModel: preAggregateModel as unknown as PreAggregateModel,
         queryHistoryModel: queryHistoryModel as unknown as QueryHistoryModel,
         asyncQueryService: asyncQueryService as unknown as AsyncQueryService,
+        preAggregateResultsStorageClient:
+            preAggregateResultsStorageClient as unknown as S3ResultsFileStorageClient,
     });
 
     beforeEach(() => {
@@ -101,6 +108,7 @@ describe('PreAggregateMaterializationService', () => {
             totalRowCount: 123,
             columns: null,
         });
+        preAggregateResultsStorageClient.getFileSize.mockResolvedValue(456789);
         preAggregateModel.promoteToActive.mockResolvedValue({
             status: 'active',
         });
@@ -140,6 +148,7 @@ describe('PreAggregateMaterializationService', () => {
             materializedAt: queryUpdatedAt,
             rowCount: 123,
             columns: null,
+            totalBytes: 456789,
         });
     });
 
