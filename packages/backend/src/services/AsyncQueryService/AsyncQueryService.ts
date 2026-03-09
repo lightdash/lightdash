@@ -1492,12 +1492,19 @@ export class AsyncQueryService extends ProjectService {
                   await write?.(rows);
               };
 
-        const warehouseResults = await warehouseClient.executeAsyncQuery(
+        const warehouseResults = await Sentry.startSpan(
             {
-                sql: query,
-                tags: queryTags,
+                op: 'db.query',
+                name: 'warehouse.executeAsyncQuery',
             },
-            write ? writeAndTransformRowsIfPivot : undefined,
+            () =>
+                warehouseClient.executeAsyncQuery(
+                    {
+                        sql: query,
+                        tags: queryTags,
+                    },
+                    write ? writeAndTransformRowsIfPivot : undefined,
+                ),
         );
 
         const columns = pivotConfiguration?.groupByColumns?.length
@@ -1710,7 +1717,18 @@ export class AsyncQueryService extends ProjectService {
             if (stream) {
                 // Wait for the file to be written before marking the query as ready
                 const s3UploadStart = Date.now();
-                await stream.close();
+                await Sentry.startSpan(
+                    {
+                        op: 's3.upload',
+                        name: 's3.results.upload',
+                        attributes: {
+                            'lightdash.executionSource': executionSource,
+                            'lightdash.totalRows':
+                                pivotDetails?.totalRows ?? totalRows,
+                        },
+                    },
+                    () => stream?.close(),
+                );
                 if (
                     executionSource === 'pre_aggregate_duckdb' ||
                     this.lightdashConfig.prometheus.allQueryMetricsEnabled

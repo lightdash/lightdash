@@ -19,6 +19,7 @@ import {
     DuckdbWarehouseClient,
     warehouseSqlBuilderFromType,
 } from '@lightdash/warehouses';
+import * as Sentry from '@sentry/node';
 import { type LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import { type PreAggregateModel } from '../../models/PreAggregateModel';
@@ -199,11 +200,21 @@ export class PreAggregationDuckDbClient {
             args.preAggregationRoute.preAggregateName,
         );
 
-        const activeMaterialization =
-            await this.preAggregateModel.getActiveMaterialization(
-                args.projectUuid,
-                preAggExploreName,
-            );
+        const activeMaterialization = await Sentry.startSpan(
+            {
+                op: 'db.query',
+                name: 'preagg.getActiveMaterialization',
+                attributes: {
+                    'lightdash.projectUuid': args.projectUuid,
+                    'lightdash.preAggExploreName': preAggExploreName,
+                },
+            },
+            () =>
+                this.preAggregateModel.getActiveMaterialization(
+                    args.projectUuid,
+                    preAggExploreName,
+                ),
+        );
 
         if (!activeMaterialization) {
             return {
@@ -221,9 +232,20 @@ export class PreAggregationDuckDbClient {
             activeMaterialization.columns,
         );
 
-        const preAggExplore = await this.projectModel.getExploreFromCache(
-            args.projectUuid,
-            preAggExploreName,
+        const preAggExplore = await Sentry.startSpan(
+            {
+                op: 'cache.read',
+                name: 'preagg.getExploreFromCache',
+                attributes: {
+                    'lightdash.projectUuid': args.projectUuid,
+                    'lightdash.preAggExploreName': preAggExploreName,
+                },
+            },
+            () =>
+                this.projectModel.getExploreFromCache(
+                    args.projectUuid,
+                    preAggExploreName,
+                ),
         );
 
         if (isExploreError(preAggExplore)) {
@@ -252,19 +274,27 @@ export class PreAggregationDuckDbClient {
             args.startOfWeek,
         );
 
-        const fullQuery = await ProjectService._compileQuery({
-            metricQuery: args.metricQuery,
-            explore: patchedPreAggExplore,
-            warehouseSqlBuilder,
-            intrinsicUserAttributes:
-                args.userAccessControls.intrinsicUserAttributes,
-            userAttributes: args.userAccessControls.userAttributes,
-            timezone: this.lightdashConfig.query.timezone || 'UTC',
-            dateZoom: args.dateZoom,
-            parameters: args.parameters,
-            availableParameterDefinitions: args.availableParameterDefinitions,
-            pivotConfiguration: args.pivotConfiguration,
-        });
+        const fullQuery = await Sentry.startSpan(
+            {
+                op: 'function',
+                name: 'preagg.compileQuery',
+            },
+            () =>
+                ProjectService._compileQuery({
+                    metricQuery: args.metricQuery,
+                    explore: patchedPreAggExplore,
+                    warehouseSqlBuilder,
+                    intrinsicUserAttributes:
+                        args.userAccessControls.intrinsicUserAttributes,
+                    userAttributes: args.userAccessControls.userAttributes,
+                    timezone: this.lightdashConfig.query.timezone || 'UTC',
+                    dateZoom: args.dateZoom,
+                    parameters: args.parameters,
+                    availableParameterDefinitions:
+                        args.availableParameterDefinitions,
+                    pivotConfiguration: args.pivotConfiguration,
+                }),
+        );
 
         let { query } = fullQuery;
         if (args.pivotConfiguration) {
