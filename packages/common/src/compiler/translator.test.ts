@@ -51,6 +51,7 @@ import {
     MODEL_WITH_AI_HINT_IN_CONFIG,
     MODEL_WITH_COMPOSITE_PRIMARY_KEY,
     MODEL_WITH_CUSTOM_GRANULARITY,
+    MODEL_WITH_CUSTOM_GRANULARITY_AND_REQUIRED_ATTRIBUTES,
     MODEL_WITH_CUSTOM_TIME_INTERVAL_DIMENSIONS,
     MODEL_WITH_DEFAULT_SHOW_UNDERLYING_VALUES,
     MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS,
@@ -1652,6 +1653,27 @@ describe('custom granularities', () => {
         expect(result.dimensions.created_at_day).toBeDefined();
         // Should have custom slt_week dimension
         expect(result.dimensions.created_at_slt_week).toBeDefined();
+    });
+
+    it('should inherit requiredAttributes and anyAttributes from base dimension', () => {
+        const result = convertTable(
+            SupportedDbtAdapter.POSTGRES,
+            MODEL_WITH_CUSTOM_GRANULARITY_AND_REQUIRED_ATTRIBUTES,
+            [],
+            DEFAULT_SPOTLIGHT_CONFIG,
+            undefined,
+            undefined,
+            customGranularities,
+        );
+
+        expect(
+            result.dimensions.created_at_slt_week.requiredAttributes,
+        ).toEqual({ department: 'finance' });
+
+        // Standard interval should also have it
+        expect(result.dimensions.created_at_day.requiredAttributes).toEqual({
+            department: 'finance',
+        });
     });
 
     it('should throw compile error for unknown custom granularity names', () => {

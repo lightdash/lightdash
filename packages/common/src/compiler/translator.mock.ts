@@ -2333,3 +2333,24 @@ export const MODEL_WITH_CUSTOM_GRANULARITY: DbtModelNode & {
         },
     },
 };
+
+export const MODEL_WITH_CUSTOM_GRANULARITY_AND_REQUIRED_ATTRIBUTES: DbtModelNode & {
+    relation_name: string;
+} = {
+    ...model,
+    columns: {
+        created_at: {
+            name: 'created_at',
+            data_type: DimensionType.TIMESTAMP,
+            meta: {
+                dimension: {
+                    type: DimensionType.TIMESTAMP,
+                    time_intervals: ['DAY', 'slt_week'],
+                    required_attributes: {
+                        department: 'finance',
+                    },
+                },
+            },
+        },
+    },
+};

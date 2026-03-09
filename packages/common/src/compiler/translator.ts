@@ -729,6 +729,8 @@ export const convertTable = (
                                 format: undefined,
                                 round: undefined,
                                 compact: undefined,
+                                requiredAttributes: dim.requiredAttributes,
+                                anyAttributes: dim.anyAttributes,
                                 groups,
                                 isIntervalBase: false,
                                 isAdditionalDimension:
