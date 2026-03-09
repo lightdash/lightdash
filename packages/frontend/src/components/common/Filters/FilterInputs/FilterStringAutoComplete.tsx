@@ -18,6 +18,7 @@ import {
     IconAlertCircle,
     IconListDetails,
     IconPlus,
+    IconRefresh,
 } from '@tabler/icons-react';
 import uniq from 'lodash/uniq';
 import {
@@ -73,6 +74,49 @@ const SingleValueComponent = ({
                 {label}
             </Text>
         </div>
+    );
+};
+
+const RefreshIndicator: FC<{
+    refreshedAtRef: React.RefObject<Date>;
+    onRefresh: () => void;
+}> = ({ refreshedAtRef, onRefresh }) => {
+    const [isRefreshing, setIsRefreshing] = useState(false);
+    const [displayTime, setDisplayTime] = useState(
+        refreshedAtRef.current.toLocaleString(),
+    );
+
+    return (
+        <Tooltip
+            withinPortal
+            position="left"
+            label="Click to refresh filter values"
+        >
+            <Text
+                size="xs"
+                px="sm"
+                py="xxs"
+                className={classes.dropdownRefresh}
+                onClick={() => {
+                    onRefresh();
+                    setIsRefreshing(true);
+                }}
+            >
+                Results loaded at {displayTime}{' '}
+                <MantineIcon
+                    icon={IconRefresh}
+                    display="inline"
+                    size={12}
+                    className={`${classes.refreshIcon} ${
+                        isRefreshing ? classes.refreshIconSpin : ''
+                    }`}
+                    onAnimationEnd={() => {
+                        setIsRefreshing(false);
+                        setDisplayTime(refreshedAtRef.current.toLocaleString());
+                    }}
+                />
+            </Text>
+        </Tooltip>
     );
 };
 
@@ -151,6 +195,9 @@ const FilterStringAutoComplete: FC<Props> = ({
         },
         parameterValues,
     );
+
+    const refreshedAtRef = useRef(refreshedAt);
+    refreshedAtRef.current = refreshedAt;
 
     useEffect(() => {
         if (forceRefresh) {
@@ -291,33 +338,14 @@ const FilterStringAutoComplete: FC<Props> = ({
                     {children}
                 </ScrollArea>
                 {healthData?.hasCacheAutocompleResults ? (
-                    <>
-                        <Tooltip
-                            withinPortal
-                            position="left"
-                            label={`Click here to refresh cache filter values`}
-                        >
-                            <Text
-                                color="dimmed"
-                                size="xs"
-                                px="sm"
-                                p="xxs"
-                                className={classes.dropdownRefresh}
-                                onClick={() => setForceRefresh(true)}
-                            >
-                                Results loaded at {refreshedAt.toLocaleString()}
-                            </Text>
-                        </Tooltip>
-                    </>
+                    <RefreshIndicator
+                        refreshedAtRef={refreshedAtRef}
+                        onRefresh={() => setForceRefresh(true)}
+                    />
                 ) : null}
             </Stack>
         ),
-        [
-            searchedMaxResults,
-            search,
-            refreshedAt,
-            healthData?.hasCacheAutocompleResults,
-        ],
+        [searchedMaxResults, search, healthData?.hasCacheAutocompleResults],
     );
 
     return (
