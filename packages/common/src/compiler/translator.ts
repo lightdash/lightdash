@@ -732,7 +732,7 @@ export const convertTable = (
                                     compact: undefined,
                                     groups,
                                     isIntervalBase: false,
-                                } as Dimension,
+                                } satisfies Dimension,
                             };
                         },
                         {} as Record<string, Dimension>,

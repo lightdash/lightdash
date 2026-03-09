@@ -1632,7 +1632,9 @@ describe('custom granularities', () => {
         expect(result.dimensions.created_at_slt_week.sql).not.toContain(
             '${COLUMN}',
         );
-        expect(result.dimensions.created_at_slt_week.type).toBe('date');
+        expect(result.dimensions.created_at_slt_week.type).toBe(
+            DimensionType.DATE,
+        );
     });
 
     it('should also generate standard interval dimensions alongside custom ones', () => {
