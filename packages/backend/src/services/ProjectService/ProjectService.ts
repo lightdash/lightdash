@@ -43,6 +43,7 @@ import {
     DatabricksAuthenticationType,
     DatabricksTokenError,
     DateGranularity,
+    isStandardDateGranularity,
     DateZoom,
     DbtExposure,
     DbtExposureType,
@@ -2868,15 +2869,9 @@ export class ProjectService extends BaseService {
                         ? timeDimensionsMap[baseDimensionId]
                         : dimToOverride;
 
-                // Check if this is a custom granularity (not a standard DateGranularity)
-                const isStandardGranularity = Object.values(
-                    DateGranularity,
-                ).includes(dateZoom.granularity as DateGranularity);
-
-                if (!isStandardGranularity) {
+                if (!isStandardDateGranularity(dateZoom.granularity)) {
                     // Custom granularity: find the pre-compiled dimension
                     const customDimName = `${baseTimeDimension.name}_${dateZoom.granularity}`;
-                    // Search all dimensions in all tables (custom granularity might be string type, not in timeDimensionsMap)
                     const customDim = Object.values(explore.tables).reduce<
                         CompiledDimension | undefined
                     >(
@@ -2885,8 +2880,6 @@ export class ProjectService extends BaseService {
                     );
 
                     if (customDim) {
-                        // Override the original dimension with the custom granularity's SQL/type/label,
-                        // keeping the original name so the metric query still references it correctly
                         const dimWithCustomOverride: CompiledDimension = {
                             ...customDim,
                             name: dimToOverride.name,
@@ -2905,7 +2898,7 @@ export class ProjectService extends BaseService {
                             baseTimeDimension,
                             explore,
                             warehouseSqlBuilder,
-                            dateZoom.granularity as DateGranularity,
+                            dateZoom.granularity,
                             availableParameters,
                         );
                     return replaceDimensionInExplore(
