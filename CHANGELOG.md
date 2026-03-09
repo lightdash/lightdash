@@ -1,3 +1,10 @@
+# [0.2586.0](https://github.com/lightdash/lightdash/compare/0.2585.1...0.2586.0) (2026-03-09)
+
+
+### Features
+
+* add Sankey chart visualization type ([#20958](https://github.com/lightdash/lightdash/issues/20958)) ([733dc79](https://github.com/lightdash/lightdash/commit/733dc791b1f99907ee272fe209dcf1826e339328))
+
 ## [0.2585.1](https://github.com/lightdash/lightdash/compare/0.2585.0...0.2585.1) (2026-03-09)
 
 
