@@ -1002,30 +1002,37 @@
                                                         {
                                                             "type": "array",
                                                             "items": {
-                                                                "type": "string",
-                                                                "enum": [
-                                                                    "RAW",
-                                                                    "DAY",
-                                                                    "WEEK",
-                                                                    "MONTH",
-                                                                    "QUARTER",
-                                                                    "YEAR",
-                                                                    "HOUR",
-                                                                    "MINUTE",
-                                                                    "SECOND",
-                                                                    "MILLISECOND",
-                                                                    "WEEK_NUM",
-                                                                    "MONTH_NUM",
-                                                                    "MONTH_NAME",
-                                                                    "DAY_OF_WEEK_NAME",
-                                                                    "QUARTER_NAME",
-                                                                    "DAY_OF_WEEK_INDEX",
-                                                                    "DAY_OF_MONTH_NUM",
-                                                                    "DAY_OF_YEAR_NUM",
-                                                                    "QUARTER_NUM",
-                                                                    "YEAR_NUM",
-                                                                    "HOUR_OF_DAY_NUM",
-                                                                    "MINUTE_OF_HOUR_NUM"
+                                                                "anyOf": [
+                                                                    {
+                                                                        "type": "string",
+                                                                        "enum": [
+                                                                            "RAW",
+                                                                            "DAY",
+                                                                            "WEEK",
+                                                                            "MONTH",
+                                                                            "QUARTER",
+                                                                            "YEAR",
+                                                                            "HOUR",
+                                                                            "MINUTE",
+                                                                            "SECOND",
+                                                                            "MILLISECOND",
+                                                                            "WEEK_NUM",
+                                                                            "MONTH_NUM",
+                                                                            "MONTH_NAME",
+                                                                            "DAY_OF_WEEK_NAME",
+                                                                            "QUARTER_NAME",
+                                                                            "DAY_OF_WEEK_INDEX",
+                                                                            "DAY_OF_MONTH_NUM",
+                                                                            "DAY_OF_YEAR_NUM",
+                                                                            "QUARTER_NUM",
+                                                                            "YEAR_NUM",
+                                                                            "HOUR_OF_DAY_NUM",
+                                                                            "MINUTE_OF_HOUR_NUM"
+                                                                        ]
+                                                                    },
+                                                                    {
+                                                                        "type": "string"
+                                                                    }
                                                                 ]
                                                             }
                                                         },
@@ -1216,30 +1223,37 @@
                                                                 {
                                                                     "type": "array",
                                                                     "items": {
-                                                                        "type": "string",
-                                                                        "enum": [
-                                                                            "RAW",
-                                                                            "DAY",
-                                                                            "WEEK",
-                                                                            "MONTH",
-                                                                            "QUARTER",
-                                                                            "YEAR",
-                                                                            "HOUR",
-                                                                            "MINUTE",
-                                                                            "SECOND",
-                                                                            "MILLISECOND",
-                                                                            "WEEK_NUM",
-                                                                            "MONTH_NUM",
-                                                                            "MONTH_NAME",
-                                                                            "DAY_OF_WEEK_NAME",
-                                                                            "QUARTER_NAME",
-                                                                            "DAY_OF_WEEK_INDEX",
-                                                                            "DAY_OF_MONTH_NUM",
-                                                                            "DAY_OF_YEAR_NUM",
-                                                                            "QUARTER_NUM",
-                                                                            "YEAR_NUM",
-                                                                            "HOUR_OF_DAY_NUM",
-                                                                            "MINUTE_OF_HOUR_NUM"
+                                                                        "anyOf": [
+                                                                            {
+                                                                                "type": "string",
+                                                                                "enum": [
+                                                                                    "RAW",
+                                                                                    "DAY",
+                                                                                    "WEEK",
+                                                                                    "MONTH",
+                                                                                    "QUARTER",
+                                                                                    "YEAR",
+                                                                                    "HOUR",
+                                                                                    "MINUTE",
+                                                                                    "SECOND",
+                                                                                    "MILLISECOND",
+                                                                                    "WEEK_NUM",
+                                                                                    "MONTH_NUM",
+                                                                                    "MONTH_NAME",
+                                                                                    "DAY_OF_WEEK_NAME",
+                                                                                    "QUARTER_NAME",
+                                                                                    "DAY_OF_WEEK_INDEX",
+                                                                                    "DAY_OF_MONTH_NUM",
+                                                                                    "DAY_OF_YEAR_NUM",
+                                                                                    "QUARTER_NUM",
+                                                                                    "YEAR_NUM",
+                                                                                    "HOUR_OF_DAY_NUM",
+                                                                                    "MINUTE_OF_HOUR_NUM"
+                                                                                ]
+                                                                            },
+                                                                            {
+                                                                                "type": "string"
+                                                                            }
                                                                         ]
                                                                     }
                                                                 },
