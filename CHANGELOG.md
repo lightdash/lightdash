@@ -1,3 +1,10 @@
+# [0.2587.0](https://github.com/lightdash/lightdash/compare/0.2586.0...0.2587.0) (2026-03-09)
+
+
+### Features
+
+* add more o11y to preaggs and queries ([#20969](https://github.com/lightdash/lightdash/issues/20969)) ([f95049d](https://github.com/lightdash/lightdash/commit/f95049d77cfbc3a9166252423bbb8800096c2951))
+
 # [0.2586.0](https://github.com/lightdash/lightdash/compare/0.2585.1...0.2586.0) (2026-03-09)
 
 
