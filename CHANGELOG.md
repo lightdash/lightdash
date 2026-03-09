@@ -1,3 +1,10 @@
+# [0.2591.0](https://github.com/lightdash/lightdash/compare/0.2590.1...0.2591.0) (2026-03-09)
+
+
+### Features
+
+* add refresh icon to filter autocomplete cache indicator ([#20984](https://github.com/lightdash/lightdash/issues/20984)) ([21ab621](https://github.com/lightdash/lightdash/commit/21ab621c5684aaf5f8647bb26ac83d62105d5750))
+
 ## [0.2590.1](https://github.com/lightdash/lightdash/compare/0.2590.0...0.2590.1) (2026-03-09)
 
 
