@@ -668,6 +668,7 @@ export interface Dimension extends Field {
         height?: number;
         fit?: string;
     };
+    richText?: string; // The markdown/HTML template with LiquidJS variables
     spotlight?: {
         filterBy?: boolean;
         segmentBy?: boolean;
@@ -887,6 +888,7 @@ export interface Metric extends Field {
     };
     drivers?: string[]; // metrics that drive this metric (same-table: 'name', cross-table: 'table.name')
     aiHint?: string | string[];
+    richText?: string; // The markdown/HTML template with LiquidJS variables
 }
 
 export const isFilterableDimension = (

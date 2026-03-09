@@ -1318,6 +1318,9 @@ importers:
       typescript:
         specifier: 6.0.0-beta
         version: 6.0.0-beta
+      unified:
+        specifier: ^11.0.5
+        version: 11.0.5
       vite:
         specifier: ^7.1.10
         version: 7.1.10(@types/node@24.3.1)(lightningcss@1.22.0)(sugarss@5.0.1(postcss@8.5.6))(tsx@4.19.4)(yaml@2.8.2)
@@ -7435,7 +7438,6 @@ packages:
 
   antlr4ng-cli@1.0.7:
     resolution: {integrity: sha512-qN2FsDBmLvsQcA5CWTrPz8I8gNXeS1fgXBBhI78VyxBSBV/EJgqy8ks6IDTC9jyugpl40csCQ4sL5K4i2YZ/2w==}
-    deprecated: 'This package is deprecated and will no longer be updated. Please use the new antlr-ng package instead: https://github.com/mike-lischke/antlr-ng'
     hasBin: true
 
   antlr4ng@2.0.11:

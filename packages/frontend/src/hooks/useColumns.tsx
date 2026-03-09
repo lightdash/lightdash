@@ -8,15 +8,18 @@ import {
     isCustomDimension,
     isDimension,
     isField,
+    isMetric,
     isNumericItem,
     isResultValue,
     itemsInMetricQuery,
+    renderRichTextTemplate,
     renderTemplatedUrl,
     type AdditionalMetric,
     type CustomDimension,
     type Dimension,
     type Field,
     type ItemsMap,
+    type Metric,
     type ParametersValuesMap,
     type RawResultRow,
     type ResultRow,
@@ -33,6 +36,7 @@ import {
     BrokenImageCell,
     ImageCell,
 } from '../components/common/Table/ImageCell';
+import RichTextCell from '../components/common/Table/RichTextCell';
 import {
     TableHeaderBoldLabel,
     TableHeaderLabelContainer,
@@ -173,6 +177,75 @@ const formatBarDisplayCell = (
     );
 };
 
+const formatRichTextCell = (
+    item: Dimension | Metric,
+    info:
+        | CellContext<ResultRow, { value: ResultValue }>
+        | CellContext<RawResultRow, string>,
+) => {
+    const cellValue = info.getValue();
+
+    // Extract the value
+    if (!isResultValue(cellValue)) {
+        // Return empty/null display if not a proper ResultValue
+        return <span style={{ color: '#999' }}>-</span>;
+    }
+
+    const value = (cellValue as { value: ResultValue }).value;
+
+    // Build row context for templating
+    const row = info.row
+        ? info.row
+              .getAllCells()
+              .reduce<Record<string, Record<string, ResultValue>>>(
+                  (acc, rowCell) => {
+                      const cellItem = rowCell.column.columnDef.meta?.item;
+                      const rowCellValue = rowCell.getValue();
+
+                      // Handle both ResultRow and RawResultRow formats
+                      const cellResultValue = isResultValue(rowCellValue)
+                          ? (rowCellValue as { value: ResultValue }).value
+                          : {
+                                raw: rowCellValue,
+                                formatted: String(rowCellValue),
+                            };
+
+                      if (cellItem && isField(cellItem) && cellResultValue) {
+                          acc[cellItem.table] = acc[cellItem.table] || {};
+                          acc[cellItem.table][cellItem.name] = cellResultValue;
+                      }
+                      return acc;
+                  },
+                  {},
+              )
+        : {};
+
+    try {
+        // Process the template with LiquidJS
+        // eslint-disable-next-line testing-library/render-result-naming-convention
+        const processedContent = renderRichTextTemplate(
+            item.richText || '',
+            value,
+            row,
+        );
+
+        return <RichTextCell content={processedContent} />;
+    } catch (error) {
+        const errorMessage =
+            error instanceof Error ? error.message : String(error);
+        // Don't log "undefined variable" errors - these are expected when templates
+        // reference fields that don't exist in the current context
+        if (!errorMessage.includes('undefined variable')) {
+            console.error(
+                `Error processing rich text template for ${item.name}: ${errorMessage}`,
+                { template: item.richText, value, row },
+            );
+        }
+        // Fall back to plain formatted value
+        return <span>{value.formatted}</span>;
+    }
+};
+
 const formatImageCell = (
     item: Dimension,
     info:
@@ -272,6 +345,12 @@ export const getFormattedValueCell = (
         console.error(`Unable to format value for bar display cell ${error}`);
     }
 
+    // Check if this is a rich text field (highest priority for both dimensions and metrics)
+    // Skip if cellValue is null/undefined (except for explicit null handling in templates)
+    if (item && (isDimension(item) || isMetric(item)) && item.richText) {
+        return formatRichTextCell(item, info);
+    }
+
     // Check if this is an image dimension
     if (item && isDimension(item) && item.image?.url && cellValue) {
         return formatImageCell(item, info);
@@ -292,8 +371,13 @@ export const getValueCell = (
         console.error(`Unable to get value for bar display cell ${error}`);
     }
 
-    // Check if this is an image dimension
+    // Check if this is a rich text field (highest priority for both dimensions and metrics)
     const item = info.column.columnDef.meta?.item;
+    if (item && (isDimension(item) || isMetric(item)) && item.richText) {
+        return formatRichTextCell(item, info);
+    }
+
+    // Check if this is an image dimension
     if (item && isDimension(item) && item.image?.url) {
         return formatImageCell(item, info);
     }
