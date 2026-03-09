@@ -15,6 +15,7 @@ const DEFAULTS = {
     [ChartType.GAUGE]: () => ({}),
     [ChartType.MAP]: () => ({}),
     [ChartType.CUSTOM]: () => ({}),
+    [ChartType.SANKEY]: () => ({}),
 };
 
 // simple clone; reducer guarantees we’re not handing in drafts

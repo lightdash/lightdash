@@ -17,6 +17,7 @@ import { ConfigTabs as FunnelChartConfigTabs } from '../../VisualizationConfigs/
 import { ConfigTabs as GaugeConfigTabs } from '../../VisualizationConfigs/GaugeConfig/GaugeConfigTabs';
 import { ConfigTabs as MapConfigTabs } from '../../VisualizationConfigs/MapConfig';
 import { ConfigTabs as PieChartConfigTabs } from '../../VisualizationConfigs/PieChartConfig/PieChartConfigTabs';
+import { ConfigTabs as SankeyConfigTabs } from '../../VisualizationConfigs/SankeyConfig/SankeyConfigTabs';
 import { ConfigTabs as TableConfigTabs } from '../../VisualizationConfigs/TableConfigPanel/TableConfigTabs';
 import { ConfigTabs as TreemapConfigTabs } from '../../VisualizationConfigs/TreemapConfig/TreemapConfigTabs';
 import VisualizationCardOptions from '../VisualizationCardOptions';
@@ -59,6 +60,8 @@ const VisualizationConfig: FC<Props> = ({ chartType, onClose }) => {
                         <CustomVisConfigTabsLazy />
                     </Suspense>
                 );
+            case ChartType.SANKEY:
+                return SankeyConfigTabs;
             default:
                 return assertUnreachable(
                     chartType,

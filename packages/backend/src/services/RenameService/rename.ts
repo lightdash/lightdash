@@ -28,6 +28,7 @@ import {
     SavedChartDAO,
     SchedulerAndTargets,
     TableCalculationTemplateType,
+    type SankeyChartConfig,
 } from '@lightdash/common';
 
 /* There are different methods to replace model names
@@ -448,6 +449,24 @@ export const renameChartConfigType = (
                 },
             };
 
+        case ChartType.SANKEY: {
+            const sankeyConfig = chartConfig as SankeyChartConfig;
+            return {
+                ...sankeyConfig,
+                config: {
+                    ...sankeyConfig.config,
+                    sourceFieldId: replaceOptionalId(
+                        sankeyConfig.config?.sourceFieldId,
+                    ),
+                    targetFieldId: replaceOptionalId(
+                        sankeyConfig.config?.targetFieldId,
+                    ),
+                    metricFieldId: replaceOptionalId(
+                        sankeyConfig.config?.metricFieldId,
+                    ),
+                },
+            };
+        }
         default:
             assertUnreachable(
                 chartType,
@@ -491,9 +510,7 @@ export const renameFilterGroups = (
         };
     }
 
-    throw new Error(
-        `Invalid filter format ${JSON.stringify(filters)}, ${filters}`,
-    );
+    return assertUnreachable(filters, 'Invalid filter format');
 };
 
 export const renameFilters = (
@@ -655,6 +672,7 @@ export const getNameChanges = ({
     toFieldName?: string;
 }): NameChanges => {
     if (from === to) {
+        // eslint-disable-next-line @typescript-eslint/only-throw-error -- ParameterError extends Error
         throw new ParameterError(
             'Old and new names are the same, nothing to rename',
         );
@@ -664,6 +682,7 @@ export const getNameChanges = ({
         // Both must start with the same table prefix, this means the fieldId is only a field rename
 
         if (!from.startsWith(`${table}_`) && to.startsWith(`${table}_`)) {
+            // eslint-disable-next-line @typescript-eslint/only-throw-error -- ParameterError extends Error
             throw new ParameterError(
                 'New name does not start with the same table prefix as the old name',
             );

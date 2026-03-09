@@ -10,6 +10,7 @@ import {
     IconCode,
     IconFilter,
     IconGauge,
+    IconGitMerge,
     IconMap,
     IconSquareNumber1,
     IconTable,
@@ -46,6 +47,8 @@ export const getChartIcon = (chartKind: ChartKind | undefined) => {
             return IconCode;
         case ChartKind.MAP:
             return IconMap;
+        case ChartKind.SANKEY:
+            return IconGitMerge;
         default:
             return assertUnreachable(
                 chartKind,
