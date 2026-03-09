@@ -373,6 +373,9 @@ export const getMantineThemeOverride = (
             '.wmde-markdown, .wmde-markdown-var': {
                 fontFamily: theme.fontFamily,
             },
+            '.wmde-markdown img': {
+                backgroundColor: 'transparent',
+            },
             '@keyframes fadeIn': {
                 from: { opacity: 0 },
                 to: { opacity: 1 },
