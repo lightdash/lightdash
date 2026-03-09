@@ -1,3 +1,10 @@
+## [0.2584.1](https://github.com/lightdash/lightdash/compare/0.2584.0...0.2584.1) (2026-03-09)
+
+
+### Bug Fixes
+
+* preserve undefined dateZoomGranularities on dashboard save ([#20928](https://github.com/lightdash/lightdash/issues/20928)) ([26fb12a](https://github.com/lightdash/lightdash/commit/26fb12a5980dcd4abb7a1129109a1c3988e2bb28))
+
 # [0.2584.0](https://github.com/lightdash/lightdash/compare/0.2583.0...0.2584.0) (2026-03-09)
 
 
