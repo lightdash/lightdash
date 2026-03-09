@@ -139,6 +139,8 @@ projectRouter.post(
                     req.body.filters,
                     req.body.forceRefresh,
                     req.body.parameters,
+                    undefined, // userAttributeOverrides: not used from HTTP API (MCP service only)
+                    req.body.labelField,
                 );
 
             res.json({
