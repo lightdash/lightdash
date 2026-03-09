@@ -6,7 +6,6 @@ import {
 } from '@lightdash/common';
 import { Button, Group, Loader, Paper, Text } from '@mantine-8/core';
 import { useDebouncedValue } from '@mantine/hooks';
-import { IconCheck } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import useSearchParams from '../../hooks/useSearchParams';
@@ -16,7 +15,6 @@ import {
     useValidationMutation,
 } from '../../hooks/validation/useValidation';
 import useApp from '../../providers/App/useApp';
-import MantineIcon from '../common/MantineIcon';
 import { ValidatorTable } from './ValidatorTable';
 import { ChartConfigurationErrorModal } from './ValidatorTable/ChartConfigurationErrorModal';
 import { FixValidationErrorModal } from './ValidatorTable/FixValidationErrorModal';
@@ -127,7 +125,7 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
                         <Loader color="gray" />
                     </Group>
                 </Paper>
-            ) : flatData.length > 0 || pinnedValidation ? (
+            ) : (
                 <ValidatorTable
                     data={deduplicatedData}
                     projectUuid={projectUuid}
@@ -158,15 +156,6 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
                     setShowConfigWarnings={setShowConfigWarnings}
                     lastValidatedAt={lastValidatedAt}
                 />
-            ) : (
-                <Paper withBorder shadow="sm">
-                    <Group justify="center" gap="xs" p="md">
-                        <MantineIcon icon={IconCheck} color="green" />
-                        <Text fw={500} c="ldGray.7">
-                            No validation errors found
-                        </Text>
-                    </Group>
-                </Paper>
             )}
         </>
     );

@@ -11,6 +11,7 @@ import {
     ActionIcon,
     Anchor,
     Button,
+    Center,
     Flex,
     Stack,
     Text,
@@ -20,6 +21,7 @@ import {
     IconArrowDown,
     IconArrowsSort,
     IconArrowUp,
+    IconCheck,
     IconLayoutDashboard,
     IconTable,
     IconX,
@@ -160,6 +162,10 @@ export const ValidatorTable: FC<ValidatorTableProps> = ({
     }, [tableData]);
 
     const totalFetched = data.length;
+
+    // Check if filters are active
+    const hasActiveFilters =
+        searchQuery !== '' || sourceTypeFilter.length > 0 || showConfigWarnings;
 
     const fetchMoreOnBottomReached = useCallback(
         (containerRefElement?: HTMLDivElement | null) => {
@@ -399,6 +405,37 @@ export const ValidatorTable: FC<ValidatorTableProps> = ({
             IconSortDescending: () => (
                 <MantineIcon icon={IconArrowDown} size="md" color="blue.6" />
             ),
+        },
+        renderEmptyRowsFallback: () => {
+            if (hasActiveFilters) {
+                return (
+                    <Center>
+                        <Stack align="center" gap="xs">
+                            <Text fw={500} c="ldGray.7">
+                                No validation errors match your search criteria
+                            </Text>
+                            <Text fz="sm" c="ldGray.6">
+                                Try adjusting your filters or search query
+                            </Text>
+                        </Stack>
+                    </Center>
+                );
+            }
+            return (
+                <Center>
+                    <Stack align="center" gap="xs">
+                        <Flex align="center" gap="xs">
+                            <MantineIcon icon={IconCheck} color="green" />
+                            <Text fw={500} c="ldGray.7">
+                                No validation errors found
+                            </Text>
+                        </Flex>
+                        <Text fz="sm" c="ldGray.6">
+                            Run validation to check for errors in your project
+                        </Text>
+                    </Stack>
+                </Center>
+            );
         },
         rowVirtualizerInstanceRef,
         rowVirtualizerProps: { overscan: 10 },
