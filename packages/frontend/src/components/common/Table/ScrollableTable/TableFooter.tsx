@@ -29,7 +29,7 @@ const TableFooter = () => {
                                         !meta?.item ||
                                         !isNumericItem(meta.item) ||
                                         ('richText' in meta.item &&
-                                            meta.item.richText)
+                                            !!meta.item.richText)
                                     }
                                 >
                                     {header.isPlaceholder
