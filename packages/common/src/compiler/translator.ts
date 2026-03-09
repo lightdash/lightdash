@@ -608,24 +608,21 @@ export const convertTable = (
                 overrideTimeIntervals: DbtColumnLightdashDimension['time_intervals'],
             ) => {
                 if (dim.isIntervalBase) {
-                    let allIntervals: string[] = [];
+                    let allIntervals: (TimeFrames | string)[] = [];
 
                     if (
                         !dim.isAdditionalDimension &&
                         columnMeta.dimension?.time_intervals &&
                         Array.isArray(columnMeta?.dimension.time_intervals)
                     ) {
-                        allIntervals = columnMeta.dimension
-                            .time_intervals as string[];
+                        allIntervals = columnMeta.dimension.time_intervals;
                     } else if (
                         dim.isAdditionalDimension &&
                         Array.isArray(overrideTimeIntervals)
                     ) {
-                        allIntervals = overrideTimeIntervals as string[];
+                        allIntervals = overrideTimeIntervals;
                     } else {
-                        allIntervals = getDefaultTimeFrames(
-                            dim.type,
-                        ) as string[];
+                        allIntervals = getDefaultTimeFrames(dim.type);
                     }
 
                     // Split into standard TimeFrames and custom granularity names
