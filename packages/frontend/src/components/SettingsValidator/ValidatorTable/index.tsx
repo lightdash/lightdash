@@ -11,7 +11,6 @@ import {
     ActionIcon,
     Anchor,
     Button,
-    Center,
     Flex,
     Stack,
     Text,
@@ -400,30 +399,6 @@ export const ValidatorTable: FC<ValidatorTableProps> = ({
             IconSortDescending: () => (
                 <MantineIcon icon={IconArrowDown} size="md" color="blue.6" />
             ),
-        },
-        renderEmptyRowsFallback: () => {
-            // When filters are active, we show a message about no matching results
-            const hasActiveFilters =
-                searchQuery !== '' ||
-                sourceTypeFilter.length > 0 ||
-                showConfigWarnings;
-
-            return (
-                <Center py={60}>
-                    <Stack align="center" gap="xs">
-                        <Text fw={500} c="ldGray.7">
-                            {hasActiveFilters
-                                ? 'No validation errors match your search criteria'
-                                : 'No validation errors found'}
-                        </Text>
-                        <Text fz="sm" c="ldGray.6">
-                            {hasActiveFilters
-                                ? 'Try adjusting your filters or search query'
-                                : 'Run validation to check for errors in your project'}
-                        </Text>
-                    </Stack>
-                </Center>
-            );
         },
         rowVirtualizerInstanceRef,
         rowVirtualizerProps: { overscan: 10 },
