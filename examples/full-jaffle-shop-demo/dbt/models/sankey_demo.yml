@@ -1,0 +1,41 @@
+version: 2
+
+models:
+  - name: sankey_demo
+    description: |
+      Example data for Sankey diagram visualization. Demonstrates a marketing funnel
+      with multi-step flows and cyclical paths (e.g., Retargeting feeds back into
+      Conversion and Engagement). Use this model to test Sankey chart features.
+    config:
+      meta:
+        label: "Sankey demo"
+        tags: ["core"]
+        metrics:
+          total_weight:
+            type: sum
+            sql: ${sankey_demo.weight}
+            label: "Total Weight"
+    columns:
+      - name: source
+        description: "Source node of the flow"
+        config:
+          meta:
+            dimension:
+              type: string
+              label: "Source"
+
+      - name: target
+        description: "Target node of the flow"
+        config:
+          meta:
+            dimension:
+              type: string
+              label: "Target"
+
+      - name: weight
+        description: "Weight/value of the flow from source to target"
+        config:
+          meta:
+            dimension:
+              type: number
+              label: "Weight"
