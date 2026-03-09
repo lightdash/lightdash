@@ -2698,6 +2698,10 @@ export default class SchedulerTask {
                         schedulerUuid,
                     );
 
+                const shouldPivot =
+                    isTableChartConfig(chart.chartConfig.config) &&
+                    !!getPivotConfig(chart);
+
                 const {
                     rows,
                     fields: itemMap,
@@ -2709,7 +2713,7 @@ export default class SchedulerTask {
                         chartUuid: savedChartUuid,
                         context:
                             QueryExecutionContext.SCHEDULED_GSHEETS_DASHBOARD,
-                        pivotResults: true,
+                        pivotResults: shouldPivot,
                     },
                 );
 
@@ -2855,6 +2859,10 @@ export default class SchedulerTask {
                             await this.schedulerService.savedChartModel.get(
                                 chartUuid,
                             );
+                        const shouldPivotChart =
+                            isTableChartConfig(chart.chartConfig.config) &&
+                            !!getPivotConfig(chart);
+
                         const {
                             rows,
                             fields: itemMap,
@@ -2870,7 +2878,7 @@ export default class SchedulerTask {
                                 dashboardSorts: [],
                                 context:
                                     QueryExecutionContext.SCHEDULED_GSHEETS_DASHBOARD,
-                                pivotResults: true,
+                                pivotResults: shouldPivotChart,
                                 parameters: dashboardParameters,
                             },
                         );
