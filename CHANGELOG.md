@@ -1,3 +1,10 @@
+## [0.2589.1](https://github.com/lightdash/lightdash/compare/0.2589.0...0.2589.1) (2026-03-09)
+
+
+### Bug Fixes
+
+* only use server-side pivot for table charts in gsheet sync ([#20973](https://github.com/lightdash/lightdash/issues/20973)) ([ecdd9f2](https://github.com/lightdash/lightdash/commit/ecdd9f2e2faf95de728228835b1e779c7df1bc80))
+
 # [0.2589.0](https://github.com/lightdash/lightdash/compare/0.2588.0...0.2589.0) (2026-03-09)
 
 
