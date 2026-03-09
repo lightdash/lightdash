@@ -1,3 +1,10 @@
+## [0.2590.1](https://github.com/lightdash/lightdash/compare/0.2590.0...0.2590.1) (2026-03-09)
+
+
+### Bug Fixes
+
+* add express-session types to backend tsconfig ([#20981](https://github.com/lightdash/lightdash/issues/20981)) ([da8711c](https://github.com/lightdash/lightdash/commit/da8711c37635d51f54fa7c83ad772bf920c293c3))
+
 # [0.2590.0](https://github.com/lightdash/lightdash/compare/0.2589.1...0.2590.0) (2026-03-09)
 
 
