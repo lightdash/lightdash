@@ -34,6 +34,11 @@ export enum DateGranularity {
     YEAR = 'Year',
 }
 
+export const isStandardDateGranularity = (
+    value: string,
+): value is DateGranularity =>
+    Object.values<string>(DateGranularity).includes(value);
+
 export const dateGranularityToTimeFrameMap: Record<
     DateGranularity,
     TimeFrames
