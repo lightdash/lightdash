@@ -699,10 +699,10 @@ export const convertTable = (
 
                             const customSql = granularity.sql.replace(
                                 /\$\{COLUMN\}/g,
-                                dim.sql,
+                                () => dim.sql,
                             );
-                            const customType = (granularity.type ||
-                                'date') as DimensionType;
+                            const customType =
+                                granularity.type || DimensionType.DATE;
                             const customDimName = `${dim.name}_${customName}`;
 
                             const groups: string[] = [...(dim.groups || [])];

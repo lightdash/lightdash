@@ -253,19 +253,13 @@ describe('loadLightdashProjectConfig', () => {
     });
 
     it('should reject custom_granularity that conflicts with standard TimeFrames', async () => {
-        await expect(
-            loadLightdashProjectConfig(
-                invalidConfigCustomGranularityConflictsWithTimeFrames,
-            ),
-        ).rejects.toThrow(/conflict.*standard time intervals/i);
-    });
-
-    it('should reject custom_granularity that conflicts with standard TimeFrames with correct error type', async () => {
-        await expect(
-            loadLightdashProjectConfig(
-                invalidConfigCustomGranularityConflictsWithTimeFrames,
-            ),
-        ).rejects.toThrow(LightdashProjectConfigError);
+        const promise = loadLightdashProjectConfig(
+            invalidConfigCustomGranularityConflictsWithTimeFrames,
+        );
+        await expect(promise).rejects.toThrow(LightdashProjectConfigError);
+        await expect(promise).rejects.toThrow(
+            /conflict.*standard time intervals/i,
+        );
     });
 
     it('should load config without custom_granularities', async () => {

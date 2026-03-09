@@ -1,3 +1,4 @@
+import { type DimensionType } from './field';
 import type { ParameterValue } from './parameters';
 import type { WarehouseTypes } from './projects';
 
@@ -55,7 +56,7 @@ export type ProjectDefaults = {
 export type CustomGranularity = {
     label: string;
     sql: string;
-    type?: 'date' | 'timestamp' | 'string';
+    type?: DimensionType.DATE | DimensionType.TIMESTAMP | DimensionType.STRING;
 };
 
 export type LightdashProjectConfig = {
