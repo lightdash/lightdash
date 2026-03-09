@@ -1,7 +1,9 @@
 import {
     isChartValidationError,
+    isFixableDashboardValidationError,
     ValidationErrorType,
     type ValidationErrorChartResponse,
+    type ValidationErrorDashboardResponse,
     type ValidationSourceType,
 } from '@lightdash/common';
 import { Button, Group, Loader, Paper, Text } from '@mantine-8/core';
@@ -19,6 +21,7 @@ import useApp from '../../providers/App/useApp';
 import MantineIcon from '../common/MantineIcon';
 import { ValidatorTable } from './ValidatorTable';
 import { ChartConfigurationErrorModal } from './ValidatorTable/ChartConfigurationErrorModal';
+import { FixDashboardFilterModal } from './ValidatorTable/FixDashboardFilterModal';
 import { FixValidationErrorModal } from './ValidatorTable/FixValidationErrorModal';
 
 export const SettingsValidator: FC<{ projectUuid: string }> = ({
@@ -66,6 +69,8 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
         useState<ValidationErrorChartResponse>();
     const [selectedConfigError, setSelectedConfigError] =
         useState<ValidationErrorChartResponse>();
+    const [selectedDashboardError, setSelectedDashboardError] =
+        useState<ValidationErrorDashboardResponse>();
 
     const flatData = useMemo(
         () => data?.pages.flatMap((page) => page.data) ?? [],
@@ -100,6 +105,13 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
                 allValidationErrors={flatData}
                 onClose={() => {
                     setSelectedValidationError(undefined);
+                }}
+            />
+            <FixDashboardFilterModal
+                validationError={selectedDashboardError}
+                allValidationErrors={flatData}
+                onClose={() => {
+                    setSelectedDashboardError(undefined);
                 }}
             />
             <ChartConfigurationErrorModal
@@ -145,6 +157,10 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
                             } else {
                                 setSelectedValidationError(validationError);
                             }
+                        } else if (
+                            isFixableDashboardValidationError(validationError)
+                        ) {
+                            setSelectedDashboardError(validationError);
                         }
                     }}
                     isFetching={isFetching}

@@ -4,6 +4,8 @@ import {
     ApiRenameBody,
     ApiRenameChartBody,
     ApiRenameChartResponse,
+    ApiRenameDashboardBody,
+    ApiRenameDashboardResponse,
     ApiRenameFieldsResponse,
     getRequestMethod,
     LightdashRequestMethodHeader,
@@ -15,6 +17,7 @@ import {
     OperationId,
     Path,
     Post,
+    Query,
     Request,
     Response,
     Route,
@@ -131,6 +134,79 @@ export class RenameController extends BaseController {
                 user: req.user!,
                 projectUuid,
                 chartUuid,
+            });
+
+        return {
+            status: 'ok',
+            results: { fields },
+        };
+    }
+
+    /**
+     * Rename a dashboard filter's field or model reference
+     * @summary Rename dashboard filter
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('/dashboard/{dashboardUuid}')
+    @OperationId('renameDashboardFilter')
+    async renameDashboardFilter(
+        @Path() projectUuid: string,
+        @Path() dashboardUuid: string,
+        @Request() req: express.Request,
+        @Body() body: ApiRenameDashboardBody,
+    ): Promise<ApiRenameDashboardResponse> {
+        this.setStatus(200);
+        const context = getRequestMethod(
+            req.header(LightdashRequestMethodHeader),
+        );
+
+        const jobId = await this.services
+            .getRenameService()
+            .renameDashboardFilter({
+                user: req.user!,
+                projectUuid,
+                context,
+                dashboardUuid,
+                ...body,
+            });
+
+        return {
+            status: 'ok',
+            results: { jobId },
+        };
+    }
+
+    /**
+     * Get a list of fields from explores referenced by the dashboard's filters
+     * @summary Get dashboard fields for rename
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Get('/dashboard/{dashboardUuid}/fields')
+    @OperationId('renameDashboardFields')
+    async renameDashboardFields(
+        @Path() projectUuid: string,
+        @Path() dashboardUuid: string,
+        @Request() req: express.Request,
+        @Query() table?: string,
+    ): Promise<ApiRenameFieldsResponse> {
+        this.setStatus(200);
+        const fields = await this.services
+            .getRenameService()
+            .getFieldsForDashboard({
+                user: req.user!,
+                projectUuid,
+                dashboardUuid,
+                tableName: table,
             });
 
         return {

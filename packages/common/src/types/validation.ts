@@ -149,6 +149,21 @@ export const isDashboardValidationError = (
 ): error is ValidationErrorDashboardResponse | CreateDashboardValidation =>
     error.source === ValidationSourceType.Dashboard;
 
+/**
+ * Checks if a dashboard validation error is fixable via rename.
+ * Currently fixable: FieldDoesNotExist (field renamed) and TableDoesNotExist (model renamed).
+ */
+export const isFixableDashboardValidationError = (
+    error: ValidationResponse,
+): error is ValidationErrorDashboardResponse =>
+    isDashboardValidationError(error) &&
+    !!error.dashboardUuid &&
+    !!error.dashboardFilterErrorType &&
+    (error.dashboardFilterErrorType ===
+        DashboardFilterValidationErrorType.FieldDoesNotExist ||
+        error.dashboardFilterErrorType ===
+            DashboardFilterValidationErrorType.TableDoesNotExist);
+
 export enum ValidationTarget {
     CHARTS = 'charts',
     DASHBOARDS = 'dashboards',
