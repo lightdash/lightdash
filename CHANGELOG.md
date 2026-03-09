@@ -1,3 +1,10 @@
+# [0.2589.0](https://github.com/lightdash/lightdash/compare/0.2588.0...0.2589.0) (2026-03-09)
+
+
+### Features
+
+* handle custom granularities in date zoom ([#20884](https://github.com/lightdash/lightdash/issues/20884)) ([b702f46](https://github.com/lightdash/lightdash/commit/b702f46d76d7a7e8bd6370f433ef00312f793813))
+
 # [0.2588.0](https://github.com/lightdash/lightdash/compare/0.2587.0...0.2588.0) (2026-03-09)
 
 
