@@ -18,6 +18,7 @@ import {
     IconAlertCircle,
     IconListDetails,
     IconPlus,
+    IconRefresh,
 } from '@tabler/icons-react';
 import uniq from 'lodash/uniq';
 import {
@@ -124,6 +125,7 @@ const FilterStringAutoComplete: FC<Props> = ({
     }, [closeManageValuesInternal, onDropdownClose]);
 
     const [forceRefresh, setForceRefresh] = useState<boolean>(false);
+    const [isRefreshing, setIsRefreshing] = useState(false);
 
     const autocompleteFilterGroup = useMemo(
         () => getAutocompleteFilterGroup(filterId, field),
@@ -295,17 +297,36 @@ const FilterStringAutoComplete: FC<Props> = ({
                         <Tooltip
                             withinPortal
                             position="left"
-                            label={`Click here to refresh cache filter values`}
+                            label={`Click to refresh filter values`}
                         >
                             <Text
-                                color="dimmed"
                                 size="xs"
                                 px="sm"
-                                p="xxs"
+                                py="xxs"
                                 className={classes.dropdownRefresh}
-                                onClick={() => setForceRefresh(true)}
+                                onClick={() => {
+                                    setForceRefresh(true);
+                                    setIsRefreshing(true);
+                                    setTimeout(
+                                        () => setIsRefreshing(false),
+                                        600,
+                                    );
+                                }}
                             >
-                                Results loaded at {refreshedAt.toLocaleString()}
+                                Results loaded at {refreshedAt.toLocaleString()}{' '}
+                                <IconRefresh
+                                    size={12}
+                                    className={
+                                        isRefreshing
+                                            ? classes.refreshIconSpin
+                                            : undefined
+                                    }
+                                    style={{
+                                        display: 'inline',
+                                        verticalAlign: '-1px',
+                                        marginLeft: 4,
+                                    }}
+                                />
                             </Text>
                         </Tooltip>
                     </>
@@ -317,6 +338,7 @@ const FilterStringAutoComplete: FC<Props> = ({
             search,
             refreshedAt,
             healthData?.hasCacheAutocompleResults,
+            isRefreshing,
         ],
     );
 
