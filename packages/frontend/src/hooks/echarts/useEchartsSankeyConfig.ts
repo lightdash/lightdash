@@ -32,7 +32,7 @@ const useEchartsSankeyConfig = (isInDashboard?: boolean) => {
 
         const {
             data,
-            validConfig: { nodeAlign, orient, colorOverrides },
+            validConfig: { nodeAlign, orient },
         } = chartConfig;
 
         if (data.nodes.length === 0 || data.links.length === 0) return;
@@ -69,14 +69,6 @@ const useEchartsSankeyConfig = (isInDashboard?: boolean) => {
             levels,
             data: data.nodes.map((node) => ({
                 name: node.name,
-                // Apply color override if set (keyed by original name without step suffix)
-                ...(colorOverrides?.[stripStepSuffix(node.name)]
-                    ? {
-                          itemStyle: {
-                              color: colorOverrides[stripStepSuffix(node.name)],
-                          },
-                      }
-                    : {}),
             })),
             links: data.links.map((link) => ({
                 source: link.source,

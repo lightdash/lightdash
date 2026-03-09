@@ -1,6 +1,4 @@
 import {
-    getItemLabelWithoutTableName,
-    isField,
     type CustomDimension,
     type Dimension,
     type ItemsMap,
@@ -11,8 +9,7 @@ import {
     type TableCalculation,
     type TableCalculationMetadata,
 } from '@lightdash/common';
-import { useDebouncedValue } from '@mantine/hooks';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { type InfiniteQueryResults } from './useQueryResults';
 
 export type SankeySeriesDataPoint = {
@@ -47,14 +44,6 @@ type SankeyChartConfig = {
     orient: NonNullable<SankeyChart['orient']>;
     onOrientChange: (orient: NonNullable<SankeyChart['orient']>) => void;
 
-    colorOverrides: Record<string, string>;
-    onColorOverridesChange: (key: string, value: string) => void;
-
-    labelOverrides: Record<string, string>;
-    onLabelOverridesChange: (key: string, value: string) => void;
-
-    colorDefaults: Record<string, string>;
-
     data: SankeySeriesDataPoint;
 };
 
@@ -71,10 +60,10 @@ export type SankeyChartConfigFn = (
 const useSankeyChartConfig: SankeyChartConfigFn = (
     resultsData,
     sankeyChartConfig,
-    itemsMap,
+    _itemsMap,
     dimensions,
     numericFields,
-    colorPalette,
+    _colorPalette,
     tableCalculationsMetadata,
 ) => {
     const [sourceFieldId, setSourceFieldId] = useState(
@@ -92,14 +81,6 @@ const useSankeyChartConfig: SankeyChartConfigFn = (
     const [orient, setOrient] = useState<NonNullable<SankeyChart['orient']>>(
         sankeyChartConfig?.orient ?? 'horizontal',
     );
-
-    const [colorOverrides, setColorOverrides] = useState(
-        sankeyChartConfig?.colorOverrides ?? {},
-    );
-    const [labelOverrides, setLabelOverrides] = useState(
-        sankeyChartConfig?.labelOverrides ?? {},
-    );
-    const [debouncedLabelOverrides] = useDebouncedValue(labelOverrides, 500);
 
     const dimensionIds = useMemo(() => Object.keys(dimensions), [dimensions]);
     const numericFieldIds = useMemo(
@@ -342,40 +323,6 @@ const useSankeyChartConfig: SankeyChartConfigFn = (
         };
     }, [resultsData, sourceFieldId, targetFieldId, metricFieldId]);
 
-    const colorDefaults = useMemo(() => {
-        return Object.fromEntries(
-            data.nodes.map((node, index) => [
-                node.name,
-                colorPalette[index % colorPalette.length],
-            ]),
-        );
-    }, [data.nodes, colorPalette]);
-
-    const onColorOverridesChange = useCallback((key: string, value: string) => {
-        setColorOverrides(({ [key]: _, ...rest }) => {
-            return value.trim() === '' ? rest : { ...rest, [key]: value };
-        });
-    }, []);
-
-    const onLabelOverridesChange = useCallback((key: string, value: string) => {
-        setLabelOverrides(({ [key]: _, ...rest }) => {
-            return value.trim() === '' ? rest : { ...rest, [key]: value };
-        });
-    }, []);
-
-    const getFieldLabel = useCallback(
-        (fieldId: string) => {
-            const item = itemsMap?.[fieldId];
-            return item && isField(item)
-                ? getItemLabelWithoutTableName(item)
-                : fieldId;
-        },
-        [itemsMap],
-    );
-
-    // Keep a reference to getFieldLabel to suppress lint warnings
-    void getFieldLabel;
-
     const validConfig: SankeyChart = useMemo(
         () => ({
             sourceFieldId: sourceFieldId ?? undefined,
@@ -383,18 +330,8 @@ const useSankeyChartConfig: SankeyChartConfigFn = (
             metricFieldId: metricFieldId ?? undefined,
             nodeAlign,
             orient,
-            colorOverrides,
-            labelOverrides: debouncedLabelOverrides,
         }),
-        [
-            sourceFieldId,
-            targetFieldId,
-            metricFieldId,
-            nodeAlign,
-            orient,
-            colorOverrides,
-            debouncedLabelOverrides,
-        ],
+        [sourceFieldId, targetFieldId, metricFieldId, nodeAlign, orient],
     );
 
     return {
@@ -409,11 +346,6 @@ const useSankeyChartConfig: SankeyChartConfigFn = (
         onNodeAlignChange: setNodeAlign,
         orient,
         onOrientChange: setOrient,
-        colorOverrides,
-        onColorOverridesChange,
-        labelOverrides,
-        onLabelOverridesChange,
-        colorDefaults,
         data,
     };
 };

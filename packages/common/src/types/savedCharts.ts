@@ -210,10 +210,6 @@ export type SankeyChart = {
     nodeAlign?: 'left' | 'right' | 'justify';
     /** Orientation of the diagram */
     orient?: 'horizontal' | 'vertical';
-    /** Custom colors for nodes */
-    colorOverrides?: Record<string, string>;
-    /** Custom labels for nodes */
-    labelOverrides?: Record<string, string>;
 };
 
 export enum MapChartLocation {
