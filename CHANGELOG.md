@@ -1,3 +1,11 @@
+# [0.2590.0](https://github.com/lightdash/lightdash/compare/0.2589.1...0.2590.0) (2026-03-09)
+
+
+### Features
+
+* add more child spans to duckdb execution ([#20976](https://github.com/lightdash/lightdash/issues/20976)) ([2b8a586](https://github.com/lightdash/lightdash/commit/2b8a586b3fc18af0d25347803d3bcec575db1543))
+* store file size when materializing pre-aggregate ([#20975](https://github.com/lightdash/lightdash/issues/20975)) ([edef51d](https://github.com/lightdash/lightdash/commit/edef51dcb380cf626a473118d03150843fab0140))
+
 ## [0.2589.1](https://github.com/lightdash/lightdash/compare/0.2589.0...0.2589.1) (2026-03-09)
 
 
