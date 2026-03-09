@@ -1,8 +1,4 @@
-import {
-    DEFAULT_GROUP_LIMIT_CONFIG,
-    type ChartKind,
-    type GroupLimitConfig,
-} from '@lightdash/common';
+import { DEFAULT_GROUP_LIMIT_CONFIG, type ChartKind } from '@lightdash/common';
 import {
     NumberInput,
     Stack,
@@ -17,8 +13,8 @@ import {
     useAppDispatch as useVizDispatch,
     useAppSelector as useVizSelector,
 } from '../../../features/sqlRunner/store/hooks';
-import { Config } from '../../VisualizationConfigs/common/Config';
 import MantineIcon from '../../common/MantineIcon';
+import { Config } from '../../VisualizationConfigs/common/Config';
 import { type BarChartActionsType } from '../store/barChartSlice';
 import { type LineChartActionsType } from '../store/lineChartSlice';
 import { cartesianChartSelectors } from '../store/selectors';
@@ -41,8 +37,10 @@ export const DataVizGroupLimitConfig: FC<Props> = ({
     );
 
     const isEnabled = groupLimit?.enabled ?? false;
-    const maxGroups = groupLimit?.maxGroups ?? DEFAULT_GROUP_LIMIT_CONFIG.maxGroups;
-    const otherLabel = groupLimit?.otherLabel ?? DEFAULT_GROUP_LIMIT_CONFIG.otherLabel;
+    const maxGroups =
+        groupLimit?.maxGroups ?? DEFAULT_GROUP_LIMIT_CONFIG.maxGroups;
+    const otherLabel =
+        groupLimit?.otherLabel ?? DEFAULT_GROUP_LIMIT_CONFIG.otherLabel;
 
     // Calculate how many groups will be aggregated into "Other"
     const groupsInOther = isEnabled ? Math.max(0, totalGroups - maxGroups) : 0;

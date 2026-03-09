@@ -124,7 +124,13 @@ const applyGroupLimit = (
     groupLimit: GroupLimitConfig,
 ): GroupLimitResult => {
     if (!groupLimit.enabled || rows.length === 0) {
-        return { rows, rowKeyMap, aggregatedKeys: [], otherKey: null, otherGroupPivotValues: [] };
+        return {
+            rows,
+            rowKeyMap,
+            aggregatedKeys: [],
+            otherKey: null,
+            otherGroupPivotValues: [],
+        };
     }
 
     const { maxGroups, otherLabel } = groupLimit;
@@ -143,7 +149,13 @@ const applyGroupLimit = (
 
     // If we have fewer pivot groups than the limit, no aggregation needed
     if (pivotKeys.length <= maxGroups) {
-        return { rows, rowKeyMap, aggregatedKeys: [], otherKey: null, otherGroupPivotValues: [] };
+        return {
+            rows,
+            rowKeyMap,
+            aggregatedKeys: [],
+            otherKey: null,
+            otherGroupPivotValues: [],
+        };
     }
 
     // Calculate total value for each pivot key across all rows
@@ -177,7 +189,13 @@ const applyGroupLimit = (
     const otherGroupKeys = pivotTotals.slice(maxGroups).map((g) => g.key);
 
     if (otherGroupKeys.length === 0) {
-        return { rows, rowKeyMap, aggregatedKeys: [], otherKey: null, otherGroupPivotValues: [] };
+        return {
+            rows,
+            rowKeyMap,
+            aggregatedKeys: [],
+            otherKey: null,
+            otherGroupPivotValues: [],
+        };
     }
 
     // Create new rowKeyMap with only top groups + "Other"
@@ -2536,15 +2554,11 @@ const useEchartsCartesianConfig = (
                 };
             }
             return applyGroupLimit(rawRows, rawRowKeyMap, groupLimit);
-    }, [rawRows, rawRowKeyMap, validCartesianConfig?.layout?.groupLimit]);
+        }, [rawRows, rawRowKeyMap, validCartesianConfig?.layout?.groupLimit]);
 
     // Create a modified cartesian config that handles group limiting
     const effectiveCartesianConfig = useMemo(() => {
-        if (
-            !validCartesianConfig ||
-            !otherKey ||
-            aggregatedKeys.length === 0
-        ) {
+        if (!validCartesianConfig || !otherKey || aggregatedKeys.length === 0) {
             return validCartesianConfig;
         }
 
@@ -2571,7 +2585,8 @@ const useEchartsCartesianConfig = (
                     ).find(
                         (col) =>
                             col.referenceField === yRef.field &&
-                            col.pivotValues.length === yRef.pivotValues.length &&
+                            col.pivotValues.length ===
+                                yRef.pivotValues.length &&
                             col.pivotValues.every(
                                 (pv, idx) =>
                                     pv.value === yRef.pivotValues[idx].value,
@@ -2633,12 +2648,7 @@ const useEchartsCartesianConfig = (
                 series: filteredSeries,
             },
         };
-    }, [
-        validCartesianConfig,
-        otherKey,
-        aggregatedKeys,
-        pivotValuesColumnsMap,
-    ]);
+    }, [validCartesianConfig, otherKey, aggregatedKeys, pivotValuesColumnsMap]);
 
     const series = useMemo(() => {
         if (!itemsMap || !effectiveCartesianConfig || !resultsData) {

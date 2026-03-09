@@ -618,22 +618,19 @@ const useCartesianChartConfig = ({
         [],
     );
 
-    const setGroupLimitEnabled = useCallback(
-        (enabled: boolean) => {
-            setDirtyLayout((prev) => ({
-                ...prev,
-                groupLimit: enabled
-                    ? {
-                          ...(prev?.groupLimit || DEFAULT_GROUP_LIMIT_CONFIG),
-                          enabled: true,
-                      }
-                    : prev?.groupLimit
-                      ? { ...prev.groupLimit, enabled: false }
-                      : undefined,
-            }));
-        },
-        [],
-    );
+    const setGroupLimitEnabled = useCallback((enabled: boolean) => {
+        setDirtyLayout((prev) => ({
+            ...prev,
+            groupLimit: enabled
+                ? {
+                      ...(prev?.groupLimit || DEFAULT_GROUP_LIMIT_CONFIG),
+                      enabled: true,
+                  }
+                : prev?.groupLimit
+                  ? { ...prev.groupLimit, enabled: false }
+                  : undefined,
+        }));
+    }, []);
 
     const updateAllGroupedSeries = useCallback(
         (fieldKey: string, updateSeries: Partial<Series>) =>
