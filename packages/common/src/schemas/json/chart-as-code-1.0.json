@@ -373,6 +373,9 @@
                 },
                 {
                     "$ref": "#/$defs/MapChartConfig"
+                },
+                {
+                    "$ref": "#/$defs/SankeyChartConfig"
                 }
             ]
         },
@@ -402,6 +405,10 @@
         },
         "ChartType.PIE": {
             "enum": ["pie"],
+            "type": "string"
+        },
+        "ChartType.SANKEY": {
+            "enum": ["sankey"],
             "type": "string"
         },
         "ChartType.TABLE": {
@@ -1889,6 +1896,14 @@
         "Partial_CompleteCartesianChartLayout_": {
             "description": "Make all properties in T optional",
             "properties": {
+                "categoryColorOverrides": {
+                    "$ref": "#/$defs/Record_string.string_",
+                    "description": "Per-category color overrides (maps category value to hex color)"
+                },
+                "colorByCategory": {
+                    "description": "Color each bar by its category value instead of using a single series color",
+                    "type": "boolean"
+                },
                 "connectNulls": {
                     "description": "Connect null data points with a line",
                     "type": "boolean"
@@ -2338,6 +2353,47 @@
             "additionalProperties": {},
             "description": "Construct a type with a set of properties K of type T",
             "properties": {},
+            "type": "object"
+        },
+        "SankeyChart": {
+            "properties": {
+                "metricFieldId": {
+                    "description": "Field ID for the link value metric",
+                    "type": "string"
+                },
+                "nodeAlign": {
+                    "description": "Node alignment",
+                    "enum": ["left", "right", "justify"],
+                    "type": "string"
+                },
+                "orient": {
+                    "description": "Orientation of the diagram",
+                    "enum": ["horizontal", "vertical"],
+                    "type": "string"
+                },
+                "sourceFieldId": {
+                    "description": "Field ID for the source node dimension",
+                    "type": "string"
+                },
+                "targetFieldId": {
+                    "description": "Field ID for the target node dimension",
+                    "type": "string"
+                }
+            },
+            "type": "object"
+        },
+        "SankeyChartConfig": {
+            "properties": {
+                "config": {
+                    "$ref": "#/$defs/SankeyChart",
+                    "description": "Chart-type-specific configuration"
+                },
+                "type": {
+                    "$ref": "#/$defs/ChartType.SANKEY",
+                    "description": "Type of chart visualization"
+                }
+            },
+            "required": ["type"],
             "type": "object"
         },
         "Series": {
@@ -3081,6 +3137,20 @@
                         },
                         "type": {
                             "const": "map",
+                            "description": "Type of chart visualization"
+                        }
+                    },
+                    "required": ["type"],
+                    "type": "object"
+                },
+                {
+                    "properties": {
+                        "config": {
+                            "$ref": "#/$defs/SankeyChart",
+                            "description": "Chart-type-specific configuration"
+                        },
+                        "type": {
+                            "const": "sankey",
                             "description": "Type of chart visualization"
                         }
                     },

@@ -1632,7 +1632,8 @@
                     "custom",
                     "treemap",
                     "gauge",
-                    "map"
+                    "map",
+                    "sankey"
                 ],
                 "type": "string"
             },
@@ -5606,6 +5607,51 @@
                 "required": ["type"],
                 "type": "object"
             },
+            "ChartType.SANKEY": {
+                "enum": ["sankey"],
+                "type": "string"
+            },
+            "SankeyChart": {
+                "properties": {
+                    "orient": {
+                        "type": "string",
+                        "enum": ["horizontal", "vertical"],
+                        "description": "Orientation of the diagram"
+                    },
+                    "nodeAlign": {
+                        "type": "string",
+                        "enum": ["left", "right", "justify"],
+                        "description": "Node alignment"
+                    },
+                    "metricFieldId": {
+                        "type": "string",
+                        "description": "Field ID for the link value metric"
+                    },
+                    "targetFieldId": {
+                        "type": "string",
+                        "description": "Field ID for the target node dimension"
+                    },
+                    "sourceFieldId": {
+                        "type": "string",
+                        "description": "Field ID for the source node dimension"
+                    }
+                },
+                "type": "object"
+            },
+            "SankeyChartConfig": {
+                "properties": {
+                    "config": {
+                        "$ref": "#/components/schemas/SankeyChart",
+                        "description": "Chart-type-specific configuration"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/ChartType.SANKEY",
+                        "description": "Type of chart visualization"
+                    }
+                },
+                "required": ["type"],
+                "type": "object"
+            },
             "ChartConfig": {
                 "anyOf": [
                     {
@@ -5634,6 +5680,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/MapChartConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/SankeyChartConfig"
                     }
                 ]
             },
@@ -9190,23 +9239,33 @@
                                             },
                                             {
                                                 "properties": {
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "success",
+                                                            "error"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": ["status"],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
                                                     "ranking": {
                                                         "properties": {
                                                             "topMatchingFields": {
                                                                 "items": {
                                                                     "properties": {
-                                                                        "chartUsage": {
-                                                                            "type": "number",
-                                                                            "format": "double",
-                                                                            "nullable": true
-                                                                        },
                                                                         "searchRank": {
                                                                             "type": "number",
                                                                             "format": "double",
                                                                             "nullable": true
                                                                         },
-                                                                        "fieldType": {
-                                                                            "type": "string"
+                                                                        "chartUsage": {
+                                                                            "type": "number",
+                                                                            "format": "double",
+                                                                            "nullable": true
                                                                         },
                                                                         "tableName": {
                                                                             "type": "string"
@@ -9214,14 +9273,17 @@
                                                                         "label": {
                                                                             "type": "string"
                                                                         },
+                                                                        "fieldType": {
+                                                                            "type": "string"
+                                                                        },
                                                                         "name": {
                                                                             "type": "string"
                                                                         }
                                                                     },
                                                                     "required": [
-                                                                        "fieldType",
                                                                         "tableName",
                                                                         "label",
+                                                                        "fieldType",
                                                                         "name"
                                                                     ],
                                                                     "type": "object"
@@ -9270,8 +9332,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "error",
-                                                            "success"
+                                                            "success",
+                                                            "error"
                                                         ]
                                                     }
                                                 },
@@ -9315,18 +9377,15 @@
                                                                         "results": {
                                                                             "items": {
                                                                                 "properties": {
-                                                                                    "chartUsage": {
-                                                                                        "type": "number",
-                                                                                        "format": "double",
-                                                                                        "nullable": true
-                                                                                    },
                                                                                     "searchRank": {
                                                                                         "type": "number",
                                                                                         "format": "double",
                                                                                         "nullable": true
                                                                                     },
-                                                                                    "fieldType": {
-                                                                                        "type": "string"
+                                                                                    "chartUsage": {
+                                                                                        "type": "number",
+                                                                                        "format": "double",
+                                                                                        "nullable": true
                                                                                     },
                                                                                     "tableName": {
                                                                                         "type": "string"
@@ -9334,14 +9393,17 @@
                                                                                     "label": {
                                                                                         "type": "string"
                                                                                     },
+                                                                                    "fieldType": {
+                                                                                        "type": "string"
+                                                                                    },
                                                                                     "name": {
                                                                                         "type": "string"
                                                                                     }
                                                                                 },
                                                                                 "required": [
-                                                                                    "fieldType",
                                                                                     "tableName",
                                                                                     "label",
+                                                                                    "fieldType",
                                                                                     "name"
                                                                                 ],
                                                                                 "type": "object"
@@ -9369,8 +9431,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "error",
-                                                            "success"
+                                                            "success",
+                                                            "error"
                                                         ]
                                                     }
                                                 },
@@ -16030,7 +16092,8 @@
                     "treemap",
                     "gauge",
                     "custom",
-                    "map"
+                    "map",
+                    "sankey"
                 ],
                 "type": "string"
             },
@@ -27973,7 +28036,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2583.0",
+        "version": "0.2585.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
