@@ -1,3 +1,10 @@
+# [0.2585.0](https://github.com/lightdash/lightdash/compare/0.2584.1...0.2585.0) (2026-03-09)
+
+
+### Features
+
+* add custom_granularities types and schemas ([#20882](https://github.com/lightdash/lightdash/issues/20882)) ([7e4e15e](https://github.com/lightdash/lightdash/commit/7e4e15ecdc798b7cf78d9329bc0c30f41fe55690))
+
 ## [0.2584.1](https://github.com/lightdash/lightdash/compare/0.2584.0...0.2584.1) (2026-03-09)
 
 
