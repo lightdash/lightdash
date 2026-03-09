@@ -99,9 +99,9 @@ export type DashboardContextType = {
         tileUuid: string,
         metadata: SqlChartTileMetadata,
     ) => void;
-    dateZoomGranularity: DateGranularity | undefined;
+    dateZoomGranularity: DateGranularity | string | undefined;
     setDateZoomGranularity: Dispatch<
-        SetStateAction<DateGranularity | undefined>
+        SetStateAction<DateGranularity | string | undefined>
     >;
     chartsWithDateZoomApplied: Set<string> | undefined;
     setChartsWithDateZoomApplied: Dispatch<
@@ -131,13 +131,15 @@ export type DashboardContextType = {
     toggleParameterPin: (parameterKey: string) => void;
     havePinnedParametersChanged: boolean;
     setHavePinnedParametersChanged: Dispatch<SetStateAction<boolean>>;
-    dateZoomGranularities: DateGranularity[];
-    setDateZoomGranularities: (granularities: DateGranularity[]) => void;
+    dateZoomGranularities: (DateGranularity | string)[];
+    setDateZoomGranularities: (
+        granularities: (DateGranularity | string)[],
+    ) => void;
     haveDateZoomGranularitiesChanged: boolean;
     setHaveDateZoomGranularitiesChanged: Dispatch<SetStateAction<boolean>>;
-    defaultDateZoomGranularity: DateGranularity | undefined;
+    defaultDateZoomGranularity: DateGranularity | string | undefined;
     setDefaultDateZoomGranularity: (
-        granularity: DateGranularity | undefined,
+        granularity: DateGranularity | string | undefined,
     ) => void;
     hasDefaultDateZoomGranularityChanged: boolean;
     setHasDefaultDateZoomGranularityChanged: Dispatch<SetStateAction<boolean>>;

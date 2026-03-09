@@ -266,7 +266,7 @@ export class EmbedController extends BaseController {
         body: {
             tileUuid: string;
             dashboardFilters?: DashboardFilters;
-            dateZoomGranularity?: DateGranularity;
+            dateZoomGranularity?: DateGranularity | string;
             dashboardSorts?: SortField[];
             parameters?: ParametersValuesMap;
         },

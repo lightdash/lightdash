@@ -171,8 +171,8 @@ dashboardRouter.post(
                     req.user!,
                     req.params.dashboardUuid,
                     req.body.filters,
-                    req.body.dateZoomGranularity,
                     validatedSelectedTabs,
+                    req.body.dateZoomGranularity,
                 );
 
             res.json({

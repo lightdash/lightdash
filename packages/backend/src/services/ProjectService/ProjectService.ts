@@ -42,6 +42,7 @@ import {
     DashboardFilters,
     DatabricksAuthenticationType,
     DatabricksTokenError,
+    DateGranularity,
     DateZoom,
     DbtExposure,
     DbtExposureType,
@@ -89,6 +90,7 @@ import {
     isFilterRule,
     isJwtUser,
     isNotNull,
+    isStandardDateGranularity,
     isUserWithOrg,
     ItemsMap,
     Job,
@@ -2867,20 +2869,43 @@ export class ProjectService extends BaseService {
                         ? timeDimensionsMap[baseDimensionId]
                         : dimToOverride;
 
-                const dimWithGranularityOverride =
-                    createDimensionWithGranularity(
-                        dimToOverride.name,
-                        baseTimeDimension,
-                        explore,
-                        warehouseSqlBuilder,
-                        dateZoom?.granularity,
-                        availableParameters,
+                if (!isStandardDateGranularity(dateZoom.granularity)) {
+                    // Custom granularity: find the pre-compiled dimension
+                    const customDimName = `${baseTimeDimension.name}_${dateZoom.granularity}`;
+                    const customDim = Object.values(explore.tables).reduce<
+                        CompiledDimension | undefined
+                    >(
+                        (found, t) => found ?? t.dimensions[customDimName],
+                        undefined,
                     );
 
-                return replaceDimensionInExplore(
-                    explore,
-                    dimWithGranularityOverride,
-                );
+                    if (customDim) {
+                        const dimWithCustomOverride: CompiledDimension = {
+                            ...customDim,
+                            name: dimToOverride.name,
+                        };
+                        return replaceDimensionInExplore(
+                            explore,
+                            dimWithCustomOverride,
+                        );
+                    }
+                    // Custom granularity not found — return unchanged explore
+                } else {
+                    // Standard granularity: existing logic
+                    const dimWithGranularityOverride =
+                        createDimensionWithGranularity(
+                            dimToOverride.name,
+                            baseTimeDimension,
+                            explore,
+                            warehouseSqlBuilder,
+                            dateZoom.granularity,
+                            availableParameters,
+                        );
+                    return replaceDimensionInExplore(
+                        explore,
+                        dimWithGranularityOverride,
+                    );
+                }
             }
         }
         return explore;

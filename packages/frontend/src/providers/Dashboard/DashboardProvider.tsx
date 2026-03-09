@@ -74,7 +74,7 @@ const DashboardProvider: React.FC<
         schedulerFilters?: DashboardFilterRule[] | undefined;
         schedulerParameters?: ParametersValuesMap | undefined;
         schedulerTabsSelected?: string[] | undefined;
-        dateZoom?: DateGranularity | undefined;
+        dateZoom?: DateGranularity | string | undefined;
         projectUuid?: string;
         embedToken?: string;
         dashboardCommentsCheck?: ReturnType<typeof useDashboardCommentsCheck>;
@@ -203,7 +203,7 @@ const DashboardProvider: React.FC<
     >({});
 
     const [dateZoomGranularity, setDateZoomGranularity] = useState<
-        DateGranularity | undefined
+        DateGranularity | string | undefined
     >(dateZoom);
 
     // Allows users to disable date zoom on view mode,
@@ -247,14 +247,14 @@ const DashboardProvider: React.FC<
     const allGranularities = useMemo(() => Object.values(DateGranularity), []);
 
     const [dateZoomGranularities, setDateZoomGranularitiesState] =
-        useState<DateGranularity[]>(allGranularities);
+        useState<(DateGranularity | string)[]>(allGranularities);
     const [
         haveDateZoomGranularitiesChanged,
         setHaveDateZoomGranularitiesChanged,
     ] = useState<boolean>(false);
 
     const [defaultDateZoomGranularity, setDefaultDateZoomGranularityState] =
-        useState<DateGranularity | undefined>(undefined);
+        useState<DateGranularity | string | undefined>(undefined);
     const [
         hasDefaultDateZoomGranularityChanged,
         setHasDefaultDateZoomGranularityChanged,
@@ -381,7 +381,7 @@ const DashboardProvider: React.FC<
     }, []);
 
     const setDateZoomGranularities = useCallback(
-        (granularities: DateGranularity[]) => {
+        (granularities: (DateGranularity | string)[]) => {
             setDateZoomGranularitiesState(granularities);
             setHaveDateZoomGranularitiesChanged(true);
         },
@@ -389,7 +389,7 @@ const DashboardProvider: React.FC<
     );
 
     const setDefaultDateZoomGranularity = useCallback(
-        (granularity: DateGranularity | undefined) => {
+        (granularity: DateGranularity | string | undefined) => {
             setDefaultDateZoomGranularityState(granularity);
             setHasDefaultDateZoomGranularityChanged(true);
         },
