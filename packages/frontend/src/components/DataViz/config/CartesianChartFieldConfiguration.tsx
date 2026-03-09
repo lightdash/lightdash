@@ -1,5 +1,6 @@
 import {
     DimensionType,
+    FeatureFlags,
     type ChartKind,
     type PivotChartLayout,
     type VizColumn,
@@ -14,6 +15,7 @@ import {
     useAppDispatch as useVizDispatch,
     useAppSelector as useVizSelector,
 } from '../../../features/sqlRunner/store/hooks';
+import { useClientFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import MantineIcon from '../../common/MantineIcon';
 import { Config } from '../../VisualizationConfigs/common/Config';
 import { FieldReferenceSelect } from '../FieldReferenceSelect';
@@ -261,6 +263,9 @@ export const CartesianChartFieldConfiguration = ({
     columns: VizColumn[];
     actions: BarChartActionsType | LineChartActionsType;
 }) => {
+    const isGroupLimitEnabled = useClientFeatureFlag(
+        FeatureFlags.GroupLimitEnabled,
+    );
     const dispatch = useVizDispatch();
     const xLayoutOptions = useVizSelector((state) =>
         cartesianChartSelectors.getIndexLayoutOptions(state, selectedChartType),
@@ -368,7 +373,7 @@ export const CartesianChartFieldConfiguration = ({
                     />
                 </Config.Section>
             </Config>
-            {groupByField && totalGroups > 1 && (
+            {isGroupLimitEnabled && groupByField && totalGroups > 1 && (
                 <DataVizGroupLimitConfig
                     selectedChartType={selectedChartType}
                     actions={actions}

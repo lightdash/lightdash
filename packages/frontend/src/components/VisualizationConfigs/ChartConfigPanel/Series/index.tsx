@@ -7,6 +7,7 @@ import {
 } from '@hello-pangea/dnd';
 import {
     CartesianSeriesType,
+    FeatureFlags,
     getItemId,
     getSeriesId,
     type CustomDimension,
@@ -34,12 +35,13 @@ import React, {
 } from 'react';
 import { createPortal } from 'react-dom';
 import { getSeriesGroupedByField } from '../../../../hooks/cartesianChartConfig/utils';
+import { useClientFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
 import ColorSelector from '../../ColorSelector';
 import BasicSeriesConfiguration from './BasicSeriesConfiguration';
-import { GroupLimitConfig } from './GroupLimitConfig';
 import GroupedSeriesConfiguration from './GroupedSeriesConfiguration';
+import { GroupLimitConfig } from './GroupLimitConfig';
 import InvalidSeriesConfiguration from './InvalidSeriesConfiguration';
 
 type DraggablePortalHandlerProps = {
@@ -60,6 +62,9 @@ type Props = {
 const MAX_COLOR_VALUES = 50;
 
 export const Series: FC<Props> = ({ items }) => {
+    const isGroupLimitEnabled = useClientFeatureFlag(
+        FeatureFlags.GroupLimitEnabled,
+    );
     const {
         visualizationConfig,
         getSeriesColor,
@@ -194,6 +199,22 @@ export const Series: FC<Props> = ({ items }) => {
         [isCartesianChart, allRawKeys, visualizationConfig],
     );
 
+    // Count unique pivot values (groups) across all series
+    const hasPivotedSeries = useMemo(() => {
+        if (!seriesGroupedByField) return false;
+        return seriesGroupedByField.some((group) => group.value.length > 1);
+    }, [seriesGroupedByField]);
+
+    // Count total number of unique pivot values
+    const totalGroups = useMemo(() => {
+        if (!seriesGroupedByField || !hasPivotedSeries) return 0;
+        // Get the first grouped series and count its pivot values
+        const groupedEntry = seriesGroupedByField.find(
+            (group) => group.value.length > 1,
+        );
+        return groupedEntry?.value.length ?? 0;
+    }, [seriesGroupedByField, hasPivotedSeries]);
+
     if (!isCartesianChart) return null;
 
     const {
@@ -211,22 +232,6 @@ export const Series: FC<Props> = ({ items }) => {
     } = visualizationConfig.chartConfig;
 
     const allSeries = dirtyEchartsConfig?.series ?? [];
-
-    // Count unique pivot values (groups) across all series
-    const hasPivotedSeries = useMemo(() => {
-        if (!seriesGroupedByField) return false;
-        return seriesGroupedByField.some((group) => group.value.length > 1);
-    }, [seriesGroupedByField]);
-
-    // Count total number of unique pivot values
-    const totalGroups = useMemo(() => {
-        if (!seriesGroupedByField || !hasPivotedSeries) return 0;
-        // Get the first grouped series and count its pivot values
-        const groupedEntry = seriesGroupedByField.find(
-            (group) => group.value.length > 1,
-        );
-        return groupedEntry?.value.length ?? 0;
-    }, [seriesGroupedByField, hasPivotedSeries]);
 
     const stackedBarSeries = allSeries.filter(
         (s) => s.stack && s.type === CartesianSeriesType.BAR,
@@ -263,7 +268,7 @@ export const Series: FC<Props> = ({ items }) => {
 
     return (
         <Stack spacing="md">
-            {hasPivotedSeries && totalGroups > 1 && (
+            {isGroupLimitEnabled && hasPivotedSeries && totalGroups > 1 && (
                 <GroupLimitConfig
                     groupLimit={dirtyLayout?.groupLimit}
                     setGroupLimit={setGroupLimit}
