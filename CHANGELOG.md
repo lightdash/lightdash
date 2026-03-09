@@ -1,3 +1,10 @@
+# [0.2584.0](https://github.com/lightdash/lightdash/compare/0.2583.0...0.2584.0) (2026-03-09)
+
+
+### Features
+
+* add richText template support for dimensions and metrics ([#20934](https://github.com/lightdash/lightdash/issues/20934)) ([6265f34](https://github.com/lightdash/lightdash/commit/6265f34b25986748f33e57577d038aaaa8b93ee3))
+
 # [0.2583.0](https://github.com/lightdash/lightdash/compare/0.2582.0...0.2583.0) (2026-03-09)
 
 
