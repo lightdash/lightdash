@@ -313,6 +313,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         lightdashConfig: context.lightdashConfig,
                         preAggregateModel: models.getPreAggregateModel(),
                         projectModel: models.getProjectModel(),
+                        prometheusMetrics,
                     }),
                     projectCompileLogModel: models.getProjectCompileLogModel(),
                     adminNotificationService:

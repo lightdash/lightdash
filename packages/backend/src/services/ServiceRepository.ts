@@ -701,6 +701,7 @@ export class ServiceRepository
                         lightdashConfig: this.context.lightdashConfig,
                         preAggregateModel: this.models.getPreAggregateModel(),
                         projectModel: this.models.getProjectModel(),
+                        prometheusMetrics: this.prometheusMetrics,
                     }),
                     projectCompileLogModel:
                         this.models.getProjectCompileLogModel(),

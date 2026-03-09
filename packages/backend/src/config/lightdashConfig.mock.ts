@@ -97,6 +97,7 @@ export const lightdashConfigMock: LightdashConfig = {
         port: 9090,
         path: '/metrics',
         eventMetricsEnabled: false,
+        allQueryMetricsEnabled: false,
     },
     chart: { versionHistory: { daysLimit: 0 } },
     dashboard: {
@@ -181,6 +182,7 @@ export const lightdashConfigMock: LightdashConfig = {
         release: '',
         environment: '',
         tracesSampleRate: 0,
+        queryTracesSampleRate: null,
         profilesSampleRate: 0,
         anr: {
             enabled: false,
