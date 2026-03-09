@@ -731,6 +731,8 @@ export const convertTable = (
                                 compact: undefined,
                                 groups,
                                 isIntervalBase: false,
+                                isAdditionalDimension:
+                                    dim.isAdditionalDimension,
                             } satisfies Dimension,
                         };
                     }, {});
