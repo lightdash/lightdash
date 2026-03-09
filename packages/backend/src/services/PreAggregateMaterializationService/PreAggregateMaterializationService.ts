@@ -1,4 +1,5 @@
 import {
+    getErrorMessage,
     NotFoundError,
     QueryExecutionContext,
     QueryHistoryStatus,
@@ -8,14 +9,21 @@ import {
     type KnexPaginateArgs,
     type KnexPaginatedData,
     type PreAggregateMaterializationTrigger,
+    type ResultColumns,
 } from '@lightdash/common';
+import { DuckdbWarehouseClient } from '@lightdash/warehouses';
 import { type S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import { type LightdashConfig } from '../../config/parseConfig';
 import { PreAggregateModel } from '../../models/PreAggregateModel';
 import { type QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import type PrometheusMetrics from '../../prometheus/PrometheusMetrics';
 import { type AsyncQueryService } from '../AsyncQueryService/AsyncQueryService';
+import { getDuckdbRuntimeConfig } from '../AsyncQueryService/getDuckdbRuntimeConfig';
 import { BaseService } from '../BaseService';
+import {
+    getDuckdbPreAggregateSqlTable,
+    getPreAggregateDuckdbLocator,
+} from './getDuckdbPreAggregateSqlTable';
 
 const QUERY_POLL_INTERVAL_MS = 1000;
 const QUERY_POLL_TIMEOUT_MS = 30 * 60 * 1000;
@@ -51,7 +59,11 @@ export class PreAggregateMaterializationService extends BaseService {
         this.prometheusMetrics = args.prometheusMetrics;
     }
 
-    private getMaterializationUri(resultsFileName: string): string {
+    private get parquetEnabled(): boolean {
+        return this.lightdashConfig.preAggregates.parquetEnabled;
+    }
+
+    private getJsonlUri(resultsFileName: string): string {
         const bucket = this.lightdashConfig.preAggregates.s3?.bucket;
 
         if (!bucket) {
@@ -61,6 +73,81 @@ export class PreAggregateMaterializationService extends BaseService {
         }
 
         return `s3://${bucket}/${resultsFileName}.jsonl`;
+    }
+
+    private getMaterializationUri(resultsFileName: string): string {
+        const bucket = this.lightdashConfig.preAggregates.s3?.bucket;
+
+        if (!bucket) {
+            throw new Error(
+                'Missing pre-aggregate S3 bucket configuration for materializations',
+            );
+        }
+
+        const extension = this.parquetEnabled ? 'parquet' : 'jsonl';
+        return `s3://${bucket}/${resultsFileName}.${extension}`;
+    }
+
+    private getMaterializationFormat(): 'jsonl' | 'parquet' {
+        return this.parquetEnabled ? 'parquet' : 'jsonl';
+    }
+
+    private async convertJsonlToParquet(
+        jsonlUri: string,
+        parquetUri: string,
+        columns: ResultColumns | null,
+    ): Promise<void> {
+        const s3Config = getDuckdbRuntimeConfig(
+            this.lightdashConfig.preAggregates.s3,
+        );
+
+        if (!s3Config) {
+            throw new Error(
+                'Missing DuckDB runtime S3 configuration for Parquet conversion',
+            );
+        }
+
+        const duckdb = new DuckdbWarehouseClient({ s3Config });
+
+        const jsonlSqlTable = getDuckdbPreAggregateSqlTable(
+            getPreAggregateDuckdbLocator({ uri: jsonlUri, format: 'jsonl' }),
+            columns,
+        );
+
+        await duckdb.runSql(
+            `COPY (SELECT * FROM ${jsonlSqlTable}) TO '${parquetUri}' (FORMAT PARQUET)`,
+        );
+    }
+
+    private async recordFileSizes(resultsFileName: string): Promise<void> {
+        const [jsonlSize, parquetSize] = await Promise.all([
+            this.preAggregateResultsStorageClient.getFileSize(
+                resultsFileName,
+                'jsonl',
+            ),
+            this.preAggregateResultsStorageClient.getFileSize(
+                resultsFileName,
+                'parquet',
+            ),
+        ]);
+
+        if (jsonlSize != null) {
+            this.prometheusMetrics?.preAggregateMaterializationFileSizeGauge?.set(
+                { format: 'jsonl' },
+                jsonlSize,
+            );
+        }
+
+        if (parquetSize != null) {
+            this.prometheusMetrics?.preAggregateMaterializationFileSizeGauge?.set(
+                { format: 'parquet' },
+                parquetSize,
+            );
+        }
+
+        this.logger.info(
+            `Pre-aggregate file sizes - JSONL: ${jsonlSize ?? 'unknown'} bytes, Parquet: ${parquetSize ?? 'unknown'} bytes`,
+        );
     }
 
     async materializePreAggregate(args: {
@@ -210,14 +297,62 @@ export class PreAggregateMaterializationService extends BaseService {
                 };
             }
 
+            // Convert JSONL to Parquet if enabled
+            if (this.parquetEnabled) {
+                const jsonlUri = this.getJsonlUri(queryHistory.resultsFileName);
+                const parquetUri = this.getMaterializationUri(
+                    queryHistory.resultsFileName,
+                );
+
+                const conversionStartTime = Date.now();
+                try {
+                    await this.convertJsonlToParquet(
+                        jsonlUri,
+                        parquetUri,
+                        queryHistory.columns,
+                    );
+
+                    const conversionDurationMs =
+                        Date.now() - conversionStartTime;
+                    this.prometheusMetrics?.preAggregateParquetConversionDurationHistogram?.observe(
+                        { status: 'success' },
+                        conversionDurationMs,
+                    );
+
+                    this.logger.info(
+                        `Converted pre-aggregate JSONL to Parquet in ${conversionDurationMs}ms`,
+                    );
+                } catch (error) {
+                    const conversionDurationMs =
+                        Date.now() - conversionStartTime;
+                    this.prometheusMetrics?.preAggregateParquetConversionDurationHistogram?.observe(
+                        { status: 'failed' },
+                        conversionDurationMs,
+                    );
+
+                    throw new Error(
+                        `Failed to convert JSONL to Parquet: ${getErrorMessage(error)}`,
+                    );
+                }
+
+                // Record file sizes for both formats (keeping JSONL for comparison)
+                await this.recordFileSizes(queryHistory.resultsFileName).catch(
+                    (e) =>
+                        this.logger.warn(
+                            `Failed to record file sizes: ${getErrorMessage(e)}`,
+                        ),
+                );
+            }
+
             const columnCount = queryHistory.columns
                 ? Object.keys(queryHistory.columns).length
                 : null;
 
-            // Get file size from S3 using HeadObject
+            // Get file size from S3 for the active format
             const totalBytes =
                 await this.preAggregateResultsStorageClient.getFileSize(
                     queryHistory.resultsFileName,
+                    this.parquetEnabled ? 'parquet' : 'jsonl',
                 );
 
             this.logger.info(`Pre-aggregate materialization query completed`, {
@@ -226,6 +361,7 @@ export class PreAggregateMaterializationService extends BaseService {
                 projectUuid: args.projectUuid,
                 preAggregateDefinitionUuid: args.preAggregateDefinitionUuid,
                 trigger: args.trigger,
+                format: this.getMaterializationFormat(),
                 rowCount: queryHistory.totalRowCount,
                 columnCount,
                 totalBytes,
@@ -253,6 +389,7 @@ export class PreAggregateMaterializationService extends BaseService {
                 preAggregateDefinitionUuid: args.preAggregateDefinitionUuid,
                 trigger: args.trigger,
                 status,
+                format: this.getMaterializationFormat(),
                 rowCount: queryHistory.totalRowCount,
                 columnCount,
                 totalBytes,
@@ -334,7 +471,7 @@ export class PreAggregateMaterializationService extends BaseService {
         | {
               queryUuid: string;
               materializationUri: string;
-              format: 'jsonl';
+              format: 'jsonl' | 'parquet';
               columns: ActiveMaterializationDetails['columns'];
               materializedAt: Date;
           }

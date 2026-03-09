@@ -480,7 +480,9 @@ export class PreAggregateModel {
             materializationUuid: row.pre_aggregate_materialization_uuid,
             queryUuid: row.query_uuid,
             materializationUri: row.materialization_uri,
-            format: 'jsonl',
+            format: row.materialization_uri.endsWith('.parquet')
+                ? 'parquet'
+                : 'jsonl',
             columns: row.columns,
             materializedAt: row.materialized_at,
         };

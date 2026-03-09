@@ -86,6 +86,12 @@ export default class PrometheusMetrics {
 
     public queryCacheHitCounter: prometheus.Counter<string> | null = null;
 
+    public preAggregateMaterializationFileSizeGauge: prometheus.Gauge<string> | null =
+        null;
+
+    public preAggregateParquetConversionDurationHistogram: prometheus.Histogram<string> | null =
+        null;
+
     constructor(config: LightdashConfig['prometheus']) {
         this.config = config;
     }
@@ -226,7 +232,7 @@ export default class PrometheusMetrics {
                 this.preAggregateMatchCounter = new prometheus.Counter({
                     name: 'assessment_pre_aggregate_match_total',
                     help: 'Total number of pre-aggregate match attempts',
-                    labelNames: ['result', 'miss_reason'],
+                    labelNames: ['result', 'miss_reason', 'format'],
                     ...rest,
                 });
 
@@ -330,6 +336,32 @@ export default class PrometheusMetrics {
                             60000, // 1min
                             120000, // 2min
                             300000, // 5min
+                        ],
+                        ...rest,
+                    });
+
+                this.preAggregateMaterializationFileSizeGauge =
+                    new prometheus.Gauge({
+                        name: 'pre_aggregate_materialization_file_size_bytes',
+                        help: 'File size of pre-aggregate materialization in bytes',
+                        labelNames: ['format'],
+                        ...rest,
+                    });
+
+                this.preAggregateParquetConversionDurationHistogram =
+                    new prometheus.Histogram({
+                        name: 'pre_aggregate_parquet_conversion_duration_ms',
+                        help: 'Duration of JSONL to Parquet conversion in milliseconds',
+                        labelNames: ['status'],
+                        buckets: [
+                            500, // 500ms
+                            1000, // 1s
+                            2000, // 2s
+                            5000, // 5s
+                            10000, // 10s
+                            30000, // 30s
+                            60000, // 1min
+                            120000, // 2min
                         ],
                         ...rest,
                     });
@@ -596,11 +628,13 @@ export default class PrometheusMetrics {
     public incrementPreAggregateMatch(
         hit: boolean,
         missReason?: PreAggregateMissReason,
+        format?: 'jsonl' | 'parquet',
     ) {
         if (this.preAggregateMatchCounter) {
             this.preAggregateMatchCounter.inc({
                 result: hit ? 'hit' : 'miss',
                 miss_reason: hit ? 'none' : missReason || 'unknown',
+                format: format || 'unknown',
             });
         }
     }
