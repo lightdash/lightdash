@@ -1,3 +1,10 @@
+# [0.2583.0](https://github.com/lightdash/lightdash/compare/0.2582.0...0.2583.0) (2026-03-09)
+
+
+### Features
+
+* add nested aggregate CTE support for metrics ([#20912](https://github.com/lightdash/lightdash/issues/20912)) ([62ece99](https://github.com/lightdash/lightdash/commit/62ece99c26e7fe4049b0943e7f9bd41e1f4a8e63))
+
 # [0.2582.0](https://github.com/lightdash/lightdash/compare/0.2581.0...0.2582.0) (2026-03-06)
 
 
