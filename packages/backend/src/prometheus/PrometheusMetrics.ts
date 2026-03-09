@@ -69,6 +69,23 @@ export default class PrometheusMetrics {
     public preAggregateActiveMaterializationsGauge: prometheus.Gauge | null =
         null;
 
+    // Pre-aggregate query execution metrics
+    public queryExecutionDurationHistogram: prometheus.Histogram<string> | null =
+        null;
+
+    public duckdbResolutionCounter: prometheus.Counter<string> | null = null;
+
+    public duckdbResolutionDurationHistogram: prometheus.Histogram<string> | null =
+        null;
+
+    public preAggregateFallbackCounter: prometheus.Counter<string> | null =
+        null;
+
+    public s3ResultsUploadDurationHistogram: prometheus.Histogram<string> | null =
+        null;
+
+    public queryCacheHitCounter: prometheus.Counter<string> | null = null;
+
     constructor(config: LightdashConfig['prometheus']) {
         this.config = config;
     }
@@ -207,7 +224,7 @@ export default class PrometheusMetrics {
 
                 // Initialize pre-aggregate metrics
                 this.preAggregateMatchCounter = new prometheus.Counter({
-                    name: 'pre_aggregate_match_total',
+                    name: 'assessment_pre_aggregate_match_total',
                     help: 'Total number of pre-aggregate match attempts',
                     labelNames: ['result', 'miss_reason'],
                     ...rest,
@@ -215,7 +232,7 @@ export default class PrometheusMetrics {
 
                 this.preAggregateMaterializationCounter =
                     new prometheus.Counter({
-                        name: 'pre_aggregate_materialization_total',
+                        name: 'assessment_pre_aggregate_materialization_total',
                         help: 'Total number of pre-aggregate materializations by outcome',
                         labelNames: ['status', 'trigger'],
                         ...rest,
@@ -223,7 +240,7 @@ export default class PrometheusMetrics {
 
                 this.preAggregateMaterializationDurationHistogram =
                     new prometheus.Histogram({
-                        name: 'pre_aggregate_materialization_duration_ms',
+                        name: 'assessment_pre_aggregate_materialization_duration_ms',
                         help: 'Histogram of pre-aggregate materialization duration in milliseconds',
                         labelNames: ['status', 'trigger'],
                         buckets: [
@@ -240,6 +257,93 @@ export default class PrometheusMetrics {
                         ],
                         ...rest,
                     });
+
+                // Pre-aggregate query execution metrics
+                this.queryExecutionDurationHistogram = new prometheus.Histogram(
+                    {
+                        name: 'assessment_query_execution_duration_ms',
+                        help: 'Histogram of query execution duration in milliseconds by source',
+                        labelNames: ['source', 'context', 'status'],
+                        buckets: [
+                            100, // 100ms
+                            500, // 500ms
+                            1000, // 1s
+                            2500, // 2.5s
+                            5000, // 5s
+                            10000, // 10s
+                            30000, // 30s
+                            60000, // 1min
+                            120000, // 2min
+                            300000, // 5min
+                            600000, // 10min
+                        ],
+                        ...rest,
+                    },
+                );
+
+                this.duckdbResolutionCounter = new prometheus.Counter({
+                    name: 'assessment_pre_aggregate_duckdb_resolution_total',
+                    help: 'Total number of DuckDB pre-aggregate resolution attempts',
+                    labelNames: ['status', 'reason'],
+                    ...rest,
+                });
+
+                this.duckdbResolutionDurationHistogram =
+                    new prometheus.Histogram({
+                        name: 'assessment_pre_aggregate_duckdb_resolution_duration_ms',
+                        help: 'Histogram of DuckDB pre-aggregate resolution duration in milliseconds',
+                        labelNames: ['status'],
+                        buckets: [
+                            10, // 10ms
+                            50, // 50ms
+                            100, // 100ms
+                            250, // 250ms
+                            500, // 500ms
+                            1000, // 1s
+                            2500, // 2.5s
+                            5000, // 5s
+                            10000, // 10s
+                        ],
+                        ...rest,
+                    });
+
+                this.preAggregateFallbackCounter = new prometheus.Counter({
+                    name: 'assessment_pre_aggregate_fallback_total',
+                    help: 'Total number of opportunistic pre-aggregate fallbacks to warehouse',
+                    labelNames: ['reason'],
+                    ...rest,
+                });
+
+                this.s3ResultsUploadDurationHistogram =
+                    new prometheus.Histogram({
+                        name: 'assessment_s3_results_upload_duration_ms',
+                        help: 'Histogram of S3 results upload duration in milliseconds',
+                        labelNames: ['source'],
+                        buckets: [
+                            100, // 100ms
+                            500, // 500ms
+                            1000, // 1s
+                            2500, // 2.5s
+                            5000, // 5s
+                            10000, // 10s
+                            30000, // 30s
+                            60000, // 1min
+                            120000, // 2min
+                            300000, // 5min
+                        ],
+                        ...rest,
+                    });
+
+                this.queryCacheHitCounter = new prometheus.Counter({
+                    name: 'assessment_pre_aggregate_cache_hit_total',
+                    help: 'Total number of query cache hits and misses',
+                    labelNames: [
+                        'result',
+                        'context',
+                        'has_pre_aggregate_match',
+                    ],
+                    ...rest,
+                });
 
                 const app = express();
                 this.server = http.createServer(app);
@@ -501,6 +605,54 @@ export default class PrometheusMetrics {
         }
     }
 
+    public observeQueryExecutionDuration(
+        durationMs: number,
+        source: 'warehouse' | 'pre_aggregate_duckdb',
+        context: string,
+        status: 'success' | 'error',
+    ) {
+        this.queryExecutionDurationHistogram?.observe(
+            { source, context, status },
+            durationMs,
+        );
+    }
+
+    public trackDuckdbResolution(
+        resolved: boolean,
+        reason: string | undefined,
+        durationMs: number,
+    ) {
+        const status = resolved ? 'success' : 'failed';
+        this.duckdbResolutionCounter?.inc({
+            status,
+            reason: resolved ? 'none' : reason || 'unknown',
+        });
+        this.duckdbResolutionDurationHistogram?.observe({ status }, durationMs);
+    }
+
+    public incrementPreAggregateFallback(reason: string) {
+        this.preAggregateFallbackCounter?.inc({ reason });
+    }
+
+    public observeS3ResultsUploadDuration(
+        durationMs: number,
+        source: 'warehouse' | 'pre_aggregate_duckdb',
+    ) {
+        this.s3ResultsUploadDurationHistogram?.observe({ source }, durationMs);
+    }
+
+    public incrementQueryCacheHit(
+        cacheHit: boolean,
+        context: string,
+        hasPreAggregateMatch: boolean,
+    ) {
+        this.queryCacheHitCounter?.inc({
+            result: cacheHit ? 'hit' : 'miss',
+            context,
+            has_pre_aggregate_match: hasPreAggregateMatch ? 'true' : 'false',
+        });
+    }
+
     public monitorPreAggregates(knex: Knex) {
         const { enabled, ...rest } = this.config;
         if (!enabled) {
@@ -508,7 +660,7 @@ export default class PrometheusMetrics {
         }
 
         this.preAggregateActiveMaterializationsGauge = new prometheus.Gauge({
-            name: 'pre_aggregate_active_materializations',
+            name: 'assessment_pre_aggregate_active_materializations',
             help: 'Current number of active pre-aggregate materializations',
             ...rest,
             async collect() {

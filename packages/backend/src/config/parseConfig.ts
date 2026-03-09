@@ -862,6 +862,7 @@ export type LightdashConfig = {
         labels?: Object;
         eventMetricsEnabled: boolean;
         eventMetricsConfigPath?: string;
+        allQueryMetricsEnabled: boolean;
     };
     database: {
         connectionUri: string | undefined;
@@ -1459,6 +1460,10 @@ export const parseConfig = (): LightdashConfig => {
             tracesSampleRate:
                 getFloatFromEnvironmentVariable('SENTRY_TRACES_SAMPLE_RATE') ||
                 0.1,
+            queryTracesSampleRate:
+                getFloatFromEnvironmentVariable(
+                    'SENTRY_QUERY_TRACES_SAMPLE_RATE',
+                ) ?? null, // defaults to null (use global tracesSampleRate), set to 1.0 to capture all query traces
             profilesSampleRate:
                 getFloatFromEnvironmentVariable(
                     'SENTRY_PROFILES_SAMPLE_RATE',
@@ -1648,6 +1653,9 @@ export const parseConfig = (): LightdashConfig => {
             eventMetricsConfigPath:
                 process.env.LIGHTDASH_CUSTOM_METRICS_CONFIG_PATH ||
                 process.env.CUSTOM_METRICS_CONFIG_PATH,
+            allQueryMetricsEnabled:
+                process.env.LIGHTDASH_PROMETHEUS_ALL_QUERY_METRICS_ENABLED ===
+                'true', // defaults to false, tracks execution duration & S3 upload for all queries (not just pre-aggregate)
         },
         allowMultiOrgs: process.env.ALLOW_MULTIPLE_ORGS === 'true',
         maxPayloadSize: process.env.LIGHTDASH_MAX_PAYLOAD || '5mb',

@@ -23,6 +23,7 @@ import { type LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import { type PreAggregateModel } from '../../models/PreAggregateModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import type PrometheusMetrics from '../../prometheus/PrometheusMetrics';
 import { wrapSentryTransaction } from '../../utils';
 import { PivotQueryBuilder } from '../../utils/QueryBuilder/PivotQueryBuilder';
 import {
@@ -37,6 +38,7 @@ type PreAggregationDuckDbClientArgs = {
     lightdashConfig: LightdashConfig;
     preAggregateModel: Pick<PreAggregateModel, 'getActiveMaterialization'>;
     projectModel: Pick<ProjectModel, 'getExploreFromCache'>;
+    prometheusMetrics?: PrometheusMetrics;
     createDuckdbWarehouseClient?: (args: {
         s3Config: DuckdbS3SessionConfig;
     }) => WarehouseClient;
@@ -81,10 +83,13 @@ export class PreAggregationDuckDbClient {
         s3Config: DuckdbS3SessionConfig;
     }) => WarehouseClient;
 
+    private readonly prometheusMetrics?: PrometheusMetrics;
+
     constructor(args: PreAggregationDuckDbClientArgs) {
         this.lightdashConfig = args.lightdashConfig;
         this.preAggregateModel = args.preAggregateModel;
         this.projectModel = args.projectModel;
+        this.prometheusMetrics = args.prometheusMetrics;
         this.createDuckdbWarehouseClient =
             args.createDuckdbWarehouseClient ??
             ((warehouseArgs) => new DuckdbWarehouseClient(warehouseArgs));
@@ -124,11 +129,19 @@ export class PreAggregationDuckDbClient {
     async resolve(
         args: ResolvePreAggregationDuckDbArgs,
     ): Promise<PreAggregationDuckDbResolution> {
+        const startTime = Date.now();
         try {
             const result = await wrapSentryTransaction(
                 'PreAggregationDuckDbClient.resolve',
                 {},
                 () => this._resolve(args),
+            );
+
+            const durationMs = Date.now() - startTime;
+            this.prometheusMetrics?.trackDuckdbResolution(
+                result.resolved,
+                result.resolved ? undefined : result.reason,
+                durationMs,
             );
 
             if (!result.resolved) {
@@ -137,6 +150,13 @@ export class PreAggregationDuckDbClient {
 
             return result;
         } catch (error) {
+            const durationMs = Date.now() - startTime;
+            this.prometheusMetrics?.trackDuckdbResolution(
+                false,
+                PreAggregationDuckDbResolveReason.RESOLVE_ERROR,
+                durationMs,
+            );
+
             Logger.warn(
                 `DuckDB pre-agg resolve failed: ${getErrorMessage(error)}. Returning unresolved`,
             );

@@ -95,6 +95,7 @@ import {
     type WarehouseSqlBuilder,
 } from '@lightdash/common';
 import { SshTunnel, warehouseSqlBuilderFromType } from '@lightdash/warehouses';
+import * as Sentry from '@sentry/node';
 import { createInterface } from 'readline';
 import { Readable, Writable } from 'stream';
 import { v4 as uuidv4 } from 'uuid';
@@ -1573,6 +1574,10 @@ export class AsyncQueryService extends ProjectService {
             },
         };
 
+        const executionSource: 'warehouse' | 'pre_aggregate_duckdb' =
+            warehouseClientOverride ? 'pre_aggregate_duckdb' : 'warehouse';
+        let queryStartTime = Date.now();
+
         try {
             if (warehouseClientOverride) {
                 warehouseClient = warehouseClientOverride;
@@ -1601,9 +1606,6 @@ export class AsyncQueryService extends ProjectService {
                 sshTunnel = warehouseConnection.sshTunnel;
             }
 
-            const executionSource = warehouseClientOverride
-                ? 'pre_aggregate_duckdb'
-                : 'warehouse';
             this.logger.info(
                 `Running query ${queryHistoryUuid} source=${executionSource}`,
             );
@@ -1641,6 +1643,7 @@ export class AsyncQueryService extends ProjectService {
                     ...(isRegisteredUser ? undefined : { externalId: userId }),
                 },
             });
+            queryStartTime = Date.now();
             const {
                 warehouseResults: {
                     durationMs,
@@ -1650,14 +1653,42 @@ export class AsyncQueryService extends ProjectService {
                 },
                 pivotDetails,
                 columns,
-            } = await AsyncQueryService.runQueryAndTransformRows({
-                warehouseClient,
-                query,
-                queryTags,
-                write: stream?.write,
-                pivotConfiguration,
-                itemsMap: fieldsMap,
-            });
+            } = await Sentry.startSpan(
+                {
+                    op: 'query.execute',
+                    name: `query.execute.${executionSource}`,
+                    attributes: {
+                        'lightdash.executionSource': executionSource,
+                        'lightdash.queryContext':
+                            queryTags.query_context || 'unknown',
+                        'lightdash.projectUuid': projectUuid,
+                        'lightdash.isPivoted': !!pivotConfiguration,
+                    },
+                },
+                () =>
+                    AsyncQueryService.runQueryAndTransformRows({
+                        warehouseClient,
+                        query,
+                        queryTags,
+                        write: stream?.write,
+                        pivotConfiguration,
+                        itemsMap: fieldsMap,
+                    }),
+            );
+
+            // Track query execution duration — scoped to pre-aggregate DuckDB queries by default
+            // Set LIGHTDASH_PROMETHEUS_ALL_QUERY_METRICS_ENABLED=true to track all queries
+            if (
+                executionSource === 'pre_aggregate_duckdb' ||
+                this.lightdashConfig.prometheus.allQueryMetricsEnabled
+            ) {
+                this.prometheusMetrics?.observeQueryExecutionDuration(
+                    durationMs,
+                    executionSource,
+                    queryTags.query_context || 'unknown',
+                    'success',
+                );
+            }
 
             this.analytics.track({
                 ...analyticsIdentity,
@@ -1678,7 +1709,17 @@ export class AsyncQueryService extends ProjectService {
 
             if (stream) {
                 // Wait for the file to be written before marking the query as ready
+                const s3UploadStart = Date.now();
                 await stream.close();
+                if (
+                    executionSource === 'pre_aggregate_duckdb' ||
+                    this.lightdashConfig.prometheus.allQueryMetricsEnabled
+                ) {
+                    this.prometheusMetrics?.observeS3ResultsUploadDuration(
+                        Date.now() - s3UploadStart,
+                        executionSource,
+                    );
+                }
 
                 this.analytics.track({
                     ...analyticsIdentity,
@@ -1730,6 +1771,18 @@ export class AsyncQueryService extends ProjectService {
                 queryTags.query_context,
             );
         } catch (e) {
+            if (
+                executionSource === 'pre_aggregate_duckdb' ||
+                this.lightdashConfig.prometheus.allQueryMetricsEnabled
+            ) {
+                this.prometheusMetrics?.observeQueryExecutionDuration(
+                    Date.now() - queryStartTime,
+                    executionSource,
+                    queryTags.query_context || 'unknown',
+                    'error',
+                );
+            }
+
             this.analytics.track({
                 ...analyticsIdentity,
                 event: 'query.error',
@@ -1998,6 +2051,26 @@ export class AsyncQueryService extends ProjectService {
                         'warehouse.type',
                         warehouseCredentialsType,
                     );
+                    span.setAttribute('lightdash.context', context);
+                    span.setAttribute('lightdash.exploreName', explore.name);
+                    span.setAttribute(
+                        'lightdash.preAggregate.hasRoute',
+                        !!preAggregationRoute,
+                    );
+                    if (preAggregationRoute) {
+                        span.setAttribute(
+                            'lightdash.preAggregate.mode',
+                            preAggregationRoute.mode,
+                        );
+                        span.setAttribute(
+                            'lightdash.preAggregate.name',
+                            preAggregationRoute.preAggregateName,
+                        );
+                        span.setAttribute(
+                            'lightdash.preAggregate.sourceExplore',
+                            preAggregationRoute.sourceExploreName,
+                        );
+                    }
 
                     const warehouseSqlBuilder = warehouseSqlBuilderFromType(
                         warehouseCredentialsType,
@@ -2098,6 +2171,13 @@ export class AsyncQueryService extends ProjectService {
                             },
                         },
                     });
+
+                    // Track cache hit/miss
+                    this.prometheusMetrics?.incrementQueryCacheHit(
+                        resultsCache.cacheHit || false,
+                        queryTags.query_context || 'unknown',
+                        !!preAggregationRoute,
+                    );
 
                     if (resultsCache.cacheHit) {
                         await this.queryHistoryModel.update(
@@ -2220,6 +2300,9 @@ export class AsyncQueryService extends ProjectService {
                                 return;
                             }
 
+                            this.prometheusMetrics?.incrementPreAggregateFallback(
+                                reason,
+                            );
                             await this.runAsyncWarehouseQuery(warehouseArgs);
                         };
 
@@ -2252,12 +2335,29 @@ export class AsyncQueryService extends ProjectService {
                             });
 
                         if (!preAggResolution?.resolved) {
+                            span.setAttribute(
+                                'lightdash.preAggregate.resolved',
+                                false,
+                            );
+                            span.setAttribute(
+                                'lightdash.preAggregate.resolveReason',
+                                preAggResolution?.reason ?? 'resolve_error',
+                            );
                             await handlePreAggregationMiss(
                                 preAggResolution?.reason ??
                                     PreAggregationDuckDbResolveReason.RESOLVE_ERROR,
                             );
                             return;
                         }
+
+                        span.setAttribute(
+                            'lightdash.preAggregate.resolved',
+                            true,
+                        );
+                        span.setAttribute(
+                            'lightdash.executionSource',
+                            'pre_aggregate_duckdb',
+                        );
 
                         this.logger.info(
                             `DuckDB pre-agg route selected for ${queryHistoryUuid}: ${preAggregationRoute.sourceExploreName}/${preAggregationRoute.preAggregateName}`,
@@ -2283,6 +2383,17 @@ export class AsyncQueryService extends ProjectService {
 
                             this.logger.warn(
                                 `DuckDB pre-agg execution failed for ${queryHistoryUuid}: ${getErrorMessage(duckdbError)}. Falling back to warehouse`,
+                            );
+                            span.setAttribute(
+                                'lightdash.preAggregate.fallback',
+                                true,
+                            );
+                            span.setAttribute(
+                                'lightdash.executionSource',
+                                'warehouse_after_duckdb_fallback',
+                            );
+                            this.prometheusMetrics?.incrementPreAggregateFallback(
+                                'duckdb_execution_error',
                             );
                             await this.runAsyncWarehouseQuery(warehouseArgs);
                         }
