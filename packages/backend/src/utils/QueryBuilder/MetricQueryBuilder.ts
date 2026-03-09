@@ -29,6 +29,7 @@ import {
     hasPivotFunctions,
     hasRowFunctions,
     IntrinsicUserAttributes,
+    isAggregateMetricType,
     isAndFilterGroup,
     isCompiledCustomSqlDimension,
     isCustomBinDimension,
@@ -50,6 +51,7 @@ import {
     renderTableCalculationFilterRuleSql,
     snakeCaseName,
     SortField,
+    sqlContainsAggregation,
     SupportedDbtAdapter,
     TableCalculationFunctionCompiler,
     TimeFrames,
@@ -877,6 +879,11 @@ export class MetricQueryBuilder {
 
         const selects = new Set<string>();
         const tables = new Set<string>();
+        const nestedAggOuterIds = new Set(
+            this.getMetricsWithNestedAggregates().map(
+                ({ outerMetricId }) => outerMetricId,
+            ),
+        );
         metrics.forEach((field) => {
             try {
                 const alias = field;
@@ -887,6 +894,13 @@ export class MetricQueryBuilder {
                     metric.type === MetricType.AVERAGE_DISTINCT
                 ) {
                     // Still track table references for JOIN generation
+                    (metric.tablesReferences || [metric.table]).forEach(
+                        (table) => tables.add(table),
+                    );
+                    return;
+                }
+                // Metrics with nested aggregate dependencies are handled via CTE
+                if (nestedAggOuterIds.has(field)) {
                     (metric.tablesReferences || [metric.table]).forEach(
                         (table) => tables.add(table),
                     );
@@ -2390,6 +2404,295 @@ export class MetricQueryBuilder {
         return { ctes, ddJoins, ddMetricSelects };
     }
 
+    /**
+     * Detects metrics that have nested aggregate problems.
+     * A metric has a nested aggregate problem when:
+     * 1. It is a non-aggregate metric (type: number, etc.)
+     * 2. Its raw SQL contains aggregation functions (sqlContainsAggregation)
+     * 3. It references another metric that is an aggregate type (sum, max, count, etc.)
+     */
+    private getMetricsWithNestedAggregates(): Array<{
+        outerMetricId: string;
+        outerMetric: CompiledMetric;
+        wrapsAggregation: boolean;
+        innerDeps: Array<{
+            fieldId: string;
+            metric: CompiledMetric;
+        }>;
+    }> {
+        if (this._nestedAggCache !== undefined) {
+            return this._nestedAggCache;
+        }
+
+        // First pass: find metrics with explicit SQL aggregation wrapping aggregate refs
+        // (the core nested aggregate pattern, e.g., sum(${max_metric}))
+        const allMetricIds = this.getSelectedAndReferencedMetricIds();
+
+        const findAggRefMetrics = (
+            requireSqlAggregation: boolean,
+        ): Array<{
+            outerMetricId: string;
+            outerMetric: CompiledMetric;
+            wrapsAggregation: boolean;
+            innerDeps: Array<{ fieldId: string; metric: CompiledMetric }>;
+        }> =>
+            allMetricIds.reduce<
+                Array<{
+                    outerMetricId: string;
+                    outerMetric: CompiledMetric;
+                    wrapsAggregation: boolean;
+                    innerDeps: Array<{
+                        fieldId: string;
+                        metric: CompiledMetric;
+                    }>;
+                }>
+            >((acc, metricId) => {
+                let metric: CompiledMetric;
+                try {
+                    metric = this.getMetricFromId(metricId);
+                } catch {
+                    return acc;
+                }
+                if (!isNonAggregateMetric(metric)) return acc;
+
+                const hasSqlAgg = sqlContainsAggregation(metric.sql);
+                if (requireSqlAggregation && !hasSqlAgg) return acc;
+
+                const refs = parseAllReferences(metric.sql, metric.table);
+                // Collect all metric references — both aggregate (type: max/sum/etc)
+                // and non-aggregate with SQL aggregation (type: number with count(...))
+                // because ALL metric refs need CTE pre-computation to avoid
+                // referencing the base table in the outer query context.
+                const allMetricDeps: Array<{
+                    fieldId: string;
+                    metric: CompiledMetric;
+                }> = [];
+                let hasAggregateRef = false;
+                for (const ref of refs) {
+                    if (ref.refName !== 'TABLE') {
+                        const refMetricId = getItemId({
+                            table: ref.refTable,
+                            name: ref.refName,
+                        });
+                        try {
+                            const refMetric = this.getMetricFromId(refMetricId);
+                            allMetricDeps.push({
+                                fieldId: refMetricId,
+                                metric: refMetric,
+                            });
+                            if (isAggregateMetricType(refMetric.type)) {
+                                hasAggregateRef = true;
+                            }
+                        } catch {
+                            // Not a metric reference (could be a dimension), skip
+                        }
+                    }
+                }
+                // Only treat as nested aggregate if at least one ref is an
+                // aggregate metric type (to avoid pulling in normal
+                // type:number → type:number chains)
+                const innerDeps = hasAggregateRef ? allMetricDeps : [];
+
+                if (innerDeps.length > 0) {
+                    acc.push({
+                        outerMetricId: metricId,
+                        outerMetric: metric,
+                        wrapsAggregation: hasSqlAgg,
+                        innerDeps,
+                    });
+                }
+                return acc;
+            }, []);
+
+        // First: find metrics that truly nest aggregates (have SQL aggregation wrapping)
+        const wrappingMetrics = findAggRefMetrics(true);
+
+        // If there are wrapping metrics, also include non-wrapping metrics that
+        // reference aggregates (e.g., ${max_metric} * ${count_metric}).
+        // These are valid SQL alone but need CTE routing when mixed with
+        // wrapping metrics to avoid GROUP BY issues in the outer query.
+        let result: typeof wrappingMetrics;
+        if (wrappingMetrics.length > 0) {
+            const allAggRefMetrics = findAggRefMetrics(false);
+            result = allAggRefMetrics;
+        } else {
+            result = wrappingMetrics;
+        }
+
+        this._nestedAggCache = result;
+        return result;
+    }
+
+    private _nestedAggCache:
+        | Array<{
+              outerMetricId: string;
+              outerMetric: CompiledMetric;
+              wrapsAggregation: boolean;
+              innerDeps: Array<{ fieldId: string; metric: CompiledMetric }>;
+          }>
+        | undefined = undefined;
+
+    /**
+     * Builds two CTEs for metrics that have nested aggregate dependencies.
+     *
+     * CTE 1 (`nested_agg`): Pre-computes inner aggregate metrics (e.g., MAX, COUNT)
+     * at the dimension grain from the base table.
+     *
+     * CTE 2 (`nested_agg_results`): Computes the outer metric expressions
+     * (e.g., sum(max_col) / count_col) by referencing CTE 1 columns. Wrapping
+     * metrics can safely use aggregate functions here since refs are plain columns.
+     * GROUP BY on dims + inner deps is added so aggregates are valid SQL.
+     *
+     * The final outer SELECT then references `nested_agg_results` columns
+     * as simple column references — no aggregates, no GROUP BY needed.
+     */
+    private buildNestedAggregateCtes({
+        dimensionSelects,
+        dimensionFilters,
+        sqlFrom,
+        joinsSql,
+        dimensionJoins,
+        baseCteName,
+    }: {
+        dimensionSelects: Record<string, string>;
+        dimensionFilters: string | undefined;
+        sqlFrom: string;
+        joinsSql: string | undefined;
+        dimensionJoins: string[];
+        baseCteName: string;
+    }): {
+        ctes: string[];
+        naJoins: string[];
+        naMetricSelects: string[];
+        outerMetricIds: string[];
+    } {
+        const { warehouseSqlBuilder } = this.args;
+        const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
+
+        const nestedAggMetrics = this.getMetricsWithNestedAggregates();
+        if (nestedAggMetrics.length === 0) {
+            return {
+                ctes: [],
+                naJoins: [],
+                naMetricSelects: [],
+                outerMetricIds: [],
+            };
+        }
+
+        // Collect all unique inner dependencies
+        const allInnerDeps = new Map<string, CompiledMetric>();
+        for (const { innerDeps } of nestedAggMetrics) {
+            for (const dep of innerDeps) {
+                if (!allInnerDeps.has(dep.fieldId)) {
+                    allInnerDeps.set(dep.fieldId, dep.metric);
+                }
+            }
+        }
+
+        const dimensionAlias = Object.keys(dimensionSelects).map(
+            (alias) => `${fieldQuoteChar}${alias}${fieldQuoteChar}`,
+        );
+
+        const innerDepAliases = Array.from(allInnerDeps.keys()).map(
+            (depId) => `${fieldQuoteChar}${depId}${fieldQuoteChar}`,
+        );
+
+        // --- CTE 1: nested_agg — pre-compute inner deps from base table ---
+        const naCteName = 'nested_agg';
+        const innerMetricSelects = Array.from(allInnerDeps.entries()).map(
+            ([depId, depMetric]) =>
+                `  ${depMetric.compiledSql} AS ${fieldQuoteChar}${depId}${fieldQuoteChar}`,
+        );
+
+        const naGroupBy =
+            dimensionAlias.length > 0
+                ? `GROUP BY ${dimensionAlias.map((_, i) => i + 1).join(',')}`
+                : undefined;
+
+        const cte1Sql = MetricQueryBuilder.wrapAsCte(naCteName, [
+            `SELECT\n${[...Object.values(dimensionSelects), ...innerMetricSelects].join(',\n')}`,
+            sqlFrom,
+            joinsSql,
+            ...dimensionJoins,
+            dimensionFilters,
+            naGroupBy,
+        ]);
+
+        // --- CTE 2: nested_agg_results — compute outer metrics from CTE 1 ---
+        const naResultsCteName = 'nested_agg_results';
+        const metricCteLookup: Array<{ name: string; metrics: string[] }> = [
+            {
+                name: naCteName,
+                metrics: Array.from(allInnerDeps.keys()),
+            },
+        ];
+
+        const resultsMetricSelects: string[] = [];
+        for (const { outerMetricId, outerMetric } of nestedAggMetrics) {
+            // Replace all metric refs with CTE column refs and re-compile
+            // remaining dimension refs. For wrapping metrics this keeps outer
+            // aggregation (e.g., sum(nested_agg."col")). For non-wrapping
+            // metrics this produces e.g., nested_agg."col1" * nested_agg."col2".
+            const processedSql = this.replaceMetricReferencesWithCteReferences(
+                outerMetric,
+                metricCteLookup,
+            );
+            resultsMetricSelects.push(
+                `  ${processedSql} AS ${fieldQuoteChar}${outerMetricId}${fieldQuoteChar}`,
+            );
+        }
+
+        // GROUP BY dims + inner deps so aggregate functions are valid
+        // Since CTE 1 has one row per dim group, this is effectively identity
+        const allGroupByCols = [
+            ...dimensionAlias.map((a) => `${naCteName}.${a}`),
+            ...innerDepAliases.map((a) => `${naCteName}.${a}`),
+        ];
+        const resultsGroupBy =
+            allGroupByCols.length > 0
+                ? `GROUP BY ${allGroupByCols.join(', ')}`
+                : undefined;
+
+        const resultsDimSelects = dimensionAlias.map(
+            (a) => `  ${naCteName}.${a}`,
+        );
+        const cte2Sql = MetricQueryBuilder.wrapAsCte(naResultsCteName, [
+            `SELECT\n${[...resultsDimSelects, ...resultsMetricSelects].join(',\n')}`,
+            `FROM ${naCteName}`,
+            resultsGroupBy,
+        ]);
+
+        // --- JOIN nested_agg_results to na_base ---
+        const naJoins: string[] = [];
+        if (dimensionAlias.length === 0) {
+            naJoins.push(`CROSS JOIN ${naResultsCteName}`);
+        } else {
+            naJoins.push(
+                `INNER JOIN ${naResultsCteName} ON ${dimensionAlias
+                    .map(
+                        (alias) =>
+                            `( ${baseCteName}.${alias} = ${naResultsCteName}.${alias} OR ( ${baseCteName}.${alias} IS NULL AND ${naResultsCteName}.${alias} IS NULL ) )`,
+                    )
+                    .join(' AND ')}`,
+            );
+        }
+
+        // Outer SELECT just references nested_agg_results columns — no aggregates
+        const naMetricSelects = nestedAggMetrics.map(
+            ({ outerMetricId }) =>
+                `  ${naResultsCteName}.${fieldQuoteChar}${outerMetricId}${fieldQuoteChar}`,
+        );
+
+        return {
+            ctes: [cte1Sql, cte2Sql],
+            naJoins,
+            naMetricSelects,
+            outerMetricIds: nestedAggMetrics.map(
+                ({ outerMetricId }) => outerMetricId,
+            ),
+        };
+    }
+
     // Build the optional metric_filters CTE; return next cte name + cte text (if created)
     static buildMetricFiltersCte(
         currentName: string,
@@ -3136,6 +3439,57 @@ export class MetricQueryBuilder {
             }
         }
 
+        // Nested aggregate CTEs: build CTE for type:number metrics that wrap
+        // aggregate metric references (e.g., sum(${max_metric})) to avoid
+        // invalid nested SQL like SUM(MAX(...))
+        const nestedAggMetrics = this.getMetricsWithNestedAggregates();
+        if (nestedAggMetrics.length > 0) {
+            const naBaseCteName = 'na_base';
+
+            const hasNonNaSelects =
+                Object.keys(dimensionsSQL.selects).length > 0 ||
+                metricsSQL.selects.length > 0;
+
+            const {
+                ctes: naCtes,
+                naJoins,
+                naMetricSelects,
+            } = this.buildNestedAggregateCtes({
+                dimensionSelects: dimensionsSQL.selects,
+                dimensionFilters: dimensionsSQL.filtersSQL,
+                sqlFrom,
+                joinsSql: joins.joinSQL,
+                dimensionJoins: dimensionsSQL.joins,
+                baseCteName: naBaseCteName,
+            });
+            ctes.push(...naCtes);
+
+            if (hasNonNaSelects) {
+                ctes.push(
+                    MetricQueryBuilder.wrapAsCte(
+                        naBaseCteName,
+                        finalSelectParts,
+                    ),
+                );
+
+                // Outer SELECT references nested_agg_results columns as
+                // simple column refs — no aggregate functions, no GROUP BY.
+                finalSelectParts = [
+                    `SELECT`,
+                    [`  ${naBaseCteName}.*`, ...naMetricSelects].join(',\n'),
+                    `FROM ${naBaseCteName}`,
+                    ...naJoins,
+                ];
+            } else {
+                // Only nested aggregate metrics, no dimensions or regular metrics
+                finalSelectParts = [
+                    `SELECT`,
+                    naMetricSelects.join(',\n'),
+                    `FROM nested_agg_results`,
+                ];
+            }
+        }
+
         const { simpleTableCalcs, interdependentTableCalcs } =
             this.getPartitionedTableCalculations();
 
@@ -3161,6 +3515,8 @@ export class MetricQueryBuilder {
             totalFields.length > 0 || (rowTotalFields.length > 0 && hasPivot);
 
         if (needsPostAgg) {
+            const fieldQuoteChar =
+                this.args.warehouseSqlBuilder.getFieldQuoteChar();
             const ctesToAdd: string[] = [];
 
             // base metrics CTE = dimensions + metrics only (no filters, no table calcs)
@@ -3236,9 +3592,6 @@ export class MetricQueryBuilder {
             const filterOnlyMetricIds = getFilterRulesFromGroup(filters.metrics)
                 .map((filter) => filter.target.fieldId)
                 .filter((metricId) => !metrics.includes(metricId));
-
-            const fieldQuoteChar =
-                this.args.warehouseSqlBuilder.getFieldQuoteChar();
 
             // Build explicit column list excluding filter-only metrics
             const finalSelectColumns =
