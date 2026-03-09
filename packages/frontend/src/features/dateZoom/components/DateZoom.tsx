@@ -1,4 +1,4 @@
-import { DateGranularity } from '@lightdash/common';
+import { DateGranularity, isStandardDateGranularity } from '@lightdash/common';
 import {
     ActionIcon,
     Button,
@@ -21,7 +21,7 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
-import { getGranularityLabel, standardGranularityValues } from '../utils';
+import { getGranularityLabel } from '../utils';
 import styles from './DateZoom.module.css';
 
 type Props = {
@@ -70,7 +70,7 @@ export const DateZoom: FC<Props> = ({ isEditMode }) => {
 
     const customGranularities = useMemo(() => {
         const enabledCustom = dateZoomGranularities.filter(
-            (g) => !standardGranularityValues.has(g),
+            (g) => !isStandardDateGranularity(g),
         );
         return [
             ...new Set([
@@ -98,7 +98,7 @@ export const DateZoom: FC<Props> = ({ isEditMode }) => {
                 (g): g is DateGranularity => enabledSet.has(g),
             );
             const custom = [...enabledSet].filter(
-                (g) => !standardGranularityValues.has(g),
+                (g) => !isStandardDateGranularity(g),
             );
             const newGranularities = [...standard, ...custom];
 
@@ -406,7 +406,7 @@ export const DateZoom: FC<Props> = ({ isEditMode }) => {
                         </Tooltip>
 
                         {dateZoomGranularities
-                            .filter((g) => standardGranularityValues.has(g))
+                            .filter((g) => isStandardDateGranularity(g))
                             .map((granularity) => (
                                 <Menu.Item
                                     fz="xs"
@@ -437,14 +437,13 @@ export const DateZoom: FC<Props> = ({ isEditMode }) => {
                             ))}
 
                         {dateZoomGranularities.some(
-                            (g) => !standardGranularityValues.has(g),
+                            (g) => !isStandardDateGranularity(g),
                         ) && (
                             <>
                                 <Menu.Divider />
                                 {dateZoomGranularities
                                     .filter(
-                                        (g) =>
-                                            !standardGranularityValues.has(g),
+                                        (g) => !isStandardDateGranularity(g),
                                     )
                                     .map((granularity) => (
                                         <Menu.Item

@@ -1,8 +1,7 @@
-import { DateGranularity } from '@lightdash/common';
-
-export const standardGranularityValues = new Set<string>(
-    Object.values(DateGranularity),
-);
+import {
+    isStandardDateGranularity,
+    type DateGranularity,
+} from '@lightdash/common';
 
 /**
  * Returns a human-readable label for a granularity value.
@@ -14,7 +13,7 @@ export const getGranularityLabel = (
     granularity: DateGranularity | string,
     customLabels?: Record<string, string>,
 ): string => {
-    if (standardGranularityValues.has(granularity)) {
+    if (isStandardDateGranularity(granularity)) {
         return granularity;
     }
     if (customLabels && granularity in customLabels) {
