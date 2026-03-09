@@ -549,6 +549,8 @@ export class ServiceRepository
                     preAggregateModel: this.models.getPreAggregateModel(),
                     queryHistoryModel: this.models.getQueryHistoryModel(),
                     asyncQueryService: this.getAsyncQueryService(),
+                    preAggregateResultsStorageClient:
+                        this.clients.getPreAggregateResultsFileStorageClient(),
                     prometheusMetrics: this.prometheusMetrics,
                 }),
         );

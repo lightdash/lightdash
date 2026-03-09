@@ -168,6 +168,7 @@ export type PreAggregateMaterializationSummary = {
         materializedAt: Date | null;
         rowCount: number | null;
         columns: ResultColumns | null;
+        totalBytes: number | null;
         errorMessage: string | null;
         trigger: PreAggregateMaterializationTrigger;
     } | null;

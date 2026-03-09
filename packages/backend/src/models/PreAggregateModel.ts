@@ -260,6 +260,7 @@ export class PreAggregateModel {
                 materialized_at: null,
                 row_count: null,
                 columns: null,
+                total_bytes: null,
                 error_message: null,
             })
             .returning('*');
@@ -305,6 +306,7 @@ export class PreAggregateModel {
         materializedAt: Date;
         rowCount: number | null;
         columns: ResultColumns | null;
+        totalBytes: number | null;
     }): Promise<{ status: 'active' | 'superseded' }> {
         try {
             return await this.database.transaction(async (trx) => {
@@ -344,6 +346,7 @@ export class PreAggregateModel {
                     materialized_at: args.materializedAt,
                     row_count: args.rowCount,
                     columns: args.columns,
+                    total_bytes: args.totalBytes,
                     error_message: null,
                     updated_at: new Date(),
                 };
@@ -503,6 +506,7 @@ export class PreAggregateModel {
             mat_row_count: number | null;
             mat_columns: ResultColumns | null;
             mat_error_message: string | null;
+            mat_total_bytes: number | null;
             mat_trigger: PreAggregateMaterializationTrigger | null;
         };
 
@@ -551,6 +555,7 @@ export class PreAggregateModel {
                 `latest_mat.row_count as mat_row_count`,
                 `latest_mat.columns as mat_columns`,
                 `latest_mat.error_message as mat_error_message`,
+                `latest_mat.total_bytes as mat_total_bytes`,
                 `latest_mat.trigger as mat_trigger`,
             ])
             .orderBy(`${PreAggregateDefinitionsTableName}.created_at`, 'desc');
@@ -577,6 +582,7 @@ export class PreAggregateModel {
                           materializedAt: row.mat_materialized_at,
                           rowCount: row.mat_row_count,
                           columns: row.mat_columns,
+                          totalBytes: row.mat_total_bytes,
                           errorMessage: row.mat_error_message,
                           trigger: row.mat_trigger!,
                       }
