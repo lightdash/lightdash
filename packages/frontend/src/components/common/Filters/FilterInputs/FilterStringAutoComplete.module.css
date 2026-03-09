@@ -37,6 +37,12 @@
     animation: spin 0.6s ease-in-out;
 }
 
+.refreshIcon {
+    display: inline;
+    vertical-align: -1px;
+    margin-left: var(--mantine-spacing-xxs);
+}
+
 .multiSelectInput {
     max-height: 350px;
     overflow-y: auto;

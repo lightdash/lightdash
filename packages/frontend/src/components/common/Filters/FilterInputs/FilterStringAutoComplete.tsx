@@ -77,6 +77,47 @@ const SingleValueComponent = ({
     );
 };
 
+const RefreshIndicator: FC<{
+    refreshedAtRef: React.RefObject<Date>;
+    onRefresh: () => void;
+}> = ({ refreshedAtRef, onRefresh }) => {
+    const [isRefreshing, setIsRefreshing] = useState(false);
+    const [displayTime, setDisplayTime] = useState(
+        refreshedAtRef.current.toLocaleString(),
+    );
+
+    return (
+        <Tooltip
+            withinPortal
+            position="left"
+            label="Click to refresh filter values"
+        >
+            <Text
+                size="xs"
+                px="sm"
+                py="xxs"
+                className={classes.dropdownRefresh}
+                onClick={() => {
+                    onRefresh();
+                    setIsRefreshing(true);
+                }}
+            >
+                Results loaded at {displayTime}{' '}
+                <IconRefresh
+                    size={12}
+                    className={`${classes.refreshIcon} ${
+                        isRefreshing ? classes.refreshIconSpin : ''
+                    }`}
+                    onAnimationEnd={() => {
+                        setIsRefreshing(false);
+                        setDisplayTime(refreshedAtRef.current.toLocaleString());
+                    }}
+                />
+            </Text>
+        </Tooltip>
+    );
+};
+
 const FilterStringAutoComplete: FC<Props> = ({
     filterId,
     values,
@@ -125,7 +166,6 @@ const FilterStringAutoComplete: FC<Props> = ({
     }, [closeManageValuesInternal, onDropdownClose]);
 
     const [forceRefresh, setForceRefresh] = useState<boolean>(false);
-    const [isRefreshing, setIsRefreshing] = useState(false);
 
     const autocompleteFilterGroup = useMemo(
         () => getAutocompleteFilterGroup(filterId, field),
@@ -153,6 +193,9 @@ const FilterStringAutoComplete: FC<Props> = ({
         },
         parameterValues,
     );
+
+    const refreshedAtRef = useRef(refreshedAt);
+    refreshedAtRef.current = refreshedAt;
 
     useEffect(() => {
         if (forceRefresh) {
@@ -293,53 +336,14 @@ const FilterStringAutoComplete: FC<Props> = ({
                     {children}
                 </ScrollArea>
                 {healthData?.hasCacheAutocompleResults ? (
-                    <>
-                        <Tooltip
-                            withinPortal
-                            position="left"
-                            label={`Click to refresh filter values`}
-                        >
-                            <Text
-                                size="xs"
-                                px="sm"
-                                py="xxs"
-                                className={classes.dropdownRefresh}
-                                onClick={() => {
-                                    setForceRefresh(true);
-                                    setIsRefreshing(true);
-                                    setTimeout(
-                                        () => setIsRefreshing(false),
-                                        600,
-                                    );
-                                }}
-                            >
-                                Results loaded at {refreshedAt.toLocaleString()}{' '}
-                                <IconRefresh
-                                    size={12}
-                                    className={
-                                        isRefreshing
-                                            ? classes.refreshIconSpin
-                                            : undefined
-                                    }
-                                    style={{
-                                        display: 'inline',
-                                        verticalAlign: '-1px',
-                                        marginLeft: 4,
-                                    }}
-                                />
-                            </Text>
-                        </Tooltip>
-                    </>
+                    <RefreshIndicator
+                        refreshedAtRef={refreshedAtRef}
+                        onRefresh={() => setForceRefresh(true)}
+                    />
                 ) : null}
             </Stack>
         ),
-        [
-            searchedMaxResults,
-            search,
-            refreshedAt,
-            healthData?.hasCacheAutocompleResults,
-            isRefreshing,
-        ],
+        [searchedMaxResults, search, healthData?.hasCacheAutocompleResults],
     );
 
     return (
