@@ -1,0 +1,18 @@
+source,target,weight
+Start,Acquisition,1000
+Start,Organic Traffic,300
+Start,Paid Traffic,700
+Acquisition,Engagement,600
+Organic Traffic,Engagement,200
+Paid Traffic,Engagement,400
+Engagement,Conversion,500
+Engagement,Drop-off,300
+Conversion,Retargeting,200
+Conversion,Upsell,300
+Drop-off,Retargeting,150
+Retargeting,Conversion,100
+Retargeting,Engagement,50
+Upsell,Retention,200
+Conversion,Retention,100
+Retention,Referral,150
+Referral,Loyalty,120
