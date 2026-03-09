@@ -642,7 +642,9 @@ export const convertTable = (
                     };
 
                     // Generate standard interval dimensions
-                    const standardDims = intervals.reduce(
+                    const standardDims = intervals.reduce<
+                        Record<string, Dimension>
+                    >(
                         (acc, interval) => ({
                             ...acc,
                             [`${dim.name}_${interval.toLowerCase()}`]:
@@ -680,60 +682,58 @@ export const convertTable = (
                                     disableTimestampConversion,
                                 ),
                         }),
-                        {} as Record<string, Dimension>,
+                        {},
                     );
 
                     // Generate custom granularity dimensions
-                    const customDims = customIntervalNames.reduce(
-                        (acc, customName) => {
-                            const granularity =
-                                customGranularities?.[customName];
-                            if (!granularity) {
-                                throw new CompileError(
-                                    `Unknown time interval "${customName}" on column "${dim.name}" in model "${model.name}". It is not a standard time frame or a custom granularity defined in lightdash.config.yml.`,
-                                );
-                            }
-
-                            const customSql = granularity.sql.replace(
-                                /\$\{COLUMN\}/g,
-                                () => dim.sql,
+                    const customDims = customIntervalNames.reduce<
+                        Record<string, Dimension>
+                    >((acc, customName) => {
+                        const granularity = customGranularities?.[customName];
+                        if (!granularity) {
+                            throw new CompileError(
+                                `Unknown time interval "${customName}" on column "${dim.name}" in model "${model.name}". It is not a standard time frame or a custom granularity defined in lightdash.config.yml.`,
                             );
-                            const customType =
-                                granularity.type || DimensionType.DATE;
-                            const customDimName = `${dim.name}_${customName}`;
+                        }
 
-                            const groups: string[] = [...(dim.groups || [])];
-                            if (!groups.includes(dim.label)) {
-                                groups.push(dim.label);
-                            }
+                        const customSql = granularity.sql.replace(
+                            /\$\{COLUMN\}/g,
+                            () => dim.sql,
+                        );
+                        const customType =
+                            granularity.type || DimensionType.DATE;
+                        const customDimName = `${dim.name}_${customName}`;
 
-                            return {
-                                ...acc,
-                                [customDimName]: {
-                                    index,
-                                    fieldType: FieldType.DIMENSION,
-                                    name: customDimName,
-                                    label: granularity.label,
-                                    sql: customSql,
-                                    table: model.name,
-                                    tableLabel,
-                                    type: customType,
-                                    description: dim.description,
-                                    source: undefined,
-                                    timeInterval: undefined,
-                                    timeIntervalBaseDimensionName: dim.name,
-                                    customTimeInterval: customName,
-                                    hidden: dim.hidden,
-                                    format: undefined,
-                                    round: undefined,
-                                    compact: undefined,
-                                    groups,
-                                    isIntervalBase: false,
-                                } satisfies Dimension,
-                            };
-                        },
-                        {} as Record<string, Dimension>,
-                    );
+                        const groups: string[] = [...(dim.groups || [])];
+                        if (!groups.includes(dim.label)) {
+                            groups.push(dim.label);
+                        }
+
+                        return {
+                            ...acc,
+                            [customDimName]: {
+                                index,
+                                fieldType: FieldType.DIMENSION,
+                                name: customDimName,
+                                label: granularity.label,
+                                sql: customSql,
+                                table: model.name,
+                                tableLabel,
+                                type: customType,
+                                description: dim.description,
+                                source: undefined,
+                                timeInterval: undefined,
+                                timeIntervalBaseDimensionName: dim.name,
+                                customTimeInterval: customName,
+                                hidden: dim.hidden,
+                                format: undefined,
+                                round: undefined,
+                                compact: undefined,
+                                groups,
+                                isIntervalBase: false,
+                            } satisfies Dimension,
+                        };
+                    }, {});
 
                     return { ...standardDims, ...customDims };
                 }
