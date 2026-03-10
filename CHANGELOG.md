@@ -1,3 +1,10 @@
+## [0.2591.1](https://github.com/lightdash/lightdash/compare/0.2591.0...0.2591.1) (2026-03-10)
+
+
+### Bug Fixes
+
+* include NULL values in NOT_INCLUDE string filter results ([#20914](https://github.com/lightdash/lightdash/issues/20914)) ([d1879ad](https://github.com/lightdash/lightdash/commit/d1879ad573c01e91bcb699f3bfacb139c8df03c6))
+
 # [0.2591.0](https://github.com/lightdash/lightdash/compare/0.2590.1...0.2591.0) (2026-03-09)
 
 
