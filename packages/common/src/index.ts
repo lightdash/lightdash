@@ -112,6 +112,7 @@ export * from './types/errors';
 export * from './types/explore';
 export * from './types/favorites';
 export * from './types/featureFlags';
+export * from './types/impersonationOrganizationSettings';
 export * from './types/field';
 export * from './types/fieldMatch';
 export * from './types/filter';
