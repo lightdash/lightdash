@@ -19,6 +19,8 @@ import {
     IconChevronRight,
     IconClock,
     IconDatabase,
+    IconFile,
+    IconHourglass,
     IconLayersIntersect,
     IconRefresh,
     IconTableRow,
@@ -28,6 +30,7 @@ import { type FC } from 'react';
 import { LD_FIELD_COLORS } from '../../mantineTheme';
 import MantineIcon from '../common/MantineIcon';
 import { IconBox } from '../common/ResourceIcon';
+import { formatDuration, formatFileSize } from './formatters';
 
 const TRIGGER_LABELS: Record<string, string> = {
     compile: 'Project compile',
@@ -296,6 +299,36 @@ const MaterializationDetailDrawer: FC<Props> = ({
                                         <Text size="sm" c="ldGray.6">
                                             Rows:{' '}
                                             {materialization.rowCount.toLocaleString()}
+                                        </Text>
+                                    </Group>
+                                )}
+
+                                {materialization.totalBytes != null && (
+                                    <Group gap={4}>
+                                        <MantineIcon
+                                            icon={IconFile}
+                                            color="ldGray.6"
+                                        />
+                                        <Text size="sm" c="ldGray.6">
+                                            File size:{' '}
+                                            {formatFileSize(
+                                                materialization.totalBytes,
+                                            )}
+                                        </Text>
+                                    </Group>
+                                )}
+
+                                {materialization.durationMs != null && (
+                                    <Group gap={4}>
+                                        <MantineIcon
+                                            icon={IconHourglass}
+                                            color="ldGray.6"
+                                        />
+                                        <Text size="sm" c="ldGray.6">
+                                            Build time:{' '}
+                                            {formatDuration(
+                                                materialization.durationMs,
+                                            )}
                                         </Text>
                                     </Group>
                                 )}

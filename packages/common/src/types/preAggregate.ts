@@ -166,6 +166,7 @@ export type PreAggregateMaterializationSummary = {
         materializationUuid: string;
         status: PreAggregateMaterializationStatus;
         materializedAt: Date | null;
+        durationMs: number | null;
         rowCount: number | null;
         columns: ResultColumns | null;
         totalBytes: number | null;
