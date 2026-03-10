@@ -3,6 +3,15 @@ describe('CLI', () => {
     const profilesDir = `../../examples/full-jaffle-shop-demo/profiles`;
     const cliCommand = `lightdash`;
 
+    // Scale timeout based on the number of models in the project (counted
+    // dynamically in cypress.config.ts). Allow 3s per model + 30s base overhead
+    // for dbt startup so the timeout grows automatically as models are added.
+    const TIMEOUT_PER_MODEL_MS = 3000;
+    const BASE_TIMEOUT_MS = 30000;
+    const modelCount = Number(Cypress.env('MODEL_COUNT')) || 50;
+    const allModelsTimeout =
+        BASE_TIMEOUT_MS + modelCount * TIMEOUT_PER_MODEL_MS;
+
     const databaseEnvVars = {
         PGHOST: Cypress.env('PGHOST') ?? 'localhost',
         PGPORT: Cypress.env('PGPORT') ?? '5432',
@@ -19,6 +28,7 @@ describe('CLI', () => {
                 failOnNonZeroExit: false,
                 env: databaseEnvVars,
                 log: true,
+                timeout: allModelsTimeout,
             },
         )
             .its('stdout')
@@ -196,6 +206,7 @@ describe('CLI', () => {
                     ...databaseEnvVars,
                 },
                 log: true,
+                timeout: allModelsTimeout,
             },
         )
             .its('stderr')
@@ -222,6 +233,7 @@ describe('CLI', () => {
                     ...databaseEnvVars,
                 },
                 log: true,
+                timeout: allModelsTimeout,
             },
         )
             .its('stderr')

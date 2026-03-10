@@ -1,6 +1,7 @@
 import { defineConfig } from 'cypress';
 import cypressSplit from 'cypress-split';
-import { unlinkSync } from 'fs';
+import { readdirSync, unlinkSync } from 'fs';
+import { join } from 'path';
 
 // If running natively, we want to use environment variables from the host machine
 // to be added to Cypress.env()
@@ -32,6 +33,23 @@ export default defineConfig({
         trashAssetsBeforeRuns: true,
         experimentalMemoryManagement: true,
         setupNodeEvents(on, config) {
+            // Count dbt models so CLI tests can scale timeouts dynamically
+            const modelsDir = join(
+                __dirname,
+                '../../examples/full-jaffle-shop-demo/dbt/models',
+            );
+            const countSqlFiles = (dir: string): number =>
+                readdirSync(dir, { withFileTypes: true }).reduce(
+                    (count, entry) =>
+                        entry.isDirectory()
+                            ? count +
+                              countSqlFiles(join(dir, entry.name))
+                            : count +
+                              (entry.name.endsWith('.sql') ? 1 : 0),
+                    0,
+                );
+            config.env.MODEL_COUNT = countSqlFiles(modelsDir);
+
             cypressSplit(on, config);
 
             on('before:browser:launch', (browser, launchOptions) => {
