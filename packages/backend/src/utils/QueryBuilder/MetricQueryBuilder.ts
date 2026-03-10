@@ -538,25 +538,24 @@ export class MetricQueryBuilder {
                 timeDimensionId,
                 this.args.compiledMetricQuery.filters.dimensions,
             );
-        // Pass null when all filters were stripped to avoid falling back to
-        // the original (unstripped) filter group inside getDimensionsFilterSQL.
-        return this.getDimensionsFilterSQL(strippedGroup ?? null);
+        return this.buildDimensionsWhereClause(strippedGroup);
     }
 
-    private getDimensionsFilterSQL(
-        filterGroup?: FilterGroup | null,
+    private getDimensionsFilterSQL(): string | undefined {
+        return this.buildDimensionsWhereClause(
+            this.args.compiledMetricQuery.filters.dimensions,
+        );
+    }
+
+    private buildDimensionsWhereClause(
+        dimensionsFilterGroup?: FilterGroup,
     ): string | undefined {
         const {
             explore,
-            compiledMetricQuery,
             warehouseSqlBuilder,
             userAttributes = {},
             intrinsicUserAttributes,
         } = this.args;
-        const dimensionsFilterGroup =
-            filterGroup === undefined
-                ? compiledMetricQuery.filters.dimensions
-                : (filterGroup ?? undefined);
 
         const requiredDimensionFilterSql =
             this.getNestedDimensionFilterSQLFromModelFilters(
