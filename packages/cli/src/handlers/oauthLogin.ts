@@ -29,7 +29,7 @@ export const loginWithOauth = async (
     const envPort = envPortStr ? parseInt(envPortStr, 10) : undefined;
     if (
         envPort !== undefined &&
-        (isNaN(envPort) || envPort < 1 || envPort > 65535)
+        (Number.isNaN(envPort) || envPort < 1 || envPort > 65535)
     ) {
         throw new Error(
             'LIGHTDASH_OAUTH_PORT must be a number between 1 and 65535',
