@@ -56,10 +56,15 @@ export type DuckdbResourceLimits = {
     threads: number; // e.g. 1
 };
 
+export type DuckdbLogger = {
+    info: (message: string, metadata?: Record<string, unknown>) => void;
+};
+
 export type DuckdbWarehouseClientArgs = {
     databasePath?: string;
     s3Config?: DuckdbS3SessionConfig;
     resourceLimits?: DuckdbResourceLimits;
+    logger?: DuckdbLogger;
 };
 
 const DUCKDB_INTERNAL_CREDENTIALS: CreatePostgresCredentials = {
@@ -137,11 +142,14 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
 
     private readonly resourceLimits?: DuckdbResourceLimits;
 
+    private readonly logger?: DuckdbLogger;
+
     constructor(args: DuckdbWarehouseClientArgs = {}) {
         super(DUCKDB_INTERNAL_CREDENTIALS, new DuckdbSqlBuilder());
         this.databasePath = args.databasePath ?? ':memory:';
         this.s3Config = args.s3Config;
         this.resourceLimits = args.resourceLimits;
+        this.logger = args.logger;
     }
 
     private getSQLWithMetadata(sql: string, tags?: Record<string, string>) {
@@ -155,10 +163,13 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
     private async withSession<T>(
         callback: (db: DuckdbConnection) => Promise<T>,
     ): Promise<T> {
+        const sessionStart = performance.now();
+
         const instance = (await DuckDBInstance.create(
             this.databasePath,
         )) as DuckdbInstance;
         const connection = await instance.connect();
+        const connectMs = performance.now() - sessionStart;
 
         // Only create a temp dir when resource limits are set (spill to disk).
         const tempDir = this.resourceLimits
@@ -166,8 +177,23 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
             : undefined;
 
         try {
+            const bootstrapStart = performance.now();
             await this.bootstrapSession(connection, tempDir);
-            return await callback(connection);
+            const bootstrapMs = performance.now() - bootstrapStart;
+
+            const queryStart = performance.now();
+            const result = await callback(connection);
+            const queryMs = performance.now() - queryStart;
+
+            const totalMs = performance.now() - sessionStart;
+            this.logger?.info('DuckDB session timing', {
+                connectMs: Math.round(connectMs),
+                bootstrapMs: Math.round(bootstrapMs),
+                queryMs: Math.round(queryMs),
+                totalMs: Math.round(totalMs),
+            });
+
+            return result;
         } finally {
             connection.closeSync?.();
             connection.disconnectSync?.();
@@ -184,8 +210,13 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
         db: DuckdbConnection,
         tempDir: string | undefined,
     ): Promise<void> {
+        const t0 = performance.now();
         await db.run('INSTALL httpfs;');
+        const installMs = performance.now() - t0;
+
+        const t1 = performance.now();
         await db.run('LOAD httpfs;');
+        const loadMs = performance.now() - t1;
 
         if (this.resourceLimits && tempDir) {
             await db.run(
@@ -196,9 +227,14 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
         }
 
         if (!this.s3Config) {
+            this.logger?.info('DuckDB bootstrap timing', {
+                installHttpfsMs: Math.round(installMs),
+                loadHttpfsMs: Math.round(loadMs),
+            });
             return;
         }
 
+        const t2 = performance.now();
         await db.run(
             `SET s3_endpoint = '${this.escapeString(this.s3Config.endpoint)}';`,
         );
@@ -231,6 +267,13 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
                 this.s3Config.forcePathStyle ? 'path' : 'vhost'
             }';`,
         );
+        const s3ConfigMs = performance.now() - t2;
+
+        this.logger?.info('DuckDB bootstrap timing', {
+            installHttpfsMs: Math.round(installMs),
+            loadHttpfsMs: Math.round(loadMs),
+            s3ConfigMs: Math.round(s3ConfigMs),
+        });
     }
 
     private getBindValues(options?: {
