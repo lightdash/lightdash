@@ -47,6 +47,8 @@ type NatsWorkerArgs = {
     streams: NatsWorkerStream[];
 };
 
+const CONSUME_MAX_MESSAGES = 1;
+
 export class NatsWorker {
     private readonly asyncQueryService: AsyncQueryService;
 
@@ -300,7 +302,9 @@ export class NatsWorker {
             `Async query worker ${workerId} spawned (concurrency=${this.workerConcurrency})`,
         );
 
-        const messages = await consumer.consume();
+        const messages = await consumer.consume({
+            max_messages: CONSUME_MAX_MESSAGES,
+        });
         this.messageStreams.push(messages);
 
         await this.consumeLoop(messages, workerId).catch((error) => {
