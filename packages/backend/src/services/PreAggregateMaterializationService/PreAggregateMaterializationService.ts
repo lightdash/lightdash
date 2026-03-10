@@ -197,6 +197,16 @@ export class PreAggregateMaterializationService extends BaseService {
                 });
             materializationUuid = materializationRow.materializationUuid;
 
+            this.logger.info(
+                `Materialization row created for pre-aggregate materialization for definition ${args.preAggregateDefinitionUuid}`,
+                {
+                    materializationUuid,
+                    projectUuid: args.projectUuid,
+                    preAggregateDefinitionUuid: args.preAggregateDefinitionUuid,
+                    trigger: args.trigger,
+                },
+            );
+
             const { materializationMetricQuery } = definition;
             if (!materializationMetricQuery) {
                 await this.preAggregateModel.markFailed({
@@ -212,6 +222,10 @@ export class PreAggregateMaterializationService extends BaseService {
                 };
             }
 
+            this.logger.info(
+                `Starting executeAsyncMetricQuery for pre-aggregate materialization for definition ${args.preAggregateDefinitionUuid}`,
+            );
+
             const { queryUuid } =
                 await this.asyncQueryService.executeAsyncMetricQuery({
                     account: args.account,
@@ -222,10 +236,26 @@ export class PreAggregateMaterializationService extends BaseService {
                     invalidateCache: true,
                 });
 
+            this.logger.info(
+                `executeAsyncMetricQuery completed for pre-aggregate materialization for definition ${args.preAggregateDefinitionUuid}`,
+                {
+                    materializationUuid,
+                    queryUuid,
+                },
+            );
+
             await this.preAggregateModel.attachQueryUuid({
                 materializationUuid,
                 queryUuid,
             });
+
+            this.logger.info(
+                `Starting pollForQueryCompletion for pre-aggregate materialization for definition ${args.preAggregateDefinitionUuid}`,
+                {
+                    materializationUuid,
+                    queryUuid,
+                },
+            );
 
             const queryHistory =
                 await this.queryHistoryModel.pollForQueryCompletion({
@@ -238,6 +268,14 @@ export class PreAggregateMaterializationService extends BaseService {
                     throwOnCancelled: false,
                     throwOnError: false,
                 });
+            this.logger.info(
+                `pollForQueryCompletion completed for pre-aggregate materialization for definition ${args.preAggregateDefinitionUuid}`,
+                {
+                    materializationUuid,
+                    queryUuid,
+                    queryHistory,
+                },
+            );
 
             if (queryHistory.status !== QueryHistoryStatus.READY) {
                 const errorMessage =
@@ -302,17 +340,47 @@ export class PreAggregateMaterializationService extends BaseService {
 
             // Convert JSONL to Parquet if enabled
             if (this.parquetEnabled) {
+                this.logger.info(
+                    `Starting conversion of JSONL to Parquet for pre-aggregate materialization for definition ${args.preAggregateDefinitionUuid}`,
+                    {
+                        materializationUuid,
+                        queryUuid,
+                    },
+                );
                 const jsonlUri = this.getJsonlUri(queryHistory.resultsFileName);
+                this.logger.info(`JSONL URI: ${jsonlUri}`, {
+                    materializationUuid,
+                    queryUuid,
+                });
                 const parquetUri = this.getMaterializationUri(
                     queryHistory.resultsFileName,
                 );
+                this.logger.info(`Parquet URI: ${parquetUri}`, {
+                    materializationUuid,
+                    queryUuid,
+                });
 
                 const conversionStartTime = Date.now();
                 try {
+                    this.logger.info(
+                        `Starting conversion of JSONL to Parquet for pre-aggregate materialization for definition ${args.preAggregateDefinitionUuid}`,
+                        {
+                            materializationUuid,
+                            queryUuid,
+                        },
+                    );
                     await this.convertJsonlToParquet(
                         jsonlUri,
                         parquetUri,
                         queryHistory.columns,
+                    );
+
+                    this.logger.info(
+                        `Conversion of JSONL to Parquet completed for pre-aggregate materialization for definition ${args.preAggregateDefinitionUuid}`,
+                        {
+                            materializationUuid,
+                            queryUuid,
+                        },
                     );
 
                     const conversionDurationMs =
@@ -346,10 +414,25 @@ export class PreAggregateMaterializationService extends BaseService {
                         ),
                 );
             }
-
+            this.logger.info(
+                `Starting to record file sizes for pre-aggregate materialization for definition ${args.preAggregateDefinitionUuid}`,
+                {
+                    materializationUuid,
+                    queryUuid,
+                },
+            );
             const columnCount = queryHistory.columns
                 ? Object.keys(queryHistory.columns).length
                 : null;
+
+            this.logger.info(
+                `Column count for pre-aggregate materialization for definition ${args.preAggregateDefinitionUuid}`,
+                {
+                    materializationUuid,
+                    queryUuid,
+                    columnCount,
+                },
+            );
 
             // Get file size from S3 for the active format
             const totalBytes =
