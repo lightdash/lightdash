@@ -303,6 +303,12 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
         };
     }
 
+    async runSql(sql: string): Promise<void> {
+        await this.withSession(async (db) => {
+            await db.run(sql);
+        });
+    }
+
     async runQuery(
         ...args: Parameters<
             WarehouseBaseClient<CreatePostgresCredentials>['runQuery']

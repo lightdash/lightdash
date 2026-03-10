@@ -25,7 +25,7 @@ export type ActiveMaterializationDetails = {
     materializationUuid: string;
     queryUuid: string;
     materializationUri: string;
-    format: 'jsonl';
+    format: 'jsonl' | 'parquet';
     columns: ResultColumns | null;
     materializedAt: Date;
 };

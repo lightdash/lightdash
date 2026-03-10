@@ -1100,6 +1100,7 @@ export type LightdashConfig = {
     };
     preAggregates: {
         enabled: boolean;
+        parquetEnabled: boolean;
         s3?: Omit<S3Config, 'expirationTime'>;
     };
     userImpersonation: {
@@ -2000,6 +2001,8 @@ export const parseConfig = (): LightdashConfig => {
         },
         preAggregates: {
             enabled: preAggregatesEnabled,
+            parquetEnabled:
+                process.env.PRE_AGGREGATES_PARQUET_ENABLED === 'true',
             s3: preAggregatesS3,
         },
         userImpersonation: {

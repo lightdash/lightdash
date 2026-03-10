@@ -6,7 +6,7 @@ import {
 
 export type PreAggregateDuckdbLocator = {
     storage: 's3';
-    format: 'jsonl';
+    format: 'jsonl' | 'parquet';
     uri: string;
 };
 
@@ -40,18 +40,18 @@ export const getPreAggregateDuckdbLocator = ({
     format,
 }: {
     uri: string;
-    format: 'jsonl';
+    format: 'jsonl' | 'parquet';
 }): PreAggregateDuckdbLocator => ({
     storage: 's3',
     format,
     uri,
 });
 
-export const getDuckdbPreAggregateSqlTable = (
-    locator: PreAggregateDuckdbLocator,
+const getJsonlSqlTable = (
+    uri: string,
     columns?: ResultColumns | null,
 ): string => {
-    const escapedUri = escapeSqlString(locator.uri);
+    const escapedUri = escapeSqlString(uri);
 
     if (!columns || Object.keys(columns).length === 0) {
         return `read_json_auto('${escapedUri}')`;
@@ -67,4 +67,26 @@ export const getDuckdbPreAggregateSqlTable = (
         .join(', ');
 
     return `read_json('${escapedUri}', columns={${columnDefs}}, format='newline_delimited')`;
+};
+
+const getParquetSqlTable = (uri: string): string => {
+    const escapedUri = escapeSqlString(uri);
+    return `read_parquet('${escapedUri}')`;
+};
+
+export const getDuckdbPreAggregateSqlTable = (
+    locator: PreAggregateDuckdbLocator,
+    columns?: ResultColumns | null,
+): string => {
+    switch (locator.format) {
+        case 'jsonl':
+            return getJsonlSqlTable(locator.uri, columns);
+        case 'parquet':
+            return getParquetSqlTable(locator.uri);
+        default:
+            return assertUnreachable(
+                locator.format,
+                `Unknown format: ${locator.format}`,
+            );
+    }
 };

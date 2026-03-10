@@ -225,7 +225,7 @@ export class PreAggregationDuckDbClient {
 
         const locator = getPreAggregateDuckdbLocator({
             uri: activeMaterialization.materializationUri,
-            format: 'jsonl',
+            format: activeMaterialization.format,
         });
         const sqlTable = getDuckdbPreAggregateSqlTable(
             locator,
