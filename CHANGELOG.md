@@ -1,3 +1,10 @@
+## [0.2592.4](https://github.com/lightdash/lightdash/compare/0.2592.3...0.2592.4) (2026-03-10)
+
+
+### Bug Fixes
+
+* empty state messages for validator table ([#20978](https://github.com/lightdash/lightdash/issues/20978)) ([b9d9982](https://github.com/lightdash/lightdash/commit/b9d9982ed8f11dc73ce4a66e78fbe9a3fca7612d))
+
 ## [0.2592.3](https://github.com/lightdash/lightdash/compare/0.2592.2...0.2592.3) (2026-03-10)
 
 
