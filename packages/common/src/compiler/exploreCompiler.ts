@@ -217,6 +217,16 @@ export class ExploreCompiler {
         // Collect warnings for partial compilation
         const exploreWarnings: InlineError[] = [];
 
+        // Collect warnings from the base table (e.g. unresolved custom granularities)
+        if (tables[baseTable].warnings) {
+            tables[baseTable].warnings.forEach((message) => {
+                exploreWarnings.push({
+                    type: InlineErrorType.FIELD_ERROR,
+                    message,
+                });
+            });
+        }
+
         // Filter joined tables - skip missing tables when partial compilation is enabled
         const validJoinedTables = this.options.allowPartialCompilation
             ? joinedTables.filter((join) => {

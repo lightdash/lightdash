@@ -581,6 +581,7 @@ export const convertTable = (
     // Config block takes priority, then meta block
     const meta = merge({}, model.meta, model.config?.meta);
     const tableLabel = meta.label || friendlyName(model.name);
+    const tableWarnings: string[] = [];
 
     const [dimensions, metrics]: [
         Record<string, Dimension>,
@@ -691,9 +692,10 @@ export const convertTable = (
                     >((acc, customName) => {
                         const granularity = customGranularities?.[customName];
                         if (!granularity) {
-                            throw new CompileError(
+                            tableWarnings.push(
                                 `Unknown time interval "${customName}" on column "${dim.name}" in model "${model.name}". It is not a standard time frame or a custom granularity defined in lightdash.config.yml.`,
                             );
+                            return acc;
                         }
 
                         const customSql = granularity.sql.replace(
@@ -944,6 +946,7 @@ export const convertTable = (
         ...(meta.ai_hint ? { aiHint: convertToAiHints(meta.ai_hint) } : {}),
         ...(meta.parameters ? { parameters: meta.parameters } : {}),
         ...(meta.sets ? { sets: meta.sets } : {}),
+        ...(tableWarnings.length > 0 ? { warnings: tableWarnings } : {}),
     };
 };
 
