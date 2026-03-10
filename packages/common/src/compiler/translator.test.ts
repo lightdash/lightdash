@@ -1676,18 +1676,117 @@ describe('custom granularities', () => {
         });
     });
 
-    it('should throw compile error for unknown custom granularity names', () => {
+    it('should skip unknown custom granularity names without throwing', () => {
         // time_intervals has 'slt_week' but no custom granularity defined for it
-        expect(() =>
-            convertTable(
-                SupportedDbtAdapter.POSTGRES,
-                MODEL_WITH_CUSTOM_GRANULARITY,
-                [],
-                DEFAULT_SPOTLIGHT_CONFIG,
-                undefined,
-                undefined,
-                {}, // empty custom granularities
-            ),
-        ).toThrow(/Unknown time interval "slt_week"/);
+        const result = convertTable(
+            SupportedDbtAdapter.POSTGRES,
+            MODEL_WITH_CUSTOM_GRANULARITY,
+            [],
+            DEFAULT_SPOTLIGHT_CONFIG,
+            undefined,
+            undefined,
+            {}, // empty custom granularities
+        );
+
+        // Should not have the unrecognized custom granularity dimension
+        expect(result.dimensions.created_at_slt_week).toBeUndefined();
+        // Should still have the standard day dimension
+        expect(result.dimensions.created_at_day).toBeDefined();
+    });
+
+    it('should produce warnings for unresolved custom granularities in convertExplores', async () => {
+        const result = await convertExplores(
+            [MODEL_WITH_CUSTOM_GRANULARITY],
+            false,
+            SupportedDbtAdapter.POSTGRES,
+            [],
+            warehouseClientMock,
+            {
+                spotlight: DEFAULT_SPOTLIGHT_CONFIG,
+                custom_granularities: {}, // slt_week is not defined
+            },
+        );
+
+        expect(result).toHaveLength(1);
+        const explore = result[0];
+        expect('errors' in explore).toBe(false);
+        expect('warnings' in explore).toBe(true);
+        if ('warnings' in explore && explore.warnings) {
+            expect(explore.warnings).toEqual(
+                expect.arrayContaining([
+                    expect.objectContaining({
+                        type: InlineErrorType.FIELD_ERROR,
+                        message: expect.stringContaining(
+                            'Unknown time interval "slt_week"',
+                        ),
+                    }),
+                ]),
+            );
+        }
+    });
+
+    it('should not produce warnings when all custom granularities are defined', async () => {
+        const result = await convertExplores(
+            [MODEL_WITH_CUSTOM_GRANULARITY],
+            false,
+            SupportedDbtAdapter.POSTGRES,
+            [],
+            warehouseClientMock,
+            {
+                spotlight: DEFAULT_SPOTLIGHT_CONFIG,
+                custom_granularities: customGranularities,
+            },
+        );
+
+        expect(result).toHaveLength(1);
+        const explore = result[0];
+        expect('errors' in explore).toBe(false);
+        // Should have no warnings (or empty warnings)
+        if ('warnings' in explore) {
+            expect(explore.warnings).toHaveLength(0);
+        }
+    });
+
+    it('should only warn for unresolved custom granularities, not defined ones', async () => {
+        const modelWithMixedGranularities: DbtModelNode & {
+            relation_name: string;
+        } = {
+            ...MODEL_WITH_CUSTOM_GRANULARITY,
+            columns: {
+                created_at: {
+                    name: 'created_at',
+                    data_type: DimensionType.TIMESTAMP,
+                    meta: {
+                        dimension: {
+                            type: DimensionType.TIMESTAMP,
+                            time_intervals: ['DAY', 'slt_week', 'unknown_one'],
+                        },
+                    },
+                },
+            },
+        };
+
+        const result = await convertExplores(
+            [modelWithMixedGranularities],
+            false,
+            SupportedDbtAdapter.POSTGRES,
+            [],
+            warehouseClientMock,
+            {
+                spotlight: DEFAULT_SPOTLIGHT_CONFIG,
+                custom_granularities: customGranularities, // has slt_week but not unknown_one
+            },
+        );
+
+        expect(result).toHaveLength(1);
+        const explore = result[0];
+        expect('errors' in explore).toBe(false);
+        expect('warnings' in explore).toBe(true);
+        if ('warnings' in explore && explore.warnings) {
+            // Only unknown_one should produce a warning
+            expect(explore.warnings).toHaveLength(1);
+            expect(explore.warnings[0].message).toContain('unknown_one');
+            expect(explore.warnings[0].message).not.toContain('slt_week');
+        }
     });
 });
