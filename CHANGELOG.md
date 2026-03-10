@@ -1,3 +1,10 @@
+# [0.2599.0](https://github.com/lightdash/lightdash/compare/0.2598.0...0.2599.0) (2026-03-10)
+
+
+### Features
+
+* display materialization build time ([#21008](https://github.com/lightdash/lightdash/issues/21008)) ([0503e17](https://github.com/lightdash/lightdash/commit/0503e17bc24664ff5ae61296b4eb64d826b990df))
+
 # [0.2598.0](https://github.com/lightdash/lightdash/compare/0.2597.0...0.2598.0) (2026-03-10)
 
 
