@@ -62,6 +62,7 @@ import {
     METRIC_QUERY_NESTED_AGG_MIXED,
     METRIC_QUERY_NESTED_AGG_NO_DIMS,
     METRIC_QUERY_NESTED_AGG_PRODUCT,
+    METRIC_QUERY_NESTED_AGG_RAW_COL,
     METRIC_QUERY_NESTED_AGG_WITH_DIMS,
     METRIC_QUERY_SQL,
     METRIC_QUERY_SQL_BIGQUERY,
@@ -4632,6 +4633,33 @@ describe('Nested aggregate metrics', () => {
         );
         expect(result.query).toContain(
             'nested_agg_results."my_table_sum_of_max"',
+        );
+    });
+
+    test('should NOT route raw column aggregation + metric ref through CTE (sum(raw_col) / ${metric})', () => {
+        const result = buildQuery({
+            explore: EXPLORE_WITH_NESTED_AGG,
+            compiledMetricQuery: METRIC_QUERY_NESTED_AGG_RAW_COL,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        // The raw_agg_with_ref metric (sum(raw_col) / ${count_records}) should NOT
+        // be in the nested_agg_results CTE because its sum() wraps a raw column,
+        // not a metric reference. It's valid SQL as-is: SUM(col) / COUNT(col).
+        // The sum_of_max metric should still use the CTE.
+        expect(result.query).toContain('nested_agg AS (');
+        expect(result.query).toContain('nested_agg_results AS (');
+        // sum_of_max should be in nested_agg_results
+        expect(result.query).toContain(
+            'nested_agg_results."my_table_sum_of_max"',
+        );
+        // raw_agg_with_ref should be compiled directly in na_base (not in nested_agg_results)
+        // It should produce valid SQL: SUM("my_table".value) / NULLIF(COUNT("my_table".id), 0)
+        expect(result.query).toContain('SUM("my_table".value)');
+        expect(result.query).not.toContain(
+            'nested_agg_results."my_table_raw_agg_with_ref"',
         );
     });
 });

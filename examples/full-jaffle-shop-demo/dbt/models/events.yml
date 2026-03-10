@@ -337,3 +337,10 @@ models:
               group: "aggregates"
               description: "Product of two aggregate metrics - valid SQL, no nesting"
               sql: ${max_event_id} * ${unique_event_count}
+            # Reproduces customer bug: sum(bare_column) / ${aggregate_metric}
+            # Uses a bare column name (no ${} or ${TABLE}) like the customer's
+            # sql: sum(prediction_d60_total)/nullif(${total_cost}, 0)
+            raw_agg_with_metric_ref:
+              type: number
+              description: "Raw column aggregation divided by aggregate metric ref"
+              sql: sum(event_id) / NULLIF(${count}, 0)

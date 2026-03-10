@@ -51,6 +51,7 @@ import {
     renderTableCalculationFilterRuleSql,
     snakeCaseName,
     SortField,
+    sqlAggregationWrapsReferences,
     sqlContainsAggregation,
     SupportedDbtAdapter,
     TableCalculationFunctionCompiler,
@@ -2467,6 +2468,7 @@ export class MetricQueryBuilder {
                     fieldId: string;
                     metric: CompiledMetric;
                 }> = [];
+                const aggregateRefNames: string[] = [];
                 let hasAggregateRef = false;
                 for (const ref of refs) {
                     if (ref.refName !== 'TABLE') {
@@ -2482,12 +2484,34 @@ export class MetricQueryBuilder {
                             });
                             if (isAggregateMetricType(refMetric.type)) {
                                 hasAggregateRef = true;
+                                // Track the raw reference name for position checking
+                                aggregateRefNames.push(
+                                    ref.refTable === metric.table
+                                        ? ref.refName
+                                        : `${ref.refTable}.${ref.refName}`,
+                                );
                             }
                         } catch {
                             // Not a metric reference (could be a dimension), skip
                         }
                     }
                 }
+
+                // When the SQL has aggregation AND aggregate metric refs, verify
+                // that the aggregation actually WRAPS the metric refs.
+                // e.g. sum(${max_value}) → true (nested aggregate)
+                // e.g. sum(raw_col) / ${count_records} → false (same-level aggregates)
+                if (
+                    hasSqlAgg &&
+                    hasAggregateRef &&
+                    !sqlAggregationWrapsReferences(
+                        metric.sql,
+                        aggregateRefNames,
+                    )
+                ) {
+                    hasAggregateRef = false;
+                }
+
                 // Only treat as nested aggregate if at least one ref is an
                 // aggregate metric type (to avoid pulling in normal
                 // type:number → type:number chains)
