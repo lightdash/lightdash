@@ -1,3 +1,10 @@
+# [0.2602.0](https://github.com/lightdash/lightdash/compare/0.2601.0...0.2602.0) (2026-03-10)
+
+
+### Features
+
+* render custom granularities in date zoom menu ([#20885](https://github.com/lightdash/lightdash/issues/20885)) ([3d3030f](https://github.com/lightdash/lightdash/commit/3d3030fbdcb16500f3af4eac2bb8093d5e1790c1))
+
 # [0.2601.0](https://github.com/lightdash/lightdash/compare/0.2600.0...0.2601.0) (2026-03-10)
 
 
