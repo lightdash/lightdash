@@ -1,3 +1,16 @@
+# [0.2596.0](https://github.com/lightdash/lightdash/compare/0.2595.1...0.2596.0) (2026-03-10)
+
+
+### Bug Fixes
+
+* patch express-rate-limit vulnerability (GHSA-46wh-pxpv-q5gq) ([#20961](https://github.com/lightdash/lightdash/issues/20961)) ([cbe8ea7](https://github.com/lightdash/lightdash/commit/cbe8ea72c229473cb04526e1c404ef7dc282b00c))
+* Strip date filters from PoP comparison CTE when all dim filters are time-based ([#20996](https://github.com/lightdash/lightdash/issues/20996)) ([1b6c770](https://github.com/lightdash/lightdash/commit/1b6c7709d5aa51865205662f9826d53ca8c7d48f))
+
+
+### Features
+
+* add more obs info to materialization process ([#21001](https://github.com/lightdash/lightdash/issues/21001)) ([629c721](https://github.com/lightdash/lightdash/commit/629c72128e3cf70087c84c48a04ba9dc428d9e6e))
+
 ## [0.2595.1](https://github.com/lightdash/lightdash/compare/0.2595.0...0.2595.1) (2026-03-10)
 
 
