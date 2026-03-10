@@ -22,7 +22,6 @@
  * `node_color` data attribute, which dbt docs' Cytoscape config picks up.
  */
 import { promises as fs } from 'fs';
-import * as path from 'path';
 import GlobalState from '../globalState';
 
 /** Marker added to meta on all injected nodes, used to identify and clean them up */
@@ -598,54 +597,4 @@ export async function injectLightdashLineage(
         semanticModelCount: result.semanticModelCount,
         metricCount: result.metricCount,
     };
-}
-
-/** Resolve a path inside the dbt target directory, respecting --target-path if provided */
-export function getTargetFilePath(
-    projectDir: string,
-    targetPath: string | undefined,
-    filename: string,
-): string {
-    const targetDir = targetPath ?? path.join(projectDir, 'target');
-    return path.join(targetDir, filename);
-}
-
-/**
- * Patch static_index.html with the injected manifest.
- *
- * `dbt docs generate --static` produces a self-contained HTML file that embeds
- * the manifest and catalog inline as JavaScript:
- *   var n = { manifest: {<JSON>}, catalog: {<JSON>} }
- *
- * Since we modified manifest.json after dbt generated this file, we need to
- * find and replace the embedded manifest with our injected version.
- */
-export async function patchStaticIndex(
-    manifestPath: string,
-    staticIndexPath: string,
-): Promise<void> {
-    const manifestContent = await fs.readFile(manifestPath, {
-        encoding: 'utf-8',
-    });
-    const html = await fs.readFile(staticIndexPath, { encoding: 'utf-8' });
-
-    // The static HTML embeds the manifest as: manifest: {<JSON>}, catalog:
-    // Replace the manifest JSON between "manifest: " and ", catalog:"
-    const startMarker = 'manifest: ';
-    const endMarker = ', catalog:';
-    const startIdx = html.indexOf(startMarker);
-    const endIdx = html.indexOf(endMarker, startIdx);
-
-    if (startIdx === -1 || endIdx === -1) {
-        throw new Error(
-            'Could not find manifest embedding in static_index.html',
-        );
-    }
-
-    const patched =
-        html.slice(0, startIdx + startMarker.length) +
-        manifestContent +
-        html.slice(endIdx);
-
-    await fs.writeFile(staticIndexPath, patched);
 }

@@ -3,8 +3,18 @@
  *
  * Automates the workflow of generating dbt docs with Lightdash metrics
  * visible in the lineage graph. Without this command, users would need to
- * manually run dbt docs generate, then a separate script to inject metric
- * nodes, then dbt docs serve. This command does all three in one step.
+ * manually run dbt compile, inject metric nodes, then dbt docs generate
+ * and serve. This command does all of that in one step.
+ *
+ * The key insight is that we compile into an isolated directory
+ * (target/lightdash_docs/), inject metrics into that manifest, then run
+ * `dbt docs generate --no-compile` pointing at the same directory. Since
+ * --no-compile skips writing manifest.json, our injected version is picked
+ * up by the docs generator (including the --static HTML embedding).
+ *
+ * This means we never touch the project's real target/ manifest, and we
+ * don't need to post-patch the static HTML. The lightdash_docs/ directory
+ * persists between runs and is overwritten on each invocation.
  *
  * Supports two output modes:
  *   - Server mode (default): runs `dbt docs serve` to view interactively
@@ -12,15 +22,12 @@
  */
 import { getErrorMessage } from '@lightdash/common';
 import execa from 'execa';
+import { promises as fs } from 'fs';
 import * as path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { LightdashAnalytics } from '../analytics/analytics';
 import GlobalState from '../globalState';
-import {
-    getTargetFilePath,
-    injectLightdashLineage,
-    patchStaticIndex,
-} from './injectLightdashLineage';
+import { injectLightdashLineage } from './injectLightdashLineage';
 
 type GenerateDocsHandlerOptions = {
     projectDir: string;
@@ -34,14 +41,15 @@ type GenerateDocsHandlerOptions = {
     port: number;
 };
 
-/** Build the common dbt CLI flags shared across generate and serve steps */
+const LIGHTDASH_DOCS_DIR = 'lightdash_docs';
+
+/** Build the common dbt CLI flags shared across compile, generate, and serve steps */
 function buildCommonDbtArgs(
     absoluteProjectDir: string,
     options: Pick<
         GenerateDocsHandlerOptions,
         'projectDir' | 'profilesDir' | 'target'
     >,
-    absoluteTargetPath: string | undefined,
 ): string[] {
     const args: string[] = [];
     if (options.projectDir) {
@@ -52,9 +60,6 @@ function buildCommonDbtArgs(
     }
     if (options.target) {
         args.push('--target', options.target);
-    }
-    if (absoluteTargetPath) {
-        args.push('--target-path', absoluteTargetPath);
     }
     return args;
 }
@@ -72,46 +77,43 @@ export const generateDocsHandler = async (
     });
 
     const absoluteProjectDir = path.resolve(options.projectDir);
-    const absoluteTargetPath = options.targetPath
+    const targetDir = options.targetPath
         ? path.resolve(options.targetPath)
-        : undefined;
-    const commonArgs = buildCommonDbtArgs(
-        absoluteProjectDir,
-        options,
-        absoluteTargetPath,
-    );
+        : path.join(absoluteProjectDir, 'target');
+    const ldDocsDir = path.join(targetDir, LIGHTDASH_DOCS_DIR);
+    const commonArgs = buildCommonDbtArgs(absoluteProjectDir, options);
 
-    // Step 1: Run dbt docs generate
-    // dbt output streams directly to the terminal via stdio: 'inherit'
+    // Create the isolated working directory
+    await fs.mkdir(ldDocsDir, { recursive: true });
+
+    // Step 1: Compile into the isolated directory to produce manifest.json
+    // This leaves the project's real target/ untouched.
     try {
-        const generateArgs = ['docs', 'generate'];
-        if (options.static) {
-            generateArgs.push('--static');
-        }
-        generateArgs.push(...commonArgs);
+        const compileArgs = [
+            'compile',
+            '--target-path',
+            ldDocsDir,
+            ...commonArgs,
+        ];
 
-        GlobalState.debug(`> Running: dbt ${generateArgs.join(' ')}`);
-        await execa('dbt', generateArgs, { stdio: 'inherit' });
+        GlobalState.debug(`> Running: dbt ${compileArgs.join(' ')}`);
+        await execa('dbt', compileArgs, { stdio: 'inherit' });
     } catch (e: unknown) {
         const msg = getErrorMessage(e);
         await LightdashAnalytics.track({
             event: 'generate_docs.error',
             properties: {
                 executionId,
-                step: 'dbt_docs_generate',
+                step: 'dbt_compile',
                 error: msg,
             },
         });
-        throw new Error(`Failed to run dbt docs generate:\n  ${msg}`);
+        throw new Error(`Failed to run dbt compile:\n  ${msg}`);
     }
 
     // Step 2: Inject Lightdash metric nodes into the manifest so they
     // appear on the dbt lineage graph (see injectLightdashLineage.ts)
-    const manifestPath = getTargetFilePath(
-        absoluteProjectDir,
-        absoluteTargetPath,
-        'manifest.json',
-    );
+    const manifestPath = path.join(ldDocsDir, 'manifest.json');
     if (!options.skipInject) {
         const injectSpinner = GlobalState.startSpinner(
             '  Injecting Lightdash metrics into manifest...',
@@ -134,37 +136,37 @@ export const generateDocsHandler = async (
             });
             throw new Error(`Failed to inject Lightdash lineage:\n  ${msg}`);
         }
+    }
 
-        // Step 2b: If --static, the HTML file was generated BEFORE we injected,
-        // so we need to replace the embedded manifest with our modified version
+    // Step 3: Generate docs with --no-compile so dbt doesn't overwrite our
+    // injected manifest. It will generate catalog.json, index.html, and
+    // (if --static) static_index.html reading our manifest from disk.
+    try {
+        const generateArgs = [
+            'docs',
+            'generate',
+            '--no-compile',
+            '--target-path',
+            ldDocsDir,
+            ...commonArgs,
+        ];
         if (options.static) {
-            const staticSpinner = GlobalState.startSpinner(
-                '  Patching static docs with injected metrics...',
-            );
-            try {
-                const staticIndexPath = getTargetFilePath(
-                    absoluteProjectDir,
-                    absoluteTargetPath,
-                    'static_index.html',
-                );
-                await patchStaticIndex(manifestPath, staticIndexPath);
-                staticSpinner.succeed(
-                    '  Static docs updated with Lightdash metrics',
-                );
-            } catch (e: unknown) {
-                const msg = getErrorMessage(e);
-                staticSpinner.fail('  Failed to patch static docs');
-                await LightdashAnalytics.track({
-                    event: 'generate_docs.error',
-                    properties: {
-                        executionId,
-                        step: 'patch_static',
-                        error: msg,
-                    },
-                });
-                throw new Error(`Failed to patch static_index.html:\n  ${msg}`);
-            }
+            generateArgs.push('--static');
         }
+
+        GlobalState.debug(`> Running: dbt ${generateArgs.join(' ')}`);
+        await execa('dbt', generateArgs, { stdio: 'inherit' });
+    } catch (e: unknown) {
+        const msg = getErrorMessage(e);
+        await LightdashAnalytics.track({
+            event: 'generate_docs.error',
+            properties: {
+                executionId,
+                step: 'dbt_docs_generate',
+                error: msg,
+            },
+        });
+        throw new Error(`Failed to run dbt docs generate:\n  ${msg}`);
     }
 
     await LightdashAnalytics.track({
@@ -177,15 +179,9 @@ export const generateDocsHandler = async (
         },
     });
 
-    // Step 3: Either print the static file path or start a local server.
-    // --static and --serve are mutually exclusive: static outputs a file,
-    // serve starts dbt's built-in HTTP server for interactive browsing.
+    // Step 4: Output the result.
     if (options.static) {
-        const staticIndexPath = getTargetFilePath(
-            absoluteProjectDir,
-            absoluteTargetPath,
-            'static_index.html',
-        );
+        const staticIndexPath = path.join(ldDocsDir, 'static_index.html');
         console.info(`\n  Static docs written to: ${staticIndexPath}`);
         console.info('  Open this file directly in your browser.\n');
     } else if (options.serve) {
@@ -198,6 +194,8 @@ export const generateDocsHandler = async (
             'serve',
             '--port',
             String(options.port),
+            '--target-path',
+            ldDocsDir,
             ...commonArgs,
         ];
 
