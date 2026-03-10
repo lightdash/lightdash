@@ -1,3 +1,16 @@
+# [0.2595.0](https://github.com/lightdash/lightdash/compare/0.2594.0...0.2595.0) (2026-03-10)
+
+
+### Bug Fixes
+
+* handle raw column aggregation with metric references in nested aggregate detection ([#20998](https://github.com/lightdash/lightdash/issues/20998)) ([5d420d7](https://github.com/lightdash/lightdash/commit/5d420d77a7fa035e41897438361b4a9534dfc388))
+
+
+### Features
+
+* add more logs on materialization flow ([#20997](https://github.com/lightdash/lightdash/issues/20997)) ([d3aabe1](https://github.com/lightdash/lightdash/commit/d3aabe129050fbcdc9597d23879eb4929cbea065)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+* add more logs to duckdb warehouse client querying ([#20999](https://github.com/lightdash/lightdash/issues/20999)) ([765e7eb](https://github.com/lightdash/lightdash/commit/765e7eb2196c38a506365d880812632c4387d645)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
 # [0.2594.0](https://github.com/lightdash/lightdash/compare/0.2593.0...0.2594.0) (2026-03-10)
 
 
