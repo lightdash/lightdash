@@ -1583,9 +1583,10 @@ describe('AsyncQueryService', () => {
                             credentials: sshTunnelCredentials,
                         }),
                         query: 'SELECT * FROM test',
-                        queryTags: {
+                        queryTags: expect.objectContaining({
                             query_context: QueryExecutionContext.EXPLORE,
-                        },
+                            query_uuid: 'test-query-uuid',
+                        }),
                     }),
                 );
 
@@ -1660,7 +1661,10 @@ describe('AsyncQueryService', () => {
                     warehouseClient: expect.objectContaining({
                         credentials: expect.any(Object),
                     }),
-                    queryTags: { query_context: QueryExecutionContext.EXPLORE },
+                    queryTags: expect.objectContaining({
+                        query_context: QueryExecutionContext.EXPLORE,
+                        query_uuid: 'test-query-uuid',
+                    }),
                 }),
             );
 
