@@ -158,6 +158,22 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
         new Map(),
     );
 
+    // Current search results (not accumulated) — used to restrict dropdown when searching
+    const currentSearchUserUuids = useMemo(
+        () => new Set(organizationUsers?.map((u) => u.userUuid) ?? []),
+        [organizationUsers],
+    );
+
+    const currentSearchGroupUuids = useMemo(
+        () =>
+            new Set(
+                infiniteOrganizationGroups?.pages
+                    .flatMap((p) => p.data)
+                    .map((g) => g.uuid) ?? [],
+            ),
+        [infiniteOrganizationGroups?.pages],
+    );
+
     const data = useMemo(() => {
         // Update user ref synchronously so renderOption has access in the same render cycle
         for (const user of allSearchedOrganizationUsers) {
@@ -171,6 +187,15 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
 
         const usersSet = userUuidsAndSelected
             .map((userUuid): ComboboxItem | null => {
+                // When searching, only show users that match the current server results
+                if (
+                    debouncedSearchQuery &&
+                    !selectedItems.users.includes(userUuid) &&
+                    !currentSearchUserUuids.has(userUuid)
+                ) {
+                    return null;
+                }
+
                 const user = allSearchedOrganizationUsers.find(
                     (a) => a.userUuid === userUuid,
                 );
@@ -204,7 +229,10 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                 (group) =>
                     !space.groupsAccess.some(
                         (ga) => ga.groupUuid === group.uuid,
-                    ),
+                    ) &&
+                    // When searching, only show groups that match current server results
+                    (!debouncedSearchQuery ||
+                        currentSearchGroupUuids.has(group.uuid)),
             ) ?? [];
 
         const groupItems: ComboboxItem[] = groupsFiltered.map((group) => ({
@@ -229,6 +257,9 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
         allSearchedOrganizationUsers,
         space.access,
         space.groupsAccess,
+        debouncedSearchQuery,
+        currentSearchUserUuids,
+        currentSearchGroupUuids,
     ]);
 
     const isFetching = isUsersFetching || isGroupsFetching;
