@@ -357,6 +357,6 @@ export const lightdashConfigMock: LightdashConfig = {
         },
     },
     userImpersonation: {
-        enabled: false,
+        enabled: undefined,
     },
 };

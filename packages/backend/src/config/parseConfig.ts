@@ -1110,7 +1110,7 @@ export type LightdashConfig = {
         s3?: Omit<S3Config, 'expirationTime'>;
     };
     userImpersonation: {
-        enabled: boolean;
+        enabled: boolean | undefined;
     };
 };
 
@@ -2039,7 +2039,10 @@ export const parseConfig = (): LightdashConfig => {
             s3: preAggregatesS3,
         },
         userImpersonation: {
-            enabled: process.env.USER_IMPERSONATION_ENABLED === 'true',
+            enabled:
+                process.env.USER_IMPERSONATION_ENABLED === 'true'
+                    ? true
+                    : undefined,
         },
     };
 };
