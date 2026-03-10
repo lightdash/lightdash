@@ -93,7 +93,11 @@ export class PreAggregationDuckDbClient {
         this.prometheusMetrics = args.prometheusMetrics;
         this.createDuckdbWarehouseClient =
             args.createDuckdbWarehouseClient ??
-            ((warehouseArgs) => new DuckdbWarehouseClient(warehouseArgs));
+            ((warehouseArgs) =>
+                new DuckdbWarehouseClient({
+                    ...warehouseArgs,
+                    logger: Logger,
+                }));
     }
 
     static getPreAggregationResolutionErrorMessage({
