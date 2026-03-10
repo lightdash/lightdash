@@ -2157,7 +2157,16 @@
                 "type": "object"
             },
             "DateGranularity": {
-                "enum": ["Day", "Week", "Month", "Quarter", "Year"],
+                "enum": [
+                    "Second",
+                    "Minute",
+                    "Hour",
+                    "Day",
+                    "Week",
+                    "Month",
+                    "Quarter",
+                    "Year"
+                ],
                 "type": "string"
             },
             "DashboardConfig": {
@@ -12628,6 +12637,7 @@
             "DashboardFilterValidationErrorType": {
                 "enum": [
                     "field_does_not_exist",
+                    "field_table_mismatch",
                     "table_not_used_by_any_chart",
                     "table_does_not_exist"
                 ],
@@ -20188,7 +20198,7 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_Dashboard.name-or-description-or-tabs-or-slug_": {
+            "Pick_Dashboard.name-or-description-or-tabs-or-slug-or-config_": {
                 "properties": {
                     "description": {
                         "type": "string"
@@ -20204,6 +20214,9 @@
                             "$ref": "#/components/schemas/DashboardTab"
                         },
                         "type": "array"
+                    },
+                    "config": {
+                        "$ref": "#/components/schemas/DashboardConfig"
                     }
                 },
                 "required": ["name", "slug", "tabs"],
@@ -20378,7 +20391,7 @@
             "DashboardAsCode": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/Pick_Dashboard.name-or-description-or-tabs-or-slug_"
+                        "$ref": "#/components/schemas/Pick_Dashboard.name-or-description-or-tabs-or-slug-or-config_"
                     },
                     {
                         "properties": {
@@ -20860,6 +20873,9 @@
                             "$ref": "#/components/schemas/DashboardTab"
                         },
                         "type": "array"
+                    },
+                    "config": {
+                        "$ref": "#/components/schemas/DashboardConfig"
                     },
                     "spaceSlug": {
                         "type": "string"
@@ -22616,6 +22632,44 @@
                         "type": "object"
                     }
                 ]
+            },
+            "ImpersonationOrganizationSettings": {
+                "properties": {
+                    "impersonationEnabled": {
+                        "type": "boolean"
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["impersonationEnabled", "organizationUuid"],
+                "type": "object"
+            },
+            "ApiSuccess_ImpersonationOrganizationSettings_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ImpersonationOrganizationSettings"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiImpersonationOrganizationSettingsResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_ImpersonationOrganizationSettings_"
+            },
+            "UpdateImpersonationOrganizationSettings": {
+                "properties": {
+                    "impersonationEnabled": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["impersonationEnabled"],
+                "type": "object"
             },
             "NotificationBase": {
                 "properties": {
@@ -26652,6 +26706,28 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "PreAggregateMaterializationWarning": {
+                "properties": {
+                    "threshold": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "rowCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "message": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": ["row_count_exceeded"],
+                        "nullable": false
+                    }
+                },
+                "required": ["threshold", "rowCount", "message", "type"],
+                "type": "object"
+            },
             "PreAggregateMaterializationStatus": {
                 "type": "string",
                 "enum": ["in_progress", "active", "superseded", "failed"]
@@ -26720,6 +26796,12 @@
                         "type": "object",
                         "nullable": true
                     },
+                    "warnings": {
+                        "items": {
+                            "$ref": "#/components/schemas/PreAggregateMaterializationWarning"
+                        },
+                        "type": "array"
+                    },
                     "definitionError": {
                         "type": "string",
                         "nullable": true
@@ -26767,6 +26849,7 @@
                 },
                 "required": [
                     "materialization",
+                    "warnings",
                     "definitionError",
                     "refreshCron",
                     "granularity",
@@ -28099,7 +28182,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2599.0",
+        "version": "0.2610.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -39300,6 +39383,80 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/org/impersonation": {
+            "get": {
+                "operationId": "GetImpersonationSettings",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiImpersonationOrganizationSettingsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get the impersonation setting for the current organization",
+                "summary": "Get impersonation settings",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": []
+            },
+            "patch": {
+                "operationId": "UpdateImpersonationSettings",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiImpersonationOrganizationSettingsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Update the impersonation setting for the current organization",
+                "summary": "Update impersonation settings",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "description": "the new impersonation settings",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateImpersonationOrganizationSettings",
+                                "description": "the new impersonation settings"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/notifications": {

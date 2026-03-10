@@ -5,6 +5,7 @@ import {
     ApiCreateGroupResponse,
     ApiErrorPayload,
     ApiGroupListResponse,
+    ApiImpersonationOrganizationSettingsResponse,
     ApiOrganization,
     ApiOrganizationAllowedEmailDomains,
     ApiOrganizationMemberProfile,
@@ -24,6 +25,7 @@ import {
     ReassignUserSchedulersRequest,
     UpdateAllowedEmailDomains,
     UpdateColorPalette,
+    UpdateImpersonationOrganizationSettings,
     UpdateOrganization,
     UUID,
     type ApiCreateProjectResults,
@@ -628,6 +630,58 @@ export class OrganizationController extends BaseController {
         return {
             status: 'ok',
             results,
+        };
+    }
+
+    /**
+     * Get the impersonation setting for the current organization
+     * @summary Get impersonation settings
+     * @param req express request
+     */
+    @Middlewares([isAuthenticated])
+    @Get('/impersonation')
+    @OperationId('GetImpersonationSettings')
+    async getImpersonationSettings(
+        @Request() req: express.Request,
+    ): Promise<ApiImpersonationOrganizationSettingsResponse> {
+        const user = req.user!;
+        const enabled = await this.services
+            .getOrganizationService()
+            .getImpersonationEnabled(user);
+
+        return {
+            status: 'ok',
+            results: {
+                organizationUuid: user.organizationUuid!,
+                impersonationEnabled: enabled,
+            },
+        };
+    }
+
+    /**
+     * Update the impersonation setting for the current organization
+     * @summary Update impersonation settings
+     * @param req express request
+     * @param body the new impersonation settings
+     */
+    @Middlewares([isAuthenticated, unauthorisedInDemo])
+    @Patch('/impersonation')
+    @OperationId('UpdateImpersonationSettings')
+    async updateImpersonationSettings(
+        @Request() req: express.Request,
+        @Body() body: UpdateImpersonationOrganizationSettings,
+    ): Promise<ApiImpersonationOrganizationSettingsResponse> {
+        const user = req.user!;
+        await this.services
+            .getOrganizationService()
+            .updateImpersonationEnabled(user, body.impersonationEnabled);
+
+        return {
+            status: 'ok',
+            results: {
+                organizationUuid: user.organizationUuid!,
+                impersonationEnabled: body.impersonationEnabled,
+            },
         };
     }
 }
