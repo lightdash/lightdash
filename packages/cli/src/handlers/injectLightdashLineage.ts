@@ -119,7 +119,14 @@ type InjectResult = {
 type ResolvedMetricInfo = {
     resolved: string;
     modelUid: string;
+    modelName: string;
     metricUid: string;
+};
+
+/** A parsed ${ref} from a derived metric's SQL */
+type ParsedRef = {
+    modelName: string | null;
+    metricName: string;
 };
 
 // ---------------------------------------------------------------------------
@@ -244,13 +251,25 @@ function resolveMetricName(
 }
 
 /**
- * Parse ${metric_name} references from a derived metric's SQL expression.
- * e.g. "${total_revenue} / ${total_orders}" -> ["total_revenue", "total_orders"]
+ * Parse ${ref} references from a derived metric's SQL expression.
+ * Supports both same-model refs and cross-model refs:
+ *   "${total_revenue}"                    -> { modelName: null, metricName: "total_revenue" }
+ *   "${dbt_orders.count_distinct_order_id}" -> { modelName: "dbt_orders", metricName: "count_distinct_order_id" }
  */
-function parseDerivedRefs(sql: string): string[] {
-    const matches = sql.match(/\$\{(\w+)\}/g);
+function parseDerivedRefs(sql: string): ParsedRef[] {
+    const matches = sql.match(/\$\{([\w.]+)\}/g);
     if (!matches) return [];
-    return matches.map((m) => m.slice(2, -1));
+    return matches.map((m) => {
+        const inner = m.slice(2, -1);
+        const dotIdx = inner.indexOf('.');
+        if (dotIdx !== -1) {
+            return {
+                modelName: inner.slice(0, dotIdx),
+                metricName: inner.slice(dotIdx + 1),
+            };
+        }
+        return { modelName: null, metricName: inner };
+    });
 }
 
 // ---------------------------------------------------------------------------
@@ -430,15 +449,22 @@ function fixupDerivedMetricLineage(
         }
 
         // Parse ${ref} from SQL to find input metrics
+        // Refs can be same-model (${metric_name}) or cross-model (${model_name.metric_name})
         const refs = parseDerivedRefs(sql);
         const dependencyIds: string[] = [];
-        for (const refName of refs) {
-            const candidates = originalToResolved.get(refName) ?? [];
-            // Prefer a metric from the same model, fall back to the first match
-            const sameModel = candidates.find(
-                (c) => c.modelUid === modelParent,
-            );
-            const matched = sameModel ?? candidates[0];
+        for (const ref of refs) {
+            const candidates = originalToResolved.get(ref.metricName) ?? [];
+            let matched: ResolvedMetricInfo | undefined;
+            if (ref.modelName) {
+                // Cross-model ref: match by model name
+                matched = candidates.find((c) => c.modelName === ref.modelName);
+            } else {
+                // Same-model ref: prefer same model, fall back to first match
+                const sameModel = candidates.find(
+                    (c) => c.modelUid === modelParent,
+                );
+                matched = sameModel ?? candidates[0];
+            }
             if (matched) {
                 dependencyIds.push(matched.metricUid);
             }
@@ -566,6 +592,7 @@ function inject(manifest: Manifest): InjectResult {
             originalToResolved.get(metricName)!.push({
                 resolved,
                 modelUid,
+                modelName: node.name,
                 metricUid,
             });
 

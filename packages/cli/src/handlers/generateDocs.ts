@@ -88,6 +88,9 @@ export const generateDocsHandler = async (
 
     // Step 1: Compile into the isolated directory to produce manifest.json
     // This leaves the project's real target/ untouched.
+    const compileSpinner = GlobalState.startSpinner(
+        '  Compiling dbt project...',
+    );
     try {
         const compileArgs = [
             'compile',
@@ -97,9 +100,11 @@ export const generateDocsHandler = async (
         ];
 
         GlobalState.debug(`> Running: dbt ${compileArgs.join(' ')}`);
-        await execa('dbt', compileArgs, { stdio: 'inherit' });
+        await execa('dbt', compileArgs);
+        compileSpinner.succeed('  Compiled dbt project');
     } catch (e: unknown) {
         const msg = getErrorMessage(e);
+        compileSpinner.fail('  Failed to compile dbt project');
         await LightdashAnalytics.track({
             event: 'generate_docs.error',
             properties: {
@@ -141,6 +146,9 @@ export const generateDocsHandler = async (
     // Step 3: Generate docs with --no-compile so dbt doesn't overwrite our
     // injected manifest. It will generate catalog.json, index.html, and
     // (if --static) static_index.html reading our manifest from disk.
+    const generateSpinner = GlobalState.startSpinner(
+        '  Generating docs catalog...',
+    );
     try {
         const generateArgs = [
             'docs',
@@ -155,9 +163,11 @@ export const generateDocsHandler = async (
         }
 
         GlobalState.debug(`> Running: dbt ${generateArgs.join(' ')}`);
-        await execa('dbt', generateArgs, { stdio: 'inherit' });
+        await execa('dbt', generateArgs);
+        generateSpinner.succeed('  Generated docs catalog');
     } catch (e: unknown) {
         const msg = getErrorMessage(e);
+        generateSpinner.fail('  Failed to generate docs catalog');
         await LightdashAnalytics.track({
             event: 'generate_docs.error',
             properties: {
@@ -185,9 +195,9 @@ export const generateDocsHandler = async (
         console.info(`\n  Static docs written to: ${staticIndexPath}`);
         console.info('  Open this file directly in your browser.\n');
     } else if (options.serve) {
-        console.info(
-            `\n  Serving docs on port ${options.port}. Press Ctrl+C to stop.\n`,
-        );
+        const url = `http://localhost:${options.port}`;
+        console.info(`\n  Serving docs at: ${url}`);
+        console.info('  Press Ctrl+C to stop.\n');
 
         const serveArgs = [
             'docs',
@@ -200,6 +210,8 @@ export const generateDocsHandler = async (
         ];
 
         GlobalState.debug(`> Running: dbt ${serveArgs.join(' ')}`);
-        await execa('dbt', serveArgs, { stdio: 'inherit' });
+        await execa('dbt', serveArgs, {
+            stdio: ['pipe', 'pipe', 'pipe'],
+        });
     }
 };
