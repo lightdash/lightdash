@@ -1,3 +1,15 @@
+# [0.2594.0](https://github.com/lightdash/lightdash/compare/0.2593.0...0.2594.0) (2026-03-10)
+
+
+### Bug Fixes
+
+* skip unrecognized custom granularities with warning instead of erroring entire explore ([#20993](https://github.com/lightdash/lightdash/issues/20993)) ([fe6d1ec](https://github.com/lightdash/lightdash/commit/fe6d1ec2d14c4daeb48401d4176a72c7fbf40b89))
+
+
+### Features
+
+* nats workers ([#20945](https://github.com/lightdash/lightdash/issues/20945)) ([e6656eb](https://github.com/lightdash/lightdash/commit/e6656eb91259969a39d6a5872598830bb72a2eb1))
+
 # [0.2593.0](https://github.com/lightdash/lightdash/compare/0.2592.4...0.2593.0) (2026-03-10)
 
 
