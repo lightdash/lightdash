@@ -9,6 +9,7 @@ import {
     getItemId,
     isDashboardChartTileType,
     isDashboardSqlChartTile,
+    isStandardDateGranularity,
     type CacheMetadata,
     type Dashboard,
     type DashboardFilterRule,
@@ -505,6 +506,38 @@ const DashboardProvider: React.FC<
         return chartTileUuids.every((tileUuid) => loadedTiles.has(tileUuid));
     }, [dashboardTiles, loadedTiles, activeTab, dashboardTabs]);
 
+    // Once all charts have loaded, clean up stale custom granularities that
+    // are no longer provided by any explore on the dashboard.
+    useEffect(() => {
+        if (!areAllChartsLoaded) return;
+
+        const availableCustomGranularityKeys = new Set(
+            Object.keys(availableCustomGranularities),
+        );
+        const isAvailable = (g: string) =>
+            isStandardDateGranularity(g) ||
+            availableCustomGranularityKeys.has(g);
+
+        setDateZoomGranularitiesState((prev) => {
+            const filtered = prev.filter(isAvailable);
+            if (
+                filtered.length === prev.length &&
+                filtered.every((g, i) => prev[i] === g)
+            )
+                return prev;
+            setHaveDateZoomGranularitiesChanged(true);
+            return filtered;
+        });
+
+        setDefaultDateZoomGranularityState((prev) => {
+            if (prev && !isAvailable(prev)) {
+                setHasDefaultDateZoomGranularityChanged(true);
+                return undefined;
+            }
+            return prev;
+        });
+    }, [areAllChartsLoaded, availableCustomGranularities]);
+
     const [screenshotReadyTiles, setScreenshotReadyTiles] = useState<
         Set<string>
     >(new Set());
@@ -935,21 +968,21 @@ const DashboardProvider: React.FC<
         setDateZoomGranularity,
     ]);
 
-    // Reset dateZoomGranularity if it's not in the allowed list
+    // Reset dateZoomGranularity if it's not in the allowed list.
+    // Falls back to the validated default state (not the raw config value,
+    // which may reference a stale custom granularity).
     useEffect(() => {
         if (
             dateZoomGranularity &&
             dateZoomGranularities.length > 0 &&
             !dateZoomGranularities.includes(dateZoomGranularity)
         ) {
-            setDateZoomGranularity(
-                dashboard?.config?.defaultDateZoomGranularity ?? undefined,
-            );
+            setDateZoomGranularity(defaultDateZoomGranularity ?? undefined);
         }
     }, [
         dateZoomGranularities,
         dateZoomGranularity,
-        dashboard?.config?.defaultDateZoomGranularity,
+        defaultDateZoomGranularity,
         setDateZoomGranularity,
     ]);
 

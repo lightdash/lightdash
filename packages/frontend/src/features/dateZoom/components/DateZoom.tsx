@@ -155,22 +155,21 @@ export const DateZoom: FC<Props> = ({ isEditMode }) => {
         [],
     );
 
-    const customGranularities = useMemo(() => {
-        const enabledCustom = dateZoomGranularities.filter(
-            (g) => !isStandardDateGranularity(g),
-        );
-        const merged = [
-            ...new Set([
-                ...enabledCustom,
-                ...Object.keys(availableCustomGranularities),
-            ]),
-        ];
-        return merged.sort((a, b) => {
-            const labelA = getGranularityLabel(a, availableCustomGranularities);
-            const labelB = getGranularityLabel(b, availableCustomGranularities);
-            return labelA.localeCompare(labelB);
-        });
-    }, [dateZoomGranularities, availableCustomGranularities]);
+    const customGranularities = useMemo(
+        () =>
+            Object.keys(availableCustomGranularities).sort((a, b) => {
+                const labelA = getGranularityLabel(
+                    a,
+                    availableCustomGranularities,
+                );
+                const labelB = getGranularityLabel(
+                    b,
+                    availableCustomGranularities,
+                );
+                return labelA.localeCompare(labelB);
+            }),
+        [availableCustomGranularities],
+    );
 
     // View mode: enabled custom granularities, reusing the sorted order from customGranularities
     const enabledCustomGranularities = useMemo(
