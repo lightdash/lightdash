@@ -89,6 +89,10 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
         }, null);
     }, [flatData]);
 
+    // Check if filters are active to determine if we should always show the table
+    const hasActiveFilters =
+        searchQuery !== '' || sourceTypeFilter.length > 0 || showConfigWarnings;
+
     return (
         <>
             <FixValidationErrorModal
@@ -127,7 +131,7 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
                         <Loader color="gray" />
                     </Group>
                 </Paper>
-            ) : flatData.length > 0 || pinnedValidation ? (
+            ) : flatData.length > 0 || pinnedValidation || hasActiveFilters ? (
                 <ValidatorTable
                     data={deduplicatedData}
                     projectUuid={projectUuid}
