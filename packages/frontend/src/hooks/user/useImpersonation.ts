@@ -1,5 +1,8 @@
-import { type ApiError } from '@lightdash/common';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import {
+    type ApiError,
+    type ApiImpersonationOrganizationSettingsResponse,
+} from '@lightdash/common';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../api';
 import useApp from '../../providers/App/useApp';
 
@@ -16,6 +19,23 @@ const stopImpersonation = async () =>
         method: 'POST',
         body: undefined,
     });
+
+const getImpersonationSettings = async () =>
+    lightdashApi<ApiImpersonationOrganizationSettingsResponse['results']>({
+        url: `/org/impersonation`,
+        method: 'GET',
+        body: undefined,
+    });
+
+export const useImpersonationSettings = () => {
+    return useQuery<
+        ApiImpersonationOrganizationSettingsResponse['results'],
+        ApiError
+    >({
+        queryKey: ['impersonation_settings'],
+        queryFn: getImpersonationSettings,
+    });
+};
 
 export const useImpersonation = () => {
     const { user } = useApp();

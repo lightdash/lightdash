@@ -103,6 +103,7 @@ import {
     type PullRequestCreated,
 } from './gitIntegration';
 import type { ApiGroupListResponse } from './groups';
+import { type ApiImpersonationOrganizationSettingsResponse } from './impersonationOrganizationSettings';
 import { type MetricQuery, type QueryWarning } from './metricQuery';
 import type {
     ApiMetricsExplorerQueryResults,
@@ -948,7 +949,8 @@ type ApiResults =
     | ApiToggleFavorite['results']
     | ApiSpaceDeleteImpactResponse['results']
     | ApiGetPreAggregateStatsResponse['results']
-    | ApiGetPreAggregateMaterializationsResponse['results'];
+    | ApiGetPreAggregateMaterializationsResponse['results']
+    | ApiImpersonationOrganizationSettingsResponse['results'];
 // Note: EE API types removed from ApiResults to avoid circular imports
 // They can still be used with ApiResponse<T> by importing from '@lightdash/common'
 

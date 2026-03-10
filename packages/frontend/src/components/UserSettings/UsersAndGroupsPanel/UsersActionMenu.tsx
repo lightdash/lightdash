@@ -1,5 +1,4 @@
 import {
-    FeatureFlags,
     type OrganizationMemberProfile,
     type OrganizationMemberProfileWithGroups,
 } from '@lightdash/common';
@@ -34,8 +33,10 @@ import {
     useReassignUserSchedulersMutation,
     useUserSchedulersSummary,
 } from '../../../hooks/useOrganizationUsers';
-import { useStartImpersonation } from '../../../hooks/user/useImpersonation';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
+import {
+    useImpersonationSettings,
+    useStartImpersonation,
+} from '../../../hooks/user/useImpersonation';
 import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
@@ -95,14 +96,10 @@ const UsersActionMenu: FC<UsersActionMenuProps> = ({
     const { user: currentUser } = useApp();
     const { mutate: startImpersonation, isLoading: isStartingImpersonation } =
         useStartImpersonation();
-
-    const { data: impersonationFlag } = useServerFeatureFlag(
-        FeatureFlags.UserImpersonation,
-    );
-    const isImpersonationEnabled = impersonationFlag?.enabled ?? true;
+    const { data: impersonationSettings } = useImpersonationSettings();
 
     const canImpersonate =
-        isImpersonationEnabled &&
+        !!impersonationSettings?.impersonationEnabled &&
         !!currentUser.data?.ability?.can('impersonate', 'User') &&
         user.isActive &&
         !user.isPending &&
