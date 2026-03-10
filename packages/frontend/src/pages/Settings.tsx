@@ -1,7 +1,12 @@
 import { subject } from '@casl/ability';
-import { CommercialFeatureFlags, FeatureFlags } from '@lightdash/common';
+import {
+    CommercialFeatureFlags,
+    FeatureFlags,
+    ProjectType,
+} from '@lightdash/common';
 import { Box, ScrollArea, Stack, Text, Title } from '@mantine-8/core';
 import {
+    IconBolt,
     IconBrain,
     IconBrowser,
     IconBuildingSkyscraper,
@@ -14,7 +19,6 @@ import {
     IconHistory,
     IconIdBadge2,
     IconKey,
-    IconLayersIntersect,
     IconLock,
     IconPalette,
     IconPlug,
@@ -845,9 +849,11 @@ const Settings: FC = () => {
                                             exact
                                             to={`/generalSettings/projectManagement/${project.projectUuid}/preAggregates`}
                                             leftSection={
-                                                <MantineIcon
-                                                    icon={IconLayersIntersect}
-                                                />
+                                                <MantineIcon icon={IconBolt} />
+                                            }
+                                            disabled={
+                                                project.type ===
+                                                ProjectType.PREVIEW
                                             }
                                             defaultOpened={location.pathname.includes(
                                                 `/projectManagement/${project.projectUuid}/preAggregates`,

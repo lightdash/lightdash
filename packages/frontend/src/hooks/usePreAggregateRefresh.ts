@@ -1,5 +1,5 @@
 import { type ApiError } from '@lightdash/common';
-import { IconLayersIntersect } from '@tabler/icons-react';
+import { IconBolt } from '@tabler/icons-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../api';
 import useSchedulerJobsContext from '../providers/SchedulerJobs/useSchedulerJobsContext';
@@ -35,7 +35,7 @@ export const useRefreshAllPreAggregates = (
                     showToast,
                     toastKey: 'pre-aggregate-refresh',
                     toastTitle: 'Pre-aggregate refresh',
-                    toastIcon: IconLayersIntersect,
+                    toastIcon: IconBolt,
                     onComplete: () => {
                         void queryClient.invalidateQueries({
                             queryKey: [
@@ -90,7 +90,7 @@ export const useRefreshPreAggregateByDefinitionName = (
                     showToast,
                     toastKey: 'pre-aggregate-refresh',
                     toastTitle: 'Pre-aggregate refresh',
-                    toastIcon: IconLayersIntersect,
+                    toastIcon: IconBolt,
                     onComplete: () => {
                         void queryClient.invalidateQueries({
                             queryKey: [

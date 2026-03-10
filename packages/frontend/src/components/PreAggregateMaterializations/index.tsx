@@ -23,6 +23,7 @@ import {
     IconArrowDown,
     IconArrowsSort,
     IconArrowUp,
+    IconBolt,
     IconCalendarTime,
     IconClock,
     IconColumns,
@@ -30,7 +31,6 @@ import {
     IconFile,
     IconFilter,
     IconFilterOff,
-    IconLayersIntersect,
     IconRefresh,
     IconRowInsertBottom,
     IconSearch,
@@ -677,7 +677,7 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                 {!isLoading && materializations.length === 0 ? (
                     <Paper withBorder radius="md" p="xxl">
                         <SuboptimalState
-                            icon={IconLayersIntersect}
+                            icon={IconBolt}
                             title="No pre-aggregates defined yet"
                             description="Define pre-aggregates in your dbt YAML to serve queries from materialized results instead of hitting your warehouse."
                         />
