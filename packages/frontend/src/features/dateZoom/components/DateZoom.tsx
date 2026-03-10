@@ -45,7 +45,6 @@ const EditModeGranularityItem: FC<EditModeGranularityItemProps> = ({
 }) => (
     <Menu.Item
         fz="xs"
-        key={granularity}
         closeMenuOnClick={false}
         leftSection={
             <Checkbox
@@ -100,7 +99,6 @@ const ViewModeGranularityItem: FC<ViewModeGranularityItemProps> = ({
 }) => (
     <Menu.Item
         fz="xs"
-        key={granularity}
         onClick={() => onSelect(granularity)}
         disabled={isActive}
         rightSection={
@@ -151,7 +149,7 @@ export const DateZoom: FC<Props> = ({ isEditMode }) => {
 
     // Split available granularities into standard and custom for rendering with a divider.
     const standardGranularities = useMemo(
-        () => Object.values(DateGranularity) as string[],
+        () => Object.values(DateGranularity),
         [],
     );
 

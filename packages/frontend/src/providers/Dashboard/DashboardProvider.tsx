@@ -320,13 +320,9 @@ const DashboardProvider: React.FC<
 
     // Sync default date zoom granularity from dashboard config
     useEffect(() => {
-        if (dashboard?.config?.defaultDateZoomGranularity !== undefined) {
-            setDefaultDateZoomGranularityState(
-                dashboard.config.defaultDateZoomGranularity,
-            );
-        } else {
-            setDefaultDateZoomGranularityState(undefined);
-        }
+        setDefaultDateZoomGranularityState(
+            dashboard?.config?.defaultDateZoomGranularity,
+        );
     }, [dashboard?.config?.defaultDateZoomGranularity]);
 
     // Set active tab when dashboard and tabs are loaded
