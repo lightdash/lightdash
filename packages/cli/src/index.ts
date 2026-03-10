@@ -224,6 +224,12 @@ ${styles.bold('Examples:')}
         undefined,
     )
     .option('--email <email>', 'Login with email and password', undefined)
+    .option(
+        '--oauth-port <port>',
+        'Port for the local OAuth callback server (default: random available port)',
+        (value: string) => parseInt(value, 10),
+        undefined,
+    )
     .option('--verbose', undefined, false)
     .action(login);
 
