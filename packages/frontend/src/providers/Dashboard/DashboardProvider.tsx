@@ -9,6 +9,7 @@ import {
     getItemId,
     isDashboardChartTileType,
     isDashboardSqlChartTile,
+    isStandardDateGranularity,
     type CacheMetadata,
     type Dashboard,
     type DashboardFilterRule,
@@ -244,10 +245,39 @@ const DashboardProvider: React.FC<
         useState<boolean>(false);
 
     // Date zoom granularities state
-    const allGranularities = useMemo(() => Object.values(DateGranularity), []);
+    const allStandardGranularities = useMemo(
+        () => Object.values(DateGranularity),
+        [],
+    );
 
-    const [dateZoomGranularities, setDateZoomGranularitiesState] =
-        useState<(DateGranularity | string)[]>(allGranularities);
+    // Custom granularities discovered from explores: key → label (e.g., "fiscal_quarter" → "Fiscal Quarter")
+    const [availableCustomGranularities, setAvailableCustomGranularities] =
+        useState<Record<string, string>>({});
+
+    const addAvailableCustomGranularities = useCallback(
+        (granularities: Record<string, string>) => {
+            setAvailableCustomGranularities((prev) => {
+                const newKeys = Object.keys(granularities).filter(
+                    (k) => !(k in prev),
+                );
+                if (newKeys.length === 0) return prev;
+                return { ...prev, ...granularities };
+            });
+        },
+        [],
+    );
+
+    const allGranularities = useMemo(
+        () => [
+            ...allStandardGranularities,
+            ...Object.keys(availableCustomGranularities),
+        ],
+        [allStandardGranularities, availableCustomGranularities],
+    );
+
+    const [dateZoomGranularities, setDateZoomGranularitiesState] = useState<
+        (DateGranularity | string)[]
+    >(allStandardGranularities);
     const [
         haveDateZoomGranularitiesChanged,
         setHaveDateZoomGranularitiesChanged,
@@ -290,13 +320,9 @@ const DashboardProvider: React.FC<
 
     // Sync default date zoom granularity from dashboard config
     useEffect(() => {
-        if (dashboard?.config?.defaultDateZoomGranularity !== undefined) {
-            setDefaultDateZoomGranularityState(
-                dashboard.config.defaultDateZoomGranularity,
-            );
-        } else {
-            setDefaultDateZoomGranularityState(undefined);
-        }
+        setDefaultDateZoomGranularityState(
+            dashboard?.config?.defaultDateZoomGranularity,
+        );
     }, [dashboard?.config?.defaultDateZoomGranularity]);
 
     // Set active tab when dashboard and tabs are loaded
@@ -475,6 +501,38 @@ const DashboardProvider: React.FC<
 
         return chartTileUuids.every((tileUuid) => loadedTiles.has(tileUuid));
     }, [dashboardTiles, loadedTiles, activeTab, dashboardTabs]);
+
+    // Once all charts have loaded, clean up stale custom granularities that
+    // are no longer provided by any explore on the dashboard.
+    useEffect(() => {
+        if (!areAllChartsLoaded) return;
+
+        const availableCustomGranularityKeys = new Set(
+            Object.keys(availableCustomGranularities),
+        );
+        const isAvailable = (g: string) =>
+            isStandardDateGranularity(g) ||
+            availableCustomGranularityKeys.has(g);
+
+        setDateZoomGranularitiesState((prev) => {
+            const filtered = prev.filter(isAvailable);
+            if (
+                filtered.length === prev.length &&
+                filtered.every((g, i) => prev[i] === g)
+            )
+                return prev;
+            setHaveDateZoomGranularitiesChanged(true);
+            return filtered;
+        });
+
+        setDefaultDateZoomGranularityState((prev) => {
+            if (prev && !isAvailable(prev)) {
+                setHasDefaultDateZoomGranularityChanged(true);
+                return undefined;
+            }
+            return prev;
+        });
+    }, [areAllChartsLoaded, availableCustomGranularities]);
 
     const [screenshotReadyTiles, setScreenshotReadyTiles] = useState<
         Set<string>
@@ -826,11 +884,16 @@ const DashboardProvider: React.FC<
         // Date zoom
         const dateZoomParam = searchParams.get('dateZoom');
         if (dateZoomParam) {
-            const dateZoomUrl = Object.values(DateGranularity).find(
+            const standardMatch = Object.values(DateGranularity).find(
                 (granularity) =>
-                    granularity.toLowerCase() === dateZoomParam?.toLowerCase(),
+                    granularity.toLowerCase() === dateZoomParam.toLowerCase(),
             );
-            if (dateZoomUrl) setDateZoomGranularity(dateZoomUrl);
+            if (standardMatch) {
+                setDateZoomGranularity(standardMatch);
+            } else {
+                // Custom granularity — use the param value directly
+                setDateZoomGranularity(dateZoomParam);
+            }
         }
 
         // Temp filters
@@ -901,21 +964,21 @@ const DashboardProvider: React.FC<
         setDateZoomGranularity,
     ]);
 
-    // Reset dateZoomGranularity if it's not in the allowed list
+    // Reset dateZoomGranularity if it's not in the allowed list.
+    // Falls back to the validated default state (not the raw config value,
+    // which may reference a stale custom granularity).
     useEffect(() => {
         if (
             dateZoomGranularity &&
             dateZoomGranularities.length > 0 &&
             !dateZoomGranularities.includes(dateZoomGranularity)
         ) {
-            setDateZoomGranularity(
-                dashboard?.config?.defaultDateZoomGranularity ?? undefined,
-            );
+            setDateZoomGranularity(defaultDateZoomGranularity ?? undefined);
         }
     }, [
         dateZoomGranularities,
         dateZoomGranularity,
-        dashboard?.config?.defaultDateZoomGranularity,
+        defaultDateZoomGranularity,
         setDateZoomGranularity,
     ]);
 
@@ -1405,6 +1468,8 @@ const DashboardProvider: React.FC<
         hasDefaultDateZoomGranularityChanged,
         setHasDefaultDateZoomGranularityChanged,
         addParameterDefinitions,
+        availableCustomGranularities,
+        addAvailableCustomGranularities,
         tileNamesById,
         preAggregateStatuses,
         addPreAggregateStatus,

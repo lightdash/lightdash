@@ -106,6 +106,10 @@ export const useDashboardChartReadyQuery = (
         chartQuery.data?.metricQuery?.exploreName,
     );
 
+    const addAvailableCustomGranularities = useDashboardContext(
+        (c) => c.addAvailableCustomGranularities,
+    );
+
     useEffect(() => {
         if (explore) {
             addParameterDefinitions(
@@ -113,6 +117,22 @@ export const useDashboardChartReadyQuery = (
             );
         }
     }, [explore, addParameterDefinitions]);
+
+    // Discover custom granularity key → label pairs from explore dimensions
+    useEffect(() => {
+        if (!explore) return;
+
+        const customGranularities: Record<string, string> = {};
+        for (const dim of getDimensions(explore)) {
+            if (dim.customTimeInterval) {
+                customGranularities[dim.customTimeInterval] = dim.label;
+            }
+        }
+
+        if (Object.keys(customGranularities).length > 0) {
+            addAvailableCustomGranularities(customGranularities);
+        }
+    }, [explore, addAvailableCustomGranularities]);
 
     const timezoneFixFilters =
         dashboardFilters && convertDateDashboardFilters(dashboardFilters);

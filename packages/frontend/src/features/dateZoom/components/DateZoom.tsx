@@ -1,4 +1,4 @@
-import { DateGranularity } from '@lightdash/common';
+import { DateGranularity, isStandardDateGranularity } from '@lightdash/common';
 import {
     ActionIcon,
     Button,
@@ -16,12 +16,98 @@ import {
     IconPinFilled,
     IconX,
 } from '@tabler/icons-react';
-import { useCallback, useEffect, useState, type FC } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
+import { getGranularityLabel } from '../utils';
 import styles from './DateZoom.module.css';
+
+type EditModeGranularityItemProps = {
+    granularity: string;
+    label: string;
+    isEnabled: boolean;
+    isDefault: boolean;
+    isLastEnabled: boolean;
+    onToggle: (granularity: DateGranularity | string) => void;
+    onSetDefault: (granularity: DateGranularity | string) => void;
+};
+
+const EditModeGranularityItem: FC<EditModeGranularityItemProps> = ({
+    granularity,
+    label,
+    isEnabled,
+    isDefault,
+    isLastEnabled,
+    onToggle,
+    onSetDefault,
+}) => (
+    <Menu.Item
+        fz="xs"
+        closeMenuOnClick={false}
+        leftSection={
+            <Checkbox
+                size="xs"
+                checked={isEnabled}
+                disabled={isLastEnabled}
+                onChange={() => onToggle(granularity)}
+                classNames={{ input: styles.checkboxInput }}
+            />
+        }
+        rightSection={
+            isEnabled ? (
+                <Tooltip
+                    label={isDefault ? 'Remove default' : 'Set as default'}
+                    position="top"
+                >
+                    <ActionIcon
+                        size="xs"
+                        variant="subtle"
+                        color={isDefault ? 'blue' : 'gray'}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onSetDefault(granularity);
+                        }}
+                    >
+                        <MantineIcon
+                            icon={isDefault ? IconPinFilled : IconPin}
+                            size="sm"
+                        />
+                    </ActionIcon>
+                </Tooltip>
+            ) : null
+        }
+        onClick={() => onToggle(granularity)}
+    >
+        {label}
+    </Menu.Item>
+);
+
+type ViewModeGranularityItemProps = {
+    granularity: string;
+    label: string;
+    isActive: boolean;
+    onSelect: (granularity: DateGranularity | string) => void;
+};
+
+const ViewModeGranularityItem: FC<ViewModeGranularityItemProps> = ({
+    granularity,
+    label,
+    isActive,
+    onSelect,
+}) => (
+    <Menu.Item
+        fz="xs"
+        onClick={() => onSelect(granularity)}
+        disabled={isActive}
+        rightSection={
+            isActive ? <MantineIcon icon={IconCheck} size={14} /> : null
+        }
+    >
+        {label}
+    </Menu.Item>
+);
 
 type Props = {
     isEditMode: boolean;
@@ -52,14 +138,48 @@ export const DateZoom: FC<Props> = ({ isEditMode }) => {
     const setDefaultDateZoomGranularity = useDashboardContext(
         (c) => c.setDefaultDateZoomGranularity,
     );
+    const availableCustomGranularities = useDashboardContext(
+        (c) => c.availableCustomGranularities,
+    );
     const { track } = useTracking();
 
     useEffect(() => {
         if (isEditMode) setDateZoomGranularity(undefined);
     }, [isEditMode, setDateZoomGranularity]);
 
+    // Split available granularities into standard and custom for rendering with a divider.
+    const standardGranularities = useMemo(
+        () => Object.values(DateGranularity),
+        [],
+    );
+
+    const customGranularities = useMemo(
+        () =>
+            Object.keys(availableCustomGranularities).sort((a, b) => {
+                const labelA = getGranularityLabel(
+                    a,
+                    availableCustomGranularities,
+                );
+                const labelB = getGranularityLabel(
+                    b,
+                    availableCustomGranularities,
+                );
+                return labelA.localeCompare(labelB);
+            }),
+        [availableCustomGranularities],
+    );
+
+    // View mode: enabled custom granularities, reusing the sorted order from customGranularities
+    const enabledCustomGranularities = useMemo(
+        () =>
+            customGranularities.filter((g) =>
+                dateZoomGranularities.includes(g),
+            ),
+        [customGranularities, dateZoomGranularities],
+    );
+
     const handleToggleGranularity = useCallback(
-        (granularity: DateGranularity) => {
+        (granularity: DateGranularity | string) => {
             const isEnabled = dateZoomGranularities.includes(granularity);
             if (isEnabled && dateZoomGranularities.length <= 1) {
                 return; // Must keep at least one granularity
@@ -71,10 +191,14 @@ export const DateZoom: FC<Props> = ({ isEditMode }) => {
             } else {
                 enabledSet.add(granularity);
             }
-            // Maintain canonical enum order
-            const newGranularities = Object.values(DateGranularity).filter(
-                (g) => enabledSet.has(g),
+            // Maintain canonical order: standard granularities first, then custom
+            const standard = Object.values(DateGranularity).filter(
+                (g): g is DateGranularity => enabledSet.has(g),
             );
+            const custom = [...enabledSet].filter(
+                (g) => !isStandardDateGranularity(g),
+            );
+            const newGranularities = [...standard, ...custom];
 
             setDateZoomGranularities(newGranularities);
 
@@ -95,7 +219,7 @@ export const DateZoom: FC<Props> = ({ isEditMode }) => {
     );
 
     const handleSetDefault = useCallback(
-        (granularity: DateGranularity) => {
+        (granularity: DateGranularity | string) => {
             setDefaultDateZoomGranularity(
                 defaultDateZoomGranularity === granularity
                     ? undefined
@@ -103,6 +227,17 @@ export const DateZoom: FC<Props> = ({ isEditMode }) => {
             );
         },
         [defaultDateZoomGranularity, setDefaultDateZoomGranularity],
+    );
+
+    const handleSelectGranularity = useCallback(
+        (granularity: DateGranularity | string) => {
+            track({
+                name: EventName.DATE_ZOOM_CLICKED,
+                properties: { granularity },
+            });
+            setDateZoomGranularity(granularity);
+        },
+        [track, setDateZoomGranularity],
     );
 
     if (isDateZoomDisabled) {
@@ -167,7 +302,10 @@ export const DateZoom: FC<Props> = ({ isEditMode }) => {
                             <>
                                 :{' '}
                                 <Text fz="inherit" fw={500} ml="xxs">
-                                    {dateZoomGranularity}
+                                    {getGranularityLabel(
+                                        dateZoomGranularity,
+                                        availableCustomGranularities,
+                                    )}
                                 </Text>
                             </>
                         ) : null}
@@ -178,79 +316,57 @@ export const DateZoom: FC<Props> = ({ isEditMode }) => {
                 {isEditMode ? (
                     <>
                         <Menu.Label>Granularities</Menu.Label>
-                        {Object.values(DateGranularity).map((granularity) => {
-                            const isEnabled =
-                                dateZoomGranularities.includes(granularity);
-                            const isDefault =
-                                defaultDateZoomGranularity === granularity;
-                            const isLastEnabled =
-                                isEnabled && dateZoomGranularities.length <= 1;
-
-                            return (
-                                <Menu.Item
-                                    fz="xs"
-                                    key={granularity}
-                                    closeMenuOnClick={false}
-                                    leftSection={
-                                        <Checkbox
-                                            size="xs"
-                                            checked={isEnabled}
-                                            disabled={isLastEnabled}
-                                            onChange={() =>
-                                                handleToggleGranularity(
-                                                    granularity,
-                                                )
-                                            }
-                                            styles={{
-                                                input: { cursor: 'pointer' },
-                                            }}
-                                        />
-                                    }
-                                    rightSection={
-                                        isEnabled ? (
-                                            <Tooltip
-                                                label={
-                                                    isDefault
-                                                        ? 'Remove default'
-                                                        : 'Set as default'
-                                                }
-                                                position="top"
-                                            >
-                                                <ActionIcon
-                                                    size="xs"
-                                                    variant="subtle"
-                                                    color={
-                                                        isDefault
-                                                            ? 'blue'
-                                                            : 'gray'
-                                                    }
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleSetDefault(
-                                                            granularity,
-                                                        );
-                                                    }}
-                                                >
-                                                    <MantineIcon
-                                                        icon={
-                                                            isDefault
-                                                                ? IconPinFilled
-                                                                : IconPin
-                                                        }
-                                                        size="sm"
-                                                    />
-                                                </ActionIcon>
-                                            </Tooltip>
-                                        ) : null
-                                    }
-                                    onClick={() =>
-                                        handleToggleGranularity(granularity)
-                                    }
-                                >
-                                    {granularity}
-                                </Menu.Item>
-                            );
-                        })}
+                        {standardGranularities.map((granularity) => (
+                            <EditModeGranularityItem
+                                key={granularity}
+                                granularity={granularity}
+                                label={granularity}
+                                isEnabled={dateZoomGranularities.includes(
+                                    granularity,
+                                )}
+                                isDefault={
+                                    defaultDateZoomGranularity === granularity
+                                }
+                                isLastEnabled={
+                                    dateZoomGranularities.includes(
+                                        granularity,
+                                    ) && dateZoomGranularities.length <= 1
+                                }
+                                onToggle={handleToggleGranularity}
+                                onSetDefault={handleSetDefault}
+                            />
+                        ))}
+                        {customGranularities.length > 0 && (
+                            <>
+                                <Menu.Divider />
+                                <Menu.Label>Custom</Menu.Label>
+                                {customGranularities.map((granularity) => (
+                                    <EditModeGranularityItem
+                                        key={granularity}
+                                        granularity={granularity}
+                                        label={getGranularityLabel(
+                                            granularity,
+                                            availableCustomGranularities,
+                                        )}
+                                        isEnabled={dateZoomGranularities.includes(
+                                            granularity,
+                                        )}
+                                        isDefault={
+                                            defaultDateZoomGranularity ===
+                                            granularity
+                                        }
+                                        isLastEnabled={
+                                            dateZoomGranularities.includes(
+                                                granularity,
+                                            ) &&
+                                            dateZoomGranularities.length <= 1
+                                        }
+                                        onToggle={handleToggleGranularity}
+                                        onSetDefault={handleSetDefault}
+                                    />
+                                ))}
+                            </>
+                        )}
                     </>
                 ) : (
                     <>
@@ -286,32 +402,42 @@ export const DateZoom: FC<Props> = ({ isEditMode }) => {
                             </Menu.Item>
                         </Tooltip>
 
-                        {dateZoomGranularities.map((granularity) => (
-                            <Menu.Item
-                                fz="xs"
-                                key={granularity}
-                                onClick={() => {
-                                    track({
-                                        name: EventName.DATE_ZOOM_CLICKED,
-                                        properties: {
-                                            granularity,
-                                        },
-                                    });
-                                    setDateZoomGranularity(granularity);
-                                }}
-                                disabled={dateZoomGranularity === granularity}
-                                rightSection={
-                                    dateZoomGranularity === granularity ? (
-                                        <MantineIcon
-                                            icon={IconCheck}
-                                            size={14}
+                        {dateZoomGranularities
+                            .filter((g) => isStandardDateGranularity(g))
+                            .map((granularity) => (
+                                <ViewModeGranularityItem
+                                    key={granularity}
+                                    granularity={granularity}
+                                    label={granularity}
+                                    isActive={
+                                        dateZoomGranularity === granularity
+                                    }
+                                    onSelect={handleSelectGranularity}
+                                />
+                            ))}
+
+                        {enabledCustomGranularities.length > 0 && (
+                            <>
+                                <Menu.Divider />
+                                {enabledCustomGranularities.map(
+                                    (granularity) => (
+                                        <ViewModeGranularityItem
+                                            key={granularity}
+                                            granularity={granularity}
+                                            label={getGranularityLabel(
+                                                granularity,
+                                                availableCustomGranularities,
+                                            )}
+                                            isActive={
+                                                dateZoomGranularity ===
+                                                granularity
+                                            }
+                                            onSelect={handleSelectGranularity}
                                         />
-                                    ) : null
-                                }
-                            >
-                                {granularity}
-                            </Menu.Item>
-                        ))}
+                                    ),
+                                )}
+                            </>
+                        )}
                     </>
                 )}
             </Menu.Dropdown>
