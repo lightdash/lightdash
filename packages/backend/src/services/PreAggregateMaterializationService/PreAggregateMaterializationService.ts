@@ -126,7 +126,7 @@ export class PreAggregateMaterializationService extends BaseService {
                 ? ` ORDER BY ${dimensionFieldIds.map(quoteDuckdbIdentifier).join(', ')}`
                 : '';
 
-        const copySql = `COPY (SELECT * FROM ${jsonlSqlTable}${orderByClause}) TO '${parquetUri}' (FORMAT PARQUET, COMPRESSION zstd, ROW_GROUP_SIZE 100000)`;
+        const copySql = `COPY (SELECT * FROM ${jsonlSqlTable}${orderByClause}) TO '${parquetUri}' (FORMAT PARQUET, COMPRESSION zstd, ROW_GROUP_SIZE 1000000)`;
         const metrics = await duckdb.runSqlWithMetrics(copySql);
 
         this.logger.info(
