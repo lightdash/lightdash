@@ -1,3 +1,10 @@
+# [0.2593.0](https://github.com/lightdash/lightdash/compare/0.2592.4...0.2593.0) (2026-03-10)
+
+
+### Features
+
+* improve memory limit temp directory on duckdb conversion ([#20990](https://github.com/lightdash/lightdash/issues/20990)) ([717deb4](https://github.com/lightdash/lightdash/commit/717deb4d804837702cd0918dee4d783e2067d946))
+
 ## [0.2592.4](https://github.com/lightdash/lightdash/compare/0.2592.3...0.2592.4) (2026-03-10)
 
 
