@@ -1,4 +1,5 @@
 import {
+    assertUnreachable,
     DashboardFilterValidationErrorType,
     friendlyName,
     isChartValidationError,
@@ -78,7 +79,10 @@ const ErrorMessageByType: FC<{
                         </Text>
                     );
                 default:
-                    return <Text fz={11}>{validationError.error}</Text>;
+                    return assertUnreachable(
+                        validationError.dashboardFilterErrorType,
+                        `Unexpected dashboard filter error type`,
+                    );
             }
         }
 

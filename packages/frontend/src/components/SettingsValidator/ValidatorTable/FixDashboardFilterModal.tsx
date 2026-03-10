@@ -106,8 +106,7 @@ export const FixDashboardFilterModal: FC<Props> = ({
             return allValidationErrors.filter(
                 (e) =>
                     isFixableDashboardValidationError(e) &&
-                    ((e.tableName && e.tableName === model) ||
-                        (e.fieldName && e.fieldName.startsWith(`${model}_`))),
+                    e.tableName === model,
             ).length;
         } else {
             return assertUnreachable(
