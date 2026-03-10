@@ -1,3 +1,10 @@
+# [0.2592.0](https://github.com/lightdash/lightdash/compare/0.2591.1...0.2592.0) (2026-03-10)
+
+
+### Features
+
+* support parquet file format for pre-aggregate materializations ([#20979](https://github.com/lightdash/lightdash/issues/20979)) ([94f9086](https://github.com/lightdash/lightdash/commit/94f9086d021d5588ae48ead9a12d50b2d6013df6))
+
 ## [0.2591.1](https://github.com/lightdash/lightdash/compare/0.2591.0...0.2591.1) (2026-03-10)
 
 
