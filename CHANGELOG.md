@@ -1,3 +1,10 @@
+## [0.2592.2](https://github.com/lightdash/lightdash/compare/0.2592.1...0.2592.2) (2026-03-10)
+
+
+### Bug Fixes
+
+* scale CLI e2e test timeouts dynamically based on model count ([#20986](https://github.com/lightdash/lightdash/issues/20986)) ([40c2732](https://github.com/lightdash/lightdash/commit/40c27320556083289d138da746047e5d152b8fb9))
+
 ## [0.2592.1](https://github.com/lightdash/lightdash/compare/0.2592.0...0.2592.1) (2026-03-10)
 
 
