@@ -533,15 +533,19 @@ export class MetricQueryBuilder {
     private getPopDimensionsFilterSQL(
         timeDimensionId: string,
     ): string | undefined {
-        return this.getDimensionsFilterSQL(
+        const strippedGroup =
             this.getDimensionsFilterGroupWithoutPopTimeFilters(
                 timeDimensionId,
                 this.args.compiledMetricQuery.filters.dimensions,
-            ),
-        );
+            );
+        // Pass null when all filters were stripped to avoid falling back to
+        // the original (unstripped) filter group inside getDimensionsFilterSQL.
+        return this.getDimensionsFilterSQL(strippedGroup ?? null);
     }
 
-    private getDimensionsFilterSQL(filterGroup?: FilterGroup) {
+    private getDimensionsFilterSQL(
+        filterGroup?: FilterGroup | null,
+    ): string | undefined {
         const {
             explore,
             compiledMetricQuery,
@@ -550,7 +554,9 @@ export class MetricQueryBuilder {
             intrinsicUserAttributes,
         } = this.args;
         const dimensionsFilterGroup =
-            filterGroup ?? compiledMetricQuery.filters.dimensions;
+            filterGroup === undefined
+                ? compiledMetricQuery.filters.dimensions
+                : (filterGroup ?? undefined);
 
         const requiredDimensionFilterSql =
             this.getNestedDimensionFilterSQLFromModelFilters(
