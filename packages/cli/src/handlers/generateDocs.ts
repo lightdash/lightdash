@@ -211,7 +211,7 @@ export const generateDocsHandler = async (
 
         GlobalState.debug(`> Running: dbt ${serveArgs.join(' ')}`);
         await execa('dbt', serveArgs, {
-            stdio: ['pipe', 'pipe', 'pipe'],
+            stdio: ['inherit', 'ignore', 'ignore'],
         });
     }
 };
