@@ -1,3 +1,10 @@
+## [0.2595.1](https://github.com/lightdash/lightdash/compare/0.2595.0...0.2595.1) (2026-03-10)
+
+
+### Bug Fixes
+
+* search not working in space share ([#21000](https://github.com/lightdash/lightdash/issues/21000)) ([8106355](https://github.com/lightdash/lightdash/commit/81063559fcdd9d3ea6ea1cf472cd1ac1aaa4786a))
+
 # [0.2595.0](https://github.com/lightdash/lightdash/compare/0.2594.0...0.2595.0) (2026-03-10)
 
 
