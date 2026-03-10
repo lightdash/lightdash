@@ -25,9 +25,16 @@ export const loginWithOauth = async (
             rejectAuth = reject;
         },
     );
-    const envPort = process.env.LIGHTDASH_OAUTH_PORT
-        ? parseInt(process.env.LIGHTDASH_OAUTH_PORT, 10)
-        : undefined;
+    const envPortStr = process.env.LIGHTDASH_OAUTH_PORT;
+    const envPort = envPortStr ? parseInt(envPortStr, 10) : undefined;
+    if (
+        envPort !== undefined &&
+        (isNaN(envPort) || envPort < 1 || envPort > 65535)
+    ) {
+        throw new Error(
+            'LIGHTDASH_OAUTH_PORT must be a number between 1 and 65535',
+        );
+    }
     let port = oauthPort ?? envPort ?? 0; // CLI flag > env var > random
 
     // Generate PKCE values using openid-client generators

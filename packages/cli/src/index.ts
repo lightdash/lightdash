@@ -227,7 +227,13 @@ ${styles.bold('Examples:')}
     .option(
         '--oauth-port <port>',
         'Port for the local OAuth callback server (default: random available port)',
-        (value: string) => parseInt(value, 10),
+        (value: string) => {
+            const port = parseInt(value, 10);
+            if (isNaN(port) || port < 1 || port > 65535) {
+                throw new Error('Port must be a number between 1 and 65535');
+            }
+            return port;
+        },
         undefined,
     )
     .option('--verbose', undefined, false)
