@@ -777,11 +777,6 @@ describe('AsyncQueryService', () => {
                     sql: 'SELECT * FROM test',
                     fields: {},
                     missingParameterReferences: [],
-                    preAggregationRoute: {
-                        sourceExploreName: metricQueryMock.exploreName,
-                        preAggregateName: 'orders_daily',
-                        mode: 'opportunistic',
-                    },
                     userAccessControls: {
                         userAttributes: {},
                         intrinsicUserAttributes: {},
@@ -846,10 +841,6 @@ describe('AsyncQueryService', () => {
                     sql: 'SELECT * FROM test',
                     fields: {},
                     missingParameterReferences: [],
-                    preAggregationRoute: {
-                        ...preAggregateExplore.preAggregateSource!,
-                        mode: 'required',
-                    },
                     userAccessControls: {
                         userAttributes: {},
                         intrinsicUserAttributes: {},
@@ -928,10 +919,6 @@ describe('AsyncQueryService', () => {
                     sql: 'SELECT * FROM warehouse',
                     fields: {},
                     missingParameterReferences: [],
-                    preAggregationRoute: {
-                        ...preAggregateExplore.preAggregateSource!,
-                        mode: 'required',
-                    },
                     userAccessControls: {
                         userAttributes: {},
                         intrinsicUserAttributes: {},
@@ -962,10 +949,6 @@ describe('AsyncQueryService', () => {
         });
 
         test('opportunistic pre-aggregate routes enqueue a warehouse job when DuckDB cannot resolve', async () => {
-            const resolveSpy = jest.fn(async () => ({
-                resolved: false as const,
-                reason: PreAggregationDuckDbResolveReason.NO_ACTIVE_MATERIALIZATION,
-            }));
             const service = getMockedAsyncQueryService({
                 ...lightdashConfigMock,
                 natsWorker: {
@@ -977,9 +960,34 @@ describe('AsyncQueryService', () => {
                     enabled: true,
                 },
             });
-            (service as AnyType).preAggregationDuckDbClient = {
-                resolve: resolveSpy,
-            } as unknown as PreAggregationDuckDbClient;
+            const resolveExecutionPlanSpy = jest
+                .spyOn(service as AnyType, 'resolveAsyncQueryExecutionPlan')
+                .mockResolvedValueOnce({
+                    target: 'warehouse',
+                    warehouseQuery: 'SELECT * FROM warehouse',
+                    preAggregateMetadata: {
+                        hit: true,
+                        name: 'orders_daily',
+                    },
+                    preAggregationRoute: {
+                        sourceExploreName: metricQueryMock.exploreName,
+                        preAggregateName: 'orders_daily',
+                        mode: 'opportunistic',
+                    },
+                })
+                .mockResolvedValueOnce({
+                    target: 'warehouse',
+                    warehouseQuery: 'SELECT * FROM warehouse',
+                    preAggregateMetadata: {
+                        hit: true,
+                        name: 'orders_daily',
+                    },
+                    preAggregationRoute: {
+                        sourceExploreName: metricQueryMock.exploreName,
+                        preAggregateName: 'orders_daily',
+                        mode: 'opportunistic',
+                    },
+                });
 
             (service.queryHistoryModel.create as jest.Mock).mockResolvedValue({
                 queryUuid: 'test-query-uuid',
@@ -1008,11 +1016,6 @@ describe('AsyncQueryService', () => {
                     sql: 'SELECT * FROM warehouse',
                     fields: {},
                     missingParameterReferences: [],
-                    preAggregationRoute: {
-                        sourceExploreName: metricQueryMock.exploreName,
-                        preAggregateName: 'orders_daily',
-                        mode: 'opportunistic',
-                    },
                     userAccessControls: {
                         userAttributes: {},
                         intrinsicUserAttributes: {},
@@ -1022,7 +1025,7 @@ describe('AsyncQueryService', () => {
                 { query: metricQueryMock },
             );
 
-            expect(resolveSpy).toHaveBeenCalledTimes(1);
+            expect(resolveExecutionPlanSpy).toHaveBeenCalledTimes(2);
             expect(enqueueWarehouseSpy).toHaveBeenCalledTimes(1);
             expect(enqueueWarehouseSpy).toHaveBeenCalledWith({
                 queryUuid: 'test-query-uuid',
@@ -1074,6 +1077,10 @@ describe('AsyncQueryService', () => {
                 queryUuid: 'queryUuid',
                 cacheMetadata: {
                     cacheHit: false,
+                    preAggregate: {
+                        hit: true,
+                        name: 'rollup',
+                    },
                 },
             });
 
@@ -1093,10 +1100,10 @@ describe('AsyncQueryService', () => {
 
             expect(service.executeAsyncQuery).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    preAggregationRoute: {
-                        sourceExploreName: 'valid_explore',
-                        preAggregateName: 'rollup',
-                        mode: 'required',
+                    availableParameterDefinitions: {},
+                    userAccessControls: {
+                        userAttributes: {},
+                        intrinsicUserAttributes: {},
                     },
                 }),
                 expect.any(Object),

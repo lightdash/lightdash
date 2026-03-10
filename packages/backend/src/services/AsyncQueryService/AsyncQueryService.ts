@@ -172,23 +172,14 @@ import {
 
 const SQL_QUERY_MOCK_EXPLORER_NAME = 'sql_query_explorer';
 
-type PreAggregationRoutingDecision =
-    | {
-          target: 'warehouse';
-          preAggregateMetadata?: CacheMetadata['preAggregate'];
-      }
-    | {
-          target: 'pre_aggregate';
-          preAggregateMetadata: CacheMetadata['preAggregate'];
-          route: PreAggregationRoute;
-      };
-
 type AsyncQueryExecutionPlan =
     | {
           target: 'warehouse';
           warehouseQuery: string;
           preAggregateResolved?: false;
           preAggregateResolveReason?: PreAggregationDuckDbResolveReason;
+          preAggregateMetadata?: CacheMetadata['preAggregate'];
+          preAggregationRoute?: PreAggregationRoute;
       }
     | {
           target: 'pre_aggregate';
@@ -196,12 +187,16 @@ type AsyncQueryExecutionPlan =
           warehouseQuery: string;
           preAggregateResolved: true;
           preAggregateResolveReason?: undefined;
+          preAggregateMetadata: CacheMetadata['preAggregate'];
+          preAggregationRoute: PreAggregationRoute;
       }
     | {
           target: 'error';
           error: string;
           preAggregateResolved?: false;
           preAggregateResolveReason?: PreAggregationDuckDbResolveReason;
+          preAggregateMetadata?: CacheMetadata['preAggregate'];
+          preAggregationRoute?: PreAggregationRoute;
       };
 
 type AsyncQueryServiceArguments = ProjectServiceArguments & {
@@ -275,12 +270,12 @@ export class AsyncQueryService extends ProjectService {
     private recordPreAggregateStats(params: {
         projectUuid: string;
         exploreName: string;
-        routingDecision: PreAggregationRoutingDecision;
+        preAggregateMetadata?: CacheMetadata['preAggregate'];
         chartUuid: string | null;
         dashboardUuid: string | null;
         queryContext: string;
     }): void {
-        const { preAggregateMetadata } = params.routingDecision;
+        const { preAggregateMetadata } = params;
         if (!preAggregateMetadata) {
             return;
         }
@@ -337,69 +332,6 @@ export class AsyncQueryService extends ProjectService {
         ) {
             throw new ForbiddenError("You don't have access to this chart");
         }
-    }
-
-    private getPreAggregationRoutingDecision({
-        metricQuery,
-        explore,
-        context,
-    }: {
-        metricQuery: MetricQuery;
-        explore: Explore;
-        context: QueryExecutionContext;
-    }): PreAggregationRoutingDecision {
-        if (!this.isPreAggregationExecutionEnabled()) {
-            return { target: 'warehouse' };
-        }
-
-        if (explore.type === ExploreType.PRE_AGGREGATE) {
-            if (!explore.preAggregateSource) {
-                throw new UnexpectedServerError(
-                    `Pre-aggregate explore "${explore.name}" is missing source metadata`,
-                );
-            }
-
-            return {
-                target: 'pre_aggregate',
-                preAggregateMetadata: {
-                    hit: true,
-                    name: explore.preAggregateSource.preAggregateName,
-                },
-                route: {
-                    ...explore.preAggregateSource,
-                    mode: 'required',
-                },
-            };
-        }
-
-        if ((explore.preAggregates || []).length === 0) {
-            return { target: 'warehouse' };
-        }
-
-        const matchResult = findMatch(metricQuery, explore);
-        const preAggregateMetadata: CacheMetadata['preAggregate'] = {
-            hit: matchResult.hit,
-            name: matchResult.preAggregateName || undefined,
-            reason: matchResult.miss || undefined,
-        };
-
-        if (
-            matchResult.hit &&
-            matchResult.preAggregateName &&
-            context !== QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION
-        ) {
-            return {
-                target: 'pre_aggregate',
-                preAggregateMetadata,
-                route: {
-                    sourceExploreName: metricQuery.exploreName,
-                    preAggregateName: matchResult.preAggregateName,
-                    mode: 'opportunistic',
-                },
-            };
-        }
-
-        return { target: 'warehouse', preAggregateMetadata };
     }
 
     private isPreAggregationExecutionEnabled(): boolean {
@@ -1575,34 +1507,88 @@ export class AsyncQueryService extends ProjectService {
     private async resolveAsyncQueryExecutionPlan({
         projectUuid,
         warehouseQuery,
+        explore,
+        context,
         metricQuery,
         dateZoom,
         parameters,
-        preAggregationRoute,
         fieldsMap,
         pivotConfiguration,
         startOfWeek,
         userAccessControls,
         availableParameterDefinitions,
         queryUuid,
+        resolvePreAggregation,
     }: {
         projectUuid: string;
         warehouseQuery: string;
+        explore: Explore;
+        context: QueryExecutionContext;
         metricQuery: MetricQuery;
         dateZoom: ExecuteAsyncMetricQueryArgs['dateZoom'];
         parameters: ExecuteAsyncMetricQueryArgs['parameters'];
-        preAggregationRoute?: PreAggregationRoute;
         fieldsMap: ItemsMap;
         pivotConfiguration?: PivotConfiguration;
         startOfWeek: CreateWarehouseCredentials['startOfWeek'];
         userAccessControls?: UserAccessControls;
         availableParameterDefinitions?: ParameterDefinitions;
-        queryUuid: string;
+        queryUuid?: string;
+        resolvePreAggregation: boolean;
     }): Promise<AsyncQueryExecutionPlan> {
-        if (!preAggregationRoute || !this.isPreAggregationExecutionEnabled()) {
+        if (!this.isPreAggregationExecutionEnabled()) {
             return {
                 target: 'warehouse',
                 warehouseQuery,
+            };
+        }
+
+        let preAggregateMetadata: CacheMetadata['preAggregate'] | undefined;
+        let preAggregationRoute: PreAggregationRoute | undefined;
+
+        if (explore.type === ExploreType.PRE_AGGREGATE) {
+            if (!explore.preAggregateSource) {
+                throw new UnexpectedServerError(
+                    `Pre-aggregate explore "${explore.name}" is missing source metadata`,
+                );
+            }
+
+            preAggregateMetadata = {
+                hit: true,
+                name: explore.preAggregateSource.preAggregateName,
+            };
+            preAggregationRoute = {
+                ...explore.preAggregateSource,
+                mode: 'required',
+            };
+        } else if ((explore.preAggregates || []).length > 0) {
+            const matchResult = findMatch(metricQuery, explore);
+            preAggregateMetadata = {
+                hit: matchResult.hit,
+                name: matchResult.preAggregateName || undefined,
+                reason: matchResult.miss || undefined,
+            };
+
+            if (
+                matchResult.hit &&
+                matchResult.preAggregateName &&
+                context !== QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION
+            ) {
+                preAggregationRoute = {
+                    sourceExploreName: metricQuery.exploreName,
+                    preAggregateName: matchResult.preAggregateName,
+                    mode: 'opportunistic',
+                };
+            }
+        }
+
+        // We compute routing metadata before cache lookup, but only attempt
+        // DuckDB resolution after a cache miss.
+        if (!preAggregationRoute || !resolvePreAggregation) {
+            return {
+                target: 'warehouse',
+                warehouseQuery,
+                preAggregateMetadata,
+                preAggregationRoute,
             };
         }
 
@@ -1620,7 +1606,7 @@ export class AsyncQueryService extends ProjectService {
                     },
                 );
             this.logger.warn(
-                `Required pre-aggregate resolution failed for ${queryUuid}: ${error}`,
+                `Required pre-aggregate resolution failed${queryUuid ? ` for ${queryUuid}` : ''}: ${error}`,
             );
             return {
                 target: 'error',
@@ -1628,6 +1614,8 @@ export class AsyncQueryService extends ProjectService {
                 preAggregateResolved: false,
                 preAggregateResolveReason:
                     PreAggregationDuckDbResolveReason.RESOLVE_ERROR,
+                preAggregateMetadata,
+                preAggregationRoute,
             };
         }
 
@@ -1648,13 +1636,20 @@ export class AsyncQueryService extends ProjectService {
 
         if (preAggResolution?.resolved) {
             this.logger.info(
-                `DuckDB pre-agg route selected for ${queryUuid}: ${preAggregationRoute!.sourceExploreName}/${preAggregationRoute!.preAggregateName}`,
+                `DuckDB pre-agg route selected${queryUuid ? ` for ${queryUuid}` : ''}: ${preAggregationRoute.sourceExploreName}/${preAggregationRoute.preAggregateName}`,
             );
             return {
                 target: 'pre_aggregate',
                 preAggregateQuery: preAggResolution.query,
                 warehouseQuery,
                 preAggregateResolved: true,
+                preAggregateMetadata:
+                    preAggregateMetadata ??
+                    ({
+                        hit: true,
+                        name: preAggregationRoute.preAggregateName,
+                    } satisfies CacheMetadata['preAggregate']),
+                preAggregationRoute,
             };
         }
 
@@ -1671,13 +1666,15 @@ export class AsyncQueryService extends ProjectService {
                     },
                 );
             this.logger.warn(
-                `Required pre-aggregate resolution failed for ${queryUuid}: ${error}`,
+                `Required pre-aggregate resolution failed${queryUuid ? ` for ${queryUuid}` : ''}: ${error}`,
             );
             return {
                 target: 'error',
                 error,
                 preAggregateResolved: false,
                 preAggregateResolveReason: preAggResolution.reason,
+                preAggregateMetadata,
+                preAggregationRoute,
             };
         }
 
@@ -1688,6 +1685,8 @@ export class AsyncQueryService extends ProjectService {
             preAggregateResolveReason:
                 preAggResolution?.reason ??
                 PreAggregationDuckDbResolveReason.RESOLVE_ERROR,
+            preAggregateMetadata,
+            preAggregationRoute,
         };
     }
 
@@ -2444,9 +2443,12 @@ export class AsyncQueryService extends ProjectService {
             sql: string; // SQL generated from metric query or provided by user
             originalColumns?: ResultColumns;
             missingParameterReferences: string[];
-            preAggregationRoute?: PreAggregationRoute;
             userAccessControls?: UserAccessControls;
             availableParameterDefinitions?: ParameterDefinitions;
+            preAggregateStatsContext?: {
+                chartUuid: string;
+                dashboardUuid: string | null;
+            };
         },
         requestParameters: ExecuteAsyncQueryRequestParams,
     ): Promise<ExecuteAsyncQueryReturn> {
@@ -2468,9 +2470,9 @@ export class AsyncQueryService extends ProjectService {
                     missingParameterReferences,
                     pivotConfiguration,
                     parameters,
-                    preAggregationRoute,
                     userAccessControls,
                     availableParameterDefinitions,
+                    preAggregateStatsContext,
                 } = args;
 
                 try {
@@ -2522,24 +2524,6 @@ export class AsyncQueryService extends ProjectService {
                     );
                     span.setAttribute('lightdash.context', context);
                     span.setAttribute('lightdash.exploreName', explore.name);
-                    span.setAttribute(
-                        'lightdash.preAggregate.hasRoute',
-                        !!preAggregationRoute,
-                    );
-                    if (preAggregationRoute) {
-                        span.setAttribute(
-                            'lightdash.preAggregate.mode',
-                            preAggregationRoute.mode,
-                        );
-                        span.setAttribute(
-                            'lightdash.preAggregate.name',
-                            preAggregationRoute.preAggregateName,
-                        );
-                        span.setAttribute(
-                            'lightdash.preAggregate.sourceExplore',
-                            preAggregationRoute.sourceExploreName,
-                        );
-                    }
 
                     const warehouseSqlBuilder = warehouseSqlBuilderFromType(
                         warehouseCredentialsType,
@@ -2564,6 +2548,62 @@ export class AsyncQueryService extends ProjectService {
 
                     const query = pivotedQuery || compiledQuery;
                     span.setAttribute('generatedSql', query);
+
+                    let executionPlan =
+                        await this.resolveAsyncQueryExecutionPlan({
+                            projectUuid,
+                            warehouseQuery: query,
+                            explore,
+                            context,
+                            metricQuery,
+                            dateZoom,
+                            parameters,
+                            fieldsMap,
+                            pivotConfiguration,
+                            startOfWeek: warehouseCredentials.startOfWeek,
+                            userAccessControls,
+                            availableParameterDefinitions,
+                            resolvePreAggregation: false,
+                        });
+
+                    span.setAttribute(
+                        'lightdash.preAggregate.hasRoute',
+                        !!executionPlan.preAggregationRoute,
+                    );
+                    if (executionPlan.preAggregationRoute) {
+                        span.setAttribute(
+                            'lightdash.preAggregate.mode',
+                            executionPlan.preAggregationRoute.mode,
+                        );
+                        span.setAttribute(
+                            'lightdash.preAggregate.name',
+                            executionPlan.preAggregationRoute.preAggregateName,
+                        );
+                        span.setAttribute(
+                            'lightdash.preAggregate.sourceExplore',
+                            executionPlan.preAggregationRoute.sourceExploreName,
+                        );
+                    }
+
+                    if (executionPlan.preAggregateMetadata) {
+                        this.prometheusMetrics?.incrementPreAggregateMatch(
+                            executionPlan.preAggregateMetadata.hit,
+                            executionPlan.preAggregateMetadata.reason?.reason,
+                        );
+                    }
+
+                    if (preAggregateStatsContext) {
+                        this.recordPreAggregateStats({
+                            projectUuid,
+                            exploreName: explore.name,
+                            preAggregateMetadata:
+                                executionPlan.preAggregateMetadata,
+                            chartUuid: preAggregateStatsContext.chartUuid,
+                            dashboardUuid:
+                                preAggregateStatsContext.dashboardUuid,
+                            queryContext: context,
+                        });
+                    }
 
                     const onboardingRecord =
                         await this.onboardingModel.getByOrganizationUuid(
@@ -2645,7 +2685,7 @@ export class AsyncQueryService extends ProjectService {
                     this.prometheusMetrics?.incrementQueryCacheHit(
                         resultsCache.cacheHit || false,
                         queryTags.query_context || 'unknown',
-                        !!preAggregationRoute,
+                        !!executionPlan.preAggregationRoute,
                     );
 
                     if (resultsCache.cacheHit) {
@@ -2684,6 +2724,8 @@ export class AsyncQueryService extends ProjectService {
                                 cacheHit: resultsCache.cacheHit,
                                 cacheUpdatedTime: resultsCache.updatedAt,
                                 cacheExpiresAt: resultsCache.expiresAt,
+                                preAggregate:
+                                    executionPlan.preAggregateMetadata,
                             },
                         } satisfies ExecuteAsyncQueryReturn;
                     }
@@ -2705,27 +2747,33 @@ export class AsyncQueryService extends ProjectService {
                             queryUuid: queryHistoryUuid,
                             cacheMetadata: {
                                 cacheHit: false,
+                                preAggregate:
+                                    executionPlan.preAggregateMetadata,
                             },
                         } satisfies ExecuteAsyncQueryReturn;
                     }
 
-                    const executionPlan =
-                        await this.resolveAsyncQueryExecutionPlan({
-                            projectUuid,
-                            warehouseQuery: query,
-                            metricQuery,
-                            dateZoom,
-                            parameters,
-                            preAggregationRoute,
-                            fieldsMap,
-                            pivotConfiguration,
-                            startOfWeek: warehouseCredentials.startOfWeek,
-                            userAccessControls,
-                            availableParameterDefinitions,
-                            queryUuid: queryHistoryUuid,
-                        });
+                    if (executionPlan.preAggregationRoute) {
+                        executionPlan =
+                            await this.resolveAsyncQueryExecutionPlan({
+                                projectUuid,
+                                warehouseQuery: query,
+                                explore,
+                                context,
+                                metricQuery,
+                                dateZoom,
+                                parameters,
+                                fieldsMap,
+                                pivotConfiguration,
+                                startOfWeek: warehouseCredentials.startOfWeek,
+                                userAccessControls,
+                                availableParameterDefinitions,
+                                queryUuid: queryHistoryUuid,
+                                resolvePreAggregation: true,
+                            });
+                    }
 
-                    if (preAggregationRoute) {
+                    if (executionPlan.preAggregationRoute) {
                         span.setAttribute(
                             'lightdash.preAggregate.resolved',
                             executionPlan.preAggregateResolved === true,
@@ -2762,6 +2810,8 @@ export class AsyncQueryService extends ProjectService {
                             queryUuid: queryHistoryUuid,
                             cacheMetadata: {
                                 cacheHit: false,
+                                preAggregate:
+                                    executionPlan.preAggregateMetadata,
                             },
                         } satisfies ExecuteAsyncQueryReturn;
                     }
@@ -2843,6 +2893,8 @@ export class AsyncQueryService extends ProjectService {
                                 queryUuid: queryHistoryUuid,
                                 cacheMetadata: {
                                     cacheHit: false,
+                                    preAggregate:
+                                        executionPlan.preAggregateMetadata,
                                 },
                             } satisfies ExecuteAsyncQueryReturn;
                         }
@@ -2865,6 +2917,7 @@ export class AsyncQueryService extends ProjectService {
                         queryUuid: queryHistoryUuid,
                         cacheMetadata: {
                             cacheHit: false,
+                            preAggregate: executionPlan.preAggregateMetadata,
                         },
                     } satisfies ExecuteAsyncQueryReturn;
                 } catch (e) {
@@ -2983,19 +3036,6 @@ export class AsyncQueryService extends ProjectService {
             parameters: combinedParameters,
         };
 
-        const routingDecision = this.getPreAggregationRoutingDecision({
-            metricQuery,
-            explore,
-            context,
-        });
-
-        if (routingDecision.preAggregateMetadata) {
-            this.prometheusMetrics?.incrementPreAggregateMatch(
-                routingDecision.preAggregateMetadata.hit,
-                routingDecision.preAggregateMetadata.reason?.reason,
-            );
-        }
-
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
             {
                 account,
@@ -3012,21 +3052,15 @@ export class AsyncQueryService extends ProjectService {
                 originalColumns: undefined,
                 missingParameterReferences,
                 pivotConfiguration,
-                ...(routingDecision.target === 'pre_aggregate' && {
-                    preAggregationRoute: routingDecision.route,
-                    userAccessControls,
-                    availableParameterDefinitions,
-                }),
+                userAccessControls,
+                availableParameterDefinitions,
             },
             requestParameters,
         );
 
         return {
             queryUuid,
-            cacheMetadata: {
-                ...cacheMetadata,
-                preAggregate: routingDecision.preAggregateMetadata,
-            },
+            cacheMetadata,
             metricQuery: responseMetricQuery,
             fields,
             warnings,
@@ -3211,28 +3245,6 @@ export class AsyncQueryService extends ProjectService {
             pivotConfiguration,
         });
 
-        const routingDecision = this.getPreAggregationRoutingDecision({
-            metricQuery: metricQueryWithLimit,
-            explore,
-            context,
-        });
-
-        if (routingDecision.preAggregateMetadata) {
-            this.prometheusMetrics?.incrementPreAggregateMatch(
-                routingDecision.preAggregateMetadata.hit,
-                routingDecision.preAggregateMetadata.reason?.reason,
-            );
-        }
-
-        this.recordPreAggregateStats({
-            projectUuid,
-            exploreName: explore.name,
-            routingDecision,
-            chartUuid: savedChart.uuid,
-            dashboardUuid: null,
-            queryContext: context,
-        });
-
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
             {
                 account,
@@ -3248,21 +3260,19 @@ export class AsyncQueryService extends ProjectService {
                 originalColumns: undefined,
                 missingParameterReferences,
                 pivotConfiguration,
-                ...(routingDecision.target === 'pre_aggregate' && {
-                    preAggregationRoute: routingDecision.route,
-                    userAccessControls,
-                    availableParameterDefinitions,
-                }),
+                userAccessControls,
+                availableParameterDefinitions,
+                preAggregateStatsContext: {
+                    chartUuid: savedChart.uuid,
+                    dashboardUuid: null,
+                },
             },
             requestParameters,
         );
 
         return {
             queryUuid,
-            cacheMetadata: {
-                ...cacheMetadata,
-                preAggregate: routingDecision.preAggregateMetadata,
-            },
+            cacheMetadata,
             metricQuery: responseMetricQuery,
             fields: fieldsWithOverrides,
             warnings,
@@ -3502,28 +3512,6 @@ export class AsyncQueryService extends ProjectService {
             pivotConfiguration,
         });
 
-        const routingDecision = this.getPreAggregationRoutingDecision({
-            metricQuery: metricQueryWithLimit,
-            explore,
-            context,
-        });
-
-        if (routingDecision.preAggregateMetadata) {
-            this.prometheusMetrics?.incrementPreAggregateMatch(
-                routingDecision.preAggregateMetadata.hit,
-                routingDecision.preAggregateMetadata.reason?.reason,
-            );
-        }
-
-        this.recordPreAggregateStats({
-            projectUuid,
-            exploreName: explore.name,
-            routingDecision,
-            chartUuid: savedChart.uuid,
-            dashboardUuid,
-            queryContext: context,
-        });
-
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
             {
                 account,
@@ -3540,21 +3528,19 @@ export class AsyncQueryService extends ProjectService {
                 originalColumns: undefined,
                 missingParameterReferences,
                 pivotConfiguration,
-                ...(routingDecision.target === 'pre_aggregate' && {
-                    preAggregationRoute: routingDecision.route,
-                    userAccessControls,
-                    availableParameterDefinitions,
-                }),
+                userAccessControls,
+                availableParameterDefinitions,
+                preAggregateStatsContext: {
+                    chartUuid: savedChart.uuid,
+                    dashboardUuid,
+                },
             },
             requestParameters,
         );
 
         return {
             queryUuid,
-            cacheMetadata: {
-                ...cacheMetadata,
-                preAggregate: routingDecision.preAggregateMetadata,
-            },
+            cacheMetadata,
             appliedDashboardFilters,
             metricQuery: responseMetricQuery,
             fields: fieldsWithOverrides,
