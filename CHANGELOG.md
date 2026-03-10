@@ -1,3 +1,11 @@
+# [0.2601.0](https://github.com/lightdash/lightdash/compare/0.2600.0...0.2601.0) (2026-03-10)
+
+
+### Features
+
+* add more logs on parquet file reads on duckdb ([#21017](https://github.com/lightdash/lightdash/issues/21017)) ([cc2530a](https://github.com/lightdash/lightdash/commit/cc2530a17a5c0becfb762f18e8c2707969a25853))
+* **cli:** add --oauth-port option for configurable OAuth callback port ([#21016](https://github.com/lightdash/lightdash/issues/21016)) ([a57e595](https://github.com/lightdash/lightdash/commit/a57e59549067582e28828af985f69857049e9981)), closes [#21013](https://github.com/lightdash/lightdash/issues/21013)
+
 # [0.2600.0](https://github.com/lightdash/lightdash/compare/0.2599.0...0.2600.0) (2026-03-10)
 
 
