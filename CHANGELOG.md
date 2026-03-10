@@ -1,3 +1,10 @@
+## [0.2592.1](https://github.com/lightdash/lightdash/compare/0.2592.0...0.2592.1) (2026-03-10)
+
+
+### Bug Fixes
+
+* disable Sankey chart animation in minimal mode ([#20987](https://github.com/lightdash/lightdash/issues/20987)) ([e31a0e0](https://github.com/lightdash/lightdash/commit/e31a0e01ad258a454daeed4bf4904f44d6d17ce4))
+
 # [0.2592.0](https://github.com/lightdash/lightdash/compare/0.2591.1...0.2592.0) (2026-03-10)
 
 
