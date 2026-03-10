@@ -1,6 +1,8 @@
 import { defineConfig } from 'cypress';
 import cypressSplit from 'cypress-split';
-import { readdirSync, unlinkSync } from 'fs';
+import { readdirSync, readFileSync, unlinkSync } from 'fs';
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { load: loadYaml } = require('js-yaml');
 import { join } from 'path';
 
 // If running natively, we want to use environment variables from the host machine
@@ -33,11 +35,13 @@ export default defineConfig({
         trashAssetsBeforeRuns: true,
         experimentalMemoryManagement: true,
         setupNodeEvents(on, config) {
-            // Count dbt models so CLI tests can scale timeouts dynamically
-            const modelsDir = join(
+            // Count dbt models and read thread count so CLI tests can
+            // scale timeouts dynamically based on parallel execution.
+            const demoDir = join(
                 __dirname,
-                '../../examples/full-jaffle-shop-demo/dbt/models',
+                '../../examples/full-jaffle-shop-demo',
             );
+            const modelsDir = join(demoDir, 'dbt/models');
             const countSqlFiles = (dir: string): number =>
                 readdirSync(dir, { withFileTypes: true }).reduce(
                     (count, entry) =>
@@ -49,6 +53,18 @@ export default defineConfig({
                     0,
                 );
             config.env.MODEL_COUNT = countSqlFiles(modelsDir);
+
+            const DBT_DEFAULT_THREADS = 4;
+            const profilesPath = join(demoDir, 'profiles/profiles.yml');
+            const profiles = loadYaml(
+                readFileSync(profilesPath, 'utf8'),
+            ) as Record<string, any>;
+            const targetName =
+                profiles?.jaffle_shop?.target ?? 'jaffle';
+            const threads =
+                profiles?.jaffle_shop?.outputs?.[targetName]?.threads ??
+                DBT_DEFAULT_THREADS;
+            config.env.DBT_THREADS = threads;
 
             cypressSplit(on, config);
 
