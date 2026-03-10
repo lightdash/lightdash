@@ -107,7 +107,10 @@ export class PreAggregateMaterializationService extends BaseService {
             );
         }
 
-        const duckdb = new DuckdbWarehouseClient({ s3Config });
+        const duckdb = new DuckdbWarehouseClient({
+            s3Config,
+            resourceLimits: { memoryLimit: '256MB', threads: 1 },
+        });
 
         const jsonlSqlTable = getDuckdbPreAggregateSqlTable(
             getPreAggregateDuckdbLocator({ uri: jsonlUri, format: 'jsonl' }),

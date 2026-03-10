@@ -11,6 +11,9 @@ import {
     WarehouseResults,
     WarehouseTypes,
 } from '@lightdash/common';
+import fs from 'fs/promises';
+import os from 'os';
+import path from 'path';
 import WarehouseBaseClient from './WarehouseBaseClient';
 import WarehouseBaseSqlBuilder from './WarehouseBaseSqlBuilder';
 
@@ -48,9 +51,15 @@ export type DuckdbS3SessionConfig = {
     useSsl: boolean;
 };
 
+export type DuckdbResourceLimits = {
+    memoryLimit: string; // e.g. '256MB'
+    threads: number; // e.g. 1
+};
+
 export type DuckdbWarehouseClientArgs = {
     databasePath?: string;
     s3Config?: DuckdbS3SessionConfig;
+    resourceLimits?: DuckdbResourceLimits;
 };
 
 const DUCKDB_INTERNAL_CREDENTIALS: CreatePostgresCredentials = {
@@ -126,10 +135,13 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
 
     private readonly s3Config?: DuckdbS3SessionConfig;
 
+    private readonly resourceLimits?: DuckdbResourceLimits;
+
     constructor(args: DuckdbWarehouseClientArgs = {}) {
         super(DUCKDB_INTERNAL_CREDENTIALS, new DuckdbSqlBuilder());
         this.databasePath = args.databasePath ?? ':memory:';
         this.s3Config = args.s3Config;
+        this.resourceLimits = args.resourceLimits;
     }
 
     private getSQLWithMetadata(sql: string, tags?: Record<string, string>) {
@@ -148,19 +160,40 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
         )) as DuckdbInstance;
         const connection = await instance.connect();
 
+        // Only create a temp dir when resource limits are set (spill to disk).
+        const tempDir = this.resourceLimits
+            ? await fs.mkdtemp(path.join(os.tmpdir(), 'duckdb-temp-'))
+            : undefined;
+
         try {
-            await this.bootstrapSession(connection);
+            await this.bootstrapSession(connection, tempDir);
             return await callback(connection);
         } finally {
             connection.closeSync?.();
             connection.disconnectSync?.();
             instance.closeSync?.();
+            if (tempDir) {
+                await fs.rm(tempDir, { recursive: true, force: true }).catch(
+                    () => {}, // best-effort cleanup
+                );
+            }
         }
     }
 
-    private async bootstrapSession(db: DuckdbConnection): Promise<void> {
+    private async bootstrapSession(
+        db: DuckdbConnection,
+        tempDir: string | undefined,
+    ): Promise<void> {
         await db.run('INSTALL httpfs;');
         await db.run('LOAD httpfs;');
+
+        if (this.resourceLimits && tempDir) {
+            await db.run(
+                `SET memory_limit = '${this.resourceLimits.memoryLimit}';`,
+            );
+            await db.run(`SET temp_directory = '${tempDir}';`);
+            await db.run(`SET threads = ${this.resourceLimits.threads};`);
+        }
 
         if (!this.s3Config) {
             return;
