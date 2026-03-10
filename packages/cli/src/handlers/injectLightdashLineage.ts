@@ -22,6 +22,7 @@
  * `node_color` data attribute, which dbt docs' Cytoscape config picks up.
  */
 import { promises as fs } from 'fs';
+import yaml from 'js-yaml';
 import GlobalState from '../globalState';
 
 /** Marker added to meta on all injected nodes, used to identify and clean them up */
@@ -94,7 +95,7 @@ type InjectedSemanticModel = InjectedNodeBase & {
 type InjectedMetric = InjectedNodeBase & {
     resource_type: 'metric';
     type: 'simple' | 'derived';
-    type_params: { measure: { name: string } };
+    type_params: { measure: { name: string }; expr: string };
     filter: null;
 };
 
@@ -297,12 +298,23 @@ function buildSemanticModel(
     };
 }
 
+/** Format the metric description with the original YAML definition appended */
+function buildMetricDescription(
+    metricName: string,
+    metricDef: MetricDef,
+): string {
+    const baseDescription = metricDef.description ?? '';
+    const yamlBlock = yaml.dump({ [metricName]: metricDef }, { lineWidth: -1 });
+    return `${baseDescription}\n\n---\n\n\`\`\`yaml\n${yamlBlock}\`\`\``;
+}
+
 /**
  * Build a dbt metric manifest node for a Lightdash metric.
  * Lightdash "number" type metrics become dbt "derived" metrics (they reference other metrics).
  * All other types (sum, count, average, etc.) become dbt "simple" metrics.
  */
 function buildMetric(
+    metricName: string,
     resolvedName: string,
     metricDef: MetricDef,
     smUniqueId: string,
@@ -317,9 +329,12 @@ function buildMetric(
         resource_type: 'metric',
         name: resolvedName,
         label: metricDef.label ?? resolvedName,
-        description: metricDef.description ?? '',
+        description: buildMetricDescription(metricName, metricDef),
         type: lightdashType === 'number' ? 'derived' : 'simple',
-        type_params: { measure: { name: resolvedName } },
+        type_params: {
+            measure: { name: resolvedName },
+            expr: metricDef.sql ?? '',
+        },
         package_name: packageName,
         path: ymlPath,
         original_file_path: ymlPath,
@@ -532,6 +547,7 @@ function inject(manifest: Manifest): InjectResult {
                 needsPrefix,
             );
             const metricNode = buildMetric(
+                metricName,
                 resolved,
                 metricDef,
                 smUid,
