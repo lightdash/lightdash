@@ -172,23 +172,13 @@ export const DateZoom: FC<Props> = ({ isEditMode }) => {
         });
     }, [dateZoomGranularities, availableCustomGranularities]);
 
-    // View mode: only enabled custom granularities, sorted by label for display
+    // View mode: enabled custom granularities, reusing the sorted order from customGranularities
     const enabledCustomGranularities = useMemo(
         () =>
-            dateZoomGranularities
-                .filter((g) => !isStandardDateGranularity(g))
-                .sort((a, b) => {
-                    const labelA = getGranularityLabel(
-                        a,
-                        availableCustomGranularities,
-                    );
-                    const labelB = getGranularityLabel(
-                        b,
-                        availableCustomGranularities,
-                    );
-                    return labelA.localeCompare(labelB);
-                }),
-        [dateZoomGranularities, availableCustomGranularities],
+            customGranularities.filter((g) =>
+                dateZoomGranularities.includes(g),
+            ),
+        [customGranularities, dateZoomGranularities],
     );
 
     const handleToggleGranularity = useCallback(
