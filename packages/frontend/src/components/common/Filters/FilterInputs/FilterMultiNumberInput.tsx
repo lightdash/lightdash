@@ -141,7 +141,7 @@ const FilterMultiNumberInput: FC<Props> = ({
                     <TagInput
                         w="100%"
                         clearable
-                        autoFocus={autoFocus}
+                        data-autofocus={autoFocus || undefined}
                         size="xs"
                         disabled={disabled}
                         placeholder={placeholder}
