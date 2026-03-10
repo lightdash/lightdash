@@ -299,6 +299,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
     private static async logQueryProfile(
         profilePath: string,
         logger: DuckdbLogger,
+        tags?: Record<string, string>,
     ): Promise<void> {
         try {
             const raw = await fs.readFile(profilePath, 'utf-8');
@@ -312,7 +313,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
             const walk = (node: AnyType): void => {
                 if (node.operator_name) {
                     operators.push({
-                        name: node.operator_name,
+                        name: String(node.operator_name).trim(),
                         timingMs: Math.round(
                             (node.operator_timing ?? 0) * 1000,
                         ),
@@ -329,8 +330,48 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
             const operatorStr = operators
                 .map((op) => `${op.name}=${op.timingMs}ms(${op.rows}rows)`)
                 .join(' ');
+            const latencyMs = Math.round((profile.latency ?? 0) * 1000);
+            const cpuMs = Math.round((profile.cpu_time ?? 0) * 1000);
+            const waitMs = Math.max(latencyMs - cpuMs, 0);
+            const readParquetOperators = operators.filter(
+                (op) => op.name === 'READ_PARQUET',
+            );
+            const readParquetMs =
+                readParquetOperators.length > 0
+                    ? readParquetOperators.reduce(
+                          (sum, op) => sum + op.timingMs,
+                          0,
+                      )
+                    : null;
+            const rowsScanned =
+                readParquetOperators.length > 0
+                    ? readParquetOperators.reduce((sum, op) => sum + op.rows, 0)
+                    : null;
+            const rowsReturned =
+                typeof profile.rows_returned === 'number'
+                    ? profile.rows_returned
+                    : null;
+            const bytesRead =
+                typeof profile.total_bytes_read === 'number'
+                    ? profile.total_bytes_read
+                    : null;
+            const scanAmplification =
+                rowsScanned !== null && rowsReturned !== null
+                    ? rowsScanned / Math.max(rowsReturned, 1)
+                    : null;
             logger.info(
-                `DuckDB query profile: latency=${Math.round((profile.latency ?? 0) * 1000)}ms cpu=${Math.round((profile.cpu_time ?? 0) * 1000)}ms rows=${profile.rows_returned} bytes_read=${profile.total_bytes_read} operators=[${operatorStr}]`,
+                `DuckDB query profile: latency=${latencyMs}ms cpu=${cpuMs}ms rows=${profile.rows_returned} bytes_read=${profile.total_bytes_read} operators=[${operatorStr}]`,
+                {
+                    ...tags,
+                    latencyMs,
+                    cpuMs,
+                    waitMs,
+                    readParquetMs,
+                    bytesRead,
+                    rowsScanned,
+                    rowsReturned,
+                    scanAmplification,
+                },
             );
         } catch {
             // profiling output not available, skip
@@ -397,6 +438,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
                 await DuckdbWarehouseClient.logQueryProfile(
                     profilePath,
                     this.logger!,
+                    options?.tags,
                 );
             }
         });

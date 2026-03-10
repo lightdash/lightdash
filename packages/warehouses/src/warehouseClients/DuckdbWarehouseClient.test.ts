@@ -1,4 +1,5 @@
-import { DimensionType } from '@lightdash/common';
+import { DimensionType, QueryExecutionContext } from '@lightdash/common';
+import fs from 'fs/promises';
 import {
     DuckdbWarehouseClient,
     mapFieldTypeFromTypeId,
@@ -278,5 +279,66 @@ describe('DuckdbWarehouseClient', () => {
         expect(runCalls).toContain("SET s3_region = 'us-east-1';");
         expect(runCalls).toContain("SET TimeZone = 'UTC';");
         expect(streamMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('should log structured DuckDB profile metrics with query tags', async () => {
+        const runMock = jest.fn(async (sql: string) => {
+            const match = sql.match(/^PRAGMA profiling_output='(.+)';$/);
+            if (match) {
+                await fs.writeFile(
+                    match[1],
+                    JSON.stringify({
+                        latency: 4.747,
+                        cpu_time: 4.731,
+                        rows_returned: 68,
+                        total_bytes_read: 20225287,
+                        children: [
+                            {
+                                operator_name: 'READ_PARQUET ',
+                                operator_timing: 4.632,
+                                operator_cardinality: 9905024,
+                                children: [],
+                            },
+                        ],
+                    }),
+                );
+            }
+        });
+        const streamMock = jest.fn(async () =>
+            getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
+        );
+        const logger = { info: jest.fn() };
+
+        createInstanceMock.mockResolvedValue(
+            createMockConnection(streamMock, runMock),
+        );
+
+        const client = new DuckdbWarehouseClient({ logger });
+        await client.runQuery('SELECT 1 AS val', {
+            query_uuid: 'query-123',
+            chart_uuid: 'chart-123',
+            dashboard_uuid: 'dashboard-123',
+            query_context: QueryExecutionContext.DASHBOARD,
+        });
+
+        expect(logger.info).toHaveBeenCalledWith(
+            expect.stringContaining(
+                'DuckDB query profile: latency=4747ms cpu=4731ms',
+            ),
+            expect.objectContaining({
+                query_uuid: 'query-123',
+                chart_uuid: 'chart-123',
+                dashboard_uuid: 'dashboard-123',
+                query_context: QueryExecutionContext.DASHBOARD,
+                latencyMs: 4747,
+                cpuMs: 4731,
+                waitMs: 16,
+                readParquetMs: 4632,
+                rowsScanned: 9905024,
+                rowsReturned: 68,
+                bytesRead: 20225287,
+                scanAmplification: 9905024 / 68,
+            }),
+        );
     });
 });

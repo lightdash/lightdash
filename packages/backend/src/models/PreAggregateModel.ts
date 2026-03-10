@@ -453,6 +453,7 @@ export class PreAggregateModel {
                     | 'materialization_uri'
                     | 'columns'
                     | 'materialized_at'
+                    | 'total_bytes'
                 >[]
             >([
                 `${PreAggregateMaterializationsTableName}.pre_aggregate_materialization_uuid`,
@@ -460,6 +461,7 @@ export class PreAggregateModel {
                 `${PreAggregateMaterializationsTableName}.materialization_uri`,
                 `${PreAggregateMaterializationsTableName}.columns`,
                 `${PreAggregateMaterializationsTableName}.materialized_at`,
+                `${PreAggregateMaterializationsTableName}.total_bytes`,
             ])
             .orderBy(
                 `${PreAggregateMaterializationsTableName}.materialized_at`,
@@ -485,6 +487,7 @@ export class PreAggregateModel {
                 : 'jsonl',
             columns: row.columns,
             materializedAt: row.materialized_at,
+            totalBytes: row.total_bytes,
         };
     }
 
