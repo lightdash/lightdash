@@ -1,3 +1,12 @@
+## [0.2602.1](https://github.com/lightdash/lightdash/compare/0.2602.0...0.2602.1) (2026-03-10)
+
+
+### Bug Fixes
+
+* **cli:** linting/formatting ([#21022](https://github.com/lightdash/lightdash/issues/21022)) ([2a50bb3](https://github.com/lightdash/lightdash/commit/2a50bb3d5c054a22f52232056906b605decb9c28)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+* data-autofocus for dashboard filters ([#21021](https://github.com/lightdash/lightdash/issues/21021)) ([45ad59e](https://github.com/lightdash/lightdash/commit/45ad59e5dbb5973e67d7774c21b50aa084addfb4))
+* limit NATS consumer to single message per consume call ([#21020](https://github.com/lightdash/lightdash/issues/21020)) ([356911c](https://github.com/lightdash/lightdash/commit/356911c96e8f1be4387341fe06204578a4186578)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
 # [0.2602.0](https://github.com/lightdash/lightdash/compare/0.2601.0...0.2602.0) (2026-03-10)
 
 
