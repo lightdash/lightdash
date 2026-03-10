@@ -14,6 +14,7 @@ import { generatePersonalAccessToken } from './login/pat';
 
 export const loginWithOauth = async (
     url: string,
+    oauthPort?: number,
 ): Promise<{ userUuid: string; organizationUuid: string; token: string }> => {
     // Create a promise that will be resolved when we get the authorization code
     let resolveAuth: (value: { code: string; state: string }) => void;
@@ -24,7 +25,17 @@ export const loginWithOauth = async (
             rejectAuth = reject;
         },
     );
-    let port = 0; // Port will be set by once the CLI callback server starts, using a random port number
+    const envPortStr = process.env.LIGHTDASH_OAUTH_PORT;
+    const envPort = envPortStr ? parseInt(envPortStr, 10) : undefined;
+    if (
+        envPort !== undefined &&
+        (isNaN(envPort) || envPort < 1 || envPort > 65535)
+    ) {
+        throw new Error(
+            'LIGHTDASH_OAUTH_PORT must be a number between 1 and 65535',
+        );
+    }
+    let port = oauthPort ?? envPort ?? 0; // CLI flag > env var > random
 
     // Generate PKCE values using openid-client generators
     const codeVerifier = generators.codeVerifier();
@@ -111,7 +122,7 @@ export const loginWithOauth = async (
 
     // Start the server
     await new Promise<void>((resolve) => {
-        server.listen(0, () => {
+        server.listen(port, () => {
             const address = server.address();
             if (address === null)
                 throw new Error('Failed to get server address');
