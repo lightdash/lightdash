@@ -26,7 +26,6 @@ import {
     SessionUser,
     UnexpectedServerError,
 } from '@lightdash/common';
-import { attempt, isError } from 'lodash';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
@@ -188,20 +187,22 @@ export class RenameService extends BaseService {
         });
 
         switch (type) {
-            case RenameType.MODEL:
+            case RenameType.MODEL: {
                 // Verify the model we want to assign to really exists, or the one we are renaming from
-                const toExists = attempt(() =>
+                const [toResult, fromResult] = await Promise.allSettled([
                     this.projectModel.getExploreFromCache(projectUuid, to),
-                );
-                const fromExists = attempt(() =>
                     this.projectModel.getExploreFromCache(projectUuid, from),
-                );
-                if (isError(toExists) && isError(fromExists)) {
+                ]);
+                if (
+                    toResult.status === 'rejected' &&
+                    fromResult.status === 'rejected'
+                ) {
                     throw new NotFoundError(
                         `Neither "${from}" nor "${to}" explores exist in the project.`,
                     );
                 }
                 break;
+            }
             case RenameType.FIELD:
                 // When renaming a field from a chart, we validate that the target field exists
                 // and ensure we're not trying to rename to a custom field (table calculation, custom metric, or custom dimension)
@@ -461,13 +462,19 @@ export class RenameService extends BaseService {
 
         switch (type) {
             case RenameType.MODEL: {
-                const toExists = attempt(() =>
-                    this.projectModel.getExploreFromCache(projectUuid, to),
+                const [dashToResult, dashFromResult] = await Promise.allSettled(
+                    [
+                        this.projectModel.getExploreFromCache(projectUuid, to),
+                        this.projectModel.getExploreFromCache(
+                            projectUuid,
+                            from,
+                        ),
+                    ],
                 );
-                const fromExists = attempt(() =>
-                    this.projectModel.getExploreFromCache(projectUuid, from),
-                );
-                if (isError(toExists) && isError(fromExists)) {
+                if (
+                    dashToResult.status === 'rejected' &&
+                    dashFromResult.status === 'rejected'
+                ) {
                     throw new NotFoundError(
                         `Neither "${from}" nor "${to}" explores exist in the project.`,
                     );

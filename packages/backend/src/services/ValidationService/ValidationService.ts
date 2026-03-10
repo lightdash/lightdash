@@ -688,7 +688,9 @@ export class ValidationService extends BaseService {
                                 acc,
                                 fieldIds: existingFieldIds,
                                 fieldId: filter.target.fieldId,
-                                error: `Filter error: the field '${filter.target.fieldId}' no longer exists`,
+                                error: tableName
+                                    ? `Filter error: the field '${filter.target.fieldId}' on table '${tableName}' no longer exists`
+                                    : `Filter error: the field '${filter.target.fieldId}' no longer exists`,
                                 errorType: ValidationErrorType.Filter,
                                 fieldName: filter.target.fieldId,
                             });
@@ -735,7 +737,9 @@ export class ValidationService extends BaseService {
                                     acc,
                                     fieldIds: existingFieldIds,
                                     fieldId: tileTarget.fieldId,
-                                    error: `Filter error: the field '${tileTarget.fieldId}' no longer exists`,
+                                    error: tableName
+                                        ? `Filter error: the field '${tileTarget.fieldId}' on table '${tableName}' no longer exists`
+                                        : `Filter error: the field '${tileTarget.fieldId}' no longer exists`,
                                     errorType: ValidationErrorType.Filter,
                                     fieldName: tileTarget.fieldId,
                                 });

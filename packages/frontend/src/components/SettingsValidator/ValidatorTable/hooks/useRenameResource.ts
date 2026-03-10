@@ -213,7 +213,7 @@ export const useRenameDashboard = () => {
 
             if (fixAll && job?.jobId) {
                 showToastInfo({
-                    key: 'rename_references_toast',
+                    key: 'rename_dashboard_references_toast',
                     title: `Updating ${type} "${from}" in other charts and dashboards...`,
                 });
                 pollJobStatus(job.jobId)
@@ -223,14 +223,14 @@ export const useRenameDashboard = () => {
                         const totalDashboards =
                             status?.results?.dashboards?.length || 0;
                         showToastSuccess({
-                            key: 'rename_references_toast',
+                            key: 'rename_dashboard_references_toast',
                             title: `Success! ${type} "${from}" was renamed on ${totalCharts} charts and ${totalDashboards} dashboards`,
                         });
                     })
                     .catch((e) => {
                         console.error(e);
                         showToastError({
-                            key: 'rename_references_toast',
+                            key: 'rename_dashboard_references_toast',
                             title: `Unable to rename other ${type}s`,
                             subtitle: getErrorMessage(e),
                         });

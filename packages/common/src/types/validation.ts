@@ -124,6 +124,7 @@ export enum ValidationErrorType {
 
 export enum DashboardFilterValidationErrorType {
     FieldDoesNotExist = 'field_does_not_exist',
+    FieldTableMismatch = 'field_table_mismatch',
     TableNotUsedByAnyChart = 'table_not_used_by_any_chart',
     TableDoesNotExist = 'table_does_not_exist',
 }
@@ -151,7 +152,8 @@ export const isDashboardValidationError = (
 
 /**
  * Checks if a dashboard validation error is fixable via rename.
- * Currently fixable: FieldDoesNotExist (field renamed) and TableDoesNotExist (model renamed).
+ * Fixable: FieldDoesNotExist (field renamed), TableDoesNotExist (model renamed),
+ * FieldTableMismatch (field doesn't match table after model rename).
  */
 export const isFixableDashboardValidationError = (
     error: ValidationResponse,
@@ -162,7 +164,9 @@ export const isFixableDashboardValidationError = (
     (error.dashboardFilterErrorType ===
         DashboardFilterValidationErrorType.FieldDoesNotExist ||
         error.dashboardFilterErrorType ===
-            DashboardFilterValidationErrorType.TableDoesNotExist);
+            DashboardFilterValidationErrorType.TableDoesNotExist ||
+        error.dashboardFilterErrorType ===
+            DashboardFilterValidationErrorType.FieldTableMismatch);
 
 export enum ValidationTarget {
     CHARTS = 'charts',

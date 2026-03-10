@@ -805,9 +805,13 @@ export const renameDashboard = (
 
     let hasChanges = false;
 
-    const containsModelName = buildModelNameChecker([
-        addSuffixIfPrefix(nameChanges.from, isPrefix),
-    ]);
+    const searchTerms = isPrefix
+        ? [
+              addSuffixIfPrefix(nameChanges.from, true), // "model_" for fieldId matches
+              nameChanges.from, // "model" for tableName matches
+          ]
+        : [nameChanges.from];
+    const containsModelName = buildModelNameChecker(searchTerms);
 
     if (!containsModelName(dashboard)) {
         return { updatedDashboard: dashboard, hasChanges: false };

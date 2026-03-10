@@ -69,6 +69,14 @@ const ErrorMessageByType: FC<{
                             no longer exists
                         </Text>
                     );
+                case DashboardFilterValidationErrorType.FieldTableMismatch:
+                    return (
+                        <Text fz={11}>
+                            <CustomMark>{validationError.fieldName}</CustomMark>{' '}
+                            does not match table{' '}
+                            <CustomMark>{validationError.tableName}</CustomMark>
+                        </Text>
+                    );
                 default:
                     return <Text fz={11}>{validationError.error}</Text>;
             }

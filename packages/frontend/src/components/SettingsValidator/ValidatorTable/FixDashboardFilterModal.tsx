@@ -20,9 +20,8 @@ import {
     TextInput,
     Tooltip,
 } from '@mantine-8/core';
-import { useForm } from '@mantine/form';
 import { IconTool } from '@tabler/icons-react';
-import { useMemo, useState, type FC } from 'react';
+import { useMemo, useState, type FC, type FormEvent } from 'react';
 import { useExplores } from '../../../hooks/useExplores';
 import Callout from '../../common/Callout';
 import MantineModal from '../../common/MantineModal';
@@ -50,7 +49,9 @@ export const FixDashboardFilterModal: FC<Props> = ({
     // Determine the default rename type based on the error
     const defaultRenameType =
         validationError?.dashboardFilterErrorType ===
-        DashboardFilterValidationErrorType.TableDoesNotExist
+            DashboardFilterValidationErrorType.TableDoesNotExist ||
+        validationError?.dashboardFilterErrorType ===
+            DashboardFilterValidationErrorType.FieldTableMismatch
             ? RenameType.MODEL
             : RenameType.FIELD;
 
@@ -59,27 +60,14 @@ export const FixDashboardFilterModal: FC<Props> = ({
     const [newName, setNewName] = useState('');
     const [fixAll, setFixAll] = useState(false);
     const [search, setSearch] = useState('');
-    const form = useForm<{}>();
 
     const fieldName = validationError?.fieldName;
     const tableName = validationError?.tableName;
 
-    // Derive the table name from fieldName for field renames
-    // fieldId format: tableName_fieldName (e.g., "payments_amount")
-    const fieldTableName = useMemo(() => {
-        if (tableName) return tableName;
-        if (!fieldName) return '';
-        // Best-effort: split on first underscore
-        const underscoreIndex = fieldName.indexOf('_');
-        return underscoreIndex > 0
-            ? fieldName.substring(0, underscoreIndex)
-            : fieldName;
-    }, [fieldName, tableName]);
-
     const { data: fields, isError: isFieldsError } = useFieldsForDashboard(
         validationError?.projectUuid,
         dashboardUuid ?? undefined,
-        renameType === RenameType.FIELD ? fieldTableName : undefined,
+        renameType === RenameType.FIELD ? tableName : undefined,
     );
 
     const { data: explores } = useExplores(validationError?.projectUuid, true);
@@ -114,7 +102,7 @@ export const FixDashboardFilterModal: FC<Props> = ({
                     e.fieldName === validationError.fieldName,
             ).length;
         } else if (renameType === RenameType.MODEL) {
-            const model = oldName ?? tableName ?? fieldTableName;
+            const model = oldName ?? tableName;
             return allValidationErrors.filter(
                 (e) =>
                     isFixableDashboardValidationError(e) &&
@@ -127,16 +115,9 @@ export const FixDashboardFilterModal: FC<Props> = ({
                 `Unexpected rename type ${renameType}`,
             );
         }
-    }, [
-        validationError,
-        allValidationErrors,
-        renameType,
-        oldName,
-        tableName,
-        fieldTableName,
-    ]);
+    }, [validationError, allValidationErrors, renameType, oldName, tableName]);
 
-    if (!validationError) {
+    if (!validationError || !dashboardUuid) {
         return null;
     }
 
@@ -146,20 +127,21 @@ export const FixDashboardFilterModal: FC<Props> = ({
         setNewName('');
         setFixAll(false);
         setSearch('');
-        form.reset();
         onClose();
     };
 
-    const handleConfirm = form.onSubmit(() => {
+    const handleConfirm = (e: FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+
         const fromValue =
             renameType === RenameType.FIELD
                 ? oldName || fieldName || ''
-                : oldName || tableName || fieldTableName || '';
+                : oldName || tableName || '';
 
         renameDashboard({
             from: fromValue,
             to: newName,
-            dashboardUuid: validationError.dashboardUuid!,
+            dashboardUuid,
             fixAll,
             projectUuid: validationError.projectUuid,
             resourceUrl: getLinkToResource(
@@ -169,9 +151,8 @@ export const FixDashboardFilterModal: FC<Props> = ({
             type: renameType,
         });
 
-        form.reset();
         handleClose();
-    });
+    };
 
     const FIX_DASHBOARD_FORM_ID = 'fix-dashboard-filter-form';
 
@@ -232,9 +213,7 @@ export const FixDashboardFilterModal: FC<Props> = ({
                                     setOldName(fieldName);
                                     break;
                                 case RenameType.MODEL:
-                                    setOldName(
-                                        tableName ?? fieldTableName ?? '',
-                                    );
+                                    setOldName(tableName ?? '');
                                     break;
                                 default:
                                     assertUnreachable(
@@ -260,7 +239,7 @@ export const FixDashboardFilterModal: FC<Props> = ({
                             <Tooltip
                                 withinPortal
                                 disabled={!isFieldsError}
-                                label={`Could not find any fields on explore ${fieldTableName}. Perhaps you want to replace the model instead?`}
+                                label={`Could not find any fields on explore ${tableName}. Perhaps you want to replace the model instead?`}
                             >
                                 <Box>
                                     <Select
@@ -294,22 +273,9 @@ export const FixDashboardFilterModal: FC<Props> = ({
                             <TextInput
                                 disabled
                                 label="Old model"
-                                value={
-                                    oldName ?? tableName ?? fieldTableName ?? ''
-                                }
+                                value={oldName ?? tableName ?? ''}
                             />
                             <Select
-                                searchValue={search}
-                                onSearchChange={setSearch}
-                                renderOption={({ option }) => (
-                                    <Highlight
-                                        highlight={search}
-                                        fz="sm"
-                                        color="yellow"
-                                    >
-                                        {option.label}
-                                    </Highlight>
-                                )}
                                 data={explores?.map((e) => e.name) || []}
                                 required
                                 searchable
