@@ -1065,6 +1065,8 @@ describe('sqlContainsAggregation', () => {
             ['covar_samp(${x}, ${y})', true],
             ['mode(${field})', true],
             ['approx_percentile(${field}, 0.5)', true],
+            ["COUNT_IF(${field} <> 'n/a')", true],
+            ['countif(${field} > 0)', true],
         ])('"%s" should return %s', (sql, expected) => {
             expect(sqlContainsAggregation(sql)).toBe(expected);
         });

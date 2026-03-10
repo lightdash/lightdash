@@ -66,7 +66,7 @@ type Reference = {
  * like "summary" matching "sum".
  */
 const SQL_AGGREGATION_FUNCTIONS_PATTERN =
-    /\b(sum|count|avg|average|min|max|median|stddev|stddev_pop|stddev_samp|variance|var_pop|var_samp|percentile|percentile_cont|percentile_disc|count_distinct|approx_count_distinct|any_value|array_agg|string_agg|group_concat|listagg|corr|covar_pop|covar_samp|mode|approx_percentile)\s*\(/i;
+    /\b(sum|count_if|countif|count|avg|average|min|max|median|stddev|stddev_pop|stddev_samp|variance|var_pop|var_samp|percentile|percentile_cont|percentile_disc|count_distinct|approx_count_distinct|any_value|array_agg|string_agg|group_concat|listagg|corr|covar_pop|covar_samp|mode|approx_percentile)\s*\(/i;
 
 /**
  * Check if the SQL contains any aggregation functions.
