@@ -1,3 +1,10 @@
+# [0.2598.0](https://github.com/lightdash/lightdash/compare/0.2597.0...0.2598.0) (2026-03-10)
+
+
+### Features
+
+* track performance of pre aggregate queries ([#21011](https://github.com/lightdash/lightdash/issues/21011)) ([b112d1c](https://github.com/lightdash/lightdash/commit/b112d1c0df60967dd4bd6816f3d16910f701ef15))
+
 # [0.2597.0](https://github.com/lightdash/lightdash/compare/0.2596.0...0.2597.0) (2026-03-10)
 
 
