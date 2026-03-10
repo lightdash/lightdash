@@ -186,12 +186,9 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
             const queryMs = performance.now() - queryStart;
 
             const totalMs = performance.now() - sessionStart;
-            this.logger?.info('DuckDB session timing', {
-                connectMs: Math.round(connectMs),
-                bootstrapMs: Math.round(bootstrapMs),
-                queryMs: Math.round(queryMs),
-                totalMs: Math.round(totalMs),
-            });
+            this.logger?.info(
+                `DuckDB session timing: connect=${Math.round(connectMs)}ms bootstrap=${Math.round(bootstrapMs)}ms query=${Math.round(queryMs)}ms total=${Math.round(totalMs)}ms`,
+            );
 
             return result;
         } finally {
@@ -227,10 +224,9 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
         }
 
         if (!this.s3Config) {
-            this.logger?.info('DuckDB bootstrap timing', {
-                installHttpfsMs: Math.round(installMs),
-                loadHttpfsMs: Math.round(loadMs),
-            });
+            this.logger?.info(
+                `DuckDB bootstrap timing: install_httpfs=${Math.round(installMs)}ms load_httpfs=${Math.round(loadMs)}ms`,
+            );
             return;
         }
 
@@ -269,11 +265,9 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
         );
         const s3ConfigMs = performance.now() - t2;
 
-        this.logger?.info('DuckDB bootstrap timing', {
-            installHttpfsMs: Math.round(installMs),
-            loadHttpfsMs: Math.round(loadMs),
-            s3ConfigMs: Math.round(s3ConfigMs),
-        });
+        this.logger?.info(
+            `DuckDB bootstrap timing: install_httpfs=${Math.round(installMs)}ms load_httpfs=${Math.round(loadMs)}ms s3_config=${Math.round(s3ConfigMs)}ms`,
+        );
     }
 
     private getBindValues(options?: {
@@ -300,6 +294,49 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
         }
 
         return undefined;
+    }
+
+    private static async logQueryProfile(
+        profilePath: string,
+        logger: DuckdbLogger,
+    ): Promise<void> {
+        try {
+            const raw = await fs.readFile(profilePath, 'utf-8');
+            const profile = JSON.parse(raw);
+
+            const operators: {
+                name: string;
+                timingMs: number;
+                rows: number;
+            }[] = [];
+            const walk = (node: AnyType): void => {
+                if (node.operator_name) {
+                    operators.push({
+                        name: node.operator_name,
+                        timingMs: Math.round(
+                            (node.operator_timing ?? 0) * 1000,
+                        ),
+                        rows: node.operator_cardinality ?? 0,
+                    });
+                }
+                // eslint-disable-next-line no-restricted-syntax
+                for (const child of node.children ?? []) {
+                    walk(child);
+                }
+            };
+            walk(profile);
+
+            const operatorStr = operators
+                .map((op) => `${op.name}=${op.timingMs}ms(${op.rows}rows)`)
+                .join(' ');
+            logger.info(
+                `DuckDB query profile: latency=${Math.round((profile.latency ?? 0) * 1000)}ms cpu=${Math.round((profile.cpu_time ?? 0) * 1000)}ms rows=${profile.rows_returned} bytes_read=${profile.total_bytes_read} operators=[${operatorStr}]`,
+            );
+        } catch {
+            // profiling output not available, skip
+        } finally {
+            await fs.rm(profilePath, { force: true }).catch(() => {});
+        }
     }
 
     private static getFieldsFromStreamResult(
@@ -332,6 +369,18 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
                 );
             }
 
+            const profilePath = this.logger
+                ? path.join(
+                      os.tmpdir(),
+                      `duckdb-profile-${Date.now()}-${Math.random().toString(36).slice(2)}.json`,
+                  )
+                : undefined;
+
+            if (profilePath) {
+                await db.run("PRAGMA enable_profiling='json';");
+                await db.run(`PRAGMA profiling_output='${profilePath}';`);
+            }
+
             const result = await db.stream(
                 this.getSQLWithMetadata(sql, options?.tags),
                 this.getBindValues(options),
@@ -342,6 +391,13 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
             // eslint-disable-next-line no-restricted-syntax
             for await (const rows of result.yieldRowObjectJson()) {
                 await streamCallback({ fields, rows });
+            }
+
+            if (profilePath) {
+                await DuckdbWarehouseClient.logQueryProfile(
+                    profilePath,
+                    this.logger!,
+                );
             }
         });
     }

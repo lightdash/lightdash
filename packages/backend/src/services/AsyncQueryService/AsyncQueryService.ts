@@ -1848,6 +1848,8 @@ export class AsyncQueryService extends ProjectService {
                 sshTunnel = warehouseConnection.sshTunnel;
             }
 
+            const t0 = Date.now();
+
             this.logger.info(
                 `Running query ${queryUuid} source=${executionSource}`,
             );
@@ -1870,6 +1872,8 @@ export class AsyncQueryService extends ProjectService {
                       },
                   )
                 : undefined;
+
+            const s3StreamCreatedMs = Date.now() - t0;
 
             const createdAt = new Date();
             const newExpiresAt = this.getCacheExpiresAt(createdAt);
@@ -1953,6 +1957,8 @@ export class AsyncQueryService extends ProjectService {
                 },
             });
 
+            const queryExecMs = Date.now() - queryStartTime;
+
             if (stream) {
                 // Wait for the file to be written before marking the query as ready
                 const s3UploadStart = Date.now();
@@ -1995,6 +2001,7 @@ export class AsyncQueryService extends ProjectService {
                 });
             }
 
+            const dbUpdateStart = Date.now();
             await this.queryHistoryModel.update(
                 queryUuid,
                 projectUuid,
@@ -2019,6 +2026,17 @@ export class AsyncQueryService extends ProjectService {
                     original_columns: originalColumns,
                 },
                 queryHistoryAccount,
+            );
+            const dbUpdateMs = Date.now() - dbUpdateStart;
+
+            const totalMs = Date.now() - t0;
+            const s3UploadCloseMs = stream
+                ? Math.round(
+                      totalMs - queryExecMs - s3StreamCreatedMs - dbUpdateMs,
+                  )
+                : 0;
+            this.logger.info(
+                `Query ${queryUuid} completed: source=${executionSource} s3_stream_create=${s3StreamCreatedMs}ms query_exec=${queryExecMs}ms s3_upload_close=${s3UploadCloseMs}ms db_update=${dbUpdateMs}ms total=${totalMs}ms rows=${pivotDetails?.totalRows ?? totalRows}`,
             );
 
             // Track successful query in Prometheus
@@ -2588,12 +2606,15 @@ export class AsyncQueryService extends ProjectService {
                         },
                     );
 
+                    const cacheCheckStart = Date.now();
                     const resultsCache = await this.findResultsCache(
                         projectUuid,
                         cacheKey,
                         args.invalidateCache,
                     );
+                    const cacheCheckMs = Date.now() - cacheCheckStart;
 
+                    const historyCreateStart = Date.now();
                     const { queryUuid: queryHistoryUuid } =
                         await this.queryHistoryModel.create(account, {
                             projectUuid,
@@ -2606,6 +2627,7 @@ export class AsyncQueryService extends ProjectService {
                             cacheKey,
                             pivotConfiguration: pivotConfiguration ?? null,
                         });
+                    const historyCreateMs = Date.now() - historyCreateStart;
 
                     this.analytics.trackAccount(account, {
                         event: 'query.executed',
@@ -2704,6 +2726,7 @@ export class AsyncQueryService extends ProjectService {
                         } satisfies ExecuteAsyncQueryReturn;
                     }
 
+                    const resolveStart = Date.now();
                     const executionPlan =
                         await this.resolveAsyncQueryExecutionPlan({
                             projectUuid,
@@ -2719,6 +2742,11 @@ export class AsyncQueryService extends ProjectService {
                             availableParameterDefinitions,
                             queryUuid: queryHistoryUuid,
                         });
+                    const resolveMs = Date.now() - resolveStart;
+
+                    this.logger.info(
+                        `Query ${queryHistoryUuid} orchestration: cache_check=${cacheCheckMs}ms history_create=${historyCreateMs}ms resolve_plan=${resolveMs}ms target=${executionPlan.target}`,
+                    );
 
                     if (preAggregationRoute) {
                         span.setAttribute(
@@ -2935,19 +2963,24 @@ export class AsyncQueryService extends ProjectService {
             query_context: context,
         };
 
+        const metricQueryStart = Date.now();
+
         const explore = await this.getExplore(
             account,
             projectUuid,
             metricQuery.exploreName,
             organizationUuid,
         );
+        const getExploreMs = Date.now() - metricQueryStart;
 
+        const whCredStart = Date.now();
         const warehouseCredentials = await this.getWarehouseCredentials({
             projectUuid,
             userId: account.user.id,
             isRegisteredUser: account.isRegisteredUser(),
             isServiceAccount: account.isServiceAccount(),
         });
+        const getWarehouseCredentialsMs = Date.now() - whCredStart;
 
         const warehouseSqlBuilder = warehouseSqlBuilderFromType(
             warehouseCredentials.type,
@@ -2961,6 +2994,7 @@ export class AsyncQueryService extends ProjectService {
             parameters,
         );
 
+        const prepareStart = Date.now();
         const {
             sql,
             fields,
@@ -2981,6 +3015,7 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             pivotConfiguration,
         });
+        const prepareMs = Date.now() - prepareStart;
 
         const requestParameters: ExecuteAsyncMetricQueryRequestParams = {
             context,
@@ -2993,6 +3028,10 @@ export class AsyncQueryService extends ProjectService {
             explore,
             context,
         });
+
+        this.logger.info(
+            `Metric query prep for ${metricQuery.exploreName}: get_explore=${getExploreMs}ms get_wh_credentials=${getWarehouseCredentialsMs}ms prepare_query=${prepareMs}ms routing=${routingDecision.target} total=${Date.now() - metricQueryStart}ms`,
+        );
 
         if (routingDecision.preAggregateMetadata) {
             this.prometheusMetrics?.incrementPreAggregateMatch(
