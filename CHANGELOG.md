@@ -1,3 +1,18 @@
+# [0.2597.0](https://github.com/lightdash/lightdash/compare/0.2596.0...0.2597.0) (2026-03-10)
+
+
+### Bug Fixes
+
+* allow enabling pre-aggregates w/o NATS ([#21009](https://github.com/lightdash/lightdash/issues/21009)) ([94787a4](https://github.com/lightdash/lightdash/commit/94787a45621e47db91e4047c7887ed15fb63454d))
+* configure NATS stream to use memory storage ([#21007](https://github.com/lightdash/lightdash/issues/21007)) ([141b0d2](https://github.com/lightdash/lightdash/commit/141b0d2149c5cd77a1134203c8146068a7b27796))
+
+
+### Features
+
+* add count_if and countif SQL aggregation function support ([#21006](https://github.com/lightdash/lightdash/issues/21006)) ([9e155d7](https://github.com/lightdash/lightdash/commit/9e155d731afae6ab3ce8ec3d95f69da1b4367a97))
+* add ordering and compression to pre-aggregate parquet export ([#21005](https://github.com/lightdash/lightdash/issues/21005)) ([956dac2](https://github.com/lightdash/lightdash/commit/956dac2e5b452e0b6a2c9d528683914bdafcfed7))
+* add pre_aggregates config to orders model ([#20994](https://github.com/lightdash/lightdash/issues/20994)) ([4529e88](https://github.com/lightdash/lightdash/commit/4529e88c0194d80bea2ed0be23a2e8a58699224b))
+
 # [0.2596.0](https://github.com/lightdash/lightdash/compare/0.2595.1...0.2596.0) (2026-03-10)
 
 
