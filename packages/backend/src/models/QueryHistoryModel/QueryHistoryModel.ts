@@ -27,6 +27,7 @@ function convertDbQueryHistoryToQueryHistory(
             queryHistory.created_by_account,
         createdByUserUuid: queryHistory.created_by_user_uuid,
         createdByAccount: queryHistory.created_by_account,
+        createdByActorType: queryHistory.created_by_actor_type,
         organizationUuid: queryHistory.organization_uuid,
         projectUuid: queryHistory.project_uuid,
         compiledSql: queryHistory.compiled_sql,
@@ -51,6 +52,7 @@ function convertDbQueryHistoryToQueryHistory(
         resultsExpiresAt: queryHistory.results_expires_at,
         columns: queryHistory.columns,
         originalColumns: queryHistory.original_columns,
+        preAggregateCompiledSql: queryHistory.pre_aggregate_compiled_sql,
     };
 }
 
@@ -112,8 +114,10 @@ export class QueryHistoryModel {
             | 'resultsExpiresAt'
             | 'columns'
             | 'originalColumns'
+            | 'preAggregateCompiledSql'
             | 'createdByAccount'
             | 'createdByUserUuid'
+            | 'createdByActorType'
             | 'createdBy'
         >,
     ) {
@@ -126,6 +130,7 @@ export class QueryHistoryModel {
                 created_by_account: account.isAnonymousUser()
                     ? account.user.id
                     : null,
+                created_by_actor_type: account.authentication.type,
                 organization_uuid: queryHistory.organizationUuid,
                 project_uuid: queryHistory.projectUuid,
                 compiled_sql: queryHistory.compiledSql,
@@ -149,6 +154,7 @@ export class QueryHistoryModel {
                 results_expires_at: null,
                 columns: null,
                 original_columns: null,
+                pre_aggregate_compiled_sql: null,
             })
             .returning('query_uuid');
 
