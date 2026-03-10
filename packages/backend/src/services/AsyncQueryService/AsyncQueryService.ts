@@ -403,12 +403,7 @@ export class AsyncQueryService extends ProjectService {
     }
 
     private isPreAggregationExecutionEnabled(): boolean {
-        // Pre-aggregate execution is currently a NATS-only path. Keep the
-        // metadata and execution planners aligned on the same feature gate.
-        return (
-            this.lightdashConfig.preAggregates.enabled &&
-            this.lightdashConfig.natsWorker.enabled
-        );
+        return this.lightdashConfig.preAggregates.enabled;
     }
 
     private getResultsStorageClientForContext(
@@ -2781,6 +2776,18 @@ export class AsyncQueryService extends ProjectService {
                         originalColumns,
                     };
 
+                    if (executionPlan.target === 'pre_aggregate') {
+                        await this.queryHistoryModel.update(
+                            queryHistoryUuid,
+                            projectUuid,
+                            {
+                                pre_aggregate_compiled_sql:
+                                    executionPlan.preAggregateQuery,
+                            },
+                            account,
+                        );
+                    }
+
                     if (this.lightdashConfig.natsWorker.enabled) {
                         this.logger.info(
                             `Enqueueing query ${queryHistoryUuid} on NATS JetStream (${executionPlan.target})`,
@@ -2790,19 +2797,6 @@ export class AsyncQueryService extends ProjectService {
                             const natsPayload = {
                                 queryUuid: queryHistoryUuid,
                             };
-
-                            // Store pre-aggregate SQL in query_history before dispatching
-                            if (executionPlan.target === 'pre_aggregate') {
-                                await this.queryHistoryModel.update(
-                                    queryHistoryUuid,
-                                    projectUuid,
-                                    {
-                                        pre_aggregate_compiled_sql:
-                                            executionPlan.preAggregateQuery,
-                                    },
-                                    account,
-                                );
-                            }
 
                             const { jobId } =
                                 executionPlan.target === 'pre_aggregate'
@@ -2851,14 +2845,25 @@ export class AsyncQueryService extends ProjectService {
                             `Executing query ${queryHistoryUuid} in the main loop`,
                         );
 
-                        void this.runAsyncWarehouseQuery(warehouseArgs).catch(
-                            (e) => {
-                                span.setStatus({
-                                    code: 2, // ERROR
-                                    message: getErrorMessage(e),
-                                });
-                            },
-                        );
+                        const { query: warehouseSql, ...sharedAsyncQueryArgs } =
+                            warehouseArgs;
+                        const runQueryPromise =
+                            executionPlan.target === 'pre_aggregate'
+                                ? this.runAsyncPreAggregateQuery({
+                                      ...sharedAsyncQueryArgs,
+                                      preAggregateQuery:
+                                          executionPlan.preAggregateQuery,
+                                      warehouseQuery:
+                                          executionPlan.warehouseQuery,
+                                  })
+                                : this.runAsyncWarehouseQuery(warehouseArgs);
+
+                        void runQueryPromise.catch((e) => {
+                            span.setStatus({
+                                code: 2, // ERROR
+                                message: getErrorMessage(e),
+                            });
+                        });
                     }
 
                     return {
