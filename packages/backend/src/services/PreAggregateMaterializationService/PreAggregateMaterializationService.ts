@@ -12,6 +12,7 @@ import {
     type ResultColumns,
 } from '@lightdash/common';
 import { DuckdbWarehouseClient } from '@lightdash/warehouses';
+import * as Sentry from '@sentry/node';
 import { type S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import { type LightdashConfig } from '../../config/parseConfig';
 import { PreAggregateModel } from '../../models/PreAggregateModel';
@@ -117,9 +118,18 @@ export class PreAggregateMaterializationService extends BaseService {
             columns,
         );
 
-        await duckdb.runSql(
-            `COPY (SELECT * FROM ${jsonlSqlTable}) TO '${parquetUri}' (FORMAT PARQUET)`,
+        const copySql = `COPY (SELECT * FROM ${jsonlSqlTable}) TO '${parquetUri}' (FORMAT PARQUET)`;
+        const metrics = await duckdb.runSqlWithMetrics(copySql);
+
+        this.logger.info(
+            `DuckDB JSONL→Parquet conversion metrics: bootstrap=${metrics.bootstrapMs}ms, query=${metrics.queryMs}ms, total=${metrics.totalMs}ms`,
         );
+
+        Sentry.getActiveSpan()?.setAttributes({
+            'duckdb.bootstrapMs': metrics.bootstrapMs,
+            'duckdb.queryMs': metrics.queryMs,
+            'duckdb.totalMs': metrics.totalMs,
+        });
     }
 
     private async recordFileSizes(resultsFileName: string): Promise<void> {
@@ -197,16 +207,6 @@ export class PreAggregateMaterializationService extends BaseService {
                 });
             materializationUuid = materializationRow.materializationUuid;
 
-            this.logger.info(
-                `Materialization row created for pre-aggregate materialization for definition ${args.preAggregateDefinitionUuid}`,
-                {
-                    materializationUuid,
-                    projectUuid: args.projectUuid,
-                    preAggregateDefinitionUuid: args.preAggregateDefinitionUuid,
-                    trigger: args.trigger,
-                },
-            );
-
             const { materializationMetricQuery } = definition;
             if (!materializationMetricQuery) {
                 await this.preAggregateModel.markFailed({
@@ -226,15 +226,25 @@ export class PreAggregateMaterializationService extends BaseService {
                 `Starting executeAsyncMetricQuery for pre-aggregate materialization for definition ${args.preAggregateDefinitionUuid}`,
             );
 
-            const { queryUuid } =
-                await this.asyncQueryService.executeAsyncMetricQuery({
-                    account: args.account,
-                    projectUuid: args.projectUuid,
-                    context:
-                        QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION,
-                    metricQuery: materializationMetricQuery.metricQuery,
-                    invalidateCache: true,
-                });
+            const { queryUuid } = await Sentry.startSpan(
+                {
+                    op: 'preaggregate',
+                    name: 'executeAsyncMetricQuery',
+                    attributes: {
+                        projectUuid: args.projectUuid,
+                        materializationUuid,
+                    },
+                },
+                () =>
+                    this.asyncQueryService.executeAsyncMetricQuery({
+                        account: args.account,
+                        projectUuid: args.projectUuid,
+                        context:
+                            QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION,
+                        metricQuery: materializationMetricQuery.metricQuery,
+                        invalidateCache: true,
+                    }),
+            );
 
             this.logger.info(
                 `executeAsyncMetricQuery completed for pre-aggregate materialization for definition ${args.preAggregateDefinitionUuid}`,
@@ -257,23 +267,35 @@ export class PreAggregateMaterializationService extends BaseService {
                 },
             );
 
-            const queryHistory =
-                await this.queryHistoryModel.pollForQueryCompletion({
-                    queryUuid,
-                    account: args.account,
-                    projectUuid: args.projectUuid,
-                    initialBackoffMs: QUERY_POLL_INTERVAL_MS,
-                    maxBackoffMs: QUERY_POLL_INTERVAL_MS,
-                    timeoutMs: QUERY_POLL_TIMEOUT_MS,
-                    throwOnCancelled: false,
-                    throwOnError: false,
-                });
+            const queryHistory = await Sentry.startSpan(
+                {
+                    op: 'preaggregate',
+                    name: 'pollForQueryCompletion',
+                    attributes: {
+                        queryUuid,
+                        projectUuid: args.projectUuid,
+                        materializationUuid,
+                    },
+                },
+                () =>
+                    this.queryHistoryModel.pollForQueryCompletion({
+                        queryUuid,
+                        account: args.account,
+                        projectUuid: args.projectUuid,
+                        initialBackoffMs: QUERY_POLL_INTERVAL_MS,
+                        maxBackoffMs: QUERY_POLL_INTERVAL_MS,
+                        timeoutMs: QUERY_POLL_TIMEOUT_MS,
+                        throwOnCancelled: false,
+                        throwOnError: false,
+                    }),
+            );
+
             this.logger.info(
                 `pollForQueryCompletion completed for pre-aggregate materialization for definition ${args.preAggregateDefinitionUuid}`,
                 {
                     materializationUuid,
                     queryUuid,
-                    queryHistory,
+                    queryStatus: queryHistory.status,
                 },
             );
 
@@ -340,47 +362,40 @@ export class PreAggregateMaterializationService extends BaseService {
 
             // Convert JSONL to Parquet if enabled
             if (this.parquetEnabled) {
+                const jsonlUri = this.getJsonlUri(queryHistory.resultsFileName);
+                const parquetUri = this.getMaterializationUri(
+                    queryHistory.resultsFileName,
+                );
+
                 this.logger.info(
                     `Starting conversion of JSONL to Parquet for pre-aggregate materialization for definition ${args.preAggregateDefinitionUuid}`,
                     {
                         materializationUuid,
                         queryUuid,
+                        jsonlUri,
+                        parquetUri,
                     },
                 );
-                const jsonlUri = this.getJsonlUri(queryHistory.resultsFileName);
-                this.logger.info(`JSONL URI: ${jsonlUri}`, {
-                    materializationUuid,
-                    queryUuid,
-                });
-                const parquetUri = this.getMaterializationUri(
-                    queryHistory.resultsFileName,
-                );
-                this.logger.info(`Parquet URI: ${parquetUri}`, {
-                    materializationUuid,
-                    queryUuid,
-                });
 
                 const conversionStartTime = Date.now();
                 try {
-                    this.logger.info(
-                        `Starting conversion of JSONL to Parquet for pre-aggregate materialization for definition ${args.preAggregateDefinitionUuid}`,
+                    await Sentry.startSpan(
                         {
-                            materializationUuid,
-                            queryUuid,
+                            op: 'preaggregate',
+                            name: 'convertJsonlToParquet',
+                            attributes: {
+                                projectUuid: args.projectUuid,
+                                materializationUuid,
+                                queryUuid,
+                                rowCount: queryHistory.totalRowCount ?? 0,
+                            },
                         },
-                    );
-                    await this.convertJsonlToParquet(
-                        jsonlUri,
-                        parquetUri,
-                        queryHistory.columns,
-                    );
-
-                    this.logger.info(
-                        `Conversion of JSONL to Parquet completed for pre-aggregate materialization for definition ${args.preAggregateDefinitionUuid}`,
-                        {
-                            materializationUuid,
-                            queryUuid,
-                        },
+                        () =>
+                            this.convertJsonlToParquet(
+                                jsonlUri,
+                                parquetUri,
+                                queryHistory.columns,
+                            ),
                     );
 
                     const conversionDurationMs =
@@ -407,39 +422,45 @@ export class PreAggregateMaterializationService extends BaseService {
                 }
 
                 // Record file sizes for both formats (keeping JSONL for comparison)
-                await this.recordFileSizes(queryHistory.resultsFileName).catch(
-                    (e) =>
-                        this.logger.warn(
-                            `Failed to record file sizes: ${getErrorMessage(e)}`,
+                await Sentry.startSpan(
+                    {
+                        op: 'preaggregate',
+                        name: 'recordFileSizes',
+                        attributes: {
+                            materializationUuid,
+                        },
+                    },
+                    () =>
+                        this.recordFileSizes(
+                            queryHistory.resultsFileName!,
+                        ).catch((e) =>
+                            this.logger.warn(
+                                `Failed to record file sizes: ${getErrorMessage(e)}`,
+                            ),
                         ),
                 );
             }
-            this.logger.info(
-                `Starting to record file sizes for pre-aggregate materialization for definition ${args.preAggregateDefinitionUuid}`,
-                {
-                    materializationUuid,
-                    queryUuid,
-                },
-            );
+
             const columnCount = queryHistory.columns
                 ? Object.keys(queryHistory.columns).length
                 : null;
 
-            this.logger.info(
-                `Column count for pre-aggregate materialization for definition ${args.preAggregateDefinitionUuid}`,
-                {
-                    materializationUuid,
-                    queryUuid,
-                    columnCount,
-                },
-            );
-
             // Get file size from S3 for the active format
-            const totalBytes =
-                await this.preAggregateResultsStorageClient.getFileSize(
-                    queryHistory.resultsFileName,
-                    this.parquetEnabled ? 'parquet' : 'jsonl',
-                );
+            const totalBytes = await Sentry.startSpan(
+                {
+                    op: 'preaggregate',
+                    name: 'getFileSize',
+                    attributes: {
+                        materializationUuid,
+                        format: this.getMaterializationFormat(),
+                    },
+                },
+                () =>
+                    this.preAggregateResultsStorageClient.getFileSize(
+                        queryHistory.resultsFileName!,
+                        this.parquetEnabled ? 'parquet' : 'jsonl',
+                    ),
+            );
 
             this.logger.info(`Pre-aggregate materialization query completed`, {
                 materializationUuid,
@@ -455,17 +476,32 @@ export class PreAggregateMaterializationService extends BaseService {
                 warehouseExecutionTimeMs: queryHistory.warehouseExecutionTimeMs,
             });
 
-            const { status } = await this.preAggregateModel.promoteToActive({
-                materializationUuid,
-                queryUuid,
-                materializationUri: this.getMaterializationUri(
-                    queryHistory.resultsFileName,
-                ),
-                materializedAt: queryHistory.resultsUpdatedAt || new Date(),
-                rowCount: queryHistory.totalRowCount,
-                columns: queryHistory.columns,
-                totalBytes,
-            });
+            const { status } = await Sentry.startSpan(
+                {
+                    op: 'db',
+                    name: 'promoteToActive',
+                    attributes: {
+                        materializationUuid,
+                        queryUuid,
+                        rowCount: queryHistory.totalRowCount ?? 0,
+                        totalBytes: totalBytes ?? 0,
+                        format: this.getMaterializationFormat(),
+                    },
+                },
+                () =>
+                    this.preAggregateModel.promoteToActive({
+                        materializationUuid: materializationUuid!,
+                        queryUuid,
+                        materializationUri: this.getMaterializationUri(
+                            queryHistory.resultsFileName!,
+                        ),
+                        materializedAt:
+                            queryHistory.resultsUpdatedAt || new Date(),
+                        rowCount: queryHistory.totalRowCount,
+                        columns: queryHistory.columns,
+                        totalBytes,
+                    }),
+            );
 
             const durationMs = Date.now() - startTime;
             this.logger.info(`Pre-aggregate materialization ${status}`, {
