@@ -28,6 +28,7 @@ export type ActiveMaterializationDetails = {
     format: 'jsonl' | 'parquet';
     columns: ResultColumns | null;
     materializedAt: Date;
+    totalBytes: number | null;
 };
 
 export type PreAggregateDef = {

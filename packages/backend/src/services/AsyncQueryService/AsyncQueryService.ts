@@ -1360,7 +1360,7 @@ export class AsyncQueryService extends ProjectService {
     }: {
         warehouseClient: WarehouseClient;
         query: string;
-        queryTags: RunQueryTags;
+        queryTags: RunQueryTags & { query_uuid?: string };
         write?: (rows: Record<string, unknown>[]) => void | Promise<void>;
         pivotConfiguration?: PivotConfiguration;
         itemsMap: ItemsMap;
@@ -1629,6 +1629,7 @@ export class AsyncQueryService extends ProjectService {
         const preAggResolution = canResolvePreAggregation
             ? await this.preAggregationDuckDbClient.resolve({
                   projectUuid,
+                  queryUuid,
                   metricQuery,
                   dateZoom,
                   parameters,
@@ -1917,7 +1918,7 @@ export class AsyncQueryService extends ProjectService {
                     AsyncQueryService.runQueryAndTransformRows({
                         warehouseClient,
                         query,
-                        queryTags,
+                        queryTags: { ...queryTags, query_uuid: queryUuid },
                         write: stream?.write,
                         pivotConfiguration,
                         itemsMap: fieldsMap,

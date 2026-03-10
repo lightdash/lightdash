@@ -13,6 +13,7 @@ import {
     WarehouseClient,
     type CreateWarehouseCredentials,
     type DateZoom,
+    type RunQueryTags,
 } from '@lightdash/common';
 import {
     DuckdbS3SessionConfig,
@@ -47,6 +48,8 @@ type PreAggregationDuckDbClientArgs = {
 
 export type ResolvePreAggregationDuckDbArgs = {
     projectUuid: string;
+    queryUuid?: string;
+    queryTags?: RunQueryTags;
     metricQuery: MetricQuery;
     dateZoom: DateZoom | undefined;
     parameters: ParametersValuesMap | undefined;
@@ -240,6 +243,24 @@ export class PreAggregationDuckDbClient {
                 reason: PreAggregationDuckDbResolveReason.NO_ACTIVE_MATERIALIZATION,
             };
         }
+
+        Logger.info('DuckDB pre-agg materialization selected', {
+            queryUuid: args.queryUuid,
+            projectUuid: args.projectUuid,
+            queryContext: args.queryTags?.query_context,
+            chartUuid: args.queryTags?.chart_uuid,
+            dashboardUuid: args.queryTags?.dashboard_uuid,
+            exploreName: args.queryTags?.explore_name,
+            preAggExploreName,
+            materializationUuid: activeMaterialization.materializationUuid,
+            materializationQueryUuid: activeMaterialization.queryUuid,
+            materializationUri: activeMaterialization.materializationUri,
+            format: activeMaterialization.format,
+            materializedAt: activeMaterialization.materializedAt.toISOString(),
+            materializationAgeMs:
+                Date.now() - activeMaterialization.materializedAt.getTime(),
+            materializationBytes: activeMaterialization.totalBytes,
+        });
 
         const locator = getPreAggregateDuckdbLocator({
             uri: activeMaterialization.materializationUri,

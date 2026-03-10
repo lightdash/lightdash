@@ -1,5 +1,6 @@
 import { DimensionType, type WarehouseClient } from '@lightdash/common';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
+import Logger from '../../logging/logger';
 import { type PreAggregateModel } from '../../models/PreAggregateModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { warehouseClientMock } from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
@@ -23,6 +24,7 @@ describe('PreAggregationDuckDbClient', () => {
             format: 'jsonl' as const,
             columns: null,
             materializedAt: new Date('2024-01-01T00:00:00.000Z'),
+            totalBytes: 987654,
         },
     }: {
         lightdashConfig?: typeof lightdashConfigMock;
@@ -175,6 +177,28 @@ describe('PreAggregationDuckDbClient', () => {
         expect(createDuckdbWarehouseClient).toHaveBeenCalledTimes(1);
     });
 
+    test('logs selected materialization metadata for debugging', async () => {
+        const loggerSpy = jest.spyOn(Logger, 'info').mockImplementation();
+        const { client } = getClient();
+
+        await client.resolve({
+            ...baseResolveArgs,
+            queryUuid: 'query-123',
+        });
+
+        expect(loggerSpy).toHaveBeenCalledWith(
+            'DuckDB pre-agg materialization selected',
+            expect.objectContaining({
+                queryUuid: 'query-123',
+                projectUuid: 'projectUuid',
+                preAggExploreName: '__preagg__valid_explore__rollup',
+                materializationUuid: 'mat-1',
+                materializationQueryUuid: 'mat-query-1',
+                materializationBytes: 987654,
+            }),
+        );
+    });
+
     test('uses active materialization columns as DuckDB JSON schema when available', async () => {
         const { client } = getClient({
             activeMaterialization: {
@@ -197,6 +221,7 @@ describe('PreAggregationDuckDbClient', () => {
                     },
                 },
                 materializedAt: new Date('2024-01-01T00:00:00.000Z'),
+                totalBytes: 987654,
             },
         });
 
@@ -236,6 +261,7 @@ describe('PreAggregationDuckDbClient', () => {
                     },
                 },
                 materializedAt: new Date('2024-01-01T00:00:00.000Z'),
+                totalBytes: 987654,
             },
         });
 

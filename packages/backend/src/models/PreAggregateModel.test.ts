@@ -23,6 +23,7 @@ describe('PreAggregateModel', () => {
                 pre_aggregate_materialization_uuid: 'mat-1',
                 query_uuid: 'query-1',
                 materialization_uri: 's3://preagg-bucket/materialization.jsonl',
+                total_bytes: 123456,
                 columns: {
                     orders_total: {
                         reference: 'orders.total',
@@ -50,6 +51,7 @@ describe('PreAggregateModel', () => {
                 },
             },
             materializedAt: new Date('2024-02-01T00:00:00.000Z'),
+            totalBytes: 123456,
         });
         expect(tracker.history.select).toHaveLength(1);
         expect(tracker.history.select[0].sql).not.toContain('query_history');
