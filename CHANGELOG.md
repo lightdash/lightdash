@@ -1,3 +1,10 @@
+## [0.2592.3](https://github.com/lightdash/lightdash/compare/0.2592.2...0.2592.3) (2026-03-10)
+
+
+### Bug Fixes
+
+* make the user impersonation flag env variable only ([#20989](https://github.com/lightdash/lightdash/issues/20989)) ([abd77c1](https://github.com/lightdash/lightdash/commit/abd77c1cc1f56b7c076df6bb2970af3b45eddb56))
+
 ## [0.2592.2](https://github.com/lightdash/lightdash/compare/0.2592.1...0.2592.2) (2026-03-10)
 
 
