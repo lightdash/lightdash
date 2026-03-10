@@ -510,6 +510,7 @@ export class PreAggregateModel {
             mat_error_message: string | null;
             mat_total_bytes: number | null;
             mat_trigger: PreAggregateMaterializationTrigger | null;
+            mat_created_at: Date | null;
         };
 
         const query = this.database
@@ -559,6 +560,7 @@ export class PreAggregateModel {
                 `latest_mat.error_message as mat_error_message`,
                 `latest_mat.total_bytes as mat_total_bytes`,
                 `latest_mat.trigger as mat_trigger`,
+                `latest_mat.created_at as mat_created_at`,
             ])
             .orderBy(`${PreAggregateDefinitionsTableName}.created_at`, 'desc');
 
@@ -582,6 +584,13 @@ export class PreAggregateModel {
                           materializationUuid: row.mat_uuid,
                           status: row.mat_status!,
                           materializedAt: row.mat_materialized_at,
+                          durationMs:
+                              row.mat_materialized_at && row.mat_created_at
+                                  ? new Date(
+                                        row.mat_materialized_at,
+                                    ).getTime() -
+                                    new Date(row.mat_created_at).getTime()
+                                  : null,
                           rowCount: row.mat_row_count,
                           columns: row.mat_columns,
                           totalBytes: row.mat_total_bytes,
