@@ -15,7 +15,7 @@ const escapeSqlString = (value: string): string => value.replace(/'/g, "''");
 const escapeDuckdbStructKey = (value: string): string =>
     value.replace(/"/g, '""');
 
-const quoteDuckdbStructKey = (value: string): string =>
+export const quoteDuckdbIdentifier = (value: string): string =>
     `"${escapeDuckdbStructKey(value)}"`;
 
 const resultFieldTypeToDuckdbType = (type: DimensionType): string => {
@@ -60,7 +60,7 @@ const getJsonlSqlTable = (
     const columnDefs = Object.entries(columns)
         .map(
             ([fieldId, col]) =>
-                `${quoteDuckdbStructKey(fieldId)}: '${resultFieldTypeToDuckdbType(
+                `${quoteDuckdbIdentifier(fieldId)}: '${resultFieldTypeToDuckdbType(
                     col.type,
                 )}'`,
         )

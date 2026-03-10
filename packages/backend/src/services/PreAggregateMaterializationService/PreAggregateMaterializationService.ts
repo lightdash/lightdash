@@ -24,6 +24,7 @@ import { BaseService } from '../BaseService';
 import {
     getDuckdbPreAggregateSqlTable,
     getPreAggregateDuckdbLocator,
+    quoteDuckdbIdentifier,
 } from './getDuckdbPreAggregateSqlTable';
 
 const QUERY_POLL_INTERVAL_MS = 1000;
@@ -97,6 +98,7 @@ export class PreAggregateMaterializationService extends BaseService {
         jsonlUri: string,
         parquetUri: string,
         columns: ResultColumns | null,
+        dimensionFieldIds: string[],
     ): Promise<void> {
         const s3Config = getDuckdbRuntimeConfig(
             this.lightdashConfig.preAggregates.s3,
@@ -119,7 +121,12 @@ export class PreAggregateMaterializationService extends BaseService {
             columns,
         );
 
-        const copySql = `COPY (SELECT * FROM ${jsonlSqlTable}) TO '${parquetUri}' (FORMAT PARQUET)`;
+        const orderByClause =
+            dimensionFieldIds.length > 0
+                ? ` ORDER BY ${dimensionFieldIds.map(quoteDuckdbIdentifier).join(', ')}`
+                : '';
+
+        const copySql = `COPY (SELECT * FROM ${jsonlSqlTable}${orderByClause}) TO '${parquetUri}' (FORMAT PARQUET, COMPRESSION zstd, ROW_GROUP_SIZE 100000)`;
         const metrics = await duckdb.runSqlWithMetrics(copySql);
 
         this.logger.info(
@@ -396,7 +403,17 @@ export class PreAggregateMaterializationService extends BaseService {
                                 jsonlUri,
                                 parquetUri,
                                 queryHistory.columns,
+                                materializationMetricQuery.metricQuery
+                                    .dimensions,
                             ),
+                    );
+
+                    this.logger.info(
+                        `Conversion of JSONL to Parquet completed for pre-aggregate materialization for definition ${args.preAggregateDefinitionUuid}`,
+                        {
+                            materializationUuid,
+                            queryUuid,
+                        },
                     );
 
                     const conversionDurationMs =
