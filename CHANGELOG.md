@@ -1,3 +1,10 @@
+# [0.2600.0](https://github.com/lightdash/lightdash/compare/0.2599.0...0.2600.0) (2026-03-10)
+
+
+### Features
+
+* increase parquet row group size to 1M for pre-aggregate materialization ([#21015](https://github.com/lightdash/lightdash/issues/21015)) ([e103457](https://github.com/lightdash/lightdash/commit/e10345704a49a82d5ec73e3ab526844baced7747))
+
 # [0.2599.0](https://github.com/lightdash/lightdash/compare/0.2598.0...0.2599.0) (2026-03-10)
 
 
