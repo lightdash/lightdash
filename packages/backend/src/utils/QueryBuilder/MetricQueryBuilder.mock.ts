@@ -2650,6 +2650,24 @@ export const EXPLORE_WITH_NESTED_AGG: Explore = {
                     tablesReferences: ['my_table'],
                     hidden: false,
                 },
+                // Raw column aggregation combined with metric reference
+                // sql: sum(raw_col) / ${count_records}
+                // The sum() wraps a raw column (not a ${ } ref), so this is
+                // NOT a nested aggregate — it compiles to SUM(col) / COUNT(col)
+                // which is valid SQL (sibling aggregates, not nested).
+                raw_agg_with_ref: {
+                    type: MetricType.NUMBER,
+                    fieldType: FieldType.METRIC,
+                    table: 'my_table',
+                    tableLabel: 'my_table',
+                    name: 'raw_agg_with_ref',
+                    label: 'raw_agg_with_ref',
+                    sql: 'sum(${TABLE}.value) / NULLIF(${count_records}, 0)',
+                    compiledSql:
+                        'SUM("my_table".value) / NULLIF(COUNT("my_table".id), 0)',
+                    tablesReferences: ['my_table'],
+                    hidden: false,
+                },
                 // Product of aggregates - NO outer aggregation, valid SQL without CTE
                 product_of_aggregates: {
                     type: MetricType.NUMBER,
@@ -2740,6 +2758,23 @@ export const METRIC_QUERY_NESTED_AGG_PRODUCT: CompiledMetricQuery = {
     metrics: ['my_table_product_of_aggregates'],
     filters: {},
     sorts: [{ fieldId: 'my_table_product_of_aggregates', descending: true }],
+    limit: 10,
+    tableCalculations: [],
+    compiledTableCalculations: [],
+    compiledAdditionalMetrics: [],
+    compiledCustomDimensions: [],
+};
+
+// Raw column aggregation + metric reference: sum(raw_col) / ${aggregate_metric}
+// This is NOT a nested aggregate — both aggregations are at the same level.
+// The sum() wraps a raw column (not a metric ref), so it should NOT be
+// routed through the nested_agg CTE.
+export const METRIC_QUERY_NESTED_AGG_RAW_COL: CompiledMetricQuery = {
+    exploreName: 'my_table',
+    dimensions: ['my_table_category'],
+    metrics: ['my_table_raw_agg_with_ref', 'my_table_sum_of_max'],
+    filters: {},
+    sorts: [{ fieldId: 'my_table_raw_agg_with_ref', descending: true }],
     limit: 10,
     tableCalculations: [],
     compiledTableCalculations: [],
