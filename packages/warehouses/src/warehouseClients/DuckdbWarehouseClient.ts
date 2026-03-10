@@ -385,6 +385,29 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
         });
     }
 
+    async runSqlWithMetrics(sql: string): Promise<{
+        bootstrapMs: number;
+        queryMs: number;
+        totalMs: number;
+    }> {
+        const totalStart = performance.now();
+        let bootstrapMs = 0;
+        let queryMs = 0;
+
+        await this.withSession(async (db) => {
+            bootstrapMs = performance.now() - totalStart;
+            const queryStart = performance.now();
+            await db.run(sql);
+            queryMs = performance.now() - queryStart;
+        });
+
+        return {
+            bootstrapMs: Math.round(bootstrapMs),
+            queryMs: Math.round(queryMs),
+            totalMs: Math.round(performance.now() - totalStart),
+        };
+    }
+
     async runQuery(
         ...args: Parameters<
             WarehouseBaseClient<CreatePostgresCredentials>['runQuery']
