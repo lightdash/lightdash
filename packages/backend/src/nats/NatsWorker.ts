@@ -4,6 +4,7 @@ import {
     AckPolicy,
     connect,
     RetentionPolicy,
+    StorageType,
     StringCodec,
     type Consumer,
     type ConsumerMessages,
@@ -108,6 +109,7 @@ export class NatsWorker {
                         name: config.streamName,
                         subjects: Object.values(config.subjects),
                         retention: RetentionPolicy.Workqueue,
+                        storage: StorageType.Memory,
                         num_replicas: 1,
                     });
 
