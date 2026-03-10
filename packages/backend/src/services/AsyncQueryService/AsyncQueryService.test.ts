@@ -761,6 +761,9 @@ describe('AsyncQueryService', () => {
             const runAsyncWarehouseQuerySpy = jest
                 .spyOn(service, 'runAsyncWarehouseQuery')
                 .mockResolvedValue(undefined);
+            const runAsyncPreAggregateQuerySpy = jest
+                .spyOn(service, 'runAsyncPreAggregateQuery')
+                .mockResolvedValue(undefined);
 
             await service.executeAsyncQuery(
                 {
@@ -793,6 +796,7 @@ describe('AsyncQueryService', () => {
 
             expect(resolveSpy).not.toHaveBeenCalled();
             expect(runAsyncWarehouseQuerySpy).toHaveBeenCalledTimes(1);
+            expect(runAsyncPreAggregateQuerySpy).not.toHaveBeenCalled();
         });
 
         test('required pre-aggregate routes error when resolution fails and NATS is enabled', async () => {
