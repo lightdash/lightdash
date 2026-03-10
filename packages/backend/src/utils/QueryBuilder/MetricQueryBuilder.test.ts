@@ -659,6 +659,45 @@ describe('Query builder', () => {
         );
     });
 
+    test('Should not carry date filter into PoP CTE when only date filters exist', () => {
+        const metricQueryWithOnlyDateFilter: CompiledMetricQuery = {
+            ...POP_TEST_METRIC_QUERY,
+            filters: {
+                dimensions: {
+                    id: 'root',
+                    and: [
+                        {
+                            id: 'base-year',
+                            target: {
+                                fieldId: 'orders_order_date_year',
+                            },
+                            operator: FilterOperator.EQUALS,
+                            values: ['2025-01-01'],
+                        },
+                    ],
+                },
+            },
+        };
+
+        const { query } = buildQuery({
+            explore: POP_TEST_EXPLORE,
+            compiledMetricQuery: metricQueryWithOnlyDateFilter,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        // The date filter should appear once in base_metrics but NOT in the PoP CTE
+        expect(query.match(/\('2025-01-01'\)/g) ?? []).toHaveLength(1);
+        // The PoP CTE should still have the shifted date range
+        expect(query).toMatch(
+            /DATE_TRUNC\('YEAR', "orders"\.order_date\) >= pop_min_max_[a-z0-9_]+\.min_date - INTERVAL '1 YEAR'/,
+        );
+        expect(query).toMatch(
+            /DATE_TRUNC\('YEAR', "orders"\.order_date\) <= pop_min_max_[a-z0-9_]+\.max_date - INTERVAL '1 YEAR'/,
+        );
+    });
+
     test('Should reuse non-time filters for PoP metrics in fanout-protected CTEs while shifting the comparison period', () => {
         const { query } = buildQuery({
             explore: POP_TEST_FANOUT_EXPLORE,

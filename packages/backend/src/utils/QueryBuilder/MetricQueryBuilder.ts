@@ -534,24 +534,29 @@ export class MetricQueryBuilder {
     private getPopDimensionsFilterSQL(
         timeDimensionId: string,
     ): string | undefined {
-        return this.getDimensionsFilterSQL(
+        const strippedGroup =
             this.getDimensionsFilterGroupWithoutPopTimeFilters(
                 timeDimensionId,
                 this.args.compiledMetricQuery.filters.dimensions,
-            ),
+            );
+        return this.buildDimensionsWhereClause(strippedGroup);
+    }
+
+    private getDimensionsFilterSQL(): string | undefined {
+        return this.buildDimensionsWhereClause(
+            this.args.compiledMetricQuery.filters.dimensions,
         );
     }
 
-    private getDimensionsFilterSQL(filterGroup?: FilterGroup) {
+    private buildDimensionsWhereClause(
+        dimensionsFilterGroup?: FilterGroup,
+    ): string | undefined {
         const {
             explore,
-            compiledMetricQuery,
             warehouseSqlBuilder,
             userAttributes = {},
             intrinsicUserAttributes,
         } = this.args;
-        const dimensionsFilterGroup =
-            filterGroup ?? compiledMetricQuery.filters.dimensions;
 
         const requiredDimensionFilterSql =
             this.getNestedDimensionFilterSQLFromModelFilters(
