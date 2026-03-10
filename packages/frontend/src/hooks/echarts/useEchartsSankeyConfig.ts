@@ -17,8 +17,13 @@ import { useVisualizationContext } from '../../components/LightdashVisualization
 const stripStepSuffix = (name: string) => name.replace(/ - Step \d+$/, '');
 
 const useEchartsSankeyConfig = (isInDashboard?: boolean) => {
-    const { visualizationConfig, colorPalette, parameters, isTouchDevice } =
-        useVisualizationContext();
+    const {
+        visualizationConfig,
+        colorPalette,
+        parameters,
+        isTouchDevice,
+        minimal,
+    } = useVisualizationContext();
 
     const theme = useMantineTheme();
 
@@ -144,12 +149,13 @@ const useEchartsSankeyConfig = (isInDashboard?: boolean) => {
                 },
             },
             series: [sankeySeriesOption],
-            animation: !isInDashboard,
+            animation: !(isInDashboard || minimal),
         };
     }, [
         chartConfig,
         sankeySeriesOption,
         isInDashboard,
+        minimal,
         theme,
         isTouchDevice,
         visualizationConfig,
