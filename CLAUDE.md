@@ -76,7 +76,7 @@ pnpm -F backend rollback-last
 
 ## Development Workflow
 
-1. **Package Management**: Use `pnpm` (v9.15.5+) - never use npm or yarn
+1. **Package Management**: Use `pnpm` (v10+) - never use npm or yarn
 2. **TypeScript**: All packages use TypeScript with project references for type checking
 3. **Linting**: ESLint with Airbnb config, enforces `no-floating-promises`
 4. **Pre-commit**: Husky + lint-staged runs linting/formatting on staged files
