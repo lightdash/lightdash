@@ -1242,7 +1242,10 @@ export class MetricQueryBuilder {
         const { compiledMetricQuery } = this.args;
         const { dimensions, metrics } = compiledMetricQuery;
 
-        if (dimensions.length === 0 && metrics.length === 0) {
+        if (dimensions.length === 0) {
+            // No dimensions means the query returns a single aggregated row,
+            // so sorting is meaningless. This also prevents ORDER BY errors
+            // on non-sortable types (e.g., BigQuery ARRAY<INT64>).
             return undefined;
         }
 

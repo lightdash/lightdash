@@ -4529,6 +4529,24 @@ describe('Default sort behavior', () => {
         // Should have no ORDER BY clause at all
         expect(result.query).not.toContain('ORDER BY');
     });
+
+    test('Should have no ORDER BY when no dimensions but metrics present (e.g. calculate total)', () => {
+        const result = buildQuery({
+            explore: EXPLORE,
+            compiledMetricQuery: {
+                ...METRIC_QUERY,
+                dimensions: [],
+                metrics: ['table1_metric1'],
+                sorts: [],
+            },
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        // No dimensions means single aggregated row, ORDER BY is meaningless
+        expect(result.query).not.toContain('ORDER BY');
+    });
 });
 
 describe('Nested aggregate metrics', () => {
