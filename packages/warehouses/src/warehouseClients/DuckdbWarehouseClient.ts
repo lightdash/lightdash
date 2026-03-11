@@ -1,4 +1,4 @@
-import { DuckDBInstance, DuckDBTypeId, StatementType } from '@duckdb/node-api';
+import { DuckDBInstance, DuckDBTypeId } from '@duckdb/node-api';
 import {
     AnyType,
     CreatePostgresCredentials,
@@ -25,7 +25,7 @@ type DuckdbStreamResult = {
 };
 
 type DuckdbPreparedStatement = {
-    statementType: StatementType;
+    statementType: number;
     destroySync: () => void;
 };
 
@@ -51,14 +51,6 @@ type DuckdbConnection = {
 type DuckdbInstance = {
     connect: () => Promise<DuckdbConnection>;
     closeSync?: () => void;
-};
-
-type DuckdbSecurityProfile = 'internal' | 'user';
-
-type SharedDuckdbState = {
-    cachesConfigured: boolean;
-    httpfsInstalled: boolean;
-    instance: DuckdbInstance;
 };
 
 export type DuckdbS3SessionConfig = {
@@ -156,115 +148,68 @@ export class DuckdbSqlBuilder extends WarehouseBaseSqlBuilder {
 }
 
 /**
- * Shared DuckDB instances — one per worker/profile pair.
- * User-query sessions and internal materialization sessions use separate
- * instances because their security settings differ.
+ * Shared DuckDB instance — one per worker process.
+ * All DuckdbWarehouseClient instances share the same underlying DuckDB instance
+ * to maximize cache hits (parquet metadata, HTTP metadata, buffer pool).
  */
-const sharedInstances = new Map<string, SharedDuckdbState>();
-
-function getSharedInstanceKey(
-    databasePath: string,
-    profile: DuckdbSecurityProfile,
-): string {
-    return `${profile}:${databasePath}`;
-}
+let sharedInstance: DuckdbInstance | null = null;
+let httpfsInstalled = false;
+let cachesConfigured = false;
 
 async function getOrCreateSharedInstance(
     databasePath: string,
-    profile: DuckdbSecurityProfile,
     logger?: DuckdbLogger,
-): Promise<SharedDuckdbState> {
-    const key = getSharedInstanceKey(databasePath, profile);
-    const existing = sharedInstances.get(key);
-    if (existing) {
-        return existing;
-    }
-
-    const t0 = performance.now();
-    const instance = (await DuckDBInstance.create(
-        databasePath,
-    )) as DuckdbInstance;
-    const createMs = performance.now() - t0;
-    const state: SharedDuckdbState = {
-        cachesConfigured: false,
-        httpfsInstalled: false,
-        instance,
-    };
-    sharedInstances.set(key, state);
-    logger?.info(
-        `DuckDB shared instance created: profile=${profile} path=${databasePath} createMs=${Math.round(createMs)}ms`,
-    );
-    return state;
-}
-
-function updateSharedInstanceState(
-    databasePath: string,
-    profile: DuckdbSecurityProfile,
-    updates: Partial<
-        Pick<SharedDuckdbState, 'cachesConfigured' | 'httpfsInstalled'>
-    >,
-): SharedDuckdbState {
-    const key = getSharedInstanceKey(databasePath, profile);
-    const state = sharedInstances.get(key);
-    if (!state) {
-        throw new Error(`Missing shared DuckDB instance for key ${key}`);
-    }
-
-    const nextState = {
-        ...state,
-        ...updates,
-    };
-    sharedInstances.set(key, nextState);
-    return nextState;
-}
-
-function clearSharedInstance(
-    logger?: DuckdbLogger,
-    opts?: {
-        databasePath?: string;
-        profile?: DuckdbSecurityProfile;
-    },
-): void {
-    let keysToClear: string[];
-    if (opts?.databasePath && opts?.profile) {
-        keysToClear = [getSharedInstanceKey(opts.databasePath, opts.profile)];
-    } else if (opts?.databasePath) {
-        keysToClear = (['internal', 'user'] as DuckdbSecurityProfile[]).map(
-            (profile) => getSharedInstanceKey(opts.databasePath!, profile),
+): Promise<DuckdbInstance> {
+    if (!sharedInstance) {
+        const t0 = performance.now();
+        sharedInstance = (await DuckDBInstance.create(
+            databasePath,
+        )) as DuckdbInstance;
+        const createMs = performance.now() - t0;
+        httpfsInstalled = false;
+        cachesConfigured = false;
+        logger?.info(
+            `DuckDB shared instance created: path=${databasePath} createMs=${Math.round(createMs)}ms`,
         );
-    } else {
-        keysToClear = [...sharedInstances.keys()];
     }
+    return sharedInstance;
+}
 
-    keysToClear.forEach((key) => {
-        const state = sharedInstances.get(key);
-        if (!state) {
-            return;
-        }
-
+function clearSharedInstance(logger?: DuckdbLogger): void {
+    if (sharedInstance) {
         try {
-            state.instance.closeSync?.();
+            sharedInstance.closeSync?.();
         } catch {
             // best-effort cleanup
         }
-        sharedInstances.delete(key);
+        sharedInstance = null;
+        httpfsInstalled = false;
+        cachesConfigured = false;
         logger?.info('DuckDB shared instance cleared');
-    });
+    }
 }
 
 /** Reset shared state without closing — for use in tests with mocked instances. */
 export function resetSharedDuckdbStateForTesting(): void {
-    sharedInstances.clear();
+    sharedInstance = null;
+    httpfsInstalled = false;
+    cachesConfigured = false;
 }
 
-const ALLOWED_STATEMENT_TYPES_USER_SQL = new Set<StatementType>([
-    StatementType.SELECT,
+// DuckDB StatementType values — see duckdb/common/enums/statement_type.hpp
+const ALLOWED_STATEMENT_TYPES_USER_SQL = new Set([1 /* SELECT */]);
+
+const BLOCKED_STATEMENT_TYPES_INTERNAL_SQL = new Set([
+    12, // VARIABLE_SET
+    20, // SET
+    21, // LOAD
+    23, // EXTENSION (INSTALL)
+    25, // ATTACH
+    26, // DETACH
 ]);
 
-const ALLOWED_STATEMENT_TYPES_INTERNAL_SQL = new Set<StatementType>([
-    StatementType.COPY,
-    StatementType.SELECT,
-]);
+const BLOCKED_FUNCTION_PATTERN =
+    /\b(current_setting|duckdb_settings|duckdb_secrets)\s*\(/i;
 
 export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCredentials> {
     private readonly databasePath: string;
@@ -287,7 +232,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
     }
 
     async close(): Promise<void> {
-        clearSharedInstance(this.logger, { databasePath: this.databasePath });
+        clearSharedInstance(this.logger);
     }
 
     private getSQLWithMetadata(sql: string, tags?: Record<string, string>) {
@@ -298,58 +243,42 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
         return `${sql}\n-- ${JSON.stringify(tags)}`;
     }
 
-    private async connectWithRetry(profile: DuckdbSecurityProfile): Promise<{
-        connection: DuckdbConnection;
-        state: SharedDuckdbState;
-    }> {
-        const state = await getOrCreateSharedInstance(
+    private async connectWithRetry(): Promise<DuckdbConnection> {
+        const instance = await getOrCreateSharedInstance(
             this.databasePath,
-            profile,
             this.logger,
         );
         try {
-            return {
-                connection: await state.instance.connect(),
-                state,
-            };
+            return await instance.connect();
         } catch (firstError) {
             this.logger?.info(
-                `DuckDB connect failed, retrying with fresh instance: profile=${profile} error=${firstError}`,
+                `DuckDB connect failed, retrying with fresh instance: ${firstError}`,
             );
-            clearSharedInstance(this.logger, {
-                databasePath: this.databasePath,
-                profile,
-            });
-            const freshState = await getOrCreateSharedInstance(
+            clearSharedInstance(this.logger);
+            const freshInstance = await getOrCreateSharedInstance(
                 this.databasePath,
-                profile,
                 this.logger,
             );
-            return {
-                connection: await freshState.instance.connect(),
-                state: freshState,
-            };
+            return freshInstance.connect();
         }
     }
 
     private async withSession<T>(
-        profile: DuckdbSecurityProfile,
         callback: (db: DuckdbConnection) => Promise<T>,
     ): Promise<T> {
         const sessionStart = performance.now();
 
-        const { connection, state } = await this.connectWithRetry(profile);
+        const connection = await this.connectWithRetry();
         const connectMs = performance.now() - sessionStart;
 
-        // Only internal sessions can spill to a local temp directory.
-        const tempDir =
-            profile === 'internal' && this.resourceLimits
-                ? await fs.mkdtemp(path.join(os.tmpdir(), 'duckdb-temp-'))
-                : undefined;
+        // Only create a temp dir when resource limits are set (spill to disk).
+        const tempDir = this.resourceLimits
+            ? await fs.mkdtemp(path.join(os.tmpdir(), 'duckdb-temp-'))
+            : undefined;
 
         try {
             const bootstrapStart = performance.now();
-            await this.bootstrapSession(connection, state, profile, tempDir);
+            await this.bootstrapSession(connection, tempDir);
             const bootstrapMs = performance.now() - bootstrapStart;
 
             const queryStart = performance.now();
@@ -376,19 +305,14 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
 
     private async bootstrapSession(
         db: DuckdbConnection,
-        sharedState: SharedDuckdbState,
-        profile: DuckdbSecurityProfile,
         tempDir: string | undefined,
     ): Promise<void> {
         let installMs = 0;
-        let state = sharedState;
-        if (!state.httpfsInstalled) {
+        if (!httpfsInstalled) {
             const t0 = performance.now();
             await db.run('INSTALL httpfs;');
             installMs = performance.now() - t0;
-            state = updateSharedInstanceState(this.databasePath, profile, {
-                httpfsInstalled: true,
-            });
+            httpfsInstalled = true;
             this.logger?.info(
                 `DuckDB httpfs installed (first use): ${Math.round(installMs)}ms`,
             );
@@ -400,22 +324,17 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
 
         // Enable built-in caches — these are GLOBAL settings (instance-level, not
         // connection-level), so they only need to be set once per shared instance.
-        if (!state.cachesConfigured) {
+        if (!cachesConfigured) {
             await db.run('SET enable_http_metadata_cache = true;');
             await db.run('SET enable_external_file_cache = true;');
             await db.run('SET parquet_metadata_cache = true;');
 
-            if (profile === 'user') {
-                await db.run("SET disabled_filesystems = 'LocalFileSystem';");
-            }
             await db.run('SET allow_community_extensions = false;');
             await db.run('SET autoinstall_known_extensions = false;');
             await db.run('SET autoload_known_extensions = false;');
             await db.run('SET allow_unredacted_secrets = false;');
 
-            state = updateSharedInstanceState(this.databasePath, profile, {
-                cachesConfigured: true,
-            });
+            cachesConfigured = true;
 
             if (this.bufferPoolSize) {
                 await db.run(
@@ -498,6 +417,90 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
         return undefined;
     }
 
+    private static async logQueryProfile(
+        profilePath: string,
+        logger: DuckdbLogger,
+        tags?: Record<string, string>,
+    ): Promise<void> {
+        try {
+            const raw = await fs.readFile(profilePath, 'utf-8');
+            const profile = JSON.parse(raw);
+
+            const operators: {
+                name: string;
+                timingMs: number;
+                rows: number;
+            }[] = [];
+            const walk = (node: AnyType): void => {
+                if (node.operator_name) {
+                    operators.push({
+                        name: String(node.operator_name).trim(),
+                        timingMs: Math.round(
+                            (node.operator_timing ?? 0) * 1000,
+                        ),
+                        rows: node.operator_cardinality ?? 0,
+                    });
+                }
+                // eslint-disable-next-line no-restricted-syntax
+                for (const child of node.children ?? []) {
+                    walk(child);
+                }
+            };
+            walk(profile);
+
+            const operatorStr = operators
+                .map((op) => `${op.name}=${op.timingMs}ms(${op.rows}rows)`)
+                .join(' ');
+            const latencyMs = Math.round((profile.latency ?? 0) * 1000);
+            const cpuMs = Math.round((profile.cpu_time ?? 0) * 1000);
+            const waitMs = Math.max(latencyMs - cpuMs, 0);
+            const readParquetOperators = operators.filter(
+                (op) => op.name === 'READ_PARQUET',
+            );
+            const readParquetMs =
+                readParquetOperators.length > 0
+                    ? readParquetOperators.reduce(
+                          (sum, op) => sum + op.timingMs,
+                          0,
+                      )
+                    : null;
+            const rowsScanned =
+                readParquetOperators.length > 0
+                    ? readParquetOperators.reduce((sum, op) => sum + op.rows, 0)
+                    : null;
+            const rowsReturned =
+                typeof profile.rows_returned === 'number'
+                    ? profile.rows_returned
+                    : null;
+            const bytesRead =
+                typeof profile.total_bytes_read === 'number'
+                    ? profile.total_bytes_read
+                    : null;
+            const scanAmplification =
+                rowsScanned !== null && rowsReturned !== null
+                    ? rowsScanned / Math.max(rowsReturned, 1)
+                    : null;
+            logger.info(
+                `DuckDB query profile: latency=${latencyMs}ms cpu=${cpuMs}ms rows=${profile.rows_returned} bytes_read=${profile.total_bytes_read} operators=[${operatorStr}]`,
+                {
+                    ...tags,
+                    latencyMs,
+                    cpuMs,
+                    waitMs,
+                    readParquetMs,
+                    bytesRead,
+                    rowsScanned,
+                    rowsReturned,
+                    scanAmplification,
+                },
+            );
+        } catch {
+            // profiling output not available, skip
+        } finally {
+            await fs.rm(profilePath, { force: true }).catch(() => {});
+        }
+    }
+
     private static getFieldsFromStreamResult(
         result: DuckdbStreamResult,
     ): WarehouseResults['fields'] {
@@ -509,6 +512,22 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
             };
         }
         return fields;
+    }
+
+    private static stripSqlComments(sql: string): string {
+        return sql
+            .replace(/--[^\n]*/g, '') // line comments
+            .replace(/\/\*[\s\S]*?\*\//g, ''); // block comments
+    }
+
+    private static validateSqlFunctions(sql: string): void {
+        const stripped = DuckdbWarehouseClient.stripSqlComments(sql);
+        const match = stripped.match(BLOCKED_FUNCTION_PATTERN);
+        if (match) {
+            throw new Error(
+                `SQL validation error: function '${match[1]}' is not allowed`,
+            );
+        }
     }
 
     private async validateUserSql(
@@ -537,6 +556,8 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
         } finally {
             stmt.destroySync();
         }
+
+        DuckdbWarehouseClient.validateSqlFunctions(sql);
     }
 
     private async validateInternalSql(
@@ -554,9 +575,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
             const stmt = await extracted.prepare(i);
             try {
                 if (
-                    !ALLOWED_STATEMENT_TYPES_INTERNAL_SQL.has(
-                        stmt.statementType,
-                    )
+                    BLOCKED_STATEMENT_TYPES_INTERNAL_SQL.has(stmt.statementType)
                 ) {
                     throw new Error(
                         `SQL validation error: statement type ${stmt.statementType} is not allowed in internal SQL`,
@@ -566,6 +585,8 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
                 stmt.destroySync();
             }
         }
+
+        DuckdbWarehouseClient.validateSqlFunctions(sql);
     }
 
     async streamQuery(
@@ -578,11 +599,23 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
             timezone?: string;
         },
     ): Promise<void> {
-        await this.withSession('user', async (db) => {
+        await this.withSession(async (db) => {
             if (options?.timezone) {
                 await db.run(
                     `SET TimeZone = '${this.escapeString(options.timezone)}';`,
                 );
+            }
+
+            const profilePath = this.logger
+                ? path.join(
+                      os.tmpdir(),
+                      `duckdb-profile-${Date.now()}-${Math.random().toString(36).slice(2)}.json`,
+                  )
+                : undefined;
+
+            if (profilePath) {
+                await db.run("PRAGMA enable_profiling='json';");
+                await db.run(`PRAGMA profiling_output='${profilePath}';`);
             }
 
             await this.validateUserSql(db, sql);
@@ -597,6 +630,14 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
             // eslint-disable-next-line no-restricted-syntax
             for await (const rows of result.yieldRowObjectJson()) {
                 await streamCallback({ fields, rows });
+            }
+
+            if (profilePath) {
+                await DuckdbWarehouseClient.logQueryProfile(
+                    profilePath,
+                    this.logger!,
+                    options?.tags,
+                );
             }
         });
     }
@@ -635,7 +676,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
     }
 
     async runSql(sql: string): Promise<void> {
-        await this.withSession('internal', async (db) => {
+        await this.withSession(async (db) => {
             await this.validateInternalSql(db, sql);
             await db.run(sql);
         });
@@ -650,7 +691,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
         let bootstrapMs = 0;
         let queryMs = 0;
 
-        await this.withSession('internal', async (db) => {
+        await this.withSession(async (db) => {
             await this.validateInternalSql(db, sql);
             bootstrapMs = performance.now() - totalStart;
             const queryStart = performance.now();
