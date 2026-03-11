@@ -463,6 +463,7 @@ export const isSupportedDbtAdapterType = (
 
 export interface DbtRpcGetManifestResults {
     manifest: DbtManifest;
+    selectedModelIds?: string[];
 }
 
 export const isDbtRpcManifestResults = (

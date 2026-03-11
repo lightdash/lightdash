@@ -2606,7 +2606,6 @@ export class ProjectService extends BaseService {
                 onWarehouseCatalogChange: () => {},
             },
             data.dbtVersion || DefaultSupportedDbtVersion,
-            undefined,
             this.analytics,
         );
         try {
@@ -2820,7 +2819,6 @@ export class ProjectService extends BaseService {
                 },
             },
             project.dbtVersion || DefaultSupportedDbtVersion,
-            undefined,
             this.analytics,
         );
         return { adapter, sshTunnel };

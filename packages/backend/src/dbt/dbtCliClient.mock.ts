@@ -28,7 +28,10 @@ export const expectedCommandOptions = [
 ];
 
 export const cliMocks = {
-    success: { all: 'success message' } as Partial<ExecaReturnValue>,
+    success: {
+        all: 'success message',
+        stdout: '{"info": {"code": "Z049"}, "data": {"msg": "{\\"unique_id\\": \\"model.project.test_model\\"}"}}\n',
+    } as Partial<ExecaReturnValue>,
     error: {
         shortMessage: 'error message',
         all: 'all error messages',
