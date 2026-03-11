@@ -150,7 +150,7 @@
         "redoc-express": "^1.0.0",
         "scim-patch": "^0.8.3",
         "scim2-parse-filter": "^0.2.10",
-        "simple-git": "^3.16.0",
+        "simple-git": "^3.32.3",
         "slackify-markdown": "^4.4.0",
         "sshpk": "^1.17.0",
         "uuid": "^8.3.2",
