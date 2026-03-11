@@ -1,3 +1,15 @@
+# [0.2603.0](https://github.com/lightdash/lightdash/compare/0.2602.1...0.2603.0) (2026-03-11)
+
+
+### Bug Fixes
+
+* include deleted items in permanentDelete methods ([#21029](https://github.com/lightdash/lightdash/issues/21029)) ([7735543](https://github.com/lightdash/lightdash/commit/773554332197b059397d3ba76c38add0f32617ee))
+
+
+### Features
+
+* unify bolt icon for pre-aggregates and disable settings for preview projects ([#21025](https://github.com/lightdash/lightdash/issues/21025)) ([0a3cc83](https://github.com/lightdash/lightdash/commit/0a3cc8390abe2b8ae6e5c2aad4ff744dc4a1d5b9))
+
 ## [0.2602.1](https://github.com/lightdash/lightdash/compare/0.2602.0...0.2602.1) (2026-03-10)
 
 
