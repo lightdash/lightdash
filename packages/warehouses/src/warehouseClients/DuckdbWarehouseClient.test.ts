@@ -549,25 +549,102 @@ describe('DuckdbWarehouseClient', () => {
             expect(result.rows).toEqual([{ val: 1 }]);
         });
 
-        it('should allow runSql without validation', async () => {
+        it('should allow COPY statements in runSql', async () => {
             const streamMock = jest.fn();
             const runMock = jest.fn();
-            const extractStatementsMock = jest.fn();
 
             createInstanceMock.mockResolvedValue(
                 createMockConnection(streamMock, runMock, {
-                    extractStatements: extractStatementsMock,
+                    extractStatements: createMockExtractStatements({
+                        statementType: 10, // COPY
+                    }),
                 }),
             );
 
             const client = new DuckdbWarehouseClient();
-            // runSql should NOT call extractStatements — no validation
             await client.runSql(
-                "COPY table TO '/tmp/data.parquet' (FORMAT PARQUET)",
+                "COPY table TO 's3://bucket/data.parquet' (FORMAT PARQUET)",
             );
-            expect(extractStatementsMock).not.toHaveBeenCalled();
             expect(runMock).toHaveBeenCalledWith(
-                "COPY table TO '/tmp/data.parquet' (FORMAT PARQUET)",
+                "COPY table TO 's3://bucket/data.parquet' (FORMAT PARQUET)",
+            );
+        });
+
+        it('should reject SET statements in runSql', async () => {
+            const streamMock = jest.fn();
+            const runMock = jest.fn();
+
+            createInstanceMock.mockResolvedValue(
+                createMockConnection(streamMock, runMock, {
+                    extractStatements: createMockExtractStatements({
+                        statementType: 20, // SET
+                    }),
+                }),
+            );
+
+            const client = new DuckdbWarehouseClient();
+            await expect(
+                client.runSql("SET s3_endpoint = 'attacker.com'"),
+            ).rejects.toThrow(
+                'SQL validation error: statement type 20 is not allowed in internal SQL',
+            );
+        });
+
+        it('should reject ATTACH statements in runSql', async () => {
+            const streamMock = jest.fn();
+            const runMock = jest.fn();
+
+            createInstanceMock.mockResolvedValue(
+                createMockConnection(streamMock, runMock, {
+                    extractStatements: createMockExtractStatements({
+                        statementType: 25, // ATTACH
+                    }),
+                }),
+            );
+
+            const client = new DuckdbWarehouseClient();
+            await expect(
+                client.runSql("ATTACH DATABASE 'file.db'"),
+            ).rejects.toThrow(
+                'SQL validation error: statement type 25 is not allowed in internal SQL',
+            );
+        });
+
+        it('should reject LOAD statements in runSql', async () => {
+            const streamMock = jest.fn();
+            const runMock = jest.fn();
+
+            createInstanceMock.mockResolvedValue(
+                createMockConnection(streamMock, runMock, {
+                    extractStatements: createMockExtractStatements({
+                        statementType: 21, // LOAD
+                    }),
+                }),
+            );
+
+            const client = new DuckdbWarehouseClient();
+            await expect(
+                client.runSql("LOAD 'malicious_extension'"),
+            ).rejects.toThrow(
+                'SQL validation error: statement type 21 is not allowed in internal SQL',
+            );
+        });
+
+        it('should reject introspection functions in runSql', async () => {
+            const streamMock = jest.fn();
+            const runMock = jest.fn();
+
+            createInstanceMock.mockResolvedValue(
+                createMockConnection(streamMock, runMock),
+            );
+
+            const client = new DuckdbWarehouseClient();
+            await expect(
+                client.runSql(
+                    "COPY (SELECT current_setting('s3_secret_access_key')) TO '/tmp/out.csv'",
+                ),
+            ).rejects.toThrow(
+                "SQL validation error: function 'current_setting' is not allowed",
             );
         });
 

@@ -196,9 +196,20 @@ export function resetSharedDuckdbStateForTesting(): void {
     cachesConfigured = false;
 }
 
-// DuckDB StatementType enum values (from @duckdb/node-api)
-const ALLOWED_STATEMENT_TYPES = new Set([
+// DuckDB StatementType enum values (from duckdb/common/enums/statement_type.hpp)
+const ALLOWED_STATEMENT_TYPES_USER_SQL = new Set([
     1, // SELECT
+]);
+
+// Statement types blocked in internal SQL (runSql/runSqlWithMetrics).
+// These should never appear in server-constructed materialization queries.
+const BLOCKED_STATEMENT_TYPES_INTERNAL_SQL = new Set([
+    12, // VARIABLE_SET — SET variable = value
+    20, // SET — SET configuration
+    21, // LOAD — LOAD extension
+    23, // EXTENSION — INSTALL extension
+    25, // ATTACH — ATTACH DATABASE
+    26, // DETACH — DETACH DATABASE
 ]);
 
 // Functions that can leak DuckDB configuration/credentials
@@ -555,13 +566,47 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
 
         const stmt = await extracted.prepare(0);
         try {
-            if (!ALLOWED_STATEMENT_TYPES.has(stmt.statementType)) {
+            if (!ALLOWED_STATEMENT_TYPES_USER_SQL.has(stmt.statementType)) {
                 throw new Error(
                     `SQL validation error: only SELECT statements are allowed (got statement type ${stmt.statementType})`,
                 );
             }
         } finally {
             stmt.destroySync();
+        }
+
+        DuckdbWarehouseClient.validateSqlFunctions(sql);
+    }
+
+    /**
+     * Validate internal SQL (runSql/runSqlWithMetrics) against a blocklist.
+     * Less strict than validateUserSql — allows COPY, SELECT, etc. but blocks
+     * dangerous operations that should never appear in materialization queries.
+     */
+    private async validateInternalSql(
+        db: DuckdbConnection,
+        sql: string,
+    ): Promise<void> {
+        const extracted = await db.extractStatements(sql);
+
+        if (extracted.count === 0) {
+            throw new Error('SQL validation error: empty SQL statement');
+        }
+
+        for (let i = 0; i < extracted.count; i += 1) {
+            // eslint-disable-next-line no-await-in-loop
+            const stmt = await extracted.prepare(i);
+            try {
+                if (
+                    BLOCKED_STATEMENT_TYPES_INTERNAL_SQL.has(stmt.statementType)
+                ) {
+                    throw new Error(
+                        `SQL validation error: statement type ${stmt.statementType} is not allowed in internal SQL`,
+                    );
+                }
+            } finally {
+                stmt.destroySync();
+            }
         }
 
         DuckdbWarehouseClient.validateSqlFunctions(sql);
@@ -655,6 +700,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
 
     async runSql(sql: string): Promise<void> {
         await this.withSession(async (db) => {
+            await this.validateInternalSql(db, sql);
             await db.run(sql);
         });
     }
@@ -669,6 +715,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
         let queryMs = 0;
 
         await this.withSession(async (db) => {
+            await this.validateInternalSql(db, sql);
             bootstrapMs = performance.now() - totalStart;
             const queryStart = performance.now();
             await db.run(sql);
