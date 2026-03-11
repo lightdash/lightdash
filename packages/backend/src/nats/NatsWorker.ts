@@ -48,6 +48,7 @@ type NatsWorkerArgs = {
 };
 
 const CONSUME_MAX_MESSAGES = 1;
+const ACK_PROGRESS_INTERVAL_MS = 5 * 1000;
 
 export class NatsWorker {
     private readonly asyncQueryService: AsyncQueryService;
@@ -213,15 +214,17 @@ export class NatsWorker {
         );
 
         try {
-            await Sentry.continueTrace(
-                {
-                    sentryTrace: parsed.trace.traceHeader,
-                    baggage: parsed.trace.baggageHeader,
-                },
-                () =>
-                    this.asyncQueryService.runAsyncWarehouseQueryFromHistory(
-                        parsed.payload.queryUuid,
-                    ),
+            await NatsWorker.runWithAckProgress(message, () =>
+                Sentry.continueTrace(
+                    {
+                        sentryTrace: parsed.trace.traceHeader,
+                        baggage: parsed.trace.baggageHeader,
+                    },
+                    () =>
+                        this.asyncQueryService.runAsyncWarehouseQueryFromHistory(
+                            parsed.payload.queryUuid,
+                        ),
+                ),
             );
             message.ack();
             Logger.info(
@@ -259,16 +262,18 @@ export class NatsWorker {
         );
 
         try {
-            await Sentry.continueTrace(
-                {
-                    sentryTrace: parsed.trace.traceHeader,
-                    baggage: parsed.trace.baggageHeader,
-                },
-                async () => {
-                    await this.asyncQueryService.runAsyncPreAggregateQueryFromHistory(
-                        parsed.payload.queryUuid,
-                    );
-                },
+            await NatsWorker.runWithAckProgress(message, () =>
+                Sentry.continueTrace(
+                    {
+                        sentryTrace: parsed.trace.traceHeader,
+                        baggage: parsed.trace.baggageHeader,
+                    },
+                    async () => {
+                        await this.asyncQueryService.runAsyncPreAggregateQueryFromHistory(
+                            parsed.payload.queryUuid,
+                        );
+                    },
+                ),
             );
             message.ack();
             Logger.info(
@@ -345,6 +350,21 @@ export class NatsWorker {
                 error,
             );
             return null;
+        }
+    }
+
+    static async runWithAckProgress<T>(
+        message: JsMsg,
+        handler: () => Promise<T>,
+    ): Promise<T> {
+        const interval = setInterval(() => {
+            message.working();
+        }, ACK_PROGRESS_INTERVAL_MS);
+
+        try {
+            return await handler();
+        } finally {
+            clearInterval(interval);
         }
     }
 }
