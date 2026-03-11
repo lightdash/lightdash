@@ -1,3 +1,10 @@
+# [0.2610.0](https://github.com/lightdash/lightdash/compare/0.2609.0...0.2610.0) (2026-03-11)
+
+
+### Features
+
+* stream pre-aggergate results to parquet ([#21053](https://github.com/lightdash/lightdash/issues/21053)) ([634222e](https://github.com/lightdash/lightdash/commit/634222e9debb891420d8e4507d5736476881fa7a))
+
 # [0.2609.0](https://github.com/lightdash/lightdash/compare/0.2608.0...0.2609.0) (2026-03-11)
 
 
