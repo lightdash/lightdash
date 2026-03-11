@@ -535,7 +535,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
 
     /**
      * Validate user SQL using DuckDB's native parser.
-     * Only SELECT and EXPLAIN statements are allowed; multiple statements are rejected.
+     * Only SELECT statements are allowed; multiple statements are rejected.
      */
     private async validateUserSql(
         db: DuckdbConnection,
