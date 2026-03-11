@@ -428,27 +428,44 @@ export class SpacePermissionModel {
             async () => {
                 if (spaceUuids.length === 0) return {};
 
+                // NOTE: use a CTE instead of ltree path @> joins to walk the space
+                // hierarchy via parent_space_uuid FK. We have duplicate paths in the
+                // database due to legacy spaces and content as code and an ltree path
+                // @> join matches unrelated spaces due to those duplicates,
+                // breaking the inheritance chain and hiding users from "Who has access".
                 const ancestorRows: {
                     requested_space_uuid: string;
                     space_uuid: string;
                     name: string;
                     inherit_parent_permissions: boolean;
                     parent_space_uuid: string | null;
-                }[] = await this.database(`${SpaceTableName} as leaf`)
-                    .select({
-                        requested_space_uuid: 'leaf.space_uuid',
-                        space_uuid: 'ancestor.space_uuid',
-                        name: 'ancestor.name',
-                        inherit_parent_permissions:
-                            'ancestor.inherit_parent_permissions',
-                        parent_space_uuid: 'ancestor.parent_space_uuid',
-                    })
-                    .joinRaw(
-                        `JOIN ${SpaceTableName} ancestor ON ancestor.path @> leaf.path AND ancestor.project_id = leaf.project_id`,
+                }[] = await this.database
+                    .raw(
+                        `
+                    WITH RECURSIVE chain AS (
+                        SELECT space_uuid AS requested_space_uuid,
+                               space_uuid, name, inherit_parent_permissions, parent_space_uuid,
+                               1 AS depth
+                        FROM ${SpaceTableName}
+                        WHERE space_uuid = ANY(?)
+                          AND deleted_at IS NULL
+
+                        UNION ALL
+
+                        SELECT c.requested_space_uuid,
+                               s.space_uuid, s.name, s.inherit_parent_permissions, s.parent_space_uuid,
+                               c.depth + 1
+                        FROM ${SpaceTableName} s
+                        JOIN chain c ON s.space_uuid = c.parent_space_uuid
+                        WHERE s.deleted_at IS NULL
                     )
-                    .whereIn('leaf.space_uuid', spaceUuids)
-                    .orderBy('leaf.space_uuid')
-                    .orderByRaw('nlevel(ancestor.path) DESC');
+                    SELECT requested_space_uuid, space_uuid, name, inherit_parent_permissions, parent_space_uuid
+                    FROM chain
+                    ORDER BY requested_space_uuid, depth ASC
+                    `,
+                        [spaceUuids],
+                    )
+                    .then((res: { rows: typeof ancestorRows }) => res.rows);
 
                 // Group ancestor rows by requested space (order is preserved)
                 const ancestorsBySpace = new Map<string, typeof ancestorRows>();
