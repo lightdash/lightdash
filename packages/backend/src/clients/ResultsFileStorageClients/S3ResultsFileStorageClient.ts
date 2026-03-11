@@ -108,21 +108,15 @@ export class S3ResultsFileStorageClient extends S3CacheClient {
             }
         };
 
-        let totalBytesWritten = 0;
-        let totalRowsWritten = 0;
-        let writeCalls = 0;
-        let firstWriteTime: number | null = null;
-
+        // Create a function that can be used as a streamQuery callback
+        // This function handles backpressure by waiting for drain when buffer is full.
         const write = async (rows: WarehouseResults['rows']): Promise<void> => {
             try {
-                if (firstWriteTime === null) firstWriteTime = Date.now();
-                writeCalls += 1;
-
                 for await (const row of rows) {
-                    const data = `${JSON.stringify(row)}\n`;
-                    totalBytesWritten += data.length;
-                    totalRowsWritten += 1;
-                    await writeWithBackpressure(passThrough, data);
+                    await writeWithBackpressure(
+                        passThrough,
+                        `${JSON.stringify(row)}\n`,
+                    );
                 }
             } catch (error) {
                 Logger.error(
@@ -134,14 +128,7 @@ export class S3ResultsFileStorageClient extends S3CacheClient {
             }
         };
 
-        const getStreamMetrics = () => ({
-            totalBytesWritten,
-            totalRowsWritten,
-            writeCalls,
-            elapsedMs: firstWriteTime ? Date.now() - firstWriteTime : 0,
-        });
-
-        return { write, close, writeStream: passThrough, getStreamMetrics };
+        return { write, close, writeStream: passThrough };
     }
 
     async getFileSize(
