@@ -47,7 +47,7 @@
             ];
 
             buildInputs = with pkgs; [
-              nodejs_20
+              nodejs
               pnpm_9
 
               # for dbt
@@ -62,6 +62,8 @@
               google-cloud-sdk
               kubectl
               okteto
+
+              natscli
 
               graphite-cli
 
