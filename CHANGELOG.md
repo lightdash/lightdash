@@ -1,3 +1,22 @@
+# [0.2607.0](https://github.com/lightdash/lightdash/compare/0.2606.0...0.2607.0) (2026-03-11)
+
+
+### Bug Fixes
+
+* harden DuckDB against SQL injection and credential exfiltration ([#21045](https://github.com/lightdash/lightdash/issues/21045)) ([739768e](https://github.com/lightdash/lightdash/commit/739768e4aa522582b8d16561011b6cf72155fe89))
+
+
+### Features
+
+* add row count warnings for pre-aggregate materializations ([#21046](https://github.com/lightdash/lightdash/issues/21046)) ([f77fbb4](https://github.com/lightdash/lightdash/commit/f77fbb4af9bdb87a35dd9c110675295b72d80567))
+* add second, minute, and hour date granularities ([#21039](https://github.com/lightdash/lightdash/issues/21039)) ([d27f471](https://github.com/lightdash/lightdash/commit/d27f47107d31bfa2ecec6b5df5d4a66423a6c578))
+* stream pre-aggregate results directly to Parquet via local temp files ([#21044](https://github.com/lightdash/lightdash/issues/21044)) ([bdace91](https://github.com/lightdash/lightdash/commit/bdace910e8efe15938b46131f90d9b824f26ea3f))
+
+
+### Reverts
+
+* Revert "feat: stream pre-aggregate results directly to Parquet via local temp…" (#21051) ([5091f51](https://github.com/lightdash/lightdash/commit/5091f51a8638c02c9ca1b2c26d904bed4788faa1)), closes [#21051](https://github.com/lightdash/lightdash/issues/21051)
+
 # [0.2606.0](https://github.com/lightdash/lightdash/compare/0.2605.0...0.2606.0) (2026-03-11)
 
 
