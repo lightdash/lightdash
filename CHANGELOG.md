@@ -1,3 +1,10 @@
+# [0.2605.0](https://github.com/lightdash/lightdash/compare/0.2604.2...0.2605.0) (2026-03-11)
+
+
+### Features
+
+* add Liquid field introspection support for _in_query and _is_filtered ([#21032](https://github.com/lightdash/lightdash/issues/21032)) ([e9a3c88](https://github.com/lightdash/lightdash/commit/e9a3c88fb7d1e6c576920c10c93c0e9a625030cd))
+
 ## [0.2604.2](https://github.com/lightdash/lightdash/compare/0.2604.1...0.2604.2) (2026-03-11)
 
 
