@@ -19,12 +19,14 @@ import {
     ExploreType,
     ForbiddenError,
     generateSlug,
+    getDateZoomCapabilities,
     getTimezoneLabel,
     GoogleSheetsTransientError,
     isChartScheduler,
     isConditionalFormattingConfigWithColorRange,
     isConditionalFormattingConfigWithSingleColor,
     isCustomSqlDimension,
+    isExploreError,
     isJwtUser,
     isSchedulerGsheetsOptions,
     isUserWithOrg,
@@ -37,6 +39,7 @@ import {
     ParameterError,
     SavedChart,
     SavedChartDAO,
+    SavedChartWithDateZoomCapabilities,
     SchedulerAndTargets,
     SchedulerFormat,
     SessionUser,
@@ -916,7 +919,8 @@ export class SavedChartService
     async get(
         savedChartUuidOrSlug: string,
         account: Account,
-    ): Promise<SavedChart> {
+        options?: { includeDateZoomCapabilities?: boolean },
+    ): Promise<SavedChart | SavedChartWithDateZoomCapabilities> {
         const savedChart = await this.savedChartModel.get(savedChartUuidOrSlug);
         const space = await this.spaceModel.getSpaceSummary(
             savedChart.spaceUuid,
@@ -941,12 +945,33 @@ export class SavedChartService
             },
         });
 
-        return {
+        const result: SavedChart = {
             ...savedChart,
             isPrivate: !inheritsFromOrgOrProject,
             inheritsFromOrgOrProject,
             access,
         };
+
+        if (options?.includeDateZoomCapabilities) {
+            try {
+                const explore = await this.projectModel.getExploreFromCache(
+                    savedChart.projectUuid,
+                    savedChart.tableName,
+                );
+
+                if (!isExploreError(explore)) {
+                    const dateZoomCapabilities = getDateZoomCapabilities(
+                        explore,
+                        savedChart.metricQuery,
+                    );
+                    return { ...result, dateZoomCapabilities };
+                }
+            } catch {
+                // If explore fails to load, skip capabilities gracefully
+            }
+        }
+
+        return result;
     }
 
     async create(
