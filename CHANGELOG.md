@@ -1,3 +1,10 @@
+## [0.2610.1](https://github.com/lightdash/lightdash/compare/0.2610.0...0.2610.1) (2026-03-11)
+
+
+### Bug Fixes
+
+* restore DuckDB local temp spill for parquet conversion ([#21062](https://github.com/lightdash/lightdash/issues/21062)) ([9fad605](https://github.com/lightdash/lightdash/commit/9fad605bc0ee29940c9b9fb3b0a113d4a01e6579))
+
 # [0.2610.0](https://github.com/lightdash/lightdash/compare/0.2609.0...0.2610.0) (2026-03-11)
 
 
