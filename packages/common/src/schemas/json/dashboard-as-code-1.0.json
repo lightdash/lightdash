@@ -428,6 +428,35 @@
                     }
                 }
             }
+        },
+        "config": {
+            "type": "object",
+            "description": "Dashboard configuration settings such as date zoom behavior",
+            "additionalProperties": false,
+            "properties": {
+                "isDateZoomDisabled": {
+                    "type": "boolean",
+                    "description": "Whether the date zoom feature is disabled for this dashboard"
+                },
+                "pinnedParameters": {
+                    "type": "array",
+                    "description": "List of pinned parameter names",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "dateZoomGranularities": {
+                    "type": "array",
+                    "description": "Available date zoom granularity options (e.g., Day, Week, Month, Quarter, Year)",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "defaultDateZoomGranularity": {
+                    "type": "string",
+                    "description": "The default date zoom granularity when the dashboard loads"
+                }
+            }
         }
     }
 }

@@ -142,7 +142,7 @@ export type DashboardTileWithSlug = DashboardTile & {
 
 export type DashboardAsCode = Pick<
     Dashboard,
-    'name' | 'description' | 'tabs' | 'slug'
+    'name' | 'description' | 'tabs' | 'slug' | 'config'
 > & {
     /** Not modifiable by user, but useful to know if it has been updated. Defaults to now if omitted. */
     updatedAt?: Date;
