@@ -833,6 +833,16 @@ export type SavedChart = {
     } | null;
 };
 
+export type DateZoomCapabilities = {
+    availableCustomGranularities: Record<string, string>;
+    hasTimestampDimension: boolean;
+    hasDateDimension: boolean;
+};
+
+export type SavedChartWithDateZoomCapabilities = SavedChart & {
+    dateZoomCapabilities?: DateZoomCapabilities;
+};
+
 type CreateChartBase = Pick<
     SavedChart,
     | 'name'
