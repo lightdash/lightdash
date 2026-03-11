@@ -64,6 +64,7 @@ export type DuckdbWarehouseClientArgs = {
     databasePath?: string;
     s3Config?: DuckdbS3SessionConfig;
     resourceLimits?: DuckdbResourceLimits;
+    bufferPoolSize?: string; // e.g. '256MB' — controls DuckDB's buffer_pool_size for parquet/HTTP caching
     logger?: DuckdbLogger;
 };
 
@@ -135,12 +136,63 @@ export class DuckdbSqlBuilder extends WarehouseBaseSqlBuilder {
     }
 }
 
+/**
+ * Shared DuckDB instance — one per worker process.
+ * All DuckdbWarehouseClient instances share the same underlying DuckDB instance
+ * to maximize cache hits (parquet metadata, HTTP metadata, buffer pool).
+ */
+let sharedInstance: DuckdbInstance | null = null;
+let httpfsInstalled = false;
+let cachesConfigured = false;
+
+async function getOrCreateSharedInstance(
+    databasePath: string,
+    logger?: DuckdbLogger,
+): Promise<DuckdbInstance> {
+    if (!sharedInstance) {
+        const t0 = performance.now();
+        sharedInstance = (await DuckDBInstance.create(
+            databasePath,
+        )) as DuckdbInstance;
+        const createMs = performance.now() - t0;
+        httpfsInstalled = false;
+        cachesConfigured = false;
+        logger?.info(
+            `DuckDB shared instance created: path=${databasePath} createMs=${Math.round(createMs)}ms`,
+        );
+    }
+    return sharedInstance;
+}
+
+function clearSharedInstance(logger?: DuckdbLogger): void {
+    if (sharedInstance) {
+        try {
+            sharedInstance.closeSync?.();
+        } catch {
+            // best-effort cleanup
+        }
+        sharedInstance = null;
+        httpfsInstalled = false;
+        cachesConfigured = false;
+        logger?.info('DuckDB shared instance cleared');
+    }
+}
+
+/** Reset shared state without closing — for use in tests with mocked instances. */
+export function resetSharedDuckdbStateForTesting(): void {
+    sharedInstance = null;
+    httpfsInstalled = false;
+    cachesConfigured = false;
+}
+
 export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCredentials> {
     private readonly databasePath: string;
 
     private readonly s3Config?: DuckdbS3SessionConfig;
 
     private readonly resourceLimits?: DuckdbResourceLimits;
+
+    private readonly bufferPoolSize?: string;
 
     private readonly logger?: DuckdbLogger;
 
@@ -149,7 +201,12 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
         this.databasePath = args.databasePath ?? ':memory:';
         this.s3Config = args.s3Config;
         this.resourceLimits = args.resourceLimits;
+        this.bufferPoolSize = args.bufferPoolSize;
         this.logger = args.logger;
+    }
+
+    async close(): Promise<void> {
+        clearSharedInstance(this.logger);
     }
 
     private getSQLWithMetadata(sql: string, tags?: Record<string, string>) {
@@ -160,15 +217,32 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
         return `${sql}\n-- ${JSON.stringify(tags)}`;
     }
 
+    private async connectWithRetry(): Promise<DuckdbConnection> {
+        const instance = await getOrCreateSharedInstance(
+            this.databasePath,
+            this.logger,
+        );
+        try {
+            return await instance.connect();
+        } catch (firstError) {
+            this.logger?.info(
+                `DuckDB connect failed, retrying with fresh instance: ${firstError}`,
+            );
+            clearSharedInstance(this.logger);
+            const freshInstance = await getOrCreateSharedInstance(
+                this.databasePath,
+                this.logger,
+            );
+            return freshInstance.connect();
+        }
+    }
+
     private async withSession<T>(
         callback: (db: DuckdbConnection) => Promise<T>,
     ): Promise<T> {
         const sessionStart = performance.now();
 
-        const instance = (await DuckDBInstance.create(
-            this.databasePath,
-        )) as DuckdbInstance;
-        const connection = await instance.connect();
+        const connection = await this.connectWithRetry();
         const connectMs = performance.now() - sessionStart;
 
         // Only create a temp dir when resource limits are set (spill to disk).
@@ -194,7 +268,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
         } finally {
             connection.closeSync?.();
             connection.disconnectSync?.();
-            instance.closeSync?.();
+            // Note: we do NOT close the instance — it's shared across queries
             if (tempDir) {
                 await fs.rm(tempDir, { recursive: true, force: true }).catch(
                     () => {}, // best-effort cleanup
@@ -207,13 +281,39 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
         db: DuckdbConnection,
         tempDir: string | undefined,
     ): Promise<void> {
-        const t0 = performance.now();
-        await db.run('INSTALL httpfs;');
-        const installMs = performance.now() - t0;
+        let installMs = 0;
+        if (!httpfsInstalled) {
+            const t0 = performance.now();
+            await db.run('INSTALL httpfs;');
+            installMs = performance.now() - t0;
+            httpfsInstalled = true;
+            this.logger?.info(
+                `DuckDB httpfs installed (first use): ${Math.round(installMs)}ms`,
+            );
+        }
 
         const t1 = performance.now();
         await db.run('LOAD httpfs;');
         const loadMs = performance.now() - t1;
+
+        // Enable built-in caches — these are GLOBAL settings (instance-level, not
+        // connection-level), so they only need to be set once per shared instance.
+        if (!cachesConfigured) {
+            await db.run('SET enable_http_metadata_cache = true;');
+            await db.run('SET enable_external_file_cache = true;');
+            await db.run('SET parquet_metadata_cache = true;');
+            cachesConfigured = true;
+
+            if (this.bufferPoolSize) {
+                await db.run(
+                    `SET buffer_pool_size = '${this.bufferPoolSize}';`,
+                );
+            }
+
+            this.logger?.info(
+                `DuckDB caches enabled: http_metadata=true external_file=true parquet_metadata=true buffer_pool_size=${this.bufferPoolSize ?? 'default'}`,
+            );
+        }
 
         if (this.resourceLimits && tempDir) {
             await db.run(

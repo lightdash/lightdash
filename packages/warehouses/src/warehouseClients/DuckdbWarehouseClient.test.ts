@@ -3,6 +3,7 @@ import fs from 'fs/promises';
 import {
     DuckdbWarehouseClient,
     mapFieldTypeFromTypeId,
+    resetSharedDuckdbStateForTesting,
 } from './DuckdbWarehouseClient';
 
 const createInstanceMock = jest.fn();
@@ -165,6 +166,7 @@ describe('mapFieldTypeFromTypeId', () => {
 describe('DuckdbWarehouseClient', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        resetSharedDuckdbStateForTesting();
     });
 
     it('should return query rows and mapped fields', async () => {
@@ -274,7 +276,11 @@ describe('DuckdbWarehouseClient', () => {
         await client.runQuery('SELECT 1 AS val', undefined, 'UTC');
 
         const runCalls = runMock.mock.calls.map((call: unknown[]) => call[0]);
+        expect(runCalls).toContain('INSTALL httpfs;');
         expect(runCalls).toContain('LOAD httpfs;');
+        expect(runCalls).toContain('SET enable_http_metadata_cache = true;');
+        expect(runCalls).toContain('SET enable_external_file_cache = true;');
+        expect(runCalls).toContain('SET parquet_metadata_cache = true;');
         expect(runCalls).toContain("SET s3_endpoint = 'localhost:9000';");
         expect(runCalls).toContain("SET s3_region = 'us-east-1';");
         expect(runCalls).toContain("SET TimeZone = 'UTC';");

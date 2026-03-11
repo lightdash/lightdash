@@ -89,6 +89,8 @@ export class PreAggregationDuckDbClient {
 
     private readonly prometheusMetrics?: PrometheusMetrics;
 
+    private cachedWarehouseClient: WarehouseClient | null = null;
+
     constructor(args: PreAggregationDuckDbClientArgs) {
         this.lightdashConfig = args.lightdashConfig;
         this.preAggregateModel = args.preAggregateModel;
@@ -101,6 +103,25 @@ export class PreAggregationDuckDbClient {
                     ...warehouseArgs,
                     logger: Logger,
                 }));
+    }
+
+    private getOrCreateWarehouseClient(): WarehouseClient {
+        if (!this.cachedWarehouseClient) {
+            const duckdbRuntimeConfig = getDuckdbRuntimeConfig(
+                this.lightdashConfig.preAggregates.s3,
+            );
+
+            if (!duckdbRuntimeConfig) {
+                throw new Error('Missing DuckDB runtime config');
+            }
+
+            this.cachedWarehouseClient = this.createDuckdbWarehouseClient({
+                s3Config: duckdbRuntimeConfig,
+            });
+
+            Logger.info('DuckDB warehouse client created and cached for reuse');
+        }
+        return this.cachedWarehouseClient;
     }
 
     static getPreAggregationResolutionErrorMessage({
@@ -135,17 +156,7 @@ export class PreAggregationDuckDbClient {
     }
 
     createExecutionWarehouseClient(): WarehouseClient {
-        const duckdbRuntimeConfig = getDuckdbRuntimeConfig(
-            this.lightdashConfig.preAggregates.s3,
-        );
-
-        if (!duckdbRuntimeConfig) {
-            throw new Error('Missing DuckDB runtime config');
-        }
-
-        return this.createDuckdbWarehouseClient({
-            s3Config: duckdbRuntimeConfig,
-        });
+        return this.getOrCreateWarehouseClient();
     }
 
     async resolve(
@@ -350,9 +361,7 @@ export class PreAggregationDuckDbClient {
             });
         }
 
-        const warehouseClient = this.createDuckdbWarehouseClient({
-            s3Config: duckdbRuntimeConfig,
-        });
+        const warehouseClient = this.getOrCreateWarehouseClient();
 
         return {
             resolved: true,
