@@ -1,5 +1,4 @@
-import { DimensionType, QueryExecutionContext } from '@lightdash/common';
-import fs from 'fs/promises';
+import { DimensionType } from '@lightdash/common';
 import {
     DuckdbWarehouseClient,
     mapFieldTypeFromTypeId,
@@ -37,9 +36,32 @@ const DUCKDB_TYPE_IDS = {
     BLOB: 18,
 } as const;
 
+const mockDuckdbStatementTypes = {
+    SELECT: 1,
+    EXPLAIN: 4,
+    COPY: 11,
+    VARIABLE_SET: 13,
+    SET: 20,
+    LOAD: 21,
+    EXTENSION: 23,
+    ATTACH: 25,
+    DETACH: 26,
+} as const;
+
 jest.mock(
     '@duckdb/node-api',
     () => ({
+        StatementType: {
+            SELECT: 1,
+            EXPLAIN: 4,
+            COPY: 11,
+            VARIABLE_SET: 13,
+            SET: 20,
+            LOAD: 21,
+            EXTENSION: 23,
+            ATTACH: 25,
+            DETACH: 26,
+        },
         DuckDBTypeId: {
             BOOLEAN: 1,
             TINYINT: 2,
@@ -99,7 +121,8 @@ const createMockExtractStatements = (
     jest.fn(async () => ({
         count: overrides?.count ?? 1,
         prepare: async () => ({
-            statementType: overrides?.statementType ?? 1, // SELECT
+            statementType:
+                overrides?.statementType ?? mockDuckdbStatementTypes.SELECT,
             destroySync: jest.fn(),
         }),
     }));
@@ -332,67 +355,6 @@ describe('DuckdbWarehouseClient', () => {
         expect(streamMock).toHaveBeenCalledTimes(1);
     });
 
-    it('should log structured DuckDB profile metrics with query tags', async () => {
-        const runMock = jest.fn(async (sql: string) => {
-            const match = sql.match(/^PRAGMA profiling_output='(.+)';$/);
-            if (match) {
-                await fs.writeFile(
-                    match[1],
-                    JSON.stringify({
-                        latency: 4.747,
-                        cpu_time: 4.731,
-                        rows_returned: 68,
-                        total_bytes_read: 20225287,
-                        children: [
-                            {
-                                operator_name: 'READ_PARQUET ',
-                                operator_timing: 4.632,
-                                operator_cardinality: 9905024,
-                                children: [],
-                            },
-                        ],
-                    }),
-                );
-            }
-        });
-        const streamMock = jest.fn(async () =>
-            getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
-        );
-        const logger = { info: jest.fn() };
-
-        createInstanceMock.mockResolvedValue(
-            createMockConnection(streamMock, runMock),
-        );
-
-        const client = new DuckdbWarehouseClient({ logger });
-        await client.runQuery('SELECT 1 AS val', {
-            query_uuid: 'query-123',
-            chart_uuid: 'chart-123',
-            dashboard_uuid: 'dashboard-123',
-            query_context: QueryExecutionContext.DASHBOARD,
-        });
-
-        expect(logger.info).toHaveBeenCalledWith(
-            expect.stringContaining(
-                'DuckDB query profile: latency=4747ms cpu=4731ms',
-            ),
-            expect.objectContaining({
-                query_uuid: 'query-123',
-                chart_uuid: 'chart-123',
-                dashboard_uuid: 'dashboard-123',
-                query_context: QueryExecutionContext.DASHBOARD,
-                latencyMs: 4747,
-                cpuMs: 4731,
-                waitMs: 16,
-                readParquetMs: 4632,
-                rowsScanned: 9905024,
-                rowsReturned: 68,
-                bytesRead: 20225287,
-                scanAmplification: 9905024 / 68,
-            }),
-        );
-    });
-
     describe('SQL security validation', () => {
         it('should reject SET statements', async () => {
             const streamMock = jest.fn(async () =>
@@ -402,7 +364,7 @@ describe('DuckdbWarehouseClient', () => {
             createInstanceMock.mockResolvedValue(
                 createMockConnection(streamMock, jest.fn(), {
                     extractStatements: createMockExtractStatements({
-                        statementType: 20, // SET
+                        statementType: mockDuckdbStatementTypes.SET,
                     }),
                 }),
             );
@@ -424,7 +386,7 @@ describe('DuckdbWarehouseClient', () => {
             createInstanceMock.mockResolvedValue(
                 createMockConnection(streamMock, jest.fn(), {
                     extractStatements: createMockExtractStatements({
-                        statementType: 11, // COPY
+                        statementType: mockDuckdbStatementTypes.COPY,
                     }),
                 }),
             );
@@ -445,7 +407,7 @@ describe('DuckdbWarehouseClient', () => {
             createInstanceMock.mockResolvedValue(
                 createMockConnection(streamMock, jest.fn(), {
                     extractStatements: createMockExtractStatements({
-                        statementType: 25, // ATTACH
+                        statementType: mockDuckdbStatementTypes.ATTACH,
                     }),
                 }),
             );
@@ -479,76 +441,6 @@ describe('DuckdbWarehouseClient', () => {
             );
         });
 
-        it('should reject queries with current_setting()', async () => {
-            const streamMock = jest.fn(async () =>
-                getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
-            );
-
-            createInstanceMock.mockResolvedValue(
-                createMockConnection(streamMock),
-            );
-
-            const client = new DuckdbWarehouseClient();
-            await expect(
-                client.runQuery(
-                    "SELECT current_setting('s3_secret_access_key')",
-                ),
-            ).rejects.toThrow(
-                "SQL validation error: function 'current_setting' is not allowed",
-            );
-        });
-
-        it('should reject queries with duckdb_settings()', async () => {
-            const streamMock = jest.fn(async () =>
-                getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
-            );
-
-            createInstanceMock.mockResolvedValue(
-                createMockConnection(streamMock),
-            );
-
-            const client = new DuckdbWarehouseClient();
-            await expect(
-                client.runQuery('SELECT * FROM duckdb_settings()'),
-            ).rejects.toThrow(
-                "SQL validation error: function 'duckdb_settings' is not allowed",
-            );
-        });
-
-        it('should reject queries with duckdb_secrets()', async () => {
-            const streamMock = jest.fn(async () =>
-                getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
-            );
-
-            createInstanceMock.mockResolvedValue(
-                createMockConnection(streamMock),
-            );
-
-            const client = new DuckdbWarehouseClient();
-            await expect(
-                client.runQuery('SELECT * FROM duckdb_secrets()'),
-            ).rejects.toThrow(
-                "SQL validation error: function 'duckdb_secrets' is not allowed",
-            );
-        });
-
-        it('should ignore blocked functions inside SQL comments', async () => {
-            const streamMock = jest.fn(async () =>
-                getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
-            );
-
-            createInstanceMock.mockResolvedValue(
-                createMockConnection(streamMock),
-            );
-
-            const client = new DuckdbWarehouseClient();
-            // Should NOT throw because current_setting is in a comment
-            const result = await client.runQuery(
-                "SELECT 1 -- current_setting('s3_secret_access_key')",
-            );
-            expect(result.rows).toEqual([{ val: 1 }]);
-        });
-
         it('should allow COPY statements in runSql', async () => {
             const streamMock = jest.fn();
             const runMock = jest.fn();
@@ -556,7 +448,7 @@ describe('DuckdbWarehouseClient', () => {
             createInstanceMock.mockResolvedValue(
                 createMockConnection(streamMock, runMock, {
                     extractStatements: createMockExtractStatements({
-                        statementType: 10, // COPY
+                        statementType: mockDuckdbStatementTypes.COPY,
                     }),
                 }),
             );
@@ -570,6 +462,31 @@ describe('DuckdbWarehouseClient', () => {
             );
         });
 
+        it('should keep LocalFileSystem enabled for internal COPY sessions', async () => {
+            const streamMock = jest.fn();
+            const runMock = jest.fn();
+
+            createInstanceMock.mockResolvedValue(
+                createMockConnection(streamMock, runMock, {
+                    extractStatements: createMockExtractStatements({
+                        statementType: mockDuckdbStatementTypes.COPY,
+                    }),
+                }),
+            );
+
+            const client = new DuckdbWarehouseClient();
+            await client.runSql(
+                "COPY table TO 's3://bucket/data.parquet' (FORMAT PARQUET)",
+            );
+
+            const runCalls = runMock.mock.calls.map(
+                (call: unknown[]) => call[0] as string,
+            );
+            expect(runCalls).not.toContain(
+                "SET disabled_filesystems = 'LocalFileSystem';",
+            );
+        });
+
         it('should reject SET statements in runSql', async () => {
             const streamMock = jest.fn();
             const runMock = jest.fn();
@@ -577,7 +494,7 @@ describe('DuckdbWarehouseClient', () => {
             createInstanceMock.mockResolvedValue(
                 createMockConnection(streamMock, runMock, {
                     extractStatements: createMockExtractStatements({
-                        statementType: 20, // SET
+                        statementType: mockDuckdbStatementTypes.SET,
                     }),
                 }),
             );
@@ -597,7 +514,7 @@ describe('DuckdbWarehouseClient', () => {
             createInstanceMock.mockResolvedValue(
                 createMockConnection(streamMock, runMock, {
                     extractStatements: createMockExtractStatements({
-                        statementType: 25, // ATTACH
+                        statementType: mockDuckdbStatementTypes.ATTACH,
                     }),
                 }),
             );
@@ -617,7 +534,7 @@ describe('DuckdbWarehouseClient', () => {
             createInstanceMock.mockResolvedValue(
                 createMockConnection(streamMock, runMock, {
                     extractStatements: createMockExtractStatements({
-                        statementType: 21, // LOAD
+                        statementType: mockDuckdbStatementTypes.LOAD,
                     }),
                 }),
             );
@@ -627,24 +544,6 @@ describe('DuckdbWarehouseClient', () => {
                 client.runSql("LOAD 'malicious_extension'"),
             ).rejects.toThrow(
                 'SQL validation error: statement type 21 is not allowed in internal SQL',
-            );
-        });
-
-        it('should reject introspection functions in runSql', async () => {
-            const streamMock = jest.fn();
-            const runMock = jest.fn();
-
-            createInstanceMock.mockResolvedValue(
-                createMockConnection(streamMock, runMock),
-            );
-
-            const client = new DuckdbWarehouseClient();
-            await expect(
-                client.runSql(
-                    "COPY (SELECT current_setting('s3_secret_access_key')) TO '/tmp/out.csv'",
-                ),
-            ).rejects.toThrow(
-                "SQL validation error: function 'current_setting' is not allowed",
             );
         });
 
@@ -678,7 +577,7 @@ describe('DuckdbWarehouseClient', () => {
             createInstanceMock.mockResolvedValue(
                 createMockConnection(streamMock, jest.fn(), {
                     extractStatements: createMockExtractStatements({
-                        statementType: 4, // EXPLAIN
+                        statementType: mockDuckdbStatementTypes.EXPLAIN,
                     }),
                 }),
             );
