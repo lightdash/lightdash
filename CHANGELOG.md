@@ -1,3 +1,10 @@
+# [0.2606.0](https://github.com/lightdash/lightdash/compare/0.2605.0...0.2606.0) (2026-03-11)
+
+
+### Features
+
+* add processing_started_at to query history tracking ([#21047](https://github.com/lightdash/lightdash/issues/21047)) ([81c09c9](https://github.com/lightdash/lightdash/commit/81c09c9a75a1e139c08df08ca5721ed99137d74d))
+
 # [0.2605.0](https://github.com/lightdash/lightdash/compare/0.2604.2...0.2605.0) (2026-03-11)
 
 
