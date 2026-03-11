@@ -1,3 +1,11 @@
+## [0.2607.1](https://github.com/lightdash/lightdash/compare/0.2607.0...0.2607.1) (2026-03-11)
+
+
+### Bug Fixes
+
+* big number label showing zoom granularity for DATE-only dimensions ([#21042](https://github.com/lightdash/lightdash/issues/21042)) ([e43c623](https://github.com/lightdash/lightdash/commit/e43c6231d1deb6b4b1f21345afed8fd66d8ccb76))
+* custom granularity zoom badge showing on unrelated charts ([#21043](https://github.com/lightdash/lightdash/issues/21043)) ([d3e4411](https://github.com/lightdash/lightdash/commit/d3e4411180778f9216a5f2d8534769f8ebd84201))
+
 # [0.2607.0](https://github.com/lightdash/lightdash/compare/0.2606.0...0.2607.0) (2026-03-11)
 
 
