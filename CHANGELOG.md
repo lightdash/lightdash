@@ -1,3 +1,11 @@
+## [0.2603.2](https://github.com/lightdash/lightdash/compare/0.2603.1...0.2603.2) (2026-03-11)
+
+
+### Bug Fixes
+
+* add periodic ack progress for long-running NATS messages ([#21033](https://github.com/lightdash/lightdash/issues/21033)) ([25bdebc](https://github.com/lightdash/lightdash/commit/25bdebcd4ad9461520432b53237583d860cd6b27)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+* configure NATS consumer ack timeout and max delivery attempts ([#21034](https://github.com/lightdash/lightdash/issues/21034)) ([ad05f03](https://github.com/lightdash/lightdash/commit/ad05f038210bfdc6c7f7ecfbe007859c8cd7475a)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
 ## [0.2603.1](https://github.com/lightdash/lightdash/compare/0.2603.0...0.2603.1) (2026-03-11)
 
 
