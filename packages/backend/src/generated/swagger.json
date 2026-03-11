@@ -7481,6 +7481,9 @@
                     },
                     {
                         "properties": {
+                            "dateZoomApplied": {
+                                "type": "boolean"
+                            },
                             "appliedDashboardFilters": {
                                 "$ref": "#/components/schemas/DashboardFilters"
                             },
@@ -7492,6 +7495,7 @@
                             }
                         },
                         "required": [
+                            "dateZoomApplied",
                             "appliedDashboardFilters",
                             "fields",
                             "metricQuery"
@@ -9265,8 +9269,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "error",
-                                                            "success"
+                                                            "success",
+                                                            "error"
                                                         ]
                                                     }
                                                 },
@@ -9280,18 +9284,15 @@
                                                             "topMatchingFields": {
                                                                 "items": {
                                                                     "properties": {
-                                                                        "chartUsage": {
-                                                                            "type": "number",
-                                                                            "format": "double",
-                                                                            "nullable": true
-                                                                        },
                                                                         "searchRank": {
                                                                             "type": "number",
                                                                             "format": "double",
                                                                             "nullable": true
                                                                         },
-                                                                        "fieldType": {
-                                                                            "type": "string"
+                                                                        "chartUsage": {
+                                                                            "type": "number",
+                                                                            "format": "double",
+                                                                            "nullable": true
                                                                         },
                                                                         "tableName": {
                                                                             "type": "string"
@@ -9299,14 +9300,17 @@
                                                                         "label": {
                                                                             "type": "string"
                                                                         },
+                                                                        "fieldType": {
+                                                                            "type": "string"
+                                                                        },
                                                                         "name": {
                                                                             "type": "string"
                                                                         }
                                                                     },
                                                                     "required": [
-                                                                        "fieldType",
                                                                         "tableName",
                                                                         "label",
+                                                                        "fieldType",
                                                                         "name"
                                                                     ],
                                                                     "type": "object"
@@ -9355,8 +9359,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "error",
-                                                            "success"
+                                                            "success",
+                                                            "error"
                                                         ]
                                                     }
                                                 },
@@ -9400,18 +9404,15 @@
                                                                         "results": {
                                                                             "items": {
                                                                                 "properties": {
-                                                                                    "chartUsage": {
-                                                                                        "type": "number",
-                                                                                        "format": "double",
-                                                                                        "nullable": true
-                                                                                    },
                                                                                     "searchRank": {
                                                                                         "type": "number",
                                                                                         "format": "double",
                                                                                         "nullable": true
                                                                                     },
-                                                                                    "fieldType": {
-                                                                                        "type": "string"
+                                                                                    "chartUsage": {
+                                                                                        "type": "number",
+                                                                                        "format": "double",
+                                                                                        "nullable": true
                                                                                     },
                                                                                     "tableName": {
                                                                                         "type": "string"
@@ -9419,14 +9420,17 @@
                                                                                     "label": {
                                                                                         "type": "string"
                                                                                     },
+                                                                                    "fieldType": {
+                                                                                        "type": "string"
+                                                                                    },
                                                                                     "name": {
                                                                                         "type": "string"
                                                                                     }
                                                                                 },
                                                                                 "required": [
-                                                                                    "fieldType",
                                                                                     "tableName",
                                                                                     "label",
+                                                                                    "fieldType",
                                                                                     "name"
                                                                                 ],
                                                                                 "type": "object"
@@ -9454,8 +9458,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "error",
-                                                            "success"
+                                                            "success",
+                                                            "error"
                                                         ]
                                                     }
                                                 },
@@ -12637,7 +12641,6 @@
             "DashboardFilterValidationErrorType": {
                 "enum": [
                     "field_does_not_exist",
-                    "field_table_mismatch",
                     "table_not_used_by_any_chart",
                     "table_does_not_exist"
                 ],
@@ -18449,43 +18452,6 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "ApiRenameDashboardResponse": {
-                "properties": {
-                    "results": {
-                        "properties": {
-                            "jobId": {
-                                "type": "string"
-                            }
-                        },
-                        "type": "object"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "ApiRenameDashboardBody": {
-                "properties": {
-                    "fixAll": {
-                        "type": "boolean"
-                    },
-                    "type": {
-                        "$ref": "#/components/schemas/RenameType"
-                    },
-                    "to": {
-                        "type": "string"
-                    },
-                    "from": {
-                        "type": "string"
-                    }
-                },
-                "required": ["type", "to", "from"],
-                "type": "object"
-            },
             "DbtProjectType.DBT": {
                 "enum": ["dbt"],
                 "type": "string"
@@ -22632,44 +22598,6 @@
                         "type": "object"
                     }
                 ]
-            },
-            "ImpersonationOrganizationSettings": {
-                "properties": {
-                    "impersonationEnabled": {
-                        "type": "boolean"
-                    },
-                    "organizationUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": ["impersonationEnabled", "organizationUuid"],
-                "type": "object"
-            },
-            "ApiSuccess_ImpersonationOrganizationSettings_": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/ImpersonationOrganizationSettings"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "ApiImpersonationOrganizationSettingsResponse": {
-                "$ref": "#/components/schemas/ApiSuccess_ImpersonationOrganizationSettings_"
-            },
-            "UpdateImpersonationOrganizationSettings": {
-                "properties": {
-                    "impersonationEnabled": {
-                        "type": "boolean"
-                    }
-                },
-                "required": ["impersonationEnabled"],
-                "type": "object"
             },
             "NotificationBase": {
                 "properties": {
@@ -28182,7 +28110,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2610.1",
+        "version": "0.2608.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -35834,122 +35762,6 @@
                 ]
             }
         },
-        "/api/v1/projects/{projectUuid}/rename/dashboard/{dashboardUuid}": {
-            "post": {
-                "operationId": "renameDashboardFilter",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiRenameDashboardResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Rename a dashboard filter's field or model reference",
-                "summary": "Rename dashboard filter",
-                "tags": ["Projects"],
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "in": "path",
-                        "name": "dashboardUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/ApiRenameDashboardBody"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/projects/{projectUuid}/rename/dashboard/{dashboardUuid}/fields": {
-            "get": {
-                "operationId": "renameDashboardFields",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiRenameFieldsResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Get a list of fields from explores referenced by the dashboard's filters",
-                "summary": "Get dashboard fields for rename",
-                "tags": ["Projects"],
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "in": "path",
-                        "name": "dashboardUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "in": "query",
-                        "name": "table",
-                        "required": false,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ]
-            }
-        },
         "/api/v1/projects/{projectUuid}": {
             "get": {
                 "operationId": "GetProject",
@@ -39383,80 +39195,6 @@
                         }
                     }
                 ]
-            }
-        },
-        "/api/v1/org/impersonation": {
-            "get": {
-                "operationId": "GetImpersonationSettings",
-                "responses": {
-                    "200": {
-                        "description": "Ok",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiImpersonationOrganizationSettingsResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Get the impersonation setting for the current organization",
-                "summary": "Get impersonation settings",
-                "tags": ["Organizations"],
-                "security": [],
-                "parameters": []
-            },
-            "patch": {
-                "operationId": "UpdateImpersonationSettings",
-                "responses": {
-                    "200": {
-                        "description": "Ok",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiImpersonationOrganizationSettingsResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Update the impersonation setting for the current organization",
-                "summary": "Update impersonation settings",
-                "tags": ["Organizations"],
-                "security": [],
-                "parameters": [],
-                "requestBody": {
-                    "description": "the new impersonation settings",
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/UpdateImpersonationOrganizationSettings",
-                                "description": "the new impersonation settings"
-                            }
-                        }
-                    }
-                }
             }
         },
         "/api/v1/notifications": {
