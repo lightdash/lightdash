@@ -1,3 +1,10 @@
+## [0.2607.2](https://github.com/lightdash/lightdash/compare/0.2607.1...0.2607.2) (2026-03-11)
+
+
+### Bug Fixes
+
+* permanentDelete fails with 404 when soft delete is disabled ([#21054](https://github.com/lightdash/lightdash/issues/21054)) ([5c13901](https://github.com/lightdash/lightdash/commit/5c13901c64c10b2f01b3533de04492952b8bd6be)), closes [#21029](https://github.com/lightdash/lightdash/issues/21029)
+
 ## [0.2607.1](https://github.com/lightdash/lightdash/compare/0.2607.0...0.2607.1) (2026-03-11)
 
 
