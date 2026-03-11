@@ -196,23 +196,18 @@ export function resetSharedDuckdbStateForTesting(): void {
     cachesConfigured = false;
 }
 
-// DuckDB StatementType enum values (from duckdb/common/enums/statement_type.hpp)
-const ALLOWED_STATEMENT_TYPES_USER_SQL = new Set([
-    1, // SELECT
-]);
+// DuckDB StatementType values — see duckdb/common/enums/statement_type.hpp
+const ALLOWED_STATEMENT_TYPES_USER_SQL = new Set([1 /* SELECT */]);
 
-// Statement types blocked in internal SQL (runSql/runSqlWithMetrics).
-// These should never appear in server-constructed materialization queries.
 const BLOCKED_STATEMENT_TYPES_INTERNAL_SQL = new Set([
-    12, // VARIABLE_SET — SET variable = value
-    20, // SET — SET configuration
-    21, // LOAD — LOAD extension
-    23, // EXTENSION — INSTALL extension
-    25, // ATTACH — ATTACH DATABASE
-    26, // DETACH — DETACH DATABASE
+    12, // VARIABLE_SET
+    20, // SET
+    21, // LOAD
+    23, // EXTENSION (INSTALL)
+    25, // ATTACH
+    26, // DETACH
 ]);
 
-// Functions that can leak DuckDB configuration/credentials
 const BLOCKED_FUNCTION_PATTERN =
     /\b(current_setting|duckdb_settings|duckdb_secrets)\s*\(/i;
 
@@ -334,8 +329,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
             await db.run('SET enable_external_file_cache = true;');
             await db.run('SET parquet_metadata_cache = true;');
 
-            // Security hardening (Layer 0): DuckDB built-in security settings.
-            // Applied once after our own extensions are installed/loaded.
+            // Security: lock down after our extensions are installed/loaded
             await db.run("SET disabled_filesystems = 'LocalFileSystem';");
             await db.run('SET allow_community_extensions = false;');
             await db.run('SET autoinstall_known_extensions = false;');
@@ -522,18 +516,12 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
         return fields;
     }
 
-    /**
-     * Strip SQL comments to avoid false positives in function blocklist checks.
-     */
     private static stripSqlComments(sql: string): string {
         return sql
             .replace(/--[^\n]*/g, '') // line comments
             .replace(/\/\*[\s\S]*?\*\//g, ''); // block comments
     }
 
-    /**
-     * Check for blocked introspection functions that could leak credentials.
-     */
     private static validateSqlFunctions(sql: string): void {
         const stripped = DuckdbWarehouseClient.stripSqlComments(sql);
         const match = stripped.match(BLOCKED_FUNCTION_PATTERN);
@@ -544,10 +532,6 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
         }
     }
 
-    /**
-     * Validate user SQL using DuckDB's native parser.
-     * Only SELECT statements are allowed; multiple statements are rejected.
-     */
     private async validateUserSql(
         db: DuckdbConnection,
         sql: string,
@@ -578,11 +562,6 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
         DuckdbWarehouseClient.validateSqlFunctions(sql);
     }
 
-    /**
-     * Validate internal SQL (runSql/runSqlWithMetrics) against a blocklist.
-     * Less strict than validateUserSql — allows COPY, SELECT, etc. but blocks
-     * dangerous operations that should never appear in materialization queries.
-     */
     private async validateInternalSql(
         db: DuckdbConnection,
         sql: string,
