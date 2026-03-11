@@ -51,6 +51,7 @@ type NatsWorkerArgs = {
 const CONSUME_MAX_MESSAGES = 1;
 const ACK_PROGRESS_INTERVAL_MS = 5 * 1000;
 const ACK_WAIT_MS = 30 * 1000;
+const RECONNECT_INTERVAL_MS = 5_000;
 
 export class NatsWorker {
     private readonly asyncQueryService: AsyncQueryService;
@@ -84,7 +85,9 @@ export class NatsWorker {
             await this.connection.rtt();
             return true;
         } catch {
-            return false;
+            // Connection may be temporarily reconnecting — still healthy
+            // as long as the worker is running and not permanently closed.
+            return this.isRunning && !this.connection.isClosed();
         }
     }
 
@@ -102,58 +105,19 @@ export class NatsWorker {
             );
         }
 
-        this.connection = await connect({ servers: this.natsConfig.url });
+        this.connection = await connect({
+            servers: this.natsConfig.url,
+            maxReconnectAttempts: -1,
+            reconnectTimeWait: RECONNECT_INTERVAL_MS,
+        });
         this.messageStreams = [];
-
-        const jsm = await this.connection.jetstreamManager();
-        const jetStream = this.connection.jetstream();
-        const workerLoops = (
-            await Promise.all(
-                this.activeConfigs.map(async (config) => {
-                    await jsm.streams.add({
-                        name: config.streamName,
-                        subjects: Object.values(config.subjects),
-                        retention: RetentionPolicy.Workqueue,
-                        storage: StorageType.Memory,
-                        num_replicas: 1,
-                    });
-
-                    // Check if consumer already exists before creating.
-                    // `consumers.add` with `filter_subjects` uses the old
-                    // DURABLE.CREATE API which is not idempotent.
-                    const consumerExists = await jsm.consumers
-                        .info(config.streamName, config.durableName)
-                        .then(() => true)
-                        .catch(() => false);
-
-                    if (!consumerExists) {
-                        await jsm.consumers.add(config.streamName, {
-                            durable_name: config.durableName,
-                            filter_subjects: Object.values(config.subjects),
-                            ack_policy: AckPolicy.Explicit,
-                            ack_wait: nanos(ACK_WAIT_MS),
-                            max_deliver: 1,
-                        });
-                    }
-
-                    const consumer = await jetStream.consumers.get(
-                        config.streamName,
-                        config.durableName,
-                    );
-
-                    return Array.from(
-                        { length: this.workerConcurrency },
-                        (_, i) =>
-                            this.spawnWorkerLoop(
-                                consumer,
-                                `${config.durableName}-${i + 1}`,
-                            ),
-                    );
-                }),
-            )
-        ).flat();
-
         this.isRunning = true;
+
+        const workerLoops = this.activeConfigs.flatMap((config) =>
+            Array.from({ length: this.workerConcurrency }, (_, i) =>
+                this.spawnWorkerLoop(config, `${config.durableName}-${i + 1}`),
+            ),
+        );
 
         const streamNames = this.activeConfigs.map((c) => c.streamName);
         Logger.info(
@@ -300,29 +264,88 @@ export class NatsWorker {
         for await (const message of messages) {
             await this.handleMessage(message, workerId);
         }
-        Logger.info(`Async query worker ${workerId} stopped`);
+    }
+
+    private async setupStreamConsumer(config: StreamConfig): Promise<Consumer> {
+        const { connection } = this;
+        if (!connection) {
+            throw new Error('No NATS connection');
+        }
+
+        const jsm = await connection.jetstreamManager();
+        const jetStream = connection.jetstream();
+
+        await jsm.streams.add({
+            name: config.streamName,
+            subjects: Object.values(config.subjects),
+            retention: RetentionPolicy.Workqueue,
+            storage: StorageType.Memory,
+            num_replicas: 1,
+        });
+
+        // Check if consumer already exists before creating.
+        // `consumers.add` with `filter_subjects` uses the old
+        // DURABLE.CREATE API which is not idempotent.
+        const consumerExists = await jsm.consumers
+            .info(config.streamName, config.durableName)
+            .then(() => true)
+            .catch(() => false);
+
+        if (!consumerExists) {
+            await jsm.consumers.add(config.streamName, {
+                durable_name: config.durableName,
+                filter_subjects: Object.values(config.subjects),
+                ack_policy: AckPolicy.Explicit,
+                ack_wait: nanos(ACK_WAIT_MS),
+                max_deliver: 1,
+            });
+        }
+
+        return jetStream.consumers.get(config.streamName, config.durableName);
     }
 
     private async spawnWorkerLoop(
-        consumer: Consumer,
+        config: StreamConfig,
         workerId: string,
     ): Promise<void> {
         Logger.info(
             `Async query worker ${workerId} spawned (concurrency=${this.workerConcurrency})`,
         );
 
-        const messages = await consumer.consume({
-            max_messages: CONSUME_MAX_MESSAGES,
-        });
-        this.messageStreams.push(messages);
+        // Each iteration is a full reconnect cycle — sequential awaits are intentional.
+        // eslint-disable-next-line no-await-in-loop
+        while (this.isRunning) {
+            try {
+                // eslint-disable-next-line no-await-in-loop
+                const consumer = await this.setupStreamConsumer(config);
+                // eslint-disable-next-line no-await-in-loop
+                const messages = await consumer.consume({
+                    max_messages: CONSUME_MAX_MESSAGES,
+                });
+                this.messageStreams.push(messages);
 
-        await this.consumeLoop(messages, workerId).catch((error) => {
-            Logger.error(
-                `Async query worker ${workerId} stopped unexpectedly`,
-                error,
-            );
-            throw error;
-        });
+                // eslint-disable-next-line no-await-in-loop
+                await this.consumeLoop(messages, workerId);
+                Logger.info(
+                    `Worker ${workerId} consume loop ended, will reconnect`,
+                );
+            } catch (error) {
+                if (!this.isRunning) break;
+                Logger.error(
+                    `Worker ${workerId} error: ${getErrorMessage(error)}, reconnecting in ${RECONNECT_INTERVAL_MS}ms`,
+                    error,
+                );
+            }
+
+            if (this.isRunning) {
+                // eslint-disable-next-line no-await-in-loop
+                await new Promise((resolve) => {
+                    setTimeout(resolve, RECONNECT_INTERVAL_MS);
+                });
+            }
+        }
+
+        Logger.info(`Worker ${workerId} stopped`);
     }
 
     private parseMessage(message: JsMsg): ParsedMessage | null {
