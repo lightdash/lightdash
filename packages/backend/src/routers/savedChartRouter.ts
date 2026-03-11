@@ -13,11 +13,14 @@ savedChartRouter.get(
     allowApiKeyAuthentication,
     isAuthenticated,
     async (req, res, next) => {
+        const includeDateZoomCapabilities =
+            req.query.includeDateZoomCapabilities === 'true';
         req.services
             .getSavedChartService()
             .get(
                 getObjectValue(req.params, 'savedQueryUuidOrSlug'),
                 req.account!,
+                { includeDateZoomCapabilities },
             )
             .then((results) => {
                 res.json({
