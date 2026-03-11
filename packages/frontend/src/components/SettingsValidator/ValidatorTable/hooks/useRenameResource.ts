@@ -4,6 +4,8 @@ import {
     type ApiJobScheduledResponse,
     type ApiRenameChartBody,
     type ApiRenameChartResponse,
+    type ApiRenameDashboardBody,
+    type ApiRenameDashboardResponse,
     type ApiRenameFieldsResponse,
 } from '@lightdash/common';
 import { IconArrowRight } from '@tabler/icons-react';
@@ -117,6 +119,129 @@ export const useRenameChart = () => {
             showToastError({
                 key: 'rename_chart_toast',
                 title: `Unable to rename chart`,
+                subtitle: error.error.message,
+            });
+        },
+    });
+};
+
+const getFieldsForDashboard = async ({
+    projectUuid,
+    dashboardUuid,
+    table,
+}: {
+    projectUuid: string;
+    dashboardUuid: string;
+    table?: string;
+}) => {
+    const params = table ? `?table=${encodeURIComponent(table)}` : '';
+    return lightdashApi<ApiRenameFieldsResponse['results']>({
+        url: `/projects/${projectUuid}/rename/dashboard/${dashboardUuid}/fields${params}`,
+        method: 'GET',
+        body: undefined,
+    });
+};
+
+export const useFieldsForDashboard = (
+    projectUuid?: string,
+    dashboardUuid?: string,
+    table?: string,
+) => {
+    return useQuery<ApiRenameFieldsResponse['results'], ApiError>({
+        queryKey: ['fields-for-dashboard', projectUuid, dashboardUuid, table],
+        queryFn: () =>
+            getFieldsForDashboard({
+                projectUuid: projectUuid!,
+                dashboardUuid: dashboardUuid!,
+                table,
+            }),
+        enabled: !!projectUuid && !!dashboardUuid,
+    });
+};
+
+const renameDashboard = async ({
+    projectUuid,
+    dashboardUuid,
+    from,
+    to,
+    fixAll,
+    type,
+}: ApiRenameDashboardBody & {
+    projectUuid: string;
+    dashboardUuid: string;
+}) => {
+    return lightdashApi<ApiJobScheduledResponse['results']>({
+        url: `/projects/${projectUuid}/rename/dashboard/${dashboardUuid}`,
+        method: 'POST',
+        body: JSON.stringify({
+            from,
+            to,
+            fixAll,
+            type,
+        }),
+    });
+};
+
+export const useRenameDashboard = () => {
+    const { showToastSuccess, showToastError, showToastInfo } = useToaster();
+    return useMutation<
+        ApiRenameDashboardResponse['results'],
+        ApiError,
+        ApiRenameDashboardBody & {
+            dashboardUuid: string;
+            resourceUrl?: string;
+            projectUuid: string;
+        }
+    >({
+        mutationKey: ['rename-dashboard'],
+        mutationFn: (data) => {
+            return renameDashboard(data);
+        },
+
+        onSuccess: async (job, { fixAll, from, type, resourceUrl }) => {
+            showToastSuccess({
+                key: 'rename_dashboard_toast',
+                title: `Success! ${type} "${from}" was renamed on dashboard.`,
+                action: {
+                    children: 'Open',
+                    icon: IconArrowRight,
+                    onClick: () => {
+                        window.open(resourceUrl, '_blank');
+                    },
+                },
+            });
+
+            if (fixAll && job?.jobId) {
+                showToastInfo({
+                    key: 'rename_dashboard_references_toast',
+                    title: `Updating ${type} "${from}" in other charts and dashboards...`,
+                });
+                pollJobStatus(job.jobId)
+                    .then((status) => {
+                        const totalCharts =
+                            status?.results?.charts?.length || 0;
+                        const totalDashboards =
+                            status?.results?.dashboards?.length || 0;
+                        showToastSuccess({
+                            key: 'rename_dashboard_references_toast',
+                            title: `Success! ${type} "${from}" was renamed on ${totalCharts} charts and ${totalDashboards} dashboards`,
+                        });
+                    })
+                    .catch((e) => {
+                        console.error(e);
+                        showToastError({
+                            key: 'rename_dashboard_references_toast',
+                            title: `Unable to rename other ${type}s`,
+                            subtitle: getErrorMessage(e),
+                        });
+                    });
+            }
+        },
+        onError: (error) => {
+            console.error(error);
+            showToastError({
+                key: 'rename_dashboard_toast',
+                title: `Unable to rename dashboard filter`,
                 subtitle: error.error.message,
             });
         },

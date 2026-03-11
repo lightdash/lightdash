@@ -96,5 +96,44 @@ describe('ValidationModel', () => {
                     DashboardFilterValidationErrorType.TableDoesNotExist,
             });
         });
+
+        it('Should parse "field no longer exists" with table name', () => {
+            const error =
+                "Filter error: the field 'orders_is_completed' on table 'orders' no longer exists";
+
+            const result = ValidationModel.parseDashboardFilterError(error);
+
+            expect(result).toEqual({
+                tableName: 'orders',
+                dashboardFilterErrorType:
+                    DashboardFilterValidationErrorType.FieldDoesNotExist,
+            });
+        });
+
+        it('Should parse "field does not match table" error (FieldTableMismatch)', () => {
+            const error =
+                "Filter error: the field 'orders_is_completed' does not match table 'orders_renamed'";
+
+            const result = ValidationModel.parseDashboardFilterError(error);
+
+            expect(result).toEqual({
+                tableName: 'orders_renamed',
+                dashboardFilterErrorType:
+                    DashboardFilterValidationErrorType.FieldTableMismatch,
+            });
+        });
+
+        it('Should parse "field no longer exists" with multi-underscore table name', () => {
+            const error =
+                "Filter error: the field 'order_items_quantity' on table 'order_items' no longer exists";
+
+            const result = ValidationModel.parseDashboardFilterError(error);
+
+            expect(result).toEqual({
+                tableName: 'order_items',
+                dashboardFilterErrorType:
+                    DashboardFilterValidationErrorType.FieldDoesNotExist,
+            });
+        });
     });
 });
