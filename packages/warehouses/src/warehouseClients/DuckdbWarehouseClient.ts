@@ -329,8 +329,6 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
             await db.run('SET enable_external_file_cache = true;');
             await db.run('SET parquet_metadata_cache = true;');
 
-            // Security: lock down after our extensions are installed/loaded
-            await db.run("SET disabled_filesystems = 'LocalFileSystem';");
             await db.run('SET allow_community_extensions = false;');
             await db.run('SET autoinstall_known_extensions = false;');
             await db.run('SET autoload_known_extensions = false;');

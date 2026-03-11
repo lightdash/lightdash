@@ -302,9 +302,6 @@ describe('DuckdbWarehouseClient', () => {
         expect(runCalls).toContain('SET enable_http_metadata_cache = true;');
         expect(runCalls).toContain('SET enable_external_file_cache = true;');
         expect(runCalls).toContain('SET parquet_metadata_cache = true;');
-        expect(runCalls).toContain(
-            "SET disabled_filesystems = 'LocalFileSystem';",
-        );
         expect(runCalls).toContain('SET allow_community_extensions = false;');
         expect(runCalls).toContain('SET autoinstall_known_extensions = false;');
         expect(runCalls).toContain('SET autoload_known_extensions = false;');
