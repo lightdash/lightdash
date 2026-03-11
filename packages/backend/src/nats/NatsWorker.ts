@@ -3,6 +3,7 @@ import * as Sentry from '@sentry/node';
 import {
     AckPolicy,
     connect,
+    nanos,
     RetentionPolicy,
     StorageType,
     StringCodec,
@@ -49,6 +50,7 @@ type NatsWorkerArgs = {
 
 const CONSUME_MAX_MESSAGES = 1;
 const ACK_PROGRESS_INTERVAL_MS = 5 * 1000;
+const ACK_WAIT_MS = 30 * 1000;
 
 export class NatsWorker {
     private readonly asyncQueryService: AsyncQueryService;
@@ -129,6 +131,8 @@ export class NatsWorker {
                             durable_name: config.durableName,
                             filter_subjects: Object.values(config.subjects),
                             ack_policy: AckPolicy.Explicit,
+                            ack_wait: nanos(ACK_WAIT_MS),
+                            max_deliver: 1,
                         });
                     }
 
