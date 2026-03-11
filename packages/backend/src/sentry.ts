@@ -86,7 +86,7 @@ Sentry.init({
         }
 
         // Boost sampling for async query execution when queryTracesSampleRate is set
-        // This captures more pre-aggregate vs warehouse traces for comparison
+        // Set SENTRY_QUERY_TRACES_SAMPLE_RATE=1.0 for 100% attribution on query traces
         const { queryTracesSampleRate } = lightdashConfig.sentry;
         if (queryTracesSampleRate !== null) {
             // Match by span/transaction name (e.g. scheduler-triggered queries)
@@ -95,8 +95,7 @@ Sentry.init({
                 return queryTracesSampleRate;
             }
 
-            // Match by URL for HTTP-rooted dashboard chart query requests
-            // Targets POST /api/v2/projects/{uuid}/query/dashboard-chart
+            // Match query endpoints (metric-query/dashboard-chart)
             if (request?.url) {
                 try {
                     const url = new URL(
@@ -104,7 +103,7 @@ Sentry.init({
                         `http://${request.headers?.host || 'localhost'}`,
                     );
                     if (
-                        /\/api\/v2\/projects\/[^/]+\/query\/dashboard-chart/.test(
+                        /\/api\/v2\/projects\/[^/]+\/query\/(?:metric-query|dashboard-chart)$/.test(
                             url.pathname,
                         )
                     ) {

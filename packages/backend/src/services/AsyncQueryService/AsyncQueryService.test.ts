@@ -1167,6 +1167,7 @@ describe('AsyncQueryService', () => {
                 columns: null,
                 originalColumns: null,
                 preAggregateCompiledSql: null,
+                processingStartedAt: null,
             });
 
             serviceWithCache.getExplore = jest
@@ -1339,6 +1340,7 @@ describe('AsyncQueryService', () => {
                 columns: expectedColumns,
                 originalColumns: mockOriginalColumns,
                 preAggregateCompiledSql: null,
+                processingStartedAt: null,
             };
 
             serviceWithCache.queryHistoryModel.get = jest

@@ -1760,6 +1760,7 @@ export class AsyncQueryService extends ProjectService {
     public async runAsyncWarehouseQueryFromHistory(
         queryUuid: string,
     ): Promise<void> {
+        await this.queryHistoryModel.updateProcessingStartedAt(queryUuid);
         const args = await this.buildWarehouseQueryArgs(queryUuid);
         await this.runAsyncWarehouseQuery(args);
     }
@@ -1767,6 +1768,7 @@ export class AsyncQueryService extends ProjectService {
     public async runAsyncPreAggregateQueryFromHistory(
         queryUuid: string,
     ): Promise<void> {
+        await this.queryHistoryModel.updateProcessingStartedAt(queryUuid);
         const args = await this.buildPreAggregateQueryArgs(queryUuid);
         await this.runAsyncPreAggregateQuery(args);
     }

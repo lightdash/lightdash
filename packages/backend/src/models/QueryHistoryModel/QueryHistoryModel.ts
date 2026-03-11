@@ -53,6 +53,7 @@ function convertDbQueryHistoryToQueryHistory(
         columns: queryHistory.columns,
         originalColumns: queryHistory.original_columns,
         preAggregateCompiledSql: queryHistory.pre_aggregate_compiled_sql,
+        processingStartedAt: queryHistory.processing_started_at,
     };
 }
 
@@ -115,6 +116,7 @@ export class QueryHistoryModel {
             | 'columns'
             | 'originalColumns'
             | 'preAggregateCompiledSql'
+            | 'processingStartedAt'
             | 'createdByAccount'
             | 'createdByUserUuid'
             | 'createdByActorType'
@@ -155,6 +157,7 @@ export class QueryHistoryModel {
                 columns: null,
                 original_columns: null,
                 pre_aggregate_compiled_sql: null,
+                processing_started_at: null,
             })
             .returning('query_uuid');
 
@@ -242,6 +245,12 @@ export class QueryHistoryModel {
             columns: result.columns,
             originalColumns: result.original_columns,
         };
+    }
+
+    async updateProcessingStartedAt(queryUuid: string): Promise<void> {
+        await this.database(QueryHistoryTableName)
+            .where('query_uuid', queryUuid)
+            .update({ processing_started_at: new Date() });
     }
 
     async getByQueryUuid(queryUuid: string): Promise<QueryHistory | undefined> {

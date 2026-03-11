@@ -43,6 +43,7 @@ export type DbQueryHistory = {
     columns: ResultColumns | null; // result columns with or without pivoting
     original_columns: ResultColumns | null; // columns from original SQL, before pivoting
     pre_aggregate_compiled_sql: string | null; // DuckDB SQL for pre-aggregate execution path
+    processing_started_at: Date | null; // when the NATS worker picked up the job
 };
 
 export type DbQueryHistoryIn = Omit<
@@ -72,6 +73,7 @@ export type DbQueryHistoryUpdate = Partial<
         | 'columns'
         | 'original_columns'
         | 'pre_aggregate_compiled_sql'
+        | 'processing_started_at'
     >
 >;
 
