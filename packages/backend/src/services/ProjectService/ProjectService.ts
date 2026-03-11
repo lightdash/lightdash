@@ -42,7 +42,6 @@ import {
     DashboardFilters,
     DatabricksAuthenticationType,
     DatabricksTokenError,
-    DateGranularity,
     DateZoom,
     DbtExposure,
     DbtExposureType,
@@ -91,6 +90,7 @@ import {
     isJwtUser,
     isNotNull,
     isStandardDateGranularity,
+    isSubDayGranularity,
     isUserWithOrg,
     ItemsMap,
     Job,
@@ -2870,6 +2870,15 @@ export class ProjectService extends BaseService {
                     dimToOverride.timeInterval && baseDimensionId
                         ? timeDimensionsMap[baseDimensionId]
                         : dimToOverride;
+
+                // Skip sub-day zoom for DATE-only dimensions (no time component)
+                if (
+                    baseTimeDimension.type === DimensionType.DATE &&
+                    isStandardDateGranularity(dateZoom.granularity) &&
+                    isSubDayGranularity(dateZoom.granularity)
+                ) {
+                    return explore;
+                }
 
                 if (!isStandardDateGranularity(dateZoom.granularity)) {
                     // Custom granularity: find the pre-compiled dimension

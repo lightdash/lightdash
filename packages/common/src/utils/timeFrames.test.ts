@@ -1,7 +1,13 @@
 import { SupportedDbtAdapter } from '../types/dbt';
 import { DimensionType } from '../types/field';
-import { TimeFrames } from '../types/timeFrames';
-import { getDateDimension, timeFrameConfigs, WeekDay } from './timeFrames';
+import { DateGranularity, TimeFrames } from '../types/timeFrames';
+import {
+    getDateDimension,
+    isSubDayGranularity,
+    SUB_DAY_GRANULARITIES,
+    timeFrameConfigs,
+    WeekDay,
+} from './timeFrames';
 
 describe('TimeFrames', () => {
     describe('getSqlForTruncatedDate', () => {
@@ -270,15 +276,87 @@ describe('TimeFrames', () => {
         });
     });
 
+    describe('isSubDayGranularity', () => {
+        test('SUB_DAY_GRANULARITIES matches timeFrameConfigs that produce TIMESTAMP', () => {
+            // Map from DateGranularity to TimeFrames for the sub-day ones
+            const subDayTimeFrames: Record<string, TimeFrames> = {
+                [DateGranularity.SECOND]: TimeFrames.SECOND,
+                [DateGranularity.MINUTE]: TimeFrames.MINUTE,
+                [DateGranularity.HOUR]: TimeFrames.HOUR,
+            };
+            for (const g of SUB_DAY_GRANULARITIES) {
+                const tf = subDayTimeFrames[g];
+                const dimType = timeFrameConfigs[tf].getDimensionType(
+                    DimensionType.DATE,
+                );
+                expect(dimType).toBe(DimensionType.TIMESTAMP);
+            }
+        });
+
+        test('standard granularities not in SUB_DAY produce DATE', () => {
+            const dayAndAbove: Array<{
+                granularity: DateGranularity;
+                timeFrame: TimeFrames;
+            }> = [
+                {
+                    granularity: DateGranularity.DAY,
+                    timeFrame: TimeFrames.DAY,
+                },
+                {
+                    granularity: DateGranularity.WEEK,
+                    timeFrame: TimeFrames.WEEK,
+                },
+                {
+                    granularity: DateGranularity.MONTH,
+                    timeFrame: TimeFrames.MONTH,
+                },
+                {
+                    granularity: DateGranularity.QUARTER,
+                    timeFrame: TimeFrames.QUARTER,
+                },
+                {
+                    granularity: DateGranularity.YEAR,
+                    timeFrame: TimeFrames.YEAR,
+                },
+            ];
+            for (const { granularity, timeFrame } of dayAndAbove) {
+                expect(isSubDayGranularity(granularity)).toBe(false);
+                const dimType = timeFrameConfigs[timeFrame].getDimensionType(
+                    DimensionType.DATE,
+                );
+                expect(dimType).toBe(DimensionType.DATE);
+            }
+        });
+
+        test('identifies sub-day granularities correctly', () => {
+            expect(isSubDayGranularity(DateGranularity.SECOND)).toBe(true);
+            expect(isSubDayGranularity(DateGranularity.MINUTE)).toBe(true);
+            expect(isSubDayGranularity(DateGranularity.HOUR)).toBe(true);
+            expect(isSubDayGranularity(DateGranularity.DAY)).toBe(false);
+            expect(isSubDayGranularity(DateGranularity.YEAR)).toBe(false);
+        });
+    });
+
     describe('getDateDimension', () => {
         test('should parse dates', async () => {
             // Invalid date granularities
-            expect(getDateDimension('dimension_hour')).toEqual({});
             expect(getDateDimension('dimension')).toEqual({});
             expect(getDateDimension('dimension_date')).toEqual({});
             expect(getDateDimension('dimension_raw')).toEqual({});
 
             // Valid date granularities
+            expect(getDateDimension('dimension_second')).toEqual({
+                baseDimensionId: `dimension`,
+                newTimeFrame: TimeFrames.SECOND,
+            });
+            expect(getDateDimension('dimension_minute')).toEqual({
+                baseDimensionId: `dimension`,
+                newTimeFrame: TimeFrames.MINUTE,
+            });
+            expect(getDateDimension('dimension_hour')).toEqual({
+                baseDimensionId: `dimension`,
+                newTimeFrame: TimeFrames.HOUR,
+            });
             expect(getDateDimension('dimension_day')).toEqual({
                 baseDimensionId: `dimension`,
                 newTimeFrame: TimeFrames.DAY,

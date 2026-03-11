@@ -1,9 +1,12 @@
 import {
+    DimensionType,
     FeatureFlags,
     getAvailableParametersFromTables,
     getDimensions,
     getItemId,
     isDateItem,
+    isStandardDateGranularity,
+    isSubDayGranularity,
     QueryExecutionContext,
     type ApiError,
     type ApiExecuteAsyncDashboardChartQueryResults,
@@ -109,6 +112,9 @@ export const useDashboardChartReadyQuery = (
     const addAvailableCustomGranularities = useDashboardContext(
         (c) => c.addAvailableCustomGranularities,
     );
+    const setTileHasTimestampDimension = useDashboardContext(
+        (c) => c.setTileHasTimestampDimension,
+    );
 
     useEffect(() => {
         if (explore) {
@@ -137,22 +143,40 @@ export const useDashboardChartReadyQuery = (
     const timezoneFixFilters =
         dashboardFilters && convertDateDashboardFilters(dashboardFilters);
 
-    const hasADateDimension = useMemo(() => {
+    const { hasADateDimension, hasTimestampDimension } = useMemo(() => {
         const metricQueryDimensions = [
             ...(chartQuery.data?.metricQuery?.dimensions ?? []),
             ...(chartQuery.data?.metricQuery?.customDimensions ?? []),
         ];
 
-        if (!explore) return false;
-        return getDimensions(explore).find(
+        if (!explore)
+            return {
+                hasADateDimension: false,
+                hasTimestampDimension: false,
+            };
+
+        const dateDims = getDimensions(explore).filter(
             (c) =>
                 metricQueryDimensions.includes(getItemId(c)) && isDateItem(c),
         );
+
+        return {
+            hasADateDimension: dateDims.length > 0,
+            hasTimestampDimension: dateDims.some(
+                (d) => d.type === DimensionType.TIMESTAMP,
+            ),
+        };
     }, [
         chartQuery.data?.metricQuery?.customDimensions,
         chartQuery.data?.metricQuery?.dimensions,
         explore,
     ]);
+
+    // Report TIMESTAMP dimension presence to dashboard context per tile
+    useEffect(() => {
+        setTileHasTimestampDimension(tileUuid, hasTimestampDimension);
+        return () => setTileHasTimestampDimension(tileUuid, false);
+    }, [tileUuid, hasTimestampDimension, setTileHasTimestampDimension]);
 
     const chartParameterValues = useMemo(() => {
         if (!tileParameterReferences || !tileParameterReferences[tileUuid])
@@ -164,13 +188,27 @@ export const useDashboardChartReadyQuery = (
         );
     }, [parameterValues, tileParameterReferences, tileUuid]);
 
+    // Determine if the zoom is effectively applied to this chart.
+    // Sub-day zoom on DATE-only charts is skipped by the backend, so don't mark them.
+    const isZoomEffectivelyApplied = useMemo(() => {
+        if (!hasADateDimension || !granularity) return false;
+        if (
+            !hasTimestampDimension &&
+            isStandardDateGranularity(granularity) &&
+            isSubDayGranularity(granularity)
+        ) {
+            return false;
+        }
+        return true;
+    }, [hasADateDimension, hasTimestampDimension, granularity]);
+
     useEffect(() => {
         if (!chartUuid) return;
 
         setChartsWithDateZoomApplied((prev) => {
             if (hasADateDimension) {
                 const nextSet = new Set(prev ?? []);
-                if (granularity) {
+                if (isZoomEffectivelyApplied) {
                     nextSet.add(chartUuid);
                 } else {
                     nextSet.delete(chartUuid);
@@ -181,7 +219,7 @@ export const useDashboardChartReadyQuery = (
         });
     }, [
         hasADateDimension,
-        granularity,
+        isZoomEffectivelyApplied,
         chartUuid,
         setChartsWithDateZoomApplied,
     ]);

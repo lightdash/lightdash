@@ -10,6 +10,7 @@ import {
     isDashboardChartTileType,
     isDashboardSqlChartTile,
     isStandardDateGranularity,
+    isSubDayGranularity,
     type CacheMetadata,
     type Dashboard,
     type DashboardFilterRule,
@@ -247,6 +248,27 @@ const DashboardProvider: React.FC<
     // Date zoom granularities state
     const allStandardGranularities = useMemo(
         () => Object.values(DateGranularity),
+        [],
+    );
+
+    // Track which tiles have TIMESTAMP dimensions; derive boolean from set size
+    const [tilesWithTimestampDimension, setTilesWithTimestampDimension] =
+        useState<Set<string>>(new Set());
+    const dashboardHasTimestampDimension = tilesWithTimestampDimension.size > 0;
+
+    const setTileHasTimestampDimension = useCallback(
+        (tileUuid: string, hasTimestamp: boolean) => {
+            setTilesWithTimestampDimension((prev) => {
+                const next = new Set(prev);
+                if (hasTimestamp) {
+                    next.add(tileUuid);
+                } else {
+                    next.delete(tileUuid);
+                }
+                if (next.size === prev.size) return prev;
+                return next;
+            });
+        },
         [],
     );
 
@@ -502,17 +524,25 @@ const DashboardProvider: React.FC<
         return chartTileUuids.every((tileUuid) => loadedTiles.has(tileUuid));
     }, [dashboardTiles, loadedTiles, activeTab, dashboardTabs]);
 
-    // Once all charts have loaded, clean up stale custom granularities that
-    // are no longer provided by any explore on the dashboard.
+    // Once all charts have loaded, clean up stale granularities:
+    // - Custom granularities no longer provided by any explore
+    // - Sub-day granularities when no TIMESTAMP dimensions exist
     useEffect(() => {
         if (!areAllChartsLoaded) return;
 
         const availableCustomGranularityKeys = new Set(
             Object.keys(availableCustomGranularities),
         );
-        const isAvailable = (g: string) =>
-            isStandardDateGranularity(g) ||
-            availableCustomGranularityKeys.has(g);
+        const isAvailable = (g: string) => {
+            if (!isStandardDateGranularity(g)) {
+                return availableCustomGranularityKeys.has(g);
+            }
+            // Strip sub-day standard granularities when no timestamp dims
+            if (!dashboardHasTimestampDimension && isSubDayGranularity(g)) {
+                return false;
+            }
+            return true;
+        };
 
         setDateZoomGranularitiesState((prev) => {
             const filtered = prev.filter(isAvailable);
@@ -532,7 +562,11 @@ const DashboardProvider: React.FC<
             }
             return prev;
         });
-    }, [areAllChartsLoaded, availableCustomGranularities]);
+    }, [
+        areAllChartsLoaded,
+        availableCustomGranularities,
+        dashboardHasTimestampDimension,
+    ]);
 
     const [screenshotReadyTiles, setScreenshotReadyTiles] = useState<
         Set<string>
@@ -1468,6 +1502,8 @@ const DashboardProvider: React.FC<
         hasDefaultDateZoomGranularityChanged,
         setHasDefaultDateZoomGranularityChanged,
         addParameterDefinitions,
+        dashboardHasTimestampDimension,
+        setTileHasTimestampDimension,
         availableCustomGranularities,
         addAvailableCustomGranularities,
         tileNamesById,
