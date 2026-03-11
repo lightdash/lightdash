@@ -1,4 +1,5 @@
 import {
+    computePreAggregateWarnings,
     NotFoundError,
     type ActiveMaterializationDetails,
     type ApiPreAggregateMaterializationsResults,
@@ -567,19 +568,8 @@ export class PreAggregateModel {
         const result = await KnexPaginate.paginate(query, paginateArgs);
 
         const materializations: PreAggregateMaterializationSummary[] =
-            result.data.map((row) => ({
-                preAggregateDefinitionUuid: row.pre_aggregate_definition_uuid,
-                preAggregateName: row.pre_aggregate_definition.name,
-                preAggExploreName: row.pre_agg_explore_name,
-                sourceExploreName: row.source_explore_name,
-                dimensions: row.pre_aggregate_definition.dimensions ?? [],
-                metrics: row.pre_aggregate_definition.metrics ?? [],
-                timeDimension:
-                    row.pre_aggregate_definition.timeDimension ?? null,
-                granularity: row.pre_aggregate_definition.granularity ?? null,
-                refreshCron: row.refresh_cron,
-                definitionError: row.materialization_query_error,
-                materialization: row.mat_uuid
+            result.data.map((row) => {
+                const materialization = row.mat_uuid
                     ? {
                           materializationUuid: row.mat_uuid,
                           status: row.mat_status!,
@@ -597,8 +587,26 @@ export class PreAggregateModel {
                           errorMessage: row.mat_error_message,
                           trigger: row.mat_trigger!,
                       }
-                    : null,
-            }));
+                    : null;
+
+                return {
+                    preAggregateDefinitionUuid:
+                        row.pre_aggregate_definition_uuid,
+                    preAggregateName: row.pre_aggregate_definition.name,
+                    preAggExploreName: row.pre_agg_explore_name,
+                    sourceExploreName: row.source_explore_name,
+                    dimensions: row.pre_aggregate_definition.dimensions ?? [],
+                    metrics: row.pre_aggregate_definition.metrics ?? [],
+                    timeDimension:
+                        row.pre_aggregate_definition.timeDimension ?? null,
+                    granularity:
+                        row.pre_aggregate_definition.granularity ?? null,
+                    refreshCron: row.refresh_cron,
+                    definitionError: row.materialization_query_error,
+                    warnings: computePreAggregateWarnings(materialization),
+                    materialization,
+                };
+            });
 
         return {
             data: { materializations },
