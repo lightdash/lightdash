@@ -135,6 +135,11 @@ export type DashboardContextType = {
     toggleParameterPin: (parameterKey: string) => void;
     havePinnedParametersChanged: boolean;
     setHavePinnedParametersChanged: Dispatch<SetStateAction<boolean>>;
+    dashboardHasTimestampDimension: boolean;
+    setTileHasTimestampDimension: (
+        tileUuid: string,
+        hasTimestamp: boolean,
+    ) => void;
     dateZoomGranularities: (DateGranularity | string)[];
     setDateZoomGranularities: (
         granularities: (DateGranularity | string)[],

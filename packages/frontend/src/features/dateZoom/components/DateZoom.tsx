@@ -1,4 +1,8 @@
-import { DateGranularity, isStandardDateGranularity } from '@lightdash/common';
+import {
+    DateGranularity,
+    isStandardDateGranularity,
+    isSubDayGranularity,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Button,
@@ -141,16 +145,42 @@ export const DateZoom: FC<Props> = ({ isEditMode }) => {
     const availableCustomGranularities = useDashboardContext(
         (c) => c.availableCustomGranularities,
     );
+    const dashboardHasTimestampDimension = useDashboardContext(
+        (c) => c.dashboardHasTimestampDimension,
+    );
     const { track } = useTracking();
 
     useEffect(() => {
         if (isEditMode) setDateZoomGranularity(undefined);
     }, [isEditMode, setDateZoomGranularity]);
 
+    // Reset active sub-day granularity when no TIMESTAMP dimensions exist
+    // (e.g., saved config or URL param on DATE-only dashboard)
+    useEffect(() => {
+        if (
+            !dashboardHasTimestampDimension &&
+            dateZoomGranularity &&
+            isStandardDateGranularity(dateZoomGranularity) &&
+            isSubDayGranularity(dateZoomGranularity)
+        ) {
+            setDateZoomGranularity(undefined);
+        }
+    }, [
+        dashboardHasTimestampDimension,
+        dateZoomGranularity,
+        setDateZoomGranularity,
+    ]);
+
     // Split available granularities into standard and custom for rendering with a divider.
+    // Exclude sub-day granularities when no TIMESTAMP dimensions exist on the dashboard.
     const standardGranularities = useMemo(
-        () => Object.values(DateGranularity),
-        [],
+        () =>
+            dashboardHasTimestampDimension
+                ? Object.values(DateGranularity)
+                : Object.values(DateGranularity).filter(
+                      (g) => !isSubDayGranularity(g),
+                  ),
+        [dashboardHasTimestampDimension],
     );
 
     const customGranularities = useMemo(

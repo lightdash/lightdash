@@ -27,6 +27,9 @@ export enum TimeFrames {
 }
 
 export enum DateGranularity {
+    SECOND = 'Second',
+    MINUTE = 'Minute',
+    HOUR = 'Hour',
     DAY = 'Day',
     WEEK = 'Week',
     MONTH = 'Month',
@@ -43,6 +46,9 @@ export const dateGranularityToTimeFrameMap: Record<
     DateGranularity,
     TimeFrames
 > = {
+    [DateGranularity.SECOND]: TimeFrames.SECOND,
+    [DateGranularity.MINUTE]: TimeFrames.MINUTE,
+    [DateGranularity.HOUR]: TimeFrames.HOUR,
     [DateGranularity.DAY]: TimeFrames.DAY,
     [DateGranularity.WEEK]: TimeFrames.WEEK,
     [DateGranularity.MONTH]: TimeFrames.MONTH,
@@ -53,6 +59,9 @@ export const dateGranularityToTimeFrameMap: Record<
 export const timeFrameToDateGranularityMap: Partial<
     Record<TimeFrames, DateGranularity>
 > = {
+    [TimeFrames.SECOND]: DateGranularity.SECOND,
+    [TimeFrames.MINUTE]: DateGranularity.MINUTE,
+    [TimeFrames.HOUR]: DateGranularity.HOUR,
     [TimeFrames.DAY]: DateGranularity.DAY,
     [TimeFrames.WEEK]: DateGranularity.WEEK,
     [TimeFrames.MONTH]: DateGranularity.MONTH,
