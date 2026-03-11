@@ -710,7 +710,7 @@ export class DashboardModel {
 
     async getByIdOrSlug(
         dashboardUuidOrSlug: string,
-        options?: { deleted?: boolean },
+        options?: { deleted?: boolean | 'any' },
     ): Promise<DashboardDAO> {
         const query = this.database(DashboardsTableName)
             .leftJoin(
@@ -792,8 +792,10 @@ export class DashboardModel {
             .orderBy(`${DashboardVersionsTableName}.created_at`, 'desc')
             .limit(1);
 
-        // Filter by deleted status
-        if (options?.deleted) {
+        // Filter by deleted status: deleted=true gets deleted items, deleted='any' skips filter, default gets non-deleted
+        if (options?.deleted === 'any') {
+            // No filter — find regardless of deleted status
+        } else if (options?.deleted) {
             void query.whereNotNull(`${DashboardsTableName}.deleted_at`);
         } else {
             void query.whereNull(`${DashboardsTableName}.deleted_at`);
@@ -1275,7 +1277,7 @@ export class DashboardModel {
 
     async permanentDelete(dashboardUuid: string): Promise<DashboardDAO> {
         const dashboard = await this.getByIdOrSlug(dashboardUuid, {
-            deleted: true,
+            deleted: 'any',
         });
         await this.database(DashboardsTableName)
             .where('dashboard_uuid', dashboardUuid)
