@@ -1,3 +1,10 @@
+# [0.2604.0](https://github.com/lightdash/lightdash/compare/0.2603.2...0.2604.0) (2026-03-11)
+
+
+### Features
+
+* cache shared duckdb connection ([#21035](https://github.com/lightdash/lightdash/issues/21035)) ([1252f67](https://github.com/lightdash/lightdash/commit/1252f679a791f20cde73383ce2f82a005f5cffdb))
+
 ## [0.2603.2](https://github.com/lightdash/lightdash/compare/0.2603.1...0.2603.2) (2026-03-11)
 
 
