@@ -739,7 +739,9 @@ export class SavedChartModel {
     }
 
     async permanentDelete(savedChartUuid: string): Promise<SavedChartDAO> {
-        const savedChart = await this.get(savedChartUuid);
+        const savedChart = await this.get(savedChartUuid, undefined, {
+            deleted: true,
+        });
         await this.database(SavedChartsTableName)
             .delete()
             .where('saved_query_uuid', savedChartUuid);
