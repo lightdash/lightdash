@@ -9,9 +9,7 @@ import {
     type KnexPaginateArgs,
     type KnexPaginatedData,
     type PreAggregateMaterializationTrigger,
-    type ResultColumns,
 } from '@lightdash/common';
-import { DuckdbWarehouseClient } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
 import { type S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import { type LightdashConfig } from '../../config/parseConfig';
@@ -19,13 +17,7 @@ import { PreAggregateModel } from '../../models/PreAggregateModel';
 import { type QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import type PrometheusMetrics from '../../prometheus/PrometheusMetrics';
 import { type AsyncQueryService } from '../AsyncQueryService/AsyncQueryService';
-import { getDuckdbRuntimeConfig } from '../AsyncQueryService/getDuckdbRuntimeConfig';
 import { BaseService } from '../BaseService';
-import {
-    getDuckdbPreAggregateSqlTable,
-    getPreAggregateDuckdbLocator,
-    quoteDuckdbIdentifier,
-} from './getDuckdbPreAggregateSqlTable';
 
 const QUERY_POLL_INTERVAL_MS = 1000;
 const QUERY_POLL_TIMEOUT_MS = 30 * 60 * 1000;
@@ -65,18 +57,6 @@ export class PreAggregateMaterializationService extends BaseService {
         return this.lightdashConfig.preAggregates.parquetEnabled;
     }
 
-    private getJsonlUri(resultsFileName: string): string {
-        const bucket = this.lightdashConfig.preAggregates.s3?.bucket;
-
-        if (!bucket) {
-            throw new Error(
-                'Missing pre-aggregate S3 bucket configuration for materializations',
-            );
-        }
-
-        return `s3://${bucket}/${resultsFileName}.jsonl`;
-    }
-
     private getMaterializationUri(resultsFileName: string): string {
         const bucket = this.lightdashConfig.preAggregates.s3?.bucket;
 
@@ -92,83 +72,6 @@ export class PreAggregateMaterializationService extends BaseService {
 
     private getMaterializationFormat(): 'jsonl' | 'parquet' {
         return this.parquetEnabled ? 'parquet' : 'jsonl';
-    }
-
-    private async convertJsonlToParquet(
-        jsonlUri: string,
-        parquetUri: string,
-        columns: ResultColumns | null,
-        dimensionFieldIds: string[],
-    ): Promise<void> {
-        const s3Config = getDuckdbRuntimeConfig(
-            this.lightdashConfig.preAggregates.s3,
-        );
-
-        if (!s3Config) {
-            throw new Error(
-                'Missing DuckDB runtime S3 configuration for Parquet conversion',
-            );
-        }
-
-        const duckdb = new DuckdbWarehouseClient({
-            s3Config,
-            resourceLimits: { memoryLimit: '256MB', threads: 1 },
-            logger: this.logger,
-        });
-
-        const jsonlSqlTable = getDuckdbPreAggregateSqlTable(
-            getPreAggregateDuckdbLocator({ uri: jsonlUri, format: 'jsonl' }),
-            columns,
-        );
-
-        const orderByClause =
-            dimensionFieldIds.length > 0
-                ? ` ORDER BY ${dimensionFieldIds.map(quoteDuckdbIdentifier).join(', ')}`
-                : '';
-
-        const copySql = `COPY (SELECT * FROM ${jsonlSqlTable}${orderByClause}) TO '${parquetUri}' (FORMAT PARQUET, COMPRESSION zstd, ROW_GROUP_SIZE 1000000)`;
-        const metrics = await duckdb.runSqlWithMetrics(copySql);
-
-        this.logger.info(
-            `DuckDB JSONL→Parquet conversion metrics: bootstrap=${metrics.bootstrapMs}ms, query=${metrics.queryMs}ms, total=${metrics.totalMs}ms`,
-        );
-
-        Sentry.getActiveSpan()?.setAttributes({
-            'duckdb.bootstrapMs': metrics.bootstrapMs,
-            'duckdb.queryMs': metrics.queryMs,
-            'duckdb.totalMs': metrics.totalMs,
-        });
-    }
-
-    private async recordFileSizes(resultsFileName: string): Promise<void> {
-        const [jsonlSize, parquetSize] = await Promise.all([
-            this.preAggregateResultsStorageClient.getFileSize(
-                resultsFileName,
-                'jsonl',
-            ),
-            this.preAggregateResultsStorageClient.getFileSize(
-                resultsFileName,
-                'parquet',
-            ),
-        ]);
-
-        if (jsonlSize != null) {
-            this.prometheusMetrics?.preAggregateMaterializationFileSizeGauge?.set(
-                { format: 'jsonl' },
-                jsonlSize,
-            );
-        }
-
-        if (parquetSize != null) {
-            this.prometheusMetrics?.preAggregateMaterializationFileSizeGauge?.set(
-                { format: 'parquet' },
-                parquetSize,
-            );
-        }
-
-        this.logger.info(
-            `Pre-aggregate file sizes - JSONL: ${jsonlSize ?? 'unknown'} bytes, Parquet: ${parquetSize ?? 'unknown'} bytes`,
-        );
     }
 
     async materializePreAggregate(args: {
@@ -249,7 +152,19 @@ export class PreAggregateMaterializationService extends BaseService {
                         projectUuid: args.projectUuid,
                         context:
                             QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION,
-                        metricQuery: materializationMetricQuery.metricQuery,
+                        metricQuery: {
+                            ...materializationMetricQuery.metricQuery,
+                            sorts:
+                                materializationMetricQuery.metricQuery
+                                    .dimensions.length > 0
+                                    ? materializationMetricQuery.metricQuery.dimensions.map(
+                                          (fieldId) => ({
+                                              fieldId,
+                                              descending: false,
+                                          }),
+                                      )
+                                    : [],
+                        },
                         invalidateCache: true,
                     }),
             );
@@ -368,96 +283,9 @@ export class PreAggregateMaterializationService extends BaseService {
                 };
             }
 
-            // Convert JSONL to Parquet if enabled
-            if (this.parquetEnabled) {
-                const jsonlUri = this.getJsonlUri(queryHistory.resultsFileName);
-                const parquetUri = this.getMaterializationUri(
-                    queryHistory.resultsFileName,
-                );
-
-                this.logger.info(
-                    `Starting conversion of JSONL to Parquet for pre-aggregate materialization for definition ${args.preAggregateDefinitionUuid}`,
-                    {
-                        materializationUuid,
-                        queryUuid,
-                        jsonlUri,
-                        parquetUri,
-                    },
-                );
-
-                const conversionStartTime = Date.now();
-                try {
-                    await Sentry.startSpan(
-                        {
-                            op: 'preaggregate',
-                            name: 'convertJsonlToParquet',
-                            attributes: {
-                                projectUuid: args.projectUuid,
-                                materializationUuid,
-                                queryUuid,
-                                rowCount: queryHistory.totalRowCount ?? 0,
-                            },
-                        },
-                        () =>
-                            this.convertJsonlToParquet(
-                                jsonlUri,
-                                parquetUri,
-                                queryHistory.columns,
-                                materializationMetricQuery.metricQuery
-                                    .dimensions,
-                            ),
-                    );
-
-                    this.logger.info(
-                        `Conversion of JSONL to Parquet completed for pre-aggregate materialization for definition ${args.preAggregateDefinitionUuid}`,
-                        {
-                            materializationUuid,
-                            queryUuid,
-                        },
-                    );
-
-                    const conversionDurationMs =
-                        Date.now() - conversionStartTime;
-                    this.prometheusMetrics?.preAggregateParquetConversionDurationHistogram?.observe(
-                        { status: 'success' },
-                        conversionDurationMs,
-                    );
-
-                    this.logger.info(
-                        `Converted pre-aggregate JSONL to Parquet in ${conversionDurationMs}ms`,
-                    );
-                } catch (error) {
-                    const conversionDurationMs =
-                        Date.now() - conversionStartTime;
-                    this.prometheusMetrics?.preAggregateParquetConversionDurationHistogram?.observe(
-                        { status: 'failed' },
-                        conversionDurationMs,
-                    );
-
-                    throw new Error(
-                        `Failed to convert JSONL to Parquet: ${getErrorMessage(error)}`,
-                    );
-                }
-
-                // Record file sizes for both formats (keeping JSONL for comparison)
-                await Sentry.startSpan(
-                    {
-                        op: 'preaggregate',
-                        name: 'recordFileSizes',
-                        attributes: {
-                            materializationUuid,
-                        },
-                    },
-                    () =>
-                        this.recordFileSizes(
-                            queryHistory.resultsFileName!,
-                        ).catch((e) =>
-                            this.logger.warn(
-                                `Failed to record file sizes: ${getErrorMessage(e)}`,
-                            ),
-                        ),
-                );
-            }
+            // When parquetEnabled, the Parquet file is already on S3
+            // (written directly via LocalParquetUploadStream in
+            // AsyncQueryService), so no JSONL→Parquet conversion needed.
 
             const columnCount = queryHistory.columns
                 ? Object.keys(queryHistory.columns).length
