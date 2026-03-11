@@ -14,6 +14,7 @@ import {
 } from '@mantine-8/core';
 import { useDisclosure } from '@mantine-8/hooks';
 import {
+    IconBolt,
     IconCalendarClock,
     IconChevronDown,
     IconChevronRight,
@@ -21,7 +22,6 @@ import {
     IconDatabase,
     IconFile,
     IconHourglass,
-    IconLayersIntersect,
     IconRefresh,
     IconTableRow,
 } from '@tabler/icons-react';
@@ -131,7 +131,7 @@ const MaterializationDetailDrawer: FC<Props> = ({
             zIndex={getDefaultZIndex('max') + 1}
             title={
                 <Group gap="xs">
-                    <IconBox icon={IconLayersIntersect} color="ldDark.9" />
+                    <IconBox icon={IconBolt} color="ldDark.9" />
                     <Text fw={600} fz="sm">
                         Pre-aggregate details
                     </Text>
