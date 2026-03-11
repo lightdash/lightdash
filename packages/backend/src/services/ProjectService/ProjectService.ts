@@ -2834,7 +2834,7 @@ export class ProjectService extends BaseService {
         warehouseSqlBuilder: WarehouseSqlBuilder,
         availableParameters: string[],
         dateZoom?: DateZoom,
-    ): Explore {
+    ): { explore: Explore; dateZoomApplied: boolean } {
         if (dateZoom?.granularity) {
             const timeDimensionsMap: Record<string, CompiledDimension> =
                 Object.values(explore.tables).reduce<
@@ -2877,7 +2877,7 @@ export class ProjectService extends BaseService {
                     isStandardDateGranularity(dateZoom.granularity) &&
                     isSubDayGranularity(dateZoom.granularity)
                 ) {
-                    return explore;
+                    return { explore, dateZoomApplied: false };
                 }
 
                 if (!isStandardDateGranularity(dateZoom.granularity)) {
@@ -2895,10 +2895,13 @@ export class ProjectService extends BaseService {
                             ...customDim,
                             name: dimToOverride.name,
                         };
-                        return replaceDimensionInExplore(
-                            explore,
-                            dimWithCustomOverride,
-                        );
+                        return {
+                            explore: replaceDimensionInExplore(
+                                explore,
+                                dimWithCustomOverride,
+                            ),
+                            dateZoomApplied: true,
+                        };
                     }
                     // Custom granularity not found — return unchanged explore
                 } else {
@@ -2912,14 +2915,17 @@ export class ProjectService extends BaseService {
                             dateZoom.granularity,
                             availableParameters,
                         );
-                    return replaceDimensionInExplore(
-                        explore,
-                        dimWithGranularityOverride,
-                    );
+                    return {
+                        explore: replaceDimensionInExplore(
+                            explore,
+                            dimWithGranularityOverride,
+                        ),
+                        dateZoomApplied: true,
+                    };
                 }
             }
         }
-        return explore;
+        return { explore, dateZoomApplied: false };
     }
 
     static async _compileQuery({
@@ -2951,13 +2957,14 @@ export class ProjectService extends BaseService {
     }): Promise<CompiledQuery> {
         const availableParameters = Object.keys(availableParameterDefinitions);
 
-        const exploreWithOverride = ProjectService.updateExploreWithDateZoom(
-            explore,
-            metricQuery,
-            warehouseSqlBuilder,
-            availableParameters,
-            dateZoom,
-        );
+        const { explore: exploreWithOverride } =
+            ProjectService.updateExploreWithDateZoom(
+                explore,
+                metricQuery,
+                warehouseSqlBuilder,
+                availableParameters,
+                dateZoom,
+            );
 
         const compiledMetricQuery = compileMetricQuery({
             explore: exploreWithOverride,

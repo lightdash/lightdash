@@ -2157,7 +2157,16 @@
                 "type": "object"
             },
             "DateGranularity": {
-                "enum": ["Day", "Week", "Month", "Quarter", "Year"],
+                "enum": [
+                    "Second",
+                    "Minute",
+                    "Hour",
+                    "Day",
+                    "Week",
+                    "Month",
+                    "Quarter",
+                    "Year"
+                ],
                 "type": "string"
             },
             "DashboardConfig": {
@@ -7472,6 +7481,9 @@
                     },
                     {
                         "properties": {
+                            "dateZoomApplied": {
+                                "type": "boolean"
+                            },
                             "appliedDashboardFilters": {
                                 "$ref": "#/components/schemas/DashboardFilters"
                             },
@@ -7483,6 +7495,7 @@
                             }
                         },
                         "required": [
+                            "dateZoomApplied",
                             "appliedDashboardFilters",
                             "fields",
                             "metricQuery"
@@ -9246,19 +9259,6 @@
                                                         "type": "string",
                                                         "enum": ["error"],
                                                         "nullable": false
-                                                    }
-                                                },
-                                                "required": ["status"],
-                                                "type": "object"
-                                            },
-                                            {
-                                                "properties": {
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": [
-                                                            "error",
-                                                            "success"
-                                                        ]
                                                     }
                                                 },
                                                 "required": ["status"],
@@ -20164,7 +20164,7 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_Dashboard.name-or-description-or-tabs-or-slug_": {
+            "Pick_Dashboard.name-or-description-or-tabs-or-slug-or-config_": {
                 "properties": {
                     "description": {
                         "type": "string"
@@ -20180,6 +20180,9 @@
                             "$ref": "#/components/schemas/DashboardTab"
                         },
                         "type": "array"
+                    },
+                    "config": {
+                        "$ref": "#/components/schemas/DashboardConfig"
                     }
                 },
                 "required": ["name", "slug", "tabs"],
@@ -20354,7 +20357,7 @@
             "DashboardAsCode": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/Pick_Dashboard.name-or-description-or-tabs-or-slug_"
+                        "$ref": "#/components/schemas/Pick_Dashboard.name-or-description-or-tabs-or-slug-or-config_"
                     },
                     {
                         "properties": {
@@ -20836,6 +20839,9 @@
                             "$ref": "#/components/schemas/DashboardTab"
                         },
                         "type": "array"
+                    },
+                    "config": {
+                        "$ref": "#/components/schemas/DashboardConfig"
                     },
                     "spaceSlug": {
                         "type": "string"
@@ -26628,6 +26634,28 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "PreAggregateMaterializationWarning": {
+                "properties": {
+                    "threshold": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "rowCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "message": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": ["row_count_exceeded"],
+                        "nullable": false
+                    }
+                },
+                "required": ["threshold", "rowCount", "message", "type"],
+                "type": "object"
+            },
             "PreAggregateMaterializationStatus": {
                 "type": "string",
                 "enum": ["in_progress", "active", "superseded", "failed"]
@@ -26696,6 +26724,12 @@
                         "type": "object",
                         "nullable": true
                     },
+                    "warnings": {
+                        "items": {
+                            "$ref": "#/components/schemas/PreAggregateMaterializationWarning"
+                        },
+                        "type": "array"
+                    },
                     "definitionError": {
                         "type": "string",
                         "nullable": true
@@ -26743,6 +26777,7 @@
                 },
                 "required": [
                     "materialization",
+                    "warnings",
                     "definitionError",
                     "refreshCron",
                     "granularity",
@@ -28075,7 +28110,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2599.0",
+        "version": "0.2608.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
