@@ -1,3 +1,10 @@
+## [0.2603.1](https://github.com/lightdash/lightdash/compare/0.2603.0...0.2603.1) (2026-03-11)
+
+
+### Bug Fixes
+
+* skip default sort on query without dimension ([#21030](https://github.com/lightdash/lightdash/issues/21030)) ([df3fb00](https://github.com/lightdash/lightdash/commit/df3fb0003e1a986900137dddfd2b1362449c5966))
+
 # [0.2603.0](https://github.com/lightdash/lightdash/compare/0.2602.1...0.2603.0) (2026-03-11)
 
 
