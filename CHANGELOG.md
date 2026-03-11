@@ -1,3 +1,10 @@
+# [0.2608.0](https://github.com/lightdash/lightdash/compare/0.2607.2...0.2608.0) (2026-03-11)
+
+
+### Features
+
+* pass config to lightdash download ([#21048](https://github.com/lightdash/lightdash/issues/21048)) ([d4a98cf](https://github.com/lightdash/lightdash/commit/d4a98cf22dfac6543f9fe82c925cb99cf56e498a))
+
 ## [0.2607.2](https://github.com/lightdash/lightdash/compare/0.2607.1...0.2607.2) (2026-03-11)
 
 
