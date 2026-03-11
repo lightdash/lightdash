@@ -1,3 +1,10 @@
+# [0.2609.0](https://github.com/lightdash/lightdash/compare/0.2608.0...0.2609.0) (2026-03-11)
+
+
+### Features
+
+* add dashboard filter rename functionality ([#20977](https://github.com/lightdash/lightdash/issues/20977)) ([5c5ac8b](https://github.com/lightdash/lightdash/commit/5c5ac8b193c965b256b27922d59ef67123b82bd2))
+
 # [0.2608.0](https://github.com/lightdash/lightdash/compare/0.2607.2...0.2608.0) (2026-03-11)
 
 
