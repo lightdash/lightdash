@@ -104,6 +104,7 @@ import { DownloadCsv } from '../../analytics/LightdashAnalytics';
 import { transformAndExportResults } from '../../clients/Aws/transformAndExportResults';
 import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
 import type { INatsJobClient } from '../../clients/NatsJobClient';
+import { createLocalParquetUploadStream } from '../../clients/ResultsFileStorageClients/LocalParquetUploadStream';
 import { S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import { measureTime } from '../../logging/measureTime';
 import { DownloadAuditModel } from '../../models/DownloadAuditModel';
@@ -145,6 +146,7 @@ import {
     getNextAndPreviousPage,
     validatePagination,
 } from '../ProjectService/resultsPagination';
+import { getDuckdbRuntimeConfig } from './getDuckdbRuntimeConfig';
 import { getPivotedColumns } from './getPivotedColumns';
 import { getUnpivotedColumns } from './getUnpivotedColumns';
 import {
@@ -1795,10 +1797,18 @@ export class AsyncQueryService extends ProjectService {
         warehouseClientOverride?: WarehouseClient;
         warehouseCredentialsTypeOverride?: CreateWarehouseCredentials['type'];
     }) {
+        type StreamMetrics = {
+            totalBytesWritten: number;
+            totalRowsWritten: number;
+            writeCalls: number;
+            elapsedMs: number;
+        };
+
         let stream:
             | {
                   write: (rows: Record<string, unknown>[]) => void;
                   close: () => Promise<void>;
+                  getStreamMetrics?: () => StreamMetrics;
               }
             | undefined;
 
@@ -1864,17 +1874,39 @@ export class AsyncQueryService extends ProjectService {
             );
 
             // Create upload stream for storing results
-            // If S3 is not configured, we don't write to S3
-            stream = resultsStorageClient.isEnabled
-                ? resultsStorageClient.createUploadStream(
-                      S3ResultsFileStorageClient.sanitizeFileExtension(
-                          fileName,
-                      ),
-                      {
-                          contentType: 'application/jsonl',
-                      },
-                  )
-                : undefined;
+            const isParquetMaterialization =
+                this.lightdashConfig.preAggregates.parquetEnabled &&
+                queryTags.query_context ===
+                    QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION;
+
+            if (isParquetMaterialization) {
+                const s3Config = getDuckdbRuntimeConfig(
+                    this.lightdashConfig.preAggregates.s3,
+                );
+                const bucket = this.lightdashConfig.preAggregates.s3?.bucket;
+                if (!s3Config || !bucket) {
+                    throw new Error(
+                        'Missing S3 configuration for stream-to-parquet',
+                    );
+                }
+                const parquetS3Uri = `s3://${bucket}/${fileName}.parquet`;
+                this.logger.debug(
+                    `Creating LocalParquetUploadStream for query ${queryUuid}: target=${parquetS3Uri}`,
+                );
+                stream = createLocalParquetUploadStream({
+                    parquetS3Uri,
+                    s3Config,
+                    logger: this.logger,
+                });
+            } else if (resultsStorageClient.isEnabled) {
+                // Default: stream JSONL to S3
+                stream = resultsStorageClient.createUploadStream(
+                    S3ResultsFileStorageClient.sanitizeFileExtension(fileName),
+                    {
+                        contentType: 'application/jsonl',
+                    },
+                );
+            }
 
             const s3StreamCreatedMs = Date.now() - t0;
 
@@ -2038,8 +2070,12 @@ export class AsyncQueryService extends ProjectService {
                       totalMs - queryExecMs - s3StreamCreatedMs - dbUpdateMs,
                   )
                 : 0;
+            const streamMetrics = stream?.getStreamMetrics?.();
+            const streamMetricsStr = streamMetrics
+                ? ` stream_bytes=${streamMetrics.totalBytesWritten} stream_rows=${streamMetrics.totalRowsWritten} write_calls=${streamMetrics.writeCalls}`
+                : '';
             this.logger.info(
-                `Query ${queryUuid} completed: source=${executionSource} s3_stream_create=${s3StreamCreatedMs}ms query_exec=${queryExecMs}ms s3_upload_close=${s3UploadCloseMs}ms db_update=${dbUpdateMs}ms total=${totalMs}ms rows=${pivotDetails?.totalRows ?? totalRows}`,
+                `Query ${queryUuid} completed: source=${executionSource} s3_stream_create=${s3StreamCreatedMs}ms query_exec=${queryExecMs}ms s3_upload_close=${s3UploadCloseMs}ms db_update=${dbUpdateMs}ms total=${totalMs}ms rows=${pivotDetails?.totalRows ?? totalRows}${streamMetricsStr}`,
             );
 
             // Track successful query in Prometheus
@@ -2049,6 +2085,10 @@ export class AsyncQueryService extends ProjectService {
                 queryTags.query_context,
             );
         } catch (e) {
+            this.logger.error(
+                `Query ${queryUuid} execution error: ${getErrorMessage(e)}`,
+            );
+
             if (
                 executionSource === 'pre_aggregate_duckdb' ||
                 this.lightdashConfig.prometheus.allQueryMetricsEnabled
@@ -2890,6 +2930,9 @@ export class AsyncQueryService extends ProjectService {
                                 : this.runAsyncWarehouseQuery(warehouseArgs);
 
                         void runQueryPromise.catch((e) => {
+                            this.logger.error(
+                                `Async query ${queryHistoryUuid} failed: ${getErrorMessage(e)}`,
+                            );
                             span.setStatus({
                                 code: 2, // ERROR
                                 message: getErrorMessage(e),
