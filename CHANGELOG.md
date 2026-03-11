@@ -1,3 +1,10 @@
+## [0.2604.2](https://github.com/lightdash/lightdash/compare/0.2604.1...0.2604.2) (2026-03-11)
+
+
+### Bug Fixes
+
+* prevent frozen DEFAULT_FORMAT from crashing format modal ([#21040](https://github.com/lightdash/lightdash/issues/21040)) ([2c09cdf](https://github.com/lightdash/lightdash/commit/2c09cdf44c0ac83165eb2ccb09c2c894445ff196))
+
 ## [0.2604.1](https://github.com/lightdash/lightdash/compare/0.2604.0...0.2604.1) (2026-03-11)
 
 
