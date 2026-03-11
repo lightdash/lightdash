@@ -259,13 +259,16 @@ const DashboardProvider: React.FC<
     const setTileHasTimestampDimension = useCallback(
         (tileUuid: string, hasTimestamp: boolean) => {
             setTilesWithTimestampDimension((prev) => {
+                // If the current state already matches the desired, return it
+                if (prev.has(tileUuid) === hasTimestamp) {
+                    return prev;
+                }
                 const next = new Set(prev);
                 if (hasTimestamp) {
                     next.add(tileUuid);
                 } else {
                     next.delete(tileUuid);
                 }
-                if (next.size === prev.size) return prev;
                 return next;
             });
         },
