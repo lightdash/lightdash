@@ -1,3 +1,10 @@
+## [0.2604.1](https://github.com/lightdash/lightdash/compare/0.2604.0...0.2604.1) (2026-03-11)
+
+
+### Bug Fixes
+
+* upgrade simple-git 3.16.0→3.32.3 (security) ([#21037](https://github.com/lightdash/lightdash/issues/21037)) ([387eea3](https://github.com/lightdash/lightdash/commit/387eea3f8e86639180b4bf0238e3afe5a0ae0c21))
+
 # [0.2604.0](https://github.com/lightdash/lightdash/compare/0.2603.2...0.2604.0) (2026-03-11)
 
 
