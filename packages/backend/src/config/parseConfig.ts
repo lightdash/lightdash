@@ -28,6 +28,7 @@ import {
 } from '@lightdash/common';
 import * as Sentry from '@sentry/core';
 import { type ClientAuthMethod } from 'openid-client';
+import { getDefaultNatsWorkerConsumerSettings } from '../nats/natsWorkerConsumerConfig';
 import { VERSION } from '../version';
 import {
     aiCopilotConfigSchema,
@@ -811,6 +812,28 @@ export type LoggingConfig = {
     filePath: string;
 };
 
+export type NatsWorkerConsumerConfig = {
+    /** Number of worker loops pulling from the same durable consumer. */
+    workerConcurrency: number;
+    /** How long JetStream waits for a terminal ack before treating a delivery as stalled. */
+    ackWaitMs: number;
+    /** How often an in-flight handler sends `working()` to extend `ack_wait`. */
+    ackProgressIntervalMs: number;
+    /** Maximum delivery attempts before JetStream stops redelivering the message. */
+    maxDeliver: number;
+    /** Maximum unacked messages allowed across the whole durable consumer. */
+    maxAckPending: number;
+    /** Maximum outstanding pull requests JetStream keeps open for this durable. */
+    maxWaiting: number;
+    /** Maximum messages any single pull request may receive. */
+    maxBatch: number;
+};
+
+export type NatsWorkerConfig = NatsWorkerConsumerConfig & {
+    enabled: boolean;
+    url: string | undefined;
+};
+
 export type LightdashConfig = {
     lightdashSecret: string;
     secureCookies: boolean;
@@ -911,11 +934,7 @@ export type LightdashConfig = {
         cacheStateTimeSeconds: number;
         s3?: Omit<S3Config, 'expirationTime'>;
     };
-    natsWorker: {
-        enabled: boolean;
-        url: string | undefined;
-        workerConcurrency: number;
-    };
+    natsWorker: NatsWorkerConfig;
     slack?: SlackConfig;
     scheduler: {
         enabled: boolean;
@@ -1386,6 +1405,9 @@ export const parseConfig = (): LightdashConfig => {
     const natsWorkerUrl = process.env.NATS_URL;
     const natsWorkerConcurrency =
         getIntegerFromEnvironmentVariable('NATS_WORKER_CONCURRENCY') ?? 1;
+    const natsWorkerSettings = getDefaultNatsWorkerConsumerSettings(
+        natsWorkerConcurrency,
+    );
 
     if (preAggregatesEnabled && !preAggregatesS3) {
         throw new ParseError('Pre-aggregates require S3 configuration', {});
@@ -1399,7 +1421,6 @@ export const parseConfig = (): LightdashConfig => {
             {},
         );
     }
-
     return {
         mode,
         cookieSameSite: iframeEmbeddingEnabled ? 'none' : 'lax',
@@ -1771,7 +1792,7 @@ export const parseConfig = (): LightdashConfig => {
         natsWorker: {
             enabled: natsWorkerEnabled,
             url: natsWorkerUrl,
-            workerConcurrency: natsWorkerConcurrency,
+            ...natsWorkerSettings,
         },
         slack: {
             signingSecret: process.env.SLACK_SIGNING_SECRET,

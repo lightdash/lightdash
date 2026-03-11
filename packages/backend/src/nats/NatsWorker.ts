@@ -1,9 +1,8 @@
 import { getErrorMessage } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
+import isEqual from 'lodash/isEqual';
 import {
-    AckPolicy,
     connect,
-    nanos,
     RetentionPolicy,
     StorageType,
     StringCodec,
@@ -23,6 +22,7 @@ import {
     type NatsWorkerStream,
     type StreamConfig,
 } from './natsConfig';
+import { getNatsWorkerConsumerConfig } from './natsWorkerConsumerConfig';
 
 const asyncQueryPayloadSchema = z.object({
     queryUuid: z.string().min(1),
@@ -49,8 +49,14 @@ type NatsWorkerArgs = {
 };
 
 const CONSUME_MAX_MESSAGES = 1;
-const ACK_PROGRESS_INTERVAL_MS = 5 * 1000;
-const ACK_WAIT_MS = 30 * 1000;
+type JetStreamManager = Awaited<ReturnType<NatsConnection['jetstreamManager']>>;
+type WorkerConsumerConfig = ReturnType<typeof getNatsWorkerConsumerConfig>;
+type ExistingConsumerConfig = {
+    durable_name?: string;
+    filter_subjects?: string[];
+    ack_policy?: WorkerConsumerConfig['ack_policy'];
+    max_waiting?: number;
+};
 
 export class NatsWorker {
     private readonly asyncQueryService: AsyncQueryService;
@@ -118,23 +124,7 @@ export class NatsWorker {
                         num_replicas: 1,
                     });
 
-                    // Check if consumer already exists before creating.
-                    // `consumers.add` with `filter_subjects` uses the old
-                    // DURABLE.CREATE API which is not idempotent.
-                    const consumerExists = await jsm.consumers
-                        .info(config.streamName, config.durableName)
-                        .then(() => true)
-                        .catch(() => false);
-
-                    if (!consumerExists) {
-                        await jsm.consumers.add(config.streamName, {
-                            durable_name: config.durableName,
-                            filter_subjects: Object.values(config.subjects),
-                            ack_policy: AckPolicy.Explicit,
-                            ack_wait: nanos(ACK_WAIT_MS),
-                            max_deliver: 1,
-                        });
-                    }
+                    await this.ensureConsumer(jsm, config);
 
                     const consumer = await jetStream.consumers.get(
                         config.streamName,
@@ -218,7 +208,7 @@ export class NatsWorker {
         );
 
         try {
-            await NatsWorker.runWithAckProgress(message, () =>
+            await this.runWithAckProgress(message, () =>
                 Sentry.continueTrace(
                     {
                         sentryTrace: parsed.trace.traceHeader,
@@ -266,7 +256,7 @@ export class NatsWorker {
         );
 
         try {
-            await NatsWorker.runWithAckProgress(message, () =>
+            await this.runWithAckProgress(message, () =>
                 Sentry.continueTrace(
                     {
                         sentryTrace: parsed.trace.traceHeader,
@@ -325,6 +315,82 @@ export class NatsWorker {
         });
     }
 
+    private async ensureConsumer(
+        jsm: JetStreamManager,
+        config: StreamConfig,
+    ): Promise<void> {
+        const desiredConfig = this.getConsumerConfig(config);
+        const existingConsumer = await jsm.consumers
+            .info(config.streamName, config.durableName)
+            .catch(() => undefined);
+
+        if (!existingConsumer) {
+            await jsm.consumers.add(config.streamName, desiredConfig);
+            return;
+        }
+
+        if (
+            NatsWorker.shouldRecreateConsumer(
+                existingConsumer.config,
+                desiredConfig,
+            )
+        ) {
+            Logger.info(
+                `Recreating NATS consumer ${config.durableName} to apply immutable config changes`,
+                {
+                    streamName: config.streamName,
+                    durableName: config.durableName,
+                    current: {
+                        durable_name: existingConsumer.config.durable_name,
+                        filter_subjects:
+                            existingConsumer.config.filter_subjects,
+                        ack_policy: existingConsumer.config.ack_policy,
+                        max_waiting: existingConsumer.config.max_waiting,
+                    },
+                    desired: {
+                        durable_name: desiredConfig.durable_name,
+                        filter_subjects: desiredConfig.filter_subjects,
+                        ack_policy: desiredConfig.ack_policy,
+                        max_waiting: desiredConfig.max_waiting,
+                    },
+                },
+            );
+
+            await jsm.consumers.delete(config.streamName, config.durableName);
+            await jsm.consumers.add(config.streamName, desiredConfig);
+            return;
+        }
+
+        await jsm.consumers.update(
+            config.streamName,
+            config.durableName,
+            desiredConfig,
+        );
+    }
+
+    private getConsumerConfig(config: StreamConfig): WorkerConsumerConfig {
+        return getNatsWorkerConsumerConfig(
+            this.natsConfig,
+            config.durableName,
+            Object.values(config.subjects),
+        );
+    }
+
+    private static shouldRecreateConsumer(
+        existingConfig: ExistingConsumerConfig,
+        desiredConfig: WorkerConsumerConfig,
+    ): boolean {
+        return (
+            existingConfig.durable_name !== desiredConfig.durable_name ||
+            existingConfig.ack_policy !== desiredConfig.ack_policy ||
+            existingConfig.max_waiting !== desiredConfig.max_waiting ||
+            !isEqual(
+                existingConfig.filter_subjects,
+                desiredConfig.filter_subjects,
+            )
+        );
+    }
+
     private parseMessage(message: JsMsg): ParsedMessage | null {
         try {
             const raw = JSON.parse(this.codec.decode(message.data)) as unknown;
@@ -357,13 +423,13 @@ export class NatsWorker {
         }
     }
 
-    static async runWithAckProgress<T>(
+    private async runWithAckProgress<T>(
         message: JsMsg,
         handler: () => Promise<T>,
     ): Promise<T> {
         const interval = setInterval(() => {
             message.working();
-        }, ACK_PROGRESS_INTERVAL_MS);
+        }, this.natsConfig.ackProgressIntervalMs);
 
         try {
             return await handler();

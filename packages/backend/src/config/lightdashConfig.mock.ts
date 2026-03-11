@@ -153,6 +153,12 @@ export const lightdashConfigMock: LightdashConfig = {
         enabled: false,
         url: undefined,
         workerConcurrency: 1,
+        ackWaitMs: 30_000,
+        ackProgressIntervalMs: 5_000,
+        maxDeliver: 1,
+        maxAckPending: 1,
+        maxWaiting: 1,
+        maxBatch: 1,
     },
     rudder: {
         writeKey: '',
