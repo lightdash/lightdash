@@ -1,11 +1,21 @@
-import { buildLiquidContext, renderLiquidSql } from './liquidSql';
+import {
+    buildLiquidContext,
+    renderLiquidSql,
+    type FieldsContext,
+} from './liquidSql';
 
 describe('buildLiquidContext', () => {
     it('should nest parameters under ld.parameters and lightdash.parameters', () => {
         const context = buildLiquidContext({ grain: 'day' });
         expect(context).toEqual({
-            ld: { parameters: { grain: 'day' } },
-            lightdash: { parameters: { grain: 'day' } },
+            ld: {
+                parameters: { grain: 'day' },
+                query: { fields: [], filters: [] },
+            },
+            lightdash: {
+                parameters: { grain: 'day' },
+                query: { fields: [], filters: [] },
+            },
         });
     });
 
@@ -39,9 +49,34 @@ describe('buildLiquidContext', () => {
     it('should handle numeric parameter values', () => {
         const context = buildLiquidContext({ threshold: 42 });
         expect(context).toEqual({
-            ld: { parameters: { threshold: 42 } },
-            lightdash: { parameters: { threshold: 42 } },
+            ld: {
+                parameters: { threshold: 42 },
+                query: { fields: [], filters: [] },
+            },
+            lightdash: {
+                parameters: { threshold: 42 },
+                query: { fields: [], filters: [] },
+            },
         });
+    });
+
+    it('should derive query.fields and query.filters from fieldsContext', () => {
+        const fieldsContext: FieldsContext = {
+            events: {
+                event_id: { inQuery: true, isFiltered: false },
+                event: { inQuery: false, isFiltered: true },
+                date: { inQuery: true, isFiltered: true },
+            },
+        };
+        const context = buildLiquidContext({}, fieldsContext);
+        expect(context.ld.query.fields).toEqual(
+            expect.arrayContaining(['events.event_id', 'events.date']),
+        );
+        expect(context.ld.query.fields).toHaveLength(2);
+        expect(context.ld.query.filters).toEqual(
+            expect.arrayContaining(['events.event', 'events.date']),
+        );
+        expect(context.ld.query.filters).toHaveLength(2);
     });
 });
 
@@ -239,5 +274,115 @@ describe('renderLiquidSql', () => {
     it('should skip unrelated {% in SQL strings', () => {
         const sql = "SELECT '{%something%}' AS col";
         expect(renderLiquidSql(sql, { grain: 'day' })).toBe(sql);
+    });
+});
+
+describe('renderLiquidSql with ld.query contains syntax', () => {
+    it('should evaluate ld.query.fields contains (true)', () => {
+        const sql = [
+            '{% if ld.query.fields contains "events.event_id" %}',
+            '  ${TABLE}.event_id',
+            '{% else %}',
+            '  NULL',
+            '{% endif %}',
+        ].join('\n');
+
+        const fieldsContext: FieldsContext = {
+            events: {
+                event_id: { inQuery: true, isFiltered: false },
+            },
+        };
+
+        expect(renderLiquidSql(sql, {}, fieldsContext).trim()).toBe(
+            '${TABLE}.event_id',
+        );
+    });
+
+    it('should evaluate ld.query.fields contains (false)', () => {
+        const sql = [
+            '{% if ld.query.fields contains "events.event_id" %}',
+            '  ${TABLE}.event_id',
+            '{% else %}',
+            '  NULL',
+            '{% endif %}',
+        ].join('\n');
+
+        const fieldsContext: FieldsContext = {
+            events: {
+                event_id: { inQuery: false, isFiltered: false },
+            },
+        };
+
+        expect(renderLiquidSql(sql, {}, fieldsContext).trim()).toBe('NULL');
+    });
+
+    it('should evaluate ld.query.filters contains', () => {
+        const sql = [
+            '{% if ld.query.filters contains "events.event" %}',
+            "  'Filtered'",
+            '{% else %}',
+            "  'All'",
+            '{% endif %}',
+        ].join('\n');
+
+        const fieldsContext: FieldsContext = {
+            events: {
+                event: { inQuery: false, isFiltered: true },
+            },
+        };
+
+        expect(renderLiquidSql(sql, {}, fieldsContext).trim()).toBe(
+            "'Filtered'",
+        );
+    });
+
+    it('should support lightdash.query long syntax', () => {
+        const sql = [
+            '{% if lightdash.query.fields contains "events.event_id" %}',
+            '  ${TABLE}.event_id',
+            '{% else %}',
+            '  NULL',
+            '{% endif %}',
+        ].join('\n');
+
+        const fieldsContext: FieldsContext = {
+            events: {
+                event_id: { inQuery: true, isFiltered: false },
+            },
+        };
+
+        expect(renderLiquidSql(sql, {}, fieldsContext).trim()).toBe(
+            '${TABLE}.event_id',
+        );
+    });
+
+    it('should return false for empty fieldsContext', () => {
+        const sql =
+            '{% if ld.query.fields contains "events.event_id" %} col {% else %} NULL {% endif %}';
+        expect(renderLiquidSql(sql, {}, {}).trim()).toBe('NULL');
+    });
+
+    it('should combine query fields and parameters in same SQL', () => {
+        const sql = [
+            '{% if ld.query.fields contains "events.event_id" %}',
+            '  {% if ld.parameters.grain == "day" %}',
+            "    DATE_TRUNC('day', ${TABLE}.event_date)",
+            '  {% else %}',
+            '    ${TABLE}.event_date',
+            '  {% endif %}',
+            '{% else %}',
+            '  NULL',
+            '{% endif %}',
+        ].join('\n');
+
+        const fieldsContext: FieldsContext = {
+            events: {
+                event_id: { inQuery: true, isFiltered: false },
+            },
+        };
+
+        expect(
+            renderLiquidSql(sql, { grain: 'day' }, fieldsContext).trim(),
+        ).toBe("DATE_TRUNC('day', ${TABLE}.event_date)");
     });
 });

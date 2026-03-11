@@ -111,6 +111,28 @@ models:
             dynamic_total:
               type: sum
               description: "When metric_type=count, counts events. When metric_type=revenue, sums event IDs."
+      - name: conditional_event_id
+        description: "Returns event_id only when the event_id dimension is selected in the query, NULL otherwise. Uses ld.query.fields contains syntax."
+        meta:
+          dimension:
+            type: number
+            sql: >
+              {% raw %}{% if ld.query.fields contains "events.event_id" %}
+                ${TABLE}.event_id
+              {% else %}
+                NULL
+              {% endif %}{% endraw %}
+      - name: filtered_status_label
+        description: "Returns a label indicating whether the event dimension has an active filter. Uses ld.query.filters contains syntax."
+        meta:
+          dimension:
+            type: string
+            sql: >
+              {% raw %}{% if ld.query.filters contains "events.event" %}
+                'Filtered: ' || ${TABLE}.event
+              {% else %}
+                'All Events'
+              {% endif %}{% endraw %}
       - name: event
         description: ""
         meta:
