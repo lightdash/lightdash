@@ -24,6 +24,16 @@ type DuckdbStreamResult = {
     yieldRowObjectJson: () => AsyncIterableIterator<Record<string, AnyType>[]>;
 };
 
+type DuckdbPreparedStatement = {
+    statementType: number;
+    destroySync: () => void;
+};
+
+type DuckdbExtractedStatements = {
+    count: number;
+    prepare: (index: number) => Promise<DuckdbPreparedStatement>;
+};
+
 type DuckdbConnection = {
     run: (
         sql: string,
@@ -33,6 +43,7 @@ type DuckdbConnection = {
         sql: string,
         values?: AnyType[] | Record<string, AnyType>,
     ) => Promise<DuckdbStreamResult>;
+    extractStatements: (sql: string) => Promise<DuckdbExtractedStatements>;
     closeSync?: () => void;
     disconnectSync?: () => void;
 };
@@ -185,6 +196,21 @@ export function resetSharedDuckdbStateForTesting(): void {
     cachesConfigured = false;
 }
 
+// DuckDB StatementType values — see duckdb/common/enums/statement_type.hpp
+const ALLOWED_STATEMENT_TYPES_USER_SQL = new Set([1 /* SELECT */]);
+
+const BLOCKED_STATEMENT_TYPES_INTERNAL_SQL = new Set([
+    12, // VARIABLE_SET
+    20, // SET
+    21, // LOAD
+    23, // EXTENSION (INSTALL)
+    25, // ATTACH
+    26, // DETACH
+]);
+
+const BLOCKED_FUNCTION_PATTERN =
+    /\b(current_setting|duckdb_settings|duckdb_secrets)\s*\(/i;
+
 export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCredentials> {
     private readonly databasePath: string;
 
@@ -302,6 +328,14 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
             await db.run('SET enable_http_metadata_cache = true;');
             await db.run('SET enable_external_file_cache = true;');
             await db.run('SET parquet_metadata_cache = true;');
+
+            // Security: lock down after our extensions are installed/loaded
+            await db.run("SET disabled_filesystems = 'LocalFileSystem';");
+            await db.run('SET allow_community_extensions = false;');
+            await db.run('SET autoinstall_known_extensions = false;');
+            await db.run('SET autoload_known_extensions = false;');
+            await db.run('SET allow_unredacted_secrets = false;');
+
             cachesConfigured = true;
 
             if (this.bufferPoolSize) {
@@ -331,38 +365,27 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
         }
 
         const t2 = performance.now();
-        await db.run(
-            `SET s3_endpoint = '${this.escapeString(this.s3Config.endpoint)}';`,
-        );
 
-        if (this.s3Config.region) {
-            await db.run(
-                `SET s3_region = '${this.escapeString(this.s3Config.region)}';`,
-            );
-        }
+        const regionClause = this.s3Config.region
+            ? `REGION '${this.escapeString(this.s3Config.region)}',`
+            : '';
+        const keyIdClause = this.s3Config.accessKey
+            ? `KEY_ID '${this.escapeString(this.s3Config.accessKey)}',`
+            : '';
+        const secretClause = this.s3Config.secretKey
+            ? `SECRET '${this.escapeString(this.s3Config.secretKey)}',`
+            : '';
 
-        if (this.s3Config.accessKey) {
-            await db.run(
-                `SET s3_access_key_id = '${this.escapeString(
-                    this.s3Config.accessKey,
-                )}';`,
-            );
-        }
+        await db.run(`CREATE OR REPLACE SECRET __lightdash_s3 (
+            TYPE s3,
+            ${keyIdClause}
+            ${secretClause}
+            ENDPOINT '${this.escapeString(this.s3Config.endpoint)}',
+            ${regionClause}
+            URL_STYLE '${this.s3Config.forcePathStyle ? 'path' : 'vhost'}',
+            USE_SSL ${this.s3Config.useSsl}
+        );`);
 
-        if (this.s3Config.secretKey) {
-            await db.run(
-                `SET s3_secret_access_key = '${this.escapeString(
-                    this.s3Config.secretKey,
-                )}';`,
-            );
-        }
-
-        await db.run(`SET s3_use_ssl = ${this.s3Config.useSsl};`);
-        await db.run(
-            `SET s3_url_style = '${
-                this.s3Config.forcePathStyle ? 'path' : 'vhost'
-            }';`,
-        );
         const s3ConfigMs = performance.now() - t2;
 
         this.logger?.info(
@@ -493,6 +516,81 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
         return fields;
     }
 
+    private static stripSqlComments(sql: string): string {
+        return sql
+            .replace(/--[^\n]*/g, '') // line comments
+            .replace(/\/\*[\s\S]*?\*\//g, ''); // block comments
+    }
+
+    private static validateSqlFunctions(sql: string): void {
+        const stripped = DuckdbWarehouseClient.stripSqlComments(sql);
+        const match = stripped.match(BLOCKED_FUNCTION_PATTERN);
+        if (match) {
+            throw new Error(
+                `SQL validation error: function '${match[1]}' is not allowed`,
+            );
+        }
+    }
+
+    private async validateUserSql(
+        db: DuckdbConnection,
+        sql: string,
+    ): Promise<void> {
+        const extracted = await db.extractStatements(sql);
+
+        if (extracted.count === 0) {
+            throw new Error('SQL validation error: empty SQL statement');
+        }
+
+        if (extracted.count > 1) {
+            throw new Error(
+                'SQL validation error: multiple SQL statements are not allowed',
+            );
+        }
+
+        const stmt = await extracted.prepare(0);
+        try {
+            if (!ALLOWED_STATEMENT_TYPES_USER_SQL.has(stmt.statementType)) {
+                throw new Error(
+                    `SQL validation error: only SELECT statements are allowed (got statement type ${stmt.statementType})`,
+                );
+            }
+        } finally {
+            stmt.destroySync();
+        }
+
+        DuckdbWarehouseClient.validateSqlFunctions(sql);
+    }
+
+    private async validateInternalSql(
+        db: DuckdbConnection,
+        sql: string,
+    ): Promise<void> {
+        const extracted = await db.extractStatements(sql);
+
+        if (extracted.count === 0) {
+            throw new Error('SQL validation error: empty SQL statement');
+        }
+
+        for (let i = 0; i < extracted.count; i += 1) {
+            // eslint-disable-next-line no-await-in-loop
+            const stmt = await extracted.prepare(i);
+            try {
+                if (
+                    BLOCKED_STATEMENT_TYPES_INTERNAL_SQL.has(stmt.statementType)
+                ) {
+                    throw new Error(
+                        `SQL validation error: statement type ${stmt.statementType} is not allowed in internal SQL`,
+                    );
+                }
+            } finally {
+                stmt.destroySync();
+            }
+        }
+
+        DuckdbWarehouseClient.validateSqlFunctions(sql);
+    }
+
     async streamQuery(
         sql: string,
         streamCallback: (data: WarehouseResults) => void | Promise<void>,
@@ -521,6 +619,8 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
                 await db.run("PRAGMA enable_profiling='json';");
                 await db.run(`PRAGMA profiling_output='${profilePath}';`);
             }
+
+            await this.validateUserSql(db, sql);
 
             const result = await db.stream(
                 this.getSQLWithMetadata(sql, options?.tags),
@@ -579,6 +679,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
 
     async runSql(sql: string): Promise<void> {
         await this.withSession(async (db) => {
+            await this.validateInternalSql(db, sql);
             await db.run(sql);
         });
     }
@@ -593,6 +694,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
         let queryMs = 0;
 
         await this.withSession(async (db) => {
+            await this.validateInternalSql(db, sql);
             bootstrapMs = performance.now() - totalStart;
             const queryStart = performance.now();
             await db.run(sql);
