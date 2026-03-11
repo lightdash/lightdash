@@ -1274,7 +1274,9 @@ export class DashboardModel {
     }
 
     async permanentDelete(dashboardUuid: string): Promise<DashboardDAO> {
-        const dashboard = await this.getByIdOrSlug(dashboardUuid);
+        const dashboard = await this.getByIdOrSlug(dashboardUuid, {
+            deleted: true,
+        });
         await this.database(DashboardsTableName)
             .where('dashboard_uuid', dashboardUuid)
             .delete();
