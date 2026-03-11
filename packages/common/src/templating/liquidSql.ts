@@ -19,11 +19,27 @@ const liquidSqlEngine = new Liquid({
 });
 
 // Only activate Liquid rendering when the SQL contains Lightdash parameter
-// references inside {% %} tags. A bare {%  without ld.parameters/lightdash.parameters
-// could be unrelated syntax and should not be processed.
-const LIGHTDASH_LIQUID_PATTERN = /\{%[^%]*(?:ld|lightdash)\.parameters\b/;
+// or query context references inside {% %} tags. A bare {% without
+// ld.parameters/lightdash.parameters/ld.query could be unrelated syntax.
+const LIGHTDASH_LIQUID_PATTERN =
+    /\{%[^%]*(?:ld|lightdash)\.(?:parameters|query)\b/;
 
 type ParameterValue = string | number | string[] | number[];
+
+/**
+ * Query-time field introspection for a single field.
+ * Used internally to derive the ld.query.fields/filters arrays.
+ */
+export type FieldIntrospection = {
+    inQuery: boolean;
+    isFiltered: boolean;
+};
+
+/**
+ * Nested table → field → introspection map.
+ * e.g., { events: { event_id: { inQuery: true, isFiltered: false } } }
+ */
+export type FieldsContext = Record<string, Record<string, FieldIntrospection>>;
 
 /**
  * Build a Liquid context from a parameter values map.
@@ -36,9 +52,16 @@ type ParameterValue = string | number | string[] | number[];
  */
 export const buildLiquidContext = (
     parameterValuesMap: Record<string, ParameterValue>,
+    fieldsContext?: FieldsContext,
 ): {
-    ld: { parameters: Record<string, ParameterValue> };
-    lightdash: { parameters: Record<string, ParameterValue> };
+    ld: {
+        parameters: Record<string, ParameterValue>;
+        query: { fields: string[]; filters: string[] };
+    };
+    lightdash: {
+        parameters: Record<string, ParameterValue>;
+        query: { fields: string[]; filters: string[] };
+    };
 } => {
     const parameters: Record<string, ParameterValue> = {};
 
@@ -53,9 +76,31 @@ export const buildLiquidContext = (
         }
     }
 
+    // Derive flat arrays from fieldsContext for the
+    // ld.query.fields/filters "contains" syntax:
+    //   {% if ld.query.fields contains "events.event_id" %}
+    const queryFields: string[] = [];
+    const queryFilters: string[] = [];
+
+    for (const [tableName, tableFields] of Object.entries(
+        fieldsContext ?? {},
+    )) {
+        for (const [fieldName, introspection] of Object.entries(tableFields)) {
+            const dottedId = `${tableName}.${fieldName}`;
+            if (introspection.inQuery) {
+                queryFields.push(dottedId);
+            }
+            if (introspection.isFiltered) {
+                queryFilters.push(dottedId);
+            }
+        }
+    }
+
+    const query = { fields: queryFields, filters: queryFilters };
+
     return {
-        ld: { parameters },
-        lightdash: { parameters }, // Support both {% if ld.parameters.x %} and {% if lightdash.parameters.x %}
+        ld: { parameters, query },
+        lightdash: { parameters, query },
     };
 };
 
@@ -83,15 +128,16 @@ export const buildLiquidContext = (
 export const renderLiquidSql = (
     sql: string,
     parameterValuesMap: Record<string, ParameterValue>,
+    fieldsContext?: FieldsContext,
 ): string => {
-    // Only process SQL that contains Lightdash parameter references in Liquid tags.
+    // Only process SQL that contains Lightdash parameter or field references in Liquid tags.
     // This avoids accidentally processing unrelated {% %} syntax.
     if (!LIGHTDASH_LIQUID_PATTERN.test(sql)) {
         return sql;
     }
 
     try {
-        const context = buildLiquidContext(parameterValuesMap);
+        const context = buildLiquidContext(parameterValuesMap, fieldsContext);
         return liquidSqlEngine.parseAndRenderSync(sql, context);
     } catch {
         // If Liquid parsing fails (e.g., malformed syntax or unrelated {% in SQL),

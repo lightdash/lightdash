@@ -57,6 +57,7 @@ import {
     TableCalculationFunctionCompiler,
     TimeFrames,
     UserAttributeValueMap,
+    type FieldsContext,
     type ParameterDefinitions,
     type ParametersValuesMap,
     type WarehouseSqlBuilder,
@@ -3219,6 +3220,61 @@ export class MetricQueryBuilder {
      *
      * @return {CompiledQuery} The compiled query object containing the SQL string and meta information ready for execution.
      */
+    /**
+     * Build a fields context for Liquid SQL introspection.
+     * Produces a nested { tableName: { fieldName: { inQuery, isFiltered } } }
+     * structure that lets Liquid templates check whether a field is selected or filtered.
+     */
+    private buildFieldsContext(): FieldsContext {
+        const { explore, compiledMetricQuery } = this.args;
+        const { dimensions, metrics, filters } = compiledMetricQuery;
+
+        const selectedFieldIds = new Set<string>([...dimensions, ...metrics]);
+
+        const filteredFieldIds = new Set<string>();
+        for (const rule of getFilterRulesFromGroup(filters.dimensions)) {
+            if ('fieldId' in rule.target) {
+                filteredFieldIds.add(rule.target.fieldId);
+            }
+        }
+        for (const rule of getFilterRulesFromGroup(filters.metrics)) {
+            if ('fieldId' in rule.target) {
+                filteredFieldIds.add(rule.target.fieldId);
+            }
+        }
+
+        const fieldsContext: FieldsContext = {};
+
+        for (const [tableName, table] of Object.entries(explore.tables)) {
+            const tableFields: Record<
+                string,
+                { inQuery: boolean; isFiltered: boolean }
+            > = {};
+
+            for (const dim of Object.values(table.dimensions)) {
+                const fieldId = getItemId(dim);
+                tableFields[dim.name] = {
+                    inQuery: selectedFieldIds.has(fieldId),
+                    isFiltered: filteredFieldIds.has(fieldId),
+                };
+            }
+
+            for (const metric of Object.values(table.metrics)) {
+                const fieldId = getItemId(metric);
+                tableFields[metric.name] = {
+                    inQuery: selectedFieldIds.has(fieldId),
+                    isFiltered: filteredFieldIds.has(fieldId),
+                };
+            }
+
+            if (Object.keys(tableFields).length > 0) {
+                fieldsContext[tableName] = tableFields;
+            }
+        }
+
+        return fieldsContext;
+    }
+
     public compileQuery(): CompiledQuery {
         const { explore, compiledMetricQuery } = this.args;
         const fields = getFieldsFromMetricQuery(compiledMetricQuery, explore);
@@ -3689,6 +3745,7 @@ export class MetricQueryBuilder {
             parameterValuesMap: this.args.parameters ?? {},
             parameterDefinitions: this.args.parameterDefinitions,
             sqlBuilder: this.args.warehouseSqlBuilder,
+            fieldsContext: this.buildFieldsContext(),
         });
 
         // Also collect parameter references from fields (e.g., format strings)
