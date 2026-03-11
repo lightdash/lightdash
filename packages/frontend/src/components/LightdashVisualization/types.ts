@@ -58,7 +58,6 @@ export type VisualizationBigNumberConfigProps =
     VisualizationConfigCommon<VisualizationConfigBigNumber> & {
         itemsMap: ItemsMap | undefined;
         tableCalculationsMetadata?: TableCalculationMetadata[];
-        dateZoom?: DateZoom;
     };
 
 // Cartesian
