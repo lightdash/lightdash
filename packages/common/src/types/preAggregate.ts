@@ -152,6 +152,36 @@ export const preAggregateMissReasonLabels: Record<
         'Table calculation present',
 };
 
+export const PRE_AGGREGATE_ROW_COUNT_WARNING_THRESHOLD = 1_000_000;
+
+export type PreAggregateMaterializationWarning = {
+    type: 'row_count_exceeded';
+    message: string;
+    rowCount: number;
+    threshold: number;
+};
+
+export const computePreAggregateWarnings = (
+    materialization: {
+        rowCount: number | null;
+    } | null,
+    rowCountThreshold: number = PRE_AGGREGATE_ROW_COUNT_WARNING_THRESHOLD,
+): PreAggregateMaterializationWarning[] => {
+    const warnings: PreAggregateMaterializationWarning[] = [];
+
+    const rowCount = materialization?.rowCount;
+    if (rowCount != null && rowCount > rowCountThreshold) {
+        warnings.push({
+            type: 'row_count_exceeded',
+            message: `This pre-aggregate has ${rowCount.toLocaleString()} rows, which exceeds the recommended threshold of ${rowCountThreshold.toLocaleString()} rows. Large pre-aggregates may take longer to build and consume more storage.`,
+            rowCount,
+            threshold: rowCountThreshold,
+        });
+    }
+
+    return warnings;
+};
+
 export type PreAggregateMaterializationSummary = {
     preAggregateDefinitionUuid: string;
     preAggregateName: string;
@@ -163,6 +193,7 @@ export type PreAggregateMaterializationSummary = {
     granularity: TimeFrames | null;
     refreshCron: string | null;
     definitionError: string | null;
+    warnings: PreAggregateMaterializationWarning[];
     materialization: {
         materializationUuid: string;
         status: PreAggregateMaterializationStatus;

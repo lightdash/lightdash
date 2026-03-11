@@ -1,4 +1,7 @@
-import { type PreAggregateMaterializationSummary } from '@lightdash/common';
+import {
+    type PreAggregateMaterializationSummary,
+    type PreAggregateMaterializationWarning,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Badge,
@@ -28,6 +31,7 @@ import {
 import cronstrue from 'cronstrue';
 import { type FC } from 'react';
 import { LD_FIELD_COLORS } from '../../mantineTheme';
+import Callout from '../common/Callout';
 import MantineIcon from '../common/MantineIcon';
 import { IconBox } from '../common/ResourceIcon';
 import { formatDuration, formatFileSize } from './formatters';
@@ -222,6 +226,14 @@ const MaterializationDetailDrawer: FC<Props> = ({
                             {summary.definitionError}
                         </Text>
                     </Box>
+                )}
+
+                {summary.warnings.map(
+                    (warning: PreAggregateMaterializationWarning) => (
+                        <Callout key={warning.type} variant="warning" p="xs">
+                            <Text fz="xs">{warning.message}</Text>
+                        </Callout>
+                    ),
                 )}
 
                 {materialization && (

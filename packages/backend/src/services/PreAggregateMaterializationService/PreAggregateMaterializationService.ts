@@ -1,6 +1,7 @@
 import {
     getErrorMessage,
     NotFoundError,
+    PRE_AGGREGATE_ROW_COUNT_WARNING_THRESHOLD,
     QueryExecutionContext,
     QueryHistoryStatus,
     type Account,
@@ -348,6 +349,25 @@ export class PreAggregateMaterializationService extends BaseService {
                         totalBytes,
                     }),
             );
+
+            if (
+                queryHistory.totalRowCount != null &&
+                queryHistory.totalRowCount >
+                    PRE_AGGREGATE_ROW_COUNT_WARNING_THRESHOLD
+            ) {
+                this.logger.warn(
+                    `Pre-aggregate materialization has ${queryHistory.totalRowCount} rows, exceeding threshold of ${PRE_AGGREGATE_ROW_COUNT_WARNING_THRESHOLD}`,
+                    {
+                        materializationUuid,
+                        queryUuid,
+                        projectUuid: args.projectUuid,
+                        preAggregateDefinitionUuid:
+                            args.preAggregateDefinitionUuid,
+                        rowCount: queryHistory.totalRowCount,
+                        threshold: PRE_AGGREGATE_ROW_COUNT_WARNING_THRESHOLD,
+                    },
+                );
+            }
 
             const durationMs = Date.now() - startTime;
             this.logger.info(`Pre-aggregate materialization ${status}`, {
