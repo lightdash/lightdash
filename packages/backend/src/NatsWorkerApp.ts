@@ -156,6 +156,9 @@ export default class NatsWorkerApp {
                     : this.lightdashConfig.mode,
             integrations: [],
             ignoreErrors: IGNORE_ERRORS,
+            tracesSampleRate:
+                this.lightdashConfig.sentry.queryTracesSampleRate ??
+                this.lightdashConfig.sentry.tracesSampleRate,
         });
     }
 

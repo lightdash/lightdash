@@ -225,8 +225,22 @@ export class NatsWorker {
                         baggage: parsed.trace.baggageHeader,
                     },
                     () =>
-                        this.asyncQueryService.runAsyncWarehouseQueryFromHistory(
-                            parsed.payload.queryUuid,
+                        Sentry.startSpan(
+                            {
+                                op: 'queue.process',
+                                name: 'queue_consumer',
+                                attributes: {
+                                    'messaging.message.id': parsed.jobId ?? '',
+                                    'messaging.destination.name':
+                                        message.subject,
+                                    'lightdash.queryUuid':
+                                        parsed.payload.queryUuid,
+                                },
+                            },
+                            () =>
+                                this.asyncQueryService.runAsyncWarehouseQueryFromHistory(
+                                    parsed.payload.queryUuid,
+                                ),
                         ),
                 ),
             );
@@ -272,11 +286,24 @@ export class NatsWorker {
                         sentryTrace: parsed.trace.traceHeader,
                         baggage: parsed.trace.baggageHeader,
                     },
-                    async () => {
-                        await this.asyncQueryService.runAsyncPreAggregateQueryFromHistory(
-                            parsed.payload.queryUuid,
-                        );
-                    },
+                    () =>
+                        Sentry.startSpan(
+                            {
+                                op: 'queue.process',
+                                name: 'queue_consumer',
+                                attributes: {
+                                    'messaging.message.id': parsed.jobId ?? '',
+                                    'messaging.destination.name':
+                                        message.subject,
+                                    'lightdash.queryUuid':
+                                        parsed.payload.queryUuid,
+                                },
+                            },
+                            () =>
+                                this.asyncQueryService.runAsyncPreAggregateQueryFromHistory(
+                                    parsed.payload.queryUuid,
+                                ),
+                        ),
                 ),
             );
             message.ack();
