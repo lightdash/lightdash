@@ -47,7 +47,7 @@ export const getPreAggregateDuckdbLocator = ({
     uri,
 });
 
-const getJsonlSqlTable = (
+export const getJsonlSqlTable = (
     uri: string,
     columns?: ResultColumns | null,
 ): string => {
