@@ -143,34 +143,58 @@ export const useDashboardChartReadyQuery = (
     const timezoneFixFilters =
         dashboardFilters && convertDateDashboardFilters(dashboardFilters);
 
-    const { hasADateDimension, hasTimestampDimension } = useMemo(() => {
-        const metricQueryDimensions = [
-            ...(chartQuery.data?.metricQuery?.dimensions ?? []),
-            ...(chartQuery.data?.metricQuery?.customDimensions ?? []),
-        ];
+    const { hasADateDimension, hasTimestampDimension, hasCustomGranularity } =
+        useMemo(() => {
+            const metricQueryDimensions = [
+                ...(chartQuery.data?.metricQuery?.dimensions ?? []),
+                ...(chartQuery.data?.metricQuery?.customDimensions ?? []),
+            ];
 
-        if (!explore)
+            if (!explore)
+                return {
+                    hasADateDimension: false,
+                    hasTimestampDimension: false,
+                    hasCustomGranularity: false,
+                };
+
+            const allDims = getDimensions(explore);
+            const dateDims = allDims.filter(
+                (c) =>
+                    metricQueryDimensions.includes(getItemId(c)) &&
+                    isDateItem(c),
+            );
+
+            // Check if the chart's date dimensions have a sibling with the
+            // active custom granularity. This mirrors the backend check in
+            // updateExploreWithDateZoom which looks for
+            // `${baseDimName}_${granularity}` in the explore.
+            const customGranularityExists =
+                granularity && !isStandardDateGranularity(granularity)
+                    ? dateDims.some((dim) => {
+                          const baseName =
+                              dim.timeIntervalBaseDimensionName ?? dim.name;
+                          return allDims.some(
+                              (d) =>
+                                  d.customTimeInterval === granularity &&
+                                  (d.timeIntervalBaseDimensionName ??
+                                      d.name) === baseName,
+                          );
+                      })
+                    : false;
+
             return {
-                hasADateDimension: false,
-                hasTimestampDimension: false,
+                hasADateDimension: dateDims.length > 0,
+                hasTimestampDimension: dateDims.some(
+                    (d) => d.type === DimensionType.TIMESTAMP,
+                ),
+                hasCustomGranularity: customGranularityExists,
             };
-
-        const dateDims = getDimensions(explore).filter(
-            (c) =>
-                metricQueryDimensions.includes(getItemId(c)) && isDateItem(c),
-        );
-
-        return {
-            hasADateDimension: dateDims.length > 0,
-            hasTimestampDimension: dateDims.some(
-                (d) => d.type === DimensionType.TIMESTAMP,
-            ),
-        };
-    }, [
-        chartQuery.data?.metricQuery?.customDimensions,
-        chartQuery.data?.metricQuery?.dimensions,
-        explore,
-    ]);
+        }, [
+            chartQuery.data?.metricQuery?.customDimensions,
+            chartQuery.data?.metricQuery?.dimensions,
+            explore,
+            granularity,
+        ]);
 
     // Report TIMESTAMP dimension presence to dashboard context per tile
     useEffect(() => {
@@ -189,18 +213,24 @@ export const useDashboardChartReadyQuery = (
     }, [parameterValues, tileParameterReferences, tileUuid]);
 
     // Determine if the zoom is effectively applied to this chart.
-    // Sub-day zoom on DATE-only charts is skipped by the backend, so don't mark them.
+    // The backend skips zoom when:
+    // 1. Sub-day zoom on DATE-only charts (no time component)
+    // 2. Custom granularity that doesn't exist on the chart's date dimensions
     const isZoomEffectivelyApplied = useMemo(() => {
         if (!hasADateDimension || !granularity) return false;
-        if (
-            !hasTimestampDimension &&
-            isStandardDateGranularity(granularity) &&
-            isSubDayGranularity(granularity)
-        ) {
+        if (!isStandardDateGranularity(granularity)) {
+            return hasCustomGranularity;
+        }
+        if (!hasTimestampDimension && isSubDayGranularity(granularity)) {
             return false;
         }
         return true;
-    }, [hasADateDimension, hasTimestampDimension, granularity]);
+    }, [
+        hasADateDimension,
+        hasTimestampDimension,
+        hasCustomGranularity,
+        granularity,
+    ]);
 
     useEffect(() => {
         if (!chartUuid) return;
@@ -239,7 +269,7 @@ export const useDashboardChartReadyQuery = (
             sortKey,
             contextOverride || context,
             autoRefresh,
-            hasADateDimension ? granularity : null,
+            isZoomEffectivelyApplied ? granularity : null,
             invalidateCache,
             chartParameterValues,
             useSqlPivotResults,
@@ -254,7 +284,7 @@ export const useDashboardChartReadyQuery = (
             contextOverride,
             context,
             autoRefresh,
-            hasADateDimension,
+            isZoomEffectivelyApplied,
             granularity,
             invalidateCache,
             chartParameterValues,
