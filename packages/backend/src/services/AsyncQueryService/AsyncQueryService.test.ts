@@ -394,9 +394,10 @@ describe('AsyncQueryService', () => {
                 sessionAccount,
             );
 
+            // NATS is disabled, so lifecycle statuses are skipped
             expect(
                 serviceWithCache.queryHistoryModel.updateStatusToExecuting,
-            ).toHaveBeenCalledWith('test-query-uuid');
+            ).not.toHaveBeenCalled();
             expect(
                 serviceWithCache.queryHistoryModel.updateStatusToQueued,
             ).not.toHaveBeenCalled();
@@ -487,9 +488,10 @@ describe('AsyncQueryService', () => {
                 } satisfies Partial<RunAsyncWarehouseQueryArgs>),
             );
 
+            // NATS is disabled, so lifecycle statuses are skipped
             expect(
                 serviceWithCache.queryHistoryModel.updateStatusToExecuting,
-            ).toHaveBeenCalledWith('test-query-uuid');
+            ).not.toHaveBeenCalled();
             expect(
                 serviceWithCache.queryHistoryModel.updateStatusToQueued,
             ).not.toHaveBeenCalled();

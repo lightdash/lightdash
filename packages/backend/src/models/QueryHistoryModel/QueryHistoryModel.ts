@@ -184,9 +184,12 @@ export class QueryHistoryModel {
             : 'created_by_account';
         void query.andWhere(createdByColumn, account.user.id);
 
-        // Only allow READY once the query has actually started executing.
+        // Only allow READY from PENDING (non-NATS) or EXECUTING (NATS).
         if (update.status === QueryHistoryStatus.READY) {
-            void query.andWhere('status', QueryHistoryStatus.EXECUTING);
+            void query.whereIn('status', [
+                QueryHistoryStatus.PENDING,
+                QueryHistoryStatus.EXECUTING,
+            ]);
         }
         return query;
     }
