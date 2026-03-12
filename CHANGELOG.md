@@ -1,3 +1,10 @@
+# [0.2615.0](https://github.com/lightdash/lightdash/compare/0.2614.2...0.2615.0) (2026-03-12)
+
+
+### Features
+
+* use dbt ls instead of dbt compile for manifest generation ([#21064](https://github.com/lightdash/lightdash/issues/21064)) ([e0064b2](https://github.com/lightdash/lightdash/commit/e0064b2c6fdeb0b2f0ef4269e48f47615147c140))
+
 ## [0.2614.2](https://github.com/lightdash/lightdash/compare/0.2614.1...0.2614.2) (2026-03-12)
 
 
