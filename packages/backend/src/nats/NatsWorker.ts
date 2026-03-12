@@ -1,19 +1,8 @@
 import { getErrorMessage } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
-import {
-    AckPolicy,
-    connect,
-    nanos,
-    RetentionPolicy,
-    StorageType,
-    StringCodec,
-    type Consumer,
-    type ConsumerMessages,
-    type JsMsg,
-    type NatsConnection,
-} from 'nats';
+import { StringCodec, type ConsumerMessages, type JsMsg } from 'nats';
 import { z } from 'zod';
-import { type LightdashConfig } from '../config/parseConfig';
+import { type NatsClient } from '../clients/NatsClient';
 import Logger from '../logging/logger';
 import { type AsyncQueryService } from '../services/AsyncQueryService/AsyncQueryService';
 import {
@@ -43,25 +32,23 @@ type ParsedMessage = {
 };
 
 type NatsWorkerArgs = {
-    lightdashConfig: LightdashConfig;
+    natsClient: NatsClient;
     asyncQueryService: AsyncQueryService;
     streams: NatsWorkerStream[];
+    workerConcurrency: number;
 };
 
 const CONSUME_MAX_MESSAGES = 1;
 const ACK_PROGRESS_INTERVAL_MS = 5 * 1000;
-const ACK_WAIT_MS = 30 * 1000;
 
 export class NatsWorker {
     private readonly asyncQueryService: AsyncQueryService;
 
-    private readonly natsConfig: LightdashConfig['natsWorker'];
+    private readonly natsClient: NatsClient;
 
     private readonly codec = StringCodec();
 
     private readonly activeConfigs: StreamConfig[];
-
-    private connection: NatsConnection | undefined;
 
     private messageStreams: ConsumerMessages[] = [];
 
@@ -72,70 +59,25 @@ export class NatsWorker {
     public isRunning = false;
 
     public async isHealthy(): Promise<boolean> {
-        if (
-            !this.isRunning ||
-            this.connection == null ||
-            this.connection.isClosed()
-        ) {
-            return false;
-        }
-
-        try {
-            await this.connection.rtt();
-            return true;
-        } catch {
-            return false;
-        }
+        if (!this.isRunning) return false;
+        return this.natsClient.isHealthy();
     }
 
     constructor(args: NatsWorkerArgs) {
+        this.natsClient = args.natsClient;
         this.asyncQueryService = args.asyncQueryService;
-        this.natsConfig = args.lightdashConfig.natsWorker;
-        this.workerConcurrency = this.natsConfig.workerConcurrency;
+        this.workerConcurrency = args.workerConcurrency;
         this.activeConfigs = args.streams.map((s) => STREAM_CONFIGS[s]);
     }
 
     public async run(): Promise<void> {
-        if (!this.natsConfig.enabled) {
-            throw new Error(
-                'NATS_ENABLED must be true to run async query worker',
-            );
-        }
-
-        this.connection = await connect({ servers: this.natsConfig.url });
+        // Streams and consumers are already ensured by NatsClient.connect()
+        const jetStream = this.natsClient.jetstream();
         this.messageStreams = [];
 
-        const jsm = await this.connection.jetstreamManager();
-        const jetStream = this.connection.jetstream();
         const workerLoops = (
             await Promise.all(
                 this.activeConfigs.map(async (config) => {
-                    await jsm.streams.add({
-                        name: config.streamName,
-                        subjects: Object.values(config.subjects),
-                        retention: RetentionPolicy.Workqueue,
-                        storage: StorageType.Memory,
-                        num_replicas: 1,
-                    });
-
-                    // Check if consumer already exists before creating.
-                    // `consumers.add` with `filter_subjects` uses the old
-                    // DURABLE.CREATE API which is not idempotent.
-                    const consumerExists = await jsm.consumers
-                        .info(config.streamName, config.durableName)
-                        .then(() => true)
-                        .catch(() => false);
-
-                    if (!consumerExists) {
-                        await jsm.consumers.add(config.streamName, {
-                            durable_name: config.durableName,
-                            filter_subjects: Object.values(config.subjects),
-                            ack_policy: AckPolicy.Explicit,
-                            ack_wait: nanos(ACK_WAIT_MS),
-                            max_deliver: 1,
-                        });
-                    }
-
                     const consumer = await jetStream.consumers.get(
                         config.streamName,
                         config.durableName,
@@ -170,9 +112,6 @@ export class NatsWorker {
     public async stop(): Promise<void> {
         this.isRunning = false;
         this.messageStreams.forEach((messages) => messages.stop());
-        if (this.connection) {
-            await this.connection.drain();
-        }
         await this.consumePromise;
     }
 
@@ -331,7 +270,11 @@ export class NatsWorker {
     }
 
     private async spawnWorkerLoop(
-        consumer: Consumer,
+        consumer: {
+            consume: (opts: {
+                max_messages: number;
+            }) => Promise<ConsumerMessages>;
+        },
         workerId: string,
     ): Promise<void> {
         Logger.info(

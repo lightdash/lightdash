@@ -9,6 +9,7 @@ import {
     ClientProviderMap,
     ClientRepository,
 } from './clients/ClientRepository';
+import { type NatsClient } from './clients/NatsClient';
 import { LightdashConfig } from './config/parseConfig';
 import Logger from './logging/logger';
 import { ModelProviderMap, ModelRepository } from './models/ModelRepository';
@@ -41,14 +42,15 @@ type NatsWorkerAppArguments = {
 
 const natsWorkerFactory = (context: {
     lightdashConfig: LightdashConfig;
+    natsClient: NatsClient;
     serviceRepository: ServiceRepository;
-    modelRepository: ModelRepository;
     streams: NatsWorkerStream[];
 }) =>
     new NatsWorker({
-        lightdashConfig: context.lightdashConfig,
+        natsClient: context.natsClient,
         asyncQueryService: context.serviceRepository.getAsyncQueryService(),
         streams: context.streams,
+        workerConcurrency: context.lightdashConfig.natsWorker.workerConcurrency,
     });
 
 /**
@@ -58,6 +60,8 @@ const natsWorkerFactory = (context: {
  */
 export default class NatsWorkerApp {
     private readonly serviceRepository: ServiceRepository;
+
+    private readonly clients: ClientRepository;
 
     private readonly modelRepository: ModelRepository;
 
@@ -119,6 +123,7 @@ export default class NatsWorkerApp {
             models,
         });
 
+        this.clients = clients;
         this.modelRepository = models;
         this.serviceRepository = new ServiceRepository({
             serviceProviders: args.serviceProviders,
@@ -142,8 +147,8 @@ export default class NatsWorkerApp {
             return this.toString();
         };
         await this.initSentry();
-        const worker = await this.initWorker();
-        await this.initServer(worker);
+        const { worker, natsClient } = await this.initWorker();
+        await this.initServer(worker, natsClient);
     }
 
     private async initSentry() {
@@ -162,18 +167,24 @@ export default class NatsWorkerApp {
         });
     }
 
-    private async initWorker(): Promise<NatsWorker> {
+    private async initWorker(): Promise<{
+        worker: NatsWorker;
+        natsClient: NatsClient;
+    }> {
+        const natsClient = this.clients.getNatsClient();
+        await natsClient.connect();
+
         const worker = this.natsWorkerFactory({
             lightdashConfig: this.lightdashConfig,
+            natsClient,
             serviceRepository: this.serviceRepository,
-            modelRepository: this.modelRepository,
             streams: this.streams,
         });
         await worker.run();
-        return worker;
+        return { worker, natsClient };
     }
 
-    private async initServer(worker: NatsWorker) {
+    private async initServer(worker: NatsWorker, natsClient: NatsClient) {
         const app = express();
         const server = http.createServer(app);
 
@@ -198,6 +209,7 @@ export default class NatsWorkerApp {
             onSignal: async () => {
                 Logger.info('Stopping NATS worker');
                 await worker.stop();
+                await natsClient.drain();
             },
             onShutdown: async () => {
                 Logger.info('NATS worker shutdown complete');

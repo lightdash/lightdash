@@ -8,7 +8,7 @@ import { type FileStorageClient } from './FileStorage/FileStorageClient';
 import { GoogleDriveClient } from './Google/GoogleDriveClient';
 import { GoogleChatClient } from './GoogleChat/GoogleChatClient';
 import { MicrosoftTeamsClient } from './MicrosoftTeams/MicrosoftTeamsClient';
-import { NatsJobClient } from './NatsJobClient';
+import { NatsClient } from './NatsClient';
 import { S3ResultsFileStorageClient } from './ResultsFileStorageClients/S3ResultsFileStorageClient';
 import { SlackClient } from './Slack/SlackClient';
 
@@ -18,7 +18,7 @@ import { SlackClient } from './Slack/SlackClient';
  */
 
 export interface ClientManifest {
-    natsJobClient: NatsJobClient;
+    natsClient: NatsClient;
     emailClient: EmailClient;
     googleDriveClient: GoogleDriveClient;
     s3CacheClient: S3CacheClient;
@@ -119,11 +119,11 @@ export class ClientRepository
      */
     protected clientInstances: Partial<ClientManifest> = {};
 
-    public getNatsJobClient(): NatsJobClient {
+    public getNatsClient(): NatsClient {
         return this.getClient(
-            'natsJobClient',
+            'natsClient',
             () =>
-                new NatsJobClient({
+                new NatsClient({
                     lightdashConfig: this.context.lightdashConfig,
                 }),
         );
