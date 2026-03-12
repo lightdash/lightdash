@@ -1200,6 +1200,8 @@ describe('ProjectService', () => {
                     materializationMetricQuery: {
                         metricQuery: METRIC_QUERY,
                         metricComponents: {},
+                        timeDimensionFieldId: null,
+                        resolvedMaxRows: null,
                     },
                     materializationQueryError: null,
                     refreshCron: null,

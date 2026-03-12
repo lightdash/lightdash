@@ -101,12 +101,23 @@ export const parseDbtPreAggregateDef = (
         );
     }
 
+    const maxRows =
+        typeof safePreAggregate?.max_rows === 'number'
+            ? safePreAggregate.max_rows
+            : undefined;
+    if (maxRows !== undefined && (!Number.isInteger(maxRows) || maxRows <= 0)) {
+        throw new ParseError(
+            `Pre-aggregate "${name}" in model "${modelName}" has invalid "max_rows". Must be a positive integer.`,
+        );
+    }
+
     return {
         name,
         dimensions,
         metrics,
         ...(timeDimension ? { timeDimension } : {}),
         ...(granularity ? { granularity } : {}),
+        ...(maxRows !== undefined ? { maxRows } : {}),
         ...(safePreAggregate.refresh?.cron
             ? { refresh: { cron: safePreAggregate.refresh.cron } }
             : {}),

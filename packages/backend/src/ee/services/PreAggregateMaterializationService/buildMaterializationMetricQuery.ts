@@ -1,7 +1,6 @@
 import {
     assertUnreachable,
     getItemId,
-    MAX_SAFE_INTEGER,
     MetricType,
     type AdditionalMetric,
     type CompiledDimension,
@@ -173,12 +172,18 @@ const hasTimeDimensionReference = ({
     });
 };
 
+type MaterializationConfig = {
+    maxRows: number | null;
+};
+
 export const buildMaterializationMetricQuery = ({
     sourceExplore,
     preAggregateDef,
+    materializationConfig,
 }: {
     sourceExplore: Explore;
     preAggregateDef: PreAggregateDef;
+    materializationConfig: MaterializationConfig;
 }): MaterializationMetricQueryPayload => {
     const metricsByReference = getMetricsByReference({
         tables: sourceExplore.tables,
@@ -205,6 +210,15 @@ export const buildMaterializationMetricQuery = ({
             ),
         ),
     );
+
+    const timeDimensionFieldId =
+        preAggregateDef.timeDimension && preAggregateDef.granularity
+            ? getDimensionFieldId({
+                  sourceExplore,
+                  preAggregateDef,
+                  dimensionReference: preAggregateDef.timeDimension,
+              })
+            : null;
 
     const metricsByFieldId = preAggregateDef.metrics.reduce<
         Map<FieldId, CompiledMetric>
@@ -305,13 +319,19 @@ export const buildMaterializationMetricQuery = ({
 
     const metricFieldIds = Array.from(selectedMetricFieldIds);
 
+    const SYSTEM_MAX_ROWS = 10_000_000;
+    const resolvedMaxRows =
+        preAggregateDef.maxRows ??
+        materializationConfig.maxRows ??
+        SYSTEM_MAX_ROWS;
+
     const metricQuery: MetricQuery = {
         exploreName: sourceExplore.name,
         dimensions,
         metrics: metricFieldIds,
         filters: {},
         sorts: [],
-        limit: MAX_SAFE_INTEGER,
+        limit: resolvedMaxRows,
         tableCalculations: [],
         ...(additionalMetrics.length > 0 ? { additionalMetrics } : {}),
     };
@@ -319,5 +339,7 @@ export const buildMaterializationMetricQuery = ({
     return {
         metricQuery,
         metricComponents,
+        timeDimensionFieldId,
+        resolvedMaxRows,
     };
 };

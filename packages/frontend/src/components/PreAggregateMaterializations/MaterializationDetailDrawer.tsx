@@ -10,6 +10,7 @@ import {
     Drawer,
     getDefaultZIndex,
     Group,
+    List,
     Stack,
     Text,
     Tooltip,
@@ -17,6 +18,7 @@ import {
 } from '@mantine-8/core';
 import { useDisclosure } from '@mantine-8/hooks';
 import {
+    IconAlertTriangle,
     IconBolt,
     IconCalendarClock,
     IconChevronDown,
@@ -24,6 +26,7 @@ import {
     IconClock,
     IconDatabase,
     IconFile,
+    IconFilterExclamation,
     IconHourglass,
     IconRefresh,
     IconTableRow,
@@ -228,12 +231,43 @@ const MaterializationDetailDrawer: FC<Props> = ({
                     </Box>
                 )}
 
-                {summary.warnings.map(
-                    (warning: PreAggregateMaterializationWarning) => (
-                        <Callout key={warning.type} variant="warning" p="xs">
-                            <Text fz="xs">{warning.message}</Text>
+                {summary.warnings.length > 0 && (
+                    <Box>
+                        <DetailLabel>Warnings</DetailLabel>
+                        <Callout variant="warning" p="xs" hideIcon>
+                            <List
+                                styles={{
+                                    itemWrapper: { alignItems: 'flex-start' },
+                                }}
+                            >
+                                {summary.warnings.map(
+                                    (
+                                        warning: PreAggregateMaterializationWarning,
+                                    ) => (
+                                        <List.Item
+                                            fz="xs"
+                                            key={warning.type}
+                                            icon={
+                                                <Box pt={2}>
+                                                    <MantineIcon
+                                                        icon={
+                                                            warning.type ===
+                                                            'max_rows_applied'
+                                                                ? IconFilterExclamation
+                                                                : IconAlertTriangle
+                                                        }
+                                                        size="sm"
+                                                    />
+                                                </Box>
+                                            }
+                                        >
+                                            {warning.message}
+                                        </List.Item>
+                                    ),
+                                )}
+                            </List>
                         </Callout>
-                    ),
+                    </Box>
                 )}
 
                 {materialization && (

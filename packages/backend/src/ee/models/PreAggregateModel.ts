@@ -500,6 +500,7 @@ export class PreAggregateModel {
             DbPreAggregateDefinition,
             | 'pre_aggregate_definition_uuid'
             | 'pre_aggregate_definition'
+            | 'materialization_metric_query'
             | 'refresh_cron'
             | 'materialization_query_error'
         > & {
@@ -552,6 +553,7 @@ export class PreAggregateModel {
             .select<DbDefinitionWithLatestMaterialization[]>([
                 `${PreAggregateDefinitionsTableName}.pre_aggregate_definition_uuid`,
                 `${PreAggregateDefinitionsTableName}.pre_aggregate_definition`,
+                `${PreAggregateDefinitionsTableName}.materialization_metric_query`,
                 `source_ce.name as source_explore_name`,
                 `preagg_ce.name as pre_agg_explore_name`,
                 `${PreAggregateDefinitionsTableName}.refresh_cron`,
@@ -606,7 +608,14 @@ export class PreAggregateModel {
                         row.pre_aggregate_definition.granularity ?? null,
                     refreshCron: row.refresh_cron,
                     definitionError: row.materialization_query_error,
-                    warnings: computePreAggregateWarnings(materialization),
+                    resolvedMaxRows:
+                        row.materialization_metric_query?.resolvedMaxRows ??
+                        null,
+                    warnings: computePreAggregateWarnings(materialization, {
+                        materializationMaxRows:
+                            row.materialization_metric_query?.resolvedMaxRows ??
+                            null,
+                    }),
                     materialization,
                 };
             });

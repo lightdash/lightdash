@@ -1490,6 +1490,11 @@ export class ProjectService extends BaseService {
                                 buildMaterializationMetricQuery({
                                     sourceExplore,
                                     preAggregateDef: preAggregateDefinition,
+                                    materializationConfig: {
+                                        maxRows:
+                                            this.lightdashConfig.preAggregates
+                                                .materializationMaxRows,
+                                    },
                                 });
                         } catch (error) {
                             materializationQueryError = getErrorMessage(error);

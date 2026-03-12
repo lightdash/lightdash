@@ -155,16 +155,21 @@ export class PreAggregateMaterializationService extends BaseService {
                             QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION,
                         metricQuery: {
                             ...materializationMetricQuery.metricQuery,
-                            sorts:
-                                materializationMetricQuery.metricQuery
-                                    .dimensions.length > 0
-                                    ? materializationMetricQuery.metricQuery.dimensions.map(
-                                          (fieldId) => ({
-                                              fieldId,
-                                              descending: false,
-                                          }),
-                                      )
-                                    : [],
+                            sorts: materializationMetricQuery.metricQuery.dimensions
+                                .slice()
+                                .sort((a, b) => {
+                                    const timeDim =
+                                        materializationMetricQuery.timeDimensionFieldId;
+                                    if (a === timeDim) return -1;
+                                    if (b === timeDim) return 1;
+                                    return 0;
+                                })
+                                .map((fieldId) => ({
+                                    fieldId,
+                                    descending:
+                                        fieldId ===
+                                        materializationMetricQuery.timeDimensionFieldId,
+                                })),
                         },
                         invalidateCache: true,
                     }),
