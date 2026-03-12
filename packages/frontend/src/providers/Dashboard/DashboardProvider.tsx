@@ -125,7 +125,7 @@ const DashboardProvider: React.FC<
         data: dashboard,
         isInitialLoading: isDashboardLoading,
         error: dashboardError,
-    } = useDashboardQuery(dashboardUuid, {
+    } = useDashboardQuery(dashboardUuid, projectUuid, {
         select: (d) => {
             if (schedulerFilters) {
                 const overriddenDimensions = applyDimensionOverrides(

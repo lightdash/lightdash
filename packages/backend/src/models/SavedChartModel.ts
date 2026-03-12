@@ -850,7 +850,7 @@ export class SavedChartModel {
     async get(
         savedChartUuidOrSlug: string,
         versionUuid?: string,
-        options?: { deleted?: boolean | 'any' },
+        options?: { deleted?: boolean | 'any'; projectUuid?: string },
     ): Promise<SavedChartDAO> {
         return Sentry.startSpan(
             {
@@ -1005,6 +1005,13 @@ export class SavedChartModel {
                     void chartQuery.where(
                         `${SavedChartVersionsTableName}.saved_queries_version_uuid`,
                         versionUuid,
+                    );
+                }
+
+                if (options?.projectUuid) {
+                    void chartQuery.where(
+                        `${ProjectTableName}.project_uuid`,
+                        options.projectUuid,
                     );
                 }
 

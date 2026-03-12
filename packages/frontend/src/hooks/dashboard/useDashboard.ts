@@ -29,12 +29,18 @@ import { invalidateContent } from '../useContent';
 import useQueryError from '../useQueryError';
 import useDashboardStorage from './useDashboardStorage';
 
-const getDashboard = async (id: string) =>
-    lightdashApi<Dashboard>({
-        url: `/dashboards/${id}`,
+const getDashboard = async (id: string, projectUuid?: string) => {
+    const params = new URLSearchParams();
+    if (projectUuid) {
+        params.set('projectUuid', projectUuid);
+    }
+    const query = params.toString();
+    return lightdashApi<Dashboard>({
+        url: `/dashboards/${id}${query ? `?${query}` : ''}`,
         method: 'GET',
         body: undefined,
     });
+};
 
 const createDashboard = async (projectUuid: string, data: CreateDashboard) =>
     lightdashApi<Dashboard>({
@@ -130,12 +136,13 @@ export const useDashboardsAvailableFilters = (
 
 export const useDashboardQuery = (
     id?: string,
+    projectUuid?: string,
     useQueryOptions?: UseQueryOptions<Dashboard, ApiError>,
 ) => {
     const setErrorResponse = useQueryError();
     return useQuery<Dashboard, ApiError>({
         queryKey: ['saved_dashboard_query', id],
-        queryFn: () => getDashboard(id || ''),
+        queryFn: () => getDashboard(id || '', projectUuid),
         enabled: !!id,
         retry: false,
         onError: (result) => setErrorResponse(result),

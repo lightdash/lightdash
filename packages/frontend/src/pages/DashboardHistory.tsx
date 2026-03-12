@@ -42,7 +42,7 @@ const DashboardHistory = () => {
     const [isRollbackModalOpen, setIsRollbackModalOpen] = useState(false);
     const [selectedVersionUuid, setSelectedVersionUuid] = useState<string>();
 
-    const dashboardQuery = useDashboardQuery(dashboardUuid);
+    const dashboardQuery = useDashboardQuery(dashboardUuid, projectUuid);
     const historyQuery = useDashboardHistory(dashboardUuid);
 
     const rollbackMutation = useDashboardVersionRollbackMutation(dashboardUuid);

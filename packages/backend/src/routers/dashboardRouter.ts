@@ -17,7 +17,12 @@ dashboardRouter.get(
                 status: 'ok',
                 results: await req.services
                     .getDashboardService()
-                    .getByIdOrSlug(req.user!, req.params.dashboardUuidOrSlug),
+                    .getByIdOrSlug(req.user!, req.params.dashboardUuidOrSlug, {
+                        projectUuid:
+                            typeof req.query.projectUuid === 'string'
+                                ? req.query.projectUuid
+                                : undefined,
+                    }),
             });
         } catch (e) {
             next(e);

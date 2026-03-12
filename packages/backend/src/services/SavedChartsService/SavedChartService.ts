@@ -916,8 +916,13 @@ export class SavedChartService
     async get(
         savedChartUuidOrSlug: string,
         account: Account,
+        options?: { projectUuid?: string },
     ): Promise<SavedChart> {
-        const savedChart = await this.savedChartModel.get(savedChartUuidOrSlug);
+        const savedChart = await this.savedChartModel.get(
+            savedChartUuidOrSlug,
+            undefined,
+            { projectUuid: options?.projectUuid },
+        );
         const space = await this.spaceModel.getSpaceSummary(
             savedChart.spaceUuid,
         );

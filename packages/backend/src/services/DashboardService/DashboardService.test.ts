@@ -148,6 +148,7 @@ describe('DashboardService', () => {
         expect(dashboardModel.getByIdOrSlug).toHaveBeenCalledTimes(1);
         expect(dashboardModel.getByIdOrSlug).toHaveBeenCalledWith(
             dashboard.uuid,
+            { projectUuid: undefined },
         );
     });
     test('should get all dashboard by project uuid', async () => {
@@ -424,6 +425,7 @@ describe('DashboardService', () => {
         expect(dashboardModel.getByIdOrSlug).toHaveBeenCalledTimes(1);
         expect(dashboardModel.getByIdOrSlug).toHaveBeenCalledWith(
             privateDashboard.uuid,
+            { projectUuid: undefined },
         );
     });
 

@@ -50,8 +50,9 @@ const SavedExplorerContent = memo(() => {
 const SavedExplorer = () => {
     const { health } = useApp();
 
-    const { savedQueryUuid, mode } = useParams<{
+    const { savedQueryUuid, projectUuid, mode } = useParams<{
         savedQueryUuid: string;
+        projectUuid: string;
         mode?: string;
     }>();
 
@@ -61,6 +62,7 @@ const SavedExplorer = () => {
 
     const { data, isInitialLoading, error } = useSavedQuery({
         id: savedQueryUuid,
+        projectUuid,
     });
 
     useEffect(() => {

@@ -106,6 +106,7 @@ const ChartHistory = () => {
     const [isRollbackModalOpen, setIsRollbackModalOpen] = useState(false);
     const chartQuery = useSavedQuery({
         id: savedQueryUuid,
+        projectUuid,
     });
     const historyQuery = useChartHistory(savedQueryUuid);
 

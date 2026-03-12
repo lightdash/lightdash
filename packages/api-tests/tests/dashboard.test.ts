@@ -497,3 +497,94 @@ describe('Lightdash dashboard', () => {
         });
     });
 });
+
+describe('Dashboard slug disambiguation with projectUuid', () => {
+    let admin: ApiClient;
+    let previewProjectUuid: string | null = null;
+
+    beforeAll(async () => {
+        admin = await login();
+
+        // Create a preview project that copies content — dashboards will share
+        // the same slugs as the seed project
+        const response = await admin.post<{
+            status: string;
+            results: { projectUuid: string };
+        }>(`${apiUrl}/projects/${SEED_PROJECT.project_uuid}/createPreview`, {
+            name: 'Slug disambiguation test project',
+            copyContent: true,
+        });
+        expect(response.status).toBe(200);
+        previewProjectUuid = response.body.results.projectUuid;
+    });
+
+    afterAll(async () => {
+        if (previewProjectUuid) {
+            await admin
+                .delete(`${apiUrl}/org/projects/${previewProjectUuid}`, {
+                    failOnStatusCode: false,
+                })
+                .catch(() => {});
+        }
+    });
+
+    it('Should return correct dashboard when projectUuid query param is provided', async () => {
+        const slug = 'jaffle-dashboard';
+
+        // Fetch from the seed project with projectUuid
+        const seedResponse = await admin.get<{ results: Dashboard }>(
+            `${apiUrl}/dashboards/${slug}?projectUuid=${SEED_PROJECT.project_uuid}`,
+        );
+        expect(seedResponse.status).toBe(200);
+        expect(seedResponse.body.results.projectUuid).toBe(
+            SEED_PROJECT.project_uuid,
+        );
+
+        // Fetch from the preview project with projectUuid
+        const previewResponse = await admin.get<{ results: Dashboard }>(
+            `${apiUrl}/dashboards/${slug}?projectUuid=${previewProjectUuid}`,
+        );
+        expect(previewResponse.status).toBe(200);
+        expect(previewResponse.body.results.projectUuid).toBe(
+            previewProjectUuid,
+        );
+
+        // The two dashboards should have different UUIDs but the same slug
+        expect(seedResponse.body.results.uuid).not.toBe(
+            previewResponse.body.results.uuid,
+        );
+        expect(seedResponse.body.results.slug).toBe(
+            previewResponse.body.results.slug,
+        );
+    });
+
+    it('Should return an ambiguous result without projectUuid when slugs collide', async () => {
+        const slug = 'jaffle-dashboard';
+
+        // First, confirm both projects have a dashboard with this slug
+        const seedResponse = await admin.get<{ results: Dashboard }>(
+            `${apiUrl}/dashboards/${slug}?projectUuid=${SEED_PROJECT.project_uuid}`,
+        );
+        const previewResponse = await admin.get<{ results: Dashboard }>(
+            `${apiUrl}/dashboards/${slug}?projectUuid=${previewProjectUuid}`,
+        );
+        expect(seedResponse.body.results.uuid).not.toBe(
+            previewResponse.body.results.uuid,
+        );
+
+        // Without projectUuid, the API returns one of the two — we can't
+        // control which. This proves the ambiguity exists.
+        const ambiguousResponse = await admin.get<{ results: Dashboard }>(
+            `${apiUrl}/dashboards/${slug}`,
+        );
+        expect(ambiguousResponse.status).toBe(200);
+        expect(ambiguousResponse.body.results.slug).toBe(slug);
+
+        // The returned dashboard is from one of the two projects but we
+        // cannot guarantee which one — that's the bug this fix addresses
+        const returnedProjectUuid = ambiguousResponse.body.results.projectUuid;
+        expect([SEED_PROJECT.project_uuid, previewProjectUuid]).toContain(
+            returnedProjectUuid,
+        );
+    });
+});
