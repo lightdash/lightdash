@@ -6,9 +6,15 @@ import {
     getErrorMessage,
     OAuthIntrospectResponse,
     parseScopeString,
+    type OAuthUserInfoResponse,
 } from '@lightdash/common';
 import OAuth2Server from '@node-oauth/oauth2-server';
 import express, { type Router } from 'express';
+import {
+    allowApiKeyAuthentication,
+    isAuthenticated,
+    unauthorisedInDemo,
+} from '../controllers/authentication';
 import Logger from '../logging/logger';
 import { DEFAULT_OAUTH_CLIENT_ID } from '../models/OAuth2Model';
 import {
@@ -345,6 +351,80 @@ oauthRouter.post('/register', async (req, res) => {
     }
 });
 
+// UserInfo endpoint (OpenID Connect)
+oauthRouter.get(
+    '/userinfo',
+    allowApiKeyAuthentication,
+    isAuthenticated,
+    async (req, res) => {
+        const user = req.user!;
+        const userInfo: OAuthUserInfoResponse = {
+            sub: user.userUuid,
+            name: `${user.firstName} ${user.lastName}`.trim(),
+            given_name: user.firstName,
+            family_name: user.lastName,
+            email: user.email,
+            email_verified: true,
+            organization_uuid: user.organizationUuid,
+            organization_name: user.organizationName,
+        };
+        return res.json(userInfo);
+    },
+);
+
+// Client management endpoints (admin UI)
+oauthRouter.get(
+    '/clients',
+    allowApiKeyAuthentication,
+    isAuthenticated,
+    async (req, res, next) => {
+        try {
+            const oauthService = getOAuthService(req);
+            const clients = await oauthService.listClients(req.user!);
+            return res.json({ status: 'ok', results: clients });
+        } catch (error) {
+            return next(error);
+        }
+    },
+);
+
+oauthRouter.post(
+    '/clients',
+    allowApiKeyAuthentication,
+    isAuthenticated,
+    unauthorisedInDemo,
+    async (req, res, next) => {
+        try {
+            const { clientName, redirectUris } = req.body;
+            const oauthService = getOAuthService(req);
+            const client = await oauthService.createAdminClient(req.user!, {
+                clientName,
+                redirectUris,
+            });
+            return res.status(201).json({ status: 'ok', results: client });
+        } catch (error) {
+            return next(error);
+        }
+    },
+);
+
+oauthRouter.delete(
+    '/clients/:clientId',
+    allowApiKeyAuthentication,
+    isAuthenticated,
+    unauthorisedInDemo,
+    async (req, res, next) => {
+        try {
+            const { clientId } = req.params;
+            const oauthService = getOAuthService(req);
+            await oauthService.deleteClient(req.user!, clientId);
+            return res.json({ status: 'ok', results: undefined });
+        } catch (error) {
+            return next(error);
+        }
+    },
+);
+
 // OAuth2 Discovery endpoint
 // This endpoint should only be used for the MCP server to discover the OAuth2 server
 // To create new clients
@@ -357,6 +437,7 @@ export function oauthConfig(baseUrl: string) {
         introspection_endpoint: `${baseUrl}/api/v1/oauth/introspect`,
         revocation_endpoint: `${baseUrl}/api/v1/oauth/revoke`,
         registration_endpoint: `${baseUrl}/api/v1/oauth/register`,
+        userinfo_endpoint: `${baseUrl}/api/v1/oauth/userinfo`,
         response_types_supported: ['code'],
         grant_types_supported: [
             'authorization_code',
@@ -368,7 +449,12 @@ export function oauthConfig(baseUrl: string) {
             'client_secret_post',
         ],
         code_challenge_methods_supported: ['S256', 'plain'],
-        scopes_supported: [OAuthScope.MCP_READ, OAuthScope.MCP_WRITE],
+        scopes_supported: [
+            OAuthScope.READ,
+            OAuthScope.WRITE,
+            OAuthScope.MCP_READ,
+            OAuthScope.MCP_WRITE,
+        ],
         pkce_required: false, // PKCE is optional but recommended
     };
 }
@@ -401,7 +487,12 @@ export function oauthProtectedResourceConfig(baseUrl: string) {
         resource: `${baseUrl}/api/v1/mcp`,
         authorization_servers: [baseUrl],
         bearer_methods_supported: ['header'],
-        scopes_supported: [OAuthScope.MCP_READ, OAuthScope.MCP_WRITE],
+        scopes_supported: [
+            OAuthScope.READ,
+            OAuthScope.WRITE,
+            OAuthScope.MCP_READ,
+            OAuthScope.MCP_WRITE,
+        ],
         resource_documentation: `${baseUrl}/api/v1/oauth/.well-known/oauth-authorization-server`,
         introspection_endpoint: `${baseUrl}/api/v1/oauth/introspect`,
         revocation_endpoint: `${baseUrl}/api/v1/oauth/revoke`,

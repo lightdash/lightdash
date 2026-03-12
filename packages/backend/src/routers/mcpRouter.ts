@@ -14,10 +14,7 @@ import { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import express, { type Router } from 'express';
 import { IncomingMessage } from 'http';
-import {
-    allowApiKeyAuthentication,
-    allowOauthAuthentication,
-} from '../controllers/authentication';
+import { allowApiKeyAuthentication } from '../controllers/authentication';
 import { ExtraContext, McpService } from '../ee/services/McpService/McpService';
 import Logger from '../logging/logger';
 import { userAttributeOverridesSchema } from '../services/UserAttributesService/UserAttributeUtils';
@@ -99,7 +96,6 @@ const returnHeaderIfUnauthenticated = (
 // - It follows the same pattern as other protocol-specific endpoints (OAuth)
 mcpRouter.all(
     '/',
-    allowOauthAuthentication,
     allowApiKeyAuthentication,
     returnHeaderIfUnauthenticated,
     async (req, res) => {

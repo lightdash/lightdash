@@ -1,4 +1,11 @@
-import { ParameterError, UserWithOrganizationUuid } from '@lightdash/common';
+import {
+    ForbiddenError,
+    NotFoundError,
+    ParameterError,
+    UserWithOrganizationUuid,
+    type OAuthClientSummary,
+    type SessionUser,
+} from '@lightdash/common';
 import OAuth2Server from '@node-oauth/oauth2-server';
 import { LightdashConfig } from '../../config/parseConfig';
 import { OAuth2Model } from '../../models/OAuth2Model';
@@ -119,5 +126,75 @@ export class OAuthService extends BaseService {
             grantTypes,
             scopes,
         });
+    }
+
+    public async listClients(user: SessionUser): Promise<OAuthClientSummary[]> {
+        if (
+            user.ability.cannot('manage', 'Organization') ||
+            !user.organizationUuid
+        ) {
+            throw new ForbiddenError(
+                'You do not have permission to manage OAuth clients',
+            );
+        }
+        return this.oauthModel.listClientsByOrganization(user.organizationUuid);
+    }
+
+    public async createAdminClient(
+        user: SessionUser,
+        {
+            clientName,
+            redirectUris,
+        }: {
+            clientName: string;
+            redirectUris: string[];
+        },
+    ) {
+        if (
+            user.ability.cannot('manage', 'Organization') ||
+            !user.organizationUuid
+        ) {
+            throw new ForbiddenError(
+                'You do not have permission to manage OAuth clients',
+            );
+        }
+        // Validate redirect URIs
+        for (const uri of redirectUris) {
+            try {
+                // eslint-disable-next-line no-new
+                new URL(uri);
+            } catch {
+                throw new ParameterError(`Invalid redirect URI ${uri}`);
+            }
+        }
+
+        return this.oauthModel.createClient({
+            clientName,
+            redirectUris,
+            organizationUuid: user.organizationUuid,
+            createdByUserUuid: user.userUuid,
+        });
+    }
+
+    public async deleteClient(
+        user: SessionUser,
+        clientId: string,
+    ): Promise<void> {
+        if (
+            user.ability.cannot('manage', 'Organization') ||
+            !user.organizationUuid
+        ) {
+            throw new ForbiddenError(
+                'You do not have permission to manage OAuth clients',
+            );
+        }
+
+        const deleted = await this.oauthModel.deleteClient(
+            clientId,
+            user.organizationUuid,
+        );
+        if (!deleted) {
+            throw new NotFoundError('OAuth client not found');
+        }
     }
 }
