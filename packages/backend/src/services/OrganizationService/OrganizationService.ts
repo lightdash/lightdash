@@ -7,6 +7,7 @@ import {
     CreateColorPalette,
     CreateGroup,
     CreateOrganization,
+    FeatureFlags,
     ForbiddenError,
     Group,
     GroupWithMembers,
@@ -35,6 +36,7 @@ import {
 import { groupBy } from 'lodash';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
+import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { GroupsModel } from '../../models/GroupsModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { OrganizationAllowedEmailDomainsModel } from '../../models/OrganizationAllowedEmailDomainsModel';
@@ -55,6 +57,7 @@ type OrganizationServiceArguments = {
     userModel: UserModel;
     groupsModel: GroupsModel;
     organizationAllowedEmailDomainsModel: OrganizationAllowedEmailDomainsModel;
+    featureFlagModel: FeatureFlagModel;
 };
 
 export class OrganizationService extends BaseService {
@@ -76,6 +79,8 @@ export class OrganizationService extends BaseService {
 
     private readonly groupsModel: GroupsModel;
 
+    private readonly featureFlagModel: FeatureFlagModel;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -86,6 +91,7 @@ export class OrganizationService extends BaseService {
         userModel,
         groupsModel,
         organizationAllowedEmailDomainsModel,
+        featureFlagModel,
     }: OrganizationServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -98,6 +104,7 @@ export class OrganizationService extends BaseService {
         this.organizationAllowedEmailDomainsModel =
             organizationAllowedEmailDomainsModel;
         this.groupsModel = groupsModel;
+        this.featureFlagModel = featureFlagModel;
     }
 
     async get(account: Account): Promise<Organization> {
@@ -757,5 +764,59 @@ export class OrganizationService extends BaseService {
         );
 
         return palette;
+    }
+
+    async getImpersonationEnabled(user: SessionUser): Promise<boolean> {
+        const { organizationUuid } = user;
+        if (
+            user.ability.cannot(
+                'update',
+                subject('Organization', { organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        if (organizationUuid === undefined) {
+            throw new NotFoundError('Organization not found');
+        }
+        const flag = await this.featureFlagModel.get({
+            user,
+            featureFlagId: FeatureFlags.UserImpersonation,
+        });
+        if (!flag.enabled) {
+            return false;
+        }
+        return this.organizationModel.getImpersonationEnabled(organizationUuid);
+    }
+
+    async updateImpersonationEnabled(
+        user: SessionUser,
+        enabled: boolean,
+    ): Promise<void> {
+        const { organizationUuid } = user;
+        if (
+            user.ability.cannot(
+                'update',
+                subject('Organization', { organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        if (organizationUuid === undefined) {
+            throw new NotFoundError('Organization not found');
+        }
+        const flag = await this.featureFlagModel.get({
+            user,
+            featureFlagId: FeatureFlags.UserImpersonation,
+        });
+        if (!flag.enabled) {
+            throw new ForbiddenError(
+                'User impersonation is not enabled for this instance',
+            );
+        }
+        await this.organizationModel.updateImpersonationEnabled(
+            organizationUuid,
+            enabled,
+        );
     }
 }
