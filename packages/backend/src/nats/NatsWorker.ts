@@ -230,7 +230,7 @@ export class NatsWorker {
             workerLabel,
         );
         if (!canRun) {
-            message.ack();
+            message.term();
             return;
         }
 
@@ -301,7 +301,7 @@ export class NatsWorker {
             workerLabel,
         );
         if (!canRun) {
-            message.ack();
+            message.term();
             return;
         }
 

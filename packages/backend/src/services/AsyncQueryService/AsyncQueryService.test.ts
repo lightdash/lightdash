@@ -390,6 +390,13 @@ describe('AsyncQueryService', () => {
                 sessionAccount,
             );
 
+            expect(
+                serviceWithCache.queryHistoryModel.updateStatusToExecuting,
+            ).toHaveBeenCalledWith('test-query-uuid');
+            expect(
+                serviceWithCache.queryHistoryModel.updateStatusToQueued,
+            ).not.toHaveBeenCalled();
+
             // THEN: runAsyncWarehouseQuery is NOT called
             expect(runAsyncWarehouseQuerySpy).not.toHaveBeenCalled();
 
@@ -475,6 +482,13 @@ describe('AsyncQueryService', () => {
                     queryTags: { query_context: QueryExecutionContext.EXPLORE },
                 } satisfies Partial<RunAsyncWarehouseQueryArgs>),
             );
+
+            expect(
+                serviceWithCache.queryHistoryModel.updateStatusToExecuting,
+            ).toHaveBeenCalledWith('test-query-uuid');
+            expect(
+                serviceWithCache.queryHistoryModel.updateStatusToQueued,
+            ).not.toHaveBeenCalled();
 
             // THEN: Query history is NOT immediately updated to READY (async behavior)
             expect(

@@ -184,7 +184,7 @@ export class QueryHistoryModel {
             : 'created_by_account';
         void query.andWhere(createdByColumn, account.user.id);
 
-        // only update pending queries to ready
+        // Only allow READY once the query has actually started executing.
         if (update.status === QueryHistoryStatus.READY) {
             void query.andWhere('status', QueryHistoryStatus.EXECUTING);
         }
