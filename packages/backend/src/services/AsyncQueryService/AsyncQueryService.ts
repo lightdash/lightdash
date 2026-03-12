@@ -1025,7 +1025,7 @@ export class AsyncQueryService extends ProjectService {
             case QueryHistoryStatus.PENDING:
             case QueryHistoryStatus.QUEUED:
             case QueryHistoryStatus.EXECUTING:
-                throw new Error('Query is in pending state');
+                throw new Error(`Query is ${status}`);
             case QueryHistoryStatus.READY:
                 // Continue with execution
                 break;
