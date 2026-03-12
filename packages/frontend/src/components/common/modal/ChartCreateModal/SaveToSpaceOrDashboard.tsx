@@ -216,7 +216,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
         isLoading: isLoadingSelectedDashboard,
         isError: isSelectedDashboardError,
         error: selectedDashboardError,
-    } = useDashboardQuery(form.values.dashboardUuid ?? undefined);
+    } = useDashboardQuery({ id: form.values.dashboardUuid ?? undefined });
 
     // Handle dashboard selection errors
     useEffect(() => {

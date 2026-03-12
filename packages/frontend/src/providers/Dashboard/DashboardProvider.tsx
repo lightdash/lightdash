@@ -125,23 +125,27 @@ const DashboardProvider: React.FC<
         data: dashboard,
         isInitialLoading: isDashboardLoading,
         error: dashboardError,
-    } = useDashboardQuery(dashboardUuid, projectUuid, {
-        select: (d) => {
-            if (schedulerFilters) {
-                const overriddenDimensions = applyDimensionOverrides(
-                    d.filters,
-                    schedulerFilters,
-                );
+    } = useDashboardQuery({
+        id: dashboardUuid,
+        projectUuid,
+        useQueryOptions: {
+            select: (d) => {
+                if (schedulerFilters) {
+                    const overriddenDimensions = applyDimensionOverrides(
+                        d.filters,
+                        schedulerFilters,
+                    );
 
-                return {
-                    ...d,
-                    filters: {
-                        ...d.filters,
-                        dimensions: overriddenDimensions,
-                    },
-                };
-            }
-            return d;
+                    return {
+                        ...d,
+                        filters: {
+                            ...d.filters,
+                            dimensions: overriddenDimensions,
+                        },
+                    };
+                }
+                return d;
+            },
         },
     });
 

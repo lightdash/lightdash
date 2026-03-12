@@ -195,7 +195,7 @@ export class PromoteService extends BaseService {
         promotedChart: PromotedChart;
         upstreamChart: UpstreamChart;
     }> {
-        const savedChart = await this.savedChartModel.get(chartUuid, undefined);
+        const savedChart = await this.savedChartModel.get(chartUuid);
 
         const promotedSpace = await this.spaceModel.getSpaceSummary(
             savedChart.spaceUuid,

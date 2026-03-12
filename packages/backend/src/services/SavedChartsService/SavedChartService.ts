@@ -920,7 +920,6 @@ export class SavedChartService
     ): Promise<SavedChart> {
         const savedChart = await this.savedChartModel.get(
             savedChartUuidOrSlug,
-            undefined,
             { projectUuid: options?.projectUuid },
         );
         const space = await this.spaceModel.getSpaceSummary(
@@ -1412,7 +1411,7 @@ export class SavedChartService
 
         const [chartVersionSummary, savedChart] = await Promise.all([
             this.savedChartModel.getVersionSummary(chartUuid, versionUuid),
-            this.savedChartModel.get(chartUuid, versionUuid),
+            this.savedChartModel.get(chartUuid, { versionUuid }),
         ]);
 
         this.analytics.track({
@@ -1443,10 +1442,9 @@ export class SavedChartService
     ): Promise<void> {
         await this.checkUpdateAccess(user, chartUuid);
         const currentChartVersion = await this.savedChartModel.get(chartUuid);
-        const chartVersion = await this.savedChartModel.get(
-            chartUuid,
+        const chartVersion = await this.savedChartModel.get(chartUuid, {
             versionUuid,
-        );
+        });
         const newChartVersion = await this.savedChartModel.createVersion(
             chartUuid,
             chartVersion,
@@ -1694,11 +1692,9 @@ export class SavedChartService
         chartUuid: string,
         options?: SoftDeleteOptions,
     ): Promise<void> {
-        const deletedChart = await this.savedChartModel.get(
-            chartUuid,
-            undefined,
-            { deleted: true },
-        );
+        const deletedChart = await this.savedChartModel.get(chartUuid, {
+            deleted: true,
+        });
         const { organizationUuid, projectUuid } = deletedChart;
 
         if (!options?.bypassPermissions) {
@@ -1758,11 +1754,9 @@ export class SavedChartService
         options?: SoftDeleteOptions,
     ): Promise<void> {
         if (!options?.bypassPermissions) {
-            const deletedChart = await this.savedChartModel.get(
-                chartUuid,
-                undefined,
-                { deleted: true },
-            );
+            const deletedChart = await this.savedChartModel.get(chartUuid, {
+                deleted: true,
+            });
             const { organizationUuid, projectUuid } = deletedChart;
 
             if (

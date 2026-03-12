@@ -19,8 +19,9 @@ dashboardRouter.get(
                     .getDashboardService()
                     .getByIdOrSlug(req.user!, req.params.dashboardUuidOrSlug, {
                         projectUuid:
-                            typeof req.query.projectUuid === 'string'
-                                ? req.query.projectUuid
+                            typeof req.query.projectUuid === 'string' &&
+                            req.query.projectUuid.trim().length > 0
+                                ? req.query.projectUuid.trim()
                                 : undefined,
                     }),
             });

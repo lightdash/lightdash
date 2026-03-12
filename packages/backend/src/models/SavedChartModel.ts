@@ -739,7 +739,7 @@ export class SavedChartModel {
     }
 
     async permanentDelete(savedChartUuid: string): Promise<SavedChartDAO> {
-        const savedChart = await this.get(savedChartUuid, undefined, {
+        const savedChart = await this.get(savedChartUuid, {
             deleted: 'any',
         });
         await this.database(SavedChartsTableName)
@@ -849,8 +849,11 @@ export class SavedChartModel {
 
     async get(
         savedChartUuidOrSlug: string,
-        versionUuid?: string,
-        options?: { deleted?: boolean | 'any'; projectUuid?: string },
+        options?: {
+            versionUuid?: string;
+            deleted?: boolean | 'any';
+            projectUuid?: string;
+        },
     ): Promise<SavedChartDAO> {
         return Sentry.startSpan(
             {
@@ -1001,10 +1004,10 @@ export class SavedChartModel {
                     );
                 }
 
-                if (versionUuid) {
+                if (options?.versionUuid) {
                     void chartQuery.where(
                         `${SavedChartVersionsTableName}.saved_queries_version_uuid`,
-                        versionUuid,
+                        options.versionUuid,
                     );
                 }
 

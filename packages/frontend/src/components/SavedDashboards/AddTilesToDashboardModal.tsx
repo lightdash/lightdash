@@ -204,7 +204,7 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
         data: selectedDashboard,
         isFetching: isFetchingSelectedDashboard,
         isError: isSelectedDashboardError,
-    } = useDashboardQuery(form.getInputProps('dashboardUuid').value);
+    } = useDashboardQuery({ id: form.getInputProps('dashboardUuid').value });
     const { mutateAsync: createDashboard } = useCreateMutation(
         projectUuid,
         true,

@@ -3174,10 +3174,9 @@ export class ProjectService extends BaseService {
     }): Promise<ApiQueryResults> {
         assertIsAccountWithOrg(account);
 
-        const savedChart = await this.savedChartModel.get(
-            chartUuid,
+        const savedChart = await this.savedChartModel.get(chartUuid, {
             versionUuid,
-        );
+        });
         const { organizationUuid, projectUuid } = savedChart;
 
         const [spaceCtx, explore] = await Promise.all([
@@ -7078,7 +7077,7 @@ export class ProjectService extends BaseService {
             projectUuid,
         });
         const chartPromises = chartSummaries.map((summary) =>
-            this.savedChartModel.get(summary.uuid, undefined),
+            this.savedChartModel.get(summary.uuid),
         );
 
         const charts = await Promise.all(chartPromises);

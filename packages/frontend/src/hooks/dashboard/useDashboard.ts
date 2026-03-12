@@ -134,11 +134,15 @@ export const useDashboardsAvailableFilters = (
         },
     );
 
-export const useDashboardQuery = (
-    id?: string,
-    projectUuid?: string,
-    useQueryOptions?: UseQueryOptions<Dashboard, ApiError>,
-) => {
+export const useDashboardQuery = ({
+    id,
+    projectUuid,
+    useQueryOptions,
+}: {
+    id?: string;
+    projectUuid?: string;
+    useQueryOptions?: UseQueryOptions<Dashboard, ApiError>;
+} = {}) => {
     const setErrorResponse = useQueryError();
     return useQuery<Dashboard, ApiError>({
         queryKey: ['saved_dashboard_query', id, projectUuid],

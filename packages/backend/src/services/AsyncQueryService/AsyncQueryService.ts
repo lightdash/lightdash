@@ -3284,10 +3284,9 @@ export class AsyncQueryService extends ProjectService {
         // Check user is in organization
         assertIsAccountWithOrg(account);
 
-        const savedChart = await this.savedChartModel.get(
-            chartUuid,
+        const savedChart = await this.savedChartModel.get(chartUuid, {
             versionUuid,
-        );
+        });
         const {
             uuid: savedChartUuid,
             organizationUuid: savedChartOrganizationUuid,
