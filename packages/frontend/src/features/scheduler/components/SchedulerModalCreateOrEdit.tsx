@@ -112,7 +112,7 @@ const useSchedulerFormModal = ({
 
     const isDashboard = formResource?.type === 'dashboard';
     const { data: dashboard } = useDashboardQuery({
-        id: formResource?.uuid,
+        uuidOrSlug: formResource?.uuid,
         useQueryOptions: {
             enabled: !!isDashboard && !!formResource?.uuid,
         },

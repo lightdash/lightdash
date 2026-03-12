@@ -61,7 +61,7 @@ const SavedExplorer = () => {
     const { setDashboardChartInfo } = useDashboardStorage();
 
     const { data, isInitialLoading, error } = useSavedQuery({
-        id: savedQueryUuid,
+        uuidOrSlug: savedQueryUuid,
         projectUuid,
     });
 

@@ -52,7 +52,9 @@ const EmbedFiltersInteractivity: React.FC<Props> = ({
     interactivityOptions,
     onInteractivityOptionsChange,
 }) => {
-    const { data: dashboard } = useDashboardQuery({ id: dashboardUuid });
+    const { data: dashboard } = useDashboardQuery({
+        uuidOrSlug: dashboardUuid,
+    });
     const dashboardFilters = useMemo(() => {
         return Object.values(dashboard?.filters || {}).flat();
     }, [dashboard]);

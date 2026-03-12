@@ -114,20 +114,20 @@ const addVersionSavedQuery = async ({
 };
 
 interface Args {
-    id?: string;
+    uuidOrSlug?: string;
     projectUuid?: string;
     useQueryOptions?: UseQueryOptions<SavedChart, ApiError>;
 }
 
 export const useSavedQuery = ({
-    id,
+    uuidOrSlug,
     projectUuid,
     useQueryOptions,
 }: Args = {}) =>
     useQuery<SavedChart, ApiError>({
-        queryKey: ['saved_query', id, projectUuid],
-        queryFn: () => getSavedQuery(id || '', projectUuid),
-        enabled: id !== undefined,
+        queryKey: ['saved_query', uuidOrSlug, projectUuid],
+        queryFn: () => getSavedQuery(uuidOrSlug || '', projectUuid),
+        enabled: uuidOrSlug !== undefined,
         retry: false,
         ...useQueryOptions,
     });

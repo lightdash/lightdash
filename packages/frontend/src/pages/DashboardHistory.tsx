@@ -43,7 +43,7 @@ const DashboardHistory = () => {
     const [selectedVersionUuid, setSelectedVersionUuid] = useState<string>();
 
     const dashboardQuery = useDashboardQuery({
-        id: dashboardUuid,
+        uuidOrSlug: dashboardUuid,
         projectUuid,
     });
     const historyQuery = useDashboardHistory(dashboardUuid);

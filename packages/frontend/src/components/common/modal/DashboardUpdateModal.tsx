@@ -30,7 +30,7 @@ const DashboardUpdateModal: FC<DashboardUpdateModalProps> = ({
     ...modalProps
 }) => {
     const { data: dashboard, isInitialLoading } = useDashboardQuery({
-        id: uuid,
+        uuidOrSlug: uuid,
     });
     const { mutateAsync, isLoading: isUpdating } = useUpdateDashboard(uuid);
 

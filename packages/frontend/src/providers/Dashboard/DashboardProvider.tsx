@@ -126,7 +126,7 @@ const DashboardProvider: React.FC<
         isInitialLoading: isDashboardLoading,
         error: dashboardError,
     } = useDashboardQuery({
-        id: dashboardUuid,
+        uuidOrSlug: dashboardUuid,
         projectUuid,
         useQueryOptions: {
             select: (d) => {

@@ -58,7 +58,7 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
     const [isLoading, setIsLoading] = useState(false);
 
     const exploreChartQuery = useSavedQuery({
-        id: uuid,
+        uuidOrSlug: uuid,
         useQueryOptions: {
             enabled: dashboardTileType === DashboardTileTypes.SAVED_CHART,
         },
@@ -204,7 +204,9 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
         data: selectedDashboard,
         isFetching: isFetchingSelectedDashboard,
         isError: isSelectedDashboardError,
-    } = useDashboardQuery({ id: form.getInputProps('dashboardUuid').value });
+    } = useDashboardQuery({
+        uuidOrSlug: form.getInputProps('dashboardUuid').value,
+    });
     const { mutateAsync: createDashboard } = useCreateMutation(
         projectUuid,
         true,

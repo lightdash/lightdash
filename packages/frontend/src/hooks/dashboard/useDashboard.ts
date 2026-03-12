@@ -135,19 +135,19 @@ export const useDashboardsAvailableFilters = (
     );
 
 export const useDashboardQuery = ({
-    id,
+    uuidOrSlug,
     projectUuid,
     useQueryOptions,
 }: {
-    id?: string;
+    uuidOrSlug?: string;
     projectUuid?: string;
     useQueryOptions?: UseQueryOptions<Dashboard, ApiError>;
 } = {}) => {
     const setErrorResponse = useQueryError();
     return useQuery<Dashboard, ApiError>({
-        queryKey: ['saved_dashboard_query', id, projectUuid],
-        queryFn: () => getDashboard(id || '', projectUuid),
-        enabled: !!id,
+        queryKey: ['saved_dashboard_query', uuidOrSlug, projectUuid],
+        queryFn: () => getDashboard(uuidOrSlug || '', projectUuid),
+        enabled: !!uuidOrSlug,
         retry: false,
         onError: (result) => setErrorResponse(result),
         ...useQueryOptions,

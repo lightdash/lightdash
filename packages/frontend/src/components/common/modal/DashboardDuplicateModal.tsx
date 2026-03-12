@@ -33,7 +33,7 @@ const DashboardDuplicateModal: FC<DashboardDuplicateModalProps> = ({
             showRedirectButton: true,
         });
     const { data: dashboard, isInitialLoading } = useDashboardQuery({
-        id: uuid,
+        uuidOrSlug: uuid,
     });
 
     const form = useForm<FormState>();

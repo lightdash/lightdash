@@ -213,7 +213,7 @@ const MinimalDashboard: FC = () => {
         data: dashboard,
         isError: isDashboardError,
         error: dashboardError,
-    } = useDashboardQuery({ id: dashboardUuid, projectUuid });
+    } = useDashboardQuery({ uuidOrSlug: dashboardUuid, projectUuid });
 
     const [activeTab, setActiveTab] = useState<DashboardTab | null>(null);
 

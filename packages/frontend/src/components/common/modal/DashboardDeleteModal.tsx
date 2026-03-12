@@ -31,7 +31,7 @@ const DashboardDeleteModal: FC<DashboardDeleteModalProps> = ({
     const retentionDays = health.data?.softDelete.retentionDays;
 
     const { data: dashboard, isInitialLoading } = useDashboardQuery({
-        id: uuid,
+        uuidOrSlug: uuid,
     });
     const { mutateAsync: deleteDashboard, isLoading: isDeleting } =
         useDashboardDeleteMutation();
