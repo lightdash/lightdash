@@ -1,13 +1,13 @@
 import {
     FeatureFlags,
     getAvailableParametersFromTables,
+    hasDateZoomCapabilities,
     QueryExecutionContext,
     type ApiError,
     type ApiExecuteAsyncDashboardChartQueryResults,
     type ApiExploreResults,
     type ExecuteAsyncDashboardChartRequestParams,
     type SavedChart,
-    type SavedChartWithDateZoomCapabilities,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo } from 'react';
@@ -121,9 +121,10 @@ export const useDashboardChartReadyQuery = (
     }, [explore, addParameterDefinitions]);
 
     // Feed custom granularities from backend capabilities instead of explore scanning
-    const dateZoomCapabilities = (
-        chartQuery.data as SavedChartWithDateZoomCapabilities | undefined
-    )?.dateZoomCapabilities;
+    const dateZoomCapabilities =
+        chartQuery.data && hasDateZoomCapabilities(chartQuery.data)
+            ? chartQuery.data.dateZoomCapabilities
+            : undefined;
 
     useEffect(() => {
         if (!dateZoomCapabilities) return;
