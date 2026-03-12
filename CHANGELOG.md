@@ -1,3 +1,10 @@
+## [0.2614.2](https://github.com/lightdash/lightdash/compare/0.2614.1...0.2614.2) (2026-03-12)
+
+
+### Bug Fixes
+
+* space breadcrumbs duplicates ([#21080](https://github.com/lightdash/lightdash/issues/21080)) ([8faffd2](https://github.com/lightdash/lightdash/commit/8faffd2b4d20bff2ea1a1075881922ed40d674b6))
+
 ## [0.2614.1](https://github.com/lightdash/lightdash/compare/0.2614.0...0.2614.1) (2026-03-12)
 
 
