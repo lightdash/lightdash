@@ -773,6 +773,7 @@ describe('AsyncQueryService', () => {
                 preAggregates: {
                     enabled: false,
                     parquetEnabled: false,
+                    bigqueryResultsBatchSize: 1000,
                 },
             });
             (service as AnyType).preAggregationDuckDbClient = {

@@ -338,27 +338,51 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
     private async streamResults(
         job: Job,
         streamCallback: (
-            data: WarehouseResults['rows'][number],
+            data: WarehouseResults['rows'],
         ) => void | Promise<void>,
-        options: QueryResultsOptions = {},
+        options: QueryResultsOptions & { batchSize?: number } = {},
     ) {
         return new Promise<void>((resolve, reject) => {
+            let batch: WarehouseResults['rows'] = [];
+            const batchSize = options.batchSize ?? 1;
+
+            const flushBatch = async () => {
+                if (batch.length === 0) return;
+                const rows = batch;
+                batch = [];
+                await streamCallback(rows);
+            };
+
             pipeline(
                 job.getQueryResultsStream(options),
                 new Transform({
                     objectMode: true,
-                    async transform(chunk, _encoding, callback) {
-                        try {
-                            const chunkParsed = parseRow(chunk);
-                            await streamCallback(chunkParsed);
-                            callback();
-                        } catch (err) {
-                            if (err instanceof Error) {
-                                callback(err);
-                            } else {
-                                callback(new Error(String(err)));
+                    transform(chunk, _encoding, callback) {
+                        void (async () => {
+                            batch.push(parseRow(chunk));
+                            if (batch.length >= batchSize) {
+                                await flushBatch();
                             }
-                        }
+                        })()
+                            .then(() => callback())
+                            .catch((err) => {
+                                if (err instanceof Error) {
+                                    callback(err);
+                                } else {
+                                    callback(new Error(String(err)));
+                                }
+                            });
+                    },
+                    flush(callback) {
+                        void flushBatch()
+                            .then(() => callback())
+                            .catch((err) => {
+                                if (err instanceof Error) {
+                                    callback(err);
+                                } else {
+                                    callback(new Error(String(err)));
+                                }
+                            });
                     },
                 }),
                 (err: NodeJS.ErrnoException | null) => {
@@ -389,7 +413,7 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                 BigqueryWarehouseClient.getFieldsFromResponse(resultsMetadata);
 
             await this.streamResults(job, (chunk) =>
-                streamCallback({ fields, rows: [chunk] }),
+                streamCallback({ fields, rows: chunk }),
             );
         } catch (e: unknown) {
             if (BigqueryWarehouseClient.isBigqueryError(e)) {
@@ -652,7 +676,7 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
     }
 
     async executeAsyncQuery(
-        { sql, tags }: WarehouseExecuteAsyncQueryArgs,
+        { sql, tags, resultsBatchSize }: WarehouseExecuteAsyncQueryArgs,
         resultsStreamCallback?: (
             rows: WarehouseResults['rows'],
             fields: WarehouseResults['fields'],
@@ -688,8 +712,10 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
 
             // If a callback is provided, stream the results to the callback
             if (resultsStreamCallback) {
-                await this.streamResults(job, (row) =>
-                    resultsStreamCallback([row], fields),
+                await this.streamResults(
+                    job,
+                    (rows) => resultsStreamCallback(rows, fields),
+                    { batchSize: resultsBatchSize },
                 );
             }
 
