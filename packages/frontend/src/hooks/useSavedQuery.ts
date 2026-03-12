@@ -288,11 +288,11 @@ export const useUpdateMutation = (
 
                 await queryClient.invalidateQueries(['spaces']);
 
-                queryClient.setQueryData(['saved_query', data.uuid], data);
-                queryClient.setQueryData(
-                    ['saved_query', params.savedQueryUuid],
-                    data,
-                );
+                await queryClient.invalidateQueries(['saved_query', data.uuid]);
+                await queryClient.invalidateQueries([
+                    'saved_query',
+                    params.savedQueryUuid,
+                ]);
 
                 if (dashboardUuid) {
                     // Invalidate dashboard chart queries to refresh charts on dashboards
@@ -463,7 +463,7 @@ export const useAddVersionMutation = () => {
                 'most-popular-and-recently-updated',
             ]);
 
-            queryClient.setQueryData(['saved_query', data.uuid], data);
+            await queryClient.invalidateQueries(['saved_query', data.uuid]);
             await queryClient.resetQueries(['savedChartResults', data.uuid]);
 
             if (dashboardUuid) {
