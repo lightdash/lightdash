@@ -192,6 +192,9 @@ const getMockedAsyncQueryService = (
             create: jest.fn(async () => ({ queryUuid: 'queryUuid' })),
             get: jest.fn(async () => undefined),
             update: jest.fn(),
+            updateStatusToQueued: jest.fn(async () => 1),
+            updateStatusToExecuting: jest.fn(async () => 1),
+            updateStatusToExpired: jest.fn(async () => 1),
         } as unknown as QueryHistoryModel,
         userModel: {} as UserModel,
         savedSqlModel: {} as SavedSqlModel,
@@ -1202,6 +1205,28 @@ describe('AsyncQueryService', () => {
                 queryUuid: 'test-query-uuid',
             });
 
+            const expiredQuery = createMockQueryHistory(
+                QueryHistoryStatus.EXPIRED,
+                'Query expired in queue',
+            );
+            serviceWithCache.queryHistoryModel.get = jest
+                .fn()
+                .mockResolvedValue(expiredQuery);
+
+            const expiredResult = await serviceWithCache.getAsyncQueryResults({
+                account: sessionAccount,
+                projectUuid,
+                queryUuid: 'test-query-uuid',
+                page: 1,
+                pageSize: 10,
+            });
+
+            expect(expiredResult).toEqual({
+                error: 'Query expired in queue',
+                status: QueryHistoryStatus.EXPIRED,
+                queryUuid: 'test-query-uuid',
+            });
+
             // THEN: PENDING status: Returns PENDING status only
             const pendingQuery = createMockQueryHistory(
                 QueryHistoryStatus.PENDING,
@@ -1220,6 +1245,48 @@ describe('AsyncQueryService', () => {
 
             expect(pendingResult).toEqual({
                 status: QueryHistoryStatus.PENDING,
+                queryUuid: 'test-query-uuid',
+            });
+
+            const queuedQuery = createMockQueryHistory(
+                QueryHistoryStatus.QUEUED,
+            );
+            serviceWithCache.queryHistoryModel.get = jest
+                .fn()
+                .mockResolvedValue(queuedQuery);
+
+            const queuedResult = await serviceWithCache.getAsyncQueryResults({
+                account: sessionAccount,
+                projectUuid,
+                queryUuid: 'test-query-uuid',
+                page: 1,
+                pageSize: 10,
+            });
+
+            expect(queuedResult).toEqual({
+                status: QueryHistoryStatus.QUEUED,
+                queryUuid: 'test-query-uuid',
+            });
+
+            const executingQuery = createMockQueryHistory(
+                QueryHistoryStatus.EXECUTING,
+            );
+            serviceWithCache.queryHistoryModel.get = jest
+                .fn()
+                .mockResolvedValue(executingQuery);
+
+            const executingResult = await serviceWithCache.getAsyncQueryResults(
+                {
+                    account: sessionAccount,
+                    projectUuid,
+                    queryUuid: 'test-query-uuid',
+                    page: 1,
+                    pageSize: 10,
+                },
+            );
+
+            expect(executingResult).toEqual({
+                status: QueryHistoryStatus.EXECUTING,
                 queryUuid: 'test-query-uuid',
             });
 
