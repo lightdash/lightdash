@@ -33,6 +33,7 @@ import {
     IconFile,
     IconFilter,
     IconFilterOff,
+    IconHourglass,
     IconRefresh,
     IconRowInsertBottom,
     IconSearch,
@@ -58,7 +59,7 @@ import Callout from '../common/Callout';
 import MantineIcon from '../common/MantineIcon';
 import MantineModal from '../common/MantineModal';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
-import { formatFileSize } from './formatters';
+import { formatDuration, formatFileSize } from './formatters';
 import MaterializationDetailDrawer from './MaterializationDetailDrawer';
 import classes from './PreAggregateMaterializations.module.css';
 import { StatusBadge } from './StatusBadge';
@@ -400,6 +401,30 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                     return (
                         <Text size="xs" c="ldGray.6" ff="monospace">
                             {bytes != null ? formatFileSize(bytes) : '\u2014'}
+                        </Text>
+                    );
+                },
+                sortingFn: 'basic',
+            },
+            {
+                id: 'buildTime',
+                header: 'Build time',
+                enableSorting: true,
+                size: 100,
+                accessorFn: (row) => row.materialization?.durationMs ?? null,
+                Header: ({ column }) => (
+                    <Group gap="two" align="flex-start" wrap="nowrap">
+                        <MantineIcon icon={IconHourglass} color="ldGray.6" />
+                        {column.columnDef.header}
+                    </Group>
+                ),
+                Cell: ({ row }) => {
+                    const durationMs = row.original.materialization?.durationMs;
+                    return (
+                        <Text size="xs" c="ldGray.6" ff="monospace">
+                            {durationMs != null
+                                ? formatDuration(durationMs)
+                                : '\u2014'}
                         </Text>
                     );
                 },
