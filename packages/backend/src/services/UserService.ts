@@ -2286,11 +2286,12 @@ export class UserService extends BaseService {
             'userUuid' | 'organizationUuid' | 'organizationName'
         >,
     ): Promise<boolean> {
-        const flag = await this.featureFlagModel.get({
-            user,
-            featureFlagId: FeatureFlags.UserImpersonation,
-        });
-        return flag.enabled;
+        if (!user.organizationUuid) {
+            return false;
+        }
+        return this.organizationModel.getImpersonationEnabled(
+            user.organizationUuid,
+        );
     }
 
     async startImpersonation(
