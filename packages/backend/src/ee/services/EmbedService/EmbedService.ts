@@ -29,6 +29,7 @@ import {
     formatRawRows,
     formatRows,
     getDashboardFiltersForTileAndTables,
+    getDimensionMapFromTables,
     getDimensions,
     getFilterInteractivityValue,
     getItemId,
@@ -1749,12 +1750,57 @@ export class EmbedService extends BaseService {
 
         // For SDK-injected filters, the UUID is dynamically generated and
         // won't exist in saved dashboard filters. Fall back to tableName/fieldId
-        // from the request body.
-        const resolvedTableName = filter?.target.tableName ?? fallbackTableName;
-        const resolvedFieldId = filter?.target.fieldId ?? fallbackFieldId;
+        // from the request body, but only if the field is within the dashboard's
+        // explores (to prevent arbitrary field enumeration).
+        let resolvedTableName = filter?.target.tableName;
+        let resolvedFieldId = filter?.target.fieldId;
 
         if (!resolvedTableName || !resolvedFieldId) {
-            throw new ParameterError(`Filter ${filterUuid} not found`);
+            if (!fallbackTableName || !fallbackFieldId) {
+                throw new ParameterError(
+                    `Filter ${filterUuid} not found and no fallback field provided`,
+                );
+            }
+
+            // Validate the fallback field is within the dashboard's explores
+            const chartTiles = dashboard.tiles.filter(isDashboardChartTileType);
+            const savedChartUuids = [
+                ...new Set(
+                    chartTiles
+                        .map((tile) => tile.properties.savedChartUuid)
+                        .filter(Boolean),
+                ),
+            ];
+            const savedCharts =
+                await this.savedChartModel.getInfoForAvailableFilters(
+                    savedChartUuids as string[],
+                );
+            const explores = await Promise.all(
+                [...new Set(savedCharts.map((chart) => chart.tableName))].map(
+                    (tableName) =>
+                        this.projectModel.getExploreFromCache(
+                            projectUuid,
+                            tableName,
+                        ),
+                ),
+            );
+
+            const isFieldInDashboardExplores = explores.some(
+                (explore) =>
+                    !isExploreError(explore) &&
+                    fallbackTableName in explore.tables &&
+                    fallbackFieldId in
+                        getDimensionMapFromTables(explore.tables),
+            );
+
+            if (!isFieldInDashboardExplores) {
+                throw new ParameterError(
+                    `Field ${fallbackFieldId} is not available on this dashboard`,
+                );
+            }
+
+            resolvedTableName = fallbackTableName;
+            resolvedFieldId = fallbackFieldId;
         }
 
         const { metricQuery, explore, field } =
