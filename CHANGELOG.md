@@ -1,3 +1,11 @@
+## [0.2615.1](https://github.com/lightdash/lightdash/compare/0.2615.0...0.2615.1) (2026-03-12)
+
+
+### Bug Fixes
+
+* make NATS stream creation opt-in for worker apps ([#21085](https://github.com/lightdash/lightdash/issues/21085)) ([1d4e96c](https://github.com/lightdash/lightdash/commit/1d4e96ce2fc06f6ceb2f42cb8a7cdff718c54c98)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+* reuse nats client in both worker and backend ([#21076](https://github.com/lightdash/lightdash/issues/21076)) ([c944288](https://github.com/lightdash/lightdash/commit/c94428875895e9aa7d73d9492ac9fccd47e2aaab))
+
 # [0.2615.0](https://github.com/lightdash/lightdash/compare/0.2614.2...0.2615.0) (2026-03-12)
 
 
