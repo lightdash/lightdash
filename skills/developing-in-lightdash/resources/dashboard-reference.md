@@ -15,6 +15,8 @@ tiles: []        # Chart and content tiles
 tabs: []         # Optional tabs for organization
 filters:         # Dashboard-level filters
   dimensions: []
+config:          # Dashboard configuration (date zoom, etc.)
+  isDateZoomDisabled: false
 ```
 
 ## Tile Types
@@ -357,6 +359,33 @@ filters:
       singleValue: true        # Only one value allowed
 ```
 
+## Dashboard Configuration
+
+Control dashboard-level settings like date zoom behavior:
+
+```yaml
+config:
+  isDateZoomDisabled: false
+  dateZoomGranularities:
+    - Day
+    - Week
+    - Month
+    - Quarter
+    - Year
+  defaultDateZoomGranularity: Month
+```
+
+### Config Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `isDateZoomDisabled` | boolean | Disable the date zoom feature entirely |
+| `dateZoomGranularities` | string[] | Available granularity options (e.g., `Day`, `Week`, `Month`, `Quarter`, `Year`, or custom like `fiscal_quarter`) |
+| `defaultDateZoomGranularity` | string | The granularity selected by default when the dashboard loads |
+| `pinnedParameters` | string[] | List of pinned parameter names |
+
+When `config` is omitted, date zoom is enabled with all default granularities.
+
 ## Complete Dashboard Example
 
 ```yaml
@@ -525,6 +554,16 @@ filters:
       operator: equals
       values: []
       label: "Customer Segment"
+
+config:
+  isDateZoomDisabled: false
+  dateZoomGranularities:
+    - Day
+    - Week
+    - Month
+    - Quarter
+    - Year
+  defaultDateZoomGranularity: Month
 ```
 
 ## Dashboard Best Practices
