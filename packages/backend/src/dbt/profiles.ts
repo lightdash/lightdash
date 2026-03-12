@@ -300,6 +300,200 @@ const credentialsTarget = (
             );
     }
 };
+const DUMMY_SECRET = 'LIGHTDASH_DUMMY';
+
+const minimalCredentialsTarget = (
+    credentials: CreateWarehouseCredentials,
+): { target: Record<string, AnyType> } => {
+    switch (credentials.type) {
+        case WarehouseTypes.BIGQUERY: {
+            const target: Record<string, AnyType> = {
+                type: credentials.type,
+                project: credentials.project,
+                dataset: credentials.dataset,
+                threads: DEFAULT_THREADS,
+                timeout_seconds: credentials.timeoutSeconds,
+                priority: credentials.priority,
+                retries: credentials.retries,
+                maximum_bytes_billed:
+                    credentials.maximumBytesBilled || undefined,
+                execution_project: credentials.executionProject,
+            };
+            switch (credentials.authenticationType) {
+                case BigqueryAuthenticationType.PRIVATE_KEY:
+                case BigqueryAuthenticationType.SSO:
+                case undefined:
+                    target.method = 'service-account-json';
+                    target.keyfile_json = credentials.keyfileContents
+                        ? Object.fromEntries(
+                              Object.keys(credentials.keyfileContents).map(
+                                  (key) => [key, DUMMY_SECRET],
+                              ),
+                          )
+                        : {};
+                    return { target };
+                case BigqueryAuthenticationType.ADC:
+                    target.method = 'oauth';
+                    return { target };
+                default: {
+                    const { authenticationType } = credentials;
+                    return assertUnreachable(
+                        credentials,
+                        `Incorrect BigQuery profile. Received authenticationType: ${authenticationType}`,
+                    );
+                }
+            }
+        }
+        case WarehouseTypes.REDSHIFT:
+            return {
+                target: {
+                    type: credentials.type,
+                    host: credentials.host,
+                    user: credentials.user,
+                    password: DUMMY_SECRET,
+                    port: credentials.port,
+                    dbname: credentials.dbname,
+                    schema: credentials.schema,
+                    threads: DEFAULT_THREADS,
+                    keepalives_idle: credentials.keepalivesIdle,
+                    sslmode: credentials.sslmode,
+                    sslrootcert:
+                        require.resolve('@lightdash/warehouses/dist/warehouseClients/ca-bundle-aws-redshift.crt'),
+                    ra3_node: credentials.ra3Node || true,
+                },
+            };
+        case WarehouseTypes.POSTGRES:
+            return {
+                target: {
+                    type: credentials.type,
+                    host: credentials.host,
+                    user: credentials.user,
+                    password: DUMMY_SECRET,
+                    port: credentials.port,
+                    dbname: credentials.dbname,
+                    schema: credentials.schema,
+                    threads: DEFAULT_THREADS,
+                    keepalives_idle: credentials.keepalivesIdle,
+                    search_path: credentials.searchPath,
+                    role: credentials.role,
+                    sslmode: credentials.sslmode,
+                    ...(credentials.host.endsWith('.rds.amazonaws.com')
+                        ? {
+                              sslrootcert:
+                                  require.resolve('@lightdash/warehouses/dist/warehouseClients/ca-bundle-aws-rds-global.pem'),
+                          }
+                        : {}),
+                },
+            };
+        case WarehouseTypes.TRINO:
+            return {
+                target: {
+                    type: credentials.type,
+                    host: credentials.host,
+                    method: 'ldap',
+                    user: credentials.user,
+                    password: DUMMY_SECRET,
+                    port: credentials.port,
+                    database: credentials.dbname,
+                    schema: credentials.schema,
+                    http_scheme: credentials.http_scheme,
+                },
+            };
+        case WarehouseTypes.SNOWFLAKE:
+            return {
+                target: {
+                    type: credentials.type,
+                    account: credentials.account,
+                    user: credentials.user,
+                    password: DUMMY_SECRET,
+                    role: credentials.role,
+                    database: credentials.database,
+                    warehouse: credentials.warehouse,
+                    schema: credentials.schema,
+                    threads: DEFAULT_THREADS,
+                    client_session_keep_alive:
+                        credentials.clientSessionKeepAlive,
+                    query_tag: credentials.queryTag,
+                },
+            };
+        case WarehouseTypes.DATABRICKS:
+            return {
+                target: {
+                    type: WarehouseTypes.DATABRICKS,
+                    catalog: credentials.catalog,
+                    schema: credentials.database,
+                    host: credentials.serverHostName,
+                    token: DUMMY_SECRET,
+                    http_path: credentials.httpPath,
+                },
+            };
+        case WarehouseTypes.CLICKHOUSE:
+            return {
+                target: {
+                    type: WarehouseTypes.CLICKHOUSE,
+                    host: credentials.host,
+                    port: credentials.port,
+                    user: credentials.user,
+                    password: DUMMY_SECRET,
+                    schema: credentials.schema,
+                    secure: credentials.secure,
+                },
+            };
+        case WarehouseTypes.ATHENA: {
+            const athenaAuthenticationType =
+                credentials.authenticationType ??
+                AthenaAuthenticationType.ACCESS_KEY;
+            return {
+                target: {
+                    type: WarehouseTypes.ATHENA,
+                    region_name: credentials.region,
+                    database: credentials.database,
+                    schema: credentials.schema,
+                    s3_staging_dir: credentials.s3StagingDir,
+                    s3_data_dir: credentials.s3DataDir || undefined,
+                    work_group: credentials.workGroup || undefined,
+                    threads: credentials.threads || DEFAULT_THREADS,
+                    num_retries: credentials.numRetries || undefined,
+                    aws_assume_role_arn: credentials.assumeRoleArn || undefined,
+                    aws_assume_role_external_id:
+                        credentials.assumeRoleExternalId || undefined,
+                    ...(athenaAuthenticationType ===
+                    AthenaAuthenticationType.ACCESS_KEY
+                        ? {
+                              aws_access_key_id: DUMMY_SECRET,
+                              aws_secret_access_key: DUMMY_SECRET,
+                          }
+                        : {}),
+                },
+            };
+        }
+        default: {
+            const { type } = credentials;
+            return assertUnreachable(
+                credentials,
+                `No profile implemented for warehouse type: ${type}`,
+            );
+        }
+    }
+};
+
+export const minimalProfileFromCredentials = (
+    credentials: CreateWarehouseCredentials,
+    customTargetName?: string,
+) => {
+    const targetName = customTargetName || LIGHTDASH_TARGET_NAME;
+    const { target } = minimalCredentialsTarget(credentials);
+    return {
+        profile: yaml.dump({
+            [LIGHTDASH_PROFILE_NAME]: {
+                target: targetName,
+                outputs: { [targetName]: target },
+            },
+        }),
+        environment: {} as Record<string, string>,
+    };
+};
+
 export const profileFromCredentials = (
     credentials: CreateWarehouseCredentials,
     profilesDir: string,

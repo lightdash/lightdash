@@ -11,7 +11,7 @@ import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import {
     LIGHTDASH_PROFILE_NAME,
     LIGHTDASH_TARGET_NAME,
-    profileFromCredentials,
+    minimalProfileFromCredentials,
 } from '../dbt/profiles';
 import Logger from '../logging/logger';
 import { CachedWarehouse } from '../types';
@@ -46,20 +46,8 @@ export class DbtLocalCredentialsProjectAdapter extends DbtLocalProjectAdapter {
         const profilesDir = fs.mkdtempSync('/tmp/local_');
         const profilesFilename = path.join(profilesDir, 'profiles.yml');
 
-        const {
-            profile,
-            environment: injectedEnvironment,
-            files,
-        } = profileFromCredentials(
-            warehouseCredentials,
-            profilesDir,
-            targetName,
-        );
-        if (files) {
-            Object.entries(files).forEach(([filePath, content]) => {
-                writeFileSync(filePath, content);
-            });
-        }
+        const { profile, environment: injectedEnvironment } =
+            minimalProfileFromCredentials(warehouseCredentials, targetName);
         writeFileSync(profilesFilename, profile);
         const e = (environment || []).reduce<Record<string, string>>(
             (previousValue, { key, value }) => ({

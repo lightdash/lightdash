@@ -175,6 +175,7 @@ import {
     exchangeDatabricksOAuthCredentials,
     refreshDatabricksOAuthToken,
     SshTunnel,
+    warehouseClientFromCredentials,
     warehouseSqlBuilderFromType,
 } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
@@ -2651,73 +2652,68 @@ export class ProjectService extends BaseService {
         });
     }
 
-    private async buildAdapter(
+    /**
+     * Resolves OAuth tokens and sets up SSH tunnel for warehouse connection.
+     * Extracted so it can be called lazily (only when warehouse access is needed).
+     */
+    private async resolveWarehouseCredentials(
         projectUuid: string,
         user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
+        rawWarehouseConnection: CreateWarehouseCredentials,
     ): Promise<{
+        credentials: CreateWarehouseCredentials;
         sshTunnel: SshTunnel<CreateWarehouseCredentials>;
-        adapter: ProjectAdapter;
     }> {
-        const project =
-            await this.projectModel.getWithSensitiveFields(projectUuid);
-        if (!project.warehouseConnection) {
-            throw new MissingWarehouseCredentialsError(
-                'Warehouse credentials must be provided to connect to your dbt project',
-            );
-        }
-        const cachedWarehouseCatalog =
-            await this.projectModel.getWarehouseFromCache(projectUuid);
-
+        const warehouseConnection = { ...rawWarehouseConnection };
         if (
-            project.warehouseConnection.type === WarehouseTypes.SNOWFLAKE &&
-            project.warehouseConnection.authenticationType === 'sso' &&
-            project.warehouseConnection.refreshToken
+            warehouseConnection.type === WarehouseTypes.SNOWFLAKE &&
+            warehouseConnection.authenticationType === 'sso' &&
+            warehouseConnection.refreshToken
         ) {
             this.logger.debug(
                 `Refreshing snowflake warehouse credentials from refresh token on buildAdapter`,
             );
             const accessToken = await UserService.generateSnowflakeAccessToken(
-                project.warehouseConnection.refreshToken,
+                warehouseConnection.refreshToken,
             );
-            project.warehouseConnection.token = accessToken;
+            warehouseConnection.token = accessToken;
         }
 
         if (
-            project.warehouseConnection.type === WarehouseTypes.DATABRICKS &&
-            project.warehouseConnection.authenticationType ===
+            warehouseConnection.type === WarehouseTypes.DATABRICKS &&
+            warehouseConnection.authenticationType ===
                 DatabricksAuthenticationType.OAUTH_M2M
         ) {
             // If we have OAuth credentials but no refresh token, exchange them for tokens
             if (
-                project.warehouseConnection.oauthClientId &&
-                project.warehouseConnection.oauthClientSecret &&
-                !project.warehouseConnection.refreshToken
+                warehouseConnection.oauthClientId &&
+                warehouseConnection.oauthClientSecret &&
+                !warehouseConnection.refreshToken
             ) {
                 this.logger.debug(
                     `Exchanging Databricks OAuth credentials for access token on buildAdapter`,
                 );
                 const { accessToken, refreshToken } =
                     await exchangeDatabricksOAuthCredentials(
-                        project.warehouseConnection.serverHostName,
-                        project.warehouseConnection.oauthClientId,
-                        project.warehouseConnection.oauthClientSecret,
+                        warehouseConnection.serverHostName,
+                        warehouseConnection.oauthClientId,
+                        warehouseConnection.oauthClientSecret,
                     );
-                project.warehouseConnection.token = accessToken;
+                warehouseConnection.token = accessToken;
                 if (refreshToken) {
-                    project.warehouseConnection.refreshToken = refreshToken;
+                    warehouseConnection.refreshToken = refreshToken;
                     // Note: refresh token will be persisted when project credentials are next saved
                 }
-            } else if (project.warehouseConnection.refreshToken) {
+            } else if (warehouseConnection.refreshToken) {
                 // If we have a refresh token, use it to get a fresh access token
                 this.logger.debug(
                     `Refreshing databricks warehouse credentials from refresh token on buildAdapter`,
                 );
                 let clientId: string;
                 let clientSecret: string | undefined;
-                if (project.warehouseConnection.oauthClientId) {
-                    clientId = project.warehouseConnection.oauthClientId;
-                    clientSecret =
-                        project.warehouseConnection.oauthClientSecret;
+                if (warehouseConnection.oauthClientId) {
+                    clientId = warehouseConnection.oauthClientId;
+                    clientSecret = warehouseConnection.oauthClientSecret;
                 } else if (this.lightdashConfig.auth.databricks.clientId) {
                     clientId = this.lightdashConfig.auth.databricks.clientId;
                     clientSecret =
@@ -2728,24 +2724,23 @@ export class ProjectService extends BaseService {
                 }
                 const { accessToken, refreshToken } =
                     await refreshDatabricksOAuthToken(
-                        project.warehouseConnection.serverHostName,
+                        warehouseConnection.serverHostName,
                         clientId,
-                        project.warehouseConnection.refreshToken,
+                        warehouseConnection.refreshToken,
                         clientSecret,
                     );
-                project.warehouseConnection.token = accessToken;
-                project.warehouseConnection.refreshToken = refreshToken;
+                warehouseConnection.token = accessToken;
+                warehouseConnection.refreshToken = refreshToken;
             }
         }
 
         if (
-            project.warehouseConnection.type === WarehouseTypes.DATABRICKS &&
-            project.warehouseConnection.authenticationType ===
+            warehouseConnection.type === WarehouseTypes.DATABRICKS &&
+            warehouseConnection.authenticationType ===
                 DatabricksAuthenticationType.OAUTH_U2M
         ) {
             // For U2M OAuth, resolve refresh token from user credentials if not on project
-            let u2mRefreshToken =
-                project.warehouseConnection.refreshToken ?? undefined;
+            let u2mRefreshToken = warehouseConnection.refreshToken ?? undefined;
 
             let userCredOauthClientId: string | undefined;
             if (!u2mRefreshToken) {
@@ -2774,8 +2769,7 @@ export class ProjectService extends BaseService {
                 let clientId: string;
                 let clientSecret: string | undefined;
                 const storedClientId =
-                    userCredOauthClientId ||
-                    project.warehouseConnection.oauthClientId;
+                    userCredOauthClientId || warehouseConnection.oauthClientId;
                 if (storedClientId) {
                     clientId = storedClientId;
                 } else if (this.lightdashConfig.auth.databricks.clientId) {
@@ -2793,22 +2787,57 @@ export class ProjectService extends BaseService {
 
                 const { accessToken, refreshToken } =
                     await refreshDatabricksOAuthToken(
-                        project.warehouseConnection.serverHostName,
+                        warehouseConnection.serverHostName,
                         clientId,
                         u2mRefreshToken,
                         clientSecret,
                     );
-                project.warehouseConnection.token = accessToken;
-                project.warehouseConnection.refreshToken = refreshToken;
+                warehouseConnection.token = accessToken;
+                warehouseConnection.refreshToken = refreshToken;
             }
         }
 
-        const sshTunnel = new SshTunnel(project.warehouseConnection);
+        const sshTunnel = new SshTunnel(warehouseConnection);
         await sshTunnel.connect();
+
+        return { credentials: sshTunnel.overrideCredentials, sshTunnel };
+    }
+
+    private async buildAdapter(
+        projectUuid: string,
+        user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
+    ): Promise<{
+        adapter: ProjectAdapter;
+    }> {
+        const project =
+            await this.projectModel.getWithSensitiveFields(projectUuid);
+        if (!project.warehouseConnection) {
+            throw new MissingWarehouseCredentialsError(
+                'Warehouse credentials must be provided to connect to your dbt project',
+            );
+        }
+        const cachedWarehouseCatalog =
+            await this.projectModel.getWarehouseFromCache(projectUuid);
+
+        // Lazy factory: OAuth refresh + SSH tunnel + warehouse client
+        // Only invoked if cached catalog is missing and we need to query the warehouse
+        const warehouseClientFactory = async () => {
+            const { credentials, sshTunnel } =
+                await this.resolveWarehouseCredentials(
+                    projectUuid,
+                    user,
+                    project.warehouseConnection!,
+                );
+            const warehouseClient = warehouseClientFromCredentials(credentials);
+            return {
+                warehouseClient,
+                cleanup: () => sshTunnel.disconnect(),
+            };
+        };
 
         const adapter = await projectAdapterFromConfig(
             project.dbtConnection,
-            sshTunnel.overrideCredentials,
+            project.warehouseConnection,
             {
                 warehouseCatalog: cachedWarehouseCatalog,
                 onWarehouseCatalogChange: async (warehouseCatalog) => {
@@ -2820,8 +2849,9 @@ export class ProjectService extends BaseService {
             },
             project.dbtVersion || DefaultSupportedDbtVersion,
             this.analytics,
+            warehouseClientFactory,
         );
-        return { adapter, sshTunnel };
+        return { adapter };
     }
 
     static updateExploreWithDateZoom(
@@ -4568,10 +4598,7 @@ export class ProjectService extends BaseService {
 
         // Force refresh adapter (refetch git repos, check for changed credentials, etc.)
         // Might want to cache parts of this in future if slow
-        const { adapter, sshTunnel } = await this.buildAdapter(
-            projectUuid,
-            user,
-        );
+        const { adapter } = await this.buildAdapter(projectUuid, user);
         const packages = await adapter.getDbtPackages();
         try {
             const trackingParams = {
@@ -4746,7 +4773,6 @@ export class ProjectService extends BaseService {
             throw errorResponse;
         } finally {
             await adapter.destroy();
-            await sshTunnel.disconnect();
         }
     }
 

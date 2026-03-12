@@ -41,10 +41,19 @@ import {
     type TrackingParams,
 } from '../types';
 
+export type WarehouseClientFactory = () => Promise<{
+    warehouseClient: WarehouseClient;
+    cleanup: () => Promise<void>;
+}>;
+
 export class DbtBaseProjectAdapter implements ProjectAdapter {
     dbtClient: DbtClient;
 
     warehouseClient: WarehouseClient;
+
+    warehouseClientFactory: WarehouseClientFactory | undefined;
+
+    private warehouseClientCleanup: (() => Promise<void>) | undefined;
 
     cachedWarehouse: CachedWarehouse;
 
@@ -70,16 +79,34 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         this.analytics = analytics;
     }
 
+    private async resolveWarehouseClient(): Promise<WarehouseClient> {
+        if (this.warehouseClientFactory) {
+            Logger.info(
+                'Resolving full warehouse client from factory (cache miss)',
+            );
+            const { warehouseClient, cleanup } =
+                await this.warehouseClientFactory();
+            this.warehouseClient = warehouseClient;
+            this.warehouseClientCleanup = cleanup;
+            this.warehouseClientFactory = undefined; // only resolve once
+        }
+        return this.warehouseClient;
+    }
+
     // eslint-disable-next-line class-methods-use-this
     async destroy(): Promise<void> {
         Logger.debug(`Destroy base project adapter`);
+        if (this.warehouseClientCleanup) {
+            await this.warehouseClientCleanup();
+        }
     }
 
     public async test(): Promise<void> {
         Logger.debug('Test dbt client');
         await this.dbtClient.test();
         Logger.debug('Test warehouse client');
-        await this.warehouseClient.test();
+        const warehouseClient = await this.resolveWarehouseClient();
+        await warehouseClient.test();
     }
 
     public async getDbtPackages(): Promise<DbtPackages | undefined> {
@@ -272,8 +299,11 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                     `Fetching table metadata for ${modelCatalog.length} tables`,
                 );
 
+                // Resolve full warehouse client (OAuth + SSH tunnel) only when needed
+                const fullWarehouseClient = await this.resolveWarehouseClient();
+
                 const warehouseCatalog =
-                    await this.warehouseClient.getCatalog(modelCatalog);
+                    await fullWarehouseClient.getCatalog(modelCatalog);
                 await this.cachedWarehouse?.onWarehouseCatalogChange(
                     warehouseCatalog,
                 );
@@ -290,8 +320,8 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                 );
                 Logger.info('Convert explores after missing catalog error');
                 const disableTimestampConversion =
-                    this.warehouseClient.credentials.type === 'snowflake' &&
-                    this.warehouseClient.credentials
+                    fullWarehouseClient.credentials.type === 'snowflake' &&
+                    fullWarehouseClient.credentials
                         .disableTimestampConversion === true;
 
                 const explores = await convertExplores(
@@ -299,7 +329,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                     loadSources,
                     adapterType,
                     metrics,
-                    this.warehouseClient,
+                    fullWarehouseClient,
                     lightdashProjectConfig,
                     disableTimestampConversion,
                     allowPartialCompilation,

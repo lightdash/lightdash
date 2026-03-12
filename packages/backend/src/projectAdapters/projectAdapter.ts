@@ -14,6 +14,10 @@ import { getInstallationToken } from '../clients/github/Github';
 import Logger from '../logging/logger';
 import { CachedWarehouse, ProjectAdapter } from '../types';
 import { DbtAzureDevOpsProjectAdapter } from './dbtAzureDevOpsProjectAdapter';
+import {
+    DbtBaseProjectAdapter,
+    type WarehouseClientFactory,
+} from './dbtBaseProjectAdapter';
 import { DbtBitBucketProjectAdapter } from './dbtBitBucketProjectAdapter';
 import { DbtCloudIdeProjectAdapter } from './dbtCloudIdeProjectAdapter';
 import { DbtGithubProjectAdapter } from './dbtGithubProjectAdapter';
@@ -28,6 +32,7 @@ export const projectAdapterFromConfig = async (
     cachedWarehouse: CachedWarehouse,
     dbtVersionOption: DbtVersionOption,
     analytics?: LightdashAnalytics,
+    warehouseClientFactory?: WarehouseClientFactory,
 ): Promise<ProjectAdapter> => {
     Logger.debug(
         `Initialize warehouse client of type ${warehouseCredentials.type}`,
@@ -42,9 +47,10 @@ export const projectAdapterFromConfig = async (
             ? getLatestSupportDbtVersion()
             : dbtVersionOption;
 
+    let adapter: ProjectAdapter;
     switch (config.type) {
         case DbtProjectType.DBT:
-            return new DbtLocalCredentialsProjectAdapter({
+            adapter = new DbtLocalCredentialsProjectAdapter({
                 analytics,
                 warehouseClient,
                 projectDir: config.project_dir || '/usr/app/dbt',
@@ -56,22 +62,23 @@ export const projectAdapterFromConfig = async (
 
                 selector: config.selector,
             });
+            break;
         case DbtProjectType.NONE:
-            return new DbtNoneCredentialsProjectAdapter({
+            adapter = new DbtNoneCredentialsProjectAdapter({
                 warehouseClient,
             });
-
+            break;
         case DbtProjectType.MANIFEST:
-            return new DbtManifestProjectAdapter({
+            adapter = new DbtManifestProjectAdapter({
                 warehouseClient,
                 cachedWarehouse,
                 dbtVersion,
                 analytics,
                 manifest: config.manifest,
             });
-
+            break;
         case DbtProjectType.DBT_CLOUD_IDE:
-            return new DbtCloudIdeProjectAdapter({
+            adapter = new DbtCloudIdeProjectAdapter({
                 analytics,
                 warehouseClient,
                 environmentId: `${config.environment_id}`,
@@ -82,6 +89,7 @@ export const projectAdapterFromConfig = async (
                 dbtVersion,
                 // TODO add selector to dbt cloud
             });
+            break;
         case DbtProjectType.GITHUB:
             const githubToken =
                 config.installation_id &&
@@ -100,7 +108,7 @@ export const projectAdapterFromConfig = async (
                     `Missing repository for GitHub project`,
                 );
             }
-            return new DbtGithubProjectAdapter({
+            adapter = new DbtGithubProjectAdapter({
                 analytics,
                 warehouseClient,
                 githubPersonalAccessToken: githubToken!,
@@ -116,8 +124,9 @@ export const projectAdapterFromConfig = async (
 
                 selector: config.selector,
             });
+            break;
         case DbtProjectType.GITLAB:
-            return new DbtGitlabProjectAdapter({
+            adapter = new DbtGitlabProjectAdapter({
                 analytics,
                 warehouseClient,
                 gitlabPersonalAccessToken: config.personal_access_token,
@@ -133,8 +142,9 @@ export const projectAdapterFromConfig = async (
 
                 selector: config.selector,
             });
+            break;
         case DbtProjectType.BITBUCKET:
-            return new DbtBitBucketProjectAdapter({
+            adapter = new DbtBitBucketProjectAdapter({
                 analytics,
                 warehouseClient,
                 username: config.username,
@@ -151,8 +161,9 @@ export const projectAdapterFromConfig = async (
 
                 selector: config.selector,
             });
+            break;
         case DbtProjectType.AZURE_DEVOPS:
-            return new DbtAzureDevOpsProjectAdapter({
+            adapter = new DbtAzureDevOpsProjectAdapter({
                 analytics,
                 warehouseClient,
                 personalAccessToken: config.personal_access_token,
@@ -169,8 +180,14 @@ export const projectAdapterFromConfig = async (
 
                 selector: config.selector,
             });
+            break;
         default:
             const never: never = config;
             throw new Error(`Adapter not implemented for type: ${configType}`);
     }
+
+    if (warehouseClientFactory && adapter instanceof DbtBaseProjectAdapter) {
+        adapter.warehouseClientFactory = warehouseClientFactory;
+    }
+    return adapter;
 };
