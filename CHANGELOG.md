@@ -1,3 +1,10 @@
+## [0.2614.1](https://github.com/lightdash/lightdash/compare/0.2614.0...0.2614.1) (2026-03-12)
+
+
+### Bug Fixes
+
+* ignore non-uuid-jobs when considered stuck ([#21082](https://github.com/lightdash/lightdash/issues/21082)) ([712b5c9](https://github.com/lightdash/lightdash/commit/712b5c9d9cd06f24b5232261113744b2bcf7801d))
+
 # [0.2614.0](https://github.com/lightdash/lightdash/compare/0.2613.0...0.2614.0) (2026-03-12)
 
 
