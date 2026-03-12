@@ -63,14 +63,21 @@ interface TableInfo {
     table: string;
 }
 
-const convertDataTypeToDimensionType = (
+export const convertDataTypeToDimensionType = (
     type: ClickhouseTypes | string,
 ): DimensionType => {
-    // Remove nullable wrapper and low cardinality wrapper
-    const cleanType = type
-        .replace(/^Nullable\((.+)\)$/, '$1')
-        .replace(/^LowCardinality\((.+)\)$/, '$1')
-        .replace(/\(\d+\)/, ''); // Remove precision from decimals and fixed strings
+    // Iteratively unwrap Nullable/LowCardinality wrappers in any nesting order
+    // e.g. LowCardinality(Nullable(Int32)) -> Nullable(Int32) -> Int32
+    let cleanType = type;
+    let prev = '';
+    while (cleanType !== prev) {
+        prev = cleanType;
+        cleanType = cleanType
+            .replace(/^Nullable\((.+)\)$/, '$1')
+            .replace(/^LowCardinality\((.+)\)$/, '$1');
+    }
+    // Strip all parenthesized arguments (handles Decimal(18,2), DateTime64(3,'UTC'), FixedString(N), etc.)
+    cleanType = cleanType.replace(/\(.*\)$/, '');
 
     switch (cleanType) {
         case ClickhouseTypes.BOOL:
