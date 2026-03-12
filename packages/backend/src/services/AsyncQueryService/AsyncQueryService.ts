@@ -2845,9 +2845,11 @@ export class AsyncQueryService extends ProjectService {
                     );
 
                     if (resultsCache.cacheHit) {
-                        await this.queryHistoryModel.updateStatusToExecuting(
-                            queryHistoryUuid,
-                        );
+                        if (this.lightdashConfig.natsWorker.enabled) {
+                            await this.queryHistoryModel.updateStatusToExecuting(
+                                queryHistoryUuid,
+                            );
+                        }
                         await this.queryHistoryModel.update(
                             queryHistoryUuid,
                             projectUuid,
@@ -3057,10 +3059,6 @@ export class AsyncQueryService extends ProjectService {
                     } else {
                         this.logger.info(
                             `Executing query ${queryHistoryUuid} in the main loop`,
-                        );
-
-                        await this.queryHistoryModel.updateStatusToExecuting(
-                            queryHistoryUuid,
                         );
 
                         const { query: warehouseSql, ...sharedAsyncQueryArgs } =
