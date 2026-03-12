@@ -1,3 +1,10 @@
+## [0.2615.3](https://github.com/lightdash/lightdash/compare/0.2615.2...0.2615.3) (2026-03-12)
+
+
+### Bug Fixes
+
+* serialize DuckDB S3 secret bootstrap ([#21099](https://github.com/lightdash/lightdash/issues/21099)) ([256fca0](https://github.com/lightdash/lightdash/commit/256fca0258f7142d6e31cbe6bfedb7fa5ef1487c))
+
 ## [0.2615.2](https://github.com/lightdash/lightdash/compare/0.2615.1...0.2615.2) (2026-03-12)
 
 
