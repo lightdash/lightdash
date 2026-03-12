@@ -70,7 +70,6 @@ type DbtCliArgs = {
     profileName?: string;
     target?: string;
     dbtVersion: SupportedDbtVersions;
-    useDbtLs?: boolean;
     selector?: string;
 };
 
@@ -100,8 +99,6 @@ export class DbtCliClient implements DbtClient {
 
     dbtVersion: SupportedDbtVersions;
 
-    useDbtLs: boolean;
-
     selector?: string;
 
     constructor({
@@ -111,7 +108,6 @@ export class DbtCliClient implements DbtClient {
         profileName,
         target,
         dbtVersion,
-        useDbtLs,
         selector,
     }: DbtCliArgs) {
         this.dbtProjectDirectory = dbtProjectDirectory;
@@ -121,7 +117,6 @@ export class DbtCliClient implements DbtClient {
         this.target = target;
         this.targetDirectory = undefined;
         this.dbtVersion = dbtVersion;
-        this.useDbtLs = useDbtLs ?? false;
         this.selector = selector;
     }
 
@@ -179,7 +174,10 @@ export class DbtCliClient implements DbtClient {
         }
     }
 
-    private async _runDbtCommand(...command: string[]): Promise<DbtLog[]> {
+    private async _runDbtCommand(...command: string[]): Promise<{
+        logs: DbtLog[];
+        stdout: string;
+    }> {
         const dbtExec = this.getDbtExec();
         const dbtArgs = [
             '--no-use-colors',
@@ -214,7 +212,10 @@ export class DbtCliClient implements DbtClient {
                     ...this.environment,
                 },
             });
-            return DbtCliClient.parseDbtJsonLogs(dbtProcess.all);
+            return {
+                logs: DbtCliClient.parseDbtJsonLogs(dbtProcess.all),
+                stdout: dbtProcess.stdout,
+            };
         } catch (e) {
             Logger.error(
                 `Error running dbt command with version ${
@@ -246,7 +247,11 @@ export class DbtCliClient implements DbtClient {
                 name: 'installDeps',
             },
             async () => {
+                const startTime = Date.now();
                 await this._runDbtCommand('deps');
+                Logger.info(
+                    `dbt deps completed in ${Date.now() - startTime}ms`,
+                );
             },
         );
     }
@@ -255,33 +260,97 @@ export class DbtCliClient implements DbtClient {
         return validateDbtSelector(selector);
     }
 
+    /**
+     * Parse model unique IDs from `dbt ls --output json --output-keys unique_id` stdout.
+     *
+     * With --output json --output-keys unique_id, we get canonical unique_ids
+     * (e.g. model.project.my_model) across all dbt versions. The format differs:
+     *
+     * - dbt 1.4: bare JSON on stdout: {"unique_id": "model.project.my_model"}
+     * - dbt 1.5-1.8: JSON log envelope with info.code "Z049", data.msg is a
+     *   JSON string: '{"unique_id": "model.project.my_model"}'
+     * - dbt 1.9-1.10: same as above but info.code is "Z052"
+     */
+    static parseModelIdsFromStdout(stdout: string): string[] {
+        const modelIds: string[] = [];
+
+        stdout
+            .split('\n')
+            .filter((line) => line.trim().length > 0)
+            .forEach((line) => {
+                let parsed;
+                try {
+                    parsed = JSON.parse(line.trim());
+                } catch {
+                    return;
+                }
+
+                // dbt 1.5+: ls output is nested JSON inside the log envelope
+                const code = parsed?.info?.code;
+                if (code === 'Z049' || code === 'Z052') {
+                    try {
+                        const inner = JSON.parse(parsed.data.msg);
+                        if (
+                            typeof inner.unique_id === 'string' &&
+                            inner.unique_id.startsWith('model.')
+                        ) {
+                            modelIds.push(inner.unique_id);
+                        }
+                    } catch {
+                        // skip malformed inner JSON
+                    }
+                } else if (
+                    // dbt 1.4: bare JSON with unique_id directly
+                    typeof parsed.unique_id === 'string' &&
+                    parsed.unique_id.startsWith('model.')
+                ) {
+                    modelIds.push(parsed.unique_id);
+                }
+            });
+
+        return modelIds;
+    }
+
     async getDbtManifest(): Promise<DbtRpcGetManifestResults> {
         return Sentry.startSpan(
             {
                 op: 'dbt',
                 name: 'getDbtManifest',
-                attributes: {
-                    useDbtLs: this.useDbtLs,
-                },
             },
             async () => {
-                const dbtCommand = [];
+                const dbtCommand: string[] = [
+                    'ls',
+                    '--output',
+                    'json',
+                    '--output-keys',
+                    'unique_id',
+                ];
                 const selector = this.selector?.trim();
 
                 if (selector) {
                     if (!DbtCliClient.validateSelector(selector)) {
                         throw new ParseError('Invalid dbt selector format');
                     }
-                    dbtCommand.push('compile', '--select', `${selector}`);
-                } else {
-                    dbtCommand.push(this.useDbtLs ? 'ls' : 'compile');
+                    dbtCommand.push('--select', selector);
                 }
-                const logs = await this._runDbtCommand(...dbtCommand);
+                const startTime = Date.now();
+                const { logs, stdout } = await this._runDbtCommand(
+                    ...dbtCommand,
+                );
+                const elapsed = Date.now() - startTime;
+                const selectedModelIds =
+                    DbtCliClient.parseModelIdsFromStdout(stdout);
+                Logger.info(
+                    `dbt ls completed in ${elapsed}ms, found ${selectedModelIds.length} model(s)`,
+                );
                 const rawManifest = {
                     manifest: await this.loadDbtTargetArtifact('manifest.json'),
                 };
                 if (isDbtRpcManifestResults(rawManifest)) {
-                    return rawManifest;
+                    return {
+                        ...rawManifest,
+                        ...(selector ? { selectedModelIds } : {}),
+                    };
                 }
                 throw new DbtError(
                     'Cannot read response from dbt, manifest.json not valid',

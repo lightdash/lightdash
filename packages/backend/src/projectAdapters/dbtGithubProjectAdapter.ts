@@ -24,7 +24,6 @@ type DbtGithubProjectAdapterArgs = {
     environment: DbtProjectEnvironmentVariable[] | undefined;
     cachedWarehouse: CachedWarehouse;
     dbtVersion: SupportedDbtVersions;
-    useDbtLs: boolean;
     selector?: string;
     analytics?: LightdashAnalytics;
 };
@@ -42,7 +41,6 @@ export class DbtGithubProjectAdapter extends DbtGitProjectAdapter {
         environment,
         cachedWarehouse,
         dbtVersion,
-        useDbtLs,
         selector,
         analytics,
     }: DbtGithubProjectAdapterArgs) {
@@ -65,7 +63,6 @@ export class DbtGithubProjectAdapter extends DbtGitProjectAdapter {
             environment,
             cachedWarehouse,
             dbtVersion,
-            useDbtLs,
             selector,
             analytics,
         });

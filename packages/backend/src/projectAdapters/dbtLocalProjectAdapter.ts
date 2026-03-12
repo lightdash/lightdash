@@ -14,7 +14,6 @@ type DbtLocalProjectAdapterArgs = {
     environment?: Record<string, string>;
     cachedWarehouse: CachedWarehouse;
     dbtVersion: SupportedDbtVersions;
-    useDbtLs: boolean;
     selector?: string;
     analytics?: LightdashAnalytics;
 };
@@ -30,7 +29,6 @@ export class DbtLocalProjectAdapter extends DbtBaseProjectAdapter {
         environment,
         cachedWarehouse,
         dbtVersion,
-        useDbtLs,
         selector,
     }: DbtLocalProjectAdapterArgs) {
         const dbtClient = new DbtCliClient({
@@ -40,7 +38,6 @@ export class DbtLocalProjectAdapter extends DbtBaseProjectAdapter {
             profileName,
             target,
             dbtVersion,
-            useDbtLs,
             selector,
         });
         super(

@@ -29,6 +29,7 @@ import {
     type LightdashProjectConfig,
 } from '@lightdash/common';
 import { WarehouseClient } from '@lightdash/warehouses';
+import * as Sentry from '@sentry/node';
 import fs from 'fs/promises';
 import path from 'path';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
@@ -155,7 +156,8 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
             await this.dbtClient.installDeps();
         }
         Logger.debug('Get dbt manifest');
-        const { manifest } = await this.dbtClient.getDbtManifest();
+        const { manifest, selectedModelIds } =
+            await this.dbtClient.getDbtManifest();
         // Type of the target warehouse
         if (!isSupportedDbtAdapter(manifest.metadata)) {
             throw new ParseError(
@@ -163,31 +165,35 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                 {},
             );
         }
-        let models: DbtRawModelNode[] = [];
 
-        if (this.dbtClient.getSelector()) {
+        if (selectedModelIds) {
             Logger.info(
-                `Manifest generated with selector "${this.dbtClient.getSelector()}"`,
+                `Manifest generated with selector, matched ${selectedModelIds.length} model(s)`,
             );
-            // If selector is provided, we use compile to get the models that match the selector
-            const manifestModels = getModelsFromManifest(manifest);
-            Logger.info(`Manifest models ${manifestModels.length}`);
-            const compiledModels = getCompiledModels(manifestModels, undefined);
-            Logger.info(`Compiled models ${compiledModels.length}`);
-            models = compiledModels.filter(
-                (node: AnyType) => node.resource_type === 'model' && node.meta, // check that node.meta exists
-            ) as DbtRawModelNode[];
-            Logger.info(`Filtered models ${models.length}`);
-        } else {
-            const nodes = Object.values(manifest.nodes);
-            Logger.info(`Manifest models ${nodes.length}`);
-            // If selector is not provided, we use all the models from the manifest
-            // models with invalid metadata will compile to failed Explores
-            models = nodes.filter(
-                (node: AnyType) => node.resource_type === 'model' && node.meta, // check that node.meta exists
-            ) as DbtRawModelNode[];
-            Logger.info(`Filtered models ${models.length}`);
         }
+
+        const models = Sentry.startSpan(
+            { op: 'dbt', name: 'filterManifestModels' },
+            () => {
+                const startTime = Date.now();
+                const manifestModels = getModelsFromManifest(manifest);
+                Logger.info(`Manifest models ${manifestModels.length}`);
+                const compiledModels = getCompiledModels(
+                    manifestModels,
+                    selectedModelIds,
+                );
+                Logger.info(`Compiled models ${compiledModels.length}`);
+                const filtered = compiledModels.filter(
+                    (node: AnyType) =>
+                        node.resource_type === 'model' && node.meta,
+                ) as DbtRawModelNode[];
+                const elapsed = Date.now() - startTime;
+                Logger.info(
+                    `Filtered to ${filtered.length} model(s) in ${elapsed}ms`,
+                );
+                return filtered;
+            },
+        );
 
         const adapterType = manifest.metadata.adapter_type;
 

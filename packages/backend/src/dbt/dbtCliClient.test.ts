@@ -70,7 +70,15 @@ Object.values(SupportedDbtVersions).map((dbtVersion) => {
             await expect(execaMock).toHaveBeenCalledTimes(1);
             await expect(execaMock).toHaveBeenCalledWith(
                 dbtExec,
-                [...expectedDbtOptions, 'compile', ...expectedCommandOptions],
+                [
+                    ...expectedDbtOptions,
+                    'ls',
+                    '--output',
+                    'json',
+                    '--output-keys',
+                    'unique_id',
+                    ...expectedCommandOptions,
+                ],
                 expect.anything(),
             );
         });
