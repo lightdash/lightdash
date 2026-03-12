@@ -335,70 +335,69 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
         db: DuckdbConnection,
         tempDir: string | undefined,
     ): Promise<void> {
-        const {
-            installMs,
-            s3ConfigMs,
-            loadedHttpfsDuringSharedBootstrap,
-        } = await withSharedBootstrapLock(async () => {
-            let nextInstallMs = 0;
-            let nextS3ConfigMs = 0;
-            let loadedDuringSharedBootstrap = false;
+        const { installMs, s3ConfigMs, loadedHttpfsDuringSharedBootstrap } =
+            await withSharedBootstrapLock(async () => {
+                let nextInstallMs = 0;
+                let nextS3ConfigMs = 0;
+                let loadedDuringSharedBootstrap = false;
 
-            if (!httpfsInstalled) {
-                const t0 = performance.now();
-                await db.run('INSTALL httpfs;');
-                nextInstallMs = performance.now() - t0;
-                httpfsInstalled = true;
-                this.logger?.info(
-                    `DuckDB httpfs installed (first use): ${Math.round(nextInstallMs)}ms`,
-                );
-            }
-
-            // Enable built-in caches. These are global settings and should not
-            // be mutated concurrently on the shared instance.
-            if (!cachesConfigured) {
-                await db.run('SET enable_http_metadata_cache = true;');
-                await db.run('SET enable_external_file_cache = true;');
-                await db.run('SET parquet_metadata_cache = true;');
-
-                await db.run('SET allow_community_extensions = false;');
-                await db.run('SET autoinstall_known_extensions = false;');
-                await db.run('SET autoload_known_extensions = false;');
-                await db.run('SET allow_unredacted_secrets = false;');
-
-                cachesConfigured = true;
-
-                if (this.bufferPoolSize) {
-                    await db.run(
-                        `SET buffer_pool_size = '${this.bufferPoolSize}';`,
+                if (!httpfsInstalled) {
+                    const t0 = performance.now();
+                    await db.run('INSTALL httpfs;');
+                    nextInstallMs = performance.now() - t0;
+                    httpfsInstalled = true;
+                    this.logger?.info(
+                        `DuckDB httpfs installed (first use): ${Math.round(nextInstallMs)}ms`,
                     );
                 }
 
-                this.logger?.info(
-                    `DuckDB caches enabled: http_metadata=true external_file=true parquet_metadata=true buffer_pool_size=${this.bufferPoolSize ?? 'default'}`,
-                );
-            }
+                // Enable built-in caches. These are global settings and should not
+                // be mutated concurrently on the shared instance.
+                if (!cachesConfigured) {
+                    await db.run('SET enable_http_metadata_cache = true;');
+                    await db.run('SET enable_external_file_cache = true;');
+                    await db.run('SET parquet_metadata_cache = true;');
 
-            if (this.s3Config) {
-                const nextFingerprint = getS3SecretFingerprint(this.s3Config);
-                if (configuredS3SecretFingerprint !== nextFingerprint) {
-                    const loadStart = performance.now();
-                    await db.run('LOAD httpfs;');
-                    loadedDuringSharedBootstrap = true;
-                    const loadMs = performance.now() - loadStart;
+                    await db.run('SET allow_community_extensions = false;');
+                    await db.run('SET autoinstall_known_extensions = false;');
+                    await db.run('SET autoload_known_extensions = false;');
+                    await db.run('SET allow_unredacted_secrets = false;');
 
-                    const regionClause = this.s3Config.region
-                        ? `REGION '${this.escapeString(this.s3Config.region)}',`
-                        : '';
-                    const keyIdClause = this.s3Config.accessKey
-                        ? `KEY_ID '${this.escapeString(this.s3Config.accessKey)}',`
-                        : '';
-                    const secretClause = this.s3Config.secretKey
-                        ? `SECRET '${this.escapeString(this.s3Config.secretKey)}',`
-                        : '';
+                    cachesConfigured = true;
 
-                    const t2 = performance.now();
-                    await db.run(`CREATE OR REPLACE SECRET __lightdash_s3 (
+                    if (this.bufferPoolSize) {
+                        await db.run(
+                            `SET buffer_pool_size = '${this.bufferPoolSize}';`,
+                        );
+                    }
+
+                    this.logger?.info(
+                        `DuckDB caches enabled: http_metadata=true external_file=true parquet_metadata=true buffer_pool_size=${this.bufferPoolSize ?? 'default'}`,
+                    );
+                }
+
+                if (this.s3Config) {
+                    const nextFingerprint = getS3SecretFingerprint(
+                        this.s3Config,
+                    );
+                    if (configuredS3SecretFingerprint !== nextFingerprint) {
+                        const loadStart = performance.now();
+                        await db.run('LOAD httpfs;');
+                        loadedDuringSharedBootstrap = true;
+                        const loadMs = performance.now() - loadStart;
+
+                        const regionClause = this.s3Config.region
+                            ? `REGION '${this.escapeString(this.s3Config.region)}',`
+                            : '';
+                        const keyIdClause = this.s3Config.accessKey
+                            ? `KEY_ID '${this.escapeString(this.s3Config.accessKey)}',`
+                            : '';
+                        const secretClause = this.s3Config.secretKey
+                            ? `SECRET '${this.escapeString(this.s3Config.secretKey)}',`
+                            : '';
+
+                        const t2 = performance.now();
+                        await db.run(`CREATE OR REPLACE SECRET __lightdash_s3 (
                         TYPE s3,
                         ${keyIdClause}
                         ${secretClause}
@@ -407,22 +406,22 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
                         URL_STYLE '${this.s3Config.forcePathStyle ? 'path' : 'vhost'}',
                         USE_SSL ${this.s3Config.useSsl}
                     );`);
-                    nextS3ConfigMs = performance.now() - t2;
-                    configuredS3SecretFingerprint = nextFingerprint;
+                        nextS3ConfigMs = performance.now() - t2;
+                        configuredS3SecretFingerprint = nextFingerprint;
 
-                    this.logger?.info(
-                        `DuckDB S3 secret configured: load_httpfs=${Math.round(loadMs)}ms s3_config=${Math.round(nextS3ConfigMs)}ms`,
-                    );
+                        this.logger?.info(
+                            `DuckDB S3 secret configured: load_httpfs=${Math.round(loadMs)}ms s3_config=${Math.round(nextS3ConfigMs)}ms`,
+                        );
+                    }
                 }
-            }
 
-            return {
-                installMs: nextInstallMs,
-                s3ConfigMs: nextS3ConfigMs,
-                loadedHttpfsDuringSharedBootstrap:
-                    loadedDuringSharedBootstrap,
-            };
-        });
+                return {
+                    installMs: nextInstallMs,
+                    s3ConfigMs: nextS3ConfigMs,
+                    loadedHttpfsDuringSharedBootstrap:
+                        loadedDuringSharedBootstrap,
+                };
+            });
 
         let loadMs = 0;
         if (!loadedHttpfsDuringSharedBootstrap) {
