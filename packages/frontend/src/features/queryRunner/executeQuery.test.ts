@@ -50,9 +50,10 @@ describe('executeQuery', () => {
             executeSqlPivotQuery('project-uuid', {
                 sql: 'select 1',
                 pivotConfiguration: {
-                    columns: [],
-                    rows: [],
-                    values: [],
+                    indexColumn: undefined,
+                    valuesColumns: [],
+                    groupByColumns: undefined,
+                    sortBy: undefined,
                 },
             }),
         ).rejects.toThrow('Query expired in queue');
